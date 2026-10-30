@@ -33,7 +33,7 @@ ASSETS = {
     "SHA256SUMS",
     "SHA256SUMS.sig",
 }
-PLACEHOLDERS = {"umbrella-doi", "paper", "paper-link", "zenodo-link"}  # software-doi filled 2026-10-30 (release step 5)
+PLACEHOLDERS = {"paper", "paper-link"}  # software-doi filled 2026-10-30 (release step 5); umbrella-doi, zenodo-link 2026-10-31 (step 9)
 BLOCK = {"p", "li", "h1", "h2", "h3", "h4", "div", "section", "article", "figcaption", "pre", "code", "span", "button",
          "title", "desc", "text", "a", "b", "small", "i", "strong", "header", "footer", "nav"}
 
