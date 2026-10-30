@@ -1,0 +1,26 @@
+"""A2b-2: render_converted drops a multi-block tool result stored as tool_result.value."""
+import hashlib
+import sys
+
+sys.path.insert(0, ".")
+
+from tests.adapters.agentdojo.agentdojo_support import map_log, new_log  # noqa: E402
+
+from agentprov.views.transcript_v1 import render_converted  # noqa: E402
+
+# Baseline converter rule (agentdojo_prov/transcript.py message_to_turn, role "tool"): content = _split_blocks(content)[0]
+BLOCKS = [{"type": "text", "content": "a"}, {"type": "text", "content": "b"}]
+
+
+def test_multi_block_tool_result_renders_the_joined_text():
+    log = new_log()
+    log["messages"][3]["content"] = BLOCKS
+    m = map_log(log)
+    assert m.validate().ok
+    assert "agentdojo.multi_block_tool_content" in m.codes
+    m3 = m.get("m3")
+    assert m3["parts"][0]["t"] == "tool_result" and "value" in m3["parts"][0] and "text" not in m3["parts"][0]
+    turn = render_converted(m.records)["turns"][3]
+    assert turn["role"] == "tool"
+    assert turn["content"] == "ab", turn["content"]
+    assert turn["content_sha256"] == "sha256:" + hashlib.sha256(b"ab").hexdigest()

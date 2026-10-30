@@ -1,0 +1,57 @@
+# Corpus spec of `openagentsafety` (HL H.1.6; D-44): DRAFT by the wave-2 pre-release checks (2026-10-29), for the user's
+# approval. Identity and selection come from here and from the source profile it names; counts are computed at sealing
+# (H.2.1(3)). Each origin is the pin the import recorded (D-33).
+
+corpus_id = "openagentsafety"
+corpus_version = "0.1.0"
+title = "OpenAgentSafety: OpenHands trajectories of five models on 352 safety tasks (sani903/OpenAgentSafety)"
+mode = "import"
+
+[[sources]]
+source_id = "openagentsafety"
+profile = "openagentsafety@2"
+parts = ["head"]
+
+[[sources.snapshots]]
+snapshot_id = "head"
+origin = { commit = "857798ff26c4ce6e1d7911ee4d8b3f84a71184e0", kind = "git", repo = "https://github.com/sani903/OpenAgentSafety", subtree = "" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["openhands.tools@2"]
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only; corpora/personas/).
+[scan]
+personas = [
+  { path = "../personas/openagentsafety.observed.personas.toml", sha256 = "sha256:0ecd9310c810484c33198aa22bf172724370b5da5f29e7165115383e73ba7e6f" },
+]
+
+# D-964 (C-8): what the release-scan review withholds that no profile rule describes, named by object digest and
+# execution id, never by value. Groups G51 and G69: raw objects holding real-looking private keys and a Square-format
+# token, each withheld alone; group G58: the 2 executions whose PROV files hold such a key, each with its primary
+# object.
+[withhold]
+decided_by = "decision 11 of the wave-2 pre-release checks: the orchestrator, delegated by the user 2026-10-29 (secret-scan review, docs/reports/release/wave-2-pre-release-checks.md)"
+objects = [
+  "sha256:2260bce2dc5b14a8dc3111bb4c5a1fca5c1ffba1d9365e0d76800b6b48dd8b1b",
+  "sha256:5643bd9efbf4563eea451b97fd81fbc9e9a923cae8de5b75902122470a0fec65",
+  "sha256:d57887f68226e3be7a96a3ff78341374e5717c863b56ce43f8c24402a1cc444a",
+  "sha256:d80ab23b85f42d7f1da390ff37300164af141118412f9636383becf7ef7fa367",
+  "sha256:fb21b80e58ab2f4dfd8980a0a95cc4c8d869547c7db9c7b3f6d2bd0dbba7918d",
+]
+executions = [
+  "ex_glp2n4wtjm7n6y2wrxfxsacztn",
+  "ex_h3tokpugemg4cyd74wyleljysq",
+]

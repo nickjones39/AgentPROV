@@ -1,0 +1,39 @@
+"""P1-1: run_child's timeout must stop the agentprov.worker processes the suite started."""
+import importlib.util, os, signal, subprocess, sys, time
+from pathlib import Path
+
+ROOT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+HERE = Path(__file__).resolve().parent
+
+
+def _load():
+    spec = importlib.util.spec_from_file_location("suite_queue_repro", ROOT / "tools" / "suite_queue.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _alive(pid: int) -> bool:
+    out = subprocess.run(["ps", "-o", "stat=,command=", "-p", str(pid)], capture_output=True, text=True)
+    line = out.stdout.strip()
+    return bool(line) and not line.startswith("Z") and "agentprov.worker" in line
+
+
+def test_timeout_stops_worker(tmp_path):
+    sq = _load()
+    pidfile = tmp_path / "worker.pid"
+    t0 = time.monotonic()
+    code = sq.run_child([sys.executable, str(HERE / "child_suite.py"), str(pidfile)], run_timeout=4.0, grace=2.0)
+    took = time.monotonic() - t0
+    assert code == sq.EX_TIMEOUT
+    wpid = int(pidfile.read_text())
+    alive = _alive(wpid)
+    print(f"run_child returned {code} after {took:.1f}s; worker pid alive after return: {alive}")
+    try:
+        assert not alive, "agentprov.worker survived the run timeout after the queue would be released"
+    finally:
+        if alive:
+            try:
+                os.killpg(os.getpgid(wpid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass

@@ -1,0 +1,67 @@
+--- a/src/agentprov/adapters/adprov/mapper.py
++++ b/src/agentprov/adapters/adprov/mapper.py
+@@ def _header(self, attempts):
+-        if attempts.get("finish_reasons_verbatim") is not None:
++        if attempts.get("finish_reasons_verbatim_set"):
+             v1["finish_reasons"] = h.enc(attempts["finish_reasons_verbatim"], "/ext/adprov/v1/finish_reasons")
+         ext_adprov["v1"] = v1
++        # C.15.3 Import direction: keep these members whenever present, not only in the converted variant
++        for key in ("source", "timing_stubbed", "run_error"):
++            if key in meta:
++                ext_adprov[key] = h.enc(meta[key], _p("ext", "adprov", key))
++                src.append(_loc(_p("meta", key)))
++        if self.converted or "pipeline_name" in meta:
++            self.header_ext_agentdojo["pipeline_name"] = self._str(meta.get("pipeline_name"), "meta.pipeline_name",
++                                                                   nullable=not self.converted)
++            src.append(_loc("/meta/pipeline_name"))
++        if not self.converted and any(k in meta for k in ("source", "timing_stubbed", "run_error", "pipeline_name")):
++            self.issue("adprov.v1_layout_unknown_member", ["exec"], "adprov.v1_writer_layout@1", detail="meta")
+         if self.converted:
+             ext_adprov["model_id"] = h.enc(self._str(meta.get("model_id"), "meta.model_id"), "/ext/adprov/model_id")
+-            for key in ("source", "timing_stubbed", "run_error"):
+-                if key in meta:
+-                    ext_adprov[key] = h.enc(meta[key], _p("ext", "adprov", key))
+-                    src.append(_loc(_p("meta", key)))
+-            self.header_ext_agentdojo["pipeline_name"] = self._str(meta.get("pipeline_name"), "meta.pipeline_name")
+-            src.append(_loc("/meta/pipeline_name"))
+             link = self._upstream_link()
+@@ def _agent(self):
+         if self.converted:
+             rec.data.update(ev="D", rule=[...])
+             rec.data["src"] = [_loc("/meta/model_id")]
+             unk["/model/requested"] = "ambiguous"
+-            unk["/params"] = "not_recorded"
++            if model_config is not None and "temperature" in model_config:
++                rec.data["params"] = {"temperature": rec.enc(model_config["temperature"], "/params/temperature")}
++                rec.data["src"].append(_loc("/meta/model_config/temperature"))
++            else:
++                unk["/params"] = "not_recorded"
+             rec.data["unk"] = unk
+             return rec.done()
+@@ def _attempt_plan(self):
+         finish = model_config.get("finish_reasons") if "finish_reasons" in model_config else None
++        finish_explicit_null = "finish_reasons" in model_config and finish is None
+@@
+-        plan: dict[str, Any] = {"unit": "agent_execution", "lost": lost, "reported": reported, "finish": finish,
+-                                "finish_reasons_verbatim": None, "scopes": []}
++        plan: dict[str, Any] = {"unit": "agent_execution", "lost": lost, "reported": reported, "finish": finish,
++                                "finish_reasons_verbatim": None, "finish_reasons_verbatim_set": finish_explicit_null,
++                                "scopes": []}
+@@ def _align_finish_reasons(self):
+         if finish is not None and not aligned:
+             plan["finish_reasons_verbatim"] = list(finish)
++            plan["finish_reasons_verbatim_set"] = True
+@@ def _run_scope(self):
+         model_config = _dict(meta.get("model_config"))
+         usage = model_config.get("usage")
++        if usage is not None and not isinstance(usage, dict):
++            raise MalformedArtefact("meta.model_config.usage is not an object")
+         if isinstance(usage, dict):
+--- a/src/agentprov/views/transcript_v1.py
++++ b/src/agentprov/views/transcript_v1.py
+@@ def _handler_finish_reasons(doc, v1):
+     found, verbatim = doc.value(doc.header, "/ext/adprov/v1/finish_reasons")
+     if found:
+-        return list(verbatim)
++        return list(verbatim) if isinstance(verbatim, list) else verbatim
+(Spec: drop "(converted variant)" from the C.15.3 meta.source/timing_stubbed/run_error row, regenerated from transcript_v1_fields.toml, and record the decision in DECISIONS.md.)

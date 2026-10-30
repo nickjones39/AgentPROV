@@ -1,0 +1,59 @@
+# Artefact catalogue `foobench` (docs/architecture D.15.2; DECISIONS D-12). Data, not code.
+#
+# FooBench is a self-authored toy format (D.12), so its "artefacts" are the three constructs the future-framework test
+# discloses on purpose: an event type the adapter does not know, an in-file restore that aer/0.1 cannot encode, and
+# observation messages that carry no generator. Each entry names the detecting rule, the seal issue that records it and
+# its handling class (D.15.1): all three are `FO` (the construct can be detected but not corrected), because the gap is in
+# aer/0.1, not in the source. The `expected` counts are those of the generated fixture tests/fixtures/foobench/ and are
+# confirmed by tests/adapters/foobench/test_mapper.py; they are a regression expectation, never a gate.
+#
+# Rules named here exist in the `foobench` rule catalogue (rules/foobench.rules.toml), and so do the issue codes.
+
+version = 1
+family = "foobench"
+namespaces = ["foobench"]
+
+[[artefact]]
+id = "foobench.art.unmapped_event"
+title = "Event of an unknown type"
+description = "A FooBench trace holds an event whose type the adapter does not map (the fixture's telemetry event). The event is kept verbatim in ext.foobench.events[] of the nearest preceding host record; ext is opaque to PROV, so no statement is emitted."
+scope = { sources = ["foobench"], profiles = ["foobench"], parts = ["fixture"] }
+cause = "unknown"
+detector = { rule = "foobench.unknown_event_kept@1", class = "D" }
+recorded_as = { issues = ["foobench.unmapped_event_type"] }
+handling = { class = "FO", rule = "foobench.unknown_event_kept@1" }
+expected = [
+  { snapshot = "tests/fixtures/foobench", count = 1, basis = "the fixture holds one telemetry event", unit = "events", status = "verified" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/K_testing.md K.6.4"]
+
+[[artefact]]
+id = "foobench.art.restore_unmodelled"
+title = "In-file checkpoint restore"
+description = "A FooBench trace restores an earlier checkpoint in the middle of the file. aer/0.1 has no encoding for an in-file branch or restore (C.3.15), so the event is kept verbatim in ext.foobench.events[] and later events are mapped in source order without a state claim."
+scope = { sources = ["foobench"], profiles = ["foobench"], parts = ["fixture"] }
+cause = "unknown"
+detector = { rule = "foobench.restore_not_linearised@1", class = "D" }
+recorded_as = { issues = ["foobench.restore_unmodelled"] }
+handling = { class = "FO", rule = "foobench.restore_not_linearised@1" }
+expected = [
+  { snapshot = "tests/fixtures/foobench", count = 1, basis = "the fixture holds one checkpoint_restore event", unit = "events", status = "verified" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/C_data_model.md C.3.15"]
+
+[[artefact]]
+id = "foobench.art.observation_unlinked"
+title = "Harness observation message without a generator"
+description = "The harness or the environment inserts an activity's output (a memory snippet, a screenshot) into the conversation as a message. An activity never generates a message in aer/0.1, so the message carries unk /generated_by (not_recorded) and its relation to the artefact is not asserted."
+scope = { sources = ["foobench"], profiles = ["foobench"], parts = ["fixture"] }
+cause = "unknown"
+detector = { rule = "foobench.observation_injected@1", class = "D" }
+recorded_as = { issues = ["foobench.observation_unlinked"] }
+handling = { class = "FO", rule = "foobench.observation_injected@1" }
+expected = [
+  { snapshot = "tests/fixtures/foobench", count = 2, basis = "the fixture injects one memory snippet and one screenshot observation", unit = "messages", status = "verified" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/C_data_model.md C.3.15"]

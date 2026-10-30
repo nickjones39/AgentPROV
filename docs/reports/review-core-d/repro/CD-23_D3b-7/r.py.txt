@@ -1,0 +1,21 @@
+"""A mandate decline tool message with no preceding assistant call: what is the decision's subject?"""
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "tests" / "adapters" / "agentdojo"))
+from source_support import blocks, call, final, map_synthetic  # noqa: E402
+from test_mandate import DECLINE, MONEY, mandate_log  # noqa: E402
+
+c = call("send_money", MONEY, "call_1")
+orphan = {"role": "tool", "content": blocks(DECLINE), "tool_call_id": "call_1", "tool_call": c, "error": DECLINE}
+doc, path = mandate_log("intent", [orphan, final()])
+m = map_synthetic("mandate-agentdojo-eval", doc, path)
+for r in m.records:
+    if r.get("k") in ("decision",) or r.get("id") in ("m1", "m2"):
+        print(json.dumps(r)[:700])
+print([i.get("code") for i in m.info.issues] if hasattr(m, "info") else "")
+print("---issues")
+for r in m.records:
+    if r.get("k") == "issue":
+        print(json.dumps(r)[:400])

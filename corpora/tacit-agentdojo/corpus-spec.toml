@@ -1,0 +1,52 @@
+# Corpus spec of `tacit-agentdojo` (HL H.1.6; D-44): DRAFT by the wave-2 pre-release checks (2026-10-29), for the user's
+# approval. Identity and selection come from here and from the source profile it names; counts are computed at sealing
+# (H.2.1(3)). Each origin is the pin the import recorded (D-33).
+
+corpus_id = "tacit-agentdojo"
+corpus_version = "0.1.0"
+title = "TACIT AgentDojo trajectories: AgentDojo 0.1.35 logs of two local models (CSSLab/Tacit)"
+mode = "import"
+
+[[sources]]
+source_id = "tacit-agentdojo"
+profile = "tacit-agentdojo@2"
+parts = ["head"]
+
+[[sources.snapshots]]
+snapshot_id = "head"
+origin = { commit = "995692d3cd42c32e08cf0db8a5fae55fec272f1a", kind = "git", repo = "https://github.com/CSSLab/Tacit", subtree = "" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["agentdojo.suites@2"]
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only; corpora/personas/).
+[scan]
+personas = [
+  { path = "../personas/agentdojo.personas.toml", sha256 = "sha256:6f11d2054854b6d280c7061829ee941c1fd7e1e58f456cbeeff3ff62606c289a" },
+  { path = "../personas/tacit-agentdojo.observed.personas.toml", sha256 = "sha256:261b30de779d73bc947f82dd3e692bec5ca96ca646ec761893df839f120fc5d7" },
+]
+
+# D-964 (C-8): what the release-scan review withholds that no profile rule describes, named by object digest and
+# execution id, never by value. Group G74: an unexplained credential-like value in 4 raw objects cited by no
+# execution, each withheld alone.
+[withhold]
+decided_by = "decision 11 of the wave-2 pre-release checks: the orchestrator, delegated by the user 2026-10-29 (secret-scan review, docs/reports/release/wave-2-pre-release-checks.md)"
+objects = [
+  "sha256:0d2aaa3944cea465b4dd8c7ca77deda3efb5e9f9228b0653d0ecb22ef49d7488",
+  "sha256:1c8d02f4445a1e799aa15bcab0199a1a7f76db7b7e8a7ee742d8150731388a5b",
+  "sha256:f119d92fc8a6bb40d36867c144aa2dc631c306164caaf923fa3c4812a6383a67",
+  "sha256:f3e5776a44fcb4c4214dffc0e4a9bb47be669cf4846cabad38660291d3df4305",
+]

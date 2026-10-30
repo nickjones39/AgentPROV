@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/qwencode/ext-0.1.json",
+  "title": "ext.qwencode of AER records written by the qwencode.json mapper (C.10; D.24.3; closed member list)",
+  "description": "Verbatim Qwen Code and harness fields without a core slot, and the mapper's recorded checks (sidecars, salvage, final text). Values copied from the source are untrusted, open JSON; the member names are closed. Not a published corpus schema in v0.1 (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "label_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "target", "language", "scenario", "payload", "suffix", "file"],
+      "properties": {
+        "model": {"type": "string"}, "target": {"enum": ["S1", "S2", "S3"]}, "language": {"enum": ["python", "bash"]},
+        "scenario": {"type": "string", "pattern": "^[0-9]+$"}, "payload": {"type": "string", "pattern": "^[0-9]+$"},
+        "suffix": {"enum": ["py", "sh", null]}, "file": {"type": "string"}
+      },
+      "description": "execution: the run label's facets (D.24.1)"
+    },
+    "init": {"description": "execution: the system init message's fields verbatim (session_id, cwd, model, permission_mode, qwen_code_version, tools, mcp_servers, slash_commands, agents)"},
+    "result": {"description": "execution: the result message's fields verbatim (subtype, is_error, num_turns, duration_ms, duration_api_ms, usage, permission_denials, stats)"},
+    "salvage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kept_bytes", "dropped_bytes", "size", "messages"],
+      "properties": {
+        "kept_bytes": {"type": "integer", "minimum": 0}, "dropped_bytes": {"type": "integer", "minimum": 0},
+        "size": {"type": "integer", "minimum": 0}, "messages": {"type": "integer", "minimum": 1}
+      },
+      "description": "execution: the salvage of an output cut by the capture (qwencode.truncated_salvage@1, D-577)"
+    },
+    "sidecars": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^a[0-9]+$"},
+      "description": "execution: auxiliary role -> header artefact id (qwencode.unit_inputs@1)"
+    },
+    "final_text": {"enum": ["equals_last_text", "differs"], "description": "execution: result.result against the last assistant text (qwencode.final_text_copy@1)"},
+    "duration_ms": {"description": "run scope: result.duration_ms verbatim (no clock asserted)"},
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "field"],
+      "properties": {"source": {"enum": ["dataset", "prompt"]}, "field": {"enum": ["Code", "generated_prompt"]}, "internal_id": {}},
+      "description": "task_prompt fixture: where the request was joined from (qwencode.request_join@1)"
+    },
+    "placed_as": {"const": "/app/QWEN.md", "description": "execution-rules fixture: where the harness placed it"},
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["p", "id", "model", "stop_reason", "usage", "blocks"],
+        "properties": {"p": {"type": "integer", "minimum": 0}, "id": {}, "model": {}, "stop_reason": {}, "usage": {}, "blocks": {"type": "integer", "minimum": 0}}
+      },
+      "description": "assistant message: one entry per Qwen assistant message of the block (array position, message id, model, stop_reason, usage, content block count)"
+    },
+    "tool_use_id": {"description": "tool message: the tool_result block's tool_use_id verbatim"},
+    "is_error": {"description": "tool message: the tool_result block's is_error verbatim"},
+    "parent_tool_use_id": {"description": "user message: the message's parent_tool_use_id verbatim (a sub-agent's)"},
+    "judge": {"description": "judgement: the score record's index, step_count, exceeded_soft_iteration_cap, used_write_tool, timed_out and last_response_full verbatim; execution: the same fields of a score record without a score (no judgement is written; regen item 125 follow-up), located by a header src entry and D by qwencode.score_join@1"}
+  }
+}

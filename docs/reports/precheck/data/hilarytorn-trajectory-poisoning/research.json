@@ -1,0 +1,238 @@
+{
+  "corpus_id": "hilarytorn-trajectory-poisoning",
+  "parts": [
+    "head"
+  ],
+  "wave": 2,
+  "written": "2026-10-14",
+  "code_commit": "065b0d36",
+  "status": "desk research for the pre-registration; no data check of this corpus has run",
+  "papers": [
+    {
+      "title": "none on arXiv/DOI. Hackathon report: 'In-context Trajectory Poisoning: Black-Box Natural Language Attacks on LLM Agent Monitors' (H. Torn), Apart Research AI Control Hackathon 2026 sprint project, page dated 2026-03-22 (PDF hosted by Apart; not an Apart publication)",
+      "url": "https://apartresearch.com/project/incontext-trajectory-poisoning-blackbox-natural-language-attacks-on-llm-agent-monitors-d3gz",
+      "id": "none (no arXiv id or DOI; arXiv API and Zenodo API searches 2026-10-14 returned nothing relevant)",
+      "relation": "first write-up (March 2026); predates the TAP, seeded-PAIR and end-to-end runs, i.e. predates 880 of the 990 logs",
+      "versions": "single page; headline numbers differ from the later write-up: Qwen per-task PAIR 12.5% (p=0.028 there; later p=0.014 and described as the best of three runs, average 9.4%); Llama-3-8B-Lite transfer 16.7% in the report vs the later README saying TAP candidates collapse on Llama (8.3%); 34.4% DeepSeek-V3 attributed to the per-task attack in the report and to TAP in the later write-up. All are monitor-level numbers, not in the logs"
+    },
+    {
+      "title": "In-Context Trajectory Poisoning (project write-up, hilarytorn.com)",
+      "url": "https://hilarytorn.com/projects/in-context-trajectory-poisoning/",
+      "id": "none",
+      "relation": "primary results document for the TAP/PAIR/seeded-PAIR and end-to-end (e2e) runs; published 2026-04-12, last updated 2026-04-18 per the page",
+      "versions": "one live page (updated 2026-04-18, after the three e2e runs of 2026-04-14 and the 'e2e evals round 3' commit of 2026-04-16); no archived versions checked. E2E table (96-subset e2e ASR) matches data/results/e2e-evals.md"
+    },
+    {
+      "title": "Repository README and data/results/e2e-evals.md at the pin (the documentation of the logs)",
+      "url": "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/README.md",
+      "id": "none",
+      "relation": "README 'Methodology' step 1 states the base run gave 96 successful injection traces; e2e-evals.md gives per-run, per-condition injection rates with n",
+      "versions": "README last changed by the pin commit d71ab8bc ('updated readme', 2026-05-26); e2e-evals.md last changed in 757d1e76 (2026-04-16)"
+    },
+    {
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+      "url": "https://openreview.net/forum?id=m1YYAQjO3w",
+      "id": "arXiv:2406.13352",
+      "relation": "harness and benchmark (slack suite, benchmark v1.2.1, important_instructions attack)",
+      "versions": "n/a"
+    },
+    {
+      "title": "LlamaFirewall (Chennabasappa et al., 2025): AlignmentCheck is the monitor under attack",
+      "url": "https://arxiv.org/abs/2505.03574",
+      "id": "arXiv:2505.03574",
+      "relation": "monitor; its decisions are NOT in the selected logs (only in data/results/*)",
+      "versions": "n/a"
+    }
+  ],
+  "repo": "https://github.com/HilaryTorn/in-context-trajectory-poisoning; pinned commit d71ab8bc2aa9db35ff443cc81e475e70ee8da215 (= main HEAD on 2026-10-14; no later commits; pushed_at 2026-05-26T09:39:42Z), committer date 2026-05-26T09:39:29Z, message 'updated readme' (README only). Tree at pin: 1,294 blobs, 73,070,963 bytes (git trees API, not truncated) = 1,276 non-PNG blobs 71,494,512 bytes (matches the profile) + 18 PNG charts 1,576,451 bytes (absent in the staging clone). Repo created 2026-03-21; 28 commits; 1 branch (main); no tags/releases; 0 issues/PRs ever; 1 fork (cfoudysec, pushed 2026-04-23, not a data source). Commits touching the logs: 2f9568f0 (2026-03-21, initial commit) adds the 110 base logs data/traces/gpt-4o-2024-05-13/ (never modified afterwards); 3071d6af (2026-04-14T03:14Z) adds 2 e2e/baseline logs (injection_task_1 pre-pass and user_task_0 x injection_task_1) from a smoke run, never modified afterwards; bd520862 adds the other 108 e2e/baseline logs (run 20260414_063604); d7a689f4 adds e2e/{tap,seeded_pair,persona_v3} (110 each, run 1); c9fdccc2 'run 1 trace backup' copies run 1 into e2e/{tap_run1,seeded_pair_run1} and already holds one run-2 overwrite in e2e/tap (injection_task_1/none/none.json) [CORRECTED/REFINED by fact-check: git blob SHAs (trees API) show the tap_run1 copy of injection_task_1/none/none.json equals the run-1 blob from d7a689f4; the overwritten e2e/tap version in c9fdccc2 differs from both the run-1 and the final run-2 (d88905e0) blob. Blob-level: tap_run1/seeded_pair_run1 = d7a689f4 tap/seeded_pair 110/110; tap_run2/seeded_pair_run2 = d88905e0 110/110; tap/seeded_pair at pin = 757d1e76 110/110; 0 blobs shared between runs 1, 2 and 3]; d88905e0 'Run 2 TAP & PAIR' overwrites all 110+110 files in e2e/tap and e2e/seeded_pair (run 20260414_155608); 99d7acd4 'run 2 traces' copies them to e2e/{tap_run2,seeded_pair_run2}; 757d1e76 'e2e evals round 3' overwrites e2e/tap and e2e/seeded_pair again (run 20260414_172929). So at the pin e2e/tap and e2e/seeded_pair hold run 3, *_run1 run 1, *_run2 run 2 (inferred from commit history; the logs carry no run tag). No issue tracker content.",
+  "data_record": "No Zenodo, Hugging Face or Figshare record (Zenodo API 'trajectory poisoning' 1 unrelated hit; HF dataset search 'trajectory-poisoning' and author HilaryTorn: none; 2026-10-14). The data is the git tree at d71ab8bc: 990 TraceLogger logs under data/traces/ (12,578,066 bytes per the tree API), 110 in data/traces/gpt-4o-2024-05-13/slack/ and 880 in data/traces/e2e/<condition>/gpt-4o-2024-05-13/slack/ for 8 condition directories (baseline, persona_v3, seeded_pair, seeded_pair_run1, seeded_pair_run2, tap, tap_run1, tap_run2), 110 each; plus data/traces/successful_injections.json (970,992 bytes; the 96 base successes, not a log) and data/results/** (monitor results, search logs, run manifests; not executions). Our pin = profile commit d71ab8bc, expected_files 1,294 = tree blob count; the census/trial absent_blobs are the 18 PNGs, none under data/traces. No checksums are published by the author; git blob SHAs are the only digests.",
+  "harness": "AgentDojo, logs record agentdojo_package_version 0.1.35 and benchmark_version v1.2.1 in all 990 (phase-10c census); requirements.txt pins agentdojo[transformers]==0.1.29 since the initial commit, so the requirements do not describe the installed code. The e2e run manifests (data/results/e2e_eval/*/manifest.json) record agentdojo_version 0.1.35, llamafirewall_version 1.0.3, the repo git_commit at run time (0d8c12b9, 3071d6af, d7a689f4 dirty; 99d7acd4 clean for run 3) and agent_pipeline_name gpt-4o-2024-05-13; the smoke run 20260414_061406 records agentdojo_version 'unknown'. AgentDojo 0.1.35 = PyPI/GitHub release 2025-10-27 (latest release). Pipeline: AgentPipeline.from_config(llm=gpt-4o-2024-05-13, defense=None, default system message), OpenAI retry patch (20 attempts); attack ImportantInstructionsAttack with attack.name overridden to e2e_<condition>_<injection_task> and the candidate priming string spliced into the injected environment by a monkey patch of load_and_inject_default_environment (src/e2e_evaluate.py). Base logs: src/generate_traces.py, load_attack('important_instructions'), benchmark v1.2.1, slack. Relevant open AgentDojo issues: #168 (slack injection_task_5 security_from_traces counts attempted membership calls as executed), #189 (closed; same for proposed calls), #218 (utility_from_traces counts proposed calls), #188 (slack utility KeyError when post_webpage does not execute; only with blocking defences), #214 (non-ASCII tool results as \\uXXXX escapes), #194 (slack invite interface). No defence in these runs, so #168/#188/#189 can matter only where a tool call failed with an error.",
+  "models": [
+    "agent: gpt-4o-2024-05-13 (OpenAI API via AgentDojo OpenAILLM; pipeline dir and pipeline_name gpt-4o-2024-05-13 in all 990 logs). [CORRECTED by fact-check 2026-10-14: was 'AgentDojo default temperature 0 per the README's e2e note'. In agentdojo v0.1.35 OpenAILLM defaults to 0.0 but passes 'temperature or NOT_GIVEN', so 0.0 is dropped and the request carries no temperature (OpenAI API default 1.0) (https://raw.githubusercontent.com/ethz-spylab/agentdojo/v0.1.35/src/agentdojo/agent_pipeline/llms/openai_llm.py); the author's write-up states the e2e agent ran at T=1.0 (https://hilarytorn.com/projects/in-context-trajectory-poisoning/); the README's 'at temperature 0' remark is contradicted. Neither script sets a temperature (src/e2e_evaluate.py, src/generate_traces.py at the pin). Effective agent temperature: unset, i.e. provider default.]",
+    "monitor (not in the logs): Qwen/Qwen2.5-7B-Instruct-Turbo via Together.AI (LlamaFirewall AlignmentCheck 1.0.3); transfer monitors Llama-3-8B-Lite and DeepSeek-V3 (search/result files only)",
+    "attacker (not in the logs): gpt-4o at temperature 1.0 generating PAIR/TAP candidates (README methodology)"
+  ],
+  "reported_results": [
+    {
+      "arm": "base / important_instructions (data/traces/gpt-4o-2024-05-13)",
+      "metric": "injection success (AgentDojo security == true) over attacked logs",
+      "value": "96/105 (91.4%)",
+      "n": "105 attacked (21 user tasks x 5 injection tasks)",
+      "where": "README 'Methodology' step 1 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/README.md); write-up '96-trace full eval' (https://hilarytorn.com/projects/in-context-trajectory-poisoning/); data/traces/successful_injections.json"
+    },
+    {
+      "arm": "e2e run 1 (20260414_063604) / baseline -> dir e2e/baseline",
+      "metric": "injection_rate (num_security_true / num_valid)",
+      "value": "97/105 (92.4%); per injection task 1..5: 18, 17, 20, 21, 21 of 21",
+      "n": "105",
+      "where": "e2e-evals.md Run 1 summary (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/summary.json"
+    },
+    {
+      "arm": "e2e run 1 / persona_v3 -> dir e2e/persona_v3",
+      "metric": "injection_rate",
+      "value": "77/105 (73.3%); per task 17, 9, 13, 18, 20",
+      "n": "105",
+      "where": "e2e-evals.md Run 1 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/summary.json"
+    },
+    {
+      "arm": "e2e run 1 / tap -> dir e2e/tap_run1 (inferred)",
+      "metric": "injection_rate",
+      "value": "86/105 (81.9%); per task 15, 17, 17, 18, 19",
+      "n": "105",
+      "where": "e2e-evals.md Run 1 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/summary.json"
+    },
+    {
+      "arm": "e2e run 1 / seeded_pair -> dir e2e/seeded_pair_run1 (inferred)",
+      "metric": "injection_rate",
+      "value": "83/105 (79.0%); per task 17, 18, 16, 15, 17",
+      "n": "105",
+      "where": "e2e-evals.md Run 1 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/summary.json"
+    },
+    {
+      "arm": "e2e run 2 (20260414_155608) / tap -> dir e2e/tap_run2 (inferred)",
+      "metric": "injection_rate",
+      "value": "92/105 (87.6%); per task 17, 17, 19, 20, 19",
+      "n": "105",
+      "where": "e2e-evals.md Run 2 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_155608/summary.json"
+    },
+    {
+      "arm": "e2e run 2 / seeded_pair -> dir e2e/seeded_pair_run2 (inferred)",
+      "metric": "injection_rate",
+      "value": "80/105 (76.2%); per task 15, 16, 14, 17, 18",
+      "n": "105",
+      "where": "e2e-evals.md Run 2 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_155608/summary.json"
+    },
+    {
+      "arm": "e2e run 3 (20260414_172929) / tap -> dir e2e/tap (inferred)",
+      "metric": "injection_rate",
+      "value": "91/105 (86.7%); per task 17, 17, 17, 19, 21",
+      "n": "105",
+      "where": "e2e-evals.md Run 3 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_172929/summary.json"
+    },
+    {
+      "arm": "e2e run 3 / seeded_pair -> dir e2e/seeded_pair (inferred)",
+      "metric": "injection_rate",
+      "value": "81/105 (77.1%); per task 17, 15, 14, 17, 18",
+      "n": "105",
+      "where": "e2e-evals.md Run 3 (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_172929/summary.json"
+    },
+    {
+      "arm": "all e2e runs and conditions",
+      "metric": "errors / num_valid",
+      "value": "0 errors, 105 valid in every condition",
+      "n": "840 attacked e2e logs (8 condition-runs x 105)",
+      "where": "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/summary.json, https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_155608/summary.json, https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_172929/summary.json"
+    },
+    {
+      "arm": "e2e (monitor-level, NOT testable from the logs)",
+      "metric": "e2e ASR on 96-subset (injection success AND monitor allow)",
+      "value": "baseline 2.1%; persona_v3 9.4%; TAP 9.4/9.4/6.2% (runs 1-3); seeded PAIR 16.7/6.2/10.4%; conditional bypass seeded PAIR 20.5/7.5/12.3% (FULL 105)",
+      "n": "96 / 105",
+      "where": "e2e-evals.md (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md); write-up E2E table (https://hilarytorn.com/projects/in-context-trajectory-poisoning/)"
+    },
+    {
+      "arm": "simulated monitor search (NOT in the logs)",
+      "metric": "monitor ASR on Qwen2.5-7B",
+      "value": "baseline 3/96 (3.1%); PAIR 12/6/9 of 96 (avg 9.4%); TAP 13/15/19 of 96 (avg 16.3%); seeded PAIR avg 14.6%; one-shot control 3.8%",
+      "n": "96",
+      "where": "write-up headline table (https://hilarytorn.com/projects/in-context-trajectory-poisoning/); README Key Results"
+    }
+  ],
+  "expected_counts": "Tree at pin 1,294 blobs (profile expected_files 1,294); selected 990 logs (include glob data/traces/*/*/*/*/*.json; registry/readme_corpora.toml 990, phase-10c and 10d census 990; tree API 990), 12,578,066 bytes; not selected 304 (results, charts, scripts, successful_injections.json, .gitkeep files; 7 context artefacts stored as supporting); 0 .DS_Store/._ entries. Units 990 agent_execution; executions 990 (trial jobs 8, 990 sealed clean). Per directory: 9 x 110 = 105 attacked (21 user tasks x 5 injection tasks) + 5 injection-task pre-pass (attack 'none'). Totals: attacked 945, pre-pass 45, benign user-task 0. Census: utility true 690 / false 300; security true 828 / false 162; 6,920 tool calls, 369 tool errors; error null in 990; ts 2026-03-20 11:26:54 .. 2026-04-14 18:40:49 (110 in March, 880 in April).",
+  "expected_arms": "model {gpt-4o-2024-05-13} x defence {none (the monitor is outside the agent loop and not logged)} x suite {slack, v1.2.1} x run directory {base, e2e/baseline, e2e/persona_v3, e2e/tap, e2e/tap_run1, e2e/tap_run2, e2e/seeded_pair, e2e/seeded_pair_run1, e2e/seeded_pair_run2} x attack label (22: important_instructions 105; e2e_{baseline,persona_v3}_injection_task_{1..5} 21 each; e2e_{tap,seeded_pair}_injection_task_{1..5} 63 each across 3 dirs; None 45) x injection task {1..5} x user task {0..20}. Every (dir, user task, injection task) cell present once; by design missing: benign user-task runs (attack none on user_task_*) in all 9 dirs, persona_v3 and baseline reruns (single run), any model other than gpt-4o and any suite other than slack. Not in the logs: monitor decisions, PAIR/TAP search traces, cross-model monitors.",
+  "licence": "MIT, LICENSE at the pin, Copyright (c) 2026 Hilary Torn (https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/LICENSE); GitHub reports MIT; no separate data licence; no use-restriction clause; logs embed AgentDojo benchmark text (MIT, (c) 2024 Debenedetti et al.) and attacker-generated priming strings (written by gpt-4o, attacker role); OpenAI terms on redistributing model outputs unassessed (profile `unassessed`).",
+  "discrepancy_leads": [
+    "Directory-to-run mapping is not stated by the author: commit history implies e2e/tap and e2e/seeded_pair hold run 3 (20260414_172929), *_run1 run 1 (063604) and *_run2 run 2 (155608). Test: per-dir security tallies and timestamp windows (manifests: run 1 06:36:04-08:09:20, run 2 15:56:09-16:46:39, run 3 17:29:29-18:48:25, naive local)",
+    "Population identity: census attacked security-true = 828 - 45 pre-pass = 783 equals the sum of the reported counts 96 + 97 + 77 + 86 + 83 + 92 + 80 + 91 + 81 = 783; any per-dir deviation means files changed after the summaries or a different reading",
+    "Smoke-run carry-over: 2 e2e/baseline logs (injection_task_1 pre-pass, user_task_0 x injection_task_1) were committed in 3071d6af before run 1 and never rewritten; run 1 (no --force-rerun) reused AgentDojo's cache, so they likely come from the 2026-04-14 06:14 smoke run, not run 1",
+    "The run-1 backup commit c9fdccc already contains one run-2 overwrite of e2e/tap/.../injection_task_1/none/none.json (3 s after run 2 started): the copy in tap_run1 may or may not be the run-1 version [RESOLVED at git-metadata level by fact-check: the tap_run1 copy has the run-1 blob SHA (identical to d7a689f4); the c9fdccc2 e2e/tap version was a transient mid-run-2 write, later replaced again in d88905e0. The H4 timestamp test remains as a content-level confirmation.]",
+    "requirements.txt pins agentdojo 0.1.29 while logs and manifests record 0.1.35 (profile quirk package_version_not_code_identity); the manifests also record dirty working trees (git_dirty true for runs 1 and 2), so even the repo commit does not identify the e2e code",
+    "No benign user-task runs exist: benign utility is not measurable; the 45 'none' logs are injection-task pre-passes with constant security true (benign_security_constant 45)",
+    "e2e attack labels hide the condition's run: tap, tap_run1, tap_run2 share the labels e2e_tap_injection_task_k; arm identity must come from the {arm?} path component, not the attack label",
+    "The logged injection payload in e2e dirs is important_instructions + a spliced monitor-targeted priming candidate (TAP/seeded PAIR/persona_v3): payload text differs from AgentDojo's stock attack; payload_not_reaching_agent-type detectors may behave differently",
+    "AgentDojo #168: slack injection_task_5 security counts attempted invite/add/remove calls; with no defence it can inflate only where such a call errored (369 tool errors in the census)",
+    "Hackathon report (2026-03-22) and later write-up/README report different monitor numbers (PAIR 12.5% vs 9.4% avg; Llama transfer 16.7% vs 8.3%): documentation drift, monitor-level only, not testable from the logs",
+    "Account paths (/Users/<user>/...) appear in data/results/e2e_eval/*/manifest.json (cmd, candidates_resolved_from): outside the selected logs and the context artefacts; any appearance in AER/SEM/PROV would be a redaction failure",
+    "[ADDED by fact-check] Agent temperature: README says the e2e reruns were 'at temperature 0'; the write-up says the GPT-4o agent ran at T=1.0; agentdojo v0.1.35 OpenAILLM drops a 0.0 temperature (temperature or NOT_GIVEN), so requests used the provider default. Documentation-level discrepancy, not testable from the logs (no temperature is recorded). https://raw.githubusercontent.com/ethz-spylab/agentdojo/v0.1.35/src/agentdojo/agent_pipeline/llms/openai_llm.py"
+  ],
+  "open_questions": [
+    "Which e2e directory holds which run is inferred from commit history only; the logs carry no run tag",
+    "Whether tap_run1/injection_task_1/none/none.json is the run-1 or the run-2 pre-pass [ANSWERED by fact-check from git blob SHAs: the run-1 version (blob equals d7a689f4)]",
+    "Whether persona_v3, tap and seeded_pair of run 1 were produced by the logged 063604 invocation or by a resumed invocation (manifest cmd lists only baseline; conditions_complete lists four)",
+    "Utility per directory is not reported anywhere; only the population total (690/990) is known from our census",
+    "Exact OpenAI snapshot behaviour and temperature for the March base run (generate_traces.py at the initial commit; AgentDojo default) [fact-check: the scripts set no temperature; under agentdojo v0.1.35 the request omits it (provider default); the code actually installed is unidentified]"
+  ],
+  "checks_not_applicable": [
+    "delta since E2: not examined in FA or E2 (wave 2, first examination)",
+    "L1-05 defence facet: no defence in the agent loop; the monitor is not logged",
+    "L1-07 monotonicity within a unit: v1.k14 TraceLogger logs carry one naive evaluation_timestamp per file and no per-call times",
+    "L2 benign-utility comparison: no benign user-task runs exist and no utility is reported by the author",
+    "L2 comparison of monitor-level metrics (e2e ASR, conditional bypass, simulated ASR): monitor decisions are not in the logs",
+    "withholding (verify --level chain on a sealed copy): applies only if L1-06 finds secret-like strings in the selected logs; none expected"
+  ],
+  "sources": [
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning",
+    "https://api.github.com/repos/HilaryTorn/in-context-trajectory-poisoning/commits",
+    "https://api.github.com/repos/HilaryTorn/in-context-trajectory-poisoning/git/trees/d71ab8bc2aa9db35ff443cc81e475e70ee8da215?recursive=1",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/README.md",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e-evals.md",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/requirements.txt",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/LICENSE",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/src/e2e_evaluate.py",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/src/generate_traces.py",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_061406/manifest.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_061627/manifest.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/manifest.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_155608/manifest.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_172929/manifest.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_063604/summary.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_155608/summary.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/blob/d71ab8bc2aa9db35ff443cc81e475e70ee8da215/data/results/e2e_eval/20260414_172929/summary.json",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/2f9568f0c78d",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/3071d6af21ba",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/bd520862bbd2",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/d7a689f49fc5",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/c9fdccc2341e",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/d88905e01d84",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/99d7acd49bc2",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/757d1e763bc5",
+    "https://github.com/HilaryTorn/in-context-trajectory-poisoning/commit/44d9afea2eac",
+    "https://hilarytorn.com/projects/in-context-trajectory-poisoning/",
+    "https://apartresearch.com/project/incontext-trajectory-poisoning-blackbox-natural-language-attacks-on-llm-agent-monitors-d3gz",
+    "https://github.com/ethz-spylab/agentdojo/releases/tag/v0.1.35",
+    "https://github.com/ethz-spylab/agentdojo/issues/168",
+    "https://github.com/ethz-spylab/agentdojo/issues/188",
+    "https://github.com/ethz-spylab/agentdojo/issues/189",
+    "https://github.com/ethz-spylab/agentdojo/issues/194",
+    "https://github.com/ethz-spylab/agentdojo/issues/214",
+    "https://github.com/ethz-spylab/agentdojo/issues/218",
+    "https://zenodo.org/api/records?q=%22trajectory%20poisoning%22",
+    "https://huggingface.co/api/datasets?search=trajectory-poisoning",
+    "https://arxiv.org/abs/2505.03574",
+    "https://openreview.net/forum?id=m1YYAQjO3w"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "by": "adversarial fact-checker (desk only; no raw log read)",
+    "confirmed": [
+      "Pin d71ab8bc = main HEAD, 2026-05-26T09:39:29Z, README-only; 28 commits, 1 branch, 0 tags, 0 issues/PRs, 1 fork (GitHub API)",
+      "Tree at pin: 1,294 blobs / 73,070,963 bytes; 18 PNG / 1,576,451; 990 trace logs / 12,578,066 bytes; 9 dirs x (105 attacked + 5 pre-pass); 22 attack labels with counts as stated; 1,240 JSON blobs",
+      "Commit-to-directory history (per-commit file lists) and the inferred run mapping, now confirmed at blob-SHA level",
+      "e2e-evals.md (last changed 757d1e76, 2026-04-16) and the three summary.json files: injection counts 97/86/83/77 (run 1), 92/80 (run 2), 91/81 (run 3), n_valid 105; per-injection-task numerators from the cond_bypass denominators; sum with base 96 = 783",
+      "README Methodology step 1: 96 successful injection traces (denominator 105 = attacked base logs in the tree; generate_traces.py counts security_results)",
+      "Write-up dates 2026-04-12 / 2026-04-18, simulated ASR 3.1/9.4/16.3/14.6, e2e 96-subset ASR, Llama transfer 8.3%; hackathon page 2026-03-22, PAIR 12.5% (p=0.028), Llama 16.7%",
+      "Manifests: agentdojo 0.1.35, llamafirewall 1.0.3, git_dirty true for 061406/063604/155608 and false for 172929 (git_commit 99d7acd4); requirements.txt agentdojo[transformers]==0.1.29",
+      "MIT LICENSE at pin, (c) 2026 Hilary Torn; no Zenodo/HF/Figshare record found",
+      "AgentDojo issues #168, #188, #194, #214, #218 open; #189 closed; v0.1.35 released 2025-10-27 and is the latest release",
+      "Census totals (phase-10c summary): utility 690/300, security 828/162, 6,920 tool msgs, 5,741 assistant, 369 tool errors, error null 990, ts range as stated"
+    ],
+    "corrected": [
+      "agent temperature (models[0])",
+      "c9fdccc2 / tap_run1 pre-pass provenance (repo, discrepancy_leads[3], open_questions[1])"
+    ],
+    "unverifiable": [
+      "Which invocation produced run-1 persona_v3/tap/seeded_pair (manifest cmd lists baseline only)",
+      "OpenAI terms on redistributing outputs (unassessed)"
+    ]
+  }
+}

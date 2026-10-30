@@ -1,0 +1,150 @@
+{
+ "format": "agentprov-precheck-exam/0.1",
+ "corpus_id": "seagent-agentdojo",
+ "part": "head",
+ "date": "2026-10-21",
+ "inputs": {
+  "l1": "l1-head.json (d97d3a57)",
+  "l2": "l2-head.json (check at 4a3e40c1)",
+  "code": "code-head.json",
+  "sample": "l2-sample-head.json (200, sha256 d7809e32...)"
+ },
+ "hypotheses": {
+  "H1": {
+   "result": "supported",
+   "note": "walked 26,033 = 5,342 selected + 37 context + 20,654 not selected; arms 1,060/1,060/1,081/1,081/1,060 (seagent-RF 963 + seagent-rf 97); attacked 4,685, none 657 (perf 485, prepass 172)"
+  },
+  "H2": {
+   "result": "supported",
+   "note": "strict ok 5,342/5,342; 0 of every L1-02 class"
+  },
+  "H3": {
+   "result": "supported",
+   "note": "0 U+FFFD, mojibake, bidi/tag, C0/C1; escaped \\uXXXX 598 files / 833 strings in tool outputs (#214), escaped newline 2,293 files, json-in-string 1"
+  },
+  "H4": {
+   "result": "refuted as worded",
+   "note": "0 byte-identical, 0 cross-corpus; 150 trajectory-identical attacked groups span arms (CC-01; PC-11, not copies)"
+  },
+  "H5": {
+   "result": "supported",
+   "note": "0.1.34 | v1.2.1 in 5,342/5,342"
+  },
+  "H6": {
+   "result": "supported",
+   "note": "IT6: pvagent and seagent travel 20 attacked + 1 prepass each; 0 in agentspec, baseline, seagent-RF"
+  },
+  "H7": {
+   "result": "supported",
+   "note": "40/40 agentspec/pvagent/seagent/seagent-RF suite cells reproduce with 0 runs off, incl. seagent workspace UUA 312 (PC-06)"
+  },
+  "H8": {
+   "result": "supported",
+   "note": "baseline macro 47.1825 / 52.0933; not the paper Vanilla 46.61 / 54.26 (PC-07)"
+  },
+  "H9": {
+   "result": "supported",
+   "note": "pvagent travel of 140: ASR 26, UUA 57; IT6 subset 7 / 9 of 20"
+  },
+  "H10": {
+   "result": "supported",
+   "note": "benign utility macro baseline 75.119, pvagent 34.003, seagent 47.143, seagent-RF 70.045 (all within 0.001 pp)"
+  },
+  "H11": {
+   "result": "supported",
+   "note": "perf duration macro (source: duration field): baseline 10.7515, pvagent 19.2269, seagent 11.2701, seagent-RF 10.8084 s (all within 0.002 s)"
+  },
+  "H12": {
+   "result": "supported",
+   "note": "evaluation_timestamp 5,342/5,342 naive; per-arm ranges pvagent 2025-07-29..30, seagent 2025-12-12..29, seagent-RF 2025-12-18..29, baseline 2025-12-08..29, agentspec 2026-03-24..26 11:03; none after 2026-03-26T14:20 (range level, not per-directory)"
+  },
+  "H13": {
+   "result": "supported",
+   "note": "L1-06 0/5,342; L1-10 37 context files screened, 0 hits, 0 operator"
+  },
+  "H14": {
+   "result": "refuted as worded",
+   "note": "0 empty/incomplete/error-only; L1 null_final 1 (empty text block; product trigger content None gives 0 = profile) (PC-09)"
+  },
+  "H15": {
+   "result": "supported",
+   "note": "extra user messages 960 in 863 logs, seagent 575/499 + seagent-RF 385/364 only; call-less assistant 740 in 541 logs, pvagent only"
+  },
+  "H16": {
+   "result": "reported",
+   "note": "agentspec slack IT5: 8/8 successes with no executed membership call; baseline 0/20; others 0 successes (PC-03, CC-10)"
+  },
+  "H17": {
+   "result": "supported, with diagnosis",
+   "note": "200/200 every stage ok; 0 degenerate, 0 adapter_defect; failed 7 = sampled among the 94 missing_tool_result logs; recompute 0 diff; j1/j2 identical except corpus.json adapter digest (code moved, PC-10); identity 100%; class D only engine aprov.* rules, 0 agentdojo D without twin; 0 account paths. The 94 are SEAgent guard batch aborts (PC-01)"
+  },
+  "H18": {
+   "result": "gap rule fired once, investigated",
+   "note": "baseline UUA sample 14/20 = 70.0 [48.1, 85.5] vs 52.09 (+17.9 pp, n=20): raw = mapped on the sample, population reproduces 52.09 exactly; sampling variance (reference inside Wilson), not a finding"
+  }
+ },
+ "failed_status_diagnosis": {
+  "verdict": "source property surfaced by a family/profile mapping gap; runner and tool behave as specified",
+  "source": "SEAgent guard renames 1 call per batch to <tool>BLOCKED_BY_SEAGENT, answers it with an empty tool message, drops the other calls, inserts a user-role warning (960 batches, 863 logs)",
+  "mapping": "family positional rule raises missing_tool_result (severity error, declared loss) for skipped calls at index >= results: 94 logs; 13 logs with only earlier skipped calls get accounting_inconsistent only",
+  "runner": "status failed when any issue has severity error (HL spec); import exit 1 when failed > 0 (importer exit_code)",
+  "counts": {
+   "blocked_calls": 960,
+   "skipped_calls": 166,
+   "logs_with_skipped": 107,
+   "logs_missing_tool_result": 94,
+   "sampled_failed": 7
+  },
+  "route": "AgentDojo family owner with D-153 (PC-01, PC-02)"
+ },
+ "cc07": {
+  "181": {
+   "baseline_success_it0_1_3": 25,
+   "lacking_goal_datum": 9,
+   "other_arms_successes": 0,
+   "baseline_banking_asr_logged": "58/144",
+   "rescored": "49/144"
+  },
+  "161": {
+   "ut5_logs": 50,
+   "utility_true": 50,
+   "no_executed_spotify_payment": 30,
+   "by_arm": {
+    "agentspec": 10,
+    "baseline": 2,
+    "pvagent": 5,
+    "seagent": 7,
+    "seagent-RF": 6
+   }
+  },
+  "cc10_slack_it5": {
+   "agentspec_successes": 8,
+   "scored_without_executed_call": 8,
+   "agentspec_slack_asr_logged": "43/105",
+   "rescored": "35/105"
+  }
+ },
+ "l2": {
+  "mapped": 200,
+  "ok": 129,
+  "ok_with_issues": 64,
+  "failed": 7,
+  "degenerate": 0,
+  "adapter_defect": 0,
+  "validate": "200/200 pass, linkage 100%",
+  "recompute": "200 identical",
+  "verify_chain": "0 failures (checksums.absent only)",
+  "determinism": "5,986/5,987 identical; corpus.json adapter code digest differs (PC-10)",
+  "redaction": "608 files, 0 hits",
+  "withholding": "no policy (inert)",
+  "evidence": {
+   "class_D": "core aprov.n_gap 749, aprov.n_capture_profile 200, assessment aprov.a_label 5 (engine rules only)",
+   "twin": "inference I 23,303 + assessment I 4,330 + inference none 2,306",
+   "mixed": "inference I 3,890",
+   "native_unverified": 0
+  },
+  "blocked_executions_in_sample": 41
+ },
+ "findings": "findings.json (11; 2 mapping-defect S2, 1 source-defect S2, 2 expected-known S3, 3 documentation-mismatch, 3 analysis-artefact)",
+ "readiness": "ready-with-caveats"
+}

@@ -1,0 +1,23 @@
+--- a/src/agentprov/versions.py
++++ b/src/agentprov/versions.py
+@@ -1,9 +1,16 @@
+ """Independent version axes (docs/architecture: section L.1). Never collapse them into one number."""
+ 
+ from __future__ import annotations
+ 
++from importlib import metadata
+ from typing import Final
+ 
+-__version__: Final = "0.1.0"  # software (tag v0.1.0)
++# Software axis: pyproject.toml [project].version is the single source, read via importlib.metadata (L.1.1 row 1).
++# raw/members._engine_version() reads the same metadata, so the expand stage and every other stage agree.
++try:
++    __version__: Final[str] = metadata.version("agentprov")
++except metadata.PackageNotFoundError:  # pragma: no cover - an uninstalled source tree
++    __version__ = "0.1.0"
+ 
+ VERSIONS: Final[dict[str, str]] = {
+     "software": __version__,
+--- /dev/null
++++ b/tests/unit/test_version_single_source.py
+@@ (add the regression_test above)

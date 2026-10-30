@@ -1,0 +1,345 @@
+{
+  "$defs": {
+    "count": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "json": {
+      "additionalProperties": {
+        "$ref": "#/$defs/json"
+      },
+      "items": {
+        "$ref": "#/$defs/json"
+      },
+      "type": [
+        "null",
+        "boolean",
+        "integer",
+        "string",
+        "array",
+        "object"
+      ]
+    },
+    "positive": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "$id": "https://w3id.org/agentprov/schemas/withheld-0.4.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Generated from agentprov.corpus.withheld (HL H.4.5; G.9.5). The in-code reader agentprov.corpus.withheld.decode_withheld is authoritative and adds semantic checks this schema cannot express (sorted unique arrays, cross-references between entries and executions, object origins).",
+  "properties": {
+    "entries": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "affected_executions": {
+            "items": {
+              "pattern": "^(?:ex_([a-z2-7]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}))$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "basis": {
+            "enum": [
+              "purge",
+              "profile_rule",
+              "raw_policy",
+              "container",
+              "unscanned"
+            ]
+          },
+          "bytes": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/count"
+              }
+            ]
+          },
+          "decided_on": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "pattern": "^(?:[0-9]{4}-[0-9]{2}-[0-9]{2})$",
+                "type": "string"
+              }
+            ]
+          },
+          "finding": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "detector": {
+                    "maxLength": 64,
+                    "pattern": "^(?:[a-z][a-z0-9-]*/[0-9]+)$",
+                    "type": "string"
+                  },
+                  "fingerprint": {
+                    "maxLength": 300,
+                    "pattern": "^(?:[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*:[a-z0-9][a-z0-9_.-]{0,63})$",
+                    "type": "string"
+                  },
+                  "rule": {
+                    "maxLength": 160,
+                    "pattern": "^(?:[a-z][a-z0-9_.-]*@[1-9][0-9]*:[a-z0-9][a-z0-9_.-]{0,63})$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "detector",
+                  "fingerprint",
+                  "rule"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "media_type": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "maxLength": 100,
+                "pattern": "^(?:[a-z]+/[A-Za-z0-9.+-]+)$",
+                "type": "string"
+              }
+            ]
+          },
+          "origins": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/$defs/json"
+              },
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "public_note": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^(?:[^\\x00-\\x1f\\x7f-\\x9f\\u2028\\u2029]+)$",
+            "type": "string"
+          },
+          "reason": {
+            "enum": [
+              "secret",
+              "personal_data",
+              "takedown",
+              "licence"
+            ]
+          },
+          "sha256": {
+            "pattern": "^(?:sha256:[0-9a-f]{64})$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "affected_executions",
+          "basis",
+          "bytes",
+          "decided_on",
+          "finding",
+          "media_type",
+          "origins",
+          "public_note",
+          "reason",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "executions": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "digests": {
+            "additionalProperties": false,
+            "properties": {
+              "aer": {
+                "pattern": "^(?:sha256:[0-9a-f]{64})$",
+                "type": "string"
+              },
+              "prov": {
+                "additionalProperties": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "json": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "pattern": "^(?:sha256:[0-9a-f]{64})$",
+                          "type": "string"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "json"
+                  ],
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              "sem": {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "pattern": "^(?:sha256:[0-9a-f]{64})$",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "propertyNames": {
+                  "pattern": "^(?:[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*@[1-9][0-9]*)$"
+                },
+                "type": "object"
+              },
+              "validation": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "pattern": "^(?:sha256:[0-9a-f]{64})$",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "aer"
+            ],
+            "type": "object"
+          },
+          "ex": {
+            "pattern": "^(?:ex_([a-z2-7]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}))$",
+            "type": "string"
+          },
+          "snapshot_ids": {
+            "items": {
+              "pattern": "^(?:[a-z0-9][a-z0-9_.-]*)$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "digests",
+          "ex",
+          "snapshot_ids"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "format": {
+      "const": "agentprov-withheld/0.4"
+    },
+    "policies": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "profile": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^(?:[a-z][a-z0-9_.-]*)$",
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^(?:sha256:[0-9a-f]{64})$",
+                "type": "string"
+              },
+              "version": {
+                "$ref": "#/$defs/positive"
+              }
+            },
+            "required": [
+              "id",
+              "sha256",
+              "version"
+            ],
+            "type": "object"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "pattern": "^(?:[a-z0-9][a-z0-9_.-]{0,63})$",
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "marker",
+                    "pattern",
+                    "issue",
+                    "address"
+                  ]
+                },
+                "scope": {
+                  "enum": [
+                    "executions",
+                    "object"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "scope"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "scan_rules": {
+            "items": {
+              "pattern": "^(?:[A-Za-z0-9][A-Za-z0-9_.-]{0,99})$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "profile",
+          "rules",
+          "scan_rules"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "entries",
+    "executions",
+    "format",
+    "policies"
+  ],
+  "title": "AgentPROV withheld-evidence ledger agentprov-withheld/0.4 (WITHHELD.json)",
+  "type": "object"
+}

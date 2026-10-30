@@ -1,0 +1,397 @@
+# Rule catalogue `inspect` (docs/architecture D.5.1-D.5.4, D.9; C.6.4).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory).
+# Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version`
+# (AD-18). Nothing is released yet (v0.1 is in development), so this file is still version 1.
+#
+# The rule names are those of the D.5.4 index and the D.9.2 mapping table. Four rules are added in phase 6 because
+# a seal issue must cite the rule that produced it (C.12.3) and D.9.2/D.9.3 name issues without a rule, and a
+# degenerate AER needs a task id: inspect.sample_limit, inspect.event_kept_in_ext, inspect.message_content_parts and
+# inspect.sample_member_label (D.9.5).
+#
+# Code citations point at the nearest inspect_ai source available offline: the shallow clone at
+# 5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f (2026-10-06, after 0.3.276). The producer of the band,
+# inspect_ai 0.3.247.dev69+g53c1fa98b (commit 53c1fa98b), was NOT available locally; each D rule below is therefore
+# also checked by observation over the band (all 6 survey AgentHarm logs, 1,056 samples), and no rule declares a
+# `verified` assumption against a framework identity recorded in the AER (AER-V34). See D.9.5 (open item).
+
+[catalogue]
+id = "inspect"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["sample_limit", "branch_unsupported", "compaction_unmodelled", "unmapped_event", "unknown_content_type"]
+subtypes = ["inspect.scorer", "inspect.span", "inspect.task_state"]
+types = ["inspect:sandbox_exec", "inspect:sandbox_read_file", "inspect:sandbox_write_file", "inspect:sandbox_output"]
+
+# ---------------------------------------------------------------------------------------------- header
+[[rule]]
+id = "inspect.header_applies_to_samples"
+version = 1
+class = "D"
+status = "active"
+statement = "header.json eval metadata (task, model, generate config, revision, packages) applies to every sample of the log; the benchmark family named by the source profile (and, for AgentHarm, the absence of an attack) applies to every sample the profile selects."
+premises = ["/eval/task", "/eval/model", "/eval/model_generate_config", "/eval/revision", "/eval/packages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/log/_log.py", lines = "1014-1120", note = "EvalSpec: one spec per log, shared by its samples" },
+]
+evidence = ["landscape/trace_formats.md §3.2", "sources/agent-security-tools-survey.md §5"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_header"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.sample_init_fixtures"
+version = 1
+class = "D"
+status = "active"
+statement = "sample_init, input, metadata and the first model event's tools are the task's fixtures: input is the task prompt, the first agent model event's tool list is the tool definitions (a later call cites them when its list is identical), and the profile-declared metadata keys are ground truth."
+premises = ["/input", "/metadata", "/events/*/sample", "/events/*/tools"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_sample_init.py", lines = "9-18", note = "SampleInitEvent(sample, state)" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_model.py", lines = "108-112", note = "ModelEvent.tools" },
+]
+evidence = ["sources/agent-security-tools-survey.md §5.3"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_fixtures"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- spans
+[[rule]]
+id = "inspect.span_is_scope"
+version = 1
+class = "D"
+status = "active"
+statement = "A span_begin/span_end pair is a scope; parent_id is its parent; a span of a type the profile maps to the agent (solver) groups agent activity and a span of a type mapped to a judge (scorer) groups judge activity; a model event's role is that of its nearest such ancestor span; any other span type is an inspect.span scope."
+premises = ["/events/*/id", "/events/*/parent_id", "/events/*/type", "/events/*/span_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_span.py", lines = "8-34", note = "SpanBeginEvent(id, parent_id, type, name), SpanEndEvent(id)" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/solver/_transcript.py", lines = "27-32", note = "solvers run inside span(type='solver')" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/scorer/_scorer.py", lines = "105-112", note = "scorers run inside span(type='scorer')" },
+]
+evidence = ["sources/agent-security-tools-survey.md §5.3", "landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_spans"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.agent_span_is_subagent"
+version = 1
+class = "D"
+status = "active"
+statement = "A span named by a ToolEvent.agent_span_id is a sub-agent scope spawned by that tool execution."
+premises = ["/events/*/agent_span_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_tool.py", lines = "57-62", note = "ToolEvent.agent, agent_span_id" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_subagent"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- model events
+[[rule]]
+id = "inspect.model_event_is_call"
+version = 1
+class = "D"
+status = "active"
+statement = "A model event is one model call: of the agent unless it lies in a judge-role span; its input/input_refs (resolved over events_data.messages and attachment:// references, never re-grounded when a reference dangles) are what the model saw, its output choices are the messages it generated (matched to the sample's messages by message id), and call.request/call.response are the recorded wire bodies."
+premises = ["/events/*/input", "/events/*/input_refs", "/events/*/output", "/events/*/call", "/events_data", "/attachments"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_model.py", lines = "88-145", note = "ModelEvent fields" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_pool.py", lines = "262-282", note = "_expand_refs: (start, end_exclusive) ranges" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_pool.py", lines = "483-525", note = "resolve_model_event_calls / resolve_model_event_inputs" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/log/_condense.py", lines = "749-790", note = "resolve_sample_attachments: whole-string attachment:// references" },
+]
+evidence = ["landscape/trace_formats.md §3.2", "sources/agent-security-tools-survey.md §5.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_model_call_agent", "tests/adapters/inspect/test_mapping_rows.py::test_row_model_call_judge"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.cache_read"
+version = 1
+class = "D"
+status = "active"
+statement = "A model event with cache == 'read' was served from the cache: no inference took place (status cached)."
+premises = ["/events/*/cache"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_model.py", lines = "135-136", note = "ModelEvent.cache" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_cache_read"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.model_error"
+version = 1
+class = "D"
+status = "active"
+statement = "A model event with error and no output choice is a failed call (status error) that generated no message."
+premises = ["/events/*/error", "/events/*/output/choices"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_model.py", lines = "120-133", note = "ModelEvent.retries, error, traceback" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_model_error"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- tool events
+[[rule]]
+id = "inspect.tool_event_is_execution"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool event is one tool execution by the tool runtime; message_id names its result message; a tool call part with no tool event and no denial was not executed."
+premises = ["/events/*/id", "/events/*/function", "/events/*/arguments", "/events/*/message_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_tool.py", lines = "13-68", note = "ToolEvent fields" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/model/_call_tools.py", lines = "352-400", note = "result_event and tool_message are built from the same content" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_tool_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.tool_call_id_match"
+version = 1
+class = "D"
+status = "active"
+statement = "ToolEvent.id equals the ToolCall.id of the request part it executes, and ChatMessageTool.tool_call_id names the request it answers (ids unique within a sample)."
+premises = ["/events/*/id", "/messages/*/tool_calls/*/id", "/messages/*/tool_call_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/model/_call_tools.py", lines = "385-400", note = "ToolEvent(id=call.id) and ChatMessageTool(tool_call_id=call.id)" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_tool_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.tool_error_status"
+version = 1
+class = "D"
+status = "active"
+statement = "ToolEvent.error.type (ToolCallError.type) maps to tool_execution.status: no error -> ok; 'parsing' -> invalid (the harness rejected the call before the tool function ran: unparseable arguments, unknown tool, parameter conversion); 'approval' -> no tool execution (the approver's denial is a deny decision); every other type (timeout, unicode_decode, permission, file_not_found, is_a_directory, limit, output_limit, cancelled, sandbox_unavailable, unknown, and any type not in this table) -> error."
+premises = ["/events/*/error/type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "53c1fa98baedd64cc37aa5f84057fc15c1e98015", path = "src/inspect_ai/tool/_tool_call.py", lines = "69-90", note = "ToolCallError.type literal at the band's producer commit (0.3.247.dev69+g53c1fa98b); sandbox_unavailable is absent (added in 0.3.260)" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "53c1fa98baedd64cc37aa5f84057fc15c1e98015", path = "src/inspect_ai/model/_call_tools.py", lines = "193-249", note = "exception -> ToolCallError.type" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "53c1fa98baedd64cc37aa5f84057fc15c1e98015", path = "src/inspect_ai/model/_call_tools.py", lines = "606-659", note = "call_tool: parse errors, unknown tool, validation errors and approval rejections are raised before the tool function runs" },
+]
+evidence = ["docs/architecture/D_adapters.md §D.9.5"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_tool_error_status", "tests/adapters/inspect/test_mapping_rows.py::test_row_approval_reject"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.tool_output_truncated"
+version = 1
+class = "D"
+status = "active"
+statement = "ToolEvent.truncated means the harness shortened the tool's output before the model saw it; the full output is not recorded (ToolEvent.result holds the truncated text)."
+premises = ["/events/*/truncated"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/model/_call_tools.py", lines = "352-391", note = "truncate_tool_output replaces content; result=content" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_truncated"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.approval_decision"
+version = 1
+class = "D"
+status = "active"
+statement = "approval and review events are decisions about a tool call: approve/modify/reject/escalate/terminate -> allow/modify/deny/escalate/terminate; review continue -> allow."
+premises = ["/events/*/decision", "/events/*/call", "/events/*/approver", "/events/*/reviewer"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_approval.py", lines = "9-34", note = "ApprovalEvent" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_review.py", lines = "9-28", note = "ReviewEvent" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_approval_approve", "tests/adapters/inspect/test_mapping_rows.py::test_row_approval_reject", "tests/adapters/inspect/test_mapping_rows.py::test_row_approval_modify"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.compaction"
+version = 1
+class = "D"
+status = "active"
+statement = "A compaction event replaced history with a summary; when a model event in the compaction's span produced the summary, that call generated it."
+premises = ["/events/*/type", "/events/*/span_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_compaction.py", lines = "8-27", note = "CompactionEvent" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_compaction_with_call", "tests/adapters/inspect/test_mapping_rows.py::test_row_compaction_without_call"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.state_event"
+version = 1
+class = "D"
+status = "active"
+statement = "state/store events are JSON-Patch changes of the TaskState or the store, emitted when a solver completes as the diff against the state at its start; successive changes of one target apply in timestamp order (proto), and the change is caused by the enclosing solver span."
+premises = ["/events/*/changes", "/events/*/timestamp", "/events/*/span_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/solver/_transcript.py", lines = "13-32", note = "SolverTranscript.complete emits StateEvent(json_changes(before, after))" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_store.py", lines = "10-17", note = "StoreEvent" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_state", "tests/adapters/inspect/test_mapping_rows.py::test_row_store"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.sandbox_activity"
+version = 1
+class = "D"
+status = "active"
+statement = "A sandbox event outside any tool event is a sandbox activity of the tool runtime whose output is an artefact; its exit code 0 is status ok, any other is error."
+premises = ["/events/*/action", "/events/*/output", "/events/*/result"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_sandbox.py", lines = "10-38", note = "SandboxEvent" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_sandbox"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.score_event"
+version = 1
+class = "D"
+status = "active"
+statement = "A score event (and sample.scores) records the scorer's values for the sample, one judgement per value key, produced in the scorer's span (by its only judge call when it has exactly one); a score_edit event is a later revision of a recorded score."
+premises = ["/events/*/score", "/events/*/scorer", "/scores", "/events/*/edit"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_score.py", lines = "10-40", note = "ScoreEvent" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_score_edit.py", lines = "9-21", note = "ScoreEditEvent" },
+]
+evidence = ["sources/agent-security-tools-survey.md §5.3"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_score", "tests/adapters/inspect/test_mapping_rows.py::test_row_score_edit"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.no_order_from_event_list"
+version = 1
+class = "D"
+status = "active"
+statement = "Event list order is not occurrence order (observed: tool events precede the begin of their tool span; working_start is not monotonic); order comes from references and timestamps only, and the position of a message in TaskState.messages is not its creation order (solvers insert messages)."
+premises = ["/events/*/timestamp", "/events/*/working_start"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/model/_call_tools.py", lines = "859-861", note = "record_pending_tool_event: the tool span is opened when the event is recorded" },
+]
+evidence = ["landscape/trace_formats.md §3.2", "sources/agent-security-tools-survey.md §5.3"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_event_order"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- added in phase 6 (D.9.5)
+[[rule]]
+id = "inspect.sample_limit"
+version = 1
+class = "D"
+status = "active"
+statement = "A sample_limit event (or sample.limit) records that the sample stopped at a limit: the run scope ends with status limit."
+premises = ["/events/*/type", "/limit"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_sample_limit.py", lines = "8-23", note = "SampleLimitEvent: the sample was unable to finish due to a limit" },
+]
+evidence = ["sources/agent-security-tools-survey.md §5.3"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_sample_limit"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.event_kept_in_ext"
+version = 1
+class = "D"
+status = "active"
+statement = "An event that no aer/0.1 kind represents (info, logger, checkpoint, anchor, step, subtask, input, interrupt, error, branch, unknown types) is kept, attachments resolved, in ext.inspect.events of its nearest host record: the scope of its enclosing span, else the run scope; an error event also ends the run with status error."
+premises = ["/events/*/event", "/events/*/span_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/event/_base.py", lines = "14-33", note = "BaseEvent.span_id" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_unmapped_events", "tests/adapters/inspect/test_mapping_rows.py::test_row_branch"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.message_content_parts"
+version = 1
+class = "D"
+status = "active"
+statement = "A ChatMessage content item maps to an AER part by its type: text, reasoning, image (uri), data and tool_use (other); an unknown type is kept as an other part with its source type. An empty assistant text is ambiguous: the OpenAI-compatible path records a provider null content as ''."
+premises = ["/messages/*/content"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/core/_chat_message.py", lines = "1-80", note = "ChatMessage content: str | list[Content]" },
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/model/_openai.py", lines = "1090-1100", note = "msg_content = str(refusal or message.content or ''): null and '' are not distinguished" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_mapping_rows.py::test_row_message_parts"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.sample_member_label"
+version = 1
+class = "D"
+status = "active"
+statement = "A classic sample member is named samples/<id>_epoch_<epoch>.json, so its label names the sample id when the member itself cannot be parsed (used only in degenerate AERs)."
+premises = ["origin:/label"]
+assumptions = []
+code = [
+  { repo = "https://github.com/UKGovernmentBEIS/inspect_ai", commit = "5d97e38cee66d640b3c4612f9c13d7fffcbe2d3f", path = "src/inspect_ai/log/_recorders/eval.py", lines = "2008-2011", note = "f'{SAMPLES_DIR}/{id}_epoch_{epoch}.json'" },
+]
+evidence = ["landscape/trace_formats.md §3.2"]
+tests = ["tests/adapters/inspect/test_reader.py::test_unparseable_sample_member_gives_a_degenerate_aer"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- reserved
+[[rule]]
+id = "inspect.sample_identity_efp"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Execution fingerprint of an Inspect sample; reserved, deferred with fingerprint deduplication (AD-10 row 7)."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md §D.5.4"]
+tests = []
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- semantics profile inspect.agentharm@1
+# Cited by SEM annotations (C.14.2), never by the AER or the mapper. Both class I: nothing is verified against the
+# producing inspect_ai / inspect_evals code identity (D.9.5 open item), and the tool list is not available offline.
+[[rule]]
+id = "inspect.tools_fail_closed"
+version = 1
+class = "I"
+status = "active"
+statement = "The semantics profile inspect.agentharm@1 tabulates no AgentHarm tool, because the tool list is not available offline, so every tool is fail-closed: its tool_call parts and tool_executions have the role [unknown] and its tool_result parts have integrity unknown, never trusted."
+premises = ["/name", "/t"]
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.14.3", "docs/architecture/D_adapters.md D.9.2"]
+tests = ["tests/adapters/inspect/test_semantics.py::test_every_tool_is_fail_closed"]
+since = "0.1.0"
+
+[[rule]]
+id = "inspect.scorer_claim_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The profile's scorer table reads each recorded, non-default judgement of AgentHarm's combined_scorer as an outcome: score is a fraction in [0,1] of the sample's grading checks satisfied, with the claim harmful_task_score (higher means more of the harmful task was carried out) or benign_task_score (higher means more of the benign task was completed) by the AER's task.suite (task_score, with no polarity, for any other suite), and refusal is a 0/1 flag whose claim is refusal and which holds when the value is 1; a judgement of an unlisted scorer, or a value outside its declared scale, gets no outcome."
+premises = ["/name", "/value", "/origin", "/task/suite"]
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.14.3", "docs/architecture/D_adapters.md D.9.2", "docs/architecture/EF_provenance.md E.7.3"]
+tests = ["tests/adapters/inspect/test_semantics.py::test_outcomes_follow_the_scorer_table_and_carry_score_and_scale"]
+since = "0.1.0"

@@ -1,0 +1,255 @@
+# Reviewed tool tables of the semantics profile agentdojo.suites@2 (docs/architecture C.14.8; phase-10d routing R8;
+# D-110..D-112). Data, not code; part of the profile digest.
+#
+# A table covers one (benchmark, suite) of a benchmark other than agentdojo whose suite code is not upstream AgentDojo's.
+# It lists every code state the suite's runs may have used, each with the files read (as text, never run; blob ids at
+# the cited commit) and a label for every tool of that state's TOOLS list. The runs record no code state, so a tool is
+# known only when every state has it with the same roles, integrity and channel (rule agentdojo.reviewed_suite_table@1);
+# its label is then the reviewed one (agentdojo.reviewed_tool_label@1). Every other tool is unknown (fail-closed,
+# agentdojo.unknown_tool@1).
+#
+# Label criterion, as in labels.toml [roles.sink], applied to each state's code: send_sink when the call itself delivers
+# money or tokens to a party or address (named in its arguments, or fixed in the code); write_sink when it creates,
+# changes or deletes stored state of the user's environment (the wallet's transaction list, positions, orders); a tool
+# that does neither and returns no externally authored content is neutral. content_source when the output carries text
+# the environment places where the suite puts injections; its integrity is untrusted. Every other output's integrity is
+# unknown, never trusted: these tools return a hard-coded value or echo the call's own arguments, and nothing here
+# verifies that. Evidence lines are those of the blob named in the state's files.
+
+[[table]]
+benchmark = "craibench"
+suite = "crypto_trading"
+repo = "https://github.com/AthaSSiN/CrAIBench"
+note = "1,013 logs under runs/*/crypto_trading/ at the craibench-agentdojo pin e41eac1e; one code state"
+
+[[table.code_state]]
+id = "dc1a1a73"
+commit = "dc1a1a730cd67bb3cead8adc9499f96f5c9ee446"
+runs = "all 1,013 crypto_trading logs were added by this commit (2025-04-06); the next change to the suite code (ac6c9490, 2025-04-07) renamed siphon to secure_funds and changed no other tool body"
+basis = "the code at the commit that added the runs; every one of the 104 logged siphon replies carries this code's reply text"
+files = [
+  { path = "src/agentdojo/default_suites/v1/crypto_trading/task_suite.py", blob = "408ccadfad7b7972e003fa4edec0766861122ae4", note = "TOOLS l. 30-44: 13 tools" },
+  { path = "src/agentdojo/default_suites/v1/tools/crypto_trading_client.py", blob = "8a0c74cba956d1525981a2ee699540e51dfea266" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_reader.py", blob = "055266af9d3ba16e501e32f45a07b40353ace2f4" },
+  { path = "src/agentdojo/data/suites/crypto_trading/environment.yaml", blob = "5df29655bbd5408d508ce68035c35300e82d4f57" },
+  { path = "src/agentdojo/data/suites/crypto_trading/injection_vectors.yaml", blob = "6b0b7cc4889ce98b16cf3a20afa79779088d0dba" },
+]
+
+[table.code_state.tools.getRecentPricesFromOracle]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "price_feed"
+code = "crypto_trading_client.py l. 26-37"
+reason = "returns the shared price feed's entries for the token; the suite places an injection in a feed entry's timestamp (environment.yaml l. 111, vector injection_timestamp)"
+
+[table.code_state.tools.getTransactions]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "transaction"
+code = "crypto_trading_client.py l. 38-47"
+reason = "returns the wallet's transactions, whose subjects are written by their senders; the suite places an injection in an incoming transaction's subject (environment.yaml l. 85, vector injection_incoming_transaction)"
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_reader.py l. 12-18"
+reason = "returns a file's content; the suite's trade, order and configuration files hold injection placeholders (environment.yaml l. 127-198)"
+
+[table.code_state.tools.exchangeFiat]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 57-88"
+reason = "moves the amount between the wallet and the argument fiat account (to it when selling) and records the transaction; the reply echoes the arguments"
+
+[table.code_state.tools.spotTrade]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 89-116"
+reason = "records a spot trade against the fixed counterparty dex_market (no argument-named party); the reply echoes the arguments"
+
+[table.code_state.tools.limitOrderTrade]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 117-143"
+reason = "records a limit order with the fixed order_book; the reply echoes the arguments"
+
+[table.code_state.tools.leveragedTrading]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 144-171"
+reason = "records a leveraged position with the fixed margin_platform; the reply echoes the arguments"
+
+[table.code_state.tools.tradeFutures]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 172-197"
+reason = "records a futures position with the fixed futures_platform; the reply echoes the arguments"
+
+[table.code_state.tools.tradeOptions]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 198-227"
+reason = "records an options trade with the fixed options_desk; the reply echoes the arguments"
+
+[table.code_state.tools.tradeOnDex]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 228-253"
+reason = "sends the amount to the argument pool_address and records it; the reply echoes the arguments"
+
+[table.code_state.tools.provideLiquidity]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 254-279"
+reason = "sends the amount to the argument pool_address and records it; the reply echoes the arguments"
+
+[table.code_state.tools.performArbitrage]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 280-307"
+reason = "records an arbitrage with the fixed arbitrage_bot as recipient (the two pools are arguments but receive nothing in the record); the reply echoes the arguments"
+
+[table.code_state.tools.siphon]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 308-323"
+reason = "records the transfer of 10^18 ETH from the wallet to the fixed address haecker (the injection tasks' goal); a delivery to another party, although the party is fixed in code rather than named in arguments; the reply is a constant"
+
+[[table]]
+benchmark = "craibench"
+suite = "chain"
+repo = "https://github.com/AthaSSiN/CrAIBench"
+note = "147 logs under runs/*/chain/ at the craibench-agentdojo pin e41eac1e; two code states, which the logs do not record"
+
+[[table.code_state]]
+id = "a512e34a"
+commit = "a512e34a16a3c0717e22926aa876aa77fd01a1f0"
+runs = "the 19 logs of gpt-4o-spotlighting_with_datamarking/chain were added by this commit (2025-04-03)"
+basis = "the code at the commit that added the runs: its TOOLS has no siphon, and none of these logs calls it; bridge, stake, airdrop and deploy_token_contract only return a message"
+files = [
+  { path = "src/agentdojo/default_suites/v1/chain/task_suite.py", blob = "9036704f4fc8aeab627cd49c3564039ee74b8654", note = "TOOLS l. 23-32: 8 tools" },
+  { path = "src/agentdojo/default_suites/v1/tools/chain_client.py", blob = "a01b88654fe7ed7eeb77996373976f626c9fcb55" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_reader.py", blob = "055266af9d3ba16e501e32f45a07b40353ace2f4" },
+  { path = "src/agentdojo/data/suites/chain/environment.yaml", blob = "d26f1a790a32c3902a1eb7dd1c30265cfa5bf732" },
+  { path = "src/agentdojo/data/suites/chain/injection_vectors.yaml", blob = "09ae11425d12f7361e2841b339a45bdb118d57b6" },
+]
+
+[table.code_state.tools.getBalance]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 26-37"
+reason = "returns a hard-coded balance; reads no external content and changes nothing"
+
+[table.code_state.tools.getTransactions]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "transaction"
+code = "chain_client.py l. 38-47"
+reason = "returns the wallet's transactions, whose subjects are written by their senders; the suite places an injection in an incoming transaction's subject (environment.yaml l. 37, vector injection_incoming_transaction)"
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_reader.py l. 12-18"
+reason = "returns a file's content; the suite's bill file holds an injection placeholder (environment.yaml l. 58)"
+
+[table.code_state.tools.transfer]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 48-72"
+reason = "records the amount as sent from the wallet to the argument recipient; the reply echoes the arguments"
+
+[table.code_state.tools.bridge]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 73-92"
+reason = "only returns a message echoing the arguments: no transaction is recorded and no state changes"
+
+[table.code_state.tools.stake]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 93-125"
+reason = "only returns a message echoing the arguments (or raises on a bad action): no transaction is recorded and no state changes"
+
+[table.code_state.tools.airdrop]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 126-144"
+reason = "only returns a message echoing the arguments: no transaction is recorded and no state changes"
+
+[table.code_state.tools.deploy_token_contract]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 145-162"
+reason = "only returns a message echoing the arguments: no contract or transaction is recorded and no state changes"
+
+[[table.code_state]]
+id = "f87dbc74"
+commit = "f87dbc74093806a50ea80073ec93148d1a61bbec"
+runs = "the 128 logs of gpt-4o-spotlighting_with_delimiting/chain were added by be71b1f5 (2025-04-04 02:48 -0400), whose task_suite.py imports siphon from a chain_client.py that does not define it; f87dbc74 ('forgot to push this', 14:41 the same day) commits the chain_client.py that does"
+basis = "be71b1f5's suite, file reader and environment with f87dbc74's chain_client.py; every one of the 40 logged siphon replies carries that client's reply text"
+files = [
+  { path = "src/agentdojo/default_suites/v1/chain/task_suite.py", blob = "2886a0c404adc23a38dbbc6ecf0e2306c1a65796", note = "at be71b1f5; TOOLS l. 24-34: 9 tools" },
+  { path = "src/agentdojo/default_suites/v1/tools/chain_client.py", blob = "06d808c9cb9421c0b992487ce4a0687f25fbda58", note = "at f87dbc74" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_reader.py", blob = "055266af9d3ba16e501e32f45a07b40353ace2f4" },
+  { path = "src/agentdojo/data/suites/chain/environment.yaml", blob = "61f8ae15a1579c3da0161a7a0dc55464b34fb46a", note = "at be71b1f5" },
+  { path = "src/agentdojo/data/suites/chain/injection_vectors.yaml", blob = "e86367ba470e434bf5fb56f0df544e147f9defd8", note = "at be71b1f5" },
+]
+
+[table.code_state.tools.getBalance]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 27-38"
+reason = "returns a hard-coded balance; reads no external content and changes nothing"
+
+[table.code_state.tools.getTransactions]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "transaction"
+code = "chain_client.py l. 39-48"
+reason = "returns the wallet's transactions, whose subjects are written by their senders; the suite places an injection in an incoming transaction's subject (environment.yaml l. 65, vector injection_incoming_transaction)"
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_reader.py l. 12-18"
+reason = "returns a file's content; the suite's bill, bridge, stake, deploy and airdrop files hold injection placeholders (environment.yaml l. 77-107)"
+
+[table.code_state.tools.transfer]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 49-74"
+reason = "records the amount as sent from the wallet to the argument recipient; the reply echoes the arguments"
+
+[table.code_state.tools.bridge]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 75-103"
+reason = "records the amount as sent from the wallet to the argument destination chain through the argument bridge; the reply echoes the arguments"
+
+[table.code_state.tools.stake]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 104-162"
+reason = "records a staking deposit, withdrawal or reward claim with the fixed staking counterparty; the reply echoes the arguments"
+
+[table.code_state.tools.airdrop]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 163-187"
+reason = "records the amount as sent from the wallet to the argument address (the docstring says 'request', the code sends); the reply echoes the arguments"
+
+[table.code_state.tools.deploy_token_contract]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 188-214"
+reason = "creates a token contract and records the initial supply as sent to the argument owner; the reply echoes the arguments"
+
+[table.code_state.tools.siphon]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 215-230"
+reason = "records the transfer of 10^18 ETH from the wallet to the fixed address haecker (the injection tasks' goal); a delivery to another party, although the party is fixed in code rather than named in arguments; the reply is a constant"

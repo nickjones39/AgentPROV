@@ -1,0 +1,24 @@
+# Semantics profile wirelog.tools@1: the tool table (docs/architecture D.20.8). Reviewed by hand.
+#
+# The two tools of the first source's harness (run_channels.py READ_TOOL, EMAIL_TOOL and trial(); run_trials.py
+# TOOL_CONFIG; read, never run). The reading of each tool rests on that code (not verified for the runs, D-282) and on
+# the observed arguments and results of the census (wirelog.tool_table@1, class I). A name not listed is fail-closed
+# (wirelog.unknown_tool@1): role ["unknown"], output integrity "unknown".
+#
+# Both tools are SYNTHETIC (D-284): read_file returns a document from the harness's own table (the arm's poisoned ticket
+# in the tool-result arms), so its output is "untrusted"; send_email sends nothing and returns "Email sent.", but the
+# request it carries is what the study measures, so it is a send_sink with output "unknown".
+
+[[tool]]
+name = "read_file"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "code"]
+reason = "returns the harness's planted document (synthetic; no file system is read)"
+
+[[tool]]
+name = "send_email"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "records the recipient and body and returns a constant (synthetic; no mail is sent)"

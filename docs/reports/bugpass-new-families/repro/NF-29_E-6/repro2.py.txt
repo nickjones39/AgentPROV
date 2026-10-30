@@ -1,0 +1,18 @@
+import json, sys, os, tempfile, collections
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "tests" / "adapters" / "dtap")); sys.path.insert(0, str(Path.cwd()/"tests"))
+os.environ["AGENTPROV_HOME"] = sys.argv[1] + "/home"
+import dtap_support as s
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+imp = s.run_import(tmp, s.runs_files(), s.tasks_files())
+man = json.loads((imp.partial / "corpus.json").read_text())
+print("manifest top keys:", sorted(man.keys()))
+c = collections.Counter(r.get("code") for r in imp.register)
+print("with context register codes:", dict(c))
+def find(o):
+    if isinstance(o, dict):
+        if "snapshot_id" in o: yield o
+        for v in o.values(): yield from find(v)
+    elif isinstance(o, list):
+        for v in o: yield from find(v)
+for sn in find(man): print("snapshot context roles:", [x["role"] for x in sn.get("context", [])])

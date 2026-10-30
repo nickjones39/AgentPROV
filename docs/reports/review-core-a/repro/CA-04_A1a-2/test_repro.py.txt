@@ -1,0 +1,37 @@
+"""A1a-2: a SEM rule reference with an over-long version must be a finding, not a crash."""
+
+from __future__ import annotations
+
+import hashlib
+import sys
+from pathlib import Path
+
+WT = Path(".")
+sys.path.insert(0, str(WT / "tests" / "unit" / "sem"))
+
+from sem_support import ann, example_registry, syn_sem, synthetic_aer  # noqa: E402
+
+from agentprov.aer.canon import dumps_line  # noqa: E402
+from agentprov.aer.rules import RULE_REF_RE  # noqa: E402
+from agentprov.sem.reader import load_sem_bytes  # noqa: E402
+from agentprov.sem.validate import validate_sem_document  # noqa: E402
+
+LONG = "tst.d@" + "1" * 5000
+
+
+def _sem_bytes_with_rule(rule: str) -> bytes:
+    doc = syn_sem(ann("m0#3", "integrity", "untrusted"))
+    records = [dict(r) for r in doc.annotations]
+    records[0]["rule"] = [rule]
+    body = b"".join(dumps_line(r) for r in [doc.header, *records])
+    seal = {"k": "seal", "id": "seal", "n_records": len(records) + 2,
+            "records_sha256": hashlib.sha256(body).hexdigest()}
+    return body + dumps_line(seal)
+
+
+def test_long_rule_version_is_a_finding_not_a_crash() -> None:
+    assert RULE_REF_RE.fullmatch(LONG) is not None  # the unbounded C.6.4 grammar admits it
+    doc = load_sem_bytes(_sem_bytes_with_rule(LONG))  # the reader (corpus read-back path) accepts it
+    report = validate_sem_document(doc, synthetic_aer(), catalogues=example_registry())
+    assert not report.passed
+    assert {f.code for f in report.errors} & {"sem.rule.missing", "sem.rule.syntax"}

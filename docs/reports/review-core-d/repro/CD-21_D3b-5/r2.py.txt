@@ -1,0 +1,19 @@
+import json, sys, traceback
+from agentprov.aer.canon import encode_value
+from agentprov.ingest.loaders import strict_json_loads
+from agentprov.ingest.limits import IngestLimits
+for n in (900, 1200, 5000, 50000, 200000):
+    s = "[" * n + "]" * n
+    try:
+        v = json.loads(s); r = "json.loads ok"
+        try:
+            encode_value(v, at="/x", lex=None); r += ", encode ok"
+        except RecursionError:
+            r += ", encode RecursionError"
+    except RecursionError:
+        r = "json.loads RecursionError"
+    try:
+        strict_json_loads(s.encode(), IngestLimits()); r += " | strict ok"
+    except Exception as e:
+        r += f" | strict {type(e).__name__}: {str(e)[:80]}"
+    print(n, r)

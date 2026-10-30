@@ -1,0 +1,21 @@
+import sys, traceback
+sys.path.insert(0, "tests/adapters/agentdojo")
+from agentdojo_support import new_log, map_log
+
+cases = [dict(user_task_id="unknown"), dict(suite_name="none"), dict(attack_type="none"),
+         dict(user_task_id="n/a"), dict(pipeline_name="unknown"), dict(injection_task_id="none"), dict(user_task_id="")]
+for kw in cases:
+    print("==", kw)
+    try:
+        m = map_log(new_log(**kw))
+        print("  status:", m.outcome.status if hasattr(m.outcome, "status") else type(m.outcome).__name__,
+              "n_records:", len(m.records))
+        print("  header task:", m.header.get("task"), "unk:", m.header.get("unk"))
+        print("  issue codes:", sorted(set(m.codes)))
+        for i in m.info.issues:
+            if i["code"] in ("map.adapter_defect", "aer.sentinel") or "defect" in i["code"]:
+                print("   ", i["code"], str(i.get("detail"))[:200])
+        r = m.validate()
+        print("  release validate errors:", [ (e.code if hasattr(e,'code') else e) for e in getattr(r, "errors", [])][:5])
+    except Exception as e:
+        print("  RAISED", type(e).__name__, str(e)[:300])

@@ -1,0 +1,27 @@
+import sys, tempfile, json
+from pathlib import Path
+sys.path.insert(0, "tests/adapters/inspect")
+from inspect_support import basic_sample, build_eval, synthetic_header, import_log
+from agentprov.adapters.profiles import load_profile
+W = "repro/D4-3"
+
+def run(name, tune, prof="survey-agentharm"):
+    data = build_eval(synthetic_header(), {"s1_epoch_1.json": basic_sample(tune=tune)})
+    with tempfile.TemporaryDirectory(dir=W) as d:
+        imp = import_log(data, Path(d), profile=load_profile(prof))
+        u = imp.units[0]
+        print("==", name)
+        print(" issues:", [(i["code"], i.get("detail")) for i in u.info.issues])
+        print(" fixtures:", [f["kind"] for f in u.of_kind("fixture")])
+        print(" sample_metadata:", u.header.get("ext", {}).get("inspect", {}).get("sample_metadata"))
+        blob = json.dumps([r for r in u.records] if hasattr(u, "records") else str(u.__dict__), default=str)
+        print(" 'target_functions' anywhere in unit:", "target_functions" in blob, "| 'grading_function':", "grading_function" in blob)
+        return u
+
+def base(s, sample):
+    print(" base metadata:", sample.get("metadata"))
+run("baseline", base)
+def gt(s, sample):
+    sample["metadata"]["target_functions"] = "attachment://deadbeef"
+u = run("ground truth dangling", gt)
+print([a for a in dir(u) if not a.startswith("_")])

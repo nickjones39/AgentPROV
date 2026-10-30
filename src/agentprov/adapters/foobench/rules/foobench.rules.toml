@@ -1,0 +1,246 @@
+# Rule catalogue `foobench` (docs/architecture D.12.1, D.5.1-D.5.2; C.3.13-C.3.15).
+#
+# FooBench is a self-authored toy format for the future-framework test (D.12; DoD Q.3): the rules below state
+# documented properties of that hypothetical framework, not of any real one, so no rule names an assumption and no
+# rule cites upstream code (there is none). Data, not code: loaded through importlib.resources by agentprov.aer.rules.
+# Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version` (AD-18).
+# Nothing is released yet (v0.1 is in development), so this file is still version 1.
+
+[catalogue]
+id = "foobench"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["unmapped_event_type", "restore_unmodelled", "observation_unlinked", "handoff_not_expanded"]
+subtypes = []
+types = [
+  "foobench:plan_step",
+  "foobench:plan",
+  "foobench:memory_item",
+  "foobench:memory_read",
+  "foobench:memory_snippet",
+  "foobench:observe",
+  "foobench:screenshot",
+]
+
+# ---------------------------------------------------------------------------------------------- header, actors, scopes
+[[rule]]
+id = "foobench.schema_is_foobench"
+version = 1
+class = "D"
+status = "active"
+statement = "A file whose first line declares the schema foobench/1 is a FooBench trace, so task.benchmark is foobench."
+premises = ["/schema"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.actor_table"
+version = 1
+class = "D"
+status = "active"
+statement = "FooBench actor labels (agent, planner, researcher, user, env, harness) and guard names map to AER actors through the profile's actor table; an event's actor label, author, origin or approver names the performing actor, and the harness performs plan, memory and observation steps."
+premises = ["/actor", "/author", "/origin", "/approver", "/guard"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.thread_scopes"
+version = 1
+class = "D"
+status = "active"
+statement = "Each FooBench thread is one scope: the thread named main is the attempt, any other thread (the planner's) is a thread scope under the run."
+premises = ["/thread"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- links and status
+[[rule]]
+id = "foobench.call_id_match"
+version = 1
+class = "D"
+status = "active"
+statement = "FooBench joins a tool_start, tool_end, guard_verdict, approval, handoff or memory_write to the tool_call part of an earlier assistant reply by the call id; the id of a reply's call is unique within a file."
+premises = ["/call"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/C_data_model.md C.5.4"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.event_implies_success"
+version = 1
+class = "D"
+status = "active"
+statement = "FooBench writes an llm_response, plan_update, memory_read, screenshot or handoff event only after the step finished successfully, so the model call is kept and the step or handoff status is ok."
+premises = ["/type"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.verdict_table"
+version = 1
+class = "D"
+status = "active"
+statement = "A guard verdict or approval decision maps to an AER verdict through the profile's closed tables; a string outside the table is kept verbatim in ext and declared ambiguous."
+premises = ["/verdict", "/decision"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- generic constructs
+[[rule]]
+id = "foobench.memory_key_match"
+version = 1
+class = "D"
+status = "active"
+statement = "FooBench memory is a key-value agent store: a memory_write stores its item under its key (target agent_store), and a memory_read of a key returns the latest item written under that key earlier in the same file."
+premises = ["/key"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.plan_media_json"
+version = 1
+class = "D"
+status = "active"
+statement = "The plan of a plan_update event is a JSON value, so the plan artefact has media type application/json."
+premises = ["/plan"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.text_action_parse"
+version = 1
+class = "I"
+status = "active"
+statement = "The harness parsed an action from the agent's plain-text reply, but the parse is not recorded: the tool name and arguments are reconstructed from the raw text as name(key=value, ...), which rests on the assumption that the harness used that grammar."
+premises = ["/raw"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.handoff_sub_file"
+version = 1
+class = "D"
+status = "active"
+statement = "A handoff event names the second file that holds the sub-agent's events; the sub-agent is a subagent scope spawned by the hand-off tool execution, under the run."
+premises = ["/call", "/sub_file"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- disclosed gaps
+[[rule]]
+id = "foobench.unknown_event_kept"
+version = 1
+class = "D"
+status = "active"
+statement = "An event of a type the adapter does not know is kept verbatim in ext.foobench.events[] of the nearest preceding host record and declared with the issue unmapped_event_type; it is never dropped and ext is opaque to PROV."
+premises = ["/type"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.restore_not_linearised"
+version = 1
+class = "D"
+status = "active"
+statement = "aer/0.1 has no encoding for an in-file restore or branch: a checkpoint_restore event is kept verbatim in ext.foobench.events[] of the nearest preceding host record with the issue restore_unmodelled, and later events are mapped in source order without a state claim."
+premises = ["/type"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/C_data_model.md C.3.15"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.observation_injected"
+version = 1
+class = "D"
+status = "active"
+statement = "A message the harness or the environment inserts into the context (a memory snippet, a screenshot observation) has no generator in aer/0.1, because an activity never generates a message; its relation to the artefact is not asserted and the issue observation_unlinked declares it."
+premises = ["/origin"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/C_data_model.md C.3.15"]
+tests = ["tests/adapters/foobench/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- semantics profile foobench.toy@1
+# Cited by SEM annotations (C.14.2), never by the AER or the mapper. All class I: the tool, artefact and observation
+# tables are the profile author's declared reading of a self-authored toy format (docs/architecture D.12.1 row 7).
+[[rule]]
+id = "foobench.tool_role_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The profile's tool table assigns each FooBench tool name a set of security roles, read on the tool_call parts and the tool_execution that carry the name; a name that is not in the table gets the roles [unknown] (fail-closed), and the text-parsed action is labelled by its parsed name like any other execution."
+premises = ["/name"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.1", "docs/architecture/C_data_model.md C.14.3"]
+tests = ["tests/adapters/foobench/test_semantics.py::test_roles_follow_the_tool_table_and_unknown_tools_fail_closed"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.tool_output_label_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The profile's tool table assigns the output of each FooBench tool an integrity and an optional channel, read on the tool_result parts of the messages that tool's execution generated; the output of a tool that is not in the table has integrity unknown (fail-closed), and a message generated by a guard decision is not tool output."
+premises = ["/name"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.1", "docs/architecture/C_data_model.md C.14.3"]
+tests = ["tests/adapters/foobench/test_semantics.py::test_tool_outputs_are_labelled_from_the_tool_table"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.artefact_label_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The profile's artefact table assigns each FooBench artefact type an integrity and an optional channel: a model-written artefact (plan, memory item, memory snippet) is unknown because no flow evidence says what it was derived from, an environment screen capture is untrusted, and an artefact type that is not in the table is unknown."
+premises = ["/type"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.1", "docs/architecture/C_data_model.md C.14.3"]
+tests = ["tests/adapters/foobench/test_semantics.py::test_artefacts_are_labelled_from_their_type"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.observation_label_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The profile's observation table labels a user-role message that the harness (a memory snippet) or the environment (a screenshot) inserts into the context from the message's own actor, without asserting a relation to any artefact."
+premises = ["/actor", "/role"]
+assumptions = []
+evidence = ["docs/architecture/D_adapters.md D.12.2", "docs/architecture/C_data_model.md C.14.3"]
+tests = ["tests/adapters/foobench/test_semantics.py::test_inserted_observations_are_labelled_by_their_actor"]
+since = "0.1.0"
+
+[[rule]]
+id = "foobench.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy: a request whose roles include a write, send or execute sink, or unknown, is potentially influenced by a context member whose integrity is untrusted or unknown; the policy over-approximates by design and never asserts that the content was used."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/EF_provenance.md E.7.3", "docs/architecture/C_data_model.md C.14.3"]
+tests = ["tests/adapters/foobench/test_semantics.py::test_the_taint_policy_is_sinks_and_unknown_over_untrusted_and_unknown"]
+since = "0.1.0"

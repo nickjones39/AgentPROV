@@ -1,0 +1,40 @@
+"""Verify: a sampled snapshot s1 followed by a full snapshot s2 clears 'partial' and drops selection.sample; package's
+working check accepts it; derive's import_arguments for s1 carries no sample. Variant: sample first 2 then resume random 3."""
+import sys, os, json, shutil
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO/"tests/adapters"))
+WORK = Path(sys.argv[1])
+if WORK.exists(): shutil.rmtree(WORK)
+WORK.mkdir(parents=True)
+os.environ["AGENTPROV_HOME"] = str(WORK/"home")
+import import_support as support
+from agentprov.adapters.runner.importer import ImportSample, LocalTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+from agentprov.corpus import package as pkg
+support.agentdojo_tree(WORK/"in", count=4)
+def run(cdir, snap, **kw):
+    with CorpusWriter(WORK/cdir) as corpus:
+        return import_source("agentdojo", LocalTree(WORK/"in"), corpus=corpus, part="2024-06", until="aer", snapshot_id=snap,
+                             pin_check=support.vouch(WORK/"in"), in_process=True, **kw)
+def show(cdir):
+    m = json.loads((WORK/f"{cdir}.partial"/"corpus.json").read_text())
+    rows = [json.loads(l) for l in (WORK/f"{cdir}.partial"/"executions.jsonl").read_text().splitlines()]
+    print(" partial:", m["partial"], "selection:", m["selection"])
+    print(" rows snapshot_ids:", [r.get("snapshot_ids") for r in rows])
+    print(" snapshots:", [(s["snapshot_id"], s["counts"]) for s in m["sources"][0]["snapshots"]])
+    try:
+        pkg._check_working(m, None, "0.1.0"); print(" package._check_working: no partial refusal")
+    except Exception as e:
+        print(" package._check_working:", type(e).__name__, str(e)[:120])
+    return m, rows
+print("case A: s1 --sample 2 first, then s2 full")
+run("a", "s1", sample=ImportSample(2, "first")); m, rows = show("a")
+run("a", "s2"); m, rows = show("a")
+print("case B: s1 --sample 2 first, then resume s1 --sample 3 random seed x")
+run("b", "s1", sample=ImportSample(2, "first")); show("b")
+run("b", "s1", sample=ImportSample(3, "random", "x")); m, rows = show("b")
+from agentprov.adapters.runner.importer import select_sample
+print("case C: s1 --sample 2 first, then resume s1 with no sample (documented completion path)")
+run("c", "s1", sample=ImportSample(2, "first")); show("c")
+run("c", "s1"); show("c")

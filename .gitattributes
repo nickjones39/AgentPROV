@@ -1,0 +1,13 @@
+# Every text file is LF in every checkout (Windows included): pinned digests (PORT_MANIFEST, engine code
+# digests, the adprov.ttl copy) are computed over LF bytes (DECISIONS D-7).
+* text=auto eol=lf
+
+# Third-party fixture and golden bytes must stay byte-identical (digests are pinned): no EOL or diff munging.
+tests/fixtures/** binary
+tests/golden/** binary
+docs/architecture/examples/**/*.jsonl -text
+
+# The id-ledger mirror (tools/reserve_id.py, D-423) is the one union-merged file: each line is a self-contained JSON
+# record with a unique rid, never edited, and readers sort. Union merges corrupt ordinary docs; see
+# tests/unit/workflow/test_union_merge_hazards.py.
+docs/workflow/id-ledger.jsonl merge=union

@@ -1,0 +1,50 @@
+# Version 2 (D-31 addendum, option B, user decision 2026-10-13): version 1's tables unchanged, on the inspect rule
+# catalogue version 2 (one catalogue version per corpus, H.2.5). Version 1 stays for the stored corpora.
+# Semantics profile inspect.agentharm@1: the tool policy and the scorer table for the survey's AgentHarm Inspect logs
+# (docs/architecture D.9, C.14.3, EF E.7.3, R-37). Data, not code: read by agentprov.adapters.inspect.semantics.
+#
+# Both tables are class I (rules inspect.tools_fail_closed@1 and inspect.scorer_claim_table@1): nothing here was
+# verified against the producing inspect_ai / inspect_evals code identity.
+
+# Tool table. EMPTY ON PURPOSE. AgentHarm's tool list (names, what each reads or writes, the integrity of its output)
+# is not available offline, so this profile version knows no tool. Every tool is therefore fail-closed (C.14.3):
+#   - the tool_call parts and the tool_executions get role ["unknown"],
+#   - the tool_result parts get integrity "unknown" (never "trusted"), and no channel.
+# There is no taint policy: with every request role unknown, a policy over (sinks + unknown) x (untrusted + unknown)
+# would mark every pair and say nothing. A later version adds [[tool]] entries (roles, integrity, channel) and a policy.
+[tool_policy]
+known_tools = []
+role = ["unknown"]
+integrity = "unknown"
+
+# Scorer table, keyed by the judgement name "<scorer>.<value key>" that the Inspect mapper emits (D.9.2: one judgement
+# per score value key; AgentHarm's combined_scorer returns {"score": ..., "refusal": ...}).
+#
+#   kind  "graded": the judgement value is a number on `scale`; the outcome carries `score` and `scale`, no `holds`.
+#         "flag":   the judgement value is 0 or 1 (or a boolean); the outcome carries `holds` (value is 1), `score`
+#                   and `scale`.
+#   scale "unit_interval": 0 <= value <= 1.  "binary": value in {0, 1}.
+#   claim the namespaced outcome claim (inspect.<claim>, not one of the core claims user_task_solved,
+#         attack_succeeded, attack_goal_progress: AgentHarm has no injection attacker, so attack_* would be a
+#         misreading). `claim_by_suite` refines it by the AER's task.suite when the polarity depends on the split.
+#
+# Polarity (the reason for the split on `score`): score is the fraction of the sample's grading checks that the
+# agent satisfied. On the harmful split (task.suite inspect_evals/agentharm) a higher score means MORE of the
+# harmful task was carried out; on the benign split (inspect_evals/agentharm_benign) a higher score means MORE of
+# the benign task was completed (capability). A suite that is neither gets the polarity-free claim inspect.task_score.
+# refusal is 1 when the refusal judge found that the agent refused; it is polarity-free (a refusal is desired on the
+# harmful split and an over-refusal on the benign one), so one claim serves both splits.
+[[scorer]]
+judgement = "combined_scorer.score"
+kind = "graded"
+scale = "unit_interval"
+claim = "inspect.task_score"
+[scorer.claim_by_suite]
+"inspect_evals/agentharm" = "inspect.harmful_task_score"
+"inspect_evals/agentharm_benign" = "inspect.benign_task_score"
+
+[[scorer]]
+judgement = "combined_scorer.refusal"
+kind = "flag"
+scale = "binary"
+claim = "inspect.refusal"

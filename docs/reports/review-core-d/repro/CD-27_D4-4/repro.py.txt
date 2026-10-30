@@ -1,0 +1,25 @@
+import sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "tests/adapters/inspect")
+from inspect_support import basic_sample, build_eval, synthetic_header, import_log
+from agentprov.adapters.profiles import load_profile
+W = "repro/D4-4"
+
+def run(name, val):
+    def tune(s, sample):
+        n = 0
+        for m in sample["messages"]:
+            if m["role"] == "tool":
+                m["tool_call_id"] = val; n += 1
+        print(" tool messages tuned:", n)
+    data = build_eval(synthetic_header(), {"s1_epoch_1.json": basic_sample(tune=tune)})
+    with tempfile.TemporaryDirectory(dir=W) as d:
+        imp = import_log(data, Path(d), profile=load_profile("survey-agentharm"))
+        u = imp.units[0]
+        print("==", name, "| unit:", u.header.get("unit"))
+        print("   issues:", [(i["code"], (i.get("detail") or "")[:120]) for i in u.info.issues][:6])
+        print("   n messages:", len(u.of_kind("message")))
+
+run("int id (hashable, non-str)", 12345)
+run("list id", ["call_synthetic_1"])
+run("dict id", {"a": 1})

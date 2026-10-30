@@ -1,0 +1,26 @@
+--- a/src/agentprov/formats.py
++++ b/src/agentprov/formats.py
+@@ CORPUS_LAYER_FORMATS: Final = frozenset(
+         "agentprov-withheld/0.2",
+         "agentprov-deposit/0.1",
++        "agentprov-split/0.1",  # the stored split descriptor (raw/members.py SPLIT_FORMAT; G.9, H.2.3, D-315)
+     }
+ )
+@@ AS_BUILT_FORMATS: Final = frozenset(
+         "agentprov-validation-report/0.1",  # validate --corpus --report (corpus/validation.py; N.2.5(5), D-40)
++        "agentprov-sem-profile/0.1",  # semantics profile.toml files (adapters/*/semantics/*)
++        "agentprov-reconciliation/0.1",  # migration reconciliation report (migration/reconcile.py)
++        "agentprov-inspect/0.1",  # agentprov inspect output (cli/inspect.py)
++        "agentprov-artefact-table/0.1",  # import --artefacts table (cli/import_.py)
++        "agentprov-fixture-caps/0.1",  # tests/FIXTURES.json (testing/fixture_caps.py)
+     }
+ )
+--- a/tests/unit/test_formats.py
++++ b/tests/unit/test_formats.py
++# plus test_every_format_id_in_src_is_in_the_closed_set (see regression_test)
+--- a/docs/architecture/HL_corpus_versioning.md
++++ b/docs/architecture/HL_corpus_versioning.md
+@@ L.1.1
+-  `agentprov-deposit/0.1`;
++  `agentprov-deposit/0.1`, the split descriptor `agentprov-split/0.1` (H.2.3, D-315);
++- semantics profiles `agentprov-sem-profile/0.1`;

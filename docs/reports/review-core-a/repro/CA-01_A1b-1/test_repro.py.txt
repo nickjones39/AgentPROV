@@ -1,0 +1,52 @@
+"""A1b-1: the AER validator must treat the first-level members of a {"$lit": body} escape as literal source keys
+(C.11.3), not as $blob / $int reserved forms."""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(".")
+sys.path.insert(0, str(REPO / "tests" / "unit" / "aer"))
+
+import aer_support as S  # noqa: E402
+
+from agentprov.aer._structure import check_record  # noqa: E402
+from agentprov.aer.canon import LexHints, decode_value, encode_value  # noqa: E402
+from agentprov.aer.validate import validate_records  # noqa: E402
+from agentprov.aer.writer import AerWriter  # noqa: E402
+
+FAKE = "sha256:" + "e" * 64
+SOURCES = [{"$blob": FAKE, "bytes": 3}, {"$int": "5"}]
+
+
+def _records_with_args(source: dict) -> list[dict]:
+    args = encode_value(source, at="/parts/1/args", lex=LexHints())
+    assert args == {"$lit": source}
+    assert decode_value(args, at="/parts/1/args", lex=None) == source  # canon treats the body as literal keys
+    recs = S.example_records()
+    m1 = next(r for r in recs if r["id"] == "m1")
+    m1["parts"][1]["args"] = args
+    assert check_record(m1) == []  # structure accepts the escape
+    return recs
+
+
+@pytest.mark.parametrize("source", SOURCES, ids=["blob", "int"])
+def test_validator_does_not_read_lit_body_as_reserved(source: dict) -> None:
+    recs = _records_with_args(source)
+    report = validate_records(recs, store=S.example_store(), catalogues=S.make_registry())
+    bad = [(f.code, f.pointer) for f in report.errors if f.pointer.startswith("/parts/1/args")]
+    assert bad == []
+
+
+@pytest.mark.parametrize("source", SOURCES, ids=["blob", "int"])
+def test_writer_seals_lit_escape_without_invented_blob(source: dict, tmp_path: Path) -> None:
+    recs = _records_with_args(source)
+    writer = AerWriter(tmp_path / "x.aer.jsonl", recs[0], catalogues=S.make_registry())
+    for rec in recs[1:]:
+        writer.add(rec)  # current code: AerWriteError aer.schema.pattern for {"$int": "5"}
+    info = writer.seal(issues=[])
+    seal = json.loads(info.path.read_bytes().splitlines()[-1])
+    assert FAKE not in seal.get("blobs", [])  # current code: the escaped literal is claimed as a stored blob

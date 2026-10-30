@@ -1,0 +1,35 @@
+{"schema":"foobench/1","run":"run-001","task":"task-001","agent_model":"foo-agent-1","planner_model":"foo-planner-1","t":"2026-10-01T12:00:00Z"}
+{"type":"llm_request","ts":"2026-10-01T12:00:01Z","id":"r0","thread":"planner","actor":"planner"}
+{"type":"llm_response","ts":"2026-10-01T12:00:02Z","request":"r0","finish":"stop","reply":{"id":"p0","role":"assistant","text":"Plan: look up the note, save it, delegate, then act."}}
+{"type":"plan_update","ts":"2026-10-01T12:00:03Z","reply":"p0","plan":{"steps":["lookup","save","delegate","act"]}}
+{"type":"telemetry","ts":"2026-10-01T12:00:03Z","counters":{"tokens":42,"latency_ms":120}}
+{"type":"llm_request","ts":"2026-10-01T12:00:04Z","id":"r1","thread":"main","actor":"agent","add":[{"id":"u0","role":"user","author":"user","text":"Look up the note and act on it."}],"context":["u0"]}
+{"type":"llm_response","ts":"2026-10-01T12:00:05Z","request":"r1","finish":"tool_calls","reply":{"id":"a1","role":"assistant","text":"Looking up the note, saving it and delegating.","calls":[{"id":"c1","name":"lookup","args":{"topic":"note"}},{"id":"c2","name":"save_memory","args":{"key":"note","value":"remember the plan"}},{"id":"c3","name":"transfer_to_researcher","args":{"topic":"note"}}]}}
+{"type":"guard_verdict","ts":"2026-10-01T12:00:06Z","call":"c1","guard":"guard-1","verdict":"pass"}
+{"type":"tool_start","ts":"2026-10-01T12:00:07Z","call":"c1","name":"lookup","args":{"topic":"note"}}
+{"type":"tool_end","ts":"2026-10-01T12:00:08Z","call":"c1","status":"ok","output":"note body (synthetic)","message":"t2"}
+{"type":"tool_start","ts":"2026-10-01T12:00:09Z","call":"c2","name":"save_memory","args":{"key":"note","value":"remember the plan"}}
+{"type":"memory_write","ts":"2026-10-01T12:00:10Z","call":"c2","key":"note","value":"remember the plan","store_patch":[{"op":"add","path":"/note","value":"remember the plan"}]}
+{"type":"tool_end","ts":"2026-10-01T12:00:11Z","call":"c2","status":"ok","output":"saved","message":"t3"}
+{"type":"handoff","ts":"2026-10-01T12:00:12Z","call":"c3","name":"transfer_to_researcher","to":"researcher","sub_file":"sub-trace-001.jsonl","result":"The researcher found nothing unusual.","message":"t4"}
+{"type":"memory_read","ts":"2026-10-01T12:00:13Z","key":"note","content":"remember the plan"}
+{"type":"screenshot","ts":"2026-10-01T12:00:14Z","action":"click","sha256":"a16089dabf103366bacc0e14c5bdd7c8497b4fe4d45b92fc77234e57feb13fd7","bytes":69,"media":"image/png"}
+{"type":"llm_request","ts":"2026-10-01T12:00:15Z","id":"r3","thread":"main","actor":"agent","add":[{"id":"h5","role":"user","origin":"harness","text":"Memory: note = remember the plan"},{"id":"e6","role":"user","origin":"env","blob":{"sha256":"a16089dabf103366bacc0e14c5bdd7c8497b4fe4d45b92fc77234e57feb13fd7","bytes":69,"media":"image/png"}}],"context":["u0","a1","t2","t3","t4","h5","e6"]}
+{"type":"llm_response","ts":"2026-10-01T12:00:16Z","request":"r3","finish":"tool_calls","reply":{"id":"a7","role":"assistant","text":"Clicking ok.","calls":[{"id":"c4","name":"click","args":{"target":"ok"}}]}}
+{"type":"approval","ts":"2026-10-01T12:00:17Z","call":"c4","approver":"human","decision":"approve"}
+{"type":"tool_start","ts":"2026-10-01T12:00:18Z","call":"c4","name":"click","args":{"target":"ok"}}
+{"type":"tool_end","ts":"2026-10-01T12:00:19Z","call":"c4","status":"ok","output":"clicked","message":"t8"}
+{"type":"checkpoint_restore","ts":"2026-10-01T12:00:20Z","checkpoint":"cp-1"}
+{"type":"llm_request","ts":"2026-10-01T12:00:21Z","id":"r4","thread":"main","actor":"agent","context":["u0","a1","t2","t3","t4","h5","e6","a7","t8"]}
+{"type":"llm_response","ts":"2026-10-01T12:00:22Z","request":"r4","finish":"tool_calls","reply":{"id":"a9","role":"assistant","text":"Sending a note.","calls":[{"id":"c5","name":"send_note","args":{"to":"alice","body":"draft"}}]}}
+{"type":"approval","ts":"2026-10-01T12:00:23Z","call":"c5","approver":"human","decision":"edit","edited_args":{"to":"alice","body":"edited draft"}}
+{"type":"tool_start","ts":"2026-10-01T12:00:24Z","call":"c5","name":"send_note","args":{"to":"alice","body":"edited draft"}}
+{"type":"tool_end","ts":"2026-10-01T12:00:25Z","call":"c5","status":"ok","output":"sent","message":"t10"}
+{"type":"llm_request","ts":"2026-10-01T12:00:26Z","id":"r5","thread":"main","actor":"agent","context":["u0","a1","t2","t3","t4","h5","e6","a7","t8","a9","t10"]}
+{"type":"llm_response","ts":"2026-10-01T12:00:27Z","request":"r5","finish":"stop","reply":{"id":"a11","role":"assistant","text":"scroll(direction=down)"}}
+{"type":"text_action","ts":"2026-10-01T12:00:28Z","reply":"a11","raw":"scroll(direction=down)","status":"ok","output":"scrolled","message":"t12"}
+{"type":"llm_request","ts":"2026-10-01T12:00:29Z","id":"r6","thread":"main","actor":"agent","context":["u0","a1","t2","t3","t4","h5","e6","a7","t8","a9","t10","a11","t12"]}
+{"type":"llm_response","ts":"2026-10-01T12:00:30Z","request":"r6","finish":"tool_calls","reply":{"id":"a13","role":"assistant","text":"Deleting the file.","calls":[{"id":"c6","name":"delete_file","args":{"path":"scratch.txt"}}]}}
+{"type":"guard_verdict","ts":"2026-10-01T12:00:31Z","call":"c6","guard":"guard-1","verdict":"block","reason":"policy","replacement":"Blocked by the guard.","message":"t14"}
+{"type":"llm_request","ts":"2026-10-01T12:00:32Z","id":"r7","thread":"main","actor":"agent","context":["u0","a1","t2","t3","t4","h5","e6","a7","t8","a9","t10","a11","t12","a13","t14"]}
+{"type":"llm_response","ts":"2026-10-01T12:00:33Z","request":"r7","finish":"stop","reply":{"id":"a15","role":"assistant","text":"Done."}}

@@ -1,0 +1,24 @@
+import sys, json
+sys.path.insert(0, "$AGENTPROV_HOME/migration-work/review-core-d/d5")
+from common import *
+from agentprov.adapters.dtap.dialect import LFS_HEADER
+d0 = "openaisdk/gpt-5.2/code/benign/math/57"
+label = f"{d0}/20260220_133459.json"
+data = traj([user(), call("a", {}), result("a")])
+judge = json.dumps({"task_success": True, "attack_success": None, "task_message": "short"}).encode()
+J = {"judge": (f"{d0}/judge_result.json", judge, RUNS_REPO, RUNS_COMMIT)}
+sib_label = f"{d0}/20260221_000000.json"
+cases = {
+    "judge only (control)": {},
+    "valid distinct sibling (control)": {"attempt:0": (sib_label, traj([user("other"), call("b", {}), result("b")]), RUNS_REPO, RUNS_COMMIT)},
+    "unparseable sibling (dup key)": {"attempt:0": (sib_label, b'{"task_info": {}, "task_info": {}, "traj_info": {}, "trajectory": []}', RUNS_REPO, RUNS_COMMIT)},
+    "synthetic sibling": {"attempt:0": (sib_label, traj([user("x")], ti={"synthetic": True}), RUNS_REPO, RUNS_COMMIT)},
+    "LFS pointer sibling": {"attempt:0": (sib_label, LFS_HEADER + b"oid sha256:" + b"0"*64 + b"\nsize 123\n", RUNS_REPO, RUNS_COMMIT)},
+}
+for name, extra in cases.items():
+    o, d = map_one(label, data, aux={**J, **extra})
+    dt = d.header["ext"]["dtap"]
+    print(f"[{name}] judge_link={dt.get('judge_link')} rerun={dt.get('rerun')}")
+    print("   judgements:", [(r["name"], r.get("evf", {}).get("/subject")) for r in d.records if r["k"] == "judgement"])
+    print("   artifacts:", [a.get("role") + ":" + str(a.get("path", a.get("label", "")))[-25:] for a in d.header.get("artifacts", [])])
+    print("   issues:", sorted(i["code"] for i in d.seal["issues"]))

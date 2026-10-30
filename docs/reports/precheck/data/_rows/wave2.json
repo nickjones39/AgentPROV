@@ -1,0 +1,537 @@
+{
+ "critic": {
+  "fixed": [
+   "SECURITY (fixed, please tell the orchestrator now): 6 of geryon's committed-to-be exam scripts (data/geryon-agentdojo/exam-scripts/{dcls,exam_build,derive_files,gx_lib,os2,os_cmp}.py) held the operator's absolute worktree path, i.e. the home-directory account name (CC-03: an operator-* hit in a report artefact). I cleaned them so they resolve paths from the repository root (Path.cwd() / os.getcwd()); behaviour is unchanged and all six compile. After the fix, no file under docs/reports/precheck contains the account name. The geryon dossier header now says so.",
+   "hilarytorn-trajectory-poisoning: the dossier's reproduction cited scripts that exist only in scratch, and its follow-up 3 was still open. I copied 10 path-cleaned scripts into data/hilarytorn-trajectory-poisoning/exam-scripts/ (armptr, c0labels, c0peek, evrules, h8c0, rawscan, sample_outcomes, sampraw, unread, versions); the scratch originals held the operator path. I updated the Data row, section 9 and follow-up 3 (now marked done).",
+   "glitch-agentdojo: section 3 said 'amendments 1 to 3 apply; amendment 1 does not'; it now says amendments 2 and 3. I also recorded the README section 8 incident re-check, which passed. The examiner outputs and _cross/l1-xdup.json were all written before 11:09:41. The two verifier scripts that ran between 11:09:41 and 11:28:43 (verify02/v02.py and the one that wrote verify/ev-v04.json) read pinned blobs and the L2 corpus, not the overwritten L1 rows. The regenerated units file matches the sample's units_sha256 d8cc0719.",
+   "yockcheng-prompt-injection-harness: section 3 said 'Amendments 1-4 apply; amendment 1 does not'; it now says 2-4. I added the is_twin bundle-id caveat to section 5 (the 1,201 'native' rules from the fixed tool are an upper bound), to section 8 item 4 and to follow-up 1, whose timing changed from 'any quiet window' to 'after the is_twin bundle-id fix'.",
+   "interbolt-agentdojo, tacit-agentdojo, shreeyavarma-llm-safety: their CC-08 follow-ups said to re-run l2_check with the landed 6b76c15e fix. I added a caveat: that fix does not decode inference-bundle ids (refuted PC-glitch-04, PC-melon-11, refuted PC-hilarytorn-06), so the l2_check step waits for the is_twin fix. The L1 steps can run now.",
+   "mohameduk-agentdojo PC-07: I changed the class from 'expected-known (R2) + scope mismatch' to documentation-mismatch S3 (R2 entry scope), matching the same artefactory scope gap in the other eight wave-2 dossiers. Changed in both the dossier and findings.json, with a 'wave-2 completeness critic' verdict entry recording the harmonisation.",
+   "mohameduk-agentdojo refuted PC-12: the verifier's verdict had severity S4, which is outside the S0-S3 scale of README section 5. Set to S3 in findings.json, with a note in that verdict's reasoning.",
+   "mohameduk-agentdojo follow-up 3 (screen the other parts for IT5 and mojibake): answered for wave 2. L1-03 mojibake is 0 in the other 8 parts. Slack IT5 under a blocking defence is already covered by glitch PC-01 and geryon PC-01. Interbolt and melon have no slack suite, and tacit, hilarytorn, yockcheng and shreeyavarma have no defence.",
+   "melon-agentdojo L1-06 row: L1-06 parses JSON only, so I scanned the 5 non-JSON context artefacts with the same patterns. Result: 0 account paths and 1 credential-assignment shape in README.md line 49, which is a length withheld 'your ... here' placeholder, not a credential. Recorded in the row.",
+   "Counts checked: dossier numbers agree with l1-head.json, l2-sample-head.json, l2-head.json and code-head.json for all 9 parts (walked, selected, context, units, parse classes, L1-03/04/06/07/08, strata, sample n and digest prefix, import status and codes, validate, recompute, verify, determinism file counts, redaction files and hits). Where exam.json and findings.json differ (tacit-09 S3 to S2, hilarytorn-01 S2 to S3, geryon-09 refuted), it is a verifier change the dossier documents. All 9 findings.json files are in CC-06 format. Every README section 6 template section is present in all 9 dossiers, and every pre-registered hypothesis has a stated result. The paper and README numbers used in section 6 match the pre-registrations that were fact-checked (interbolt, melon, glitch, mohameduk, tacit, geryon, hilarytorn spot-checked in full)."
+  ],
+  "issues": [
+   {
+    "corpus_id": "melon-agentdojo",
+    "issue": "Not examined: AgentDojo checker defects CC-07 #181 and #161. CC-07 applies to every AgentDojo-format corpus; interbolt, tacit and the wave-1 dossiers quantified them, melon only gives task populations in PC-09. My screen, using the same targets as interbolt checker.py and tacit b181.py (it reproduces interbolt's 23 and 42 and tacit's 10), is unverified. #181: 6 of 16 banking IT0/1/3 successes have no goal datum in any executed attacker transfer (gpt-4o melon_at 3 of 12, inside the README-reproduced important_instructions ASR of 18/143). #161: 57 of 119 banking user_task_5 utility-true logs have no executed Spotify payment, including melon_sm and melon_at important_instructions 9 of 9, which feed README-reproduced utility-under-attack cells. Needs an examiner finding and a verifier, CC-07 class (see the classification issue below), and disclosure beside the reproduced melon_sm/melon_at rows.",
+    "rerun": "uv run python -I ~/.agentprov/migration-work/precheck/_wave2-critic/exam/cc07.py ~/.agentprov/staging/10c/melon/MELON.git 71d99dfff5ef98ffb25bac451909f3e10af9e27f ~/.agentprov/migration-work/precheck/melon-agentdojo/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/melon-agentdojo/exam/cc07.json   (light, read-only; per-arm rows are in the output file)"
+   },
+   {
+    "corpus_id": "glitch-agentdojo",
+    "issue": "CC-07 checked only on the glitch arm. PC-02 says #181 does not decide IT0/IT3 there, but neither #181 on the undefended gpt-4o banking arm (96/144) nor #161 was examined. Critic screen (unverified): #181 3 of 46 (all 3 in undefended gpt-4o IT1, 3 of 15); #161 12 of 40 banking user_task_5 utility-true logs without a Spotify payment (haiku 4, haiku-glitch 5, gpt-4o 1, gpt-4o-glitch 2). Needs an examiner finding and a verifier.",
+    "rerun": "uv run python -I ~/.agentprov/migration-work/precheck/_wave2-critic/exam/cc07.py ~/.agentprov/staging/10c/glitch/Glitch.git 713bb2961fa16980ca8085d372adb200a66cad71 ~/.agentprov/migration-work/precheck/glitch-agentdojo/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/glitch-agentdojo/exam/cc07.json"
+   },
+   {
+    "corpus_id": "mohameduk-agentdojo",
+    "issue": "CC-07 is listed in PC-07 only as 'per covered task'. Critic screen (unverified): #181 0 of 15 (gemini none). #161 42 of 50: in all four gateway arms, 9 of 9 attacked and 1 of 1 benign banking user_task_5 logs score utility true with no executed Spotify payment (the gateway refused it). This is the interbolt PC-02 pattern, and it inflates defended utility under attack and benign utility. Needs a finding (S2 disclosure) and a verifier.",
+    "rerun": "uv run python -I ~/.agentprov/migration-work/precheck/_wave2-critic/exam/cc07.py ~/.agentprov/staging/10c/mohameduk/agentdojo.git 3f9d69a1ea96b75e8695653ceee8c3ff088db9b3 ~/.agentprov/migration-work/precheck/mohameduk-agentdojo/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/mohameduk-agentdojo/exam/cc07.json"
+   },
+   {
+    "corpus_id": "geryon-agentdojo",
+    "issue": "#181 and #161 are not examined, although the Progent fork's v1.2 banking injection tasks carry the same precedence defect as interbolt's v1_2 file. Critic screen (unverified): #181 19 of 462 IT0/1/3 successes lack the goal datum (condition A 14, B 5), 0 of 61 in runs-full-set B, so the 42/144 headline is unaffected. #161 36 of 171 user_task_5 utility-true logs without a Spotify payment (runs-full-set A 7/27, B 6/27), which reach the published 88/144 and 81/144 utilities. Needs an examiner finding and a verifier.",
+    "rerun": "uv run python -I ~/.agentprov/migration-work/precheck/_wave2-critic/exam/cc07.py ~/.agentprov/staging/10c/geryon/geryon.git 905aae02c4185454ffbdb64a8bae6a042f6d7047 ~/.agentprov/migration-work/precheck/geryon-agentdojo/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/cc07.json"
+   },
+   {
+    "corpus_id": "interbolt-agentdojo",
+    "issue": "Classification differs across corpora for the same artefact (CC-07 #181). Interbolt PC-01 is source-defect S2 (R1, because validity_defects does not scope the source). Tacit PC-03 is expected-known S2 (R2). Wave-1 mandate PC-01 and ast-survey PC-04 are expected-known S3, plus a separate documentation-mismatch for the scope. validity_defects' description names 'banking precedence', so R2 reads as the canonical class. #161 (interbolt PC-02, R1 S2, against mandate PC-02 expected-known S3) has the same problem, which the dossier itself notes. The orchestrator needs to rule what 'covers the task' means in CC-07, then align interbolt PC-01/02, tacit PC-03 and the new melon/glitch/mohameduk/geryon findings. I left it unchanged because it is a rule decision.",
+    "rerun": "none (classification ruling; edit the findings.json cls field and the dossier tables after the ruling)"
+   },
+   {
+    "corpus_id": "glitch-agentdojo",
+    "issue": "Three wave-2 dossiers propose three different new artefacts.toml ids for the same #168 defect (slack IT5 scored on attempted or denied membership calls): glitch PC-01 agentdojo.art.denied_call_scored_success, mohameduk PC-02 agentdojo.art.slack_it5_proposal_scored, geryon PC-01 agentdojo.art.trace_security_counts_denied_calls. Two more items are similar: tacit PC-09 agentdojo.art.local_empty_final and shreeyavarma PC-01 agentdojo.art.local_empty_completion are the same LocalLLM #220 mechanism (cf. PC-agentdojo-upstream-08). Tacit PC-04 proposes tacit.art.qwen_workspace_truncated, while geryon PC-02 and agentdojo-upstream PC-01 extend the proposed agentdojo.art.incomplete_arm. The family owner should merge each into one entry with per-source rows: for #168, generalise rope.art.security_correction; for the truncated arm, a row of incomplete_arm. Classes within each group are already consistent (source-defect S2).",
+    "rerun": "none (catalogue routing)"
+   },
+   {
+    "corpus_id": "yockcheng-prompt-injection-harness",
+    "issue": "All nine wave-2 dossiers report the same artefactory scope omission: no AgentDojo-family artefacts.toml entry scopes the phase-10c/10d/10e profiles. After the mohameduk fix, all nine class it documentation-mismatch S3, and interbolt, tacit, glitch, geryon, hilarytorn, yockcheng and shreeyavarma each ask for a cross-cutting item. Proposed: CC-09 in cross-cutting.md, 'AgentDojo-format profiles missing from the generic artefacts.toml scopes; documentation-mismatch S3 (R2 entry scope); per-corpus counts in each dossier'. The dossiers should then cite CC-09.",
+    "rerun": "none (cross-cutting.md edit by the orchestrator)"
+   },
+   {
+    "corpus_id": "melon-agentdojo",
+    "issue": "CC-08 twin-counter verdicts contradict each other within one mapper (analysis-artefact, R5, not a readiness factor). Glitch refuted PC-04 and hilarytorn refuted PC-06 say the pre-fix l2-head.json counts are correct ('native 0', '0 basisRule refs to native _unverified rules'). Melon PC-11, yockcheng PC-04, shreeyavarma PC-06 and geryon PC-08 say they include the native class-I rules agentdojo.checker_inputs_unverified and agentdojo.auto_execution_unverified. In the glitch, melon, interbolt and yockcheng scratch corpora these rules appear in the PROV of every sampled execution, inside multi-rule bundle ids. In tools/precheck/l2_check.py, line 260 applies the _UNVERIFIED_REF regex to the bundle id and line 128 then parses the whole joined id as one rule, so the fixed is_twin cannot work on bundle refs. The tool owner needs one definition (statement-level, mixed twin and native refs) plus bundle-id decoding before recheck12 runs l2_check for any of the 9 wave-2 parts. Mohameduk, geryon, melon and hilarytorn already say so; I added the caveat to interbolt, tacit, yockcheng and shreeyavarma.",
+    "rerun": "after the is_twin fix (tools/precheck is frozen; I did not edit it): uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml  (the l1 steps can run before the fix; the check steps cannot)"
+   },
+   {
+    "corpus_id": "interbolt-agentdojo",
+    "issue": "Security-relevant, already in the dossier but marked security=false: PC-05. A third-party workstation account path is in 24 run_manifest.json context artefacts copied into the raw store (my context scan reproduces 24 matches, 1 distinct account, 0 operator). release_scan would not flag it, and README section 5 lists only AER/SEM/PROV and reports as 'security'. The orchestrator should explicitly hold the packaging and deposit decision (precedent D-345) and decide whether raw-store context paths count as security findings.",
+    "rerun": "none (owner decision before packaging)"
+   },
+   {
+    "corpus_id": "shreeyavarma-llm-safety",
+    "issue": "Tool coverage gap (R5): L1-06 scans selected units and JSON/JSONL auxiliaries only. Non-JSON context artefacts (README, scripts, configs) enter the raw store unscanned. My one-off scan of all context artefacts of the 9 wave-2 parts (131/5/9/7/10/10/7/7/4 files) found only the interbolt 24 (PC-05) and a melon README placeholder. Waves 3-7 are not covered. Suggest adding a context-artefact L1-06 pass to l1_scan after the freeze, or running the critic script per wave.",
+    "rerun": "uv run python ~/.agentprov/migration-work/precheck/_wave2-critic/exam/ctxscan.py  (run from the repository root with GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file; edit its PARTS map for later waves; counts and digests only)"
+   },
+   {
+    "corpus_id": "geryon-agentdojo",
+    "issue": "Same kind of finding, different class: cross-corpus convergent identical-trajectory groups citing CC-01 are analysis-artefact S3 in geryon PC-10 but expected-known S3 in mohameduk PC-11 (yockcheng PC-08 is expected-known without a CC-01 citation). Per CC-01 the canonical class is analysis-artefact S3, but mohameduk's point is effective n and payload not read, which is a data property. CC-01 should say whether convergent trajectories within or across corpora are analysis-artefact or expected-known. Severity S3 is the same everywhere, so no readiness effect.",
+    "rerun": "none (cross-cutting ruling)"
+   },
+   {
+    "corpus_id": "tacit-agentdojo",
+    "issue": "Minor unresolved wording: section 6 row 'qwen / II utility 45.28 % (422; 1 null)'. n = 932 already excludes the incomplete log (n_logs 933 in os-rates.json), so '1 null' is a note about the excluded log, not a denominator. It is not wrong, but it reads like a null inside n. Optional rewording to 'n 932 of 933 logs; 1 incomplete excluded'.",
+    "rerun": "none"
+   },
+   {
+    "corpus_id": "hilarytorn-trajectory-poisoning",
+    "issue": "The dossier has no per-hypothesis table. Section 3 says only 'H1 to H10 all supported (exam.json)'; results are spread over the L1 rows and paragraphs (H8, H9 explicit). Same for yockcheng ('H1 to H10 supported; H9 partly'). The results exist in exam.json, so this is a format gap only. Optional: add the H table the other seven dossiers have.",
+    "rerun": "none"
+   }
+  ]
+ },
+ "followups": [
+  "interbolt-agentdojo: After the CC-08 tool fix (null_final counts content-null finals with calls; trailing-calls flag): re-run L1 for this part through the queue with the wave-2 plan's L1 args (uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-interbolt-agentdojo -- uv run python tools/precheck/l1_scan.py --source interbolt-agentdojo --part head --git ~/.agentprov/staging/10c/interbolt/interbolt-agentdojo.git --jobs 2; expect L1-08 null_final 1, trailing 1), and re-run tools/precheck/l2_check.py on l2-head-j2.partial for the fixed twin counter. Why: PC-06 / CC-08.",
+  "interbolt-agentdojo: Optional targeted L2 of the one unexecuted-trailing-calls log (runs/published/travel/D_asr_system_strict/repeat_0/gpt-4o-mini-2024-07-18-interbolt-strict-enforce/travel/user_task_12/important_instructions/injection_task_3.json) into a new scratch corpus ~/.agentprov/migration-work/precheck/interbolt-agentdojo/l2-head-extra.partial: tools/precheck/l2_import.py --source interbolt-agentdojo --part head --sample <one-label sample file> --corpus <that path> --jobs 2 through the queue, then l2_check. Why: the 90-unit sample did not exercise the PI check of unexecuted calls or retry_passes_inferred (the phase-10d trial covered them).",
+  "interbolt-agentdojo: Optional: re-run the wave-2 interbolt steps on a clean tree (tracked_changes false) in the next batch so the commit field is clean. Why: PC-07 (digests already equal; low priority).",
+  "interbolt-agentdojo: Route to the AgentDojo family owner before the round: PC-01/02/04 artefacts.toml scope and count extensions; PC-05 packaging decision for the 24 run_manifest.json account paths (withhold from the deposit or accept).",
+  "melon-agentdojo: After the PC-03/PC-04 (optionally PC-05) hook lands and the melon-agentdojo profile is bumped, re-run L2 on the unchanged sample: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-melon-agentdojo -- sh -c 'uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j2 --source melon-agentdojo --part head --jobs 2 && uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j1 --source melon-agentdojo --part head --jobs 1 && uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j2.partial --out ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix.json --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/melon-agentdojo/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j1.partial --jobs 2', then aer_check.py on the new j2. Why: to confirm the 34 stop messages are generated_by a def0 decision and that the 3 RECOVERY-first logs keep the AgentDojo default as the system prompt.",
+  "melon-agentdojo: CC-08 (PC-11): after the l2_check twin-counting fix, re-run only the check: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-melon-l2check -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-j2.partial --out docs/reports/precheck/data/melon-agentdojo/l2-head.json --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/melon-agentdojo/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-j1.partial --jobs 2. Why: a corrected twin baseline for the post-check. No L1 re-run is needed (null_final is 0 under both rules).",
+  "melon-agentdojo: Optional, after the fix: a full scratch import of the 1,911 logs (heavy, through the queue, with the family trial driver's exact flags). Why: to count the mapped defence decisions on the whole population (expect 910 stop + 3 BLOCK + 113 system inserts + 101 sanitised logs).",
+  "melon-agentdojo: Dossier writer (light): copy ~/.agentprov/migration-work/precheck/melon-agentdojo/exam/*.py into docs/reports/precheck/data/melon-agentdojo/exam-scripts/ (they take paths as arguments; no account path inside) and draft melon-agentdojo.md from exam.json. Route PC-01/02/03/04/05/09 to the agentdojo family owner, the PC-05 count correction to the routing.md R3 owner, and PC-10 to the pre-check tool owner.",
+  "glitch-agentdojo: After the CC-08 l2_check fix: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-glitch-agentdojo -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/glitch-agentdojo/l2-head-j2.partial --out docs/reports/precheck/data/glitch-agentdojo/l2-head.json --sample docs/reports/precheck/data/glitch-agentdojo/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/glitch-agentdojo/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/glitch-agentdojo/l2-head-j1.partial --jobs 2  (why: PC-04 twin counts; record as a re-run)",
+  "glitch-agentdojo: Optional supplementary L2, outside the committed sample and recorded as such: import the one ok_with_issues label 17_agentdojo/runs/gpt-4o-2024-05-13/workspace/user_task_38/important_instructions/injection_task_3.json via tools/precheck/l2_import.py (one-label sample file) into ~/.agentprov/migration-work/precheck/glitch-agentdojo/l2-head-sup, then run l2_check on it. Why: A3 unexecuted-call representation and map.unexecuted_tool_call were not exercised by the 100-unit sample.",
+  "glitch-agentdojo: Route to the AgentDojo family owner (no command): the PC-01 artefact proposal (#168) and the PC-03 scope widening. Ask whether PC-03 is cross-cutting for all phase-10d AgentDojo-format profiles.",
+  "glitch-agentdojo: Route to the tacit-agentdojo examiner (no command): the cross-corpus trajectory group of tacit qwen3-4b-instruct vllm_parsed slack user_task_3 benign with glitch gpt-4o-glitch slack user_task_3 benign (identical normalised 7-message list across two models).",
+  "mohameduk-agentdojo: CC-08 recheck for this part (frozen sample; plan already lists it): uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml. Why: PC-08 (null_final expected to stay 13) and PC-09 (twin vs native-I split).",
+  "mohameduk-agentdojo: After the round: count agentdojo.art.payload_not_reaching_agent (SEM injection_marker absent on attacked executions) on the stored mohameduk-agentdojo corpus. Why: PC-07 scope widening needs a population count from a full import.",
+  "mohameduk-agentdojo: Light screen for the family owner on the other wave-2 AgentDojo-format parts with blocking defences (interbolt, melon, glitch, tacit, geryon): the IT5 proposal-only tally (exam-scripts/it5.py logic) and the L1-03 mojibake counts. Why: PC-02 and PC-05 may recur.",
+  "tacit-agentdojo: 1. recheck12 (already planned; tacit l1 + check forced) after the CC-08 tool fixes land. Why: L1-08 null_final and the l2_check twin split were measured pre-fix (PC-08). Expected: null_final 31, everything else unchanged. Command: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml",
+  "tacit-agentdojo: 2. Targeted scratch import of 12 labels outside the frozen sample: the 7 off-set tool-name logs, the 2 persona-path logs, the incomplete log and the 2 null-final logs. Why: H8 adapter_defect, the CC-03 AER form and the incomplete/retry handling are not observed in the sample. Commands: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-tacit-agentdojo -- uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/tacit-agentdojo/targeted-sample.json --corpus ~/.agentprov/migration-work/precheck/tacit-agentdojo/l2-head-targeted --source tacit-agentdojo --part head --jobs 2 ; then uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-tacit-agentdojo -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/tacit-agentdojo/l2-head-targeted.partial --out ~/.agentprov/migration-work/precheck/tacit-agentdojo/exam/l2-targeted.json --sample docs/reports/precheck/data/tacit-agentdojo/targeted-sample.json --l1-units ~/.agentprov/migration-work/precheck/tacit-agentdojo/l1-units-head.jsonl --jobs 2. Expected: 12 mapped, 0 adapter_defect, incomplete_run 1, retry_passes_inferred 2, unexecuted_tool_call 4, redaction hits only the persona paths (never operator-*).",
+  "tacit-agentdojo: 3. Regen item for the AgentDojo family owner; the user must approve it before any re-import. Tacit profile v2 adds the local_model_raw_completion quirk (PC-01) and the PC-06 doc fixes; then a full import of head in the round. Expected: local_parse_drop_possible on 622 turns in 444 Llama logs, 0 outcome change. The round should also show full-population determinism (jobs 2 vs 1 over all 2,076), which so far only the 80-unit sample has shown.",
+  "tacit-agentdojo: 4. Optional, light: run the generic text_encoded_call artefact detector over l2-head-j2.partial to get the heuristic text_tool_call count for the PC-07 scope entry.",
+  "geryon-agentdojo: Already planned: recheck12, which forces l1 and check for geryon-agentdojo head. Command: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml. Why: the CC-08 twin split (PC-08). Expect L1 unchanged (null_final still 0, PC-07).",
+  "geryon-agentdojo: Tool owner, after the freeze: add a null_final_harness class to tools/precheck/l1_families.py, then re-run: uv run python tools/precheck/l1_scan.py --source geryon-agentdojo --part head --corpus-id geryon-agentdojo --jobs 2 --emit-fp --git ~/.agentprov/staging/10c/geryon/geryon.git. Why: PC-07 (expect 27).",
+  "geryon-agentdojo: Supplementary scratch import of the 12 labels flagged by L1-06 (sample file already prepared at ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-supp-acct-sample.json). Command: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-geryon-supp -- uv run python tools/precheck/l2_import.py --sample ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-supp-acct-sample.json --corpus ~/.agentprov/migration-work/precheck/geryon-agentdojo/l2-head-acct --source geryon-agentdojo --part head --jobs 2, then uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/geryon-agentdojo/l2-head-acct.partial --out ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-acct.json --sample <same> --l1-units ~/.agentprov/migration-work/precheck/geryon-agentdojo/l1-units-head.jsonl --jobs 2. Why: PC-06 / CC-03 redaction representation (expect generic hits only, 0 operator or named).",
+  "geryon-agentdojo: Route to the AgentDojo family owner before the first import of geryon-agentdojo (import_status planned, so no stored-corpus regeneration): PC-01 (new artefact entry, widened to rope / agentdyn / mandate slack IT5 under denying defences), PC-02 (run records as context_artefacts, incomplete_arm extension), PC-03 (defence configuration in the identity table, plus the unusable-arm caveat), PC-04 and PC-05 (profile comments, artefacts.toml scopes), PC-09 (cite() vs INDEPENDENT for issue rules).",
+  "geryon-agentdojo: Examiner scripts are in ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/, with identical copies in docs/reports/precheck/data/geryon-agentdojo/exam-scripts/. Run them from the repo root with uv run python -I.",
+  "hilarytorn-trajectory-poisoning: After the CC-08 l2_check fix (and the PC-05 fix if accepted), re-run only the check step for hilarytorn-trajectory-poisoning head on ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l2-head-j2.partial (as in plans/wave2.toml), via tools/suite_queue.py --class import --cpu 2 --label precheck-hilarytorn-trajectory-poisoning. No re-import. Why: the twin counts and the per-dir outcome keys.",
+  "hilarytorn-trajectory-poisoning: Route to the AgentDojo family owner / regen-batch: widen phase10d R5 (agentdojo.attack_arm_from_path@1) to this profile (PC-01), fix the artefacts.toml scopes (PC-03) and add the proposed control_chars_in_model_args entry (PC-02). No rerun is needed now.",
+  "hilarytorn-trajectory-poisoning: Optional, not needed for readiness: a full scratch import of all 990 logs would give the population-level C0 and identity-collision counts directly (the phase-10d trial already imported 990 with 0 failures).",
+  "yockcheng-prompt-injection-harness: After the CC-08 tool fix (l2_check twin counting): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-yock-l2check -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l2-head-j2.partial --out docs/reports/precheck/data/yockcheng-prompt-injection-harness/l2-head.json --sample docs/reports/precheck/data/yockcheng-prompt-injection-harness/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l2-head-j1.partial --jobs 2 (why: corrected twin vs native-I counts, PC-04)",
+  "yockcheng-prompt-injection-harness: After the round's full import of this source: run the payload_not_reaching_agent safety-net detector (agentprov stats --artefacts on the new corpus) and compare with the raw screen's 16 of 255 (why: expected row for PC-01's payload_not_reaching_agent scope extension)",
+  "yockcheng-prompt-injection-harness: When ceferisbarov's part has L1 fingerprint rows: uv run python tools/precheck/l1_xdup.py (why: test the phase-10c lead 'one fp_run shared with ceferisbarov' for H9; PC-08/PC-09)",
+  "yockcheng-prompt-injection-harness: No rerun needed for the wave-2 steps of this part: l1, sample, import_j2, import_j1 and check all rc 0 (status.jsonl); the CC-08 null_final gap does not affect this part (0 empty finals by the E2 definition)",
+  "shreeyavarma-llm-safety: After the CC-08 tool fixes land (tools frozen now), queue: 'uv run python tools/precheck/l1_scan.py --source shreeyavarma-llm-safety --part head --corpus-id shreeyavarma-llm-safety --jobs 2 --emit-fp --git ~/.agentprov/staging/10c/shreeyavarma/llm_safety.git' and 'uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/shreeyavarma-llm-safety/l2-head-j2.partial --out docs/reports/precheck/data/shreeyavarma-llm-safety/l2-head.json --sample docs/reports/precheck/data/shreeyavarma-llm-safety/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/shreeyavarma-llm-safety/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/shreeyavarma-llm-safety/l2-head-j1.partial --jobs 2'. Why: L1-08 null_final should read 54, and the twin counter should separate native I rules (PC-06).",
+  "shreeyavarma-llm-safety: Family owner / orchestrator (light raw reads, batchable): run the PC-01 shape test (the only assistant turn is one empty text block with no tool_calls) and the PC-02 payload test (tool_knowledge injection values without a 'use the tool' sentence on workspace v1.2/v1.2.1) over agentdojo-upstream head local dirs, ast-survey-agentdojo, yockcheng-prompt-injection-harness and the other agentdojo-format corpora. Why: decide whether PC-01 and PC-02 become cross-cutting items with one artefacts.toml entry each.",
+  "shreeyavarma-llm-safety: Post-round: re-check H16 and payload_not_reaching_agent on the population of the regenerated full import (expected: outcome_only 2 with 0 judgements; detector count 123). Why: both are sample-level now."
+ ],
+ "rows": [
+  {
+   "agents_md_12": [
+    "PC-01: Interbolt banking B ASR 141/288 (48.96%) as logged is inflated by AgentDojo #181: 118/288 (40.97%) against the GOAL datum, 121/288 (42.01%) with only the precedence fixed (it1 checker datum resolves to 'me'); the README B-vs-D banking contrast is inflated by the same amount; disclose and keep the logged booleans; validity_defects scope extension pending.",
+    "PC-02: banking C-arm utility (strict 12/32, targeted 13/32) includes 2 vacuous user_task_5 passes each (#161); without them 10/32 and 11/32; 42 of 60 UT5 logs pass with no executed payment."
+   ],
+   "artefact_proposals": 3,
+   "corpus_id": "interbolt-agentdojo",
+   "dossier": "docs/reports/precheck/interbolt-agentdojo.md",
+   "findings_by_class": {
+    "analysis-artefact": 2,
+    "documentation-mismatch": 2,
+    "source-defect": 3
+   },
+   "findings_by_severity": {
+    "S2": 3,
+    "S3": 4
+   },
+   "followups": [
+    "After the CC-08 fix, which must also count null-content finals that carry tool calls and add a trailing-calls flag (PC-06): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-interbolt-agentdojo -- uv run python tools/precheck/l1_scan.py --source interbolt-agentdojo --part head --corpus-id interbolt-agentdojo --jobs 2 --emit-fp --git ~/.agentprov/staging/10c/interbolt/interbolt-agentdojo.git (expect null_final 1, trailing 1); then re-run l2_check.py on W/l2-head-j2.partial for the twin counter.",
+    "Optional supplementary L2 of the one trailing-calls log (travel D_asr_system_strict repeat_0 user_task_12 x injection_task_3) via tools/precheck/l2_import.py with a one-label sample into ~/.agentprov/migration-work/precheck/interbolt-agentdojo/l2-head-extra through tools/suite_queue.py --class import --cpu 2, then l2_check (exercises unexecuted-call representation, retry_passes_inferred).",
+    "Optional clean-tree re-run of the wave-2 interbolt steps (PC-07, tracked_changes true; digests already equal).",
+    "Route to the AgentDojo family owner before the round: validity_defects scope extension with counts 23 (PC-01) and 42 (PC-02); generic-entry scope widening with the PC-04 counts; PC-05 packaging decision on the 24 run_manifest.json third-party account paths (withhold keeping digests, or accept).",
+    "Propose a cross-cutting CC item: no artefacts.toml AgentDojo entry scopes the phase-10d AgentDojo-format profiles (interbolt, glitch, melon, geryon, tacit, dca, mohameduk: grep 0), and scan.py gates claims on scope.profiles.",
+    "Harmonise the #161 user_task_5 classification between this dossier (R1 source-defect S2) and PC-mandate-agentdojo-eval-02 (expected-known S3), since validity_defects covers the UT5 #161 case for neither source.",
+    "Correct research.json/prereg: the blog's benign-refusal figures are banking-only; H4's premise (travel IT1 / banking IT8 cannot succeed) came from blog prose, not from the checker (PC-03)."
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "2,016 (1 per log)",
+     "l1_units": "2,016 (2,254 walked = 2,016 selected + 131 context + 107 not selected; 0 rejected)",
+     "l2_status": "done: 90/90 sealed clean, validate 90/90, recompute 0 unexplained, j1=j2 (498 files), OS-2 0/180 differ",
+     "part": "head",
+     "registry": "2,016 logs",
+     "sample_n": "90 (18 strata x 5, seed 20261011)",
+     "source": "interbolt-agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically: 90/90 sealed clean, validation 90/90, recompute 0 unexplained, j1/j2 byte-identical, raw = mapped on 180/180 judgements, identity 0 mismatches, redaction 0 hits, and L1 outcomes equal the README in 24/24 cells. The caveats are owned by the AgentDojo family owner and routed there, and none blocks the round: PC-01 (#181 banking B ASR is 141/288 logged, 118/288 re-scored against the GOAL datum, 121/288 with only the precedence fixed) and PC-02 (#161 UT5, 42/60 vacuous) need disclosure and a validity_defects scope extension; PC-04 needs the catalogue scopes widened; PC-05 is a packaging decision on the third-party account path in the 24 run_manifest.json files (raw store only, 0 hits in AER/SEM/PROV).",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-01/PC-02: of the MELON fork README 'GPT-4o' results, only the melon_sm and melon_at rows reproduce from the logs. The MELON and MELON-R ignore_previous rows equal the gpt-4o-mini arms, 4 cells have no logs, the two partial direct arms (65/144, 13/144) do not reproduce, and no undefended baseline is released. All arms are kept.",
+    "PC-03/PC-04: MELON/MELON-R defence-authored messages (910 base-MELON stop messages, 3 BLOCK, 113 RECOVERY/warning system inserts in 98 logs) are mapped as model output or as the benchmark prompt until the agentdojo-family quirk hook lands (profile melon-agentdojo@2)."
+   ],
+   "artefact_proposals": 4,
+   "corpus_id": "melon-agentdojo",
+   "dossier": "docs/reports/precheck/melon-agentdojo.md",
+   "findings_by_class": {
+    "analysis-artefact": 2,
+    "documentation-mismatch": 7,
+    "mapping-defect": 2
+   },
+   "findings_by_severity": {
+    "S2": 5,
+    "S3": 6
+   },
+   "followups": [
+    "After the PC-03/PC-04 (and PC-05) hook and the profile bump, re-run L2 on the unchanged sample: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-melon-agentdojo -- sh -c 'uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j2 --source melon-agentdojo --part head --jobs 2 && uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j1 --source melon-agentdojo --part head --jobs 1 && uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j2.partial --out ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix.json --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/melon-agentdojo/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-fix-j1.partial --jobs 2', then run aer_check.py on the new j2.",
+    "CC-08 (PC-11): the current is_twin fix misreads inference-bundle IRI refs: about 4,500 twins misfiled on this part, the same defect as glitch refuted PC-04. Fix it to decode bundle ids first. Only then re-run l2_check: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-melon-l2check -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-j2.partial --out docs/reports/precheck/data/melon-agentdojo/l2-head.json --sample docs/reports/precheck/data/melon-agentdojo/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/melon-agentdojo/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/melon-agentdojo/l2-head-j1.partial --jobs 2 (expect twin assessment I 1,858, inference I 12,352, inference none 531).",
+    "Optional, heavy, through the queue: a full scratch import of the 1,911 logs after the fix, to count mapped defence decisions on the population (expect 910 stop + 3 BLOCK + 113 system inserts + 101 sanitised logs).",
+    "Optional, light: tally the recorded pipeline_name over the 288 gpt-4o-mini melon/melon_r ignore_previous logs (only 2 checked so far) to complete PC-01.",
+    "Routing: PC-01/02/03/04/05/09 and the three new artefacts.toml entries go to the AgentDojo family owner; the PC-05 count correction goes to the owner of docs/reports/phase10d/routing.md R3; PC-10/PC-11 go to the pre-check tool owner.",
+    "Examiner scripts copied into docs/reports/precheck/data/melon-agentdojo/exam-scripts/ (grep: no account paths). New files (dossier, findings.json, exam-scripts) are uncommitted."
+   ],
+   "outcome_gap_flags": [
+    "PC-01: README 'GPT-4o' MELON ignore_previous 37.50/0.00 and MELON-R ignore_previous 43.06/2.78 exactly equal the gpt-4o-mini melon/melon_r ignore_previous cells (54/0, 62/4 of 144); there are 0 gpt-4o logs for these cells",
+    "PC-02: gpt-4o melon direct UA is 60.94 (39/64, partial arm with 65 of 144 logs) vs README 38.19 (+22.75 pp); melon_r direct UA is 84.62 (11/13) vs 45.83, outside Wilson by 11.94 pp",
+    "PC-02: the README No Defense row (43.06/55.56) has no fork run; 4 README GPT-4o cells have 0 logs"
+   ],
+   "parts": [
+    {
+     "executions": "134 (L2 sample; 1,911 in the population)",
+     "l1_units": "1911",
+     "l2_status": "done",
+     "part": "head",
+     "registry": "1911 (= L1 units, census)",
+     "sample_n": "134 of 1,911 (29 strata x 5; strata of 1, 1 and 2 taken whole)",
+     "source": "melon-agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The import is correct and deterministic: 134/134 mapped and validated, recompute 0 unexplained, j1 = j2, raw = mapped on 262/262 judgements, identity 0 mismatches, redaction clean, and the reproducible README rows match exactly. Two caveats are owned and routed. (1) PC-03/PC-04 (S2 mapping defects): defence-authored content is mapped as model output or as the benchmark system prompt (910 stop messages, 3 BLOCK messages, 113 system inserts). PC-05 is the same for the sanitised tool outputs. These need an agentdojo-family quirk hook and a melon-agentdojo@2 profile bump before the round, or explicit disclosure. Outcomes are unaffected. (2) Disclosure items: PC-01/02 (which README rows the release backs), PC-06, PC-07. PC-09 is catalogue scope only. PC-10/11 are tool artefacts and are not counted.",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-glitch-agentdojo-01: Glitch defended slack ASR 7/105 as logged, 0/105 by effect (AgentDojo #168, denied IT5 membership calls score as success); all-four defended ASR 43/629 (6.84%) logged vs 36/629 (5.72%) by effect. Disclose both; keep logged booleans; catalogue entry pending with the family owner.",
+    "H6 disclosure: the two claude-haiku-4-5 banking arms differ in system prompt (466-char Glitch prompt in haiku-glitch only) and were sampled without temperature; haiku none vs glitch is confounded."
+   ],
+   "artefact_proposals": 2,
+   "corpus_id": "glitch-agentdojo",
+   "dossier": "docs/reports/precheck/glitch-agentdojo.md",
+   "findings_by_class": {
+    "documentation-mismatch": 1,
+    "expected-known": 1,
+    "source-defect": 1
+   },
+   "findings_by_severity": {
+    "S2": 1,
+    "S3": 2
+   },
+   "followups": [
+    "Tool defect (from refuted PC-04, R5): CC-08 l2_check is_twin/_UNVERIFIED_REF does not decode inference-bundle-id refs, misfiling 6,843 twins as native here; fix before any CC-08 re-run, add as reopened CC-08 item, check agentdojo-upstream PC-07. After the fix: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-glitch-agentdojo -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/glitch-agentdojo/l2-head-j2.partial --out docs/reports/precheck/data/glitch-agentdojo/l2-head.json --sample docs/reports/precheck/data/glitch-agentdojo/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/glitch-agentdojo/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/glitch-agentdojo/l2-head-j1.partial --jobs 2 (expect twins inference I 14,200 / none 1,159 / assessment I 2,352)",
+    "Optional supplementary L2 (recorded outside the committed sample): one-label import of 17_agentdojo/runs/gpt-4o-2024-05-13/workspace/user_task_38/important_instructions/injection_task_3.json via tools/precheck/l2_import.py into ~/.agentprov/migration-work/precheck/glitch-agentdojo/l2-head-sup, then l2_check, through tools/suite_queue.py --class import --cpu 2 (A3 unexecuted-call not exercised by the sample)",
+    "Route to AgentDojo family owner: PC-01 entry (or widen rope.art.security_correction / validity_defects, 7 logs) and PC-03 scope widening (naive_timestamp 1844, max_iters_pending 1, injection_task_as_user 72, benign_security_constant 298, defence_benign_intervention 16, banking_ut15_confound 0); ask whether PC-03 is cross-cutting for phase-10d AgentDojo-format profiles",
+    "Route to tacit-agentdojo examiner: cross-corpus trajectory group tacit qwen3-4b slack user_task_3 benign = glitch gpt-4o-glitch slack user_task_3 benign (7 messages)",
+    "Prereg slip to note: section 3 says 22 cells, the arm key gives 20"
+   ],
+   "outcome_gap_flags": [
+    "L2 gpt-4o none II utility 7/20 (35.00 [18.12, 56.71]) vs post-stratified 50.08, -15.08 pp: investigated, 5-unit strata variance, raw=mapped 200/200, not a finding (R6)",
+    "L1 47/47 population rows = RESULTS.md, gap 0.00; defended slack ASR 7/105 as logged vs 0/105 by effect (PC-01, #168)"
+   ],
+   "parts": [
+    {
+     "executions": "100/100 sampled mapped and sealed clean (L2); population 1,844",
+     "l1_units": "1,844 (2,762 walked; 909 not selected + 9 context; 0 rejected)",
+     "l2_status": "done",
+     "part": "head",
+     "registry": "1,844 logs (= L1)",
+     "sample_n": "100 (20 strata x 5)",
+     "source": "glitch-agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "Imports correctly and deterministically (100/100 mapped, validation 100/100, recompute 0 unexplained, j1/j2 identical, raw=mapped judgements 200/200, redaction clean, L1 outcomes = RESULTS.md 47/47). Caveats, owned and routed to the AgentDojo family owner: PC-01 (#168 disclosure, defended slack ASR 7/105 logged vs 0/105 by effect; catalogue entry), PC-03 (catalogue scopes), PC-02 (disclosure only).",
+   "refuted": 1,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-01: the UBAG README Evidence numbers cannot be reproduced from the released logs (gate travel ASR 6/140 vs 23/140; the utility bullet matches no arm). Use the logs' own rates; the README is not a validation target.",
+    "PC-02: gpt-4o-mini defended ASR includes 30 slack IT5 judgements scored on refused (proposed) calls. Report 8.43 / 4.29 as logged and 6.04 / 1.91 without them, and keep the logged booleans.",
+    "PC-04: in each defended arm, the attacked logs come from an earlier uncommitted client state, while the benign block is consistent with the pinned client. 12 benign gemini defended logs show the by_id result collapse.",
+    "PC-05: 428 travel/slack logs carry mis-decoded fixture text (encoding of the run host). 3 travel utility judgements are plausibly affected."
+   ],
+   "artefact_proposals": 4,
+   "corpus_id": "mohameduk-agentdojo",
+   "dossier": "docs/reports/precheck/mohameduk-agentdojo.md (findings: docs/reports/precheck/data/mohameduk-agentdojo/findings.json, 11 findings + 1 refuted, CC-06 format, verifier corrections applied)",
+   "findings_by_class": {
+    "analysis-artefact": 3,
+    "documentation-mismatch": 3,
+    "expected-known": 2,
+    "source-defect": 3
+   },
+   "findings_by_severity": {
+    "S2": 4,
+    "S3": 7
+   },
+   "followups": [
+    "recheck12 for this part: run the l1 step now (PC-08, expect null_final 13). Run the check step only after the l2_check is_twin bundle-id fix (PC-09; refuted PC-glitch-agentdojo-04 shows the current fix misfiles AgentDojo twins). Command: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml",
+    "After the round, on the stored corpus: count agentdojo.art.payload_not_reaching_agent (SEM injection_marker absent on attacked executions) and calls_derived_from_messages, for the PC-07 scope widening.",
+    "Before the round: a light read-only screen of the other blocking-defence AgentDojo-format parts (interbolt, melon, glitch, tacit, geryon) for the IT5 proposal-only pattern (it5.py logic) and for L1-03 mojibake counts (PC-02, PC-05).",
+    "Cross-cutting: refresh the precheck manifest.json redaction notes ('account paths unscreened') for parts 32, 33, 34, 42, 44, 51, 52 and 55 from their L1-06 results (from the PC-06 verifier).",
+    "Tool owner after the freeze: in l2_check, record executions for the pass counters unexecuted_represented and time_run_scope (PC-10); in L1-08, report null and empty finals separately (PC-08)."
+   ],
+   "outcome_gap_flags": [
+    "gemini-2.5-flash-ubag/II/travel targeted ASR 6/140 (4.29 [1.98, 9.03]) vs UBAG README 16.43 (23/140): -12.14 pp, excluded by 7.39 (PC-01)",
+    "gemini-2.5-flash-ubag_behavioral/II/travel utility under attack 45/140 (32.14 [24.97, 40.27]) vs README 18.57 (arm unnamed): +13.57 pp, excluded by 6.40 (PC-01)",
+    "gpt-4o-mini-ubag/slack/IT5 security 15/21 (71.43 [50.04, 86.19]) vs #189 6/21: +42.86 pp (PC-02, PC-03)",
+    "gpt-4o-mini-ubag_behavioral/slack/IT5 security 15/21 vs #189 6/21: +42.86 pp (PC-02, PC-03)"
+   ],
+   "parts": [
+    {
+     "executions": "3,630 logs (L1 population); 200 mapped at L2",
+     "l1_units": "3,630 (40,492 walked; 36,679 owned_elsewhere; 0 rejected)",
+     "l2_status": "done: 200/200 mapped, validate 200/200, recompute 0 unexplained, j1/j2 0 of 814 files differ, OS-2 0/400 differ",
+     "part": "head",
+     "registry": "mohameduk-agentdojo@1 (agentdojo.tracelogger, v1.k14)",
+     "sample_n": "200 of 3,630 (40 strata x 5, seed 20261011)",
+     "source": "mohameduk-agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically. 200/200 mapped, validation 200/200 and recompute 0 unexplained. j1 and j2 are byte-identical, raw and mapped judgements agree on 400/400, identity has 0 mismatches and redaction is clean. All 40 L1 strata equal the prereg. The caveats are owned and routed to the AgentDojo family owner, and none of them blocks the round: (1) PC-02, slack IT5 scored on proposed calls, 30 judgements; (2) PC-04, the UBAG result collapse in 12 benign logs, with the attacked runs written by an earlier uncommitted client; (3) PC-05, mojibake in 428 logs; (4) PC-07, scope widening of the generic entries. The source-documentation mismatches PC-01 and PC-03 (README and #189 not reproducible) need disclosure only, and PC-06 is a profile comment fix. PC-08, PC-09 and PC-10 are analysis artefacts (R5) and do not count. No data is excluded.",
+   "refuted": 1,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-01: tacit profile does not enable the LocalLLM tag-count quirk; 342/1,046 Llama runs (32.70%) end on a turn with a <function= tag the local parser did not turn into a call; 622 turns in 444 logs have more tags than calls. Byte-changing regen item; disclose beside Llama rates.",
+    "PC-02: never use the paper's AgentDojo 'unsafe 369' as an ASR (includes 194 benign constants; released loader and splits invert the label). Targeted ASR 175/1,881 (9.30%).",
+    "PC-03: 10 banking IT1 successes rest on #181; logged ASR 9.30% vs goal-datum re-score 8.77%; qwen banking 35.42% vs 29.86%.",
+    "PC-04: qwen workspace attacked arm has 544 of 560 cells (16 never written after the incomplete UT38 x IT11); compare models on the 544 common cells too.",
+    "PC-09: 31 Llama runs end on an empty answer, probable #220 context overflow (32,768 limit); their outcomes come from the harness path."
+   ],
+   "artefact_proposals": 5,
+   "corpus_id": "tacit-agentdojo",
+   "dossier": "docs/reports/precheck/tacit-agentdojo.md",
+   "findings_by_class": {
+    "analysis-artefact": 1,
+    "documentation-mismatch": 3,
+    "expected-known": 2,
+    "mapping-defect": 1,
+    "source-defect": 2
+   },
+   "findings_by_severity": {
+    "S2": 5,
+    "S3": 4
+   },
+   "followups": [
+    "1. recheck12 after the CC-08 tool fixes (PC-08): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml. Expected null_final 31 (Llama only), native-I split populated, else unchanged.",
+    "2. Targeted 12-label supplementary scratch import (7 off-set tool-name logs, 2 persona-path logs, incomplete log, 2 null-final logs): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-tacit-agentdojo -- uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/tacit-agentdojo/targeted-sample.json --corpus ~/.agentprov/migration-work/precheck/tacit-agentdojo/l2-head-targeted --source tacit-agentdojo --part head --jobs 2 ; then uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-tacit-agentdojo -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/tacit-agentdojo/l2-head-targeted.partial --out ~/.agentprov/migration-work/precheck/tacit-agentdojo/exam/l2-targeted.json --sample docs/reports/precheck/data/tacit-agentdojo/targeted-sample.json --l1-units ~/.agentprov/migration-work/precheck/tacit-agentdojo/l1-units-head.jsonl --jobs 2. Expected 12 mapped, 0 adapter_defect, incomplete_run 1, retry_passes_inferred 2, unexecuted_tool_call 4, redaction hits only persona paths.",
+    "3. Regen item for the AgentDojo family owner (user approval before any re-import): tacit profile adds local_model_raw_completion (PC-01) plus PC-06 doc fixes (arXiv id/title, tacit/config.py and data/README.md as context artefacts, model-dir table basis), v2 bump vs unreleased v1 edit per AD-18; regenerate README blocks. Round: full import of head with full-population determinism (jobs 2 vs 1).",
+    "4. Route to the family owner: widen local_parse_drop (622/342), validity_defects (10, status proposed), generic scopes (PC-07), new entries tacit.art.qwen_workspace_truncated (PC-04) and agentdojo.art.local_empty_final (PC-09); propose a CC id for the family-wide phase-10c/10d artefacts.toml scope gap (glitch PC-03, shreeyavarma PC-04, tacit PC-07).",
+    "5. Tool owner after the freeze (R5): L1-06 field labelled 'strings' counts regex matches (112 matches in 85 strings here); census should report 'not measured' for undeclared mapper-output quirk keys.",
+    "6. Optional light: run the generic text_encoded_call detector over l2-head-j2.partial for the PC-07 text_tool_call count."
+   ],
+   "outcome_gap_flags": [
+    "L2 qwen3-4b-instruct / important_instructions utility 55.0% (11/20; post-stratified 74.98) vs population 45.28%: flagged, investigated, not a finding (R6, workspace stratum drew 5/5 utility-true; OS-2 160/160 equal)",
+    "Paper 'unsafe 369' is not an ASR: it includes 194 benign constants; loader/splits invert the label (PC-02); targeted ASR 175/1,881 = 9.30%",
+    "#181 goal-datum re-score: pooled ASR 8.77% vs 9.30% logged; qwen banking 29.86% vs 35.42% (PC-03)"
+   ],
+   "parts": [
+    {
+     "executions": "2,076",
+     "l1_units": "2,076 (v1.k14 2,075 + v1.k14.incomplete 1); 2,139 walked",
+     "l2_status": "done: 80/80 mapped, validation 80/80, recompute 0 unexplained, j1/j2 337/337 identical, OS-2 160/160",
+     "part": "head",
+     "registry": "2,076 (census)",
+     "sample_n": "80 of 2,076 (16 strata x 5, seed 20261011)",
+     "source": "tacit-agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "Imports correctly and deterministically on the sample (80/80 mapped, validation 80/80, recompute 0 unexplained, j1/j2 byte-identical, raw = mapped 160/160, identity 0 mismatches, redaction clean; L1 counts = paper Table 4). Caveats, all owned and routed: PC-01 missing local_model_raw_completion quirk in the tacit profile (byte-changing regen item with the AgentDojo family owner, should land before the round imports this part, user approval needed), disclosure and catalogue entries PC-02/03/04/09, docs/scope PC-06/07. PC-08 is a tool artefact (R5), not counted.",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-01: Geryon slack B ASR (runs-full-set, maj3) is 8/105 as logged and 7/105 by effect (AgentDojo #168: Progent-denied or failed IT5 goal calls score as success). Keep the logged booleans and disclose both values.",
+    "PC-02: 425 runs-full-set logs (4 of 18 repeats) were never released. The published travel B ASR, slack A utility and pooled B ASR (15.2%) reproduce only from the 36 run records, which are not context artefacts yet. Disclose this and never exclude the incomplete arms.",
+    "PC-03: all condition-B arms share one defence identity. Stratify by policy model before pooling: the qwen3-policy arms run 90/180 vs 256/1,217 for the gpt-oss-policy sets. Also stratify the author-declared unusable arms (strong-policy 99, claude-policy 1)."
+   ],
+   "artefact_proposals": 3,
+   "corpus_id": "geryon-agentdojo",
+   "dossier": "docs/reports/precheck/geryon-agentdojo.md",
+   "findings_by_class": {
+    "analysis-artefact": 3,
+    "documentation-mismatch": 3,
+    "expected-known": 1,
+    "mapping-defect": 1,
+    "source-defect": 1
+   },
+   "findings_by_severity": {
+    "S2": 3,
+    "S3": 6
+   },
+   "followups": [
+    "recheck12 (already planned): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml. Read its native twin counts against the bundle-id caveat of refuted PC-glitch-agentdojo-04 (PC-08).",
+    "After the tool freeze, add a null_final_harness class to tools/precheck/l1_families.py (PC-07; widen the CC-08 row, cf. PC-agentdyn-06), then re-run: uv run python tools/precheck/l1_scan.py --source geryon-agentdojo --part head --corpus-id geryon-agentdojo --jobs 2 --emit-fp --git ~/.agentprov/staging/10c/geryon/geryon.git (expect 27).",
+    "Supplementary 12-label scratch import (PC-06): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-geryon-supp -- uv run python tools/precheck/l2_import.py --sample ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-supp-acct-sample.json --corpus ~/.agentprov/migration-work/precheck/geryon-agentdojo/l2-head-acct --source geryon-agentdojo --part head --jobs 2; then run l2_check.py on l2-head-acct.partial with --l1-units ~/.agentprov/migration-work/precheck/geryon-agentdojo/l1-units-head.jsonl.",
+    "Route to the AgentDojo family owner before the first import: PC-01 (generalise rope.art.security_correction or add the new entry; also count rope, agentdyn progent, mandate, glitch), PC-02 (36 run records as context_artefacts, extend incomplete_arm), PC-03 (policy model per log set in tables/geryon_log_sets.toml, plus the unusable-arm caveat), PC-04 (three 'unpinned' statements and the licence note), PC-05 (7 scope widenings including defence_benign_intervention; promote to a CC item for the phase-10d profiles). Afterwards, regenerate the README blocks.",
+    "Tell the agentdojo-upstream examiner about PC-10 (2 cross-corpus banking IT7 pre-pass trajectory groups)."
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "271 (L2 sample; scratch only, no stored corpus)",
+     "l1_units": "3,179 (walked 3,313 = expected_files; 0 parse defects)",
+     "l2_status": "done: all 5 batch steps rc 0; validate 271/271, recompute 0 unexplained, j1=j2 1,101 files; check step predates CC-08 fix (recheck12 queued)",
+     "part": "head",
+     "registry": "geryon-agentdojo@1, import status planned",
+     "sample_n": "271 of 3,179 (55 strata, seed 20261011)",
+     "source": "geryon-agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically. 271/271 units map and validate, recompute reports 0 unexplained, j1 and j2 are byte-identical, raw equals mapped on 542/542 judgements, identity has 0 mismatches and redaction is clean. Every published figure reproduces, either from the logs or from the run records. The caveats are owned and routed to the AgentDojo family owner before the first import, and none blocks: PC-03 (policy model missing from the defence identity; a data-only fix), PC-01 (#168: slack IT5 denied calls count as success, 8/105 logged vs 7/105 by effect), PC-02 (425 absent logs; run records needed as context artefacts), and PC-04/PC-05 (profile text and catalogue scopes).",
+   "refuted": 1,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-01: the run/condition dir of hilarytorn-trajectory-poisoning is only in /artifacts/*/origin/path. tap/tap_run1/tap_run2, the three seeded_pair runs and all 45 pre-pass logs share task identity (675/990). Phase10d R5 must be widened to this profile, pre-pass included, before per-arm figures are computed without parsing paths."
+   ],
+   "artefact_proposals": 1,
+   "corpus_id": "hilarytorn-trajectory-poisoning",
+   "dossier": "docs/reports/precheck/hilarytorn-trajectory-poisoning.md",
+   "findings_by_class": {
+    "analysis-artefact": 1,
+    "documentation-mismatch": 2,
+    "expected-known": 3,
+    "source-defect": 1
+   },
+   "findings_by_severity": {
+    "S3": 7
+   },
+   "followups": [
+    "Tool owner, CC-08 amendment (from refuted PC-06): the CC-08-fixed tools/precheck/l2_check.py is_twin does not decode bundle-IRI references (bundle.inf.<family>-<rule>_unverified...), so 9,014 twin-bundle statements here count as native (an under-count). Check the other CC-08 re-runs, including agentdojo-upstream PC-07, for the same issue.",
+    "After that fix and the PC-05 outcome-key fix, re-run only the check step (no re-import): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-hilarytorn-trajectory-poisoning -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l2-head-j2.partial --out docs/reports/precheck/data/hilarytorn-trajectory-poisoning/l2-head.json --sample docs/reports/precheck/data/hilarytorn-trajectory-poisoning/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l2-head-j1.partial --jobs 2",
+    "Route to the AgentDojo family owner / regen-batch: widen R5 (agentdojo.attack_arm_from_path@1) to this profile, pre-pass executions included (PC-01); add agentdojo.art.control_chars_in_model_args (PC-02); make one family-wide widening of the generic agentdojo.art.* scopes, proposed as a new CC item for the phase-10d dossiers (PC-03).",
+    "Copy the examiner scripts (path-cleaned) from ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/exam/ into docs/reports/precheck/data/hilarytorn-trajectory-poisoning/exam-scripts/ before commit, as the other dossiers do.",
+    "Optional: a full scratch import of all 990 logs, for population-level C0 and identity-collision counts, through tools/suite_queue.py --class import."
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "90 (L2 sample scratch; phase-10d trial 990)",
+     "l1_units": "990 (walked 1,294 = 990 selected + 7 context + 279 not selected + 18 absent PNG)",
+     "l2_status": "done: 90/90 mapped and validated, recompute 0 unexplained, j1/j2 374/374 byte-identical, mapped = raw outcomes 90/90",
+     "part": "head",
+     "registry": "990",
+     "sample_n": "90 of 990 (18 strata arm x attack_family, 5 each)",
+     "source": "hilarytorn-trajectory-poisoning"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The import is correct and deterministic on the sample: 90/90 validated, recompute 0 unexplained, j1/j2 byte-identical, A2 raw = AER, A3 0 hits, mapped = raw outcomes 90/90. All 9 per-dir and 40 per-injection-task author tallies reproduce exactly (783/945). Every caveat is owned and routed: PC-01 (the run dir is path-only; widen R5 agentdojo.attack_arm_from_path@1 to this profile, 675/990 identity collisions), PC-02 (C0 in failed model tool args, disclose plus artefact entry), PC-03 (family-wide artefacts.toml scope gap), PC-04 (prereg sample-size note) and PC-07 (existing quirk). PC-05 and the CC-08 amendment from refuted PC-06 are analysis-artefacts and are not counted.",
+   "refuted": 1,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-05: yockcheng-prompt-injection-harness contributes 255 attacked AgentDojo workspace runs (Claude haiku-4-5 240, sonnet-4-5 15; important_instructions; no defence) with 0 targeted successes (Wilson upper 1.48%), payload visible in at least 239; kept in full (D-279); pooled ASR must disclose it."
+   ],
+   "artefact_proposals": 1,
+   "corpus_id": "yockcheng-prompt-injection-harness",
+   "dossier": "docs/reports/precheck/yockcheng-prompt-injection-harness.md (findings: docs/reports/precheck/data/yockcheng-prompt-injection-harness/findings.json, 9 findings all confirmed, 0 refuted)",
+   "findings_by_class": {
+    "analysis-artefact": 2,
+    "documentation-mismatch": 3,
+    "expected-known": 4
+   },
+   "findings_by_severity": {
+    "S2": 1,
+    "S3": 8
+   },
+   "followups": [
+    "PC-04/CC-08: re-run l2_check with the landed twin fix (6b76c15e): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-yock-l2check -- uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l2-head-j2.partial --out docs/reports/precheck/data/yockcheng-prompt-injection-harness/l2-head.json --sample docs/reports/precheck/data/yockcheng-prompt-injection-harness/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l2-head-j1.partial --jobs 2",
+    "PC-01: after the round's full import, run the payload_not_reaching_agent safety net (agentprov stats --artefacts on the new corpus) and compare with the raw screen's 16 of 255 to set the expected row",
+    "H9: after ceferisbarov-agentdojo is L1-scanned, run uv run python tools/precheck/l1_xdup.py to test the phase-10c shared-fingerprint lead",
+    "Harmonisation: promote PC-01 to one cross-cutting item, because all phase-10d/10e AgentDojo-format profiles (melon, interbolt, geryon, glitch, mohameduk, dca, environmentoptim, ipi-defenses, hilarytorn, yockcheng) are missing from the artefacts.toml scopes",
+    "PC-03: the '257 runs' wording also needs fixing in docs/reports/precheck/family-raw-layouts.md l. 68"
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "280 (attacked 255 / benign 2 / pre-pass 23)",
+     "l1_units": "280 (selected 280 of walked 358; v1.k14 277, v1.k14.incomplete 3)",
+     "l2_status": "done (validate 32/32, recompute 0 unexplained, j1/j2 142/142 identical, OS-2 0/64 mismatches)",
+     "part": "head",
+     "registry": "280 = registry 280",
+     "sample_n": "32 of 280 (8 strata, over_maximum false)",
+     "source": "yockcheng-prompt-injection-harness"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically: validation 32/32, recompute 0 unexplained, j1/j2 byte-identical, A2/A3 clean, raw equals mapped, identity 0 mismatches, no secrets or account paths. All caveats are owned and routed. PC-05 is an S2 datasheet disclosure (0/255 attack successes; all data kept). PC-01 is the artefacts.toml scope extension for the family owner. PC-02 and PC-03 are profile metadata fixes. PC-06 and PC-07 are design disclosures. The two analysis-artefacts (PC-04 CC-08 re-run, PC-09) are not counted.",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  },
+  {
+   "agents_md_12": [
+    "PC-shreeyavarma-llm-safety-01: all 58 local-Qwen logs record no model text and no tool call (54 single empty completions, 4 incomplete). The 0% utility and ASR describe a harness/serving failure, not model behaviour. All logs kept; agentdojo.art.local_empty_completion is pending with the family owner.",
+    "PC-shreeyavarma-llm-safety-02: AgentDojo #213 means tool_knowledge payloads for workspace v1.2/v1.2.1 IT6-13 carry no tool sequence (336 of 588 attacked logs). Report ASR per injection-task group (gpt-4o 31.25% vs 5.00%). agentdojo.art.tool_knowledge_empty_sequence is pending; a cross-cutting check is proposed."
+   ],
+   "artefact_proposals": 3,
+   "corpus_id": "shreeyavarma-llm-safety",
+   "dossier": "docs/reports/precheck/shreeyavarma-llm-safety.md",
+   "findings_by_class": {
+    "analysis-artefact": 1,
+    "documentation-mismatch": 3,
+    "source-defect": 2
+   },
+   "findings_by_severity": {
+    "S2": 2,
+    "S3": 4
+   },
+   "followups": [
+    "CC-08/PC-06, after the batch chain drains (fixes in 6b76c15e): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-shreeyavarma-cc08 -- uv run python tools/precheck/l1_scan.py --source shreeyavarma-llm-safety --part head --corpus-id shreeyavarma-llm-safety --jobs 2 --emit-fp --git ~/.agentprov/staging/10c/shreeyavarma/llm_safety.git (expect null_final 54), then: uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/shreeyavarma-llm-safety/l2-head-j2.partial --out docs/reports/precheck/data/shreeyavarma-llm-safety/l2-head.json --sample docs/reports/precheck/data/shreeyavarma-llm-safety/l2-sample-head.json --l1-units ~/.agentprov/migration-work/precheck/shreeyavarma-llm-safety/l1-units-head.jsonl --compare-with ~/.agentprov/migration-work/precheck/shreeyavarma-llm-safety/l2-head-j1.partial --jobs 2",
+    "Orchestrator / family owner: run the PC-01 shape test (only assistant turn is one empty text block, no tool_calls) and the PC-02 payload test (workspace v1.2/v1.2.1 tool_knowledge payloads without a tool sentence) over agentdojo-upstream head local dirs, ast-survey-agentdojo, yockcheng-prompt-injection-harness and the other agentdojo-format corpora. This decides two cross-cutting items.",
+    "Family owner: fix the census counter empty_messages_with_outcome in src/agentprov/adapters/agentdojo/census.py l.125 (require a judgement); census tool owner: the same fix in tools/agentdojo/import_scan.py l.331. Correct the profile note with the round (AD-18). Widen the scopes of the five generic artefacts (PC-04).",
+    "Post-round: re-check H16 (outcome_only 2 with 0 judgements) and the payload_not_reaching_agent detector count (expected 123) on the regenerated full import."
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "672 (v1.k14 668, v1.k14.incomplete 4)",
+     "l1_units": "672 selected of 28,307 blobs (24,914 owned_elsewhere:agentdojo, 2,386 absent, 0 under runs/)",
+     "l2_status": "done (batch wave2 all rc 0; 32/32 mapped and validated, recompute 32 identical, j1/j2 139 files 0 differ; CC-08 re-runs pending)",
+     "part": "head",
+     "registry": "shreeyavarma-llm-safety@1, family agentdojo, dialect agentdojo.tracelogger, pin 78d22e4a, code cb0af3d8",
+     "sample_n": "32 of 672 (8 strata, 5x6+1x2, seed 20261011)",
+     "source": "shreeyavarma-llm-safety"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically: 32/32 validated, recompute 0 unexplained, j1/j2 byte-identical, OS-2 64/64 raw = mapped, population tallies equal the census, 0 secrets or account paths. The caveats are all owned and routed. Two S2 disclosures go to the agentdojo family owner with artefact entries: PC-01 (all 58 local Qwen logs are empty completions, a harness/serving failure) and PC-02 (#213, 336 tool_knowledge payloads have no tool sequence). PC-03..05 are scope and note corrections. PC-06 is the CC-08 tool re-run and does not count (R5).",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined",
+   "wave": 2
+  }
+ ],
+ "wave": 2
+}

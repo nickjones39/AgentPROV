@@ -1,0 +1,52 @@
+# Redaction data for agentprov_capture.redact (C.13.5; G.6.4; MN M.1.7).
+# Data, not code: changed only by a reviewed commit with a test (G.6.4). Read through importlib.resources.
+#
+# Header names are lower case. Per-endpoint additions (an API-version header, a request-id header) come from
+# endpoints.toml (`request_headers`, `response_headers`); they are subject to the same hard denylist.
+# The hard denylist WINS over every allowlist entry, shipped or per-endpoint (tested).
+
+version = 1
+
+[headers]
+# values recorded; every other header contributes its NAME only (to the list of dropped names)
+request = ["content-type", "accept", "user-agent"]
+response = ["content-type", "date"]
+
+[headers.denylist]
+names = [
+  "authorization",
+  "proxy-authorization",
+  "cookie",
+  "set-cookie",
+  "x-api-key",
+  "api-key",
+  "x-goog-api-key",
+]
+# any name matching this regular expression (re.search) is denied too
+regex = "(?i)(key|token|secret|auth|cookie|session|signature)"
+
+# Key-shaped patterns (C.13.5, G.6.4). They are REDACTED on non-content surfaces (headers, URLs, exceptions,
+# tracebacks, stderr, environment) and only FLAGGED (a `note` of kind `secret_pattern`) in message and tool content,
+# where benchmark tasks and injection payloads contain key-shaped strings by design. `regex` finds a match;
+# `redact_regex` (optional, default `regex`) is what a non-content surface removes.
+[patterns.openai_sk]
+regex = '\bsk-[A-Za-z0-9][A-Za-z0-9_-]{15,}'
+
+[patterns.google_aiza]
+regex = 'AIza[0-9A-Za-z_-]{35}'
+
+[patterns.huggingface_hf]
+regex = '\bhf_[A-Za-z0-9]{30,}'
+
+[patterns.github_token]
+regex = '\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})'
+
+[patterns.slack_xox]
+regex = '\bxox[abprso]-[A-Za-z0-9-]{10,}'
+
+[patterns.aws_access_key]
+regex = '\b(?:AKIA|ASIA)[0-9A-Z]{16}\b'
+
+[patterns.pem_block]
+regex = '-----BEGIN [A-Z0-9 ]{3,40}-----'
+redact_regex = '-----BEGIN ([A-Z0-9 ]{3,40})-----[\s\S]*?(?:-----END \1-----|\Z)'

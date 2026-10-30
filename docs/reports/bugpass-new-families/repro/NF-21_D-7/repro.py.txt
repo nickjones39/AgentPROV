@@ -1,0 +1,16 @@
+import json, sys, os
+sys.path.insert(0, "tests/adapters/qwencode")
+sys.path.insert(0, "tests")
+import qwencode_support as support
+from agentprov.adapters.qwencode.dialect import parse_label
+f = parse_label(support.by_criterion("python"))
+member = f"results/Qwen/{f.model}/{f.target}/{f.language}/conversation_log/index{f.scenario}.json"
+entries = json.loads(support.tree()[1][member])
+for v in (2, 5, -1, 1):
+    new = [dict(e, score=v) if e["index"] == f.case_key else e for e in entries]
+    m = support.modified("python", supp={member: json.dumps(new).encode()}, sem=True)
+    (j,) = m.of("judgement")
+    anns = m.annotations("outcome")
+    print(v, "judgement origin:", j.get("origin"), "unk:", j.get("unk"), "codes:", sorted(set(m.codes())))
+    for a in anns:
+        print("   ann", a["value"], a["rule"], a["ev"])

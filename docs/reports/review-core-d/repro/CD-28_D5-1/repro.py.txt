@@ -1,0 +1,29 @@
+import sys, traceback; sys.path.insert(0, "repro/D5-1")
+from common_d5 import *
+from agentprov.adapters.runner import map_artefact_total, aer_bytes
+label = "openaisdk/gpt-5.2/code/benign/math/57/20260220_133459.json"
+
+def run(name, steps):
+    print("=====", name)
+    data = traj(steps)
+    outcome, unit = map_artefact_total(data, origin(RUNS_REPO, RUNS_COMMIT, label, data), profile_id="dtap-bench")
+    print("outcome type:", type(outcome).__name__, {k: getattr(outcome, k) for k in ("kind", "status", "defect", "reason") if hasattr(outcome, k)})
+    try:
+        sealed, _ = aer_bytes(outcome)
+        doc = load_aer_bytes(sealed)
+        print("unit status:", doc.seal.get("status") if hasattr(doc, "seal") else None)
+        for r in doc.records:
+            if r["k"] in ("tool_execution", "actor"):
+                print("  ", r["k"], r["id"], r.get("actor"))
+        for i in doc.seal.get("issues", []):
+            if i["code"] in ("call_result_link_conflict", "adapter_defect", "dtap.pairing_ambiguous_batch"):
+                print("  issue", i["code"], i.get("ids"), i.get("detail"))
+            elif "defect" in i["code"]:
+                print("  issue", i["code"], str(i.get("detail"))[:300])
+    except Exception:
+        traceback.print_exc(limit=3)
+
+run("case1 meta conflict only", [user(), meta(), result("something_else")])
+run("case1b meta conflict + linked call", [user(), meta(), result("something_else"), call("a", {"q": 1}), result("a")])
+run("case2 meta conflict + shape conflict", [user(), meta(), result("x"), call("a", {}), call("b", {}), result("a"), result("b")])
+run("control: meta matched", [user(), meta(), result("List MCP Tools")])

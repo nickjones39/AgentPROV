@@ -1,0 +1,53 @@
+# Corpus spec of `dtap-bench` (HL H.1.6; D-44): DRAFT by the wave-2 pre-release checks (2026-10-29), for the user's
+# approval. Identity and selection come from here and from the source profile it names; counts are computed at sealing
+# (H.2.1(3)). Each origin is the pin the import recorded (D-33).
+
+corpus_id = "dtap-bench"
+corpus_version = "0.1.0"
+title = "DTap-Bench agent trajectories (AI-Secure) with the DecodingTrust-Agent-Platform task configurations"
+mode = "import"
+
+[[sources]]
+source_id = "dtap"
+profile = "dtap-bench@3"
+parts = ["head"]
+
+[[sources.snapshots]]
+snapshot_id = "head"
+origin = { commit = "836caf2fdd78b888ddd14fb62dc038e932e17898", kind = "git", repo = "https://huggingface.co/datasets/AI-Secure/DTap-Bench-Agent-Trajectories", subtree = "" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["dtap.tools@3"]
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+# LICENSE: the Apache License 2.0 text, supplied at sealing with --licence-file (the source is Apache-2.0 by both dataset
+# cards and neither dataset publishes a LICENSE or NOTICE file at the pin, profile dtap-bench@3 [licence] basis; Apache-2.0
+# section 4(a) asks a redistributor to give recipients a copy). The canonical text, 11,358 bytes, sha256
+# cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30, as in decision 4 for the CC-BY corpora; user
+# decision 2026-10-29 in the orchestrator's window.
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only; corpora/personas/).
+[scan]
+personas = [
+  { path = "../personas/dtap-bench.observed.personas.toml", sha256 = "sha256:6d330dc7fdd956e7fc818571dac859bd976f1132d08ad4dc339cf841ab7b39fc" },
+]
+
+# D-964 (C-8): what the release-scan review withholds that no profile rule describes, named by execution id, never by
+# value. Group G01: the OpenClaw harness's gateway token in one execution's harness parameters, in its raw file and
+# its AER; the execution goes with its primary raw object.
+[withhold]
+decided_by = "decision 11 of the wave-2 pre-release checks: the orchestrator, under the user's delegation and DTap pre-approval 2026-10-29 (secret-review-dtap, docs/reports/release/wave-2-pre-release-checks.md)"
+executions = [
+  "ex_sx6lm255afjq733eabnq5izgz2",
+]

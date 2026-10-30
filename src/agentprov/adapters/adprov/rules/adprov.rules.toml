@@ -1,0 +1,566 @@
+# Rule catalogue `adprov` (docs/architecture D.5.1-D.5.4, D.7; C.15.3, C.16.2; J.3.2).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory).
+# Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version`
+# (AD-18). Nothing is released yet (v0.1 is in development), so its rules keep @1;
+# the file is at version 2 since the D-31 bumps (2026-10-13), and version 1 (the bytes the stored corpora recorded) ships
+# under rules/archive/adprov.rules.v1.toml.
+#
+# The rule names are those of the D.5.4 index. Rules marked "added in phase 4" are not in the D.5.4 index; they were
+# needed by the transcript/v1 mapping and are reported for the next spec round (AGENTS.md section 0).
+#
+# Code citations point at the frozen baseline nickjones39/agentdojo-prov @ 579a908 (AGENTS.md section 1). The
+# released transcripts do not record the capture-code version that wrote them, so no rule here declares a `verified`
+# assumption against a framework identity recorded in the AER (AER-V34): D rules rest on the writer code of the
+# frozen baseline and on observations over the frozen trees (J-M1, J-M4), I rules state their assumption.
+
+[catalogue]
+id = "adprov"
+version = 2
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = [
+  "tool_call_id_mismatch",
+  "content_hash_mismatch",
+  "upstream_link_unresolved",
+  "v1_layout_unexpected_order",
+  "v1_layout_unknown_member",
+  "tool_timing_overwritten",
+  "lone_surrogate_replaced"
+]
+subtypes = []
+types = []
+
+# ---------------------------------------------------------------------------------------------- header and actors
+[[rule]]
+id = "adprov.v1_benchmark_is_agentdojo"
+version = 1
+class = "D"
+status = "active"
+statement = "A transcript/v1 file records an AgentDojo run: the generator drives AgentDojo task suites and the converter converts AgentDojo run logs, so task.benchmark is agentdojo."
+premises = ["/adprov_schema", "/meta/suite"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/generate.py", lines = "132-162", note = "_trace_meta" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/convert_runs.py", lines = "138-172", note = "run_to_meta" },
+]
+evidence = ["audit/capture.md §4.2.5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_header_task_coordinates"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.release_undefended"
+version = 1
+class = "D"
+status = "active"
+statement = "The released AgentDojo-PROV runs refused defences (OB-8), so the task's defense_id is null."
+premises = ["/meta"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/generate.py", lines = "276-304", note = "_make_pipeline builds an undefended pipeline" },
+]
+evidence = ["audit/capture.md §4.2.5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_header_task_coordinates"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.v1_capture_code_semantics"
+version = 1
+class = "I"
+status = "active"
+statement = "The observer effects of the AgentDojo-PROV capture applied to a released run, although the transcript does not record the capture-code version that wrote it; this justifies the imported instrumentation items."
+premises = ["/adprov_schema"]
+assumptions = []
+evidence = ["audit/capture.md §6", "audit/capture.md §8 D3"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.developer_role_rewrite"
+version = 1
+class = "I"
+status = "active"
+statement = "Instrumentation item: the AgentDojo-PROV compatibility LLM client rewrote the developer role to system before sending (request-modifying; not recorded per call)."
+premises = []
+assumptions = []
+evidence = ["audit/capture.md §4.1 RT-6", "audit/capture.md §6"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.malformed_tool_call_resample"
+version = 1
+class = "I"
+status = "active"
+statement = "Instrumentation item: replies with malformed tool-call JSON were discarded and resampled by the harness (harness policy; recorded only as a summary)."
+premises = []
+assumptions = []
+evidence = ["audit/capture.md §4.1 RT-4", "audit/capture.md §6"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.upstream_failure_retry"
+version = 1
+class = "I"
+status = "active"
+statement = "Instrumentation item: provider failures were retried rather than taken as the model's reply (harness policy; recorded only as a summary)."
+premises = []
+assumptions = []
+evidence = ["audit/capture.md §6"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.model_display_name"
+version = 1
+class = "I"
+status = "active"
+statement = "Instrumentation item: the model display name the attack payloads address was synthesised by the harness from the model id (attack parameter)."
+premises = []
+assumptions = []
+evidence = ["audit/capture.md §4.5 item 3"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.temperature_not_transmitted"
+version = 1
+class = "D"
+status = "active"
+statement = "A configured temperature of 0.0 was not transmitted (agentdojo 0.1.35 sends `temperature or NOT_GIVEN`): meta.model_config.temperature is configured, never transmitted."
+premises = ["/meta/model_config/temperature"]
+assumptions = []
+evidence = ["audit/capture.md §3"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.model_names_registration"
+version = 1
+class = "I"
+status = "active"
+statement = "The model name in payloads was harness-synthesised (for example 'Gpt 5 Nano')."
+premises = []
+assumptions = []
+evidence = ["audit/capture.md §4.5 item 3"]
+tests = []
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- attempts and calls
+[[rule]]
+id = "adprov.single_attempt_from_call_count"
+version = 1
+class = "D"
+status = "active"
+statement = "If the harness's call counter (meta.model_config.usage.n_llm_calls) equals the assistant turns held, no earlier pass made a model call: the held turns are the only pass (index 0, or the index after the discarded attempts)."
+premises = ["/meta/model_config/usage/n_llm_calls", "/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.4"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_attempt_structure_by_call_count"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.turns_hold_last_pass"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 4. The turns of a transcript/v1 file are the message list of the final, scored pipeline pass of its cell (the generator builds them from the final message list; the converter from a TraceLogger log, which keeps the last pass). Without a call counter, whether earlier passes ran is not recorded, so the pass index is unknown."
+premises = ["/turns"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/observer.py", lines = "272-305", note = "get_transcript_doc: turns from the final pass" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/convert_runs.py", lines = "186-209", note = "convert_run: turns from run['messages']" },
+]
+evidence = ["audit/capture.md §4.2.4", "audit/legacy_replay.md §2.2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_attempt_structure_by_call_count"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.discarded_attempts_in_order"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 4. discarded_attempts holds the earlier pipeline passes AgentDojo re-ran past, oldest first: entry i is pass index i and the turns are the scored pass, index len(discarded_attempts)."
+premises = ["/discarded_attempts", "/meta/n_attempts"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/transcript.py", lines = "188-260", note = "build_transcript discarded_attempts" },
+]
+evidence = ["audit/capture.md §4.2.4", "audit/capture.md §4.9"]
+tests = ["tests/adapters/adprov/test_synthetic.py::test_synthetic_multi_pass_round_trip"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.capture_environment_record"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 4. meta.capture.passes[k].environment is the envstate pass record of pass k: the before/after digests (envstate canonical JSON, adprov.envstate@1), whether the state changed and the capped diff."
+premises = ["/meta/capture/passes"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/envstate.py", lines = "28-95", note = "digest, diff_states, pass_record" },
+]
+evidence = ["audit/capture.md §4.4"]
+tests = ["tests/adapters/adprov/test_synthetic.py::test_synthetic_multi_pass_round_trip"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.assistant_turn_one_call"
+version = 1
+class = "D"
+status = "active"
+statement = "Each assistant turn is the kept output of one agent model call (as agentdojo.assistant_msg_has_one_call)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.4"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.call_id_unique_match"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool turn answers the unique call of the preceding assistant turn whose non-empty id equals its tool_call_id (as agentdojo.call_id_unique_match)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["landscape/trace_formats.md §6.5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_tool_linking_by_id_and_position"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.tool_turn_is_one_execution"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool turn records one dispatch of the call it answers (as agentdojo.tool_msg_is_one_execution)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/capture.md §3"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.context_is_prefix"
+version = 1
+class = "I"
+status = "active"
+statement = "Each agent call's input was exactly the preceding turns of its pass (apv:FullContextResend). INFERRED for released v1: the transcripts do not record what was sent (AD-05)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/capture.md §8 D7"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_context_membership_is_inferred"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.finish_reason_positional"
+version = 1
+class = "D"
+status = "active"
+statement = "Finish reasons are appended once per kept reply, in call order (RT-2): entry i belongs to agent call i (lost calls first) only when the list has one entry per call; otherwise they are not aligned and the list is kept verbatim."
+premises = ["/meta/model_config/finish_reasons", "/meta/model_config/usage/n_llm_calls"]
+assumptions = []
+evidence = ["audit/capture.md §4.1"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_finish_reasons_alignment"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.lost_calls_from_count"
+version = 1
+class = "D"
+status = "active"
+statement = "Calls counted by the harness (n_llm_calls) but not held as assistant turns are earlier-pass calls: they are recorded as lost model calls in a non-scored attempt, and the held turns are a later, scored pass whose index is unknown (C.7.4)."
+premises = ["/meta/model_config/usage/n_llm_calls", "/meta/model_config/finish_reasons", "/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.4"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_attempt_structure_by_call_count"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.release_null_as_empty"
+version = 1
+class = "D"
+status = "active"
+statement = "Before 2026-10-04 the generator stored a null assistant reply as \"\": an empty text in a released transcript without the post-June fields is ambiguous (null or empty)."
+premises = ["/turns"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/transcript.py", lines = "84", note = "the null-preserving branch added 2026-10-04 (97df4b5)" },
+]
+evidence = ["audit/capture.md §7 item 2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_empty_texts_are_ambiguous"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.empty_assistant_text_ambiguous"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 4. An empty assistant text that adprov.release_null_as_empty does not cover (converted transcripts, and released ones written from 2026-10-04 on, which keep a null reply as null) is the producer's content \"\": whether the model returned an empty text block or no text is not recorded, so the empty text is declared ambiguous (C.7.1, C.19 item 4)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/legacy_replay.md §2.4"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_empty_texts_are_ambiguous"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.additional_user_turn_unattributed"
+version = 1
+class = "I"
+status = "active"
+statement = "Added in phase 4. A user turn after the first is attributed to the simulated user by role only: defence elements (tool_filter, repeat_user_prompt) also write user-role turns, and the v1 importer does not identify them (D.6.6 'other later user'; J.4.4)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["sources/agentdojo.md §3.5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_additional_user_turns_are_unattributed"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.reasoning_log_alignment"
+version = 1
+class = "I"
+status = "active"
+statement = "Reasoning text on an assistant turn was attached by position from the LLM element's side log (TR-3) or copied from native thinking blocks; which of the two is undecidable from the transcript."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.3"]
+tests = ["tests/adapters/adprov/test_synthetic.py::test_synthetic_reasoning_and_refusal_round_trip"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.refusal_log_alignment"
+version = 1
+class = "I"
+status = "active"
+statement = "Added in phase 4. Refusal text on an assistant turn was attached by position from the LLM element's per-call refusal log (TR-4), only when the log had one entry per assistant turn."
+premises = ["/turns"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/transcript.py", lines = "117-122", note = "_build_turns refusals" },
+]
+evidence = ["audit/capture.md §4.3"]
+tests = ["tests/adapters/adprov/test_synthetic.py::test_synthetic_reasoning_and_refusal_round_trip"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.timing_keyed_by_call_id"
+version = 1
+class = "I"
+status = "active"
+statement = "Added in phase 4. When a tool_call_id repeats in a trace and its tool turns hold the same timing pair, the capture keyed per-call timing by id (one pair per id): only the last of those turns holds its own timing; the earlier turns' timing was overwritten."
+premises = ["/turns"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/transcript.py", lines = "131-142", note = "_build_turns: a single pair per id" },
+]
+evidence = ["baseline/golden/golden_index.json R07"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_duplicated_call_id_timing_is_overwritten"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- outcomes and times
+[[rule]]
+id = "adprov.checker_outcome"
+version = 1
+class = "D"
+status = "active"
+statement = "Released meta.utility and meta.security are the stock AgentDojo checkers' values."
+premises = ["/meta/utility", "/meta/security"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/generate.py", lines = "545-636", note = "_run_one_injection" },
+]
+evidence = ["audit/capture.md §4.2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_judgement_origins"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.benign_security_normalised"
+version = 1
+class = "D"
+status = "active"
+statement = "A released benign security: null is the generator's normalisation of AgentDojo's constant benign value (harness_default), not an observation."
+premises = ["/meta/security", "/meta/attack_type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/generate.py", lines = "508-512", note = "_run_one_benign passes security None" },
+]
+evidence = ["generate.py G-7"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_judgement_origins"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.run_interval_scope"
+version = 1
+class = "D"
+status = "active"
+statement = "started_at and ended_at bracket environment load and scoring."
+premises = ["/meta/started_at", "/meta/ended_at"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.2"]
+tests = []
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.timing_stub_is_unknown"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool \"0\" timing under timing_stubbed is not a time: t.raw keeps the verbatim strings and t.start/t.end are unknown (not_recorded; C.7.3)."
+premises = ["/meta/timing_stubbed", "/turns"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/convert_runs.py", lines = "138-208", note = "TIMING_STUB and convert_run" },
+]
+evidence = ["audit/legacy_replay.md §3.6 D4", "audit/legacy_replay.md §4"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_converted_timing_stub_is_unknown"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.converted_stem_to_upstream_path"
+version = 1
+class = "D"
+status = "active"
+statement = "A converted transcript derives from the upstream log runs/<pipeline_name>/<suite>/<user_task_id>/<attack_type or none>/<injection_task_id or none>.json at the 2024-06 pin c274885 (the converter's naming rule _output_relpath inverted from the meta fields it copied)."
+premises = ["/meta/pipeline_name", "/meta/suite", "/meta/user_task_id", "/meta/attack_type", "/meta/injection_task_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/convert_runs.py", lines = "175-183", note = "_output_relpath" },
+]
+evidence = ["audit/legacy_replay.md §3.2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_converted_upstream_link"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.v1_benign_label"
+version = 1
+class = "D"
+status = "active"
+statement = "In transcript/v1 the attack label \"benign\" is a presentation convention for 'no attack' (the converter writes `attack_type or \"benign\"`, the generator labels benign cells \"benign\"): the importer maps it to task.attack_id null, and the views render a null attack_id as \"benign\" (C.15.3). It is never a task kind."
+premises = ["/meta/attack_type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/convert_runs.py", lines = "145", note = "attack_type or BENIGN_ATTACK" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/generate.py", lines = "508-509", note = "benign cells labelled benign" },
+]
+evidence = ["audit/legacy_replay.md §2.2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_header_task_coordinates"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.v1_writer_layout"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 4. transcript/v1 files were written by the AgentDojo-PROV writer: json.dumps(doc, indent=2) with the J.3.2 member order of every object, and content_sha256 = \"sha256:\" + SHA-256 of the UTF-8 content. An order the layout does not allow, an unknown member or a content digest that differs is a seal issue."
+premises = ["/"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/transcript.py", lines = "23-105", note = "_sha256, _serialize_function_call, message_to_turn" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/transcript.py", lines = "282-283", note = "save_transcript" },
+]
+evidence = ["J-M1"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_layout_deviations_raise_issues"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- _unverified twins (D.5.4)
+# Regeneration-batch item 3 (D-24, D-27 c6): the class-I twin of each D rule that a profile cites for a record whose
+# producing code the D rule's `code` list does not cite (or that cites no code: documentary evidence only). The
+# mapper picks the twin per profile and record facets from `[harness] verified_code` (adapters/code_verification.py).
+
+[[rule]]
+id = "adprov.single_attempt_from_call_count_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.single_attempt_from_call_count@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): If the harness's call counter (meta.model_config.usage.n_llm_calls) equals the assistant turns held, no earlier pass made a model call: the held turns are the only pass (index 0, or the index after the discarded attempts)."
+premises = ["/meta/model_config/usage/n_llm_calls", "/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.4", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.lost_calls_from_count_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.lost_calls_from_count@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Calls counted by the harness (n_llm_calls) but not held as assistant turns are earlier-pass calls: they are recorded as lost model calls in a non-scored attempt, and the held turns are a later, scored pass whose index is unknown (C.7.4)."
+premises = ["/meta/model_config/usage/n_llm_calls", "/meta/model_config/finish_reasons", "/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.4", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.assistant_turn_one_call_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.assistant_turn_one_call@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Each assistant turn is the kept output of one agent model call (as agentdojo.assistant_msg_has_one_call)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/capture.md §4.2.4", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.call_id_unique_match_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.call_id_unique_match@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): A tool turn answers the unique call of the preceding assistant turn whose non-empty id equals its tool_call_id (as agentdojo.call_id_unique_match)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["landscape/trace_formats.md §6.5", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.tool_turn_is_one_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.tool_turn_is_one_execution@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): A tool turn records one dispatch of the call it answers (as agentdojo.tool_msg_is_one_execution)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/capture.md §3", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.finish_reason_positional_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.finish_reason_positional@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Finish reasons are appended once per kept reply, in call order (RT-2): entry i belongs to agent call i (lost calls first) only when the list has one entry per call; otherwise they are not aligned and the list is kept verbatim."
+premises = ["/meta/model_config/finish_reasons", "/meta/model_config/usage/n_llm_calls"]
+assumptions = []
+evidence = ["audit/capture.md §4.1", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.empty_assistant_text_ambiguous_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of adprov.empty_assistant_text_ambiguous@1 where it cites no code, only documentary evidence (D-27 c6), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Added in phase 4. An empty assistant text that adprov.release_null_as_empty does not cover (converted transcripts, and released ones written from 2026-10-04 on, which keep a null reply as null) is the producer's content \"\": whether the model returned an empty text block or no text is not recorded, so the empty text is declared ambiguous (C.7.1, C.19 item 4)."
+premises = ["/turns"]
+assumptions = []
+evidence = ["audit/legacy_replay.md §2.4", "D.5.4", "DECISIONS D-27 c6"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "adprov.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue adprov.lone_surrogate_replaced; the original stays in the raw store (regeneration-batch item 7, escaping audit F-01, DECISIONS D-23 and D-378). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+evidence = ["docs/reports/analysis/research/A4-escaping.md F-01", "DECISIONS D-23", "DECISIONS D-378", "regen-batch item 7"]
+tests = ["tests/adapters/test_item7_surrogates.py::test_scrub_record_replaces_typed_positions_and_keeps_json_values"]
+since = "0.1.0"
+

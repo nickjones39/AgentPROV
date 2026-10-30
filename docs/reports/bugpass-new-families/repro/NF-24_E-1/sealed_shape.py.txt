@@ -1,0 +1,35 @@
+import io, json, os, shutil, sys, tempfile, contextlib
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "dtap"))
+import dtap_support as support
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner.importer import ContextTree, LocalTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+from agentprov.cli.main import main
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+os.environ["AGENTPROV_HOME"] = str(tmp / "home")
+pins = load_profile(support.PROFILE).data["source"]["pins"]
+runs_pin = dict(next(p for p in pins if p["role"] == "runs")); tasks_pin = dict(next(p for p in pins if p["role"] == "tasks"))
+runs_root = support.write_tree(tmp / "runs", support.runs_files()); tasks_root = support.write_tree(tmp / "tasks", support.tasks_files())
+ctx = [ContextTree("tasks", LocalTree(tasks_root), support.vouch(tasks_root, support.TASKS_REPO, support.TASKS_COMMIT), pin=tasks_pin)]
+with CorpusWriter(tmp / "c") as w:
+    import_source("dtap", LocalTree(runs_root), corpus=w, profile_id=support.PROFILE, pin_check=support.vouch(runs_root, support.RUNS_REPO, support.RUNS_COMMIT),
+                  context_trees=ctx, pin=runs_pin, in_process=True, until="aer")
+src = tmp / "c.partial"; mod = tmp / "m.partial"
+shutil.copytree(src, mod)
+m = json.loads((mod / "corpus.json").read_text())
+for s in m["sources"][0]["snapshots"]:
+    for k in ("context", "pin", "pinned_objects", "verification", "input"):
+        s.pop(k, None)
+(mod / "corpus.json").write_text(json.dumps(m))
+from agentprov.corpus.reader import CorpusReader
+from agentprov.corpus.rawtree import StoredRawTree
+t = StoredRawTree(CorpusReader.open(mod))
+labels = [c.label for c in t.walk()]
+print("recorded_context:", t.recorded_context, "| primary labels:", len(labels), "of which task config files:", sum(1 for l in labels if l.endswith("config.yaml")))
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    code = main(["recompute", "--corpus", str(mod), "--dry-run", "--no-reuse", "--in-process", "--json", "--progress", "off"])
+s = json.loads(buf.getvalue())
+print("exit", code, "refusal", s.get("refusal"), {k: s["counters"].get(k) for k in ("identical", "unexplained_change", "corpus_unexplained")})

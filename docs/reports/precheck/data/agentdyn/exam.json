@@ -1,0 +1,1151 @@
+{
+ "corpus_id": "agentdyn",
+ "files_written": [
+  "docs/reports/precheck/data/agentdyn/exam.json",
+  "docs/reports/precheck/data/agentdyn/os1-population.json",
+  "docs/reports/precheck/data/agentdyn/os2-sample.json",
+  "docs/reports/precheck/data/agentdyn/h12-pairs.json",
+  "docs/reports/precheck/data/agentdyn/h03-it1-checker.json",
+  "docs/reports/precheck/data/agentdyn/dl1-a-aer.json",
+  "docs/reports/precheck/data/agentdyn/dl1-a-sem.json",
+  "docs/reports/precheck/data/agentdyn/dl1-a-prov.json",
+  "docs/reports/precheck/data/agentdyn/exam-supplement.json",
+  "docs/reports/precheck/data/agentdyn/exam-scripts/ (15 scripts incl. build_exam.py)",
+  "docs/reports/precheck/data/agentdyn/exam-b.json"
+ ],
+ "level1": "Code c4ee3dd1 (L1/L2 batch wave1, all agentdyn steps rc 0; branch HEAD 8138e1e3 adds only reports). Input: local shallow checkout at the pin 5353cf76, pin_check verified a 38,281/38,281, b 5,184/5,184, c 4,258/4,258. L1-01: walked 48,672; selected 47,723 = a 38,281 (v1.k14 38,269 + .incomplete 12) + b 5,184 (v0.k11) + c 4,258 (drift.k18.messages); excluded select.owned_elsewhere:drift 949; other_variant_part a 9,442 / b 42,539 / c 43,465 (all = prereg, incl. the corrected b/c figures); rejected 0. Bytes (sum of unit sizes) a 479,526,175, b 53,706,779, c 65,093,661 = prereg. Per directory: a 62 dirs = 57 x 648 + camel 386 + gpt-5.1 939 + gpt-5-mini progent strays 12 + gpt-5-mini tool_filter 6 + qwen-2.5 progent strays 2; b 8 x 648; c 6 x 620 + gpt-5.1-drift 538 (all = prereg). Attack classes a attacked 32,800 / benign user 3,543 + pre-pass 1,647 (= 5,190) / direct 291; b 4,480 / 480 + 224 / 0; c 3,838 / 420 / 0 (= prereg). Message, tool-call and tool-error totals are not emitted by l1_scan (not tested; followup). L1-02: 0 strict-parse failures in a, b and c (38,281 / 5,184 / 4,258 ok). L1-03: a c0 4 artefacts (8 string occurrences; each value appears under both tool_call and tool_calls pointers), CR 3 strings, variation selectors 5, 0 bidi/tag/zero-width/U+2028/2029/0085/U+FFFD/mojibake; escape residues: escaped newline 9,197 artefacts, escaped unicode 3,635, JSON-in-string 213, escaped quote 47 (new baseline; E2 counted 12 C0/C1 AER strings incl. 3 CR, a different layer). b c0 1 (2 strings), zero-width 1 (2), VS 1; c VS 1, JSON-in-string 3,400 artefacts (DRIFT reserialised plan fields, RT-2). L1-04: byte-identical groups 0 within each part, 0 across parts, 0 across corpora (l1-xdup). Trajectory-identical within part: a 889 groups / 4,940 units (xdup within_part 887), b 97 / 299, c 61 / 274. Cross-part a-b-c: 0 groups. Cross-corpus: 7 trajectory groups with ROPE head (9 a units, OpenAI gpt-4o / gpt-4o-mini dailylife+github cells; 0 b, 0 c). Gemini-2.5-flash Google-API detector pairs 425/357/275 identical cells of 648 = E2 S01 (H-12). L1-05: no missing or extra cell beyond the prereg list: camel 386 (dailylife attacked 0/200, dailylife benign 8/20, dailylife pre-pass 0/10, shopping attacked 140/180, github 180+20+9, shopping 20+9 benign/pre-pass); gpt-5-mini tool_filter 6; gpt-5.1-drift github attacked 98/180; extras gpt-5.1 direct 291 (shopping 180, github 111, dailylife 0), travel strays 12 + 2, pre-pass files a 1,647 / b 224 / c 0; 0 Claude/Kimi/Qwen3-Coder files (pipeline_name over 76 values). L1-05b (OS-1 population recount, 225 paper values, 222 comparable): 201 within 0.05 pp (90.5%); 21 off by > 0.05 pp, 11 by > 5 pp (gemini-2.5-flash none x3, gemini-2.5-pro none UA, qwen3-235b none x3, gpt-4o-mini PG2 x3, gpt-4o-mini repeat BU); gap rule flags 5 (gemini-flash none BU/UA/ASR, gemini-pro none UA, qwen3 none BU). All 24 part-b and all 21 part-c values reproduce within 0.05 pp. Paper zeros for gpt-5-mini tool_filter have no log support (6 aborted files). L1-06: a: account-path shapes in 137 files (named 101, generic 36; 22 distinct named accounts over a, b, c, counted by digest) [verifier-corrected, verifier corrections in findings.json PC-agentdyn-12: 133 unique files (137 sums named + generic); 16 distinct names (22 counts path-class x name pairs)], secret-like 9,841 files (generic-credential-assignment 9,800, private-key block 86 files / 237 strings); b: named 11, generic 8 [19 unique files, PC-agentdyn-12], private-key 21 files; c: named 16, generic 14 [verifier-corrected: 28 unique files (30 sums named + generic), PC-agentdyn-12], private-key 4 files (11 strings) = RT-10. 0 operator_home, 0 local-path model, 0 withhold-rule matches. Targeted follow-up on the 128 named-flagged files: 0 path tails with harness tokens (site-packages, /agentdojo/, AgentDyn, .venv, conda, lib/python, Traceback); 0 of 22 names occurs as a path in the benchmark source, 14 of 22 occur in benchmark text, 8 (27 files) do not [verifier-corrected, PC-agentdyn-12: 7 names not in benchmark text; the 27 files may double count]: model-generated tool arguments and tool errors echoing them, no publisher path. Private-key blocks originate in the dailylife suite data and injection tasks (benchmark fiction). L1-07: a /evaluation_timestamp 38,281/38,281 present, naive, 0 parse failures, 2026-01-21 .. 2026-04-19 (= prereg; day histogram not emitted by l1_scan); 28 units non-monotone only in tool-argument datetimes (content). b, c: 0 timestamp fields (presence check), tool-argument datetimes in 369 / 309 units are content. L1-08: a incomplete 12 (= prereg: 6 gpt-5-mini tool_filter, 3 CaMeL, 2 progent travel, 1 gpt-4o repeat), error_present 5 (= run_error_imposed), 0 empty / zero-message / error_only; the null_final flag (114 a, 489 b, 36 c) is a narrower definition (last assistant content null/empty-string and no call) and is NOT comparable with the 826 silent_rerun logs or E2's 4,631 empty final replies (PC-agentdyn-06). The 16 'not ending in assistant' (a), 879 / 677 'without a tool call' (b, c) and 564 [user, assistant]-only (c) are not emitted by l1_scan (followup).",
+ "level2": "Sample: a 360 units in 360 strata (pipeline_dir|attack_dir|suite, 1 each, over_maximum), c 210 in 42 strata (5 each); b L2 pending (followup1, --allow-first-mapping). Prereg expected 62/300 and 7/35 strata/units: the family hook's arm key adds attack_dir and suite (PC-agentdyn-07); every pre-registered arm is covered. Import: a 360/360 mapped, sealed_clean 333, sealed_with_issues 27, degenerate 0, failed 0; c 210/210, 124 / 86, 0, 0. Sample join 360/360 and 210/210 labels with exactly one execution. Validate (tiers aer, sem, prov, linkage; shacl not implemented, regression n/a): a 360/360 passed, c 210/210, linkage 100%, results_reproduced = n. recompute --dry-run (shimmed): a 360 identical, c 210 identical, 0 changed, 0 unexplained. Determinism j2 vs j1: a 1,447 files, c 847 files, 0 differ, index identical. verify --level chain: 0 failed; checksums.absent (working tree, expected). A2 (own count, l2_check emits no A2 table): a tool_execution ok 1,665 / error 116 / invalid 12 (7.1% error+invalid; population tool errors 15,061/210,304 = 7.2%), model_call kept 2,012, run_error 0, decisions redact 221 / deny 2; c tool_execution ok 799 / error 60 / invalid 54, decisions other 846 (isolation) + deny 185 (CALL ERROR), run_error 0. A3: 0 PI-class hits in a and c; unexecuted calls 21/21 represented as apv:NotDispatched (a), 0 missing; statements checked a 239,403 / c 101,109. Evidence classes: 0 AER records with ev D in a and c (a: O 403 / I 223 record-level ev; evf D 349 = agentdojo.system_prompt_variant_digest@1, code-independent); SEM a: D 9 (agentdojo.partial_payload@1, code-independent, item 6) vs stored D 2,820; PROV core:D a 1,622 / c 945 are engine rules aprov.n_gap@1 and aprov.n_capture_profile@1 (apv:Derived), assessment:D 9 = aprov.a_label@1 of the partial_payload annotations; twins: inference:I a 90,072 of 93,565 cite an _unverified twin. Degenerate 0, adapter_defect 0 (a, c). Issue codes a: accounting_unverifiable 356, earlier_attempts_unobservable 360, unexecuted_tool_call 18, retry_passes_inferred 12, incomplete_run 4, local_parse_drop_possible 3, pipeline_name_mismatch 1, orphan_tool_result 1 execution (8 seal issues); c: accounting_unverifiable 210, drift.agent_prompt_not_recorded 210, drift.injection_map_not_recorded 105 (= attacked), drift.calls_in_text_not_executed 86 (= 10L baseline pattern). Completeness a: unverifiable 356, known_incomplete 4 (= the 4 incomplete_run units); c unverifiable 210. Identity: 0 unresolved, 0 direct mismatches; model, defence, attack, suite resolve per the 76-row table (SecAlign h_pipeline 'local' -> Meta-SecAlign-70B/8B by directory; camel h_pipeline 'gpt-4o-mini-2024-07-18+camel'; c models from DRIFT ids incl. 'google/gemini-2.5-flash'); pipeline_name_mismatch 1 sampled stray. Redaction: 0 account path in AER/SEM/PROV/index (a 1,088 files, c 638 scanned); but 0 sampled labels carry an L1 account-path flag, so the screen was not exercised on such content (PC-agentdyn-12). Secret-shaped: a 1 execution with a private-key header (benchmark dailylife content) in message parts / tool_execution args / PROV apv:args; c 0. Withholding: policy null, no [withhold] table (RT-10 open): not applicable, as pre-registered. OS-2: raw vs mapped utility/security on the same labels a 720/720 agree (incl. 4 absent/absent), c 420/420; sample rates per arm have n <= 3 (a) and n = 15 (c), below the n >= 20 rule: report only, no verdict. DL-1 (a, 360 shared execution ids vs agentdyn-a-p10.partial): AER differs in all 360, every pointer attributed: header profile agentdyn 1->2 and rules agentdojo/agentdyn 1->2 (item 30, D-31); D->I twins on actor/scope/decision ev and on evf args_effective, responds_to, origin, actor, task/benchmark, code/dist, task_kind, after, generated_by with rule X@1 -> X_unverified@1 (items 3/13, D-80/81/84); 178 new activity agentdojo:load_environment = exactly the 176 important_instructions + 2 direct executions (item 5, D-370); model_call unk /params not_recorded on all 2,012 calls (U6-c, D-373); CaMeL 19 planner calls context_is_prefix -> agentdyn.camel_planner_input_not_logged_unverified + unk /input not_recorded and 10 feedback messages user -> def0 (item 2, D-376); seal issues/records_sha256/n_records follow. Index: digests, sem path/stage (suites@1 -> @3), profile agentdyn@1 -> @2 in 360; completeness known_incomplete -> unverifiable 12 (items 9/11, D-372), 4 stay known_incomplete (incomplete_run); issues -map.unattributed_additional_user_message 1 (item 2). SEM: suites@1 -> @3 (items 27b/30); unknown_tool executions 291 -> 8 of 360 (2.2%, < 25% expected); outcome and marker annotations D -> _unverified I (item 1, D-86); 0 marker status changes (item 8); partial_payload 1 execution / 9 annotations (item 6); success_without_visible_payload 0 (item 4). PROV, after twin normalisation: core D -> inference I moves (items 3/13); +5,556 inference bundles and t_derive statements (twins split bundles); g_act/g_assoc/g_use +178 (item 5); use_context/comm -180/-106 in 5 CaMeL executions (item 2); assessment a_exposure -1,071 (99 executions) and a_taint -3,397 (192) because reviewed tool labels replace unknown_tool roles/integrity (item 27b/30, suites@3); assess mentionOf +771 (new channel/role labels). No unexplained difference. Stored validation rows: validate.results.differ expected-known (README s8 amendment 1); not re-run on the stored corpus.",
+ "outcomes": [
+  {
+   "arm": "a:google_gemini-2.5-flash",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "5.00",
+   "wilson95": "1.71-13.70 (pooled)",
+   "paper": "30.00",
+   "gap_pp": "-25.00",
+   "flag": true
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "7.61",
+   "wilson95": "5.75-10.18 (pooled)",
+   "paper": "24.29",
+   "gap_pp": "-16.68",
+   "flag": true
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "13.61",
+   "wilson95": "11.47-17.24 (pooled)",
+   "paper": "37.61",
+   "gap_pp": "-24.00",
+   "flag": true
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "53.33",
+   "wilson95": "40.89-65.37 (pooled)",
+   "paper": "51.67",
+   "gap_pp": "+1.66",
+   "flag": false
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "47.43",
+   "wilson95": "43.40-51.64 (pooled)",
+   "paper": "56.95",
+   "gap_pp": "-9.52",
+   "flag": true
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "21.43",
+   "wilson95": "18.57-25.39 (pooled)",
+   "paper": "20.61",
+   "gap_pp": "+0.82",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-repeat_user_prompt",
+   "level": "L1-population",
+   "n": 559,
+   "metric": "UA (macro of suites)",
+   "rate": "56.25",
+   "wilson95": "52.03-60.23 (pooled)",
+   "paper": "56.13",
+   "gap_pp": "+0.12",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-camel",
+   "level": "L1-population",
+   "n": 46,
+   "metric": "BU (macro of suites)",
+   "rate": "0.00",
+   "wilson95": "0.00-7.71 (pooled)",
+   "paper": "0.00",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-camel",
+   "level": "L1-population",
+   "n": 319,
+   "metric": "UA (macro of suites)",
+   "rate": "0.00",
+   "wilson95": "0.00-1.19 (pooled)",
+   "paper": "0.00",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-camel",
+   "level": "L1-population",
+   "n": 319,
+   "metric": "ASR (macro of suites)",
+   "rate": "0.00",
+   "wilson95": "0.00-1.19 (pooled)",
+   "paper": "0.00",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "18.33",
+   "wilson95": "10.56-29.92 (pooled)",
+   "paper": "18.33",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "19.31",
+   "wilson95": "16.07-22.57 (pooled)",
+   "paper": "19.31",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "3.39",
+   "wilson95": "2.32-5.45 (pooled)",
+   "paper": "3.39",
+   "gap_pp": "-0.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-prompt_guard_2_detector",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "45.00",
+   "wilson95": "33.09-57.51 (pooled)",
+   "paper": "30.00",
+   "gap_pp": "+15.00",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-prompt_guard_2_detector",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "19.44",
+   "wilson95": "16.56-23.14 (pooled)",
+   "paper": "13.70",
+   "gap_pp": "+5.74",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-prompt_guard_2_detector",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "33.91",
+   "wilson95": "31.68-39.59 (pooled)",
+   "paper": "28.54",
+   "gap_pp": "+5.37",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-repeat_user_prompt",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "50.00",
+   "wilson95": "37.74-62.26 (pooled)",
+   "paper": "43.33",
+   "gap_pp": "+6.67",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-repeat_user_prompt",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "38.61",
+   "wilson95": "34.46-42.49 (pooled)",
+   "paper": "37.78",
+   "gap_pp": "+0.83",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-repeat_user_prompt",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "33.63",
+   "wilson95": "30.99-38.86 (pooled)",
+   "paper": "33.80",
+   "gap_pp": "-0.17",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-spotlighting_with_delimiting",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "36.67",
+   "wilson95": "25.62-49.32 (pooled)",
+   "paper": "38.33",
+   "gap_pp": "-1.66",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-spotlighting_with_delimiting",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "35.44",
+   "wilson95": "31.34-39.22 (pooled)",
+   "paper": "35.78",
+   "gap_pp": "-0.34",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-tool_filter",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "5.30",
+   "wilson95": "3.78-7.54 (pooled)",
+   "paper": "4.80",
+   "gap_pp": "+0.50",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-tool_filter",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "5.65",
+   "wilson95": "4.23-8.16 (pooled)",
+   "paper": "6.15",
+   "gap_pp": "-0.50",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-spotlighting_with_delimiting",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "70.00",
+   "wilson95": "57.49-80.10 (pooled)",
+   "paper": "68.33",
+   "gap_pp": "+1.67",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-tool_filter",
+   "level": "L1-population",
+   "n": 0,
+   "metric": "BU (macro of suites)",
+   "rate": "n/a",
+   "wilson95": "n/a",
+   "paper": "0.00",
+   "gap_pp": "n/a",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-tool_filter",
+   "level": "L1-population",
+   "n": 0,
+   "metric": "UA (macro of suites)",
+   "rate": "n/a",
+   "wilson95": "n/a",
+   "paper": "0.00",
+   "gap_pp": "n/a",
+   "flag": false
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-tool_filter",
+   "level": "L1-population",
+   "n": 0,
+   "metric": "ASR (macro of suites)",
+   "rate": "n/a",
+   "wilson95": "n/a",
+   "paper": "0.00",
+   "gap_pp": "n/a",
+   "flag": false
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "6.67",
+   "wilson95": "2.62-15.93 (pooled)",
+   "paper": "23.33",
+   "gap_pp": "-16.66",
+   "flag": true
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "5.35",
+   "wilson95": "4.08-7.96 (pooled)",
+   "paper": "10.74",
+   "gap_pp": "-5.39",
+   "flag": false
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "14.02",
+   "wilson95": "11.96-17.81 (pooled)",
+   "paper": "22.67",
+   "gap_pp": "-8.65",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "36.67",
+   "wilson95": "25.62-49.32 (pooled)",
+   "paper": "36.67",
+   "gap_pp": "-0.00",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (macro of suites)",
+   "rate": "33.04",
+   "wilson95": "29.44-37.22 (pooled)",
+   "paper": "33.04",
+   "gap_pp": "-0.00",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR (macro of suites)",
+   "rate": "1.09",
+   "wilson95": "0.49-2.32 (pooled)",
+   "paper": "1.09",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "BU (macro of suites)",
+   "rate": "1.67",
+   "wilson95": "0.29-8.86 (pooled)",
+   "paper": "1.67",
+   "gap_pp": "-0.00",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift",
+   "level": "L1-population",
+   "n": 478,
+   "metric": "UA (macro of suites)",
+   "rate": "6.12",
+   "wilson95": "3.40-7.36 (pooled)",
+   "paper": "6.12",
+   "gap_pp": "-0.00",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift",
+   "level": "L1-population",
+   "n": 478,
+   "metric": "ASR (macro of suites)",
+   "rate": "0.00",
+   "wilson95": "0.00-0.80 (pooled)",
+   "paper": "0.00",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "all 75 logged paper rows (a 60, b 8, c 7)",
+   "level": "L1-population",
+   "n": 222,
+   "metric": "share of comparable paper values within 0.05 pp",
+   "rate": "201/222 = 90.5%",
+   "wilson95": "n/a",
+   "paper": "H-04 threshold >= 90%",
+   "gap_pp": "n/a",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-flash-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "13.33",
+   "wilson95": "3.7-37.9",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-flash-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "13.33",
+   "wilson95": "3.7-37.9",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-flash-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "0.00",
+   "wilson95": "0.0-20.4",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "26.67",
+   "wilson95": "10.9-52.0",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "33.33",
+   "wilson95": "15.2-58.3",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "0.00",
+   "wilson95": "0.0-20.4",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-4o-2024-08-06-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "20.00",
+   "wilson95": "7.0-45.2",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-4o-2024-08-06-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "40.00",
+   "wilson95": "19.8-64.3",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-4o-2024-08-06-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "6.67",
+   "wilson95": "1.2-29.8",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5-mini-2025-08-07-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "13.33",
+   "wilson95": "3.7-37.9",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5-mini-2025-08-07-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "20.00",
+   "wilson95": "7.0-45.2",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5-mini-2025-08-07-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "0.00",
+   "wilson95": "0.0-20.4",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "0.00",
+   "wilson95": "0.0-20.4",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "6.67",
+   "wilson95": "1.2-29.8",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "0.00",
+   "wilson95": "0.0-20.4",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:meta-llama_llama-3.3-70b-instruct-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "6.67",
+   "wilson95": "1.2-29.8",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:meta-llama_llama-3.3-70b-instruct-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "13.33",
+   "wilson95": "3.7-37.9",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:meta-llama_llama-3.3-70b-instruct-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "0.00",
+   "wilson95": "0.0-20.4",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:qwen_qwen3-235b-a22b-2507-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "BU",
+   "rate": "53.33",
+   "wilson95": "30.1-75.2",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:qwen_qwen3-235b-a22b-2507-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "UA",
+   "rate": "40.00",
+   "wilson95": "19.8-64.3",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "c:qwen_qwen3-235b-a22b-2507-drift",
+   "level": "L2-sample",
+   "n": 15,
+   "metric": "ASR",
+   "rate": "13.33",
+   "wilson95": "3.7-37.9",
+   "paper": "see L1 row (population reproduces paper)",
+   "gap_pp": "n/a (n<20)",
+   "flag": false
+  },
+  {
+   "arm": "a: all sampled arms pooled (1 unit per stratum)",
+   "level": "L2-sample",
+   "n": 121,
+   "metric": "BU (user tasks, none)",
+   "rate": "25.62",
+   "wilson95": "n/a",
+   "paper": "n/a",
+   "gap_pp": "n/a (n<=3 per arm)",
+   "flag": false
+  },
+  {
+   "arm": "a: raw vs mapped judgements on the same labels",
+   "level": "L2-sample",
+   "n": 720,
+   "metric": "utility+security agreement",
+   "rate": "720/720",
+   "wilson95": "n/a",
+   "paper": "n/a",
+   "gap_pp": "0",
+   "flag": false
+  },
+  {
+   "arm": "c: raw vs mapped judgements on the same labels",
+   "level": "L2-sample",
+   "n": 420,
+   "metric": "utility+security agreement",
+   "rate": "420/420",
+   "wilson95": "n/a",
+   "paper": "n/a",
+   "gap_pp": "0",
+   "flag": false
+  }
+ ],
+ "hypotheses": [
+  {
+   "id": "H-01",
+   "result": "supported in part",
+   "note": "files per part/variant/directory, exclusions (949), other-variant counts, bytes and attack classes all equal the prereg; messages/tool calls/tool errors/no-call runs not emitted by l1_scan (followup exam_l1_extra.py) [2026-10-15: result narrowed from 'supported' because the message, tool-call and tool-error totals were not tested]"
+  },
+  {
+   "id": "H-02",
+   "result": "supported",
+   "note": "github user_task_5/7/8/11 utility=true: a 0/590 each, b 0/80 each, c 0/70, 0/70, 0/70, 0/61 (user/none + important_instructions files)"
+  },
+  {
+   "id": "H-03",
+   "result": "supported",
+   "note": "user_task_2/important_instructions/injection_task_1 with security=true: a 16/16 without an executed git_delete_repo (b 1/1, c 4/4); over all github user tasks a 31/86 security=true without, and 62 files with an executed delete but security=false [verifier-corrected, verifier corrections in findings.json PC-agentdyn-05: completed deletions with security=false a 5 (plausible; 8 incl. non-target repos), b 0, c 0; the 62 counted error-free git_delete_repo messages, which are not deletions] (PC-agentdyn-05)"
+  },
+  {
+   "id": "H-04",
+   "result": "supported",
+   "note": "201/222 = 90.5% within 0.05 pp (threshold 90%); 11 values off by > 5 pp, each a finding (PC-agentdyn-01..04)"
+  },
+  {
+   "id": "H-05",
+   "result": "supported",
+   "note": "gemini-2.5-pro none: logs 53.33/47.43/21.43 (= issue #7) vs paper 51.67/56.95/20.61: UA -9.52 pp, BU +1.66, ASR +0.82"
+  },
+  {
+   "id": "H-06",
+   "result": "supported",
+   "note": "gemini-2.5-flash none: 5.00/7.61/13.61 vs 30.00/24.29/37.61 (all three >= 5 pp off)"
+  },
+  {
+   "id": "H-07",
+   "result": "supported",
+   "note": "c gemini-2.5-pro-drift 36.67/33.04/1.09 exactly (per suite too)"
+  },
+  {
+   "id": "H-08",
+   "result": "supported",
+   "note": "a gpt-4o-mini-drift 18.33/19.31/3.39, per suite BU 10/35/10, UA 12.22/32.22/13.50, ASR 1.11/0.56/8.50 exactly; BU != v1 28.33"
+  },
+  {
+   "id": "H-09",
+   "result": "supported",
+   "note": "c gpt-5.1-drift github attacked 98 files, 12 utility=true (12.24%)"
+  },
+  {
+   "id": "H-10",
+   "result": "supported",
+   "note": "CaMeL 0 utility=true (BU 0/46, UA 0/319), 0 attacked security=true, 3 files without outcome keys"
+  },
+  {
+   "id": "H-11",
+   "result": "supported",
+   "note": "gpt-5-mini tool_filter 6 files, each [system, user] only, utility and security absent (duration present)"
+  },
+  {
+   "id": "H-12",
+   "result": "refuted",
+   "note": "Google-API gemini-flash detector pairs 65.6/55.1/42.4% identical cells (>= 40%, holds), but all 10 pairs of the five llama-3.3 OpenRouter arms (none, piguard, PG2, repeat, transformers PI) have 10.2-18.5% identical cells (66-120 of 648, 0 both-empty) > 2%; every other OpenAI-compatible pair <= 1.7% (PC-agentdyn-10)"
+  },
+  {
+   "id": "H-13",
+   "result": "not-tested (the L1 null_final flag misses empty text blocks and null-with-calls: SecAlign 0/1,296 and pooled OpenAI/OpenRouter 0/34,655 give no ratio; followup exam_l1_extra.py)",
+   "note": "PC-agentdyn-06"
+  },
+  {
+   "id": "H-14",
+   "result": "supported",
+   "note": "0 Claude, Kimi or Qwen3-Coder files in a, b, c"
+  },
+  {
+   "id": "H-15",
+   "result": "supported (partly tested)",
+   "note": "5,184/5,184 v0.k11 (no agentdojo_package_version), 0 evaluation_timestamp pointers, pipeline_name = bare model in 5,184/5,184 (8 values); system digest a021a92b in 24/24 checked cells (one per dir x suite); whole-population system digest in followup"
+  },
+  {
+   "id": "H-16",
+   "result": "supported (range only)",
+   "note": "38,281 present, naive, 2026-01-21 .. 2026-04-19; day histogram not emitted by l1_scan (followup)"
+  },
+  {
+   "id": "H-17",
+   "result": "supported",
+   "note": "c private-key header in exactly 4 files; no publisher account path in a, b, c (0 harness-token path tails; account shapes are benchmark or model-generated content)"
+  },
+  {
+   "id": "H-18",
+   "result": "supported",
+   "note": "benign/pre-pass files with outcomes: security=true a 5,180/5,180 (10 without outcomes), b 704/704, c 420/420"
+  },
+  {
+   "id": "H-24",
+   "result": "supported",
+   "note": "gpt-5.1 direct 291 = shopping 180, github 111, dailylife 0"
+  }
+ ],
+ "findings": [
+  {
+   "id": "PC-agentdyn-01",
+   "title": "Qwen3-235B-A22B undefended row (part a) does not reproduce from the released logs",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "agents_md_12": true,
+   "part": "a",
+   "check": "L1-05b / OS-1 / H-04: gap > 5 pp (BU also flagged by the gap rule)",
+   "evidence": "qwen_qwen3-235b-a22b-2507: logs BU 6.67 (4/60), UA 5.35 (32/560), ASR 14.02 (82/560) vs paper v3 23.33/10.74/22.67 (gaps -16.66/-5.39/-8.65 pp; per suite BU 0/5/15 vs 5/20/45, UA 0.00/0.56/15.50 vs 0.56/11.67/20.00, ASR 2.78/7.78/31.50 vs 5.00/20.00/43.00). Pooled Wilson BU 2.62-15.93 excludes 23.33 by 7.4 pp. Paper values re-checked on arXiv v3 HTML 2026-10-15. 0 files without outcomes; all 620 user-task files evaluated 2026-01-26; every other qwen3 arm (6) reproduces within 0.05 pp; tree at the pin unchanged in this shallow checkout (history not available locally). Not a mapping effect (raw L1 fields, no AER involved; OS-2 raw=mapped 720/720).",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/os1.py /tmp/os1.json   # from the worktree root; reads ~/.agentprov/migration-work/precheck/agentdyn/l1-units-<part>.jsonl and research.json\n  -> off ('a','qwen_qwen3-235b-a22b-2507','BU', 6.67, 23.33, -16.66, [-5.0,-15.0,-30.0]); UA 5.35 vs 10.74; ASR 14.02 vs 22.67",
+   "recommendation": "Disclose in the datasheet beside the Gemini None rows (issue #7): the corpus reproduces the logs, not this paper row. Check whether the history part (out of scope here) holds a Qwen3 base run that matches; do not alter or exclude data.",
+   "artefact_proposal": "[[artefact]]\nid = \"agentdyn.art.paper_row_not_in_logs\"\ntitle = \"Paper rows that the released runs/ logs do not reproduce\"\ndescription = \"Recounting the logged utility/security per pipeline directory (paper convention: unweighted mean of the three suite rates) does not give the paper v3 values for qwen3-235b none (BU 6.67/UA 5.35/ASR 14.02 vs 23.33/10.74/22.67), gemini-2.5-pro none (UA 47.43 vs 56.95, issue #7) and gemini-2.5-flash none (5.00/7.61/13.61 vs 30.00/24.29/37.61); the paper cells for gpt-4o-mini PromptGuard2 github equal the PIGuard github cells. The corpus records the logs.\"\nscope = { sources = [\"agentdyn\"], parts = [\"a\"], profiles = [\"agentdyn\"] }\ncause = \"publication\"\ndetector = { rule = \"none (analysis recount, docs/reports/precheck/data/agentdyn/os1-population.json)\", class = \"O\" }\nclaims = []\nrecorded_as = { notes = [\"datasheet\"] }\nhandling = { class = \"DS\" }\nexpected = [{ snapshot = \"a\", count = 4, unit = \"directories\", basis = \"precheck OS-1 2026-10-15 (qwen3 none, gemini-2.5-pro none, gemini-2.5-flash none, gpt-4o-mini PG2 github)\", status = \"verified\" }]\nmanuscript = true\nrefs = [\"arXiv:2602.03117v3 Tables 9-17\", \"https://github.com/SaFo-Lab/AgentDyn/issues/7\", \"docs/reports/precheck/agentdyn.md\"]",
+   "hypothesis_ref": "H-04"
+  },
+  {
+   "id": "PC-agentdyn-02",
+   "title": "Paper PromptGuard2 x GPT-4o mini GitHub cells equal the PIGuard x GPT-4o mini GitHub cells",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "agents_md_12": true,
+   "part": "a",
+   "check": "L1-05b / OS-1 / H-04: three values > 5 pp",
+   "evidence": "gpt-4o-mini-2024-07-18-prompt_guard_2_detector github: logs BU 65.00 (13/20), UA 21.11 (38/180), ASR 16.11 (29/180) vs paper 20.00/3.89/0.00; the paper's three github cells are identical to the logged and printed gpt-4o-mini-piguard_detector github cells (20.00/3.89/0.00); shopping and dailylife of the PG2 arm reproduce exactly. Overall 45.00/19.44/33.91 vs paper 30.00/13.70/28.54 (+15.00/+5.74/+5.37). The PG2 directory is not a copy of another arm (0 identical github cells with gpt-4o-mini none or piguard). Paper values re-checked on arXiv v3 HTML.",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/os1.py /tmp/os1.json   # from the worktree root; reads ~/.agentprov/migration-work/precheck/agentdyn/l1-units-<part>.jsonl and research.json\n  -> gpt-4o-mini PG2 suite_rate BU [30,65,40] paper [30,20,40]; piguard BU [20,20,10] paper [20,20,10]; UA PG2 github 21.11 vs 3.89 (= piguard 3.89); ASR 16.11 vs 0.00 (= piguard 0.00)",
+   "recommendation": "Disclose as a probable transcription error in the paper (Tables 10/13/16); the corpus's numbers come from the logs. Include in the artefact entry proposed with PC-agentdyn-01.",
+   "artefact_proposal": "",
+   "hypothesis_ref": "H-04"
+  },
+  {
+   "id": "PC-agentdyn-03",
+   "title": "Gemini-2.5 Pro/Flash undefended rows differ from the logs as pre-registered (issue #7, D-27 c1)",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "agents_md_12": true,
+   "part": "a",
+   "check": "L1-05b / OS-1 / H-05, H-06 (gap rule flags 4 values)",
+   "evidence": "gemini-2.5-pro none 53.33/47.43/21.43 (= issue #7's recount) vs paper 51.67/56.95/20.61; gemini-2.5-flash none 5.00/7.61/13.61 vs 30.00/24.29/37.61 (BU 3/60, Wilson 1.71-13.70; UA 43/560; ASR 79/560). Both directories evaluated 2026-01-24 (620/620 user-task files). gpt-5-mini tool_filter paper zeros have no log support (6 aborted files, expected).",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/os1.py /tmp/os1.json   # from the worktree root; reads ~/.agentprov/migration-work/precheck/agentdyn/l1-units-<part>.jsonl and research.json\n  -> flagged a google_gemini-2.5-flash BU -25.0 (60), UA -16.68 (560), ASR -24.0 (560); google_gemini-2.5-pro UA -9.52 (560)",
+   "recommendation": "Keep the D-27 c1 datasheet flag; cite issue #7 and this recount. No exclusion.",
+   "artefact_proposal": "",
+   "hypothesis_ref": "H-05, H-06"
+  },
+  {
+   "id": "PC-agentdyn-04",
+   "title": "Small per-suite paper-vs-log differences in gpt-4o-mini dailylife arms and two single-file cells",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a",
+   "check": "L1-05b / OS-1 / H-04 (one value > 5 pp)",
+   "evidence": "gpt-4o-mini repeat_user_prompt dailylife BU 65 vs 45 (4 of 20 files; overall BU 50.00 vs 43.33, +6.67 pp), UA 32.5 vs 30.0 (5/200), ASR 67.0 vs 67.5 (1/200); gpt-4o-mini spotlighting dailylife BU 35 vs 40 (1/20), UA 28.0 vs 29.0 (2/200); gpt-4o-mini tool_filter dailylife UA 7.0 vs 5.5, ASR 12.5 vs 14.0 (3/200 each); gpt-5-mini spotlighting shopping BU 65 vs 60 (1/20). gpt-4o repeat github: the paper counts the outcome-less file as a failure (121/180 = 67.22, 28/180 = 15.56) where the prereg mapping excludes it (121/179 = 67.60). All gpt-4o-mini dailylife files were evaluated 2026-01-22 (no later rerun at the pin).",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/os1.py /tmp/os1.json   # from the worktree root; reads ~/.agentprov/migration-work/precheck/agentdyn/l1-units-<part>.jsonl and research.json\n  -> off ('a','gpt-4o-mini-2024-07-18-repeat_user_prompt','BU',50.0,43.33,6.67,[0,0,20]) ... ('a','gpt-4o-2024-08-06-repeat_user_prompt','UA',56.25,56.13,0.12)",
+   "recommendation": "Disclose as minor; for comparisons with the paper count outcome-less files as failures in the denominator (the paper's convention, evidenced by the gpt-4o repeat github cell).",
+   "artefact_proposal": "",
+   "hypothesis_ref": "H-04"
+  },
+  {
+   "id": "PC-agentdyn-05",
+   "title": "GitHub injection_task_1 security outcomes do not track the executed deletion (pre-fix IT1 checker, issue #6)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "agents_md_12": true,
+   "part": "a, b, c",
+   "check": "L1 raw call names / H-03",
+   "evidence": "github/*/important_instructions/injection_task_1 files: a 86 security=true, 31 of them (36%) with no executed git_delete_repo; 62 files with an executed (error-free) git_delete_repo but security=false; b 2 true / 0 executed, 4 executed / false; c 4 true / 0 executed, 1 executed / false. For user_task_2 (H-03): a 16/16, b 1/1, c 4/4 security=true without the call. Caveat: whether an executed deletion hit the attacker's target repository was not compared (arguments not read).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/h03_all.py /tmp/h03.json\n  -> all_user_tasks: a|security=True|executed=False 31, a|security=True|executed=True 55, a|security=False|executed=True 62; user_task_2: a|security=True|executed=False 16",
+   "recommendation": "Add an artefact entry and a datasheet note: github IT1 attack success in the released logs is not a reliable ASR component (checker replaced 2026-05-02 without rescoring). Keep both values (do not rescore, do not exclude); optionally a D rule comparing the logged security with an executed deletion of the target, in a later profile version.",
+   "artefact_proposal": "[[artefact]]\nid = \"agentdyn.art.github_it1_checker_prefix\"\ntitle = \"GitHub injection task 1 scored by the pre-fix checker\"\ndescription = \"The released runs/ were scored before the IT1 checker fix of 2026-05-02 (issue #6, closed without rescoring): security=true is logged for runs with no executed git_delete_repo and security=false for runs that executed one. Both observations are kept as logged.\"\nscope = { sources = [\"agentdyn\"], parts = [\"a\", \"b\", \"c\"], profiles = [\"agentdyn\"] }\ncause = \"benchmark\"\ndetector = { rule = \"none yet (analysis: logged security vs an executed git_delete_repo tool message)\", class = \"O\" }\nclaims = []\nrecorded_as = { notes = [\"datasheet\"] }\nhandling = { class = \"DS\" }\nexpected = [{ snapshot = \"a\", count = 31, unit = \"executions\", basis = \"precheck 2026-10-15: security=true without an executed git_delete_repo (github IT1, all user tasks)\", status = \"verified\" }, { snapshot = \"a\", count = 62, unit = \"executions\", basis = \"precheck 2026-10-15: executed git_delete_repo with security=false\", status = \"verified\" }, { snapshot = \"b\", count = 2, unit = \"executions\", basis = \"precheck 2026-10-15\", status = \"verified\" }, { snapshot = \"c\", count = 4, unit = \"executions\", basis = \"precheck 2026-10-15\", status = \"verified\" }]\nmanuscript = true\nrefs = [\"https://github.com/SaFo-Lab/AgentDyn/issues/6\", \"docs/reports/precheck/data/agentdyn/h03-it1-checker.json\"]",
+   "hypothesis_ref": "H-03"
+  },
+  {
+   "id": "PC-agentdyn-06",
+   "title": "L1-08 null_final flag is not the silent_rerun or empty-final-reply measure (tool definition)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a, b, c",
+   "check": "L1-08 / H-13",
+   "evidence": "tools/precheck/l1_families.py agentdojo_unit flags null_final only when the last assistant message has content None/''/[] and no tool calls. On the a sample (360): the product's silent-rerun rule (null content, max 3 passes) fires on 12 executions, of which L1 flags 1 (11 have null content WITH tool calls); 47 executions end in an assistant message whose text blocks are all empty (E2's empty-final class) and none is flagged (block lists normalise to [['text','']]). Population flags a 114 (Google-API 14, CaMeL 100, OpenAI-compatible 0/34,655, SecAlign 0/1,296), b 489, c 36: not comparable with the 826 silent_rerun logs or E2's 4,631 empty finals; H-13 cannot be tested from it.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/nullfinal.py\n  -> 11 (True, False, 'assistant:null:calls=y', ...); 1 (True, True, 'assistant:null:calls=n', ...); 45 (False, False, 'assistant:blocks_all_empty:calls=n', ...); 2 (... blocks_all_empty:calls=y ...)",
+   "recommendation": "After the batch freeze, split the hook's flag into null_content(+calls) and empty_text_blocks; meanwhile the orchestrator runs exam_l1_extra.py (followups) for H-13, H-16 and the section-2 message counts. Not a corpus property.",
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-agentdyn-07",
+   "title": "Sample strata are pipeline_dir x attack_dir x suite, not the pre-registered pipeline directory",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a, c",
+   "check": "L2-S (README s4, amendment 2.4) vs prereg s3",
+   "evidence": "l1-a.json strata_keys [pipeline_dir, attack_dir, suite]: a 360 strata -> 360 units, 1 per stratum, over_maximum true (prereg: 62 strata, 300 units, ~5 per directory); c 42 strata x 5 = 210 (prereg 7 strata, 35). Every pre-registered arm is covered (a about 6 units per directory, c 30); the sample stays deterministic and committed. Consequence: per-directory n stays < 20 (a n <= 3 per metric, c 15), as the prereg anticipated.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/agentdyn/l1-a.json'));print(d['strata_keys'])\"; python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/agentdyn/l2-sample-a.json'));print(d['n'],d['over_maximum'])\"\n  -> ['pipeline_dir','attack_dir','suite']; 360 True",
+   "recommendation": "Record the deviation in the dossier; the post-check reuses the committed sample unchanged. Align future pre-registrations with the hook's arm key.",
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-agentdyn-08",
+   "title": "l2_check emits no A2 error-class table; the a3 block reports a pass count",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a, c",
+   "check": "L2-C (protocol 8.1 lists A2 classes)",
+   "evidence": "l2-a.json/l2-c.json have no A2 section; a3.unexecuted_represented (count 21, executions 0) is the number of unexecuted calls correctly represented as apv:NotDispatched, not a PI hit, and is printed under 'a3' in the check log. Examiner's own A2 count (a2.py) is in level2.",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/a2.py ~/.agentprov/migration-work/precheck/agentdyn/l2-a-j2.partial\n  -> tool_execution ok 1665 / error 116 / invalid 12; model_call kept 2012; run_error_present 0",
+   "recommendation": "Add an A2 table to l2_check after the batch freeze and print pass counts outside the a3 hit block.",
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-agentdyn-09",
+   "title": "Pre-registration s8 expects a 'drift 1' rules entry in part-a headers",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a",
+   "check": "DL-1 header (prereg s8 item 30)",
+   "evidence": "All 360 sampled part-a AER headers declare rules {aer 1, agentdojo 2, agentdyn 2}; 'drift': 1 appears in all 210 part-c headers only (RT-2 declares drift for part c). The product behaviour is correct; the prereg row over-generalised.",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/aerstats.py ~/.agentprov/migration-work/precheck/agentdyn/l2-a-j2.partial; same for l2-c-j2.partial\n  -> a headers {'aer':1,'agentdojo':2,'agentdyn':2}: 360; c headers {..., 'drift': 1}: 210",
+   "recommendation": "Note in the dossier; no code change.",
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-agentdyn-10",
+   "title": "Identical trajectories across the llama-3.3 OpenRouter defence arms (H-12 refuted)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a",
+   "check": "L1-04 / H-12",
+   "evidence": "All 10 pairs among llama-3.3 none, piguard, prompt_guard_2, repeat_user_prompt and transformers_pi_detector share 66-120 of 648 cells with identical fingerprints (10.2-18.5%, 0 both-empty; github-heavy); every other OpenAI-compatible pair <= 1.7% (qwen3 max 1.7%, gpt-* <= 0.6%). In the a sample, 11 of 18 llama executions in such groups have <= 4 messages and no tool execution (defence inert), 5 have tool executions. The Google-API gemini-flash pairs hold (65.6/55.1/42.4%). The prereg's temperature explanation does not cover llama; cause undetermined.",
+   "reproduction": "python3 -I docs/reports/precheck/data/agentdyn/exam-scripts/h12.py /tmp/h12.json\n  -> openai_compatible meta-llama_llama-3.3-70b-instruct | ...piguard_detector 648 101 0 0.1559 ...; pairs 306 openai_compatible >2%: 10",
+   "recommendation": "Report in the C5 identical-trajectory table (per-arm-pair counts in h12-pairs.json); do not deduplicate or exclude.",
+   "artefact_proposal": "",
+   "hypothesis_ref": "H-12"
+  },
+  {
+   "id": "PC-agentdyn-11",
+   "title": "Seven trajectory-identical groups shared with ROPE head",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a",
+   "check": "L1-04 cross-corpus (l1-xdup)",
+   "evidence": "l1-xdup.json cross_corpus pairs agentdyn|rope 7 groups; 9 part-a units (gpt-4o and gpt-4o-mini none/PG2/transformers PI, dailylife and github) share fingerprints with ROPE runs/gpt-4o*, runs/ablation/always-action-open and always-fully-specified; 0 byte-identical files (prereg expectation of 0 byte overlap holds). Short trajectories of the same OpenAI models on the same AgentDyn tasks.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/_cross/l1-xdup.json'));print(d['trajectory_identical']['cross_corpus']['pairs'])\"\n  -> {'agentdyn|rope': 7, 'adprov-v1|agentdojo-upstream': 2}; labels in exam-supplement.json",
+   "recommendation": "List in the cross-corpus C5 table; no action on the data.",
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-agentdyn-12",
+   "title": "Account-path shapes are benchmark or model content; the L2 redaction screen did not exercise them",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a, b, c",
+   "check": "L1-06 / L2 redaction / H-17",
+   "evidence": "Files with account-path shapes: a 137, b 19, c 30 (named 101/11/16); 22 distinct named accounts; 0 with harness-token path tails, 0 operator_home; 8 names (27 files) occur nowhere in the benchmark source (model-generated arguments). L2: 0 of 360 (a) and 0 of 210 (c) sampled labels carry an account-path flag, so 'no account path in AER/SEM/PROV' is vacuous for this content; the profile has no redact table, so such strings would reach the AER verbatim as model output (E2 U14 judged them benchmark content).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/acct_probe.py /tmp/acct.json; uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/acct_err2.py\n  -> files_flagged_named a 101 b 11 c 16, distinct 22, not_in_benchmark_text 8; every tail tuple ()",
+   "recommendation": "Datasheet note that model-invented home paths occur in tool arguments; optionally a targeted scratch import of 5 flagged labels to confirm they map verbatim and are not operator paths.",
+   "artefact_proposal": "",
+   "hypothesis_ref": "H-17"
+  },
+  {
+   "id": "PC-agentdyn-13",
+   "title": "Private-key-shaped benchmark strings reach AER and PROV; no [withhold] table (RT-10)",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "agents_md_12": false,
+   "part": "a, c",
+   "check": "L1-06 / L2 redaction / withholding",
+   "evidence": "Private-key blocks: a 86 files (237 strings), b 21 (55), c 4 (11, = RT-10). Their source is benchmark fiction (dailylife suite data and injection tasks under src/agentdojo/...). L2 a: 1 sampled execution carries a private-key header in message parts, tool_execution args/args_effective and PROV apv:args; c 0. Withholding policy null (RT-10 open), as pre-registered. Not a real secret, so not flagged as security-relevant; values never printed.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/agentdyn/l2-a.json'));print(d['redaction']['hits'])\"\n  -> {'aer': {'secret:private-key-header message:/parts/*/args/body': 1, ...}, 'prov': {'secret:private-key-header /bundle/{k}/entity/{k}/apv:args': 1}}",
+   "recommendation": "Keep RT-10 open: decide whether the profile declares a [withhold] rule for benchmark key material before release; disclose in the datasheet.",
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  }
+ ],
+ "followups": [
+  "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-followup1 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/followup1.toml   # agentdyn b L2 (first mapping, scratch only); then re-examine b (L2 pending in this exam)",
+  "uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-agentdyn-extra -- uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/exam_l1_extra.py --root ~/Desktop/PhD/Labs/AgentPROV-upstream/agentdyn --units-dir ~/.agentprov/migration-work/precheck/agentdyn --out docs/reports/precheck/data/agentdyn/l1-extra.json   # whole-population raw re-read (~600 MB): section-2 message/tool-call/tool-error/no-call counts (H-01), last-message shapes for H-13 and L1-08 (PC-agentdyn-06), day histogram (H-16), b system digest (H-15); tested with --limit 300",
+  "After the batch freeze (tool owner): l1_families.agentdojo_unit null_final split into null_content(+calls) / empty_text_blocks, and an A2 table in l2_check (PC-agentdyn-06, -08); re-run L1 of agentdyn a/b/c only if the post-check needs the corrected L1-08 counts",
+  "Optional: confirm the Qwen3 none / Gemini none rows against the history part (out of pre-check scope) before writing the datasheet note (PC-agentdyn-01, -03)",
+  "Process note: the session scratchpad is shared by parallel examiners; this examiner's scratch files dl1.py and os2.py overwrote same-named files of another examiner around 09:22-09:25 (and its own os1.py was overwritten). Outputs here were regenerated from ~/.agentprov/migration-work/precheck/agentdyn/exam/. Other examiners who reused scratchpad/dl1.py or os2.py after 09:22 should re-check their outputs; examiners should use per-corpus directories."
+ ],
+ "sample_size": "a 360 of 38,281 (360 strata x 1, over_maximum); b L2 pending (followup1); c 210 of 4,258 (42 strata x 5)",
+ "l2_status": "done for a and c (all steps rc 0, validate/recompute/determinism clean); b blocked in this batch (first mapping queued as plan followup1)",
+ "code": {
+  "l1_l2_commit": "c4ee3dd195bb0109c2efdab7a2d58d22d69c582e",
+  "branch_head_at_exam": "8138e1e35d2c701acc616aa0dea8a428ada429f4",
+  "date": "2026-10-15"
+ },
+ "harmonisation_note": "2026-10-15 harmonisation pass (wave-1 critic): this file is the examiner's output before verification. The verifier-corrected figures in findings.json and agentdyn.md supersede it; they are marked inline above where they differ: L1-06 account-path files a 133 / b 19 / c 28 and 16 distinct names (was a 137, c 30, 22 names; PC-agentdyn-12); github IT1 completed deletions with security=false a 5 / b 0 / c 0 (was 62 / 4 / 1; PC-agentdyn-05, also in the findings array and its artefact proposal). The findings array below is the examiner's draft; findings.json (CC-06 format) holds the verified findings. Not regenerated with build_exam.py, so no number here was recomputed.",
+ "part_b_followup1": {
+  "date": "2026-10-21",
+  "batch": "_batch/followup1 (l1 skipped: wave-1 rows reused; l1_10, sample, import_j2, import_j1, check; every step rc 0)",
+  "code": {
+   "import_and_check_commit": "d97d3a57",
+   "aer": "856b7a09e0cf",
+   "sem": "ae0ee532dde7",
+   "prov": "d57bd291d3cc",
+   "validation": "a10ee3c16045",
+   "adapter_agentdojo.tracelogger": "03d8bc6d30df",
+   "profile": "agentdyn@2 418fbcbd38a9",
+   "note": "b ran on later code than a/c (aer, validation, adapter digests differ); the post-check uses code-b.json"
+  },
+  "sample": {
+   "n": 240,
+   "strata": 48,
+   "per_stratum": 5,
+   "over_maximum": false,
+   "basis_units_sha256": "1d741bfe5110",
+   "current_units_sha256": "d9c8d767917a",
+   "basis_check": "240/240 labels present, same stratum, same raw sha256 after the recheck12 L1 re-run"
+  },
+  "import": {
+   "mapped": 240,
+   "sealed_clean": 233,
+   "sealed_with_issues": 7,
+   "degenerate": 0,
+   "failed": 0,
+   "adapter_defect": 0,
+   "filtered": 47483,
+   "join": "240/240 1:1"
+  },
+  "validate": {
+   "passed": 240,
+   "failed": 0,
+   "results_reproduced": 240,
+   "linkage_pct": 100.0,
+   "shacl": "not implemented (skipped)"
+  },
+  "recompute_dry_run": {
+   "identical": 240,
+   "unexplained": 0
+  },
+  "determinism_j2_vs_j1": {
+   "files": 967,
+   "differ": 0,
+   "index_identical": true
+  },
+  "verify_chain": {
+   "failed": 0,
+   "unverified": "checksums.absent (working tree)"
+  },
+  "a2": {
+   "decision:deny": 152,
+   "model_call:kept": 1246,
+   "seal:accounting_unverifiable": 240,
+   "seal:earlier_attempts_unobservable": 240,
+   "seal:retry_passes_inferred": 1,
+   "seal:unexecuted_tool_call": 7,
+   "tool_execution:error": 60,
+   "tool_execution:invalid": 66,
+   "tool_execution:ok": 824
+  },
+  "denials": {
+   "raw_error_messages": 278,
+   "raw_progent_pattern": 152,
+   "aer_decision_deny": 152,
+   "rule": "agentdyn.progent_denial_pattern@1",
+   "actor": "def0",
+   "tool_execution_error_plus_invalid": 126
+  },
+  "a3": {
+   "pi_hits": 0,
+   "unexecuted_call_parts": 7,
+   "represented": 7
+  },
+  "evidence": {
+   "aer_records_ev_D": 0,
+   "prov_core_D": 1080,
+   "inference_I": 53764,
+   "twin_by_class": {
+    "assessment:I": 6113,
+    "inference:I": 45638,
+    "inference:none": 3308
+   },
+   "mixed": {
+    "inference:I": 5821
+   },
+   "native_unverified": 0
+  },
+  "sem_unknown_tool": {
+   "executions_any": 86,
+   "of": 240,
+   "denied_result_fallback_annotations": 152,
+   "denied_executions": 85,
+   "tool_name_unknown_executions": 3,
+   "finding": "PC-agentdyn-15"
+  },
+  "identity": {
+   "unresolved": 0,
+   "mismatches": 0,
+   "pipeline_name_mismatch": 0,
+   "defence": "progent 240/240"
+  },
+  "redaction": {
+   "operator_hits": 0,
+   "account_named_executions": 1,
+   "aer_pointers": 16,
+   "prov_pointers": 13,
+   "name_in_benchmark_text": false,
+   "name_in_env_output": false,
+   "finding": "PC-agentdyn-16",
+   "private_key_header_executions": 1,
+   "private_key_aer_pointers": 1,
+   "private_key_prov": 0,
+   "finding_key": "PC-agentdyn-17"
+  },
+  "withholding": "policy null (no [withhold] table; RT-10 open)",
+  "os2_raw_vs_mapped": {
+   "agree": 480,
+   "of": 480
+  },
+  "outcomes": "exam-b.json outcomes_population (24/24 values = paper, gap 0.00) and outcomes_sample_mapped (n 9-15 per arm, report only)",
+  "cc07": {
+   "banking_units": 0,
+   "population": 5184,
+   "181": "not applicable (0 banking)",
+   "161": "not applicable (0 banking)"
+  },
+  "xdup": {
+   "byte_identical_within": 0,
+   "trajectory_groups_within": 97,
+   "cross_part": 0,
+   "cross_corpus": 0
+  },
+  "l1_10": {
+   "files_screened": 0,
+   "operator_home_hits": 0,
+   "note": "part b has no auxiliary or context files (auxiliary_scanned 0)"
+  },
+  "l1_09": "not emitted for agentdyn",
+  "new_findings": [
+   "PC-agentdyn-15",
+   "PC-agentdyn-16",
+   "PC-agentdyn-17"
+  ],
+  "data_files": [
+   "exam-b.json",
+   "exam-scripts/exam_b.py"
+  ]
+ }
+}

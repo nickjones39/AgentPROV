@@ -1,0 +1,1830 @@
+{
+  "$defs": {
+    "actorDecl": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "attacker",
+            "benchmark",
+            "defense",
+            "environment",
+            "harness",
+            "judge",
+            "llm_agent",
+            "other",
+            "simulated_user",
+            "tool_runtime",
+            "user"
+          ]
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "at": {
+      "additionalProperties": false,
+      "properties": {
+        "call": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "message": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "call",
+        "message"
+      ],
+      "type": "object"
+    },
+    "blobRef": {
+      "additionalProperties": false,
+      "properties": {
+        "$blob": {
+          "pattern": "^(?:sha256:[0-9a-f]{64})$(?!\\n)",
+          "type": "string"
+        },
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "media": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "$blob",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "cell": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attack_params": {
+          "$ref": "#/$defs/jsonObject"
+        },
+        "attack_target_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "benchmark": {
+          "type": "string"
+        },
+        "defense_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "type": "string"
+        },
+        "suite": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "benchmark",
+        "task_id"
+      ],
+      "type": "object"
+    },
+    "data_decision": {
+      "additionalProperties": false,
+      "else": {
+        "not": {
+          "required": [
+            "subtype"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "other"
+          }
+        },
+        "required": [
+          "verdict"
+        ]
+      },
+      "properties": {
+        "actor": {
+          "pattern": "^(?:[a-z][a-z0-9_]{0,31})$(?!\\n)",
+          "type": "string"
+        },
+        "original": {
+          "$ref": "#/$defs/blobRef"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "replacement": {
+          "$ref": "#/$defs/blobRef"
+        },
+        "subject": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "occ": {
+                  "pattern": "^(?:o(?:0|[1-9][0-9]*))$(?!\\n)",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "occ"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "at": {
+                  "$ref": "#/$defs/at"
+                }
+              },
+              "required": [
+                "at"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "call": {
+                  "pattern": "^(?:c(?:0|[1-9][0-9]*))$(?!\\n)",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "call"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "subtype": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "allow",
+            "deny",
+            "escalate",
+            "modify",
+            "other",
+            "redact",
+            "terminate"
+          ]
+        }
+      },
+      "required": [
+        "actor",
+        "subject",
+        "verdict"
+      ],
+      "then": {
+        "required": [
+          "subtype"
+        ]
+      },
+      "type": "object"
+    },
+    "data_error": {
+      "additionalProperties": false,
+      "properties": {
+        "exception": {
+          "$ref": "#/$defs/exception"
+        },
+        "fatal": {
+          "type": "boolean"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "traceback": {
+          "$ref": "#/$defs/blobRef"
+        },
+        "where": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "exception",
+        "fatal",
+        "where"
+      ],
+      "type": "object"
+    },
+    "data_fixture": {
+      "additionalProperties": false,
+      "else": {
+        "not": {
+          "required": [
+            "subtype"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "other"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/json"
+        },
+        "kind": {
+          "enum": [
+            "attack_plan",
+            "environment_seed",
+            "ground_truth",
+            "injection_payload",
+            "other",
+            "system_prompt",
+            "task_prompt",
+            "tool_definitions"
+          ]
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "subtype": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "vector": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "kind"
+      ],
+      "then": {
+        "required": [
+          "subtype"
+        ]
+      },
+      "type": "object"
+    },
+    "data_identity": {
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "additionalProperties": false,
+          "properties": {
+            "endpoint_host": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "model_requested": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "sdk": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "version"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "endpoint_host",
+            "model_requested",
+            "provider",
+            "sdk"
+          ],
+          "type": "object"
+        },
+        "benchmark": {
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "pattern": "^(?:[0-9a-f]{40})$(?!\\n)",
+              "type": "string"
+            },
+            "dist": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "dist_version": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "suite_set": {
+              "type": "string"
+            },
+            "system_prompt_sha256": {
+              "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+              "type": "string"
+            },
+            "tool_definitions_sha256": {
+              "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+              "type": "string"
+            },
+            "wheel_sha256": {
+              "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+              "type": "string"
+            }
+          },
+          "required": [
+            "dist",
+            "dist_version",
+            "name"
+          ],
+          "type": "object"
+        },
+        "harness": {
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "pattern": "^(?:[0-9a-f]{40})$(?!\\n)",
+              "type": "string"
+            },
+            "dist": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "wheel_sha256": {
+              "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+              "type": "string"
+            }
+          },
+          "required": [
+            "dist",
+            "version"
+          ],
+          "type": "object"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "agent",
+        "benchmark",
+        "harness"
+      ],
+      "type": "object"
+    },
+    "data_instrumentation": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/instrumentationItem"
+          },
+          "type": "array"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
+    "data_llm_request": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "call": {
+          "pattern": "^(?:c(?:0|[1-9][0-9]*))$(?!\\n)",
+          "type": "string"
+        },
+        "endpoint": {
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "host",
+            "path"
+          ],
+          "type": "object"
+        },
+        "input_at": {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "n_messages": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "params": {
+          "additionalProperties": false,
+          "properties": {
+            "configured": {
+              "$ref": "#/$defs/jsonObject"
+            },
+            "transmitted": {
+              "$ref": "#/$defs/jsonObject"
+            }
+          },
+          "required": [
+            "configured",
+            "transmitted"
+          ],
+          "type": "object"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "request": {
+          "$ref": "#/$defs/blobRef"
+        },
+        "retry_of": {
+          "pattern": "^(?:c(?:0|[1-9][0-9]*))$(?!\\n)",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "agent",
+            "auxiliary"
+          ]
+        }
+      },
+      "required": [
+        "attempt",
+        "call",
+        "endpoint",
+        "params",
+        "request",
+        "role"
+      ],
+      "type": "object"
+    },
+    "data_llm_response": {
+      "additionalProperties": false,
+      "properties": {
+        "call": {
+          "pattern": "^(?:c(?:0|[1-9][0-9]*))$(?!\\n)",
+          "type": "string"
+        },
+        "exception": {
+          "$ref": "#/$defs/exception"
+        },
+        "finish_reason": {
+          "type": "string"
+        },
+        "http_status": {
+          "minimum": 100,
+          "type": "integer"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "response": {
+          "$ref": "#/$defs/blobRef"
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "served_model": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "cached",
+            "discarded",
+            "error",
+            "kept"
+          ]
+        },
+        "usage": {
+          "$ref": "#/$defs/usage"
+        }
+      },
+      "required": [
+        "call",
+        "status"
+      ],
+      "type": "object"
+    },
+    "data_native_log": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "sha256": {
+          "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bytes",
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "data_note": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ns": {
+          "pattern": "^(?:[a-z][a-z0-9_]{0,31})$(?!\\n)",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/json"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "kind",
+        "ns",
+        "payload"
+      ],
+      "type": "object"
+    },
+    "data_outcome": {
+      "additionalProperties": false,
+      "properties": {
+        "declared_semantics": {
+          "$ref": "#/$defs/json"
+        },
+        "judgements": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "origin": {
+                "enum": [
+                  "checker",
+                  "harness_default",
+                  "harness_rule",
+                  "recomputed"
+                ]
+              },
+              "value": {
+                "$ref": "#/$defs/json"
+              }
+            },
+            "required": [
+              "name",
+              "origin",
+              "value"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "judgements"
+      ],
+      "type": "object"
+    },
+    "data_pass_end": {
+      "additionalProperties": false,
+      "properties": {
+        "aborted": {
+          "type": "boolean"
+        },
+        "env": {
+          "$ref": "#/$defs/envEnd"
+        },
+        "messages": {
+          "$ref": "#/$defs/blobRef"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "aborted",
+        "env",
+        "messages"
+      ],
+      "type": "object"
+    },
+    "data_pass_start": {
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "$ref": "#/$defs/env"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "env"
+      ],
+      "type": "object"
+    },
+    "data_session_end": {
+      "additionalProperties": false,
+      "properties": {
+        "appended_by": {
+          "enum": [
+            "parent",
+            "worker"
+          ]
+        },
+        "n_events": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "status": {
+          "enum": [
+            "aborted",
+            "complete",
+            "errored",
+            "incomplete"
+          ]
+        }
+      },
+      "required": [
+        "appended_by",
+        "n_events",
+        "status"
+      ],
+      "type": "object"
+    },
+    "data_session_start": {
+      "additionalProperties": false,
+      "properties": {
+        "actors": {
+          "additionalProperties": {
+            "$ref": "#/$defs/actorDecl"
+          },
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(?:[a-z][a-z0-9_]{0,31})$(?!\\n)",
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "attempt": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "backend": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version"
+          ],
+          "type": "object"
+        },
+        "capture": {
+          "const": "0.1"
+        },
+        "cell": {
+          "$ref": "#/$defs/cell"
+        },
+        "config_sha256": {
+          "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+          "type": "string"
+        },
+        "ex": {
+          "pattern": "^(?:ex_(?:[a-z2-7]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}))$(?!\\n)",
+          "type": "string"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "runtime": {
+          "additionalProperties": false,
+          "properties": {
+            "lock_sha256": {
+              "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+              "type": "string"
+            },
+            "platform": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "python": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "lock_sha256",
+            "platform",
+            "python"
+          ],
+          "type": "object"
+        },
+        "session": {
+          "pattern": "^(?:[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$(?!\\n)",
+          "type": "string"
+        },
+        "writer": {
+          "additionalProperties": false,
+          "properties": {
+            "dist": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "dist",
+            "version"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "actors",
+        "attempt",
+        "backend",
+        "capture",
+        "cell",
+        "config_sha256",
+        "ex",
+        "runtime",
+        "session",
+        "writer"
+      ],
+      "type": "object"
+    },
+    "data_state": {
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "$ref": "#/$defs/env"
+        },
+        "occ": {
+          "pattern": "^(?:o(?:0|[1-9][0-9]*))$(?!\\n)",
+          "type": "string"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "env"
+      ],
+      "type": "object"
+    },
+    "data_tool_dispatch": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "$ref": "#/$defs/json"
+        },
+        "args_raw": {
+          "type": "string"
+        },
+        "at": {
+          "$ref": "#/$defs/at"
+        },
+        "name": {
+          "type": "string"
+        },
+        "occ": {
+          "pattern": "^(?:o(?:0|[1-9][0-9]*))$(?!\\n)",
+          "type": "string"
+        },
+        "provider_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        }
+      },
+      "required": [
+        "args",
+        "name",
+        "occ",
+        "provider_call_id"
+      ],
+      "type": "object"
+    },
+    "data_tool_result": {
+      "additionalProperties": false,
+      "else": {
+        "not": {
+          "required": [
+            "decided_by"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "denied"
+          }
+        }
+      },
+      "properties": {
+        "args_effective": {
+          "$ref": "#/$defs/json"
+        },
+        "decided_by": {
+          "pattern": "^(?:[a-z][a-z0-9_]{0,31})$(?!\\n)",
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exception": {
+          "$ref": "#/$defs/exception"
+        },
+        "model_visible": {
+          "type": "string"
+        },
+        "occ": {
+          "pattern": "^(?:o(?:0|[1-9][0-9]*))$(?!\\n)",
+          "type": "string"
+        },
+        "redactions": {
+          "$ref": "#/$defs/redactions"
+        },
+        "rendered": {
+          "type": "string"
+        },
+        "returned": {
+          "$ref": "#/$defs/json"
+        },
+        "status": {
+          "enum": [
+            "denied",
+            "error",
+            "invalid",
+            "ok"
+          ]
+        }
+      },
+      "required": [
+        "model_visible",
+        "occ",
+        "rendered",
+        "status"
+      ],
+      "then": {
+        "required": [
+          "decided_by"
+        ]
+      },
+      "type": "object"
+    },
+    "env": {
+      "additionalProperties": false,
+      "properties": {
+        "canon": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "diff": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/blobRef"
+            },
+            {
+              "$ref": "#/$defs/json"
+            }
+          ]
+        },
+        "sha256": {
+          "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/blobRef"
+        }
+      },
+      "required": [
+        "canon",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "envEnd": {
+      "additionalProperties": false,
+      "properties": {
+        "canon": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "diff": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/blobRef"
+            },
+            {
+              "$ref": "#/$defs/json"
+            }
+          ]
+        },
+        "sha256": {
+          "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+          "type": "string"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/blobRef"
+        }
+      },
+      "required": [
+        "canon",
+        "changed",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "exception": {
+      "additionalProperties": false,
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "message",
+        "type"
+      ],
+      "type": "object"
+    },
+    "instrumentationItem": {
+      "additionalProperties": false,
+      "properties": {
+        "code_ref": {
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "pattern": "^(?:[0-9a-f]{40})$(?!\\n)",
+              "type": "string"
+            },
+            "lines": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "commit",
+            "path",
+            "repo"
+          ],
+          "type": "object"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^(?:[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+@[1-9][0-9]*)$(?!\\n)",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "attack_parameter",
+            "behaviour_preserving",
+            "harness_policy",
+            "request_modifying",
+            "test_only"
+          ]
+        },
+        "params": {
+          "$ref": "#/$defs/json"
+        },
+        "recorded": {
+          "enum": [
+            "full",
+            "none",
+            "summary"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "recorded"
+      ],
+      "type": "object"
+    },
+    "json": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/json"
+          },
+          "type": "array"
+        },
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/json"
+          },
+          "propertyNames": {
+            "pattern": "^(?!\\$)"
+          },
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/reservedObject"
+        }
+      ]
+    },
+    "jsonObject": {
+      "allOf": [
+        {
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/json"
+        }
+      ]
+    },
+    "lex": {
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "flt": {
+          "items": {
+            "pattern": "^(?:(?:/(?:[^/~]|~[01])*)+)$(?!\\n)",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "ord": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "type": "array"
+          },
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^(?:(?:/(?:[^/~]|~[01])*)+)$(?!\\n)"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "model": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "requested": {
+          "type": "string"
+        },
+        "served": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "redactions": {
+      "items": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "blob"
+            ]
+          },
+          {
+            "required": [
+              "field"
+            ]
+          }
+        ],
+        "properties": {
+          "blob": {
+            "pattern": "^(?:sha256:[0-9a-f]{64})$(?!\\n)",
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "p": {
+            "pattern": "^(?:(?:/(?:[^/~]|~[01])*)*)$(?!\\n)",
+            "type": "string"
+          },
+          "rule": {
+            "pattern": "^(?:cap\\.secret\\.[a-z][a-z0-9_]*@[1-9][0-9]*)$(?!\\n)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p",
+          "rule"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "reservedObject": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "$int": {
+              "pattern": "^(?:-?[1-9][0-9]*)$(?!\\n)",
+              "type": "string"
+            }
+          },
+          "required": [
+            "$int"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "$float": {
+              "enum": [
+                "-0",
+                "-Infinity",
+                "Infinity",
+                "NaN"
+              ]
+            }
+          },
+          "required": [
+            "$float"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "$utf16": {
+              "pattern": "^(?:(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?)$(?!\\n)",
+              "type": "string"
+            }
+          },
+          "required": [
+            "$utf16"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "$lit": {
+              "additionalProperties": {
+                "$ref": "#/$defs/json"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "$lit"
+          ],
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/blobRef"
+        }
+      ]
+    },
+    "usage": {
+      "additionalProperties": false,
+      "properties": {
+        "cache_read_tokens": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "cache_write_tokens": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "calls": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "input_tokens": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "output_tokens": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reasoning_tokens": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "total_tokens": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://w3id.org/agentprov/schemas/capture-0.1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "else": {
+        "properties": {
+          "prev": {
+            "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+            "type": "string"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "seq": {
+            "const": 0
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "prev": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "session.start"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_session_start"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "instrumentation"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_instrumentation"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "identity"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_identity"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "fixture"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_fixture"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pass.start"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_pass_start"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "llm.request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_llm_request"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "llm.response"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_llm_response"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "tool.dispatch"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_tool_dispatch"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "tool.result"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_tool_result"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "decision"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_decision"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "state"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_state"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pass.end"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_pass_end"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "outcome"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_outcome"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "native.log"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_native_log"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "note"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_note"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "error"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_error"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "session.end"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/data_session_end"
+          }
+        }
+      }
+    }
+  ],
+  "description": "One line of a capture/0.1 raw event log (docs/architecture C.13): the JCS-serialised event envelope of C.13.2 and the closed per-type data of C.13.3. Structural only: the hash chain, consecutive seq, n_events and the event order are checked by the verifier, not by this schema. Generated by tests/unit/capture/capture_schema_builder.py.",
+  "properties": {
+    "actor": {
+      "anyOf": [
+        {
+          "pattern": "^(?:[a-z][a-z0-9_]{0,31})$(?!\\n)",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "data": {
+      "type": "object"
+    },
+    "lex": {
+      "$ref": "#/$defs/lex"
+    },
+    "mono_ns": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "pass": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "prev": {
+      "anyOf": [
+        {
+          "pattern": "^(?:[0-9a-f]{64})$(?!\\n)",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "seq": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ts": {
+      "pattern": "^(?:[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:(?:[0-5][0-9]|60)\\.[0-9]{6}Z)$(?!\\n)",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "decision",
+        "error",
+        "fixture",
+        "identity",
+        "instrumentation",
+        "llm.request",
+        "llm.response",
+        "native.log",
+        "note",
+        "outcome",
+        "pass.end",
+        "pass.start",
+        "session.end",
+        "session.start",
+        "state",
+        "tool.dispatch",
+        "tool.result"
+      ]
+    }
+  },
+  "required": [
+    "actor",
+    "data",
+    "mono_ns",
+    "pass",
+    "prev",
+    "seq",
+    "ts",
+    "type"
+  ],
+  "title": "capture/0.1 event",
+  "type": "object"
+}

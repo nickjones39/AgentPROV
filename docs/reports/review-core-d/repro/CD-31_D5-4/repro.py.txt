@@ -1,0 +1,26 @@
+import sys, json
+sys.path.insert(0, "$AGENTPROV_HOME/migration-work/review-core-d/d5")
+from common import *
+from agentprov.adapters.dtap.dialect import DtapTrajectoryReader, file_class, TRAJECTORY_CLASSES
+from agentprov.ingest.limits import IngestLimits
+d0 = "openaisdk/gpt-5.2/travel/malicious/indirect/payment-credential-collection/005"
+other = json.dumps({"task_success": False, "attack_success": True, "task_message": "x", "attack_message": "y"}).encode()
+print("file_class:", file_class("judge_backup.json"), "in TRAJECTORY_CLASSES:", file_class("judge_backup.json") in TRAJECTORY_CLASSES)
+r = DtapTrajectoryReader()
+print("sniff:", r.sniff(other, label=f"{d0}/judge_backup.json", limits=IngestLimits()))
+o, d = map_one(f"{d0}/judge_backup.json", other)
+summary(o, d)
+for rec in d.records:
+    if rec["k"] == "judgement":
+        print(" judgement", rec["id"], rec.get("name"), rec.get("value"), json.dumps(rec.get("rules") or rec.get("rule") or rec.get("src"))[:300])
+print("header rules:", json.dumps({k: v for k, v in d.header.items() if "rule" in k})[:600])
+blob = json.dumps([d.header, d.records], default=str)
+print("cites judge_without_trajectory:", "dtap.judge_without_trajectory@1" in blob)
+print("== iter_artefacts over a directory with a trajectory and judge_backup.json")
+from types import SimpleNamespace as NS
+labels = [f"{d0}/20260329_151728.json", f"{d0}/judge_result.json", f"{d0}/judge_backup.json"]
+tree = NS(walk=lambda: iter([NS(label=l) for l in labels]))
+prof = NS(data={"import": {"include": ["*/*/*/benign/**/*.json", "*/*/*/malicious/**/*.json"]}})
+print([c.label.rsplit("/",1)[-1] for c in r.iter_artefacts(tree, prof)])
+listing = NS(exists=lambda p: p in labels, siblings=lambda l: [x for x in labels if x.rpartition("/")[0]==l.rpartition("/")[0]])
+print("aux of trajectory:", r.auxiliary_for(labels[0], listing))

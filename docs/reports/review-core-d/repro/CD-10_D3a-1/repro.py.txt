@@ -1,0 +1,16 @@
+import sys, traceback
+sys.path.insert(0, 'tests/adapters/agentdojo')
+from agentdojo_support import new_log, map_log
+for name in ("send_money", "none", "unknown", "-", "None"):
+    d = new_log()
+    d['messages'][2]['tool_calls'][0]['function'] = name
+    d['messages'][3]['tool_call']['function'] = name
+    d['messages'][3]['error'] = f"Invalid tool {name} provided." if name != "send_money" else None
+    try:
+        m = map_log(d)
+        print(repr(name), "records:", len(m.records), "kinds:", [r.get('k') for r in m.records], "issues:", m.codes)
+        for i in m.info.issues:
+            if i['code'] == 'adapter_defect':
+                print("   ", {k: v for k, v in i.items() if k in ('code','detail','reason')})
+    except Exception as e:
+        print(repr(name), "EXC", type(e).__name__, str(e)[:200])

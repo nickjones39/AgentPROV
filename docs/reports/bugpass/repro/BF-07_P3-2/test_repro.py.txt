@@ -1,0 +1,59 @@
+"""P3-2: a conflict in hand-written prose of C_data_model.md is 'resolved' to ours by the pin resolver."""
+import dataclasses
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(REPO / "tools"))
+import merge_train as mt  # noqa: E402
+
+SPEC = "docs/architecture/C_data_model.md"
+
+
+def run(cwd, *args):
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def test_prose_conflict_in_spec_is_not_silently_resolved(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run(repo, "init", "-q", "-b", "main")
+    run(repo, "config", "user.email", "t@example.invalid")
+    run(repo, "config", "user.name", "t")
+    (repo / "docs/architecture").mkdir(parents=True)
+    (repo / "tools").mkdir()
+    # Stub regenerator: the C.16.1 block regenerates to the same bytes, so nothing changes; exit 0.
+    (repo / "tools/regen_pins.py").write_text("import sys\nsys.exit(0)\n")
+    (repo / SPEC).write_text("# C\n\n## C.3\n\nRule: X.\n\n### C.16.1\n\n```\nblock\n```\n")
+    run(repo, "add", "-A")
+    run(repo, "commit", "-qm", "base")
+    base = run(repo, "rev-parse", "HEAD")
+    run(repo, "checkout", "-qb", "A")
+    (repo / SPEC).write_text((repo / SPEC).read_text().replace("Rule: X.", "Rule: X, amended by A."))
+    run(repo, "commit", "-qam", "A")
+    a = run(repo, "rev-parse", "HEAD")
+    run(repo, "checkout", "-q", base)
+    run(repo, "checkout", "-qb", "B")
+    (repo / SPEC).write_text((repo / SPEC).read_text().replace("Rule: X.", "Rule: X (erratum by B)."))
+    run(repo, "commit", "-qam", "B")
+    b = run(repo, "rev-parse", "HEAD")
+
+    # Same resolver table as the tool, only invoking the interpreter directly instead of via `uv run`.
+    resolvers = tuple(
+        dataclasses.replace(r, command=(sys.executable, *r.command[3:])) if r.name == "test pins" else r
+        for r in mt.RESOLVERS)
+    monkeypatch.setattr(mt, "RESOLVERS", resolvers)
+
+    wt = tmp_path / "wt"
+    train = mt.Train(repo=repo, run_id="t", rundir=tmp_path / "run", wt=wt, base_ref="main", base_sha=base,
+                     log=lambda _m: None)
+    train.create_worktree()
+    entries = [{"branch": "A", "sha": a}, {"branch": "B", "sha": b}]
+    merged, stopped = mt.merge_all(train, entries, skip_conflicting=False)
+    outcomes = [e["outcome"] for e in entries]
+    text = (wt / SPEC).read_text()
+    print("outcomes:", outcomes, "stopped:", stopped)
+    print("merged rule line:", [ln for ln in text.splitlines() if ln.startswith("Rule:")])
+    # Expected: B's edit of hand-written prose is a real conflict, not a generated-file conflict.
+    assert outcomes[1] == "conflict", f"B's prose conflict was {outcomes[1]!r}; spec now has: {text!r}"

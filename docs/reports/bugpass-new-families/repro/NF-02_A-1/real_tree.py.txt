@@ -1,0 +1,36 @@
+"""Real-tree layout check for EnvironmentOptim local-Qwen paths (tree objects only; account masked)."""
+import os, re, subprocess, collections, fnmatch
+from agentprov.adapters.agentdojo.layout import parse_layout
+from agentprov.adapters.agentdojo.redact import parse_redact_rules, redact_value
+from agentprov.adapters.agentdojo.identity import resolve
+REPO = os.path.expanduser("~/.agentprov/staging/10c/environmentoptim/EnvironmentOptim.git")
+env = dict(os.environ, GIT_NO_LAZY_FETCH="1")
+out = subprocess.run(["git", "-C", REPO, "ls-tree", "-r", "--name-only", "febf82d8d1d8344d6c19e9fd172b51e52d68416a", "runs/"],
+                     capture_output=True, text=True, env=env, check=True).stdout.splitlines()
+ACC = re.compile(r"_ceph_ssd_students_([^_/]+)_")
+pend = ["runs/benign_injection/**", "runs/soft_image_prompt/**", "runs/soft_language_prompt/**", "runs/text_prompt/**", "runs/qwen3_5-*/**"]
+sel = [p for p in out if p.endswith(".json") and ACC.search(p) and any(fnmatch.fnmatchcase(p, g) for g in pend)]
+mask = lambda s: ACC.sub("_ceph_ssd_students_<account>_", s)
+print("account-dir json paths under redaction_pending globs:", len(sel))
+cur = parse_layout("runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json")
+plan = parse_layout("runs/{arm?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json")
+rules = parse_redact_rules([{"id": "home", "scope": "pipeline_name",
+    "pattern": r"^_ceph_ssd_students_(?P<span>[^_/]+)_(?P<leaf>qwen3_5(?:-[0-9]+B)?)$",
+    "replacement": "_ceph_ssd_students_{span12}_{leaf}"}], "environmentoptim-agentdojo")
+print("current layout matches:", sum(cur.match(p) is not None for p in sel))
+c = collections.Counter(); nested = []
+for p in sel:
+    m = plan.match(p)
+    if m is None: c["nomatch"] += 1; continue
+    lab, rid = redact_value(rules, "pipeline_name", m["pipeline_dir"], salt="environmentoptim-agentdojo")
+    ok = rid is not None
+    arm_acc = bool(ACC.search(m["arm"] or ""))
+    c[(ok, arm_acc, m["pipeline_dir"] if not ok else "<acct dir>")] += 1
+    if not ok: nested.append(p)
+for k, v in sorted(c.items(), key=str): print(k, v)
+for p in nested[:3]:
+    m = plan.match(p); print("nested:", mask(p)); print("   facets:", {k: mask(v) if v else v for k, v in m.items()})
+    print("   redact_value(arm) changed:", redact_value(rules, "pipeline_name", m["arm"], salt="x")[1] is not None)
+    row = {"workspace": None}
+    ident = resolve({"model_from": "pipeline_dir", "pipeline_name_policy": "verbatim_unreliable_when_differs", "table": {}}, m, "x", rows={})
+    print("   identity with no 'workspace' row: model=", ident.model, "resolved=", ident.resolved)

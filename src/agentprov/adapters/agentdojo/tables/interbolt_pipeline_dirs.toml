@@ -1,0 +1,33 @@
+# Identity table `interbolt_pipeline_dirs` (docs/architecture D.4.5): one row per pipeline directory of
+# deconvolute-labs/interbolt-agentdojo at the pinned commit 43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875 (4 directories,
+# 2,016 logs under runs/published/<suite>/<experiment>/repeat_<n>/).
+#
+# A table, not directory suffixes, because the defence suffix holds hyphens (`-interbolt-<policy>-enforce`), which the
+# suffix list of the family schema cannot express. Every value is asserted under `agentdojo.pipeline_dir_is_model_identity@1`
+# (class I). The directory equals the logged `pipeline_name` in all 2,016 logs (phase-10c census), and the mapper compares
+# them. `defence` is the directory suffix verbatim: Interbolt in enforce mode with the policy named in it
+# (README: Interbolt 0.2.0; policies/<suite>/{allow_all,strict,targeted}.yaml at the pin). The model is the OpenAI id as logged.
+
+[[dir]]
+name = "gpt-4o-mini-2024-07-18"
+model = "gpt-4o-mini-2024-07-18"
+defence = "none"
+basis = "directory = logged pipeline_name = AgentDojo ModelsEnum value; the undefended ceiling arm (A_ceiling)"
+
+[[dir]]
+name = "gpt-4o-mini-2024-07-18-interbolt-allow_all-enforce"
+model = "gpt-4o-mini-2024-07-18"
+defence = "interbolt-allow_all-enforce"
+basis = "directory = logged pipeline_name; the suffix names Interbolt in enforce mode with the policy file policies/<suite>/allow_all.yaml of the pin"
+
+[[dir]]
+name = "gpt-4o-mini-2024-07-18-interbolt-strict-enforce"
+model = "gpt-4o-mini-2024-07-18"
+defence = "interbolt-strict-enforce"
+basis = "directory = logged pipeline_name; the suffix names Interbolt in enforce mode with the policy file policies/<suite>/strict.yaml of the pin"
+
+[[dir]]
+name = "gpt-4o-mini-2024-07-18-interbolt-targeted-enforce"
+model = "gpt-4o-mini-2024-07-18"
+defence = "interbolt-targeted-enforce"
+basis = "directory = logged pipeline_name; the suffix names Interbolt in enforce mode with the policy file policies/<suite>/targeted.yaml of the pin"

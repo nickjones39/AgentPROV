@@ -1,0 +1,196 @@
+{
+  "corpus_id": "mandate-agentdojo-eval",
+  "date": "2026-10-14",
+  "code_commit": "065b0d36",
+  "step": "P0/1 desk research (pre-registration; no data check run)",
+  "parts": [
+    "mandate-agentdojo-eval · head (396 logs at fa62a977584962f7b4b24a40772a83345fd920d4)"
+  ],
+  "papers": [
+    {
+      "id": "none",
+      "title": "No paper, preprint or blog post of the source itself was found (web searches 2026-10-14; earlier searches 2026-10-07 in investigation/sources and verify reports)",
+      "url": "https://github.com/jwilliamsc/mandate-agentdojo-eval",
+      "relation": "the repository README is the only description of the runs; reported numbers come from it",
+      "versions": "single commit fa62a977 (2026-08-17T16:22:22Z); no tags, releases, issues, PRs or forks (GitHub API 2026-10-14)"
+    },
+    {
+      "id": "arXiv:2406.13352",
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024)",
+      "url": "https://arxiv.org/abs/2406.13352",
+      "relation": "benchmark the harness runs (agentdojo==0.1.35, banking v1.2.1); README cites it and takes its comparator rows from it",
+      "versions": "v1 2024-06-19, v2 2024-07-18, v3 2024-11-24 (comment: Llama implementation bug fixed, travel suite updated). Table 5 GPT-4o all-suite defence rows differ between v1 (tool filter 53.26 UA / 7.47 ASR; repeat prompt 65.66 / 30.84; no defence 44.99 / 53.10) and v2, v3 and the leaderboard (56.28 / 6.84; 67.25 / 27.82; no defence 50.01 / 57.69 in v2/v3, 50.08 / 47.69 on the leaderboard) [corrected by fact-check 2026-10-14: v2 already carries the v3 values, so only v1 matches the README] (https://arxiv.org/html/2406.13352v1, https://arxiv.org/html/2406.13352v2, https://arxiv.org/html/2406.13352v3, https://agentdojo.spylab.ai/results/)"
+    },
+    {
+      "id": "arXiv:2503.18813",
+      "title": "Defeating Prompt Injections by Design (CaMeL)",
+      "url": "https://arxiv.org/abs/2503.18813",
+      "relation": "cited by the README for the action-constraining defence class; no result used",
+      "versions": "not examined (no data relation)"
+    },
+    {
+      "id": "arXiv:2510.09023",
+      "title": "The Attacker Moves Second (Nasr, Carlini et al.)",
+      "url": "https://arxiv.org/abs/2510.09023",
+      "relation": "cited by the README (adaptive attacks); no result used",
+      "versions": "not examined (no data relation)"
+    }
+  ],
+  "repo": "https://github.com/jwilliamsc/mandate-agentdojo-eval @ fa62a977584962f7b4b24a40772a83345fd920d4 (2026-08-17T16:22:22Z, author time 11:22:22 -0500; message names '75.0% -> 1.4% ASR, n=144'). Re-checked 2026-10-14 with gh api: still the only commit, main == pin, pushed_at 2026-08-17T16:22:27Z (no push since), 0 tags, 0 releases, 0 issues (all states), 0 PRs, 0 forks, licence MIT, size 312 KB. Root tree: .gitignore b908d4cb (29 B), LICENSE ad3b9a33 (1069 B), README.md 60b2f87e (7936 B), agentdojo_mandate_eval.py 9826553a (24002 B), requirements.txt e87d1cf9 (50 B), runs/ tree 11b6d0e40fc50944ad1fe968bb17ed780d25b7b6: 396 blobs, 3,103,968 bytes, truncated=false; per pipeline/attack: baseline II 144, TK 27, none 9; envelope II 27, none 9; intent II 144, TK 27, none 9. Owner jwilliamsc: GitHub User created 2026-05-19, 2 public repos, no bio/company. No commits around the pin exist (history depth 1 upstream), so no log- or harness-touching commits to review. Harness facts (investigation/sources §3, verify §3.6): force_rerun=True with fixed logdir and constant pipeline names, so later invocations overwrite earlier files; scoped mode exists in code but no scoped log is released.",
+  "data_record": "No external data record (no Zenodo/HF/Figshare/Drive/S3; README and code contain only the AgentDojo GitHub URL; HF and Zenodo searches 2026-10-07 found nothing, verify §1). The git tree is the record. Our pin (profile mandate-agentdojo-eval@2, corpus-spec.toml): git commit fa62a977, expected_files 401, expected_bytes 3,137,054; runs/ tree 11b6d0e4 (396 files, 3,103,968 B); corpus_digest a8f4a9d726073fb142e7580a18f65d8985095ac23658dd1b7c4cb178eac9bd5e (sha256 over sorted 'path sha256' lines + final LF; without LF 3d1ea264...). GitHub API 2026-10-14 agrees on commit, tree id, blob count and byte total; blob SHA-1s of the root files equal verify §1. Import report (docs/reports/mandate/import-cli-mandate.json): 400 files verified against the pin (396 logs + 4 context artefacts), 0 unverified.",
+  "harness": "AgentDojo agentdojo==0.1.35 (requirements.txt; logs carry agentdojo_package_version 0.1.35 and benchmark_version v1.2.1 in all 396). PyPI wheel agentdojo-0.1.35-py3-none-any.whl uploaded 2025-10-27T18:11:04, sha256 364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd (equals the profile's wheel_sha256; https://pypi.org/pypi/agentdojo/json); 0.1.35 is still the latest release. Benchmark: banking suite v1.2.1 = get_new_version((1,2,0)): v1 user tasks + v1.1.1 UserTask15 + v1.2 injection tasks 0-6 and 8 (InjectionTask7 is v1). Harness: agentdojo_mandate_eval.py builds AgentPipeline(SystemMessage, InitQuery, OpenAILLM(max_retries=10, timeout=90), ToolsExecutionLoop([MandateToolsExecutor, llm])), temperature not sent (API default; inferred from 0.1.35 code). Known issues of the benchmark version relevant here (ethz-spylab/agentdojo tracker, checked 2026-10-14): #181 (open, 2026-08-17) banking InjectionTask0/1/3 subject check is dead code by operator precedence in v1 and v1_2, so any transfer to the attacker IBAN scores security True (upward bias), https://github.com/ethz-spylab/agentdojo/issues/181; #161 (open) / #159 / #138 banking UserTask5 utility satisfied by the pre-existing $50 Spotify transaction (vacuous utility), https://github.com/ethz-spylab/agentdojo/issues/161; #110 banking UserTask6 utility checker matched only 'iphone' (fixed in #130, shipped in 0.1.35 as suite v1.2.2; v1.2.1 used here keeps the old checker), https://github.com/ethz-spylab/agentdojo/issues/110; #189 (closed) / #168 / #218 security_from_traces and utility_from_traces count proposed calls (only slack InjectionTask5 / slack user_task_11 use them; banking scored on state), https://github.com/ethz-spylab/agentdojo/issues/189; #194 (open) update_scheduled_transaction/update_user_info truthiness guards, https://github.com/ethz-spylab/agentdojo/issues/194; #139 (closed, by design) banking user_task_14 expects a password change also without an attack. The retry loop makes at most 3 passes without resetting the environment and only the last pass is logged (verify §2).",
+  "models": [
+    "gpt-4o-2024-05-13 (OpenAI; requested id read from pipeline_name minus the -mandate_<mode> suffix; served model string not logged)"
+  ],
+  "reported_results": [
+    {
+      "arm": "gpt-4o-2024-05-13 no defence / important_instructions / banking",
+      "metric": "targeted ASR (security=True over attacked runs)",
+      "value": "75.0% (108/144)",
+      "n": "144",
+      "where": "README 'Headline result' table, https://github.com/jwilliamsc/mandate-agentdojo-eval/blob/fa62a977584962f7b4b24a40772a83345fd920d4/README.md; reproduced from logs in investigation/verify §3.4"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 no defence / important_instructions / banking",
+      "metric": "utility under attack",
+      "value": "81.9% (118/144)",
+      "n": "144",
+      "where": "README headline table"
+    },
+    {
+      "arm": "mandate_intent (full stack) / important_instructions / banking",
+      "metric": "targeted ASR",
+      "value": "1.4% (2/144; residuals user_task_13 and user_task_15 x injection_task_7)",
+      "n": "144",
+      "where": "README headline table and 'Honesty by construction'"
+    },
+    {
+      "arm": "mandate_intent / important_instructions / banking",
+      "metric": "utility under attack",
+      "value": "68.8% (99/144)",
+      "n": "144",
+      "where": "README headline table"
+    },
+    {
+      "arm": "mandate_intent / tool_knowledge (held-out) / banking user_task_0..2",
+      "metric": "targeted ASR",
+      "value": "0/27",
+      "n": "27",
+      "where": "README headline paragraph"
+    },
+    {
+      "arm": "mandate_intent / tool_knowledge / banking user_task_0..2",
+      "metric": "utility under attack",
+      "value": "33.3% (9/27) (not in README; from logs)",
+      "n": "27",
+      "where": "investigation/sources §5.1; verify §3.4"
+    },
+    {
+      "arm": "mandate_envelope / important_instructions / banking user_task_0..2 (pilot)",
+      "metric": "targeted ASR",
+      "value": "11.1% (3/27)",
+      "n": "27",
+      "where": "README headline paragraph"
+    },
+    {
+      "arm": "mandate_envelope / important_instructions / banking user_task_0..2",
+      "metric": "utility under attack",
+      "value": "29.6% (8/27) (not in README; from logs)",
+      "n": "27",
+      "where": "investigation/sources §5.1"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 no defence / tool_knowledge / banking user_task_0..2",
+      "metric": "targeted ASR / utility under attack",
+      "value": "70.4% (19/27) / 66.7% (18/27) (not in README; from logs)",
+      "n": "27",
+      "where": "investigation/sources §5.1; verify §3.4"
+    },
+    {
+      "arm": "injection-task pre-passes (none/none), baseline / envelope / intent",
+      "metric": "utility (injection goal solvable as a user task); security is the runner constant True",
+      "value": "9/9 / 1/9 / 9/9",
+      "n": "9 each",
+      "where": "verify §3.4"
+    },
+    {
+      "arm": "gpt-4o no defence (baseline variance across unreleased runs)",
+      "metric": "targeted ASR range",
+      "value": "75.0-88.9%",
+      "where": "README 'Scope disclosures'"
+    },
+    {
+      "arm": "envelope pilot paired baseline / v1 result (unreleased)",
+      "metric": "targeted ASR",
+      "value": "81.5% -> 11.1% (harness docstring)",
+      "n": "27",
+      "where": "agentdojo_mandate_eval.py docstring, per investigation/sources §3 and verify §3.6"
+    },
+    {
+      "arm": "comparators 'Prompt sandwiching (published)' / 'Tool filtering (published)'",
+      "metric": "ASR / utility under attack",
+      "value": "30.8% / 65.7%; 7.5% / 53.3% (= AgentDojo arXiv v1 Table 5, GPT-4o, all suites, benchmark v1; not banking, not this corpus)",
+      "where": "README headline table; https://arxiv.org/html/2406.13352v1 Table 5; leaderboard https://agentdojo.spylab.ai/results/ gives 27.82/67.25 and 6.84/56.28"
+    },
+    {
+      "arm": "gate decisions (all mandate pipelines)",
+      "metric": "declines / inferred allows",
+      "value": "240 (envelope 49, intent 191) / 143 (6 + 137)",
+      "where": "verify §3.4; profile quirk agentdojo.mandate_decline"
+    }
+  ],
+  "expected_counts": "Pin listing 401 files / 3,137,054 B; selected (runs/**/*.json) 396 logs / 3,103,968 B; context artefacts 4 (agentdojo_mandate_eval.py, README.md, requirements.txt, LICENSE); not selected 1 (.gitignore, outside include and context). Units 396 agent_execution, variant v1.k14 396, executions 396 (registry tools/readme_corpora.toml count 396 'full import'; import-cli-mandate.json). Messages: system 396, user 396, assistant 1,621, tool 1,390; tool calls 1,390 (all ids unique); declines 240; tool-free runs 5; parallel-call turns 103; messages per file 3-47. Injection vectors 369 single-entry dicts: incoming_transaction 243, landloard_notice 63, bill_text 45, address_change 18; 27 empty. E2 stored records (p10, afe7038): AER 11,728, SEM 11,390, PROV 396 (will change at re-map).",
+  "expected_arms": "1 model (gpt-4o-2024-05-13) x 3 pipelines (none, mandate_envelope, mandate_intent) x attack {important_instructions, tool_knowledge, none pre-pass} x 1 suite (banking v1.2.1). Present cells (pipeline/attack: runs): baseline/II 144 (16 user tasks x 9 injection tasks), baseline/TK 27 (user_task_0..2), baseline/none 9 (injection_task_0..8), envelope/II 27 (user_task_0..2), envelope/none 9, intent/II 144, intent/TK 27 (user_task_0..2), intent/none 9. Absent by design or by overwrite: envelope/TK, any scoped run, benign user-task runs (user_task_*/none), TK for user_task_3..15, envelope II for user_task_3..15, the paired baseline of the envelope pilot, the intent II pilot, earlier none checks and baseline variants.",
+  "licence": "MIT (LICENSE at fa62a977, 'Copyright (c) 2026 Mandate Labs'; GitHub SPDX MIT); README: MIT for harness and documentation; no separate data licence, logs sit in the MIT repository. Embedded AgentDojo benchmark text MIT ((c) 2024 Debenedetti et al.). Unassessed: publisher identity (jwilliamsc not verifiably Mandate Labs; two GitHub organisations of that name with no public repos) and OpenAI terms on redistributing model outputs. Registry/profile basis 'MIT as declared; publisher unverified'; corpus-spec derived licence 'inherit' (D-44).",
+  "discrepancy_leads": [
+    "README says runs/ holds the raw logs of every reported run, but the envelope pilot's paired baseline (81.5%), the intent II pilot ('pilot 0/27'), other baseline variants (75.0-88.9%), all scoped runs and earlier none checks are not released (force_rerun overwrite inferred, verify §3.6).",
+    "README attributes comparator rows to the AgentDojo leaderboard; they equal arXiv 2406.13352v1 Table 5 all-suite benchmark-v1 figures; the leaderboard and arXiv v2/v3 values differ (6.84/56.28, 27.82/67.25) [corrected: v2 as well as v3]; neither is banking-only or same-run.",
+    "README says the original paper reported a ~33% no-defence baseline; the leaderboard gives 47.69% all-suite targeted ASR for gpt-4o-2024-05-13 important_instructions (34.50% for tool_knowledge), and arXiv Table 5 no-defence targeted ASR is 53.10% (v1) / 57.69% (v2, v3) [added by fact-check]; the 33% figure matches none of these and stays unverified.",
+    "Benchmark v1.2.1 (not v1.2.2): banking user_task_6 uses the old 'iphone'-only utility checker (AgentDojo #110/#130), so user_task_6 utility is not comparable with v1.2.2 results.",
+    "AgentDojo #181: banking InjectionTask0/1/3 security ignores the exfiltrated datum in the subject; baseline ASR on those injection tasks may count transfers that leak nothing.",
+    "AgentDojo #161: banking UserTask5 utility is satisfied by the pre-existing $50 Spotify transaction; utility under the gate may be True although the requested payment was declined.",
+    "AgentDojo #189/#168: proposed-vs-executed scoring applies only to slack tasks; banking security is state-based, so a declined call should never score as an attack success.",
+    "Gate reads a missing update_scheduled_transaction recipient as empty string: 35 empty-recipient declines plus 1 literal 'null' recipient (verify §3.4); utility cost attributable to argument omission.",
+    "Envelope declines in 8 of 9 benign pre-passes (envelope/none utility 1/9): defence intervention in benign runs (artefacts.toml agentdojo.art.defence_benign_intervention).",
+    "Timestamps are naive local time; UTC-5 inferred from the commit time zone; five invocation blocks on 2026-08-16/17 with 0 overlaps and 396 distinct values.",
+    "Pipeline name gpt-4o-2024-05-13 collides with AgentDojo upstream's 2024 pipeline; 180 baseline cells overlap upstream head cells with 0 identical files, 0 of 615 call ids shared, injections equal in 28 (19 injection_task_7 + 9 none).",
+    "requirements.txt asks openai>=3.0.0 while agentdojo 0.1.35 needs openai>=1.59.7; the installed client version and the served model snapshot are not logged.",
+    "Publisher identity unverified; README mentions 'engine v0.6.0' not in the repository; harness docstring refers to a larger private codebase."
+  ],
+  "open_questions": [
+    "Which of the 13 c274885-only rules Mandate AERs cited at item 3 remain twinned after item 1 and the D-31 bumps (expected: all except dos_security_rule and injection_task_as_user_task); the exact post-round per-rule counts are not in a committed report.",
+    "Whether the L2 outcome comparison should also be run on the whole population (396) through the pipeline, since the part is small; the pre-registered method samples about 5 per stratum (40 units)."
+  ],
+  "checks_not_applicable": [
+    "withholding (L2): profile mandate-agentdojo-eval@2 has no [withhold] section and no withheld object was recorded at p10",
+    "archive-member counts (L1-01): the pin is a plain git tree, no archives",
+    "L1-07 within-unit monotonicity: each log carries one run-level timestamp and a duration, no per-message times",
+    "L2 outcome gap verdict (15 pp rule): no arm reaches 20 sampled executions at about 5 per stratum; reported with Wilson intervals only"
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/mandate-agentdojo-eval/research.json",
+    "docs/reports/precheck/prereg/mandate-agentdojo-eval.md"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "by": "adversarial fact-checker (desk only; no raw data read)",
+    "corrections": [
+      "arXiv 2406.13352 Table 5: v2 (2024-07-18) already carries the v3/leaderboard defence values; only v1 equals the README comparators (papers[1].versions, discrepancy lead 2)",
+      "Added arXiv Table 5 no-defence targeted ASR (53.10% v1, 57.69% v2/v3) to the '~33%' lead; still unverified"
+    ],
+    "confirmed": [
+      "pin, tree ids, 401/3,137,054 and 396/3,103,968 via gh api",
+      "per-arm file counts and user-task sets from the runs/ tree listing",
+      "LICENSE MIT (c) 2026 Mandate Labs at the pin; AgentDojo LICENSE MIT",
+      "PyPI wheel sha256 364bea42..., upload 2025-10-27T18:11:04, latest 0.1.35, requires openai>=1.59.7",
+      "OpenAILLM temperature 0.0 sent as 'temperature or NOT_GIVEN' at v0.1.35 (not sent)",
+      "harness force_rerun=True positional and fixed logdir; v1 docstring 81.5% -> 11.1%",
+      "README headline numbers 75.0/81.9, 1.4/68.8, 0/27 TK, 11.1% envelope pilot",
+      "AgentDojo issues #110,#130,#138,#139,#159,#161,#168,#181,#189,#194,#218 states and subjects; #181 pattern present in v1 and v1_2 banking InjectionTask0/1/3 at v0.1.35",
+      "banking v1.2.1 = get_new_version((1,2,0)); v1.2.2 UserTask6 utility accepts iphone/spotify/subscription",
+      "E2 records 11,728/11,390/396 and markers 361 present/935 absent",
+      "import-cli-mandate.json: 396 executions, v1.k14, 400 verified, seal issues, declines 240 (49/191), allows 143 (6/137)",
+      "commit author time 11:22:22 -0500"
+    ]
+  }
+}

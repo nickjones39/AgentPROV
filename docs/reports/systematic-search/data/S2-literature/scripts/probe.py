@@ -1,0 +1,38 @@
+import json,re,time,urllib.request,urllib.error,os,sys,html
+NOISE=re.compile(r"(uav|lidar|autonomous driving|vehicle|traffic|airport|drone|blockchain|v2x|quantum|power grid|medical image|trajectory prediction|physics|pybullet|reinforcement learning benchmark|multi-agent reinforcement|power system|drug design|lean 4)",re.I)
+pool=json.load(open("pool_flags.json"))
+C="probe_cache.json"
+cache=json.load(open(C)) if os.path.exists(C) else {}
+ids=[]
+for k,p in pool.items():
+    if p["stage1_rules"] and p["arxiv"] and not NOISE.search(p["title"] or "") and re.match(r"\d{4}\.\d{4,5}$",p["arxiv"]):
+        ids.append(p["arxiv"])
+ids=sorted(set(ids)); print(len(ids),flush=True)
+URLRE=re.compile(r"https?://[^\s\"'<>)\]]+")
+KEEP=re.compile(r"(github\.com/[\w.-]+/[\w.-]+|huggingface\.co/(datasets|spaces)/[\w.-]+/[\w.-]+|huggingface\.co/[\w.-]+/[\w.-]+|zenodo\.org/(records?|doi)/[\w./-]+|doi\.org/10\.5281/[\w./-]+|osf\.io/\w+|figshare\.com/[\w./-]+|kaggle\.com/[\w./-]+|dataverse[\w./-]*|gitlab\.com/[\w./-]+)",re.I)
+LOGSENT=re.compile(r"[^.]*?(trajector|execution log|run log|\blogs\b|\btraces?\b|transcripts?|rollouts?)[^.]*?(releas|publicly|open-?sourc|available|publish|share)[^.]*\.|[^.]*?(releas|publicly|open-?sourc|available|publish|share)[^.]*?(trajector|execution log|run log|\blogs\b|\btraces?\b|transcripts?|rollouts?)[^.]*\.",re.I)
+def fetch(u):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"agentprov-litsearch/0.1 (academic)"}),timeout=60) as r:
+            return r.read(3_000_000).decode("utf8","replace")
+    except urllib.error.HTTPError as e:
+        return None if e.code in (404,403) else None
+    except Exception as e:
+        return None
+n=0
+for i in ids:
+    if i in cache: continue
+    t=fetch(f"https://arxiv.org/html/{i}"); src="html"
+    time.sleep(1.2)
+    if not t:
+        t=fetch(f"https://arxiv.org/abs/{i}"); src="abs"; time.sleep(1.2)
+    if not t: cache[i]={"err":True}; continue
+    txt=re.sub(r"<script.*?</script>|<style.*?</style>","",t,flags=re.S)
+    urls=set(m.group(0).rstrip(".,;") for m in URLRE.finditer(html.unescape(txt)))
+    keep=sorted(set(m.group(0).rstrip(".,;") for u in urls for m in [KEEP.search(u)] if m))
+    plain=html.unescape(re.sub(r"<[^>]+>"," ",txt)); plain=re.sub(r"\s+"," ",plain)
+    sents=[m.group(0).strip()[:300] for m in LOGSENT.finditer(plain)][:4]
+    cache[i]={"src":src,"links":keep[:25],"log_sents":sents,"len":len(plain)}
+    n+=1
+    if n%25==0: json.dump(cache,open(C,"w")); print(n,flush=True)
+json.dump(cache,open(C,"w")); print("done",len(cache))

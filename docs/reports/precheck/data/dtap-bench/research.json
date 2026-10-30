@@ -1,0 +1,2364 @@
+{
+ "corpus_id": "dtap-bench",
+ "parts": [
+  "dtap · head (HF AI-Secure/DTap-Bench-Agent-Trajectories @ 836caf2fdd78b888ddd14fb62dc038e932e17898; context: AI-Secure/DecodingTrust-Agent-Platform @ a3edc9b7c48cbf16c2ea9c18990fb94c7494dd04; 67,808 trajectory-bearing files)"
+ ],
+ "files_written": [
+  "docs/reports/precheck/data/dtap-bench/research.json",
+  "docs/reports/precheck/prereg/dtap-bench.md"
+ ],
+ "papers": [
+  {
+   "id": "arXiv:2605.04808",
+   "title": "DecodingTrust-Agent Platform (DTap): A Controllable and Interactive Red-Teaming Platform for AI Agents (Chen et al.)",
+   "url": "https://arxiv.org/abs/2605.04808v1",
+   "versions": "v1 only (submitted 2026-05-06T11:59:48Z; v2 returns 404 on 2026-10-14; arXiv API lists one version). 279 pages, 148 figures. Licence: arXiv non-exclusive distribution 1.0",
+   "relation": "primary paper; cited by both HF dataset cards (tag arxiv:2605.04808)"
+  }
+ ],
+ "repo": "Harness/SDK: https://github.com/AI-secure/DecodingTrust-Agent (Apache-2.0 per GitHub API; LICENSE blob 261eeb9e at main; created 2026-04-25; 35 public commits [corrected: 31 \"Public release sync from main|origin/main|trajectory-enabled-judge @ <internal>\" commits, 1 PR merge (#16) and 3 direct commits; was \"all syncs plus PR merges\"]; last push 2026-06-18, HEAD e0323a52). No commit corresponds to the run logs: the runs (2026-02-12..2026-05-05) predate the public repo except 2026-04-25..05-05, and the harness version used is not recorded in any log. PyPI decodingtrust-agent-sdk: first release 0.1.0 on 2026-05-13 (after every run), latest 0.2.12 (2026-06-18) https://pypi.org/project/decodingtrust-agent-sdk/. Issues relevant to data/judges (https://github.com/AI-secure/DecodingTrust-Agent/issues): #14 customer-service attack judge no-op (\"No judge_tool set\", all 201 malicious tasks attack_success false at public f37a6f88, fixed d4750e48 2026-06-04); #21 code Delete-sensitive-files judge checks the harness host, not the container (17 tasks; fixed 2026-06); #23 (open) legal indirect judges match the injected Slack message itself: 12 tasks listed as guaranteed false positives; #24 (open) research/os-filesystem indirect judges differ from benign judges for identical instructions, os-filesystem indirect unauthorized-access-and-illegal-interception/52 carries another task's judge; #19 8 CRM tasks unsolvable (Atlassian token not registered; fixed 46f9d31a); #15 PocketFlow ignores skill injections; #11 trajectories first released on decodingtrust-agent.com/benchmark, HF upload promised (2026-05-15). Public commit c6a80fb6 (2026-06-02) is a sync from a \"trajectory-enabled-judge\" branch. Dataset repos (HF, git): runs 170 commits 2026-05-21..2026-07-01, HEAD = pin 836caf2f (\"Add screenshots for openaisdk/gpt-5.1/macos trajectories\"); the two commits before the pin (36c89f07 \"Add macOS and Windows agent trajectory data\", 7020de7c \"Track large json files with Git LFS\", both 2026-07-01) touch run logs; tasks 57 commits 2026-05-14..2026-06-18, HEAD = pin a3edc9b7. No HF discussions on either dataset (API, 2026-10-14).",
+ "data_record": "HF dataset https://huggingface.co/datasets/AI-Secure/DTap-Bench-Agent-Trajectories : API sha 836caf2fdd78b888ddd14fb62dc038e932e17898 = our pin (unchanged on 2026-10-14), lastModified 2026-07-01T04:46:10Z, created 2026-05-21, public, not gated, usedStorage 39,087,617 B (LFS objects only), siblings >= 100,000 (listing capped). Card README at pin sha256 2a168915... (fetched 2026-10-14): Apache-2.0, claims \"full collection of the agent trajectories\" but its body is the task dataset card (table of 2,806 benign / 3,876 malicious tasks per domain; configs glob */benign/**/config.yaml matches nothing in the runs repo). Task dataset https://huggingface.co/datasets/AI-Secure/DecodingTrust-Agent-Platform : sha a3edc9b7 = our pin, lastModified 2026-06-18T22:20:35Z, 27,567 siblings. No Zenodo/Figshare record. Alternative distribution: decodingtrust-agent.com/benchmark (per issue #11), not pinned. Our pin (profile dtap-bench v1, census sources/dtap.md): 133,851 files; 67,808 trajectory-bearing JSON; 65,902 judge_result.json (+8 byte-identical (1) copies); 2 LFS-pointer JSON resolved by pinned LFS objects (sha256 29b8bc69..., 12,281,319 B and 6731a5cc..., 10,646,342 B); 122 LFS-pointer PNGs not fetched. Checksums are git blob ids at the pin; no per-file checksum list is published.",
+ "harness": "DTap SDK / harness (internal main, not versioned in logs) with four agent frameworks: OpenAI Agents SDK (openaisdk), Claude Agent SDK (paper: \"Claude Code\" / \"Claude Code SDK\"; path claudesdk), Google ADK (googleadk), OpenClaw (openclaw; two OpenClaw log variants: 11,413 with metadata.mcp_tools, 5,765 with trace_id). No SDK/runtime version recorded (census sources/dtap.md §8). Attack generation by DTap-Red with GPT-5.1 surrogate in OpenAI Agents SDK, max 10 iterations (paper Sec. 6). Judges: paper Sec. 4.2/A.3 says deterministic rule-based verifiable judges and that LLM-based judges are avoided; the released judge results contain LLM-judge metadata (llm_judge/llm_model keyset on 458 files; gpt_model/gpt_score medical keysets on about 1,734; census c04). 458 judge results re-judged 2026-04-26 (patch h5_rejudge_20260426). Known judge bugs of the public harness: issues #14, #21, #23, #24 (see repo).",
+ "models": [
+  "gpt-5.1 (openaisdk; paper: BSR only, DTap-Red surrogate)",
+  "gpt-5.2 (openaisdk, openclaw; free-text mention gpt-5.2-2025-12-11 in 30 files)",
+  "gpt-5.4 (openaisdk, openclaw; openclaw only in finance/legal appendix tables)",
+  "gpt-oss-120b (openaisdk)",
+  "claude-opus-4-6 (claudesdk, openclaw; appendix tables only)",
+  "claude-sonnet-4-5 (claudesdk; free-text claude-sonnet-4-20250514 in 237 files)",
+  "gemini-3-pro-preview (googleadk)",
+  "paper-only, absent from data: gpt-5.5 (OpenClaw), deepseek-v4-pro (OpenClaw)",
+  "judge models in judge metadata: gpt-4o (llm_judge) and a gpt_model for medical (census c04, unverified which)"
+ ],
+ "reported_results": [
+  {
+   "arm": "openaisdk/gpt-5.4 · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "40.0",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "openaisdk/gpt-5.2 · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "46.7",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "openaisdk/gpt-oss-120b · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "28.5",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "claudesdk/claude-sonnet-4-5 · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "25.2",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "googleadk/gemini-3-pro-preview · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "55.7",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "openclaw/gpt-5.5 (not in data) · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "17.7",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "openclaw/gpt-5.2 · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "35.6",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "openclaw/deepseek-v4-pro (not in data) · indirect",
+   "metric": "ASR % (Overall = unweighted mean of 14 domain columns)",
+   "value": "41.7",
+   "where": "Table 3 (indirect), https://arxiv.org/html/2605.04808v1",
+   "n": "1,998 indirect tasks (Sec. 6 setup)"
+  },
+  {
+   "arm": "openaisdk/gpt-5.4 · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "51.0",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "openaisdk/gpt-5.2 · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "58.8",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "openaisdk/gpt-oss-120b · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "46.5",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "claudesdk/claude-sonnet-4-5 · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "26.9",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "googleadk/gemini-3-pro-preview · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "47.9",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "openclaw/gpt-5.5 (not in data) · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "28.9",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "openclaw/gpt-5.2 · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "38.6",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "openclaw/deepseek-v4-pro (not in data) · direct (red-teaming optimised)",
+   "metric": "ASR % (Overall = unweighted mean of 14 domains)",
+   "value": "59.6",
+   "where": "Table 3 (direct), https://arxiv.org/html/2605.04808v1",
+   "n": "1,878 direct tasks"
+  },
+  {
+   "arm": "openaisdk/gpt-5.4 · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "85.3",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "openaisdk/gpt-5.2 · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "80.5",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "openaisdk/gpt-5.1 · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "78.7",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "openaisdk/gpt-oss-120b · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "36.2",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "claudesdk/claude-sonnet-4-5 · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "80.8",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "googleadk/gemini-3-pro-preview · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "87.0",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "openclaw/gpt-5.5 (not in data) · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "86.3",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "openclaw/gpt-5.2 · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "78.5",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "openclaw/deepseek-v4-pro (not in data) · benign",
+   "metric": "BSR % (Overall = unweighted mean of 14 domains)",
+   "value": "83.3",
+   "where": "Table 4, https://arxiv.org/html/2605.04808v1",
+   "n": "2,806 benign tasks"
+  },
+  {
+   "arm": "claudesdk/claude-opus-4-6 · indirect",
+   "metric": "ASR % (our macro of 14 appendix domain Overall values; not a paper number)",
+   "value": "8.2",
+   "where": "Tables 9,14,19,24,29,34,39,44,49,56,63,71,76,81, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "claudesdk/claude-opus-4-6 · direct",
+   "metric": "ASR % (our macro of 14 appendix domain values)",
+   "value": "22.1",
+   "where": "Tables 11,16,21,26,31,36,41,46,51,58,65,73,78,83, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "claudesdk/claude-opus-4-6 · benign",
+   "metric": "BSR % (our macro of 14 appendix domain values)",
+   "value": "86.5",
+   "where": "Tables 8,13,...,80, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/claude-opus-4-6 · indirect",
+   "metric": "ASR % (our macro of 14 appendix domains)",
+   "value": "10.7",
+   "where": "appendix indirect tables, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/claude-opus-4-6 · direct",
+   "metric": "ASR % (our macro of 14 appendix domains)",
+   "value": "21.7",
+   "where": "appendix direct tables, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/claude-opus-4-6 · benign",
+   "metric": "BSR % (our macro of 14 appendix domains)",
+   "value": "86.0",
+   "where": "appendix BSR tables, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/gpt-5.4 · finance / legal",
+   "metric": "BSR %",
+   "value": "96.7 / 86.9",
+   "where": "Tables 62, 70, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/gpt-5.4 · finance / legal",
+   "metric": "indirect ASR %",
+   "value": "34.9 / 59.1",
+   "where": "Tables 63, 71, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/gpt-5.4 · finance / legal",
+   "metric": "direct ASR %",
+   "value": "18.5 / 42.0",
+   "where": "Tables 65, 73, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/gpt-5.4 · finance / legal",
+   "metric": "direct baseline (no red-teaming) ASR % = data split direct_prompt",
+   "value": "0.0 / 5.0",
+   "where": "Tables 64, 72, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openaisdk/gpt-5.4 · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 3.5 / 20.0",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openaisdk/gpt-5.2 · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 5.0 / 17.5",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openaisdk/gpt-oss-120b · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 17.5 / 10.8",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "claudesdk/claude-opus-4-6 · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 1.5 / 20.0",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "claudesdk/claude-sonnet-4-5 · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 2.0 / 9.2",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "googleadk/gemini-3-pro-preview · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "2.5 / 24.0 / 15.0",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/claude-opus-4-6 · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 3.0 / 13.3",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openclaw/gpt-5.2 · direct_prompt (finance / legal / windows)",
+   "metric": "ASR % direct without red-teaming",
+   "value": "0.0 / 8.5 / 13.3",
+   "where": "Tables 64, 72, 50, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "openaisdk/gpt-5.4 · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "15.1",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "openaisdk/gpt-5.2 · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "27.9",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "openaisdk/gpt-oss-120b · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "23.3",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "claudesdk/claude-opus-4-6 · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "12.9",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "claudesdk/claude-sonnet-4-5 · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "21.7",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "googleadk/gemini-3-pro-preview · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "19.6",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "openclaw/claude-opus-4-6 · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "14.2",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "openclaw/gpt-5.2 · direct_no_attack (medical)",
+   "metric": "ASR % without adversarial attacks (8 medical risk categories)",
+   "value": "10.8",
+   "where": "Table 82, https://arxiv.org/html/2605.04808v1",
+   "n": "240 runs per pair in data (30 per category)"
+  },
+  {
+   "arm": "all 8 main pairs",
+   "metric": "ASR by injection vector (Prompt/Tool/Skill/Env/Skill+Tool/Env+Tool/Other)",
+   "value": "see table",
+   "where": "Table 5, https://arxiv.org/html/2605.04808v1"
+  },
+  {
+   "arm": "DTap-Bench",
+   "metric": "task counts",
+   "value": "6,682 tasks: 2,806 benign, 3,876 malicious (1,878 direct, 1,998 indirect), 14 domains",
+   "where": "Sec. 5-6, Table 6, https://arxiv.org/html/2605.04808v1; HF card table https://huggingface.co/datasets/AI-Secure/DTap-Bench-Agent-Trajectories"
+  }
+ ],
+ "expected_counts": "Part head: tree 133,851 files; trajectory-bearing JSON 67,808 (64,110 timestamp-named + 3,590 trajectory.json + 99 <TS>_N + 8 (1) copies + 1 partial) [tools/readme_corpora.toml count 67808; census c01e]; parseable 67,806 raw (+2 via LFS objects); synthetic 20 (not executions); red-teaming logs 8 and screenshot PNG pointers 122 (excluded); judge_result.json 65,902 (+8 copies), judge-only directories 22; task configs 6,682 (6,681 parse). Executions (derived, to be confirmed at L1/L2): 67,808 - 20 synthetic - 8 (1) copies = 67,780 trajectory executions, minus any byte-identical _N/plain pairs (>= 1 seen in the 500 sample), plus <= 22 outcome-only judge-only units (byte-identical judges collapse). Steps 1,609,274 (agent 834,985, tool 716,489, user 57,800). Paper: 6,682 tasks (2,806 benign, 1,878 direct, 1,998 indirect); runs per task not stated.",
+ "expected_arms": "Facets framework x model x split x domain (14 domains; risk category below). 10 framework/model pairs x splits: 8 pairs with benign/direct/indirect/direct_prompt/direct_no_attack, openaisdk/gpt-5.1 without direct_no_attack, openclaw/gpt-5.4 (600/600/600/400) without direct_no_attack = 48 pair x split strata. direct_prompt only finance/legal/windows (gpt-5.1 and openclaw gpt-5.4: finance/legal); direct_no_attack only medical. Paper main tables: 8 rows of which 2 (OpenClaw GPT-5.5, DeepSeek-V4-Pro) are absent from the data; data has 3 pairs not in the main tables (claudesdk opus, openclaw opus: appendix only; openclaw gpt-5.4: finance/legal appendix only) and gpt-5.1 attack runs with no ASR table.",
+ "licence": "Apache-2.0: both HF cards (YAML license: apache-2.0) point to the upstream LICENSE at https://github.com/AI-secure/DecodingTrust-Agent/blob/main/LICENSE (GitHub SPDX Apache-2.0; added e0e38455 2026-04-25). Neither dataset repo has a LICENSE or NOTICE file (census). Apache-2.0 s.4: give recipients the licence text, keep attribution, mark modifications. No use-restriction clause. Unassessed: model-provider terms on redistributing outputs; vendored sandbox data in tool results. Paper: arXiv non-exclusive distribution licence 1.0. Our policy: include (profile [licence]; D-29 item 10 secrets option A).",
+ "discrepancy_leads": [
+  "Paper Table 3-5 rows OpenClaw GPT-5.5 and OpenClaw DeepSeek-V4-Pro have no runs in the release; the release instead has openclaw/claude-opus-4-6 and openclaw/gpt-5.4 (appendix rows only) and claudesdk/claude-opus-4-6 (appendix only). The HF card says \"full collection\".",
+  "Paper Overall = unweighted mean of 14 domain columns (verified for all 25 rows of Tables 3-4 to within 0.06 pp [corrected from 0.05: 24 rows within 0.05, Claude Code Sonnet-4.5 direct 26.84 vs 26.9]); domain values are means over risk categories. Census micro rates over judge files run 0.1-6.2 pp above the paper ASR (e.g. gpt-oss-120b direct 52.7 vs 46.5; gpt-5.2 direct 61.7 vs 58.8) and -5.4..+4.1 pp off BSR (gpt-5.1 73.3 vs 78.7). Per-domain comparison needed.",
+  "direct_prompt (no red-teaming) census ASR exceeds the paper baseline tables for 8 of 9 pairs with a paper row when weighted by finance 200 / legal 200 / windows 100: e.g. openclaw opus 41/500 vs about 19 expected, claudesdk sonnet 31 vs about 13; only openclaw gpt-5.4 matches exactly (10/400 = 2.5% vs finance 0.0, legal 5.0). Paper Table 64 has finance 0.0% for every pair except Gemini 2.5%.",
+  "Windows direct_prompt: Table 50 rates move in 5-point steps (20 tasks per category, 6 categories, about 120 per pair) but the data hold 100 windows direct_prompt runs per pair, 320 of them with no configuration.",
+  "Released judge directories per pair are 1,836 direct and 1,986 indirect versus 1,878 and 1,998 tasks in the paper (42 and 12 fewer); 93 configurations are referenced by no run (windows direct 80, windows indirect 7, macos 3, workflow 3).",
+  "Paper says the judges are deterministic rule-based checkers and LLM-based judges are avoided (Sec. 4.2, A.3), but judge metadata carry LLM-judge keys (llm_judge/llm_model on 458 files, gpt_* on about 1,734 medical files), and 458 results were re-judged on 2026-04-26 with a rubric change.",
+  "Public-harness judge bugs may or may not affect the released judgements: customer-service attack judge no-op (#14), Delete-sensitive-files host check (#21), legal indirect self-matching judges on 12 named tasks (#23, open), os-filesystem indirect/52 wrong judge (#24, open).",
+  "Paper v1 is dated 2026-05-06, one day after the last run (2026-05-05T03:53:41Z); the 20 synthetic \"repaired\" trajectories are dated 2026-05-12 and the macOS/Windows logs were uploaded 2026-07-01: the release was assembled after the paper and contains post-hoc artefacts (synthetic, re-judged).",
+  "Medical direct_no_attack census ASR equals paper Table 82 to 0.1 pp for 7 of 8 pairs (gpt-5.4 14.6 vs 15.1, consistent with 29 vs 30 tasks per category in the paper): a positive control for the judge-level tally.",
+  "Free-text model mentions (claude-sonnet-4-20250514 in 237 files, claude-sonnet-4-50 in 127) may indicate a different model version in some claudesdk runs, or may be task content; the logs carry no structured model id.",
+  "Home-directory strings, including one account name matching a paper author, appear in tool content of the 500-run sample (dtap-sample-check.md U14: 46 AER and 14 PROV hits for that name); the dtap profile has no redaction table and D-182 leaves model/benchmark content unredacted.",
+  "gpt-5.1 has 1,209 direct, 1,232 indirect and 408 direct_prompt runs but no ASR row anywhere in the paper (it was the DTap-Red surrogate); Table 81 says medical indirect tasks were selected from tasks GPT-5.1 solved."
+ ],
+ "open_questions": [
+  "Which attempt the single judge of a re-run directory scores (1,291 directories); whether the paper used per-task first, last or best attempt.",
+  "Whether the paper ASR uses the re-judged (2026-04-26) or the original attack_success values.",
+  "The third domain of openclaw/gpt-5.4 (600 per split; finance and legal account for 400).",
+  "Whether the run-time (internal) judges had the bugs later reported against the public repo (#14, #21, #23, #24).",
+  "Whether the OpenClaw GPT-5.5 / DeepSeek-V4-Pro runs exist on decodingtrust-agent.com/benchmark (not pinned; not checked)."
+ ],
+ "checks_not_applicable": [
+  "Delta since E2: dtap-bench was in neither FA nor E2 (registry status planned; no stored corpus). Baseline for movement is the protocol-v1 sample check of 2026-10-12 (dtap-sample-500, code 2c95a5b).",
+  "L2 withholding: inert (D-29 item 10, option A: include all; no copyleft or use rule). Only the generic release scan applies.",
+  "L1-04 cross-corpus overlap: no other source shares DTap content (expect 0; run l1_xdup.py anyway)."
+ ],
+ "paper_domain_values": {
+  "note": "pair|split -> domain -> [value %, table]. Extracted from https://arxiv.org/html/2605.04808v1 (parsed HTML tables); for the 7 main-table pairs every value equals Table 3/4 (validated); direct_baseline = the per-domain \"direct without red-teaming\" tables (data split direct_prompt for finance/legal/windows; direct_no_attack = medical Table 82). Code/Research/OS-FS rows of some appendix tables were not parsed (missing keys).",
+  "values": {
+   "claudesdk|claude-opus-4-6|benign": {
+    "Browser": [
+     97.2,
+     33
+    ],
+    "CRM": [
+     83.0,
+     13
+    ],
+    "CS": [
+     91.4,
+     18
+    ],
+    "Code": [
+     100.0,
+     28
+    ],
+    "Finance": [
+     97.1,
+     62
+    ],
+    "Legal": [
+     92.6,
+     70
+    ],
+    "Medical": [
+     57.8,
+     80
+    ],
+    "OS-FS": [
+     83.3,
+     43
+    ],
+    "Research": [
+     100.0,
+     38
+    ],
+    "Telecom": [
+     68.2,
+     75
+    ],
+    "Travel": [
+     89.4,
+     23
+    ],
+    "Windows": [
+     81.2,
+     48
+    ],
+    "Workflow": [
+     82.7,
+     8
+    ],
+    "macOS": [
+     86.7,
+     55
+    ]
+   },
+   "claudesdk|claude-opus-4-6|direct": {
+    "Browser": [
+     8.8,
+     36
+    ],
+    "CRM": [
+     11.1,
+     16
+    ],
+    "CS": [
+     1.3,
+     21
+    ],
+    "Code": [
+     33.3,
+     31
+    ],
+    "Finance": [
+     4.0,
+     65
+    ],
+    "Legal": [
+     30.0,
+     73
+    ],
+    "Medical": [
+     54.7,
+     83
+    ],
+    "OS-FS": [
+     26.2,
+     46
+    ],
+    "Research": [
+     25.5,
+     41
+    ],
+    "Telecom": [
+     22.6,
+     78
+    ],
+    "Travel": [
+     2.9,
+     26
+    ],
+    "Windows": [
+     43.3,
+     51
+    ],
+    "Workflow": [
+     19.2,
+     11
+    ],
+    "macOS": [
+     26.2,
+     58
+    ]
+   },
+   "claudesdk|claude-opus-4-6|direct_baseline": {
+    "Browser": [
+     0.0,
+     35
+    ],
+    "CRM": [
+     0.0,
+     15
+    ],
+    "CS": [
+     0.0,
+     20
+    ],
+    "Code": [
+     15.9,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     1.5,
+     72
+    ],
+    "Medical": [
+     12.9,
+     82
+    ],
+    "OS-FS": [
+     0.0,
+     45
+    ],
+    "Research": [
+     20.8,
+     40
+    ],
+    "Telecom": [
+     10.8,
+     77
+    ],
+    "Travel": [
+     0.0,
+     25
+    ],
+    "Windows": [
+     20.0,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     6.3,
+     57
+    ]
+   },
+   "claudesdk|claude-opus-4-6|indirect": {
+    "Browser": [
+     0.0,
+     34
+    ],
+    "CRM": [
+     3.9,
+     14
+    ],
+    "CS": [
+     2.9,
+     19
+    ],
+    "Code": [
+     15.3,
+     29
+    ],
+    "Finance": [
+     0.6,
+     63
+    ],
+    "Legal": [
+     9.5,
+     71
+    ],
+    "Medical": [
+     16.6,
+     81
+    ],
+    "OS-FS": [
+     1.2,
+     44
+    ],
+    "Research": [
+     0.0,
+     39
+    ],
+    "Telecom": [
+     17.6,
+     76
+    ],
+    "Travel": [
+     0.0,
+     24
+    ],
+    "Windows": [
+     7.7,
+     49
+    ],
+    "Workflow": [
+     11.1,
+     9
+    ],
+    "macOS": [
+     28.8,
+     56
+    ]
+   },
+   "claudesdk|claude-sonnet-4-5|benign": {
+    "Browser": [
+     95.8,
+     33
+    ],
+    "CRM": [
+     82.4,
+     13
+    ],
+    "CS": [
+     77.7,
+     18
+    ],
+    "Code": [
+     98.4,
+     28
+    ],
+    "Finance": [
+     94.9,
+     62
+    ],
+    "Legal": [
+     79.9,
+     70
+    ],
+    "Medical": [
+     66.4,
+     80
+    ],
+    "OS-FS": [
+     78.6,
+     43
+    ],
+    "Research": [
+     100.0,
+     38
+    ],
+    "Telecom": [
+     71.8,
+     75
+    ],
+    "Travel": [
+     56.7,
+     23
+    ],
+    "Windows": [
+     83.5,
+     48
+    ],
+    "Workflow": [
+     69.8,
+     8
+    ],
+    "macOS": [
+     75.2,
+     55
+    ]
+   },
+   "claudesdk|claude-sonnet-4-5|direct": {
+    "Browser": [
+     20.0,
+     36
+    ],
+    "CRM": [
+     16.7,
+     16
+    ],
+    "CS": [
+     27.6,
+     21
+    ],
+    "Code": [
+     56.6,
+     31
+    ],
+    "Finance": [
+     5.5,
+     65
+    ],
+    "Legal": [
+     20.0,
+     73
+    ],
+    "Medical": [
+     75.1,
+     83
+    ],
+    "OS-FS": [
+     22.6,
+     46
+    ],
+    "Research": [
+     19.7,
+     41
+    ],
+    "Telecom": [
+     23.5,
+     78
+    ],
+    "Travel": [
+     3.8,
+     26
+    ],
+    "Windows": [
+     21.7,
+     51
+    ],
+    "Workflow": [
+     44.7,
+     11
+    ],
+    "macOS": [
+     18.3,
+     58
+    ]
+   },
+   "claudesdk|claude-sonnet-4-5|direct_baseline": {
+    "Browser": [
+     3.7,
+     35
+    ],
+    "CRM": [
+     0.0,
+     15
+    ],
+    "CS": [
+     0.0,
+     20
+    ],
+    "Code": [
+     32.2,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     2.0,
+     72
+    ],
+    "Medical": [
+     21.7,
+     82
+    ],
+    "OS-FS": [
+     0.0,
+     45
+    ],
+    "Research": [
+     15.9,
+     40
+    ],
+    "Telecom": [
+     12.1,
+     77
+    ],
+    "Travel": [
+     0.0,
+     25
+    ],
+    "Windows": [
+     9.2,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     0.0,
+     57
+    ]
+   },
+   "claudesdk|claude-sonnet-4-5|indirect": {
+    "Browser": [
+     4.5,
+     34
+    ],
+    "CRM": [
+     40.6,
+     14
+    ],
+    "CS": [
+     23.4,
+     19
+    ],
+    "Code": [
+     56.0,
+     29
+    ],
+    "Finance": [
+     7.1,
+     63
+    ],
+    "Legal": [
+     26.6,
+     71
+    ],
+    "Medical": [
+     51.7,
+     81
+    ],
+    "OS-FS": [
+     17.6,
+     44
+    ],
+    "Research": [
+     0.0,
+     39
+    ],
+    "Telecom": [
+     49.5,
+     76
+    ],
+    "Travel": [
+     11.7,
+     24
+    ],
+    "Windows": [
+     7.7,
+     49
+    ],
+    "Workflow": [
+     35.8,
+     9
+    ],
+    "macOS": [
+     20.4,
+     56
+    ]
+   },
+   "googleadk|gemini-3-pro-preview|benign": {
+    "Browser": [
+     97.2,
+     33
+    ],
+    "CRM": [
+     86.1,
+     13
+    ],
+    "CS": [
+     91.3,
+     18
+    ],
+    "Code": [
+     100.0,
+     28
+    ],
+    "Finance": [
+     95.1,
+     62
+    ],
+    "Legal": [
+     87.1,
+     70
+    ],
+    "Medical": [
+     81.9,
+     80
+    ],
+    "OS-FS": [
+     87.0,
+     43
+    ],
+    "Research": [
+     100.0,
+     38
+    ],
+    "Telecom": [
+     66.4,
+     75
+    ],
+    "Travel": [
+     99.4,
+     23
+    ],
+    "Windows": [
+     76.0,
+     48
+    ],
+    "Workflow": [
+     89.4,
+     8
+    ],
+    "macOS": [
+     61.2,
+     55
+    ]
+   },
+   "googleadk|gemini-3-pro-preview|direct": {
+    "Browser": [
+     35.3,
+     36
+    ],
+    "CRM": [
+     55.6,
+     16
+    ],
+    "CS": [
+     40.3,
+     21
+    ],
+    "Code": [
+     71.6,
+     31
+    ],
+    "Finance": [
+     22.0,
+     65
+    ],
+    "Legal": [
+     64.0,
+     73
+    ],
+    "Medical": [
+     62.7,
+     83
+    ],
+    "OS-FS": [
+     73.5,
+     46
+    ],
+    "Research": [
+     45.4,
+     41
+    ],
+    "Telecom": [
+     24.2,
+     78
+    ],
+    "Travel": [
+     52.4,
+     26
+    ],
+    "Windows": [
+     38.8,
+     51
+    ],
+    "Workflow": [
+     54.4,
+     11
+    ],
+    "macOS": [
+     30.4,
+     58
+    ]
+   },
+   "googleadk|gemini-3-pro-preview|direct_baseline": {
+    "Browser": [
+     8.7,
+     35
+    ],
+    "CRM": [
+     8.9,
+     15
+    ],
+    "CS": [
+     1.7,
+     20
+    ],
+    "Code": [
+     23.2,
+     30
+    ],
+    "Finance": [
+     2.5,
+     64
+    ],
+    "Legal": [
+     24.0,
+     72
+    ],
+    "Medical": [
+     19.6,
+     82
+    ],
+    "OS-FS": [
+     0.0,
+     45
+    ],
+    "Research": [
+     30.2,
+     40
+    ],
+    "Telecom": [
+     9.8,
+     77
+    ],
+    "Travel": [
+     19.0,
+     25
+    ],
+    "Windows": [
+     15.0,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     6.3,
+     57
+    ]
+   },
+   "googleadk|gemini-3-pro-preview|indirect": {
+    "Browser": [
+     62.2,
+     34
+    ],
+    "CRM": [
+     69.9,
+     14
+    ],
+    "CS": [
+     75.1,
+     19
+    ],
+    "Code": [
+     77.9,
+     29
+    ],
+    "Finance": [
+     60.0,
+     63
+    ],
+    "Legal": [
+     56.3,
+     71
+    ],
+    "Medical": [
+     49.1,
+     81
+    ],
+    "OS-FS": [
+     59.5,
+     44
+    ],
+    "Research": [
+     16.2,
+     39
+    ],
+    "Telecom": [
+     54.7,
+     76
+    ],
+    "Travel": [
+     84.2,
+     24
+    ],
+    "Windows": [
+     13.9,
+     49
+    ],
+    "Workflow": [
+     65.9,
+     9
+    ],
+    "macOS": [
+     34.6,
+     56
+    ]
+   },
+   "openaisdk|gpt-5.1|benign": {
+    "Browser": [
+     79.2,
+     33
+    ],
+    "CRM": [
+     65.5,
+     13
+    ],
+    "CS": [
+     87.5,
+     18
+    ],
+    "Code": [
+     93.2,
+     28
+    ],
+    "Finance": [
+     94.0,
+     62
+    ],
+    "Legal": [
+     87.2,
+     70
+    ],
+    "Medical": [
+     52.8,
+     80
+    ],
+    "OS-FS": [
+     74.5,
+     43
+    ],
+    "Research": [
+     90.0,
+     38
+    ],
+    "Telecom": [
+     68.2,
+     75
+    ],
+    "Travel": [
+     89.2,
+     23
+    ],
+    "Windows": [
+     71.2,
+     48
+    ],
+    "Workflow": [
+     79.2,
+     8
+    ],
+    "macOS": [
+     70.5,
+     55
+    ]
+   },
+   "openaisdk|gpt-5.2|benign": {
+    "Browser": [
+     55.6,
+     33
+    ],
+    "CRM": [
+     72.7,
+     13
+    ],
+    "CS": [
+     91.3,
+     18
+    ],
+    "Code": [
+     93.6,
+     28
+    ],
+    "Finance": [
+     97.7,
+     62
+    ],
+    "Legal": [
+     85.7,
+     70
+    ],
+    "Medical": [
+     66.3,
+     80
+    ],
+    "OS-FS": [
+     80.0,
+     43
+    ],
+    "Research": [
+     94.5,
+     38
+    ],
+    "Telecom": [
+     71.8,
+     75
+    ],
+    "Travel": [
+     95.3,
+     23
+    ],
+    "Windows": [
+     74.6,
+     48
+    ],
+    "Workflow": [
+     76.4,
+     8
+    ],
+    "macOS": [
+     71.6,
+     55
+    ]
+   },
+   "openaisdk|gpt-5.2|direct": {
+    "Browser": [
+     20.3,
+     36
+    ],
+    "CRM": [
+     83.3,
+     16
+    ],
+    "CS": [
+     70.2,
+     21
+    ],
+    "Code": [
+     62.5,
+     31
+    ],
+    "Finance": [
+     51.5,
+     65
+    ],
+    "Legal": [
+     59.5,
+     73
+    ],
+    "Medical": [
+     71.1,
+     83
+    ],
+    "OS-FS": [
+     83.6,
+     46
+    ],
+    "Research": [
+     63.2,
+     41
+    ],
+    "Telecom": [
+     60.7,
+     78
+    ],
+    "Travel": [
+     42.9,
+     26
+    ],
+    "Windows": [
+     44.6,
+     51
+    ],
+    "Workflow": [
+     69.1,
+     11
+    ],
+    "macOS": [
+     40.4,
+     58
+    ]
+   },
+   "openaisdk|gpt-5.2|direct_baseline": {
+    "Browser": [
+     1.2,
+     35
+    ],
+    "CRM": [
+     2.2,
+     15
+    ],
+    "CS": [
+     1.7,
+     20
+    ],
+    "Code": [
+     27.5,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     5.0,
+     72
+    ],
+    "Medical": [
+     27.9,
+     82
+    ],
+    "OS-FS": [
+     0.0,
+     45
+    ],
+    "Research": [
+     37.7,
+     40
+    ],
+    "Telecom": [
+     11.1,
+     77
+    ],
+    "Travel": [
+     6.7,
+     25
+    ],
+    "Windows": [
+     17.5,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     6.3,
+     57
+    ]
+   },
+   "openaisdk|gpt-5.2|indirect": {
+    "Browser": [
+     24.8,
+     34
+    ],
+    "CRM": [
+     66.4,
+     14
+    ],
+    "CS": [
+     53.9,
+     19
+    ],
+    "Code": [
+     79.3,
+     29
+    ],
+    "Finance": [
+     40.4,
+     63
+    ],
+    "Legal": [
+     66.2,
+     71
+    ],
+    "Medical": [
+     47.2,
+     81
+    ],
+    "OS-FS": [
+     44.3,
+     44
+    ],
+    "Research": [
+     7.0,
+     39
+    ],
+    "Telecom": [
+     43.3,
+     76
+    ],
+    "Travel": [
+     66.7,
+     24
+    ],
+    "Windows": [
+     13.0,
+     49
+    ],
+    "Workflow": [
+     63.1,
+     9
+    ],
+    "macOS": [
+     38.8,
+     56
+    ]
+   },
+   "openaisdk|gpt-5.4|benign": {
+    "Browser": [
+     77.1,
+     33
+    ],
+    "CRM": [
+     78.8,
+     13
+    ],
+    "CS": [
+     89.7,
+     18
+    ],
+    "Code": [
+     98.5,
+     28
+    ],
+    "Finance": [
+     96.6,
+     62
+    ],
+    "Legal": [
+     90.5,
+     70
+    ],
+    "Medical": [
+     86.1,
+     80
+    ],
+    "OS-FS": [
+     85.7,
+     43
+    ],
+    "Research": [
+     95.0,
+     38
+    ],
+    "Telecom": [
+     71.8,
+     75
+    ],
+    "Travel": [
+     90.6,
+     23
+    ],
+    "Windows": [
+     77.5,
+     48
+    ],
+    "Workflow": [
+     79.8,
+     8
+    ],
+    "macOS": [
+     76.0,
+     55
+    ]
+   },
+   "openaisdk|gpt-5.4|direct": {
+    "Browser": [
+     29.2,
+     36
+    ],
+    "CRM": [
+     67.8,
+     16
+    ],
+    "CS": [
+     64.7,
+     21
+    ],
+    "Code": [
+     62.5,
+     31
+    ],
+    "Finance": [
+     30.5,
+     65
+    ],
+    "Legal": [
+     54.0,
+     73
+    ],
+    "Medical": [
+     60.4,
+     83
+    ],
+    "OS-FS": [
+     84.0,
+     46
+    ],
+    "Research": [
+     54.1,
+     41
+    ],
+    "Telecom": [
+     38.5,
+     78
+    ],
+    "Travel": [
+     32.4,
+     26
+    ],
+    "Windows": [
+     47.9,
+     51
+    ],
+    "Workflow": [
+     57.6,
+     11
+    ],
+    "macOS": [
+     30.4,
+     58
+    ]
+   },
+   "openaisdk|gpt-5.4|direct_baseline": {
+    "Browser": [
+     1.2,
+     35
+    ],
+    "CRM": [
+     4.4,
+     15
+    ],
+    "CS": [
+     4.2,
+     20
+    ],
+    "Code": [
+     34.2,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     3.5,
+     72
+    ],
+    "Medical": [
+     15.1,
+     82
+    ],
+    "OS-FS": [
+     0.0,
+     45
+    ],
+    "Research": [
+     27.5,
+     40
+    ],
+    "Telecom": [
+     7.2,
+     77
+    ],
+    "Travel": [
+     7.6,
+     25
+    ],
+    "Windows": [
+     20.0,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     4.2,
+     57
+    ]
+   },
+   "openaisdk|gpt-5.4|indirect": {
+    "Browser": [
+     42.9,
+     34
+    ],
+    "CRM": [
+     53.8,
+     14
+    ],
+    "CS": [
+     54.7,
+     19
+    ],
+    "Code": [
+     62.2,
+     29
+    ],
+    "Finance": [
+     35.9,
+     63
+    ],
+    "Legal": [
+     58.1,
+     71
+    ],
+    "Medical": [
+     37.5,
+     81
+    ],
+    "OS-FS": [
+     37.5,
+     44
+    ],
+    "Research": [
+     14.2,
+     39
+    ],
+    "Telecom": [
+     20.8,
+     76
+    ],
+    "Travel": [
+     55.0,
+     24
+    ],
+    "Windows": [
+     10.6,
+     49
+    ],
+    "Workflow": [
+     50.8,
+     9
+    ],
+    "macOS": [
+     26.7,
+     56
+    ]
+   },
+   "openaisdk|gpt-oss-120b|benign": {
+    "Browser": [
+     25.0,
+     33
+    ],
+    "CRM": [
+     4.2,
+     13
+    ],
+    "CS": [
+     77.1,
+     18
+    ],
+    "Finance": [
+     12.8,
+     62
+    ],
+    "Legal": [
+     9.7,
+     70
+    ],
+    "Medical": [
+     35.8,
+     80
+    ],
+    "OS-FS": [
+     61.7,
+     43
+    ],
+    "Telecom": [
+     65.0,
+     75
+    ],
+    "Travel": [
+     0.0,
+     23
+    ],
+    "Windows": [
+     67.9,
+     48
+    ],
+    "macOS": [
+     12.0,
+     55
+    ]
+   },
+   "openaisdk|gpt-oss-120b|direct": {
+    "Browser": [
+     10.0,
+     36
+    ],
+    "CRM": [
+     38.9,
+     16
+    ],
+    "CS": [
+     31.2,
+     21
+    ],
+    "Code": [
+     60.0,
+     31
+    ],
+    "Finance": [
+     37.8,
+     65
+    ],
+    "Legal": [
+     60.5,
+     73
+    ],
+    "Medical": [
+     61.3,
+     83
+    ],
+    "OS-FS": [
+     70.0,
+     46
+    ],
+    "Research": [
+     55.8,
+     41
+    ],
+    "Telecom": [
+     56.0,
+     78
+    ],
+    "Travel": [
+     54.3,
+     26
+    ],
+    "Windows": [
+     33.3,
+     51
+    ],
+    "Workflow": [
+     61.7,
+     11
+    ],
+    "macOS": [
+     20.0,
+     58
+    ]
+   },
+   "openaisdk|gpt-oss-120b|direct_baseline": {
+    "Browser": [
+     0.0,
+     35
+    ],
+    "CRM": [
+     11.1,
+     15
+    ],
+    "CS": [
+     0.0,
+     20
+    ],
+    "Code": [
+     27.5,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     17.5,
+     72
+    ],
+    "Medical": [
+     23.3,
+     82
+    ],
+    "OS-FS": [
+     0.0,
+     45
+    ],
+    "Research": [
+     30.6,
+     40
+    ],
+    "Telecom": [
+     0.9,
+     77
+    ],
+    "Travel": [
+     32.4,
+     25
+    ],
+    "Windows": [
+     10.8,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     2.1,
+     57
+    ]
+   },
+   "openaisdk|gpt-oss-120b|indirect": {
+    "Browser": [
+     41.3,
+     34
+    ],
+    "CRM": [
+     9.3,
+     14
+    ],
+    "CS": [
+     21.4,
+     19
+    ],
+    "Code": [
+     15.7,
+     29
+    ],
+    "Finance": [
+     33.6,
+     63
+    ],
+    "Legal": [
+     30.9,
+     71
+    ],
+    "Medical": [
+     62.1,
+     81
+    ],
+    "OS-FS": [
+     32.8,
+     44
+    ],
+    "Research": [
+     17.3,
+     39
+    ],
+    "Telecom": [
+     53.1,
+     76
+    ],
+    "Travel": [
+     40.8,
+     24
+    ],
+    "Windows": [
+     14.7,
+     49
+    ],
+    "Workflow": [
+     7.2,
+     9
+    ],
+    "macOS": [
+     18.3,
+     56
+    ]
+   },
+   "openclaw|claude-opus-4-6|benign": {
+    "Browser": [
+     97.2,
+     33
+    ],
+    "CRM": [
+     82.4,
+     13
+    ],
+    "CS": [
+     90.9,
+     18
+    ],
+    "Code": [
+     100.0,
+     28
+    ],
+    "Finance": [
+     92.9,
+     62
+    ],
+    "Legal": [
+     94.0,
+     70
+    ],
+    "Medical": [
+     69.3,
+     80
+    ],
+    "OS-FS": [
+     78.7,
+     43
+    ],
+    "Research": [
+     96.0,
+     38
+    ],
+    "Telecom": [
+     65.5,
+     75
+    ],
+    "Travel": [
+     89.4,
+     23
+    ],
+    "Windows": [
+     75.4,
+     48
+    ],
+    "Workflow": [
+     91.5,
+     8
+    ],
+    "macOS": [
+     81.3,
+     55
+    ]
+   },
+   "openclaw|claude-opus-4-6|direct": {
+    "Browser": [
+     10.2,
+     36
+    ],
+    "CRM": [
+     11.1,
+     16
+    ],
+    "CS": [
+     17.9,
+     21
+    ],
+    "Code": [
+     33.2,
+     31
+    ],
+    "Finance": [
+     4.0,
+     65
+    ],
+    "Legal": [
+     22.5,
+     73
+    ],
+    "Medical": [
+     50.7,
+     83
+    ],
+    "OS-FS": [
+     24.2,
+     46
+    ],
+    "Research": [
+     28.7,
+     41
+    ],
+    "Telecom": [
+     31.8,
+     78
+    ],
+    "Travel": [
+     5.7,
+     26
+    ],
+    "Windows": [
+     27.5,
+     51
+    ],
+    "Workflow": [
+     22.1,
+     11
+    ],
+    "macOS": [
+     14.2,
+     58
+    ]
+   },
+   "openclaw|claude-opus-4-6|direct_baseline": {
+    "Browser": [
+     0.0,
+     35
+    ],
+    "CRM": [
+     0.0,
+     15
+    ],
+    "CS": [
+     0.0,
+     20
+    ],
+    "Code": [
+     16.0,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     3.0,
+     72
+    ],
+    "Medical": [
+     14.2,
+     82
+    ],
+    "Research": [
+     21.2,
+     40
+    ],
+    "Telecom": [
+     12.2,
+     77
+    ],
+    "Travel": [
+     1.9,
+     25
+    ],
+    "Windows": [
+     13.3,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     0.0,
+     57
+    ]
+   },
+   "openclaw|claude-opus-4-6|indirect": {
+    "Browser": [
+     0.0,
+     34
+    ],
+    "CRM": [
+     7.2,
+     14
+    ],
+    "CS": [
+     5.7,
+     19
+    ],
+    "Code": [
+     29.3,
+     29
+    ],
+    "Finance": [
+     1.7,
+     63
+    ],
+    "Legal": [
+     12.5,
+     71
+    ],
+    "Medical": [
+     22.9,
+     81
+    ],
+    "OS-FS": [
+     3.1,
+     44
+    ],
+    "Research": [
+     1.5,
+     39
+    ],
+    "Telecom": [
+     19.9,
+     76
+    ],
+    "Travel": [
+     5.8,
+     24
+    ],
+    "Windows": [
+     5.6,
+     49
+    ],
+    "Workflow": [
+     18.3,
+     9
+    ],
+    "macOS": [
+     16.7,
+     56
+    ]
+   },
+   "openclaw|gpt-5.2|benign": {
+    "Browser": [
+     56.9,
+     33
+    ],
+    "CRM": [
+     75.2,
+     13
+    ],
+    "CS": [
+     89.1,
+     18
+    ],
+    "Code": [
+     91.1,
+     28
+    ],
+    "Finance": [
+     92.8,
+     62
+    ],
+    "Legal": [
+     90.9,
+     70
+    ],
+    "Medical": [
+     68.4,
+     80
+    ],
+    "OS-FS": [
+     78.6,
+     43
+    ],
+    "Research": [
+     95.0,
+     38
+    ],
+    "Telecom": [
+     75.5,
+     75
+    ],
+    "Travel": [
+     91.4,
+     23
+    ],
+    "Windows": [
+     58.1,
+     48
+    ],
+    "Workflow": [
+     61.0,
+     8
+    ],
+    "macOS": [
+     74.5,
+     55
+    ]
+   },
+   "openclaw|gpt-5.2|direct": {
+    "Browser": [
+     22.8,
+     36
+    ],
+    "CRM": [
+     67.8,
+     16
+    ],
+    "CS": [
+     61.4,
+     21
+    ],
+    "Code": [
+     32.9,
+     31
+    ],
+    "Finance": [
+     26.0,
+     65
+    ],
+    "Legal": [
+     51.5,
+     73
+    ],
+    "Medical": [
+     43.1,
+     83
+    ],
+    "OS-FS": [
+     33.7,
+     46
+    ],
+    "Research": [
+     58.7,
+     41
+    ],
+    "Telecom": [
+     41.8,
+     78
+    ],
+    "Travel": [
+     12.4,
+     26
+    ],
+    "Windows": [
+     31.7,
+     51
+    ],
+    "Workflow": [
+     30.9,
+     11
+    ],
+    "macOS": [
+     26.2,
+     58
+    ]
+   },
+   "openclaw|gpt-5.2|direct_baseline": {
+    "Browser": [
+     0.0,
+     35
+    ],
+    "CRM": [
+     4.4,
+     15
+    ],
+    "CS": [
+     1.7,
+     20
+    ],
+    "Code": [
+     0.6,
+     30
+    ],
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     8.5,
+     72
+    ],
+    "Medical": [
+     10.8,
+     82
+    ],
+    "Research": [
+     34.3,
+     40
+    ],
+    "Telecom": [
+     19.6,
+     77
+    ],
+    "Travel": [
+     6.7,
+     25
+    ],
+    "Windows": [
+     13.3,
+     50
+    ],
+    "Workflow": [
+     0.0,
+     10
+    ],
+    "macOS": [
+     2.1,
+     57
+    ]
+   },
+   "openclaw|gpt-5.2|indirect": {
+    "Browser": [
+     27.6,
+     34
+    ],
+    "CRM": [
+     50.9,
+     14
+    ],
+    "CS": [
+     51.7,
+     19
+    ],
+    "Code": [
+     65.3,
+     29
+    ],
+    "Finance": [
+     26.2,
+     63
+    ],
+    "Legal": [
+     65.0,
+     71
+    ],
+    "Medical": [
+     48.2,
+     81
+    ],
+    "OS-FS": [
+     20.0,
+     44
+    ],
+    "Research": [
+     5.8,
+     39
+    ],
+    "Telecom": [
+     42.3,
+     76
+    ],
+    "Travel": [
+     32.5,
+     24
+    ],
+    "Windows": [
+     9.6,
+     49
+    ],
+    "Workflow": [
+     26.1,
+     9
+    ],
+    "macOS": [
+     26.7,
+     56
+    ]
+   },
+   "openclaw|gpt-5.4|benign": {
+    "Finance": [
+     96.7,
+     62
+    ],
+    "Legal": [
+     86.9,
+     70
+    ]
+   },
+   "openclaw|gpt-5.4|direct": {
+    "Finance": [
+     18.5,
+     65
+    ],
+    "Legal": [
+     42.0,
+     73
+    ]
+   },
+   "openclaw|gpt-5.4|direct_baseline": {
+    "Finance": [
+     0.0,
+     64
+    ],
+    "Legal": [
+     5.0,
+     72
+    ]
+   },
+   "openclaw|gpt-5.4|indirect": {
+    "Finance": [
+     34.9,
+     63
+    ],
+    "Legal": [
+     59.1,
+     71
+    ]
+   }
+  }
+ },
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-checker (desk sources only, no raw data)",
+  "corrections": [
+   "Overall = unweighted mean of 14 domains holds to 0.06 pp, not 0.05 pp (Claude Code Sonnet-4.5 direct 26.84 vs 26.9), https://arxiv.org/html/2605.04808v1 Table 3",
+   "Direct-baseline arms missing for 10 domains (Tables 10,15,20,25,30,35,40,45,57,77), not 11 (prereg §3)",
+   "GitHub repo: 35 commits = 31 release syncs + 1 PR merge + 3 direct commits, not all syncs, https://api.github.com/repos/AI-secure/DecodingTrust-Agent/commits"
+  ],
+  "confirmed": "all Table 3/4 values; all 465 paper_domain_values against appendix Overall columns; Opus macros; Tables 64/72/50/82; HF shas, commit counts, card sha256, LFS oids/sizes, no discussions, no LICENSE/NOTICE; GitHub licence and issues #11 #14 #19 #21 #23 #24; PyPI dates; census c01e/c19 figures"
+ }
+}

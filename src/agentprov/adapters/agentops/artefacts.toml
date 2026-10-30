@@ -1,0 +1,308 @@
+# Artefact catalogue `agentops` (docs/architecture D.18.11, D.15.2; DECISIONS D-199). Data, not code.
+#
+# Every source-data problem of the AgentOps-Bench pilot found by the phase-10i census, with the rule that detects it,
+# how it is recorded and its handling class (D.15.1). The `expected` counts are the census's for the pinned snapshot,
+# counted on the in-scope part (D-143) unless the unit says otherwise; they stay `unverified` until a full import of the
+# part confirms them (D.15.6): a regression expectation, never a gate.
+#
+# Claims are specific (as for dtap, sample check §9.1 b1): an entry claims a safety-net finding only through a rule,
+# `claims` item or issue code of its own case. Cases no AER field read by the net carries (the scope selection, non-run
+# members, the superseded copies, the tar container) name a `reserved` detector rule of the agentops catalogue, so they
+# claim nothing; the account path in tool output is redacted and claimed by its issue (D-608). The version stays 1: nothing is released.
+
+version = 1
+family = "agentops"
+namespaces = ["agentops"]
+
+[[artefact]]
+id = "agentops.art.out_of_scope_runs"
+title = "Runs outside the in-scope part"
+description = "The clean and noisy runs of the code, data_analysis, research and tool_use domains are outside the corpus scope (D-143): excluded by the profile's globs and registered select.out_of_scope, never mapped or dropped silently."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.scope_selection@1", class = "D" }
+handling = { class = "FO", rule = "agentops.scope_selection@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 3842, basis = "phase-10i census: 3,840 cells plus the 2 superseded copies", unit = "files", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-143, D-191", "docs/reports/phase10i/README.md §3.2"]
+
+[[artefact]]
+id = "agentops.art.non_execution_members"
+title = "Members that are not runs"
+description = "Per-model rollups (*_report.json), the renamed part-2 rollup and the _combined analysis tables are select.not_execution_artefact; macOS AppleDouble members (._*) are runner strays; the 7 symlinks of _combined are ingest rejections. The rollups repeat the runs' traces and add reliability and recovery scores, which profile version 1 does not join."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.non_execution_member@1", class = "D" }
+handling = { class = "FO", rule = "agentops.non_execution_member@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 7291, basis = "phase-10i census: 7,270 AppleDouble, 14 side files, 7 symlinks", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.1"]
+
+[[artefact]]
+id = "agentops.art.superseded_part1_copies"
+title = "Two discarded part-1 Opus runs"
+description = "Opus 4.7 ran in two parts; the deposit's merge kept part 2's clean/research_011 runs 1 and 2 and discarded part 1's (different bytes). Both copies are out of scope; a widened scope would record superseded_by."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.superseded_copy@1", class = "D" }
+handling = { class = "FO", rule = "agentops.superseded_copy@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 2, basis = "phase-10i census (all files; 0 in scope)", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.2"]
+
+[[artefact]]
+id = "agentops.art.tar_pax_container"
+title = "Top-level gzip tar with pax headers"
+description = "The runs are members of a top-level gzip tar whose 7,270 pax extended headers (macOS xattrs) the bounded tar reader refuses; routed to phase 12 (D-192), no import until it reads them."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.pax_tar_container@1", class = "D" }
+handling = { class = "FO", rule = "agentops.pax_tar_container@1" }
+manuscript = false
+refs = ["DECISIONS D-192", "docs/reports/phase10i/README.md §2"]
+
+[[artefact]]
+id = "agentops.art.account_path_tool_output"
+title = "Third-party account path in tool output (security)"
+description = "Security finding (pre-check PC-agentops-bench-01, CC-11): run_python output (result text, stdout, stderr) names a third-party macOS workstation account in a /Users/<account>/ path; it is not the operator's (D-199's label was wrong). D-608 (principle D-604; amends D-199 and D-186 (c) for this source): the AER replaces the /Users/<account> prefix by a salted label in tool output only (agentops.value_redacted, info issue), model text stays verbatim, and the raw objects that hold the path (13 selected run objects and the tar, which also holds 29 unselected members with it) are withheld at object scope (personal_data); no execution is withheld. Never printed in reports and never in a fixture."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.value_redacted@1", class = "D" }
+recorded_as = { issues = ["agentops.value_redacted"] }
+handling = { class = "CR", rule = "agentops.value_redacted@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 13, basis = "D-608 census: 13 in-scope run files (42 raw files in all: 36 run files and 6 rollups)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-608", "DECISIONS D-604", "DECISIONS D-199", "docs/reports/precheck/agentops-bench.md §7", "docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.empty_trace"
+title = "Empty trace"
+description = "steps: [] after the first model call failed (API error): an outcome_only unit (no_execution_observed), no step invented, the recorded scores kept."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "provider"
+detector = { rule = "agentops.empty_trace@1", class = "D" }
+recorded_as = { issues = ["agentops.empty_trace", "no_execution_observed"] }
+claims = ["artefact.generic.empty_execution#outcome_only"]
+handling = { class = "CR", rule = "agentops.empty_trace@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 101, basis = "phase-10i census (162 in all)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10i/README.md §3.3", "DECISIONS D-198"]
+
+[[artefact]]
+id = "agentops.art.run_error"
+title = "Run ended in error"
+description = "trace.error is set: provider API errors (181 rate limits, all qwen3-max; 5 provider errors), the Anthropic adapter's refusal loop guard (25) or the timeout (5). The run scope gets status error and the text is kept verbatim; the run was scored anyway."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "provider"
+detector = { rule = "agentops.run_error@1", class = "D" }
+recorded_as = { issues = ["agentops.run_error", "incomplete_run"] }
+handling = { class = "FO", rule = "agentops.run_error@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 133, basis = "phase-10i census (216 in all)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.iteration_limit"
+title = "Run stopped at the iteration cap"
+description = "A run with steps that neither completed nor recorded an error: read as the adapters' 25-iteration cap (status limit, class I)."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.iteration_cap_unverified@1", class = "I" }
+recorded_as = { issues = ["agentops.iteration_limit", "incomplete_run"] }
+handling = { class = "FO", rule = "agentops.iteration_cap_unverified@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 0, basis = "phase-10i census (1 in all, out of scope)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.fault_injection"
+title = "Fabricated tool failure"
+description = "A result with injected_failure (http_500, timeout, empty_response, malformed_json, rate_limit) was fabricated by the harness without running the tool: a harness decision (verdict other, subtype agentops.fault_injection) generates the result, no tool execution, the call unexecuted; the constant latency is never a duration."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.fault_injection_unverified@1", class = "I" }
+recorded_as = { issues = ["unexecuted_tool_call"] }
+claims = ["artefact.generic.unexecuted_call"]
+handling = { class = "CR", rule = "agentops.fault_injection_unverified@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 715, basis = "phase-10i census (2,093 in all)", unit = "tool_results", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-196", "docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.payload_injection"
+title = "Payload appended to a tool output"
+description = "A result with injected_payload: the tool ran and the harness's injector appended the payload; an attacker decision (verdict modify) generates the delivered result, the payload is an injection_payload fixture and SEM marks it present with its span."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.payload_injection_unverified@1", class = "I" }
+recorded_as = { sem = ["injection_marker", "author"] }
+handling = { class = "CR", rule = "agentops.payload_suffix@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 2011, basis = "phase-10i census (all in scope; 1,373 runs)", unit = "tool_results", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-196", "docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.injector_did_not_fire"
+title = "Adversarial run without a payload"
+description = "The injector of the adversarial condition fires at random (seeded per cell); in 1,027 adversarial runs no payload was injected, so no payload fixture or marker exists. The attack was armed (attack_id adversarial, class I) but did not reach the agent."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.adversarial_condition_unverified@1", class = "I" }
+claims = ["artefact.generic.payload_not_reaching_agent"]
+handling = { class = "FO", rule = "agentops.adversarial_condition_unverified@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 1027, basis = "phase-10i census (injections_present 0 in adversarial runs)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.repeated_tool_names"
+title = "Step with repeated tool names"
+description = "Several calls of one step name the same tool, so only the array index pairs calls and results (agentops.pair_by_index_unverified@1, guarded by the names): linked and disclosed."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.pair_by_index_unverified@1", class = "I" }
+recorded_as = { issues = ["agentops.repeated_tool_names"] }
+handling = { class = "FO", rule = "agentops.pair_by_index_unverified@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 437, basis = "phase-10i census (1,391 in all)", unit = "steps", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-193", "docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.no_call_ids"
+title = "No call ids"
+description = "The providers' call ids are used in the harness's conversation but never written: no provider_call_id is written (never synthesised) and results are paired by index (class I)."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "artefact.generic.provider_id_anomaly", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly#absent"]
+handling = { class = "NR" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 5651, basis = "phase-10i census (14,328 in all)", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.derived_model_calls"
+title = "Model calls derived from steps"
+description = "No model call is logged as such: each step is read as one model call (class I), so the core check aer.acc.agent_calls_vs_assistant is unverifiable by design."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.step_is_one_model_call_unverified@1", class = "I" }
+claims = ["artefact.generic.accounting_unverifiable#aer.acc.agent_calls_vs_assistant@1"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-193"]
+
+[[artefact]]
+id = "agentops.art.event_times_not_recorded"
+title = "Only call timestamps are logged"
+description = "Runs, steps, results and judgements carry no time; each call's timestamp is kept verbatim in t.raw.start with the typed start ambiguous (class I reading); durations state no clock (t.dur_s ambiguous). Nothing is invented."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.call_timestamp_is_dispatch_unverified@1", class = "I" }
+claims = ["artefact.generic.sentinel_time#unknown_not_recorded", "artefact.generic.sentinel_time#unknown_ambiguous"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-197"]
+
+[[artefact]]
+id = "agentops.art.user_message_not_logged"
+title = "No user or system message"
+description = "The task prompt and the system prompt are not in the run file: the joined task prompt is a fixture, no message is invented, and model-call inputs cover logged messages only."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.user_message_not_logged@1", class = "D" }
+recorded_as = { issues = ["agentops.user_message_not_logged"] }
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-194"]
+
+[[artefact]]
+id = "agentops.art.safety_default"
+title = "Safety score written without evaluation"
+description = "When a run has no step or no injected payload, the safety scorer returns constants (overall 1.0) without evaluating: origin harness_default, no outcome annotation."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.safety_default_unverified@1", class = "I" }
+claims = ["artefact.generic.harness_imposed_outcome#harness_default"]
+handling = { class = "CR", rule = "agentops.safety_default_unverified@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 1987, basis = "phase-10i census: 3,360 in-scope runs minus 1,373 with a payload", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-198"]
+
+[[artefact]]
+id = "agentops.art.unlisted_tool_name"
+title = "Call to a tool the server does not offer"
+description = "A call names a tool outside the server's ten (example_function_name 5 times; once a JSON search result as the name): kept verbatim, role unknown, answered by the server's Unknown tool error."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "provider"
+detector = { rule = "agentops.unlisted_tool_name@1", class = "D" }
+recorded_as = { issues = ["agentops.unlisted_tool_name"] }
+handling = { class = "FO", rule = "agentops.unlisted_tool_name@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 5, basis = "phase-10i census (6 in all)", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.dispatch_error_result"
+title = "Tool result is a dispatch error"
+description = "A result string beginning 'Error: ': no replay fixture for a web_search query (fixture-only mode), a path outside the workdir, missing arguments, a directory read. Kept verbatim; the execution status is never inferred from it."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.dispatch_error_text@1", class = "D" }
+recorded_as = { issues = ["agentops.dispatch_error_result"] }
+handling = { class = "FO", rule = "agentops.dispatch_error_text@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 182, basis = "phase-10i census (391 in all)", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.label_field_mismatch"
+title = "Label and record disagree"
+description = "A member label's condition, task, run or model directory differs from the in-record fields: recorded and never corrected. None in the pinned snapshot."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "benchmark"
+detector = { rule = "agentops.label_facets@1", class = "D" }
+recorded_as = { issues = ["agentops.label_field_mismatch"] }
+handling = { class = "FO", rule = "agentops.label_facets@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 0, basis = "phase-10i census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.2"]
+
+[[artefact]]
+id = "agentops.art.final_output_differs"
+title = "Final output differs from the last text"
+description = "trace.final_output is not the last step's text: recorded. None in the pinned snapshot."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.final_output_copy@1", class = "D" }
+recorded_as = { issues = ["agentops.final_output_differs"] }
+handling = { class = "FO", rule = "agentops.final_output_copy@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 0, basis = "phase-10i census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.payload_suffix_mismatch"
+title = "Payload not at the end of its result"
+description = "A result with injected_payload whose text does not end with two newlines and the payload: recorded, no offset written. None in the pinned snapshot."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "upstream_harness"
+detector = { rule = "agentops.payload_suffix@1", class = "D" }
+recorded_as = { issues = ["agentops.payload_suffix_mismatch"] }
+handling = { class = "FO", rule = "agentops.payload_suffix@1" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 0, basis = "phase-10i census", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §3.3"]
+
+[[artefact]]
+id = "agentops.art.text_encoded_call"
+title = "Suspected tool call written as text"
+description = "An assistant message without a tool_call part whose text looks like a call (a named call or a call marker): the model wrote it as text, the harness did not dispatch it, and nothing is re-parsed into a call (D.15.1). Heuristic, found by the generic detector in the phase-10i census map (D.18.12)."
+scope = { sources = ["agentops-bench"], profiles = ["agentops-bench-pilot"], parts = ["pilot-v1-seeded"] }
+cause = "provider"
+detector = { rule = "artefact.generic.text_encoded_call", class = "I" }
+claims = ["artefact.generic.text_encoded_call"]
+handling = { class = "FO" }
+expected = [{ snapshot = "agentops-bench:pilot-v1-seeded", count = 21, basis = "phase-10i census map: 21 findings (20 named_call, 1 marker) in at most 21 runs (heuristic; 43 more out of scope)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10i/README.md §9"]

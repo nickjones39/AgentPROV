@@ -1,0 +1,121 @@
+# Rule catalogue `cap` (docs/architecture: C.6.4, C.13.5, C.13.7, C.13.10; G.6.4; D.5.1-D.5.2).
+#
+# Data, not code: loaded through importlib.resources by the core (`agentprov.aer.rules.load_catalogue("cap",
+# package="agentprov_capture")`; the file lives in the capture distribution because the live backends write the
+# redactions it names). Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and
+# bumps `version`.
+#
+# `cap.context_alignment@1` is cited by the capture mapper when a model call carries no `input_at` (C.13.7).
+# `cap.secret.<kind>@1` are the rule ids of the `redactions` entries of C.13.5, one per kind of replacement the
+# writer performs (agentprov_capture.redact.KINDS). `issue_codes` lists the chain-verifier codes without the `cap.`
+# namespace (`cap.chain.<name>`; agentprov_capture.verify.ISSUE_CODES).
+
+[catalogue]
+id = "cap"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = [
+  "chain.empty",
+  "chain.bad_json",
+  "chain.not_jcs",
+  "chain.bad_type",
+  "chain.bad_envelope",
+  "chain.seq_gap",
+  "chain.prev_mismatch",
+  "chain.bad_first_event",
+  "chain.bad_second_event",
+  "chain.misplaced_event",
+  "chain.bad_session_start",
+  "chain.undeclared_actor",
+  "chain.bad_session_end",
+  "chain.n_events_mismatch",
+  "chain.after_end",
+  "chain.torn_tail",
+  "chain.unsealed",
+]
+subtypes = []
+types = []
+
+[[rule]]
+id = "cap.context_alignment"
+version = 1
+class = "D"
+status = "active"
+statement = "The input of a model call whose llm.request carries no input_at is the sequence of messages of the pass's native message dump (pass.end.messages, the prefix of length n_messages when recorded) that matches the messages of the decoded wire request one to one in order, each item equal to its recorded message or differing only by a declared sent transform. If no unique alignment exists the input is unknown (unk /input ambiguous). The rule never yields evidence class O (AD-SW23); its accounting check is aer.acc.agent_calls_vs_assistant@1 over the call's attempt."
+premises = ["/input", "/request"]
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.7", "docs/architecture/D_adapters.md D.10.3"]
+tests = ["tests/adapters/agentdojo/test_capture_mapping.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "cap.secret.env_value"
+version = 1
+class = "D"
+status = "active"
+statement = "A literal occurrence of the value of a secret environment variable passed into the worker (in its plain, JSON-escaped or percent-encoded spelling) was replaced by \"<redacted:secret>\" in a string of the event or in a blob (the G.6.4 literal-value scan)."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.5", "docs/architecture/G_security.md G.6.4"]
+tests = ["capture/tests/test_redact.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "cap.secret.file_value"
+version = 1
+class = "D"
+status = "active"
+statement = "A literal occurrence of a secret value read from --env-file or the repository-root .env by the live CLI entry (in its plain, JSON-escaped or percent-encoded spelling) was replaced by \"<redacted:secret>\" in a string of the event or in a blob (the G.6.4 literal-value scan)."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.5", "docs/architecture/G_security.md G.6.4"]
+tests = ["capture/tests/test_redact.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "cap.secret.pattern"
+version = 1
+class = "D"
+status = "active"
+statement = "On a non-content surface (header, URL, exception, traceback, stderr, environment) a key-shaped pattern (sk-..., AIza..., hf_..., gh?_..., xox?-..., AKIA..., PEM block) was replaced by \"<redacted:secret>\". It is never applied to message or tool content, where such a match is only flagged by a note of kind secret_pattern."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.5", "docs/architecture/G_security.md G.6.4"]
+tests = ["capture/tests/test_redact.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "cap.secret.url_component"
+version = 1
+class = "D"
+status = "active"
+statement = "On a non-content surface a URL inside the string lost its userinfo, query values and fragment (scheme, host, port, path and query-parameter names are kept), or an unparseable URL was replaced by \"<redacted:url>\"."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.5", "docs/architecture/G_security.md G.6.4"]
+tests = ["capture/tests/test_redact.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "cap.secret.home_path"
+version = 1
+class = "D"
+status = "active"
+statement = "On a non-content surface the user's home path was replaced by \"<home>\" (G.9.6)."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.5", "docs/architecture/G_security.md G.6.4, G.9.6"]
+tests = ["capture/tests/test_redact.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "cap.secret.host_name"
+version = 1
+class = "D"
+status = "active"
+statement = "On a non-content surface the host name was replaced by \"<host>\" (G.9.6)."
+premises = []
+assumptions = []
+evidence = ["docs/architecture/C_data_model.md C.13.5", "docs/architecture/G_security.md G.6.4, G.9.6"]
+tests = ["capture/tests/test_redact.py"]
+since = "0.1.0"

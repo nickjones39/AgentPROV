@@ -1,0 +1,8 @@
+import json, sys
+from pathlib import Path
+from agentprov.corpus.manifest import validate_manifest
+for d in sys.argv[1:]:
+    for m in Path(d).rglob("corpus.json"):
+        obj = json.loads(m.read_text())
+        print(m, obj["sources"][0]["snapshots"][0]["counts"])
+        for i in validate_manifest(obj): print("  ", i)

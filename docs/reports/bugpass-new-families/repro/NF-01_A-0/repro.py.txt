@@ -1,0 +1,36 @@
+from agentprov.adapters.registry import get_source, REGISTRY
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import importer
+import inspect
+ids = set()
+try:
+    ids = {s.source_id for s in REGISTRY} if not isinstance(REGISTRY, dict) else set(REGISTRY)
+except Exception as e:
+    print("reg", e)
+print("agentdojo-upstream registered source id?", "agentdojo-upstream" in ids, "agentdojo?", "agentdojo" in ids)
+try:
+    get_source("agentdojo-upstream"); print("get_source ok")
+except KeyError as e:
+    print("KeyError", e)
+cls = next(c for _, c in inspect.getmembers(importer, inspect.isclass) if "_owner" in c.__dict__)
+print(cls.__name__)
+print(cls._owner({"owner": "agentdojo-upstream"}))
+print(cls._owner({"owner": "agentdojo"}))
+# scan all profiles
+import pathlib
+bad = []
+for p in sorted(pathlib.Path("src/agentprov/adapters").glob("*/profiles/*.profile.toml")):
+    pid = p.name.removesuffix(".profile.toml")
+    try:
+        d = load_profile(pid).data
+    except Exception as e:
+        print("load fail", pid, e); continue
+    for e in d.get("import", {}).get("exclude", []):
+        o = e.get("owner")
+        if o and not o.startswith("ext:") and o not in ids:
+            bad.append((pid, "exclude", e["glob"], o))
+    for e in d.get("lineage", {}).get("duplicates", []):
+        for k in ("of", "owner"):
+            if e[k] not in ids and not e[k].startswith("ext:"):
+                bad.append((pid, "lineage." + k, e["path"], e[k]))
+for b in bad: print("UNREGISTERED", b)

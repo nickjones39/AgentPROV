@@ -1,0 +1,336 @@
+# Source profile `mcphunt`: MCPHunt agent traces (HF lihaonan0716/mcphunt-agent-traces @ c4c69322bf9e; docs/architecture
+# D.21; DECISIONS D-286..D-289; docs/reports/phase10m/ part B).
+#
+# Data, not code. No status lives here: the registry is the only status store. Any byte change bumps `version`
+# (AD-18); nothing is released yet, so it is still 1. [family.mcphunt] is checked against ../family.schema.json.
+#
+# 6,786 traces in 20 documents: main 3,615 (5 models x 723), mitigation 2,706 (prompt mitigation M0-M3), live-guard 387
+# and browser replication 78 (the runtime taint guard and its baseline). One execution per trace (D-286): the runner
+# streams each document and maps one unit per element of /traces (D-323, RB-1), under the raised element limit of
+# [import] limits (D-288; D-323, RB-2); tool results over 1 MiB are carved from the trace's byte range (D-218, RB-3).
+# The environments plant synthetic credentials: executions with a canary-flagged event are withheld by the issue rule
+# (D-289, RW-1/D-311), and the [withhold] shape patterns below are the backstop scan (scope object: the trace documents
+# stay private, unflagged executions stay releasable).
+
+[profile]
+id = "mcphunt"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "mcphunt"
+family = "mcphunt"
+parts = ["head"]
+title = "MCPHunt agent traces: cross-boundary data propagation in multi-server MCP agents (HF lihaonan0716/mcphunt-agent-traces)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.11", "docs/reports/phase10m/README.md"]
+
+[source]
+canonical_repo = "https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces"
+paper = "MCPHunt: An Evaluation Framework for Cross-Boundary Data Propagation in Multi-Server MCP Agents (Li, Sun, Wang, Zhang, 2026; arXiv:2604.27819)"
+package = { name = "mcphunt", requirement = "pipeline commits ffd333b, 4b85018, 1b7e3c2, 1e188b8 (7-hex, from the documents); producing code not in the dataset", version_identifies_code = false }
+
+[[source.pins]]
+role = "runs"
+part = "head"
+kind = "git"
+repo = "https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces"
+commit = "c4c69322bf9ed7690f5265577365709dad5dd454"
+date = "2026-10-12"
+primary = true
+note = "32 files, 593,477,795 B; 20 trace documents (15 of them Git LFS objects, pinned below); fetched 2026-10-13 with the user's yes"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "live_guard_defense/deepseek_v4_flash.json"
+sha256 = "c5b5c4152560863815ec48da841a7e3758ff27b410ca70df655f1d2d95e204ba"
+bytes = 56217273
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "main/MiniMax_M2_7.json"
+sha256 = "66462168e7f273385d9371ea99807ef9f0bca9b76752f6da3af47e424aee621f"
+bytes = 32301449
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "main/deepseek_v4_flash.json"
+sha256 = "3379923a5f675eef4be9e486360f0068c678736d86fdd039c19123402681a025"
+bytes = 110851232
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "main/gemini_3_1_pro_preview.json"
+sha256 = "f4422118dfe0e0d2d56f5d83f8dae28fa77d3c229a06eb0c67aab171d6c77462"
+bytes = 37266095
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "main/gpt_5_2.json"
+sha256 = "600a061c13f3b357f5fbe51d4e6c57424a74dd2b43e68d6b5bbf76f634c53fbc"
+bytes = 30118896
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "main/gpt_5_4.json"
+sha256 = "9d7f1878c54d2eb325170b18087a649b616eb594e47fb344657d4dd04749736e"
+bytes = 57677370
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/deepseek_m0_rv1.json"
+sha256 = "4f0b00f5bfbccc3024d2f6f61961f52a0656c2713b433fcdf34301b790127027"
+bytes = 16685471
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/deepseek_m1_rv1.json"
+sha256 = "bbc8ea0eacad017d2e6811ee25c07decbc2018d19225d1e62dd84d7c5710ad02"
+bytes = 24207413
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/deepseek_m2_rv1.json"
+sha256 = "dfaa932f0330e308b78ab860d35eb72f7dad3e1b7ac63bda8a8d8b98f2abc568"
+bytes = 25081505
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/deepseek_m3_rv1.json"
+sha256 = "18d4a68e23b32c4e6821e7be7d1b3bd59a45876bda51c71a9585afe95bce1dc7"
+bytes = 16863863
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/gpt54_m0.json"
+sha256 = "da7749b772711cd9614462af288f4d2d5f1643d24c219e2ec09a89d594e86e52"
+bytes = 43078909
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/gpt54_m1.json"
+sha256 = "032ab6eaa7cd60429ad3644b6dbf4b26647e7fceff20aa83ae51e14840e004c0"
+bytes = 19109389
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/gpt54_m2.json"
+sha256 = "cb33caec80f5c69006bb4b43e6ddcf419dbada83768381f93471e4e86d78bf84"
+bytes = 17934348
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/gpt54_m3.json"
+sha256 = "a08ec48b58e8eecfbd84e87f8dce42c4389ea9234dafb8972aee8a33fda6a6c3"
+bytes = 23530054
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "lihaonan0716/mcphunt-agent-traces"
+revision = "c4c69322bf9ed7690f5265577365709dad5dd454"
+file = "mitigation/minimax_m3_rv1.json"
+sha256 = "d052f0ded97f612635594f3cdf7a0a74782da3e456db52bf68077a4e36cbe125"
+bytes = 55254774
+primary = false
+note = "Git LFS object of the trace document (oid and size from the pinned tree)"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["Haonan Li, Tianjun Sun, Yongqing Wang, Qisheng Zhang (the dataset's authors)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "CC-BY-4.0 in the dataset card at the pinned revision"
+attribution = ["Li, H., Sun, T., Wang, Y., Zhang, Q. (2026). MCPHunt Agent Traces. Hugging Face lihaonan0716/mcphunt-agent-traces (CC BY 4.0); arXiv:2604.27819"]
+unassessed = ["model-provider terms on redistributing model outputs", "third-party web content in fetch and browser results"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "mcphunt.traces"
+mapper = "mcphunt.trace"
+variants = ["v2.0.0"]
+rules = { aer = 1, mcphunt = 1 }
+include = ["main/*.json", "mitigation/*.json", "live_guard_defense/*.json", "browser_replication/*.json"]
+layout = "<split>/<model or arm>.json, one execution per element of /traces"
+# four traces of 20.5-46.9 MB (D-288): the element limit raised to the calibrated ceiling (D-323)
+limits = { max_json_element_bytes = 67108864 }
+
+[family.mcphunt]
+streamed_arrays = ["/traces"]
+splits = ["main", "mitigation", "live_guard_defense", "browser_replication"]
+semantics_profile = { id = "mcphunt.tools", version = 1 }
+withhold_basis = "mcphunt.canary_flagged"
+
+# MCP server label -> the package names measurement.mcp_versions uses for it (the memory server was renamed during the
+# study: 465 traces name @modelcontextprotocol/server-memory, 6,321 mcp-server-memory).
+[family.mcphunt.server_packages]
+filesystem = ["@modelcontextprotocol/server-filesystem"]
+shell = ["shell-command-mcp"]
+sqlite = ["mcp-server-sqlite"]
+git = ["mcp-server-git"]
+memory = ["mcp-server-memory", "@modelcontextprotocol/server-memory"]
+time = ["mcp-server-time"]
+fetch = ["mcp-server-fetch"]
+browser = ["@playwright/mcp"]
+
+[[family.mcphunt.quirk]]
+id = "mcphunt.canary_flagged"
+rules = ["mcphunt.canary_flagged@1"]
+note = "the D-289 withholding basis; values never printed or written"
+observed = { traces = 4595, events_in_result = 14143, events_in_args = 2172 }
+
+[[family.mcphunt.quirk]]
+id = "mcphunt.oversized_trace"
+rules = []
+note = "four traces of 20.5-46.9 MB need max_json_element_bytes = 64 MiB ([import] limits; D-288, D-323)"
+observed = { traces = 4, documents = 4 }
+
+[[family.mcphunt.quirk]]
+id = "mcphunt.large_tool_result"
+rules = []
+note = "tool results over 1 MiB (events/*/result_full, up to 43.6 MB) are carved from the trace's byte range (D-218, RB-3)"
+observed = { strings = 15, traces = 8, documents = 7 }
+
+[[family.mcphunt.quirk]]
+id = "mcphunt.args_unparsed"
+rules = ["mcphunt.args_unparsed@1"]
+observed = { events = 2392 }
+
+[[family.mcphunt.quirk]]
+id = "mcphunt.result_truncated_in_message"
+rules = ["mcphunt.result_full_vs_message@1"]
+observed = { events = 669, differs = 410 }
+
+[[family.mcphunt.quirk]]
+id = "mcphunt.guard_rewrite"
+rules = ["mcphunt.taint_guard_unverified@1"]
+observed = { events = 245 }
+
+# D-289 option (c), seal-issue trigger (RW-1, D-311): every execution whose AER seal carries mcphunt.canary_flagged (one per
+# trace with a canary-flagged event) is withheld with its derived files. The bounded shape patterns below (never a value)
+# are the backstop at scope `object`: a hit withholds the raw document, which is kept private in any case.
+[withhold]
+reason = "secret"
+public_note = "planted canary credential (MCPHunt benchmark design); the value is never recorded in a public release"
+
+[[withhold.rules]]
+id = "canary-flagged"
+issue = "mcphunt.canary_flagged"
+
+[[withhold.rules]]
+id = "stripe-live-key"
+pattern = "sk_live_[A-Za-z0-9]{16}"
+scope = "object"
+
+[[withhold.rules]]
+id = "stripe-test-key"
+pattern = "sk_test_[A-Za-z0-9]{16}"
+scope = "object"
+
+[[withhold.rules]]
+id = "aws-access-key-id"
+pattern = "AKIA[0-9A-Z]{16}"
+scope = "object"
+
+[[withhold.rules]]
+id = "slack-token"
+pattern = "xox[abpors]-[A-Za-z0-9\\-]{10}"
+scope = "object"
+
+[[withhold.rules]]
+id = "github-token"
+pattern = "gh[pousr]_[A-Za-z0-9]{30}"
+scope = "object"
+
+[[withhold.rules]]
+id = "private-key-block"
+marker = "PRIVATE KEY-----"
+scope = "object"

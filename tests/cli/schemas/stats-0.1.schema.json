@@ -1,0 +1,823 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentprov.invalid/tests/cli/schemas/stats-0.1.schema.json",
+  "title": "agentprov stats report (agentprov-stats/0.1)",
+  "description": "Test asset (MN M.1.10 row 6 precedent; K.5.11 item 5): the JSON payload of `agentprov stats --format json` and of agentprov.api.statistics(...).to_json(). Not a published schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "agentprov_version",
+    "fn_digest",
+    "field_groups_sha256",
+    "prov_spec",
+    "select",
+    "tables",
+    "corpora",
+    "per_execution",
+    "exclusions"
+  ],
+  "properties": {
+    "format": {
+      "const": "agentprov-stats/0.1"
+    },
+    "agentprov_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+"
+    },
+    "fn_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "field_groups_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "prov_spec": {
+      "enum": [
+        "agentprov-prov/0.1",
+        "adprov-v2.3-compat"
+      ]
+    },
+    "select": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(adapter|completeness|execution_observed|mode|profile|snapshot|source_id|status|unit|facet\\..+)$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 1
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "counts",
+          "statements",
+          "unknowns",
+          "field_groups",
+          "artefacts"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "corpora": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/corpus"
+      }
+    },
+    "per_execution": {
+      "type": "boolean"
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/exclusion"
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "share": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence": {
+      "enum": [
+        "O",
+        "D",
+        "I"
+      ]
+    },
+    "statusCounts": {
+      "type": "object",
+      "required": [
+        "O",
+        "D",
+        "I",
+        "not_recorded",
+        "lost",
+        "overwritten",
+        "withheld",
+        "ambiguous",
+        "not_captured",
+        "not_applicable",
+        "undeclared"
+      ],
+      "properties": {
+        "O": {
+          "$ref": "#/$defs/count"
+        },
+        "D": {
+          "$ref": "#/$defs/count"
+        },
+        "I": {
+          "$ref": "#/$defs/count"
+        },
+        "not_recorded": {
+          "$ref": "#/$defs/count"
+        },
+        "lost": {
+          "$ref": "#/$defs/count"
+        },
+        "overwritten": {
+          "$ref": "#/$defs/count"
+        },
+        "withheld": {
+          "$ref": "#/$defs/count"
+        },
+        "ambiguous": {
+          "$ref": "#/$defs/count"
+        },
+        "not_captured": {
+          "$ref": "#/$defs/count"
+        },
+        "not_applicable": {
+          "$ref": "#/$defs/count"
+        },
+        "undeclared": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus",
+        "population",
+        "failures",
+        "tables"
+      ],
+      "properties": {
+        "corpus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "corpus_id",
+            "state",
+            "verification",
+            "content_digest",
+            "root_digest"
+          ],
+          "properties": {
+            "corpus_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "state": {
+              "enum": [
+                "sealed",
+                "working"
+              ]
+            },
+            "verification": {
+              "enum": [
+                "checksums",
+                "failed",
+                "not_sealed",
+                "skipped"
+              ]
+            },
+            "content_digest": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/digest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "root_digest": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/digest"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "population": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rows",
+            "selected",
+            "n_executions"
+          ],
+          "properties": {
+            "rows": {
+              "$ref": "#/$defs/count"
+            },
+            "selected": {
+              "$ref": "#/$defs/count"
+            },
+            "n_executions": {
+              "$ref": "#/$defs/count"
+            }
+          }
+        },
+        "failures": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "tables": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "counts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/countsRow"
+              }
+            },
+            "register": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/registerRow"
+              }
+            },
+            "statements": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/statementRow"
+              }
+            },
+            "statements_structural": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/structuralRow"
+              }
+            },
+            "unknowns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/unknownRow"
+              }
+            },
+            "field_groups": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/fieldGroupRow"
+              }
+            },
+            "artefacts": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/artefactRow"
+              }
+            },
+            "statements_by_execution": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/executionStatementRow"
+              }
+            }
+          }
+        }
+      }
+    },
+    "countsRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "profile",
+        "registry_parts",
+        "registry_import_status",
+        "records",
+        "n_executions",
+        "unit_agent_execution",
+        "unit_outcome_only",
+        "unit_scenario",
+        "execution_observed_true",
+        "execution_observed_false",
+        "status_ok",
+        "status_ok_with_issues",
+        "status_failed",
+        "completeness_verified_complete",
+        "completeness_known_incomplete",
+        "completeness_unverifiable",
+        "prov_output",
+        "n_outcome_only",
+        "rate_excluded"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "registry_parts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "registry_import_status": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "supported",
+              "partial",
+              "planned",
+              "not_possible"
+            ]
+          }
+        },
+        "records": {
+          "$ref": "#/$defs/count"
+        },
+        "n_executions": {
+          "$ref": "#/$defs/count"
+        },
+        "unit_agent_execution": {
+          "$ref": "#/$defs/count"
+        },
+        "unit_outcome_only": {
+          "$ref": "#/$defs/count"
+        },
+        "unit_scenario": {
+          "$ref": "#/$defs/count"
+        },
+        "execution_observed_true": {
+          "$ref": "#/$defs/count"
+        },
+        "execution_observed_false": {
+          "$ref": "#/$defs/count"
+        },
+        "status_ok": {
+          "$ref": "#/$defs/count"
+        },
+        "status_ok_with_issues": {
+          "$ref": "#/$defs/count"
+        },
+        "status_failed": {
+          "$ref": "#/$defs/count"
+        },
+        "completeness_verified_complete": {
+          "$ref": "#/$defs/count"
+        },
+        "completeness_known_incomplete": {
+          "$ref": "#/$defs/count"
+        },
+        "completeness_unverifiable": {
+          "$ref": "#/$defs/count"
+        },
+        "prov_output": {
+          "$ref": "#/$defs/count"
+        },
+        "n_outcome_only": {
+          "$ref": "#/$defs/count"
+        },
+        "rate_excluded": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "registerRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "code",
+        "severity",
+        "disposition",
+        "n"
+      ],
+      "properties": {
+        "stage": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "disposition": {
+          "type": "string"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "statementRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "profile",
+        "bundle",
+        "method",
+        "stype",
+        "evidence",
+        "rule",
+        "n"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "bundle": {
+          "enum": [
+            "core",
+            "inference",
+            "assessment",
+            "toplevel"
+          ]
+        },
+        "method": {
+          "type": "string"
+        },
+        "stype": {
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "structuralRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "profile",
+        "bundle",
+        "method",
+        "stype",
+        "n"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "bundle": {
+          "enum": [
+            "core",
+            "inference",
+            "assessment",
+            "toplevel"
+          ]
+        },
+        "method": {
+          "type": "string"
+        },
+        "stype": {
+          "type": "string"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "unknownRow": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/statusCounts"
+        }
+      ],
+      "type": "object",
+      "required": [
+        "source_id",
+        "profile",
+        "group",
+        "occurrence",
+        "record",
+        "pointer",
+        "n",
+        "share_O",
+        "share_D",
+        "share_I",
+        "share_not_recorded",
+        "share_lost",
+        "share_overwritten",
+        "share_withheld",
+        "share_ambiguous",
+        "share_not_captured",
+        "share_not_applicable",
+        "excluded"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "occurrence": {
+          "type": "string"
+        },
+        "record": {
+          "type": "string"
+        },
+        "pointer": {
+          "type": "string"
+        },
+        "n": {
+          "$ref": "#/$defs/count"
+        },
+        "share_O": {
+          "$ref": "#/$defs/share"
+        },
+        "share_D": {
+          "$ref": "#/$defs/share"
+        },
+        "share_I": {
+          "$ref": "#/$defs/share"
+        },
+        "share_not_recorded": {
+          "$ref": "#/$defs/share"
+        },
+        "share_lost": {
+          "$ref": "#/$defs/share"
+        },
+        "share_overwritten": {
+          "$ref": "#/$defs/share"
+        },
+        "share_withheld": {
+          "$ref": "#/$defs/share"
+        },
+        "share_ambiguous": {
+          "$ref": "#/$defs/share"
+        },
+        "share_not_captured": {
+          "$ref": "#/$defs/share"
+        },
+        "share_not_applicable": {
+          "$ref": "#/$defs/share"
+        },
+        "excluded": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "fieldGroupRow": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/statusCounts"
+        }
+      ],
+      "type": "object",
+      "required": [
+        "source_id",
+        "profile",
+        "group",
+        "n_executions",
+        "cells",
+        "denominator",
+        "coverage",
+        "observed_share",
+        "excluded"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "n_executions": {
+          "$ref": "#/$defs/count"
+        },
+        "cells": {
+          "$ref": "#/$defs/count"
+        },
+        "denominator": {
+          "$ref": "#/$defs/count"
+        },
+        "coverage": {
+          "$ref": "#/$defs/share"
+        },
+        "observed_share": {
+          "$ref": "#/$defs/share"
+        },
+        "excluded": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "artefactRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "profile",
+        "model",
+        "artefact_id",
+        "handling",
+        "executions",
+        "n_executions",
+        "proportion",
+        "hits",
+        "first"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artefact_id": {
+          "type": "string"
+        },
+        "handling": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "executions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "n_executions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "proportion": {
+          "$ref": "#/$defs/share"
+        },
+        "hits": {
+          "$ref": "#/$defs/count"
+        },
+        "first": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 5
+        }
+      }
+    },
+    "exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "family",
+        "profiles",
+        "issue_codes",
+        "judgement_origins",
+        "rates",
+        "basis"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*\\.rate\\.[a-z][a-z0-9_]*$"
+        },
+        "family": {
+          "type": "string"
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "issue_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "judgement_origins": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "checker",
+              "harness_default",
+              "harness_rule",
+              "recomputed"
+            ]
+          }
+        },
+        "rates": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "field_groups",
+              "unknowns",
+              "outcome"
+            ]
+          },
+          "minItems": 1
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "executionStatementRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "profile",
+        "ex",
+        "bundle",
+        "method",
+        "stype",
+        "evidence",
+        "rule",
+        "n"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "ex": {
+          "type": "string",
+          "pattern": "^ex_"
+        },
+        "bundle": {
+          "enum": [
+            "core",
+            "inference",
+            "assessment",
+            "toplevel"
+          ]
+        },
+        "method": {
+          "type": "string"
+        },
+        "stype": {
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

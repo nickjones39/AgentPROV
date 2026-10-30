@@ -1,0 +1,36 @@
+import hashlib, json
+from agentprov.adapters.foobench.dialect import FooJsonlReader
+from agentprov.adapters.foobench.mapper import FooMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin
+from agentprov.aer.rules import RuleRegistry
+from agentprov.ingest.limits import IngestLimits
+
+def lines(evs): return b"".join(json.dumps(e, separators=(",", ":")).encode() + b"\n" for e in evs)
+def sha1(d): return hashlib.sha1(b"blob %d\0" % len(d) + d, usedforsecurity=False).hexdigest()
+def art(aid, name, data, role="primary"):
+    o = Origin.git("https://github.com/nickjones39/AgentPROV", "ce45a3d560629e2ec6fa9633315eb1afa187891c", f"x/{name}", sha1(data))
+    return ArtefactRef(aid, hashlib.sha256(data).hexdigest(), len(data), "application/x-ndjson", o, role, "native")
+
+SUB = "sub-a.jsonl"
+def handoff_block(i):
+    return [
+        {"type": "llm_request", "id": f"r{i}", "actor": "agent", "add": [{"id": f"u{i}", "role": "user", "author": "user", "text": "go"}], "context": [f"u{i}"]},
+        {"type": "llm_response", "request": f"r{i}", "reply": {"id": f"a{i}", "role": "assistant", "calls": [{"id": f"c{i}", "name": "transfer", "args": {}}]}},
+        {"type": "handoff", "call": f"c{i}", "name": "transfer", "to": "researcher", "sub_file": SUB, "result": "done"},
+    ]
+primary = lines([{"schema": "foobench/1", "task": "t1", "agent_model": "m"}] + handoff_block(0))
+# the sub-agent file hands off to itself (a cycle): processed up to depth 4, then the fifth level is dropped silently
+sub = lines([{"schema": "foobench/1", "parent": {"run": "x"}}] + handoff_block(1))
+ref = art("a0", "p.jsonl", primary)
+(item,) = list(FooJsonlReader().parse(primary, ref, limits=IngestLimits()))
+unit = ExecutionUnit(primary=item, auxiliary={SUB: art("a1", SUB, sub, "supporting")})
+prof = load_profile("foobench"); reg = RuleRegistry.default()
+out = map_unit(unit, FooMapper(), prof, registry=reg, auxiliary={SUB: sub})
+data, info = aer_bytes(out, registry=reg, unit=unit, mapper=FooMapper(), profile=prof)
+recs = [json.loads(l) for l in data.splitlines()]
+print("degenerate:", out.degenerate)
+print("scopes:", [(r["id"], r.get("kind"), r.get("spawned_by")) for r in recs if r["k"] == "scope"])
+print("tool_executions:", [r["id"] for r in recs if r["k"] == "tool_execution"])
+print("issues:", [(i["code"], i["ids"]) for i in recs[-1]["issues"]])

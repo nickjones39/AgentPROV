@@ -1,0 +1,10 @@
+import sys
+W="~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-new-families-aceed5"
+sys.path[:0]=[W+"/tests/adapters/agentdojo", W+"/tests"]
+import test_rescont as T
+for u, s in ((False, True), (True, False), (True, True), (False, False)):
+    m = T.one(T.container([T.row(messages=[], utility=u, security=s)]))
+    js = [(j["name"], j["value"], j["origin"], [r if isinstance(r,str) else r for r in j["rule"]]) for j in m.of_kind("judgement")]
+    print(f"utility={u} security={s}:", js)
+    print("   issues:", sorted({(i.get('code') if isinstance(i,dict) else getattr(i,'code',i)) for i in (m.info.issues if hasattr(m.info,'issues') else [])}, key=str))
+    print("   validate errors:", [(f.code,f.pointer) for f in m.validate().findings if f.severity=="error"])

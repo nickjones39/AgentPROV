@@ -1,0 +1,42 @@
+# Corpus spec of `mcphunt` (HL H.1.6; D-44): DRAFT by the wave-2 pre-release checks (2026-10-29), for the user's
+# approval. Identity and selection come from here and from the source profile it names; counts are computed at sealing
+# (H.2.1(3)). Each origin is the pin the import recorded (D-33).
+
+corpus_id = "mcphunt"
+corpus_version = "0.1.0"
+title = "MCPHunt agent traces: cross-boundary data propagation in multi-server MCP agents (HF lihaonan0716/mcphunt-agent-traces)"
+mode = "import"
+
+[[sources]]
+source_id = "mcphunt"
+profile = "mcphunt@3"
+parts = ["head"]
+
+[[sources.snapshots]]
+snapshot_id = "head"
+origin = { commit = "c4c69322bf9ed7690f5265577365709dad5dd454", kind = "git", repo = "https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces", subtree = "" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["mcphunt.tools@2"]
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+# LICENSE: the CC BY 4.0 legal code, supplied at sealing with --licence-file (the source is CC-BY-4.0 by its record or
+# dataset card and publishes no licence file of its own at the pin; the same bytes as round 1's adprov LICENSE: the LICENSE
+# of Forever-CodingNoob/agent-security-tools-survey at 89c4db2c; user decision 2026-10-29).
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only; corpora/personas/).
+[scan]
+personas = [
+  { path = "../personas/mcphunt.observed.personas.toml", sha256 = "sha256:d2471c4eddf4c2933925cd14862111c26614d0cd998ff3ca061e29ddb273ee25" },
+]

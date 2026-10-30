@@ -1,0 +1,82 @@
+# Rule catalogue `anthropic_messages` (docs/architecture C.13.10 item 22, D.10.4a; DECISIONS D-656).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules, homed in the agentdojo family (D.5.1,
+# CATALOGUE_HOMES). The rules of the capture mapper `agentdojo.capture` for a provider-`anthropic` session, which
+# recorded the Anthropic Messages wire (the declared port of AgentDojo 0.1.35's AnthropicLLM; DECISIONS D-656). Only
+# such a session's AER header cites this catalogue (D-656 Q5), so no other record's bytes depend on it.
+#
+# Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version` (AD-18).
+# Nothing is released yet, so its rules keep @1. The rebuild-window review (round 1, R1-1..R1-5) amended v1 in place
+# before it landed in any corpus (D-31: no corpus cites it): stream reading (`stream_read`, two issue codes), the
+# chain-of-thought system prefix and the unaccounted `system` member in `sent_form`, and refusals in `discarded_reply`. Code citations point at ethz-spylab/agentdojo at the commit of the
+# pinned wheel (agentdojo 0.1.35, the agentdojo-live profile's verified_code); the port reuses these functions unchanged
+# and mirrors `chat_completion_request` and `AnthropicLLM.query` (checked equal by AST in the backend tests).
+
+[catalogue]
+id = "anthropic_messages"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["stream_incomplete", "stream_inconsistent"]
+subtypes = []
+types = []
+
+[[rule]]
+id = "anthropic_messages.sent_form"
+version = 1
+class = "D"
+status = "active"
+statement = "Item i of a call's input was sent as the i-th unit of the decoded Messages request, where the units are the slices AgentDojo 0.1.35's AnthropicLLM renders the native messages into (_conversation_to_anthropic): a leading system message is the request's system member (absent when its text is empty; prefixed by the stock chain-of-thought prompt and a blank line for claude-3-sonnet and claude-3-haiku models, AnthropicLLM.query); each content block of a user message is one text block, and a tool message is one tool_result block (tool_use_id, is_error, its first content block's text or its error), consecutive user and tool messages sharing one user turn (_merge_tool_result_messages); an assistant message is one assistant message whose content is its content blocks (text; thinking with signature = the block id; redacted_thinking when the id is null) followed by one tool_use block per tool call (id, name, input = args). This rendering is not a transform; null-valued members the SDK adds to a block (citations) are ignored. The one declared transform is error_substitution: a tool message with a non-null error was sent as its error text. sent_sha256 is the SHA-256 of the JCS bytes of the unit. A request that holds content the input messages do not account for (including a system member with no leading system message), or an item that differs otherwise, is reported (agentdojo.capture_sent_form_unexplained) and no transform is claimed."
+premises = ["/data/request", "/data/messages", "/data/input_at"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/anthropic_llm.py", lines = "34-133", note = "_tool_call_to_anthropic, _merge_tool_result_messages, block and message conversion, _conversation_to_anthropic" },
+]
+evidence = ["C.13.10 item 22", "C.3.5 sent transforms", "DECISIONS D-656"]
+tests = ["tests/adapters/agentdojo/test_capture_anthropic.py::test_sent_forms_are_explained"]
+since = "0.1.0"
+
+[[rule]]
+id = "anthropic_messages.discarded_reply"
+version = 1
+class = "D"
+status = "active"
+statement = "A discarded Messages reply's message is decoded from its call's response blob: the Message object of a JSON body, or for a text/event-stream body the message the events build under anthropic_messages.stream_read@1 (an error event, an inconsistent stream or a body of neither form yields no message: issue capture_error). Each content block becomes one part in order: text a text part (an empty text declared ambiguous, as for a kept reply), thinking a reasoning part with its signature, redacted_thinking a redacted reasoning part, tool_use a tool_call part whose args are its input; a streamed tool call keeps its concatenated partial_json verbatim as args_raw, and when that text is not JSON the args are that text, declared ambiguous; any other block an other part. A place of the blob the capture redacted makes the part member built from it withheld (D-211; for an event stream, which is not JSON, any redaction withholds every such member). A reply from an incomplete or torn stream is kept as the stream held it, with issue anthropic_messages.stream_incomplete naming the message."
+premises = ["/data/response"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/anthropic_llm.py", lines = "144-183", note = "the reply's blocks as the stock element reads them" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/anthropic_llm.py", lines = "185-209", note = "chat_completion_request: messages.stream and get_final_message" },
+]
+evidence = ["C.13.7", "C.13.10 item 22", "DECISIONS D-656"]
+tests = ["tests/adapters/agentdojo/test_capture_anthropic.py::test_a_discarded_messages_reply_is_decoded"]
+since = "0.1.0"
+
+[[rule]]
+id = "anthropic_messages.thinking_omitted"
+version = 1
+class = "D"
+status = "active"
+statement = "A thinking block that the provider returned with empty thinking text and a non-empty signature carries no reasoning text by the API's own account (thinking display omitted): the reasoning happened and was not exposed. The reasoning part built from it therefore has no text, declared withheld (aer/0.2, D-211), with the response blob as its source; it is not an empty reasoning. The pairing of the part with its block is positional: the stock element keeps every non-tool_use block of the reply, in order, as the AgentDojo message's content (_parse_text_content)."
+premises = ["/data/response", "/data/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/anthropic_llm.py", lines = "156-183", note = "_anthropic_content_block_to_message_content, _parse_text_content, _anthropic_to_assistant_message" },
+]
+evidence = ["C.7 withheld", "DECISIONS D-656 Q4"]
+tests = ["tests/adapters/agentdojo/test_capture_anthropic.py::test_omitted_thinking_is_withheld"]
+since = "0.1.0"
+
+[[rule]]
+id = "anthropic_messages.stream_read"
+version = 1
+class = "D"
+status = "active"
+statement = "A text/event-stream response blob is read as the anthropic SDK that consumed it read it (anthropic 1.11.0, SSEDecoder and accumulate_event): an event is dispatched only by a blank line, text after the last line terminator is not read, and a byte-order mark is not stripped; the events the SDK accumulates are taken by their SSE event name, whose payload type must agree; message_start comes first; each content_block_start opens the next index; each delta extends an open block of its type; nothing follows message_stop; a start block's own input_json member never seeds a tool call's input (the SDK keeps that buffer apart); an event name the SDK forwards besides those six (message, completion, event_start, event_delta, and the user., agent., session., span. and system. families) makes the stream inconsistent; other event names (ping) are ignored and an error event is a provider error; a stream with no message_start at all (garbage, empty, pings only) held no message, since the SDK's get_final_message asserts on it. A stream that departs from this is reported (anthropic_messages.stream_inconsistent) and nothing is claimed from it; a stream without message_stop, or one that ends inside an event or a line, is reported (anthropic_messages.stream_incomplete): the element took what the stream held."
+premises = ["/data/response"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/anthropic_llm.py", lines = "185-209", note = "chat_completion_request: messages.stream and get_final_message (the SDK reads the stream)" },
+]
+evidence = ["C.13.10 item 22", "DECISIONS D-656", "rebuild-window review R1-1..R1-3"]
+tests = ["tests/adapters/agentdojo/test_capture_anthropic.py::test_stream_reading_is_strict_and_disclosed"]
+since = "0.1.0"

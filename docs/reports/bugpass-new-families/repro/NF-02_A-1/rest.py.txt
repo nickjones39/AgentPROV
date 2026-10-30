@@ -1,0 +1,14 @@
+import os, re, subprocess, collections, fnmatch
+from agentprov.adapters.agentdojo.layout import parse_layout
+REPO = os.path.expanduser("~/.agentprov/staging/10c/environmentoptim/EnvironmentOptim.git")
+env = dict(os.environ, GIT_NO_LAZY_FETCH="1")
+out = subprocess.run(["git", "-C", REPO, "ls-tree", "-r", "--name-only", "febf82d8d1d8344d6c19e9fd172b51e52d68416a", "runs/"],
+                     capture_output=True, text=True, env=env, check=True).stdout.splitlines()
+ACC = re.compile(r"_ceph_ssd_students_([^_/]+)_")
+pend = ["runs/benign_injection/**", "runs/soft_image_prompt/**", "runs/soft_language_prompt/**", "runs/text_prompt/**", "runs/qwen3_5-*/**"]
+sel = [p for p in out if p.endswith(".json") and any(fnmatch.fnmatchcase(p, g) for g in pend)]
+print("json under pending globs:", len(sel), "with account dir:", sum(bool(ACC.search(p)) for p in sel))
+c = collections.Counter("/".join(p.split("/")[:3]) for p in sel if not ACC.search(p))
+for k, v in c.most_common(10): print(" no-acct dir:", k, v)
+cur = parse_layout("runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json")
+print("current layout matches (all pending json):", sum(cur.match(p) is not None for p in sel))

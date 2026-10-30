@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/agentops/ext-0.1.json",
+  "title": "ext.agentops of AER records written by the agentops.trace mapper (C.10; D.18.3; closed member list)",
+  "description": "Verbatim AgentOps-Bench fields without a core slot, and the mapper's recorded checks (join, payload suffix). Values copied from the source are untrusted, open JSON; the member names are closed. Not a published corpus schema in v0.1 (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "label_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root", "agent_dir", "model_dir", "condition", "domain", "number", "run", "file"],
+      "properties": {
+        "root": {"type": "string"}, "agent_dir": {"type": "string"}, "model_dir": {"type": "string"},
+        "condition": {"enum": ["clean", "noisy", "adversarial"]}, "domain": {"type": "string"},
+        "number": {"type": "string", "pattern": "^[0-9]{3}$"}, "run": {"type": "integer", "minimum": 1},
+        "file": {"type": "string"}
+      },
+      "description": "execution: the member label's facets (D.18.1), the logical identity of the run"
+    },
+    "agent_id": {"description": "execution: the in-record agent_id verbatim"},
+    "run_number": {"description": "execution: run_number verbatim"},
+    "completed": {"description": "execution: trace.completed verbatim"},
+    "totals": {"description": "execution: trace.total_input_tokens, total_output_tokens and total_cost_usd verbatim"},
+    "final_output": {"description": "execution: trace.final_output verbatim (agentops.final_output_copy@1)"},
+    "join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["joined", "not_listed", "missing", "digest_mismatch", "unparseable", "id_differs"]},
+        "label": {"type": "string"}
+      },
+      "description": "execution: the task join (agentops.task_join@1)"
+    },
+    "error": {"description": "run scope: trace.error verbatim"},
+    "wall_time_seconds": {"description": "run scope: trace.wall_time_seconds verbatim (no clock asserted, agentops.duration_no_clock@1)"},
+    "task_fields": {"description": "task_prompt fixture: difficulty, optimal_steps, tags and tools_available of the joined task"},
+    "at": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "result"],
+      "properties": {"step": {"type": "integer", "minimum": 0}, "result": {"type": "integer", "minimum": 0}},
+      "description": "injection_payload fixture: the step and result index it was recorded on"
+    },
+    "latency_ms": {"description": "tool_execution or fault decision: latency_ms verbatim (a constant for an injected failure)"},
+    "injected_failure": {"description": "fault decision: the failure mode verbatim"},
+    "payload_fixture": {"type": "string", "description": "payload decision: the injection_payload fixture it inserted"},
+    "suffix_offset": {"type": "integer", "minimum": 0, "description": "payload decision: the character offset of the two newlines before the payload (agentops.payload_suffix@1); after a redaction of the result, the offset in the redacted text (D-608)"},
+    "redacted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["p", "rule"],
+        "properties": {"p": {"type": "string"}, "rule": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*@[1-9][0-9]*#[a-z][a-z0-9_]*$"}}
+      },
+      "description": "tool message: the pointers a profile redaction rule rewrote and the rule (<profile>@<version>#<rule id>; agentops.value_redacted@1, D-608)"
+    }
+  }
+}

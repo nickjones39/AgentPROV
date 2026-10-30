@@ -1,0 +1,71 @@
+"""D-2: stage fn_digests (the D-30 reuse key) ignore agentprov modules the SEM/PROV/validation code imports."""
+from __future__ import annotations
+
+import ast
+import shutil
+from pathlib import Path
+
+import pytest
+
+import agentprov
+from agentprov.corpus import derive
+
+PKG = Path(agentprov.__file__).resolve().parent
+INFO = derive.SemanticsInfo(ref="agentdojo.suites@3", sha256="0" * 64, rules={"agentdojo": 1}, family="agentdojo")
+
+
+def _imports(relpath: str) -> set[str]:
+    tree = ast.parse((PKG / relpath).read_text())
+    return {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
+
+
+def _digests() -> dict[str, str]:
+    return {
+        "sem": derive.sem_stage_definition([INFO])["fn_digest"],
+        "prov": derive.prov_stage_definition()["fn_digest"],
+        "validation": derive.validation_stage_definition(["agentdojo.suites@3"], "release")["fn_digest"],
+    }
+
+
+@pytest.fixture
+def pkg_copy(tmp_path, monkeypatch):
+    dst = tmp_path / "agentprov"
+    shutil.copytree(PKG, dst, ignore=shutil.ignore_patterns("__pycache__"))
+    monkeypatch.setattr(derive, "_PACKAGE_ROOT", dst)
+    return dst
+
+
+def test_dependencies_are_real():
+    # the SEM profile code and the PROV engine import modules outside their hashed directories
+    assert "agentprov.adapters.agentdojo.citation" in _imports("adapters/agentdojo/semantics/suites.py")
+    assert "agentprov.adapters.code_verification" in _imports("adapters/agentdojo/semantics/suites.py")
+    prov_imports = set()
+    for p in (PKG / "prov").rglob("*.py"):
+        if "compat" not in p.parts:
+            prov_imports |= _imports(p.relative_to(PKG).as_posix())
+    assert {"agentprov.aer.reader", "agentprov.aer.evidence"} & prov_imports
+
+
+@pytest.mark.parametrize("edit, stage", [
+    ("adapters/agentdojo/citation.py", "sem"),      # INDEPENDENT/NAMESPACES used by suites.py
+    ("adapters/code_verification.py", "sem"),
+    ("aer/evidence.py", "sem"),                     # effective_tag/weakest used by suites.py
+    ("aer/evidence.py", "prov"),
+    ("aer/reader.py", "prov"),
+])
+def test_behaviour_edit_moves_reuse_key(pkg_copy, edit, stage):
+    before = _digests()
+    control = dict(before)
+    with (pkg_copy / edit).open("a") as fh:
+        fh.write("\nINDEPENDENT = frozenset()  # behaviour change\n")
+    after = _digests()
+    # expected (D-30 premise / H.8.2(2)): a behaviour change in a module the stage runs moves its fn_digest,
+    # so _reuse_corpus_key() refuses to carry the old outputs
+    assert after[stage] != before[stage], f"{stage} fn_digest unchanged after editing {edit}: stale outputs reused"
+
+
+def test_control_edit_in_hashed_dir_moves_sem(pkg_copy):
+    before = _digests()["sem"]
+    with (pkg_copy / "adapters/agentdojo/semantics/suites.py").open("a") as fh:
+        fh.write("\n# edit\n")
+    assert _digests()["sem"] != before

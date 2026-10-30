@@ -1,0 +1,581 @@
+{
+  "corpus_id": "agentdojo-upstream",
+  "date": "2026-10-14",
+  "code_commit": "065b0d36",
+  "step": "P0/1 desk research (pre-registration; no data check run). Delta corpus: imported in full at afe7038 and examined in E2 (docs/reports/analysis/phase10-examination-2.md) without network; this is the networked desk research E2 did not do.",
+  "parts": [
+    "agentdojo · head: 36,679 TraceLogger logs under runs/ at ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60 (runs tree 472cbb2e…, 426,293,413 B); profile agentdojo-upstream@2; corpus agentdojo-upstream",
+    "agentdojo · 2024-06: 18,241 TraceLogger logs under runs/ at ethz-spylab/agentdojo@c274885610efaaafec38b6d3eb07152ba7ff3f94 (runs tree 1227480d…, 188,873,874 B); same profile and corpus id"
+  ],
+  "papers": [
+    {
+      "id": "arXiv:2406.13352 (DOI 10.48550/arXiv.2406.13352)",
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti, Zhang, Balunović, Beurer-Kellner, Fischer, Tramèr; NeurIPS 2024 Datasets and Benchmarks)",
+      "url": "https://arxiv.org/abs/2406.13352v3",
+      "versions": "v1 2024-06-19 (preprint; results = 2024-06 pin state: no runs/ commit between c2748856 2024-06-05 and 9d7d1391 2024-06-20); v2 2024-07-18 (after the 2024-07-16/17 travel-suite and Llama re-runs; adds Claude 3.5 Sonnet; most Table 2-5 numbers changed (UA and ASR of every Table 3 model except Command-R+ ASR; some benign utilities, the PI-detector arm and the TODO/ignore/InjecAgent targeted ASR unchanged)); v3 2024-11-24 (NeurIPS camera-ready; title gains 'Prompt Injection'; arXiv comment: updated after fixing a bug in the Llama implementation and updating the travel suite; numbers identical to v2). Licence of the paper: arXiv non-exclusive distribution 1.0.",
+      "relation": "primary paper of the source; v1 tables describe the 2024-06 part, v2/v3 tables the head part for the 2024 models"
+    },
+    {
+      "id": "arXiv:2507.02735",
+      "title": "Meta SecAlign: A Secure Foundation LLM Against Prompt Injection Attacks (Chen, Zharmagambetov, Wagner, Guo) [v1-v3 title; v4 (2026-09-28) is titled 'Meta-SecAlign: Training LLMs against Prompt Injection for Robust Agents']",
+      "url": "https://arxiv.org/abs/2507.02735v4",
+      "versions": "v1 2025-07-03, v2 2025-11-10, v3 2026-02-06, v4 2026-09-28. AgentDojo rows for Llama-3.3-70B-Instruct and Meta-SecAlign-70B changed between v1 and v2 (e.g. Llama utility 56.7 -> 59.8, SecAlign 77.3 -> 84.5); the head logs were committed 2025-07-25 (9272bf1e, PR #96), between v1 and v2. Table numbers: v1 Tables 3/8, v2 Tables III/IX, v3 Tables 5/10, v4 Tables 4/8 (v3, v4 numbers equal v2). v3/v4 text says the Llama-3.3/Meta-SecAlign-70B AgentDojo logs are released in the official AgentDojo repository.",
+      "relation": "third-party paper whose authors contributed the Llama-3.3 and Meta-SecAlign-70B runs (PR #96/#97); the only published numbers for 11,765 head logs"
+    }
+  ],
+  "repo": "https://github.com/ethz-spylab/agentdojo (MIT, default branch main, 916 stars, 80 open issues on 2026-10-14). Head pin 089ed468 (2026-06-02T09:59:58Z, 'Add openai-compatible provider…' #147; touches src only) is still the HEAD of main (pushed_at 2026-06-02; https://api.github.com/repos/ethz-spylab/agentdojo). 2024-06 pin c2748856 (2024-06-05T11:21:57Z, 'Add Claude Opus results'); package then named function-calling-pi 0.1.0, no LICENSE file in the tree. Commits touching runs/ (60, https://api.github.com/repos/ethz-spylab/agentdojo/commits?path=runs): 2024-05-13..2024-06-05 build-up (d32829e1 first full runs 2024-06-02); c2748856 = 2024-06 pin; 9d7d1391/7d1de5a1/ae8d2c01 2024-06-20 Claude 3.5 Sonnet; 15de4430 2024-07-15 'Remove Mixtral results' (the 7 Mixtral logs exist only in the 2024-06 part); 52df3bc1, 26c5a22b (Gemini fix, travel re-run), 93906cda, 04ffc178, 1b802a7f 2024-07-16/17 travel-suite re-runs; 97b76722, b3372f23 2024-07-17 Llama results updated (paper v3 comment: Llama implementation bug); a2befa13 'Fix issue with missing GPT-3.5 task'; b030f516/2435269a 2024-07-18/19 gpt-4o-mini; 650bc7ea 2024-11-19 'JSON ONLY' (claude-3-5-sonnet-20241022); 6bbd9ca4 2025-02-17 Gemini 2.0 flash-exp and -001; 7bfc7852 2025-02-25 Claude 3.7 Sonnet; 9272bf1e 2025-07-25 Llama-3.3-70B and Meta-SecAlign-70B (PR #96, merged 2025-07-26 as 9e14bc54). No runs/ commit after 2025-07-25 (GitHub compare 9272bf1e...089ed468: 29 later commits incl. the PR #96/#97 merges, none under runs/) [fact-check: was '22 later commits']. Release tag v0.1.35 = a75aba76 (2025-10-27), runs/ identical to head. Relevant issues: #3 (Llama list-argument parsing, 2024-07), #62 (each experiment run once), #95/#119 (security=true means the attack succeeded; benign security is always true), #154 (run errors set security=true, counted as attack success by the results script), #168/#189 (security_from_traces scores proposed calls, slack IT5), #181 (banking IT0/1/3 operator precedence: subject check dead), #138/#159/#161 (banking user_task_5 utility checks the old $50 payment), #213 (workspace IT6-13 of v1.2.x have empty ground truth), #150/#202/#219/#220 (LocalLLM: only the first <function=…> tag parsed, broken JSON dropped, server errors become an empty answer), #117/#125 (PI-detector loop checked the last message's text; bug absent at c2748856, introduced later, fixed 2025-10), #133 (PI-detector ordering question), #212 (--max-workers crash), #71/#75 (workspace IT11/12 checks, v1.2), #47 (Hawaii packing list injection), #86 (no static dataset release).",
+  "data_record": "No separate data record: the git runs/ tree is the release. Zenodo concept 10.5281/zenodo.12528188 holds 36 GitHub-release software archives (declared licence CC-BY-4.0 on the 21 records v0.1.7..v0.1.22, 2024-06-25..2024-11-19, and MIT on the 15 from 'v1.1.23', 2025-01-15, on [fact-check: was 'MIT']; md5 only, no per-file checksums; https://zenodo.org/api/records/17458493/versions): v0.1.35 record 17458493 (2025-10-27, ethz-spylab/agentdojo-v0.1.35.zip 106,596,113 B, md5 d2dad4b4dca23bcc846fac3cae684d65) = our zenodo_head pin (runs/ equals head); v0.1.8 record 12742856 (2024-07-15, agentdojo-v0.1.8.zip 52,728,653 B, md5 5cc0b8041fe5a46d6d4c904aa990be3d) = our zenodo_2024_06 pin (all 18,234 baseline blobs, no Mixtral); v0.1.7 records 12528189/12528333 (2024-06-25); duplicate deposits exist for v0.1.7 (2), v0.1.10 (2), v0.1.22 (4), v0.1.24 (2) and a mislabelled 'v1.1.23' (2). Our pins are git trees (head runs/ 472cbb2e…, 36,679 files, 426,293,413 B; 2024-06 runs/ 1227480d…, 18,241 files, 188,873,874 B), verified blob by blob at import; the Zenodo md5 values cover whole zips and cannot be compared per file. Upstream results page https://agentdojo.spylab.ai/results/ is generated from runs/ by util_scripts/create_results_table.py; traces also mirrored on the Invariant explorer (https://explorer.invariantlabs.ai/u/invariant/agentdojo-gpt-4o-2024-05-13/t/1). No official Hugging Face dataset (https://huggingface.co/api/datasets?search=agentdojo lists only third-party dumps).",
+  "harness": "2024-06 part: function-calling-pi 0.1.0 (pyproject at c2748856), June-2024 TraceLogger (variant v0.k11, 11 keys), benchmark unversioned (era 'pre_versioning'). Head part: v0.k11 logs from 50 introducing commits 2024-06-02..2025-02-25 (code states unpinned except the 14,182 introduced at or before c2748856) and 11,765 v1.k14 logs written by the 0.1.30+ code (agentdojo 0.1.35 at the pin; logs record agentdojo_package_version 'unknown'), local vLLM pipeline (PR #97: model_id, tool_delimiter 'input' for SecAlign). Benchmark task sets: v1/v1.1.x = 97 user, 27 injection tasks, 629 pairs; v1.2.x = 97 user, 35 injection tasks (workspace 14), 949 pairs. Known bugs of the producing code relevant to the logs: LocalLLM parses only the first tool tag and drops broken JSON (#150, #202, #219) and turns server errors into an empty answer (#220): all 11,765 local logs; run errors impose utility=false, security=true (#154; benchmark.py); workspace IT4/IT5 security checks fixed in 0.1.15 and task checks fixed in 0.1.21 (changelog https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/docs/changelog.md), so June-2024 outcomes were scored by older checkers; banking IT0/1/3 precedence (#181) and UT5 (#161) are current-code checker defects present in every era; security_from_traces scores proposed calls (#168). PI-detector loop bug (#117) not present at c2748856 (pi_detector.py l. 58-68 uses each message's content), so the June/July-2024 transformers_pi_detector logs are unaffected.",
+  "models": [
+    "OpenAI: gpt-3.5-turbo-0125, gpt-4-0125-preview, gpt-4-turbo-2024-04-09, gpt-4o-2024-05-13 (+4 defence dirs), gpt-4o-mini-2024-07-18 (head only)",
+    "Anthropic: claude-3-haiku-20240307, claude-3-opus-20240229, claude-3-sonnet-20240229 (+ a 40-log -repeat_user_prompt dir), claude-3-5-sonnet-20240620, claude-3-5-sonnet-20241022, claude-3-7-sonnet-20250219 (last three head only)",
+    "Google: gemini-1.5-flash-001, gemini-1.5-pro-001, gemini-1.5-flash-002, gemini-1.5-pro-002, gemini-2.0-flash-exp, gemini-2.0-flash-001 (002 and 2.0 head only)",
+    "Cohere: command-r, command-r-plus (call ids absent)",
+    "TogetherAI prompting: meta-llama/Llama-3-70b-chat-hf (results page provider 'together-prompting'; client-random call ids)",
+    "Together/Mistral: mistralai/Mixtral-8x7B-Instruct-v0.1 (7 logs, 2024-06 part only)",
+    "Local vLLM (pipeline_name 'local'): meta-llama/Llama-3.3-70B-Instruct and facebook/Meta-SecAlign-70B (LoRA on Llama-3.3), each with and without repeat_user_prompt (head only, v1.k14)"
+  ],
+  "reported_results": [
+    {
+      "arm": "2024-06 part / Claude 3 Sonnet (claude-3-sonnet-20240229) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "53.10 / 30.05 / 30.52",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / Claude 3 Opus (claude-3-opus-20240229) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "64.39 / 49.60 / 12.89",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / Command-R+ (command-r-plus) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "27.78 / 25.60 / 0.95",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / GPT-3.5 Turbo (gpt-3.5-turbo-0125) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "34.98 / 34.82 / 8.90",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / GPT-4 Turbo (gpt-4-turbo-2024-04-09) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "58.98 / 51.67 / 31.96",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o (gpt-4o-2024-05-13) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "69.00 / 44.99 / 53.10",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / Gemini 1.5 Flash (gemini-1.5-flash-001) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "36.09 / 34.02 / 13.35",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / Gemini 1.5 Pro (gemini-1.5-pro-001) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "42.29 / 29.61 / 27.50",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / Llama 3 70b (meta-llama_Llama-3-70b-chat-hf) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "31.16 / 19.39 / 15.10",
+      "where": "paper v1 Table 3 (appendix C), https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 (user, injection) pairs per attacked metric; benign utility is k/629 (each benign user-task result weighted by its suite's injection-task count, inferred from the values), not k/97"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / No defense (gpt-4o-2024-05-13) / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "69.07 / 44.99 / 53.10",
+      "where": "paper v1 Table 5, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629; 69.07 = 67/97 (the other benign values are k/629); Repeat-prompt benign 73.13 equals Tool filter's (v3 says 85.53)"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / Delimiting (-spotlighting_with_delimiting) / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "72.66 / 50.24 / 46.26",
+      "where": "paper v1 Table 5, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629; 69.07 = 67/97 (the other benign values are k/629); Repeat-prompt benign 73.13 equals Tool filter's (v3 says 85.53)"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / PI detector (-transformers_pi_detector) / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "41.49 / 20.67 / 7.95",
+      "where": "paper v1 Table 5, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629; 69.07 = 67/97 (the other benign values are k/629); Repeat-prompt benign 73.13 equals Tool filter's (v3 says 85.53)"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / Repeat prompt (-repeat_user_prompt) / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "73.13 / 65.66 / 30.84",
+      "where": "paper v1 Table 5, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629; 69.07 = 67/97 (the other benign values are k/629); Repeat-prompt benign 73.13 equals Tool filter's (v3 says 85.53)"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / Tool filter (-tool_filter) / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "73.13 / 53.26 / 7.47",
+      "where": "paper v1 Table 5, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629; 69.07 = 67/97 (the other benign values are k/629); Repeat-prompt benign 73.13 equals Tool filter's (v3 says 85.53)"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / attacks direct(TODO), ignore_previous, injecagent, important_instructions, Max",
+      "metric": "targeted ASR (%)",
+      "value": "3.66 / 5.41 / 5.72 / 53.10 / 60.57",
+      "where": "paper v1 Table 4, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 per attack (Max = best of four per cell, not a run)"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / same attacks",
+      "metric": "untargeted ASR (%)",
+      "value": "32.75 / 35.77 / 31.48 / 55.01 / 70.43",
+      "where": "paper v1 Table 4, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 per attack"
+    },
+    {
+      "arm": "2024-06 part / GPT-4o / important_instructions knowledge ablation: no_names, wrong_user_name, wrong_model_name, no_model_name (correct user), no_user_name (correct model), important_instructions (both)",
+      "metric": "targeted ASR (%)",
+      "value": "45.8 / 23.2 / 25.1 / 49.8 / 44.4 / 53.1",
+      "where": "paper v1 Table 2, https://arxiv.org/pdf/2406.13352v1",
+      "n": "629 per attack"
+    },
+    {
+      "arm": "head part / Claude 3 Opus / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "66.61 / 52.46 / 11.29",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / Claude 3 Sonnet / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "53.10 / 33.23 / 26.71",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / Claude 3.5 Sonnet (claude-3-5-sonnet-20240620) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "78.22 / 51.19 / 33.86",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / Command-R+ / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "25.44 / 25.12 / 0.95",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / Gemini 1.5 Flash (001) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "36.09 / 34.18 / 12.24",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / Gemini 1.5 Pro (001) / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "45.63 / 28.93 / 25.60",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / GPT-3.5 Turbo / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "33.86 / 34.66 / 8.43",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / GPT-4 Turbo / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "63.43 / 54.05 / 28.62",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / GPT-4o / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "69.00 / 50.08 / 47.69",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / Llama 3 70b / no defence / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "34.50 / 18.28 / 20.03",
+      "where": "paper v2 and v3 Table 3, https://arxiv.org/pdf/2406.13352v3 (identical in https://arxiv.org/pdf/2406.13352v2)",
+      "n": "629; benign k/629 (inferred)"
+    },
+    {
+      "arm": "head part / GPT-4o / No defense / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "69.0 / 50.01 / 57.69",
+      "where": "paper v2/v3 Table 5, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629; No-defense ASR 57.69 and UA 50.01 disagree with Table 3 (47.69, 50.08) of the same version"
+    },
+    {
+      "arm": "head part / GPT-4o / Delimiting / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "72.66 / 55.64 / 41.65",
+      "where": "paper v2/v3 Table 5, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629; No-defense ASR 57.69 and UA 50.01 disagree with Table 3 (47.69, 50.08) of the same version"
+    },
+    {
+      "arm": "head part / GPT-4o / PI detector / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "41.49 / 21.14 / 7.95",
+      "where": "paper v2/v3 Table 5, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629; No-defense ASR 57.69 and UA 50.01 disagree with Table 3 (47.69, 50.08) of the same version"
+    },
+    {
+      "arm": "head part / GPT-4o / Repeat prompt / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "85.53 / 67.25 / 27.82",
+      "where": "paper v2/v3 Table 5, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629; No-defense ASR 57.69 and UA 50.01 disagree with Table 3 (47.69, 50.08) of the same version"
+    },
+    {
+      "arm": "head part / GPT-4o / Tool filter / important_instructions",
+      "metric": "benign utility / utility under attack / targeted ASR (%)",
+      "value": "73.13 / 56.28 / 6.84",
+      "where": "paper v2/v3 Table 5, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629; No-defense ASR 57.69 and UA 50.01 disagree with Table 3 (47.69, 50.08) of the same version"
+    },
+    {
+      "arm": "head part / GPT-4o / direct(TODO), ignore_previous, injecagent, important_instructions, Max",
+      "metric": "targeted ASR (%)",
+      "value": "3.66 / 5.41 / 5.72 / 57.7 / 57.55",
+      "where": "paper v2/v3 Table 4, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629 per attack; 57.7 disagrees with Table 3 47.69"
+    },
+    {
+      "arm": "head part / GPT-4o / same attacks",
+      "metric": "untargeted ASR (%)",
+      "value": "32.75 / 33.23 / 31.48 / 49.9 / 68.36",
+      "where": "paper v2/v3 Table 4, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629 per attack"
+    },
+    {
+      "arm": "head part / GPT-4o / knowledge ablation (order as v1 Table 2)",
+      "metric": "targeted ASR (%)",
+      "value": "45.8 / 23.2 / 23.7 / 46.1 / 44.8 / 47.7",
+      "where": "paper v2/v3 Table 2, https://arxiv.org/pdf/2406.13352v3",
+      "n": "629 per attack"
+    },
+    {
+      "arm": "both parts / suite sizes",
+      "metric": "user tasks / injection tasks / security cases",
+      "value": "workspace 40/6, slack 21/5, travel 20/7, banking 16/9; 97 / 27 / 629",
+      "where": "paper Table 1 and section 1 (all versions), https://arxiv.org/abs/2406.13352"
+    },
+    {
+      "arm": "head part / claude-3-7-sonnet-20250219 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "88.66 / 77.27 / 7.31",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gemini-2.0-flash-001 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "43.30 / 39.75 / 20.83",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gemini-2.0-flash-exp / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "46.39 / 39.90 / 17.01",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / claude-3-5-sonnet-20241022 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "79.38 / 72.50 / 1.11",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gemini-1.5-flash-002 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "38.14 / 32.43 / 3.50",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gemini-1.5-pro-002 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "61.86 / 47.06 / 17.01",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-mini-2024-07-18 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "68.04 / 49.92 / 27.19",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / claude-3-5-sonnet-20240620 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "79.38 / 51.19 / 33.86",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence none / tool_knowledge",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "69.07 / 57.71 / 34.50",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence none / injecagent",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "69.07 / 68.52 / 5.72",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence transformers_pi_detector / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "41.24 / 21.14 / 7.95",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence tool_filter / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "72.16 / 56.28 / 6.84",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence spotlighting_with_delimiting / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "72.16 / 55.64 / 41.65",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence repeat_user_prompt / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "84.54 / 67.25 / 27.82",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "69.07 / 50.08 / 47.69",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence none / ignore_previous",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "69.07 / 66.77 / 5.41",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4o-2024-05-13 / defence none / direct",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "69.07 / 67.25 / 3.66",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4-turbo-2024-04-09 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "64.95 / 54.05 / 28.62",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-4-0125-preview / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "65.98 / 40.70 / 56.28",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gpt-3.5-turbo-0125 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "35.05 / 34.66 / 10.33",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gemini-1.5-pro-001 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "46.39 / 28.93 / 28.62",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / gemini-1.5-flash-001 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "38.14 / 34.18 / 12.24",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / command-r-plus / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "24.74 / 25.12 / 4.45",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / command-r / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "26.80 / 30.84 / 3.34",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / claude-3-sonnet-20240229 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "53.61 / 33.23 / 26.71",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / claude-3-opus-20240229 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "68.04 / 52.46 / 11.29",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / claude-3-haiku-20240307 / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "39.18 / 33.39 / 9.06",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / meta-llama/Llama-3-70b-chat-hf / defence none / important_instructions",
+      "metric": "utility / utility under attack / targeted ASR (%)",
+      "value": "34.02 / 18.28 / 25.60",
+      "where": "upstream results page https://agentdojo.spylab.ai/results/, generated by https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/util_scripts/create_results_table.py",
+      "n": "utility = mean `utility` over the 97 benign user-task logs (k/97); UA and ASR = mean `utility` / `security` over the 629 v1.1.2 (user, injection) pairs, also for the v1.2-run models (k/629 checked); a pure mean of the logged fields, run-error logs included"
+    },
+    {
+      "arm": "head part / meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt ('Undefended' + sandwich) / important_instructions",
+      "metric": "utility / utility under attack / ASR (%)",
+      "value": "v1: 56.7 / 39.0 / 14.1; v2-v4: 59.8 / 43.4 / 14.7",
+      "where": "Meta SecAlign v1 Table 3 (https://arxiv.org/pdf/2507.02735v1); v2 Table III (https://arxiv.org/pdf/2507.02735v2), same in v3/v4",
+      "n": "97 utility; 949 (user, injection) pairs (v1.2)"
+    },
+    {
+      "arm": "head part / Meta-SecAlign-70B-repeat_user_prompt / important_instructions",
+      "metric": "utility / utility under attack / ASR (%)",
+      "value": "v1: 77.3 / 72.3 / 2.1; v2-v4: 84.5 / 79.5 / 1.9",
+      "where": "Meta SecAlign v1 Table 3 (https://arxiv.org/pdf/2507.02735v1); v2 Table III (https://arxiv.org/pdf/2507.02735v2)",
+      "n": "97; 949"
+    },
+    {
+      "arm": "head part / meta-llama_Llama-3.3-70B-Instruct (no sandwich) / important_instructions",
+      "metric": "utility / utility under attack / ASR (%)",
+      "value": "v1: 55.7 / 37.4 / 22.6; v2: 62.9 / 41.9 / 23.0",
+      "where": "Meta SecAlign v1 Table 8 (https://arxiv.org/pdf/2507.02735v1); v2 Table IX (https://arxiv.org/pdf/2507.02735v2)",
+      "n": "97; 949"
+    },
+    {
+      "arm": "head part / Meta-SecAlign-70B (no sandwich) / important_instructions",
+      "metric": "utility / utility under attack / ASR (%)",
+      "value": "v1: 75.3 / 72.7 / 2.3; v2: 79.4 / 77.1 / 2.3",
+      "where": "Meta SecAlign v1 Table 8 (https://arxiv.org/pdf/2507.02735v1); v2 Table IX (https://arxiv.org/pdf/2507.02735v2)",
+      "n": "97; 949"
+    },
+    {
+      "arm": "both parts / any model",
+      "metric": "experiment repetitions",
+      "value": "1 (each experiment run once, for cost)",
+      "where": "maintainer answer in issue #62, https://github.com/ethz-spylab/agentdojo/issues/62"
+    }
+  ],
+  "expected_counts": "head: 36,679 files (registry/readme_corpora, census-head.json, import-cli-head.json, profile expected_files) = 36,472 agent_execution + 207 outcome_only; variants v0.k11 24,914, v1.k14 11,764, v1.k14.incomplete 1; 0 selection exclusions. 2024-06: 18,241 files = 18,034 + 207; all v0.k11. Shared between the parts: 14,182 blobs (E2 §7.3); 2024-06-only 4,059 (4,052 superseded by the July 2024 re-runs + 7 Mixtral); head-only 22,497. Per-directory counts (derived from census totals, per-model counts and quirk counts; sums are exact): see expected_arms. Paper design per model: 97 benign + 27 (v1.1) or 35 (v1.2) injection-as-user pre-passes + 629 or 949 attacked per attack; DoS attacks 97 each.",
+  "expected_arms": "Facets pipeline_dir (model[-defence]) × attack_dir × suite. 2024-06 (18 dirs): gpt-4o-2024-05-13 6,899 = none 124 + 10 attacks × 629 (important_instructions, ignore_previous, direct, injecagent, tool_knowledge, important_instructions_{no_names,no_model_name,no_user_name,wrong_model_name,wrong_user_name}) + 5 DoS × 97; gpt-4o-…-{repeat_user_prompt, spotlighting_with_delimiting, tool_filter, transformers_pi_detector} 753 each (none 124 + important_instructions 629); claude-3-haiku, claude-3-opus, claude-3-sonnet, command-r, command-r-plus, gemini-1.5-flash-001, gemini-1.5-pro-001, gpt-3.5-turbo-0125, gpt-4-0125-preview, gpt-4-turbo-2024-04-09, meta-llama_Llama-3-70b-chat-hf 753 each; claude-3-sonnet-20240229-repeat_user_prompt 40 (derived: benign only); mistralai_Mixtral-8x7B-Instruct-v0.1 7 (derived: benign only). head (29 dirs): the 2024-06 dirs minus Mixtral, plus claude-3-5-sonnet-20240620, claude-3-5-sonnet-20241022, gemini-1.5-flash-002, gemini-1.5-pro-002, gemini-2.0-flash-exp, gpt-4o-mini-2024-07-18 753 each; claude-3-7-sonnet-20250219, gemini-2.0-flash-001 1,081 each (none 132 + important_instructions 949); Meta-SecAlign-70B, Meta-SecAlign-70B-repeat_user_prompt, meta-llama_Llama-3.3-70B-Instruct 2,979 each (none 132 + direct, ignore_previous, important_instructions × 949; PR #96); meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt 2,828 (151 attacked cells short). Missing vs design: Llama-3.3-repeat 151 attacked cells; Mixtral 746 of 753; claude-3-sonnet-repeat 713 of 753. Published arms with no logs: none (paper 'Max' is computed). Logged arms with no published number: Mixtral, claude-3-sonnet-repeat, gpt-4o DoS (figure 20 only), Llama-3.3/SecAlign direct and ignore_previous; claude-3-haiku, command-r, gpt-4-0125, gpt-4o-mini, the 002/2.0 Geminis, claude-3.5-sonnet-20241022 and 3.7 only on the results page.",
+  "licence": "MIT: LICENSE at the head pin, 'Copyright (c) 2024 Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr' (https://github.com/ethz-spylab/agentdojo/blob/089ed468cf3ed0322acc66b0211f26d9d90dbf60/LICENSE). The file was added on 2024-06-10 (bd533515) and edited 2024-06-12 (9b6708b0), so the 2024-06 pin c2748856 has no licence file; its runs/ blobs (except the 7 Mixtral logs) are redistributed under MIT in later trees; the Zenodo v0.1.8 record (12742856) declares CC-BY-4.0, not MIT [fact-check: was 'licence mit-license'], and the Mixtral logs sit in MIT-licensed trees from 2024-06-10 to 2024-07-15. No separate data licence or use clause in README or docs; Zenodo records declare CC-BY-4.0 up to v0.1.22 and MIT from v1.1.23 (2025-01-15) [fact-check: was 'Zenodo records declare MIT']. Model-output terms unassessed (profile): provider ToS; Llama 3 / Llama 3.3 Community Licence for the Llama and Meta-SecAlign-70B outputs (HF cardData licence 'llama3.3', gated). Paper: arXiv non-exclusive distribution licence 1.0.",
+  "discrepancy_leads": [
+    "L-01 Results-page vs paper ASR: for Command-R+ (4.45 vs v3 0.95), Gemini-1.5-pro-001 (28.62 vs 25.60), GPT-3.5 (10.33 vs 8.43) and Llama-3-70b (25.60 vs 20.03) the upstream results page (pure mean of logged security) disagrees with the paper; UA agrees for all four. Differences in cells (×629): 22, 19, 12, 35. FA §8 row 2 has head run errors command-r-plus 25 and gemini-1.5-pro-001 22: run errors set security=true (#154), so the paper probably scored them as no success.",
+    "L-02 Benign-utility denominator: paper benign utility values are k/629 (e.g. Opus 66.61 = 419/629, GPT-4o 69.00 = 434/629), the results page k/97 (68.04 = 66/97, 69.07 = 67/97); v1 Table 5 uses 69.07 for the same arm Table 3 gives as 69.00. The paper weighting is inferred, not stated.",
+    "L-03 GPT-4o head ASR: paper v2/v3 Table 3 (47.69) and Table 2 (47.7) and the results page (47.69) vs Table 5 (57.69) and Table 4 (57.7); UA 50.08 vs 50.01.",
+    "L-04 Paper v1 Table 5 gives Repeat-prompt benign utility 73.13, equal to Tool filter's; v2/v3 give 85.53 (likely a v1 copy error; the repeat dir may also have been re-run in July 2024).",
+    "L-05 Llama-3.3-70B-Instruct-repeat_user_prompt holds 151 fewer logs than the 2,979 its PR #96 design implies (derived: 6,600 repeat logs - 753 - 40 - 2,979); Meta SecAlign reports 949 pairs for the sandwich arm.",
+    "L-06 Meta SecAlign v1 and v2+ report different AgentDojo numbers for the same two models; the upstream logs (2025-07-25) can match at most one version, or neither.",
+    "L-07 Our history-based benchmark_era labels gemini-2.0-flash-exp (753 logs, a 27-injection-task shape) 'v1.2->v1.2.1' because it was committed with gemini-2.0-flash-001 (6bbd9ca4); the era is a code-registration range, not the suite version run.",
+    "L-08 Partial or unpublished directories: mistralai_Mixtral-8x7B-Instruct-v0.1 (7 logs, removed 2024-07-15), claude-3-sonnet-20240229-repeat_user_prompt (40 logs); neither appears in any table.",
+    "L-09 2024-06 vs head: 4,052 superseded June logs (travel re-runs, Gemini travel fix, Llama update, GPT-3.5 missing task); paper v1 numbers should come from the 2024-06 part and v2/v3 numbers from head; changes outside travel or Llama would be unexplained.",
+    "L-10 Single run per experiment (#62): no repeated seeds; identical trajectories across injection tasks (FA: head 382 groups / 3,612 logs) reduce effective n.",
+    "L-11 Checker eras: June-2024 security checks for workspace IT4/IT5 were fixed in 0.1.15 and task checks in 0.1.21; banking IT0/1/3 (#181) and UT5 (#161) remain wrong at head; logged outcomes are the era's checker verdicts, not recomputed.",
+    "L-12 LocalLLM defects (#150, #202, #219, #220) affect all 11,765 local logs: dropped calls under-count attacks and utility; empty answers from server errors score as failures."
+  ],
+  "open_questions": [
+    "How the paper aggregated benign utility (k/629) and whether it excluded run-error cells from ASR: not stated in the paper; to be inferred from the L1 recount (H-08..H-11 of the prereg).",
+    "Which Meta SecAlign version the released Llama-3.3/SecAlign logs back (v1 2025-07-03 or v2 2025-11-10).",
+    "Whether the 40 claude-3-sonnet-repeat logs and 7 Mixtral logs are benign-only (derived from the benign census count) and which suite they cover. [fact-check, GitHub tree listing: the 40 are workspace none-attack logs; the 7 Mixtral logs are none-attack user-task logs over all four suites (workspace 3, slack 2, travel 1, banking 1)]",
+    "Where the 151 missing Llama-3.3-repeat attacked cells lie (attack, suite). [fact-check, from the GitHub tree listing (metadata): all 151 are under important_instructions (798 of 949; direct and ignore_previous complete); L1-05 must confirm on the staged snapshot]"
+  ],
+  "checks_not_applicable": [
+    "Withholding (L2): the agentdojo-upstream profile has no [withhold] table; E2 U14 found 0 secret-shaped strings and 0 account paths in the AER/SEM/PROV of both parts; L1-06 counts stand in. verify --level chain still runs on a sealed scratch copy but has no withheld object to check.",
+    "Redaction (L2) is reduced to a negative check: no redact table; expect 0 account paths in AER/SEM/PROV.",
+    "L1-07 within-unit monotonicity: TraceLogger records no per-message time; v0.k11 logs carry no timestamp at all, v1.k14 one naive evaluation_timestamp per log.",
+    "Archive checks (members, ratio, depth): the parts are git trees, no archive members.",
+    "Outcome verdicts per (model, attack, suite) arm in L2: the 300-unit cap over about 310 head strata (about 190 for 2024-06) gives 1-2 units per stratum, so no arm reaches the README's n >= 20; comparison is pooled or by L1 recount."
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/agentdojo-upstream/research.json",
+    "docs/reports/precheck/prereg/agentdojo-upstream.md"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "method": "Re-opened the cited arXiv PDFs (2406.13352 v1/v2/v3; 2507.02735 v1/v2/v3/v4), arXiv abstract pages, the GitHub API (commits, trees, compare, tags, PRs, issues), the live results page and create_results_table.py at the head pin, the Zenodo API, and our census/import reports. No raw corpus data read; no payload downloaded.",
+    "confirmed": [
+      "All P1 (v1 Tables 2-5) and P3 (v2=v3 Tables 2-5) values, incl. the T3/T4/T5 GPT-4o conflict and the v1 T5 repeat-prompt 73.13 = tool filter",
+      "All 28 results-page rows",
+      "SA v1 Table 3/8 and v2 Table III/IX values; v3/v4 repeat v2",
+      "Pins: commits, dates, runs tree ids, file counts and byte totals (GitHub trees), no LICENSE at c2748856, function-calling-pi 0.1.0, v0.1.35 = a75aba76 with the head runs tree",
+      "Per-directory and per-attack counts of expected_arms (GitHub tree listings); 14,182 shared (path, blob) pairs; 4,052 replaced + 7 Mixtral 2024-06-only",
+      "Zenodo: 36 versions, duplicate deposits, sizes and md5 of 17458493 and 12742856",
+      "LICENSE MIT text and holders; added bd533515 2024-06-10",
+      "Issues cited exist with the stated subjects; #117 absent at c2748856; changelog 0.1.15/0.1.21",
+      "Our census/import figures (files, units, variants, completeness, status, records)"
+    ],
+    "corrected": [
+      "Zenodo licence: CC-BY-4.0 for v0.1.7..v0.1.22 (incl. v0.1.8), MIT from v1.1.23",
+      "Later commits after 9272bf1e: 29 (compare), not 22",
+      "local_parse_drop_possible 1,854 is from census-head (C-h), not import-cli-head (prereg)",
+      "SA table numbering per version and v4 title"
+    ],
+    "unverifiable": [
+      "Build commit of the live results page",
+      "Paper benign-utility weighting and run-error handling (inferred)",
+      "Which SA version the logs back"
+    ]
+  }
+}

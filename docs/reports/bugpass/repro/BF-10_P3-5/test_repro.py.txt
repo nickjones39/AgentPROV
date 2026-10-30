@@ -1,0 +1,36 @@
+import sys
+from pathlib import Path
+
+ROOT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(ROOT / "tools"))
+import reserve_id  # noqa: E402
+import spec_labels  # noqa: E402
+
+SYNTH = """### D.9.9 Example
+
+1. **First.** text
+2. **Second.** a long paragraph whose wrapped line
+220. Measured here, the line just wraps onto a number.
+
+**Census** text that continues and wraps:
+330. more counts here.
+"""
+
+
+def test_synthetic_wrapped_number_not_an_item():
+    defs, jumps = reserve_id.parse_spec_items(SYNTH, "WT")
+    nums = [d.number for d in defs if d.scope == "D.9.9"]
+    assert jumps, "jump is reported"
+    assert nums == [1, 2], f"wrapped paragraph lines counted as items: {nums}"
+
+
+def test_real_spec_d6_13():
+    text = (ROOT / "docs/architecture/D_adapters.md").read_text(encoding="utf-8")
+    lists = spec_labels.lists_of(text)
+    items = sorted(lists["D.6.13"])
+    print("D.6.13 items:", items)
+    taken = reserve_id.taken_numbers("spec-item", "D.6.13", [], reserve_id.Survey(
+        definitions=reserve_id.parse_spec_items(text, "WT")[0]))
+    print("next_range:", reserve_id.next_range(taken, 1, 1))
+    assert spec_labels.resolve(lists, "D.6.13", 220) is not None, "stray 220 resolves as a real item"
+    assert reserve_id.next_range(taken, 1, 1) == (11, 11)

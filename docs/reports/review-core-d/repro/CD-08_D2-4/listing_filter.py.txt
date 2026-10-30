@@ -1,0 +1,26 @@
+"""--include-path with a listing pin: the J.1.4 digest is computed over the filtered candidates only."""
+import hashlib, tempfile
+from pathlib import Path
+from agentprov.adapters.registry import READERS
+from agentprov.adapters.runner import resolve_factory
+from agentprov.adapters.runner.importer import ImportFilters, LocalTree, PinCheck, import_source, listing_sha256
+from agentprov.adapters.profiles import load_profile
+from agentprov.corpus.writer import CorpusWriter
+
+tmp = Path(tempfile.mkdtemp(dir="repro/D2-4"))
+root = tmp / "tree"
+files = {"m/prov/a/x.transcript.json": b"{}", "m/prov/b/y.transcript.json": b"[]"}
+for rel, data in files.items():
+    (root / rel).parent.mkdir(parents=True, exist_ok=True); (root / rel).write_bytes(data)
+pin = {"role": "release", "kind": "git", "repo": "https://github.com/nickjones39/agentdojo-prov",
+       "commit": "579a908354b93361efe0905ffb7623256aa96a06", "tree": "corpus/corpus-prov",
+       "listing_sha256": listing_sha256([(k, hashlib.sha256(v).hexdigest()) for k, v in files.items()]), "expected_files": 2}
+profile = load_profile("adprov-v1")
+hook = resolve_factory(READERS[str(profile.data["import"]["dialect"])]()).listing_origin if False else \
+    getattr(resolve_factory(READERS[str(profile.data["import"]["dialect"])])(), "listing_origin")
+for flt in (ImportFilters(), ImportFilters(include_paths=("m/prov/a/*",))):
+    check = PinCheck("listing", pin, listing_origin=hook)
+    with CorpusWriter(tmp / f"c{len(flt.include_paths)}") as w:
+        rep = import_source("adprov", LocalTree(root), corpus=w, profile_id="adprov-v1", part="release", pin=pin,
+                            pin_check=check, filters=flt, in_process=True, until="aer")
+    print(flt.include_paths, "listing_ok", check.listing_ok, [(r["subject"].get("path"), r["code"]) for r in rep.register])

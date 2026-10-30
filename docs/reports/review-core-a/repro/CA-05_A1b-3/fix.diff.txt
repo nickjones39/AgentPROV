@@ -1,0 +1,12 @@
+--- a/src/agentprov/aer/locators.py
++++ b/src/agentprov/aer/locators.py
+@@ -148,7 +148,8 @@ class LocatorResolver:
+         self._store = store
+         self._loads = loads or _default_loads
+         self._artefacts: dict[str, Mapping[str, Any]] = {}
+-        for entry in header.get("artifacts") or []:
++        artefacts = header.get("artifacts")
++        for entry in artefacts if isinstance(artefacts, list) else []:
+             if isinstance(entry, Mapping) and isinstance(entry.get("id"), str):
+                 self._artefacts[entry["id"]] = entry
+         self._bytes: dict[str, bytes] = {}

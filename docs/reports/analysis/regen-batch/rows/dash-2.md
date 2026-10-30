@@ -1,0 +1,1 @@
+| — | E2-c6: the nine class-D rules that cite only documents (6 adprov, 3 agentdojo) join item 3: documentary evidence is not enough for class D, so they get `_unverified` class-I twins (D-24) | examination 2; user decision c6 (2026-10-11) | as item 3 | |

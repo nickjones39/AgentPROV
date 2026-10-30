@@ -1,0 +1,114 @@
+# Source profile `adprov-v1`: the AgentDojo-PROV transcript/v1 trees (docs/architecture D.4, D.7; I.1.1 rows 2-3).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since the D-31 bumps
+# (2026-10-13); version 1 (the bytes the stored corpora recorded) ships under profiles/archive/adprov-v1.profile.v1.toml.
+
+[profile]
+id = "adprov-v1"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "adprov-v1"
+family = "adprov"
+parts = ["release", "converted-legacy"]
+title = "AgentDojo-PROV transcript/v1 (released live corpus and converted legacy tree)"
+evidence = ["baseline/BASELINE.md", "audit/capture.md", "audit/legacy_replay.md", "verify/agentdojo.md §2.2"]
+
+[source]
+canonical_repo = "https://github.com/nickjones39/agentdojo-prov"
+paper = "AgentDojo-PROV (pinned to framework commit 579a908)"
+concept_doi = "10.5281/zenodo.20692312"
+note = "v2.3 is not deposited (DECISIONS D-4); the corpora are cited by framework commit and tree-listing digest."
+
+[[source.pins]]
+role = "release"
+part = "release"
+kind = "git"
+repo = "https://github.com/nickjones39/agentdojo-prov"
+commit = "579a908354b93361efe0905ffb7623256aa96a06"
+date = "2026-10-07"
+tree = "corpus/corpus-prov"
+expected_files = 17664
+listing_sha256 = "46273b01df12d7636da355c07b9fea6d77c328dcd025e6340b183eac6dd8a1ed"
+primary = true
+note = "the corpus trees are gitignored at the commit; the J.1.4 tree-listing digest (*.transcript.json) is the pin"
+
+[[source.pins]]
+role = "converted-legacy"
+part = "converted-legacy"
+kind = "git"
+repo = "https://github.com/nickjones39/agentdojo-prov"
+commit = "579a908354b93361efe0905ffb7623256aa96a06"
+date = "2026-10-07"
+tree = "corpus/corpus-og-agentdojo-runs-prov"
+expected_files = 18027
+listing_sha256 = "ef778a3da0d15aca384b0143cac80d31ff833604dbae0b839faf1e54211627a5"
+primary = false
+note = "derived conversions of ethz-spylab/agentdojo@c274885 runs/ (compat oracle)"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["AgentDojo-PROV (nickjones39/agentdojo-prov)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+restrictions = []
+basis = "released transcripts: data CC-BY-4.0, code MIT per the AgentDojo-PROV manifests; derived licence per U-03 (default inherit)"
+attribution = ["AgentDojo (MIT, (c) 2024 Debenedetti, Zhang, Balunovic, Beurer-Kellner, Fischer, Tramer) for the embedded benchmark text"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[[licence.overrides]]
+role = "converted-legacy"
+spdx = "MIT"
+policy = "reference"
+basis = "derived data only: messages copied verbatim from AgentDojo run logs (MIT by repository); the CC-BY-4.0 stamp of the converted manifests is not carried (J.7.2 item 10)"
+
+[lineage]
+built_on = ["agentdojo"]
+vendored = []
+duplicates = [
+  { of = "agentdojo", part = "2024-06", path = "corpus-og-agentdojo-runs-prov/**", relation = "derived_conversion", owner = "agentdojo" },
+]
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "adprov.transcript_v1"
+mapper = "adprov.transcript_v1"
+variants = ["v1"]
+include = ["**/*.transcript.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "<tree>/<model_folder>/prov/<attack>/<stem>.transcript.json"
+
+[family.adprov]
+# Released runs: the AgentDojo-PROV capture's observer effects (C.16.2; D.7.3), in the AD-03 merged shape. Their
+# evidence is I (adprov.v1_capture_code_semantics@1): the capture-code version is not recorded per trace.
+instrumentation = [
+  { id = "adprov.developer_role_rewrite@1", kind = "request_modifying", recorded = "none" },
+  { id = "adprov.malformed_tool_call_resample@1", kind = "harness_policy", recorded = "summary" },
+  { id = "adprov.upstream_failure_retry@1", kind = "harness_policy", recorded = "summary" },
+  { id = "adprov.model_display_name@1", kind = "attack_parameter", recorded = "none" },
+  { id = "adprov.temperature_not_transmitted@1", kind = "harness_policy", recorded = "none" },
+]
+# Converted tree: the five AgentDojo DoS attack families (security = not utility; agentdojo.dos_security_rule@1).
+dos_attacks = ["captcha_dos", "dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+# Converted tree: the transformers_pi_detector replacement text (agentdojo.pi_detector_sentinel@1, C.16.1).
+pi_detector_sentinel = "<Data omitted because a prompt injection was detected>"
+# Converted tree: the upstream pin the converter read (adprov.converted_stem_to_upstream_path@1; J.4.1).
+upstream_repo = "https://github.com/ethz-spylab/agentdojo"
+upstream_commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94"
+# D.5.4 "Citation of D rules" (D-24): a D rule is cited at D only for a transcript whose producing code its catalogue
+# `code` list cites; any other transcript cites its `_unverified` twin (class I). Both trees were written by the frozen
+# AgentDojo-PROV code (579a908); the converted tree's messages are the June-2024 upstream logs at the 2024-06 pin. The
+# AgentDojo version that ran the released captures is not recorded per trace, but the writer pins it: 579a908's
+# pyproject.toml requires agentdojo==0.1.35, whose task suite scored the runs (run_task_with_pipeline) and whose
+# tool_result_to_str rendered the tool output (D-86 addendum, user decision 2026-10-12). The agentdojo rules cited only
+# at c274885 are I for released transcripts, and rules that cite no code are I everywhere (D-27 c6). Facet
+# `transcript` is `released` or `converted` (the v1 dialect's flag).
+verified_code = [
+  { commit = "579a908354b93361efe0905ffb7623256aa96a06", note = "the frozen AgentDojo-PROV writer (generate.py, convert_runs.py)" },
+  { commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", applies = { transcript = ["converted"] }, note = "the 2024-06 pin the converted logs come from" },
+  { commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", applies = { transcript = ["released"] }, note = "agentdojo 0.1.35 (the PyPI wheel; release tag v0.1.35), pinned by the writer 579a908 (agentdojo==0.1.35): its task-suite checks and tool_result_to_str" },
+]

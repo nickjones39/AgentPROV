@@ -1,0 +1,139 @@
+# Source profile `credleak-p15b`: run data of "How Credentials Leak from 'Safe' LLM Coding Agents" (Zenodo 22737462,
+# v3; docs/architecture D.19; DECISIONS D-260..D-268).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The [family.credleak] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10k census
+# (docs/reports/phase10k/census.md; $AGENTPROV_HOME/migration-work/phase10k/census/).
+#
+# This is the first shipped profile that declares a [withhold] policy (D-234). Its rules name the tag every planted
+# credential of the study carries and two key shapes; they never hold a planted value (D-265).
+
+[profile]
+id = "credleak-p15b"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "credleak-p15b"
+family = "credleak"
+parts = ["head"]
+title = "Run data of the credential-leak attack-surface measurement of LLM coding agents (Zenodo 22737462, v3)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.10", "docs/reports/phase10k/census.md"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.22737462"
+paper = "How Credentials Leak from 'Safe' LLM Coding Agents: An Attack-Surface Measurement (under review; run-data record)"
+
+# The pin is the deposit file of v3, the latest of three versions of concept 21860162 (21860163 v1, 22729871 v2,
+# 22737462 v3). v3 holds every run of v1 and v2 (v1's one other run is the unredacted form of a run v3 holds redacted;
+# census §8). 682 zip members; the 643 run cells are the *.json members under 01-injection-map/, 03-egress-axis/ and
+# 04-hygiene/ (19,636 runs).
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.22737462"
+record = 22737462
+version = "v3"
+file = "p15b-run-data-v3-2026-09-13.zip"
+sha256 = "7e5f7e40b86abfda45a951602188d979a26db9148cd2646e8a17a404c575082a"
+md5 = "d25b9b5c27f5f41689c62decb3e20ffc"
+size = 11060394
+date = "2026-09-13"
+note = "staged 2026-10-12 by phase 10e; the md5 equals the record's checksum"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["the authors of the run-data record 22737462"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "Zenodo record 22737462 metadata: licence cc-by-4.0 (open access); the deposit holds no other licence file"
+attribution = ["Run data and analysis code for \"How Credentials Leak from 'Safe' LLM Coding Agents: An Attack-Surface Measurement\", Zenodo 10.5281/zenodo.22737462 (v3, CC-BY-4.0)"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "credleak.cell"
+mapper = "credleak.cell"
+variants = ["v1"]
+include = ["p15b-run-data/01-injection-map/**/*.json", "p15b-run-data/03-egress-axis/**/*.json", "p15b-run-data/04-hygiene/**/*.json"]
+exclude = [
+  { glob = "p15b-run-data/03-egress-axis/external-canary-collector-log/*", code = "select.not_execution_artefact", note = "the off-account collector's log (3 members; one fails the strict loader with a duplicate key)" },
+  { glob = "p15b-run-data/05-temit-precision-audit/*", code = "select.not_execution_artefact", note = "T-EMIT label audit (14 members)" },
+  { glob = "p15b-run-data/06-independent-scanner/*", code = "select.not_execution_artefact", note = "Semgrep/CodeQL outputs over labelled blobs (14 members)" },
+  { glob = "p15b-run-data/scripts/*", code = "select.not_execution_artefact", note = "analysis code (4 members)" },
+  { glob = "p15b-run-data/*.md", code = "select.not_execution_artefact" },
+  { glob = "p15b-run-data/*.csv", code = "select.not_execution_artefact", note = "per-cell aggregates" },
+]
+layout = "p15b-run-data/{section}/{channel}/{model | excluded-models/{model} | _<dir>}/{file}"
+
+[family.credleak]
+semantics_profile = { id = "credleak.tools", version = 1 }
+judged = ["hijackSucceeded", "exfiltrationDetected", "exfiltrationCount", "egressChannel", "agentDetected", "displayedToUser", "maliciousArtifactEmitted", "scriptAudited", "payloadDelivered", "taskEngaged", "t0Completed", "truncated", "ges", "gesDisplayed", "gesExfil"]
+
+[[family.credleak.quirk]]
+id = "credleak.malformed_tool_names"
+rules = ["credleak.malformed_tool_name@1"]
+observed = { calls = 290, names = 41 }
+
+[[family.credleak.quirk]]
+id = "credleak.invocation_errors"
+rules = ["credleak.invocation_error_status@1"]
+observed = { runs = 59 }
+
+[[family.credleak.quirk]]
+id = "credleak.no_tool_calls"
+rules = ["credleak.tool_entry_is_execution_unverified@1"]
+observed = { runs = 1495 }
+
+[[family.credleak.quirk]]
+id = "credleak.overlapping_runs"
+rules = ["credleak.turn_timestamp_role@1"]
+observed = { run_pairs = 18993, overlapping = 9505 }
+
+[[family.credleak.quirk]]
+id = "credleak.planted_credentials"
+rules = ["credleak.planted_credential@1"]
+observed = { runs = 5422, cells = 325 }
+
+# The withholding policy (D-234, D-265; HL H.4.5). Every planted value carries the study's tag inside it. `canary-tag`
+# matches the tag followed by any character but `_`: two not-selected member labels of the collector log carry the
+# tag between underscores, and raw/members.jsonl (released, D-231) lists every label, so the bare tag as a marker
+# would fail the chain backstop (found by the part-C2 seal). `canary-tag-left` matches the tag after any character but
+# `_` or `/` (one run holds the tag only after a letter and before `_`). Together they miss only the tag between `[_/]`
+# and `_`, the form of the two labels: on the content the AER holds, every value-bearing run is hit and no released run
+# holds the tag in any form (census step 15). The two shape rules also
+# catch the 78 key-shaped strings that carry no tag (27 runs, 26 of them tagged as well). Scope
+# `object`: a hit withholds the cell's bytes (and the deposit zip, basis container) while the runs of the cell whose
+# derived records hold no hit stay released (D-235); a run whose AER, SEM, PROV or view holds a hit is withheld.
+# Expected on the full v3 import: 325 cells and the zip withheld, 5,422 executions withheld, 14,214 released.
+[withhold]
+reason = "secret"
+public_note = "planted canary credentials of the study (benchmark design); values never recorded"
+scan_rules = ["aws-access-token", "anthropic-api-key", "openai-api-key", "stripe-access-token", "generic-api-key"]
+
+[[withhold.rules]]
+id = "canary-tag"
+pattern = "CANARY[^_]"
+scope = "object"
+
+[[withhold.rules]]
+id = "canary-tag-left"
+pattern = "[^_/]CANARY"
+scope = "object"
+
+[[withhold.rules]]
+id = "aws-key-shape"
+pattern = "AKIA[0-9A-Z]{16}"
+scope = "object"
+
+[[withhold.rules]]
+id = "sk-key-shape"
+pattern = "sk-[A-Za-z0-9_\\-]{20,256}"
+scope = "object"

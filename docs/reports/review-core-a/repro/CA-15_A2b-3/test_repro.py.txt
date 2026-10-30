@@ -1,0 +1,44 @@
+"""A2b-3: transcript/v1 view drops a known usage key that the adprov mapper parked in usage_extra."""
+import json
+from pathlib import Path
+
+import pytest
+
+from agentprov.adapters.runner import aer_bytes, map_artefact
+from agentprov.adapters.types import Origin
+from agentprov.views.transcript_v1 import render, serialise
+
+REPO = Path(__file__).resolve().parents[0]
+VEC = Path.cwd() / "docs/architecture/examples/C/adprov_v1_llama_injecagent.aer.jsonl"
+
+
+def _source() -> bytes:
+    recs = [json.loads(line) for line in VEC.read_bytes().splitlines()]
+    return serialise(render(recs))
+
+
+def _roundtrip(src: bytes) -> bytes:
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "x/y.transcript.json",
+                           producer_commit="579a908354b93361efe0905ffb7623256aa96a06")
+    outcome, _ = map_artefact(src, origin, profile_id="adprov-v1")
+    assert not outcome.degenerate, outcome.error_code
+    data, _ = aer_bytes(outcome)
+    return serialise(render([json.loads(line) for line in data.splitlines()]))
+
+
+def test_baseline_vector_roundtrips():
+    src = _source()
+    assert _roundtrip(src) == src
+
+
+@pytest.mark.parametrize("value", [9278.0, -1, "9278", True, None])
+def test_known_usage_key_with_untyped_value_roundtrips(value):
+    doc = json.loads(_source())
+    usage = doc["meta"]["model_config"]["usage"]
+    assert "prompt_tokens" in usage
+    usage["prompt_tokens"] = value
+    src = json.dumps(doc, indent=2).encode()
+    # sanity: the mutated source is a valid fixed point of the serialiser's layout
+    out = _roundtrip(src)
+    got = json.loads(out)["meta"]["model_config"]["usage"]["prompt_tokens"]
+    assert got == value and type(got) is type(value), f"prompt_tokens {value!r} rendered as {got!r}"

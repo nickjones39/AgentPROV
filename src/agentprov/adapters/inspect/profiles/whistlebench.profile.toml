@@ -1,0 +1,152 @@
+# Source profile `whistlebench`: legobridge/whistlebench, 184 Inspect .eval logs (9,200 samples) of tool-using agents in
+# corporate-misconduct scenarios, scored for unsanctioned whistleblowing (government, media, internal), refusal and
+# evaluation awareness (phase 10f; docs/reports/systematic-search/candidates/phase10e-candidates.md §3.2, D-144, D-147).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18, D-31): version 2 adds D-601's redaction rules, the quirk inspect.error_retries and the [withhold]
+# table; version 1 ships under archive/ with the bytes the scratch corpora recorded. The [family.inspect] table is checked against
+# ../family.schema.json (closed schema, D.4.1). The observed counts are the phase-10f census of every log at the pin
+# (~/.agentprov/migration-work/phase10f/census/whistlebench.census.json; docs/reports/phase10f/).
+#
+# Scope (D-147, user decision 2026-10-12): whistleblowing that the user did not sanction is an unauthorised agent action.
+# There is no attacker: no_attack. Semantics profile inspect.whistlebench@2 (named by the registry part; D-601 addenda,
+# D.9.14): tool and scorer tables read from the pinned highagency/ code (class I).
+
+[profile]
+id = "whistlebench"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "whistlebench"
+family = "inspect"
+parts = ["final-runs"]
+title = "WhistleBench: Inspect .eval logs of tool-using agents in corporate-misconduct scenarios (legobridge/whistlebench)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.2", "docs/reports/phase10f/README.md"]
+
+[source]
+canonical_repo = "https://github.com/legobridge/whistlebench"
+paper = "none found in the repository (README: 'A benchmark for measuring whistleblowing in LLM agents')"
+
+# The pin covers final_runs/: the 184 logs, and per experiment the analysis CSVs, logs.json and the eval-set id
+# (context artefacts). The task code under highagency/ is not part of the pin (not fetched, phase 10f).
+[[source.pins]]
+role = "git"
+part = "final-runs"
+primary = true
+kind = "git"
+repo = "https://github.com/legobridge/whistlebench"
+commit = "9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc"
+date = "2025-11-27"
+tree = "final_runs"
+expected_files = 223
+expected_bytes = 523183391
+note = "the default branch at 2026-10-12 (phase 10f); 184 .eval logs, 9,200 samples, under final_runs/<experiment>/"
+
+[licence]
+spdx = "MIT"
+holders = ["Kushal Agrawal and co-authors (LICENSE copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin (sha256 a435c9f380834aa5...; GitHub detects MIT); no separate data licence"
+attribution = ["legobridge/whistlebench (MIT), commit 9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["inspect_ai 0.3.130 and 0.3.134.dev31+geb46eef8 (log headers)", "SnitchBench scenarios (highagency/snitchbench, README)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "inspect.eval"
+mapper = "inspect.eval"
+variants = ["v2"]
+include = ["final_runs/**/*.eval"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+context_artefacts = [
+  "final_runs/**/analysis.csv", "final_runs/**/aggregated_analysis.csv", "final_runs/**/logs.json",
+  "final_runs/**/eval-set.json", "final_runs/**/.eval-set-id",
+]
+layout = "final_runs/<experiment>[/<subset>]/<timestamp>_<task>_<id>.eval"
+
+[family.inspect]
+benchmark = "whistlebench"
+no_attack = true
+producer_band = { inspect_ai = ["0.3.130", "0.3.134.dev31+geb46eef8"] }
+log_versions = [2]
+members = ["header.json", "samples/*_epoch_*.json"]
+span_roles = { solver = "agent", scorer = "judge" }
+# regeneration-batch item 16 (c): react(submit=AgentSubmit(name="Submit")) in whistlebench, the default "submit" in
+# snitchbench (legobridge/whistlebench@9c27637 highagency/*/tasks.py), keep_in_messages at its default False
+submit_tools = ["Submit", "submit"]
+
+[[family.inspect.quirk]]
+id = "inspect.judge_model_separate_from_agent"
+note = "the scorers call grader models (gpt-4.1, gpt-5 in the sampled logs) inside scorer spans; separated by spans"
+
+[[family.inspect.quirk]]
+id = "inspect.event_order_not_time_order"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.attachment_refs"
+rules = ["inspect.model_event_is_call@1"]
+observed = { samples_with_attachments = 9200 }
+
+[[family.inspect.quirk]]
+id = "inspect.sample_limit"
+rules = ["inspect.sample_limit@1"]
+observed = { events = 12 }
+note = "11 message limits and 1 operator limit"
+
+[[family.inspect.quirk]]
+id = "inspect.tool_span_separate_from_tool_event"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.concatenated_tool_names"
+note = "15 tool calls name several tools run together (e.g. write_fileSubmit): model output, kept verbatim, no tool table"
+observed = { calls = 15 }
+
+[[family.inspect.quirk]]
+id = "inspect.error_retries"
+note = "260 samples keep the errors of earlier attempts (error_retries); their tracebacks name a workstation home path (one account), redacted by retry_account (D-601)"
+observed = { samples = 260, strings = 722 }
+
+# D-601 (user decision 2026-10-21). The header's eval.revision.origin of 28 awareness_blackbox logs is a clone URL with
+# a credential-shaped value in its userinfo; the mapper copies it to the bench actor's ext.inspect.revision and code.repo.
+# The userinfo becomes a literal (no digest of a credential is recorded; one span per unit, D.9.12). The error_retries
+# tracebacks name a workstation home path: the account segment gets a salted label (D-182); the rule is narrowed to
+# error_retries so that it never reaches the logger events, which quote the model's tool arguments (D-604).
+[[family.inspect.redact]]
+id = "origin_userinfo"
+scope = "harness_text"
+pattern = '(?<=://)[^/@\s"]{1,256}(?=@)'
+replacement = "redacted"
+pointers = ["/ext/inspect/revision", "/code/repo"]
+note = "URL userinfo of eval.revision.origin (D-601)"
+
+[[family.inspect.redact]]
+id = "retry_account"
+scope = "harness_text"
+pattern = '''(?<=/Users/)[^/\s"'<>\\]{1,64}(?=/)'''
+replacement = "<account:{span12}>"
+pointers = ["/ext/inspect/error_retries"]
+note = "workstation account segment in error_retries tracebacks (D-601)"
+
+# D-601 (user decision 2026-10-21): object scope. The 28 header.json members hold the clone URL with the value (the
+# AER holds the redacted copy only), so they are withheld with their .eval containers (basis container); no execution
+# is withheld. The decoded scan (D-450) reaches the same containers through _journal/start.json. Rule ids and counts
+# only, never a match.
+[withhold]
+reason = "secret"
+public_note = "a credential-shaped value in a log header's repository URL; value never recorded"
+scan_rules = ["github-pat"]
+
+[[withhold.rules]]
+id = "github-token-shape"
+pattern = "gh[pousr]_[A-Za-z0-9]{36,255}"
+scope = "object"

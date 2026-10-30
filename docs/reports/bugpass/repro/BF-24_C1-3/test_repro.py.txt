@@ -1,0 +1,34 @@
+"""C1-3: credleak agent actor without a usable run model must still seal (not adapter_defect)."""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "credleak"))
+from credleak_support import map_cell, synthetic_cell  # noqa: E402
+
+DROP = object()
+
+
+@pytest.mark.parametrize("model", [DROP, "unknown", 7, None])
+def test_agent_without_model_seals(model):
+    cell = json.loads(synthetic_cell())
+    if model is DROP:
+        del cell["runs"][0]["model"]
+    else:
+        cell["runs"][0]["model"] = model
+    data = json.dumps(cell).encode()
+    [m] = map_cell("cell.json", data, sem=False, prov=False)
+    status = m.header.get("status") or m.doc.seal.get("status")
+    agents = [r for r in m.records if r.get("k") == "actor" and r.get("id") == "agent"]
+    print("status", status, "codes", m.codes()[:4])
+    assert agents, f"no agent actor; status={status} codes={m.codes()}"
+    assert agents[0].get("src"), agents[0]
+
+
+def test_control_with_model():
+    [m] = map_cell("cell.json", synthetic_cell(), sem=False, prov=False)
+    agents = [r for r in m.records if r.get("k") == "actor" and r.get("id") == "agent"]
+    assert agents and agents[0].get("src")

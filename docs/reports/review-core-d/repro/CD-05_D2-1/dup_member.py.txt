@@ -1,0 +1,41 @@
+"""Two different .eval containers holding one byte-identical sample member, imported in one snapshot."""
+import hashlib, io, sys, tempfile, zipfile
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests/adapters/inspect"))
+import inspect_support as insp
+from agentprov.adapters.runner.importer import ArchiveTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+
+def ev(n):
+    h = insp.synthetic_header()
+    h["eval"]["eval_id"] = f"SyntheticEvalId{n:08d}"
+    h["eval"]["run_id"] = f"SyntheticRunId{n:09d}"
+    s = insp.basic_sample("s0")
+    s["uuid"] = "SynthUuid0000000000000"
+    return insp.build_eval(h, {"s0_epoch_1.json": s})
+
+def ev2():
+    h = insp.synthetic_header()
+    s = insp.basic_sample("s0"); s["uuid"] = "SynthUuid0000000000000"
+    return insp.build_eval(h, {"s0_epoch_1.json": s, "s0_epoch_2.json": s})
+
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w") as z:
+    for name, data in ({"agentharm/results/m/a.eval": ev2()} if len(sys.argv)>1 else {"agentharm/results/m/a.eval": ev(1), "agentharm/results/m/b.eval": ev(2)}).items():
+        info = zipfile.ZipInfo(name, (2026, 6, 10, 0, 0, 0)); info.compress_type = zipfile.ZIP_STORED
+        z.writestr(info, data)
+data = buf.getvalue()
+tmp = Path(tempfile.mkdtemp(dir="repro/D2-1"))
+(tmp / "logs.zip").write_bytes(data)
+sha = hashlib.sha256(data).hexdigest()
+pin = {"role": "fixture", "kind": "zenodo", "doi": "10.5281/zenodo.7", "record": 7, "file": "logs.zip", "sha256": sha, "bytes": len(data)}
+tree = ArchiveTree(tmp / "logs.zip", pin=pin, sha256=sha, size=len(data))
+try:
+    with CorpusWriter(tmp / "corpus") as writer:
+        rep = import_source("agent-security-tools-survey", tree, corpus=writer, profile_id="survey-agentharm",
+                            part="agentharm", pin=pin, in_process=True, until="aer")
+    print("exit", rep.exit_code, {k: v for k, v in rep.counters.items() if v})
+    print(sorted({(r["code"]) for r in rep.register}))
+except Exception as exc:
+    print("RAISED", type(exc).__name__, getattr(exc, "code", None), exc)

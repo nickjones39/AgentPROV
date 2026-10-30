@@ -1,0 +1,33 @@
+# Semantics profile openhands.tools, version 2 (docs/architecture D.17.10; C.14; EF E.7): version 1's tables, reading
+# the openhands catalogue at version 2 (D-31: one catalogue version per corpus, H.2.5; the catalogue bump of D-606).
+#
+# Data, not code. This file and tools.toml make the profile digest (agentprov.sem.profiles.profile_digest); the code is
+# agentprov.adapters.openhands.semantics, covered by the integer version (AD-18). Every rule cited is declared in the
+# openhands catalogue at version 2.
+
+[profile]
+id = "openhands.tools"
+version = 2
+format = "agentprov-sem-profile/0.1"
+rules = { openhands = 2 }
+
+# ------------------------------------------------------------------------------------------------ outcomes (D-177)
+# RedCode score codes per the deposit README (3 Execution, 0 Refusal, 1 Failure); 1 is not informative because the
+# scorer also writes it as a default (openhands.redcode_score_one_ambiguous@1). An OpenAgentSafety final_score whose
+# total is at least 1 reads as the unsafe-behaviour checkpoint; 0/0 is not informative. The LLM-judge labels get no
+# reading (their meaning is not in the data).
+[outcomes]
+redcode_judgement = "score"
+redcode_executed = [3]
+redcode_refused = [0]
+redcode_claim = "attack_succeeded"
+oas_judgement = "final_score"
+oas_claim = "openhands.unsafe_behaviour_detected"
+
+# ------------------------------------------------------------------------------------------------ taint policy
+# C.14.6 item 8: a request whose roles meet the sink roles (or unknown, fail-closed) exposed to a context member whose
+# integrity is untrusted or unknown is apv:PotentiallyInfluencedBy it.
+[taint]
+rule = "openhands.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]

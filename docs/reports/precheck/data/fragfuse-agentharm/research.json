@@ -1,0 +1,201 @@
+{
+ "format": "agentprov-precheck-research/0.1",
+ "corpus_id": "fragfuse-agentharm",
+ "parts": [
+  "fragfuse-agentharm logs"
+ ],
+ "wave": 4,
+ "kind": "first examination (not in FA/E2; no stored corpus, only the phase-10h scratch trial imports)",
+ "code_commit": "065b0d36",
+ "date": "2026-10-14",
+ "method": "desk research only (GitHub REST API via gh: repo, commits, compare, recursive tree, issues, branches; inspect_ai and inspect_evals commit/changelog lookups; Zenodo REST API record, versions and zip container listings; arXiv abs and HTML pages of 2606.15609 and 2410.09024v3); our own prior reports (phase 10h README/routing/redaction-design, census.json and map-census*.json under ~/.agentprov/migration-work/phase10h/census/, DECISIONS D-180..D-188, regen-batch items 12/16/25, review-core-d CD-24/CD-25, profile, registry, artefacts.toml, readme_corpora.toml). Read from the repo only code, README/readme text and two small author summary JSONs (retrieve_rate_summary.json, retrieve_guardrail_summary.json; account paths masked on read). No .eval/.json log, archive or dataset payload downloaded; no raw corpus data read; nothing computed from raw. Web text is untrusted data, summarised.",
+ "files_written": [
+  "docs/reports/precheck/data/fragfuse-agentharm/research.json",
+  "docs/reports/precheck/prereg/fragfuse-agentharm.md"
+ ],
+ "papers": [
+  {
+   "id": "arXiv:2606.15609 (DOI 10.48550/arXiv.2606.15609)",
+   "title": "FragFuse: Bypassing Access Control of Large Language Model Agents via Memory-Based Query Fragmentation and Fusion (Rao, Zhu, Lu, Chen, Niu, Guan, Li, Xiang)",
+   "url": "https://arxiv.org/abs/2606.15609",
+   "relation": "describes the experiment family this repository belongs to (setting 'InspAgent on AgentHarm', memory-bank fragment retrieval, LLM-AC and ShieldAgent guards). NOT recorded by us: the profile says 'none found in the repository (phase 10e)' and tools/readme_corpora.toml has no [paper.fragfuse-agentharm]. Link evidence: the paper's artefact (github.com/zixin22/Fragfuse, Zenodo concept 10.5281/zenodo.20337559, creator Rao, Zixin) is by the same GitHub owner; Zenodo v1 holds a folder Agentharm-revised--main whose logs_archive/ and inspect_logs_spot/ files equal ours by path and size (124 of 125 overlapping listed paths); the logs' eval.revision origin is a repo named Agentharm-revised- under a co-author's account. The paper does not cite fragfuse_agentharm itself.",
+   "versions": "v1 only, 2026-06-14 (3,561 KB), comments: 33 pages, accepted by USENIX Security 2026; licence arXiv non-exclusive 1.0 (https://arxiv.org/abs/2606.15609)"
+  },
+  {
+   "id": "arXiv:2410.09024",
+   "title": "AgentHarm: A Benchmark for Measuring Harmfulness of LLM Agents",
+   "url": "https://arxiv.org/abs/2410.09024v3",
+   "relation": "benchmark definition (harm score, refusal judge GPT-4o, 44 base behaviours x 4 variants in the inspect_evals test_public split of 176). Its Table 9 (public test) has a GPT-4o row usable as a loose reference for the plain gpt-4o logs_archive runs; it evaluates neither gpt-5-nano nor claude-opus-4-1",
+   "versions": "v1 2024-10-11, v2 2024-10-14, v3 2025-04-18 (ICLR 2025), per ast-survey-agentharm research.json; v3 Table 9 read here (https://arxiv.org/html/2410.09024v3)"
+  }
+ ],
+ "repo": {
+  "url": "https://github.com/zixin22/fragfuse_agentharm",
+  "pinned_commit": "24cc8aea1b9906bee20fb585007410a5d885933a",
+  "pin_date": "2026-05-24T02:18:49Z ('clean local artifacts and update AgentHarm tasks10 iteration outputs'); still HEAD of main on 2026-10-14 (pushed_at 2026-05-24T02:19:03Z)",
+  "history": "2 commits only: effd5de8 (2026-04-04, initial upload of the inspect_evals working copy) and the pin. The pin adds exactly 4 .eval files (carrier_inject_eval, dated 2026-04-20) and the tasks10 iteration_2..4 JSON outputs (incl. attack/carrier/mask outputs for gpt-5.1 and gemini as .json, not Inspect logs), removes memory/bank1_copy.jsonl, spot_runner.txt, carrier_query.jsonl, masked_query_input.jsonl and tasks10_outputs/step1_terms_calculation.txt [fact-check corrected: 5 removed, not 4; the compare lists 52 files: 41 added, 6 modified (incl. .gitignore, tasks10 scripts and readme.txt), 5 removed]; the other 164 .eval files are unchanged since effd5de (https://github.com/zixin22/fragfuse_agentharm/compare/effd5de88580...24cc8aea1b99)",
+  "tree": "recursive tree at the pin (not truncated): 4,923 entries, 3,847 blobs, 318,827,530 B = profile expected_files/expected_bytes; 168 .eval files, 49,874,989 B (= census bytes); plus 3 Inspect JSON-format logs inspect_logs_spot/2026-01-03T03-4*_agentharm_*.json (18,037,627 + 19,028,536 + 19,382,214 B) and run_spot_terminal.txt outside the profile's include globs; logs_archive/{logs.json, eval-set.json} and the run1 subfolder's logs.json/eval-set.json/.eval-set-id (eval-set listings, not executions); 136 bank_records/*.jsonl (106,216,807 B) and 136 x {guardrail_decision.json, task_input_core.txt, task_user_message_preview.txt, retrieve_test_readable_log_*.md} beside the retrieve logs (https://api.github.com/repos/zixin22/fragfuse_agentharm/git/trees/24cc8aea1b9906bee20fb585007410a5d885933a?recursive=1)",
+  "readme": "root README.md is the upstream inspect_evals README (no claim about these logs). src/inspect_evals/agentharm/tasks10/readme.txt (Chinese) documents the attack pipeline: sensitive-term extraction over the 176 harmful tasks (44 x 4), masking + guardrail, fragment halves injected into benign host instructions, guardrail filter (allowed only), per-task memory bank of ~32 base records + 1 injected record, top-1 SequenceMatcher retrieval with the masked query, then one Inspect task per allowed task id into retrieve_test_logs_<agent>/task_<id>/; steps 7-8 re-run the guardrail on the retrieved core instruction and measure retrieval match (https://github.com/zixin22/fragfuse_agentharm/blob/24cc8aea1b9906bee20fb585007410a5d885933a/src/inspect_evals/agentharm/tasks10/readme.txt). The readme itself contains a historical workstation path (not reproduced).",
+  "author_results_in_repo": "tasks10_outputs/retrieve_guardrail_summary.json: total_allowed_task_ids 136, processed_ok 136, guardrail_allowed 77, guardrail_blocked_or_error 59 (mode action_only); retrieve_rate_summary.json: 77 selected allowed, exact match 77/77 (rate 1.0, threshold 0.99). Both hold workstation paths (not reproduced) (https://github.com/zixin22/fragfuse_agentharm/tree/24cc8aea1b9906bee20fb585007410a5d885933a/src/inspect_evals/agentharm/tasks10_outputs)",
+  "issues": "10 issues/PRs, all dependabot dependency bumps (2026-04-04; 5 open, 5 closed); no data or harness issue; 14 dependabot branches; no tags or releases (https://api.github.com/repos/zixin22/fragfuse_agentharm/issues?state=all)",
+  "related_repos": "github.com/zixin22/Fragfuse (paper artefact; created 2026-05-24, last push 2026-06-05, no licence, 440 tree entries, no .eval and no Inspect log files; https://github.com/zixin22/Fragfuse). eval.revision origins named in the census: UKGovernmentBEIS/inspect_evals@d9787f49 (25 logs; 2025-12-16), <co-author account>/Agentharm-revised-@<account-D> (3) and @<account-B> (136), zixin22/fragfuse_agentharm@effd5de (4); that repository is not public (GitHub API 404 on 2026-10-14)"
+ },
+ "data_record": "No data record for fragfuse_agentharm itself; our pin is the GitHub commit (whole commit, 3,847 blobs / 318,827,530 B; blob ids verified by phase 10h). The paper's Zenodo concept 10.5281/zenodo.20337559 (CC-BY-4.0, resource type software / computational notebook) has two versions: v1 10.5281/zenodo.20337560 (2026-05-22, fragfuse.zip 7,083,440,972 B, md5 bb3d81879ad18533fa2608800c9d12d6), whose zip listing (truncated by the API, 802 entries) includes fragfuse/Agentharm-revised--main/ with logs_archive/*.eval, logs.json, eval-set.json and inspect_logs_spot/*.json of the same sizes as our pin (124/125 overlapping paths equal; .gitignore differs; it also holds .git, .venv, memory/bank1_copy.jsonl and spot_runner.txt, i.e. roughly the effd5de state); v2 10.5281/zenodo.20387340 (2026-05-25, fragfuse.zip 14,409,107 B, md5 e720d58cd8250d2ac69187df97de4e06) = the Fragfuse repo layout (Agentharm/ with fragfuse_output/Agentharm/iteration_4/*.json, no .eval in the listed part). Neither version is pinned or staged by us; not compared by checksum (no payload download). https://zenodo.org/api/records/20337560 , https://zenodo.org/api/records/20387340 , https://zenodo.org/api/records/20387340/versions",
+ "harness": "inspect_ai 0.3.154.dev37+g1289c1ad (commit 1289c1ad, 2025-12-11, 37 commits after 0.3.153; 25 logs), 0.3.158 (tag commit 2387b33d, 2025-12-24; 136 retrieve logs) and 0.3.159.dev20+g3ddd7997 (commit 3ddd7997, 2025-12-28; 7 logs) (https://github.com/UKGovernmentBEIS/inspect_ai/commit/1289c1ada83900b8d58942f13f20e16471967e97 , /commit/3ddd7997d3763b45d548db7edd91de9b3b685cc5). Known producer defects relevant here: (1) parallel tool batch: every ToolEvent gets the first result's message_id (_call_tools.py l.255-324 at both dev commits; from 0.3.113; fixed by 0.3.263) - regen item 16 rule inspect.tool_event_message_id_first_of_batch@1 (D); (2) ScoreEvent has no `scorer` key before 0.3.217 (upstream CHANGELOG 0.3.217) - our mapper's fallback name 'score' duplicates judgements (review-core-d CD-24, routed RD-2, not fixed at 065b0d36); (3) naive datetimes forbidden only from 0.3.151, so these producers write aware timestamps (CD-25 fires only on non-UTC offsets). Benchmark: inspect_evals working copy, AgentHarm task_version 1.0.0 for the 32 AgentHarm-task logs (0 = Inspect default for the 136 retrieve logs); revision d9787f49 = inspect_evals 2025-12-16, before 1.0.1 (2025-12-18) and the whole 2-A..8-B line, so none of the scoring fixes are in these logs: 3-B NaN aggregation, 4-B avg_score_non_refusals, 5-B refusal judge reads reasoning (#2107; matters for gpt-5-nano), 6-B two vacuous harmful graders, 7-B only executed calls credited (addresses #2108; fact-check: the issue #2108 itself is still open upstream on 2026-10-14), 8-B benign meeting location (#2101), avg_full_score integer skip (#2146); still open upstream #2212, #2312, #2439 (https://github.com/UKGovernmentBEIS/inspect_evals/blob/main/src/inspect_evals/agentharm/README.md#changelog). The fork's own solvers: memory_agent (pre_router/post_router; mode_router/save_router variants; SequenceMatcher retrieval) and the retrieve task with scorer always_ok (https://github.com/zixin22/fragfuse_agentharm/blob/24cc8aea1b9906bee20fb585007410a5d885933a/src/inspect_evals/agentharm/agents/memory_agent.py , /src/inspect_evals/agentharm/tasks10/6retrieve_test.py). Judge: openai/gpt-4o-2024-08-06 (refusal + semantic) in the 32 AgentHarm/carrier logs; none for retrieve.",
+ "models": [
+  "openai/gpt-4o-2024-08-06: agent in 151 logs (logs_archive 11: 6 harmful full, 2 benign full, 3 error logs; retrieve 136; carrier 4) and the AgentHarm judge in all 32 judged logs (judge = agent model; spans separate them)",
+  "openai/gpt-5-nano: agent in 7 logs_archive benign logs (1 full 176-sample log + 6 error logs, 8 samples); encrypted reasoning parts (D-188)",
+  "anthropic/claude-opus-4-1-20250805: agent in 6 error logs (10 samples: 5 harmful, 5 benign), 2 of them in agentharm_2025-12-30_run1",
+  "none/none: Inspect's no-model provider, 4 logs / 12 samples, excluded (D-183)",
+  "paper Table 1 models GPT-4o, GPT-5.1, Gemini 2.5 Flash: only GPT-4o appears in the .eval logs; GPT-5.1 and Gemini outputs exist only as tasks10_outputs/Agentharm/iteration_4/*_gpt5.1.json / *_gemini.json (not Inspect logs, not selected)",
+  "providers: OpenAI and Anthropic APIs (provider prefixes in-record); no weights digests"
+ ],
+ "reported_results": [
+  {
+   "arm": "InspAgent (AgentHarm harmful, 176), GPT-4o, direct querying, no access control",
+   "metric": "TSR (task success, GPT-4o judge)",
+   "value": "38.6",
+   "n": "176",
+   "where": "FragFuse Table 1 and Table 18 (Appendix Q), https://arxiv.org/html/2606.15609v1"
+  },
+  {
+   "arm": "InspAgent, GPT-5.1 / Gemini 2.5 Flash, direct querying",
+   "metric": "TSR",
+   "value": "13.6 / 22.7 (average 25.0)",
+   "n": "176",
+   "where": "FragFuse Table 1, Table 18"
+  },
+  {
+   "arm": "InspAgent, LLM-AC baseline attack (GPT-4o / GPT-5.1 / Gemini)",
+   "metric": "BSR / TSR",
+   "value": "3.4/50.0, 21.0/32.4, 0.0/0.0; average 8.1/27.5",
+   "n": "176",
+   "where": "FragFuse Table 1"
+  },
+  {
+   "arm": "InspAgent, LLM-AC + FragFuse (GPT-4o / GPT-5.1 / Gemini)",
+   "metric": "BSR / TSR",
+   "value": "45.5/25.0, 97.2/7.6, 98.9/0.0; average 80.5/10.9; E2E-SR average 6.3",
+   "n": "176",
+   "where": "FragFuse Table 1, Table 18"
+  },
+  {
+   "arm": "InspAgent, ShieldAgent baseline (GPT-4o / GPT-5.1 / Gemini)",
+   "metric": "BSR / TSR",
+   "value": "1.1/0.0, 33.5/10.2, 21.6/28.9; average 18.7/13.0; E2E-SR average 3.2",
+   "n": "176",
+   "where": "FragFuse Table 1, Table 18"
+  },
+  {
+   "arm": "InspAgent, ShieldAgent + FragFuse (GPT-4o / GPT-5.1 / Gemini)",
+   "metric": "BSR / TSR",
+   "value": "82.4/17.2, 97.2/2.9, 85.2/19.3; average 88.3/13.1; E2E-SR average 11.1",
+   "n": "176",
+   "where": "FragFuse Table 1, Table 18"
+  },
+  {
+   "arm": "InspAgent, judge validation",
+   "metric": "TSR LLM judge vs human",
+   "value": "32.0 vs 34.5",
+   "n": "random subset (size not given in the extracted text)",
+   "where": "FragFuse Table 9"
+  },
+  {
+   "arm": "InspAgent, carrier-query retrieval",
+   "metric": "top-1 carrier match (BM25, string matching, two encoders; memory 8/16/32)",
+   "value": "100%",
+   "n": "all attack instances",
+   "where": "FragFuse Table 14 / Figure 2"
+  },
+  {
+   "arm": "InspAgent defences",
+   "metric": "PromptArmor / PromptGuard benign-classification rate (benign, carrier, attack)",
+   "value": "86.4/72.7/44.1 and 98.9/60.2/22.7",
+   "n": "n/a",
+   "where": "FragFuse Table 7"
+  },
+  {
+   "arm": "AgentHarm public test, GPT-4o (gpt-4o-2024-08-06), no attack, harmful",
+   "metric": "harm score / refusals / non-refusal harm score",
+   "value": "48.4% / 48.9% / 90.1%",
+   "n": "public test split (paper Table 1 states 264 public-test behaviours; inspect_evals test_public = 176) [fact-check: Table 9 is computed on the paper's 264-behaviour public test; the logged harmful/benign logs use the 176-sample inspect_evals test_public split, so the reference is loose]",
+   "where": "AgentHarm v3 Table 9, https://arxiv.org/html/2410.09024v3"
+  },
+  {
+   "arm": "AgentHarm public test, GPT-4o, benign",
+   "metric": "non-refusal score",
+   "value": "89.9%",
+   "n": "public test benign split",
+   "where": "AgentHarm v3 Table 9"
+  },
+  {
+   "arm": "repo tasks10 retrieve experiment (gpt-4o, memory agent, 136 allowed task ids)",
+   "metric": "guardrail on retrieved core instruction: allowed / blocked-or-error; retrieval exact match",
+   "value": "77 / 59 of 136; 77/77 = 1.0",
+   "n": "136",
+   "where": "https://github.com/zixin22/fragfuse_agentharm/blob/24cc8aea1b9906bee20fb585007410a5d885933a/src/inspect_evals/agentharm/tasks10_outputs/retrieve_guardrail_summary.json and retrieve_rate_summary.json"
+  }
+ ],
+ "expected_counts": "Pin: 3,847 blobs / 318,827,530 B (profile, GitHub tree API 2026-10-14). .eval logs: 168 / 49,874,989 B (tree API, census.json). Include globs select 168; 4 none/none logs excluded by exact path (select.not_execution_artefact, 12 samples, D-183) -> 164 imported logs. Samples: 1,759 in all, 1,747 real-model = registry count (tools/readme_corpora.toml, basis census) = trial executions. Raw objects / members: 2,075 raw objects re-hashed = 164 containers + 164 header.json + 1,747 sample members (1,911 members checked; phase 10h trial verify). Log status: 148 success, 20 error (16 real-model error logs with 24 samples). Real samples with tool calls 1,064; 5,645 tool calls of 80 tools; sample_limit 74; sample errors 34 incl. 12 none/none -> 22 real. Not selected and not counted: 3 Inspect JSON logs in inspect_logs_spot/ (56,448,377 B; sample count unknown, never read by us). Executions at current code (item-16 scratch measurement at bfa1951): 1,747, 0 failed, 0 degenerate; 1,721 ok / 26 ok_with_issues; 1,744 verified_complete / 3 unverifiable; issues accounting_inconsistent 0, inspect.sample_limit 74, missing_tool_result 23, dangling_source_ref 23, inspect.unmapped_event 24, no_execution_observed 3.",
+ "expected_arms": "Facets experiment x model x task (l1_families STRATA) plus split, solver variant and producer: logs_archive gpt-4o harmful 1,059 samples (6 full logs: 4 default plan incl. 1 at 0.3.159.dev20, 1 mode_router/save_router, 1 pre_router/post_router; + 1 error log of 3), gpt-4o benign 354 (2 full: default and mode_router; + 2 error logs of 1 at dev20), gpt-5-nano benign 184 (1 full + 6 error logs, 8), claude-opus-4-1 harmful 5 and benign 5 (6 error logs), none/none 12 (excluded); retrieve (tasks10_retrieve_test, memory-bank injection) gpt-4o 136 single-sample logs, 136 distinct task ids out of 176; carrier (task, carrier injection) gpt-4o 4 single-sample logs (task 1-1 and test 1-1, 2 each, 1 error). Missing vs the paper: GPT-5.1 and Gemini 2.5 Flash, all access-control arms (LLM-AC, ShieldAgent) and the 176-task FragFuse attack runs are not in Inspect logs; gpt-5-nano harmful, claude-opus full runs absent. Extra vs the paper: gpt-5-nano, claude-opus-4-1, memory-agent router variants, retrieve test. L2 strata: 7 (carrier 4 + 6 x 5) -> 34 sampled executions.",
+ "licence": "Repository LICENSE at the pin: MIT, (c) 2024 UK AI Security Institute (inspect_evals' licence; blob 72fc87742ef8, 1,081 B; GitHub spdx MIT). Embedded AgentHarm task data: src/inspect_evals/agentharm/LICENSE (blob 2df4a8502b90, 1,239 B) 'MIT License with an additional clause', (c) 2024 Gray Swan AI and UK AI Security Institute; the clause prohibits use other than improving AI safety and security (https://github.com/zixin22/fragfuse_agentharm/blob/24cc8aea1b9906bee20fb585007410a5d885933a/src/inspect_evals/agentharm/LICENSE). Our handling: restricted-use corpus (LIC 3, D-144), [use] label in tools/readme_corpora.toml. Related artefacts: Zenodo 20337559 CC-BY-4.0; github.com/zixin22/Fragfuse no licence file. Unassessed: OpenAI/Anthropic terms on redistributing outputs.",
+ "discrepancy_leads": [
+  "L-01 Paper not recorded: arXiv 2606.15609 (FragFuse, USENIX Security 2026, v1 2026-06-14) describes this experiment family; profile [source].paper says none found and readme_corpora.toml has no [paper.fragfuse-agentharm] (documentation-mismatch, S3).",
+  "L-02 Unselected executions: inspect_logs_spot/ holds 3 Inspect JSON-format logs named *_agentharm_* (2026-01-03; 56.4 MB) outside the include globs, not mentioned in phase 10e/10h, the profile or the registry; the inspect.eval dialect reads .eval only. If they hold samples, the registry count 1,747 understates the published executions (documentation-mismatch, S2; scope decision needed).",
+  "L-03 Logs vs paper: the .eval logs are development runs (2025-12-25..2026-01-02 plain AgentHarm, 2026-04 retrieve and carrier tests); the paper's InspAgent results (GPT-4o/GPT-5.1/Gemini x LLM-AC/ShieldAgent, Table 1) are not in Inspect logs (iteration_4 JSON outputs only). No paper number maps directly onto a logged arm.",
+  "L-04 Retrieve experiment scored with always_ok: the 136 logs carry no harm/refusal outcome; the author's guardrail outcome (77 allowed / 59 blocked-or-error) lives in guardrail_decision.json context artefacts that the Inspect mapper does not consume (R-H3).",
+  "L-05 Undeclared arms: task.attack_id unrecorded for all (D-184); memory-agent router variants (mode_router/save_router, pre_router/post_router) on 3 logs are a further undeclared agent/defence-like facet; census tool-using samples 31 and 28 of 176 vs 117-122 for the default plan.",
+  "L-06 Producer defect, parallel tool batches: 1,617/5,078 tool events (620 samples, 0.3.154.dev37) and 155/567 (73 samples, 0.3.159.dev20) name another call's result; cleared by item 16 (accounting_inconsistent 693 -> 0).",
+  "L-07 CD-24: ScoreEvents lack `scorer` (pre-0.3.217); at 065b0d36 the mapper names them 'score' and emits a second, bench-attributed judgement per score value; SEM keys on combined_scorer.* and reads the duplicate (mapping-defect, routed RD-2).",
+  "L-08 CD-25: if any timestamp has a non-UTC offset, t.start/t.end are declared not_recorded and span ends dropped (mapping-defect, routed RD-2). Producers here are >= 0.3.151 (aware datetimes) and file names say +00-00, so 0 is expected.",
+  "L-09 Account paths: dataset.location (28 logs), memory-bank solver parameter (136), tracebacks (34 samples, 22 real) and metadata.carrier_query_path (4, second account) in raw; the profile still has no D-182 redact table at 065b0d36, so 25 executions carry an account path in AER ext (expected-known, security-relevant; D-186 option (c) ships raw as is).",
+  "L-10 Scoring version: AgentHarm task_version 1.0.0 (inspect_evals d9787f49), before every scoring fix 1.0.1..8-B and #2146; gpt-5-nano reasoning invisible to the refusal judge (#2107); benign meeting-location check cannot pass (#2101); unexecuted calls credited (#2108, issue still open; changelog 7-B fixes it).",
+  "L-11 Producer verification: no fragfuse producer is 53c1fa98, so the item-12/U6 rules resolve to their _unverified twins (class I) in all 1,747 executions; 0.3.158 (release, no +g commit) is not in the item-16 code lists either (no parallel batches there).",
+  "L-12 Eval-set retries: eval ids recur (KGn46... and cXgh... none/none at 22-06 and 22-07; KMWX... and 37NW... claude-opus in logs_archive and run1): retries of one eval-set task, distinct sample uuids per census; logs.json listings may name logs not in the tree.",
+  "L-13 Second public copy: Zenodo 20337560 v1 (7.08 GB) re-publishes logs_archive/ and inspect_logs_spot/ with equal sizes; v2 drops them. Not a separate registry source; no cross-corpus duplicate expected.",
+  "L-14 Secret-like strings: 166 matches inside longer tokens (simulated terminal output 2; gpt-5-nano encrypted reasoning 25 in messages, rest copies in events), none whole, none in a header (D-188).",
+  "L-15 Error-only material: 16 real error logs (24 samples), claude-opus 10/10 samples in error logs, 22 real sample errors: expect error-only/degenerate-looking units at L1-08 that still map as executions."
+ ],
+ "checks_not_applicable": [
+  "L1-05 defence facet: no defence declared; router solver variants recorded as an extra facet, not a defence",
+  "L2 outcome verdicts: every stratum has <= 5 sampled executions (< 20), so Wilson intervals only; the retrieve stratum has a constant always_ok score and no reference; gpt-5-nano and claude-opus have no paper reference",
+  "L2 withholding: the profile has no [withhold] table (D-186 option (c)); check only that nothing is withheld",
+  "Delta since E2: not an E2 corpus (no FA/E2 baseline); movement is stated against the phase-10h trial and its item-16 re-measurement instead"
+ ],
+ "open_questions": [
+  "Are the 3 inspect_logs_spot/*.json files Inspect log-format JSON with samples, and if so are they in scope (a JSON-log reader would be a dialect addition) or excluded with a disclosed code?",
+  "Does any FragFuse paper number correspond to a logged run (e.g. the GPT-4o direct-querying TSR 38.6 = 68/176 vs a default-plan gpt-4o harmful log's avg_full_score)?",
+  "Should the router variants (memory_agent) and the retrieve/carrier experiments be declared per path as arms (R-H3) before release?",
+  "When does the fragfuse profile get its D-182 redact table (owner: phase 10h); until then the 25 executions' AER ext carries account paths."
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-check (desk only; no payload downloaded, no raw data read)",
+  "confirmed": [
+   "FragFuse arXiv 2606.15609: v1 only, 2026-06-14, 3,561 KB, 'Accepted by USENIX Security 2026'; Open Science cites github.com/zixin22/Fragfuse and Zenodo 10.5281/zenodo.20337559, not fragfuse_agentharm (https://arxiv.org/abs/2606.15609)",
+   "FragFuse Table 1/Table 18 InspAgent rows: all BSR/TSR/E2E-SR values in reported_results match; direct-querying GPT-4o TSR 38.6 (E2E-SR 38.6), N=176 harmful (https://arxiv.org/html/2606.15609v1)",
+   "FragFuse Table 9 InspAgent TSR 32.0 (LLM) vs 34.5 (human); subset size not stated",
+   "AgentHarm v3 Table 9 (public test) GPT-4o: 48.4 / 48.9 / 90.1, benign non-refusal 89.9 (https://arxiv.org/html/2410.09024v3)",
+   "Pin 24cc8aea is HEAD of main; 2 commits; tree not truncated: 3,847 blobs, 318,827,530 B; 168 .eval, 49,874,989 B; inspect_logs_spot 3 JSON = 56,448,377 B",
+   "compare effd5de..24cc8aea: exactly 4 .eval added (carrier), no .eval modified or removed",
+   "LICENSE blobs 72fc8774 (1,081 B, MIT (c) 2024 UK AISI) and agentharm/LICENSE 2df4a850 (1,239 B, MIT + AI-safety use clause, (c) 2024 Gray Swan AI and UK AISI)",
+   "Zenodo 20337560 / 20387340: sizes, md5, dates, CC-BY-4.0, concept 20337559, 2 versions; container listing 802 entries; 124/125 overlapping Agentharm-revised--main paths equal in size to the pin (.gitignore differs)",
+   "inspect_ai 1289c1ad 2025-12-11 (37 ahead of 0.3.153), 0.3.158 = 2387b33d 2025-12-24, 3ddd7997 2025-12-28; CHANGELOG 0.3.217 adds scorer to ScoreEvent; 0.3.151 forbids naive datetimes",
+   "inspect_evals d9787f49 2025-12-16; AgentHarm changelog 1.0.1 .. 8-B as described; #2107/#2101/#2146 closed, #2212/#2312/#2439 open",
+   "issues: 10, all dependabot, 5 open / 5 closed; no tags, no releases; Fragfuse repo has no licence; co-author repo Agentharm-revised- returns 404",
+   "author summaries: guardrail allowed 77 / blocked-or-error 59 of 136; retrieval exact match 77/77",
+   "internal counts re-derived from cited reports only: phase10h README/routing (148/20, 1,064, 5,645/80, 2,075/1,911, 1,721/26, 1,744/3, 74/23/23/24/3, 693=620+73, 25 AER files), census (judge 32, models 151/7/6/4, categories, status), readme_corpora.toml count 1,747, profile expected_files/bytes and 4 excluded paths; arm arithmetic sums to 1,759 / 20 error logs / 24 error-log samples"
+  ],
+  "corrected": [
+   "repo.history: the pin removes 5 files (also tasks10_outputs/step1_terms_calculation.txt), not 4",
+   "#2108 is still open upstream; the fix is changelog 7-B (wording adjusted in harness, L-10 and prereg section 3)",
+   "AgentHarm Table 9 reference: computed on the paper's 264-behaviour public test, not the 176-sample inspect_evals split the logs use (caveat added)",
+   "Zenodo resource type is software (subtype computational notebook)"
+  ],
+  "unverifiable": [
+   "inspect_ai parallel-batch defect range (from 0.3.113, fixed by 0.3.263): taken from our item-16 report, not re-checked upstream",
+   "task_version 1.0.0 / revision attribution per log and account-path counts: our census/trial reports only (raw not read)",
+   "mapping of FragFuse TSR to an AgentHarm header metric: the paper does not state it"
+  ]
+ }
+}

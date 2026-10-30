@@ -1,0 +1,429 @@
+{
+ "format": "agentprov-postcheck-verdicts/0.1",
+ "meta": {
+  "decided": [
+   "D-359: Mandate outcome D→I 369 (v1.k14) and head 11,236 (v1.k14): both confirmed exactly by the SEM census.",
+   "The item-3 off-by-one is a counting difference (`unexecuted_trailing_calls`): consistent with the dispatch census, which counts parts and executions apart (ast-survey-agentdojo: 49 unexecuted parts in 48 executions); not otherwise re-derived here.",
+   "PC-ast-survey-agentdojo-13 → D-771 (withhold + re-import, user decision (a)); adprov compat spec → (a) derive (rg2); POST-ast-survey-agentharm-01 → D-811 (withhold + re-import, user decision (a))."
+  ],
+  "notes": [
+   "`l2_check`'s A3 `unexecuted` class reads only the core bundle; after D-80 addendum (d) (item 103) the `apv:dispatchStatus` sits in an inference-bundle mention where the rule is the `_unverified` twin (POST-tool-01). Do not read `unexecuted_missing` as a loss; use `post_check.py dispatch`.",
+   "Inspect `.eval` headers are raw JSON inside archives: screen `eval.dataset.location` explicitly (the pre-check's L1-06/L1-10 did not, POST-ast-survey-agentharm-01).",
+   "Sample re-imports for a tie must use the import mode of the tree (release here): dev mode changes `fn_digest` and every validation row.",
+   "Never seal: `ast-survey-agentdojo-rg1.partial`, `adprov-v1-release-rg1.partial`, `ast-survey-agentharm-rg1.partial` (superseded; see their dossiers).",
+   "Main moved the aer engine digest after `d93aa261` (class-1 live-part registry caveats). A recompute of these trees at today's main reports code drift; reproduce each at its building commit (F-8 ruling): `5b1f6fdf` for the rg1 trees and adprov rg2, `d93aa261` for survey rg2."
+  ],
+  "preamble": [
+   "Scope: the round's 8 regenerated corpora (`<id>-rg1.partial`) against their predecessors (`<id>-p10.pre-regen.partial`), plus the three trees rebuilt after the post-check's findings (`adprov-v1-release-rg2`, `ast-survey-agentdojo-rg2`, `ast-survey-agentharm-rg2`) against rg1. Read only; nothing sealed or deposited.",
+   "Readiness means readiness **for sealing**. The release-scan triage is a deposit gate, not a seal gate (the deposit builder refuses a corpus without a triaged scan): it is listed as a caveat."
+  ]
+ },
+ "trees": {
+  "adprov-v1-release": {
+   "attribution": [
+    "SEM partial_payload D +787 (item 6, the `partial` injection-marker status).",
+    "`apv:dispatchStatus apv:NotDispatched` stays in the core bundle for all 48 unexecuted parts: this harness code is verified, so the unexecuted rule stays D (dispatch census).",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [
+    {
+     "agents_md_12": false,
+     "artefact_proposal": null,
+     "check": "PC11",
+     "cls": "documentation-mismatch",
+     "evidence": "`corpora/adprov-v1-release/corpus-spec.toml` (since df67f9ac, phase 11, 2026-10-11) has `prov_specs = [\"agentprov-prov/0.1\", \"adprov-v2.3-compat\"]`; every execution of rg1 (and of p10) has only `agentprov-prov/0.1`; the round driver ran no `derive --prov-spec adprov-v2.3-compat`. The seal forecast refuses `stages`.",
+     "hypothesis_ref": null,
+     "id": "POST-adprov-v1-release-01",
+     "part": "all",
+     "recommendation": "Done: user decision (a), `adprov-v1-release-rg2` derived at 5b1f6fdf; post-checked (pass). For the next re-import, `tools/regen/round/run_round.sh` (or the regen plan) needs the step `agentprov derive --prov-spec adprov-v2.3-compat` after the import (`import` defers the compat spec). S2, not R4's S3 default, because it blocked the seal.",
+     "reproduction": "see the dossier's section 9",
+     "security": false,
+     "severity": "S2",
+     "title": "The corpus spec requires the regression-oracle PROV, which no import produces",
+     "verdict": "confirmed",
+     "verdicts": [
+      {
+       "cls": "documentation-mismatch",
+       "lens": "reproduction",
+       "reasoning": "re-measured from the committed data files",
+       "severity": "S2",
+       "verdict": "confirmed"
+      }
+     ]
+    }
+   ],
+   "precheck_status": {},
+   "readiness": "never seal",
+   "release_notes": [],
+   "superseded_by": "adprov-v1-release-rg2",
+   "why": "Superseded: `package` refuses it (`package.refused.stages`): the corpus spec names `adprov-v2.3-compat`, which no execution has (POST-adprov-v1-release-01). The user chose (a), a derive with the compat spec: `adprov-v1-release-rg2`. Every other check passed."
+  },
+  "adprov-v1-release-rg2": {
+   "attribution": [
+    "Only the 17,664 added `adprov-v2.3-compat` documents: `prov.documents` doubles, and their A3 `missing_generation` / `missing_use_*` / `time_not_run_scope` counts are the frozen v2.3 representation (invariant 8), not defects of `agentprov-prov/0.1`.",
+    "Index rows: the compat entry and the H.3.1 fields `derive` writes (cell, ev, facets, oracles)."
+   ],
+   "built_at": "`5b1f6fdf` (`derive --prov-spec adprov-v2.3-compat` from rg1, by the regeneration-plan session)",
+   "findings": [
+    {
+     "agents_md_12": false,
+     "artefact_proposal": null,
+     "check": "PC11",
+     "cls": "documentation-mismatch",
+     "evidence": "Both hold model-written or benchmark home-directory paths in derived records (release-scan findings: adprov rg2 1 ordinal, AER 6 and PROV 5; rope 2 ordinals, AER 9 and PROV 3; all names occur in the AgentDojo or AgentDyn suite data), the case the statement discloses for agentdyn-a and ast-survey-agentharm. R4 / CC-03.",
+     "hypothesis_ref": null,
+     "id": "POST-adprov-v1-release-02",
+     "part": "all",
+     "recommendation": "Datasheet owner: the statement's text and figures are specific to its two corpora, so adding the ids is not enough: add a sentence or statement with these corpora's own counts (or record why none is needed) before the datasheets are rendered.",
+     "reproduction": "see the dossier's section 9",
+     "security": false,
+     "severity": "S3",
+     "title": "Statement `benchmark-and-model-home-paths` does not list adprov-v1-release or rope",
+     "verdict": "confirmed",
+     "verdicts": [
+      {
+       "cls": "documentation-mismatch",
+       "lens": "reproduction",
+       "reasoning": "re-measured from the committed data files",
+       "severity": "S3",
+       "verdict": "confirmed"
+      }
+     ]
+    }
+   ],
+   "precheck_status": {
+    "PC-adprov-v1-01": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-adprov-v1-02": "n/a (a pre-registration comparison basis; no data issue)",
+    "PC-adprov-v1-03": "unchanged: 1 account ordinal, model-written fictional banking paths (`file_path`; the name occurs in the AgentDojo suite data), in raw 6, AER 6, PROV 5 (the compat `adprov:args` now carries it too); release-scan triage `synthetic-benchmark` or `false-positive` (see POST-adprov-v1-release-02)",
+    "PC-adprov-v1-04": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-adprov-v1-05": "unchanged (expected-known; no exclusion)",
+    "PC-adprov-v1-06": "unchanged (the walk skips the 8 `.DS_Store` files)",
+    "PC-adprov-v1-07": "unchanged (raw-level)",
+    "PC-adprov-v1-08": "unchanged (DL-9 not exercised; not needed)",
+    "PC-adprov-v1-09": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)",
+    "PC-adprov-v1-10": "superseded by the post-check (PC6 = the round's compare; the sample's movement since the pre-check is the inference-twin kind, section 3)",
+    "PC-adprov-v1-11": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it"
+   },
+   "readiness": "ready-with-caveats",
+   "release_notes": [
+    "The sample tie compares a release-mode scratch import without the compat spec, so PROV digests differ by that entry only (`stage_code_equal` aer, sem, prov, validation true)."
+   ],
+   "variant": "adprov-v1-release:rg2:rg1",
+   "why": "Every check passes: the seal forecast gives 0 refusals; the oracle is byte-identical to the AgentDojo-PROV release graphs for 17,664/17,664 traces; AER, SEM, `agentprov-prov/0.1` and validation digests equal rg1's on every row. Caveats before a deposit: release-scan triage of 1 account ordinal (model-written fictional banking paths) and 4 gitleaks `generic-api-key` findings, and the datasheet statement scope (POST-adprov-v1-release-02)."
+  },
+  "agentdojo-upstream-2024-06": {
+   "attribution": [
+    "SEM profile `agentdojo.suites@1` → `@2` (D-31 bump, item 1); every execution's SEM stage is renamed.",
+    "AER activity records added (the round's compare: 16,210); item 5's environment-load activities are among them (gate D's crosscount on this tree: 16,003).",
+    "SEM annotations added: `agentdojo.partial_payload` (item 6, the `partial` marker status) and `agentdojo.success_without_visible_payload` (D-377).",
+    "Completeness: item 9 (and D-372 on head), as the round's table.",
+    "`apv:dispatchStatus apv:NotDispatched` stays in the core bundle for all 153 unexecuted parts: this harness code is verified, so the unexecuted rule stays D (dispatch census).",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [],
+   "precheck_status": {
+    "PC-agentdojo-upstream-01": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdojo-upstream-02": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdojo-upstream-03": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdojo-upstream-04": "moved as D-84 (item 13) predicts and as the pre-check found: head outcome D→I 19,971 v0.k11 (head-only logs) besides the D-359 11,236 v1.k14; the item-1 table correction is D-359's",
+    "PC-agentdojo-upstream-05": "resolved by the round: completeness transitions equal the round's table (item 9: verified_complete → unverifiable 232 on each; head also D-372 36)",
+    "PC-agentdojo-upstream-06": "open (CC-04 documentation); the engine still records `apv:paramsStatus`",
+    "PC-agentdojo-upstream-07": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdojo-upstream-08": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdojo-upstream-09": "unchanged: the one secret-like hit is a model-written UUID; gitleaks reports it as `generic-api-key` (AER 1, raw 1): release-scan triage `false-positive`",
+    "PC-agentdojo-upstream-10": "open (licence-basis text with the family owner)",
+    "PC-agentdojo-upstream-11": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdojo-upstream-12": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)"
+   },
+   "readiness": "ready-with-caveats",
+   "release_notes": [],
+   "why": "Every check passes (0 seal refusals; release-mode re-import byte-identical). Caveat before a deposit: 2 gitleaks `generic-api-key` findings (the model-written UUID of PC-agentdojo-upstream-09, AER 1 and raw 1) need a `false-positive` triage entry."
+  },
+  "agentdojo-upstream-head": {
+   "attribution": [
+    "SEM profile `agentdojo.suites@1` → `@2` (D-31 bump, item 1); every execution's SEM stage is renamed.",
+    "Outcome D→I 31,207: v1.k14 11,236 (D-359, decided) and v0.k11 19,971 (D-84, item 13: head-only logs cite the `_unverified` twins). Injection markers D→I 100,688 by the same rules.",
+    "SEM annotations added: `agentdojo.partial_payload` (item 6, the `partial` marker status) and `agentdojo.success_without_visible_payload` (D-377).",
+    "Completeness: item 9 (and D-372 on head), as the round's table.",
+    "`apv:dispatchStatus apv:NotDispatched` moved from the core bundle to an inference-bundle mention for 679 of 815 unexecuted parts; 136 stay in core, where the rule stays D on verified code (D-80 addendum (d), 2026-10-15, regeneration-batch item 103: the TraceLogger and DRIFT builds cite the resolved rule, the `_unverified` twin under `verified_code = []`; the issue is a PROV premise since item 24). `l2_check`'s A3 `unexecuted` class reads the core element only and reports the moved parts as `unexecuted_missing`: a tool property (POST-tool-01), not a loss.",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [
+    {
+     "agents_md_12": false,
+     "artefact_proposal": null,
+     "check": "PC6/PC7",
+     "cls": "analysis-artefact",
+     "evidence": "l2_check's `_unexecuted` reads `view.elements`, which keeps the first declaration across bundles (the core element). Where D-80 addendum (d) (item 103) moved `apv:NotDispatched` into an inference-bundle mention, the A3 class reports the parts as `unexecuted_missing`. The dispatch census matches exactly: head 679 (of 815; 136 stay core), agentdyn-a 1,800, rope 753, ast-survey-agentdojo 49; 2024-06 (153) and adprov (48) did not move. Cross-cutting: recorded once, here.",
+     "hypothesis_ref": null,
+     "id": "POST-tool-01",
+     "part": "all",
+     "recommendation": "Future pre-checks: count `apv:dispatchStatus` in every bundle (post_check.py dispatch), or teach l2_check the inference-bundle mention; never read `unexecuted_missing` as a loss.",
+     "reproduction": "post_check.py dispatch --corpus <tree>",
+     "security": false,
+     "severity": "S3",
+     "title": "l2_check's A3 `unexecuted` class reads only the core bundle",
+     "verdict": "confirmed",
+     "verdicts": [
+      {
+       "cls": "analysis-artefact",
+       "lens": "reproduction",
+       "reasoning": "every part with unexecuted calls: core count p10 = inference count rg1",
+       "severity": "S3",
+       "verdict": "confirmed"
+      }
+     ]
+    }
+   ],
+   "precheck_status": {
+    "PC-agentdojo-upstream-01": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdojo-upstream-02": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdojo-upstream-03": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdojo-upstream-04": "moved as D-84 (item 13) predicts and as the pre-check found: head outcome D→I 19,971 v0.k11 (head-only logs) besides the D-359 11,236 v1.k14; the item-1 table correction is D-359's",
+    "PC-agentdojo-upstream-05": "resolved by the round: completeness transitions equal the round's table (item 9: verified_complete → unverifiable 232 on each; head also D-372 36)",
+    "PC-agentdojo-upstream-06": "open (CC-04 documentation); the engine still records `apv:paramsStatus`",
+    "PC-agentdojo-upstream-07": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdojo-upstream-08": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdojo-upstream-09": "unchanged: the one secret-like hit is a model-written UUID; gitleaks reports it as `generic-api-key` (AER 1, raw 1): release-scan triage `false-positive`",
+    "PC-agentdojo-upstream-10": "open (licence-basis text with the family owner)",
+    "PC-agentdojo-upstream-11": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdojo-upstream-12": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)"
+   },
+   "readiness": "ready-with-caveats",
+   "release_notes": [],
+   "why": "Every check passes (0 seal refusals; release-mode re-import byte-identical). Caveat before a deposit: 2 gitleaks `generic-api-key` findings (the model-written UUID of PC-agentdojo-upstream-09, AER 1 and raw 1) need a `false-positive` triage entry."
+  },
+  "agentdyn-a": {
+   "attribution": [
+    "SEM profile `agentdojo.suites@1` → `@3` (regeneration-batch item 27 (b); the spec's semantics profile).",
+    "SEM outcome and injection-marker annotations move D to I by item 3 / D-24 / D-80: the SEM rules' `_unverified` twins on unverified-harness code (`verified_code = []`). The pre-check's stored-vs-fresh tables attributed the same move on the samples.",
+    "Channel annotations I +96,640 (the round's compare).",
+    "Register: the 949 `select.owned_elsewhere` rows (DRIFT copies under `src/`, owner `drift`) are not recorded: they lie outside the pin's subtree `runs/`, which the round's `--fetch` import walks; the p10 import walked the whole local clone (POST-agentdyn-a-01).",
+    "Issue codes: `map.unattributed_additional_user_message` −266 (item 2: CaMeL interpreter feedback is attributed, so those 266 logs lose the code; regen-batch items 2-4-12).",
+    "Completeness: known_incomplete → unverifiable 825 (the round's table).",
+    "`apv:dispatchStatus apv:NotDispatched` moved from the core bundle to an inference-bundle mention for 1,800 of 1,800 unexecuted parts (D-80 addendum (d), 2026-10-15, regeneration-batch item 103: the TraceLogger and DRIFT builds cite the resolved rule, the `_unverified` twin under `verified_code = []`; the issue is a PROV premise since item 24). `l2_check`'s A3 `unexecuted` class reads the core element only and reports the moved parts as `unexecuted_missing`: a tool property (POST-tool-01), not a loss.",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [
+    {
+     "agents_md_12": false,
+     "artefact_proposal": null,
+     "check": "PC6",
+     "cls": "documentation-mismatch",
+     "evidence": "rg1 (imported with `--fetch`) records 0 of p10's 949 `select.owned_elsewhere` rows (DRIFT copies under `src/agentdojo/defenses/drift/runs/`, owner `drift`); ast-survey-agentdojo likewise 0 of 6 `select.owned_elsewhere` (the AgentHarm `.eval` files, owner ast-survey-agentharm) and 0 of 4 `select.dialect_planned` (`asb/` CSVs). All lie outside the pin's subtree (`runs/`, `agentdojo`): a fetched git-pin tree walks only the pin's subtree, the p10 `--input` import walked the whole local clone. Every file of the snapshot keeps its disposition; executions, verify and the seal forecast are unaffected. p10's origins are `local` (the `--input` route), which `package` refuses (D-33), so the register the spec describes (`D_adapters.md`: the 949 DRIFT copies `select.owned_elsewhere`; the survey's six `.eval` rows) belongs to a route that cannot be sealed. Side effect: these profile excludes (`src/agentdojo/defenses/drift/runs/**`, `agentharm/results/**/*.eval`, `asb/results/*.csv`) can never fire under `--fetch`. R4.",
+     "hypothesis_ref": null,
+     "id": "POST-agentdyn-a-01",
+     "part": "all",
+     "recommendation": "Runner/spec owner: state which route defines the register (pin subtree only, or the whole tree), update the D.6.x text and the H.6.2 ownership reading accordingly. No corpus change needed for the seal.",
+     "reproduction": "see the dossier's section 9",
+     "security": false,
+     "severity": "S3",
+     "title": "The register's out-of-pin `select.*` rows depend on the import route",
+     "verdict": "confirmed",
+     "verdicts": [
+      {
+       "cls": "documentation-mismatch",
+       "lens": "reproduction",
+       "reasoning": "re-measured from the committed data files",
+       "severity": "S3",
+       "verdict": "confirmed"
+      }
+     ]
+    }
+   ],
+   "precheck_status": {
+    "PC-agentdyn-01": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdyn-02": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdyn-03": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdyn-04": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-agentdyn-05": "unchanged (raw-level source defect, AgentDyn issue #6); artefact and datasheet note with the family owner",
+    "PC-agentdyn-06": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdyn-07": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdyn-08": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-agentdyn-09": "n/a (pre-registration wording)",
+    "PC-agentdyn-10": "unchanged (C5 table; no exclusion)",
+    "PC-agentdyn-11": "unchanged (C5 table)",
+    "PC-agentdyn-12": "unchanged, disclosed by `benchmark-and-model-home-paths` (agentdyn-a listed); triage counts in section 4",
+    "PC-agentdyn-13": "unchanged, disclosed by `agentdyn-suite-fixture-key`; 243 of 250 `private-key` findings are the fixture",
+    "PC-agentdyn-14": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)",
+    "PC-agentdyn-15": "n/a for this tree (part b is not in the round)",
+    "PC-agentdyn-16": "n/a for this tree (part b)",
+    "PC-agentdyn-17": "n/a for this tree (part b)"
+   },
+   "readiness": "ready-with-caveats",
+   "release_notes": [],
+   "why": "Every check passes (0 seal refusals; release-mode re-import byte-identical 360/360). Caveats before a deposit: a large release-scan triage. 3,028 `account-path` findings in 20 ordinals: AgentDyn personas and model-written tool-argument paths (`local_dir_path`, `save_dir`, `path`, `file_path`), none under a toolchain directory; 3 raw-only ordinals (#18-#20) are tool arguments in raw logs that do not map to AER. 2,498 gitleaks findings: 250 `private-key` (243 the AgentDyn fixture key, CC-02, statement `agentdyn-suite-fixture-key`; 7 not in the suite data) and 2,248 `generic-api-key` (29 sharing a token with the suite data). Disclosures stay as the pre-check routed them."
+  },
+  "ast-survey-agentdojo": {
+   "attribution": [
+    "SEM profile `agentdojo.suites@1` → `@2` (D-31 bump, item 1); every execution's SEM stage is renamed.",
+    "SEM outcome and injection-marker annotations move D to I by item 3 / D-24 / D-80: the SEM rules' `_unverified` twins on unverified-harness code (`verified_code = []`). The pre-check's stored-vs-fresh tables attributed the same move on the samples.",
+    "`apv:dispatchStatus apv:NotDispatched` moved from the core bundle to an inference-bundle mention for 49 of 49 unexecuted parts (D-80 addendum (d), 2026-10-15, regeneration-batch item 103: the TraceLogger and DRIFT builds cite the resolved rule, the `_unverified` twin under `verified_code = []`; the issue is a PROV premise since item 24). `l2_check`'s A3 `unexecuted` class reads the core element only and reports the moved parts as `unexecuted_missing`: a tool property (POST-tool-01), not a loss.",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [],
+   "precheck_status": {
+    "PC-ast-survey-agentdojo-13": "confirmed in rg1 (5 raw console logs, 58 matches, 1 account); fixed by D-771 (survey-runs@3 withhold; user decision (a)); see `ast-survey-agentdojo-rg2`"
+   },
+   "readiness": "never seal",
+   "release_notes": [
+    "58 `account-path` findings, all in the 5 console-log raw objects (2b736e23f895 ×25, bc1bc47b0262 ×28, 979bdc64963c ×2, d269cdc4106e ×2, 827662f31d68 ×1); 0 in derived records; gitleaks 0."
+   ],
+   "superseded_by": "ast-survey-agentdojo-rg2",
+   "why": "Superseded: it records survey-runs@2, which has no withholding policy, so a seal would ship the 5 console logs with a named account (PC-ast-survey-agentdojo-13, confirmed: 5 raw objects, 58 matches, ordinal #1). The user chose a withhold rule (D-771); the tree to seal is `ast-survey-agentdojo-rg2`. At today's spec (survey-runs@3) the seal forecast refuses rg1 (`package.refused.spec`, profile digest). Every other check passed."
+  },
+  "ast-survey-agentdojo-rg2": {
+   "attribution": [
+    "survey-runs@2 → @3 (D-771: the `[withhold]` table `console-home-account-path`); AER header profile digest and version change on every execution.",
+    "Value level: no census leaf other than the withholding plan changed (statements, evidence classes, A3, SEM, outcomes); the post-check does not compare masked PROV statement values.",
+    "Stage code: aer adapter and engine and prov engine digests moved (d93aa261: regeneration item 165, the defence rules, `session.py`); sem and validation unchanged."
+   ],
+   "built_at": "`d93aa261` (main, train 10; D-771 re-import by the regeneration-plan session)",
+   "findings": [],
+   "precheck_status": {
+    "PC-ast-survey-agentdojo-02": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-ast-survey-agentdojo-03": "unchanged, as expected: a source-documentation or paper-vs-log item about raw-level outcomes; PC8 finds 0 outcome values moved; the disclosure stays with the datasheet and manuscript owner",
+    "PC-ast-survey-agentdojo-04": "data unchanged (a raw-level checker defect, catalogued); the catalogue part is fixed: `agentdojo.art.validity_defects` now scopes this profile (CC-07, CC-09)",
+    "PC-ast-survey-agentdojo-05": "open (CC-04, documentation of U6-c); the engine still records `apv:paramsStatus`",
+    "PC-ast-survey-agentdojo-06": "moved as predicted (item 3 / D-80): SEM outcome D→I 6,069 and injection markers D→I 18,368 at full population, equal to the round's compare",
+    "PC-ast-survey-agentdojo-07": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-ast-survey-agentdojo-08": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-ast-survey-agentdojo-09": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-ast-survey-agentdojo-10": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-ast-survey-agentdojo-11": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)",
+    "PC-ast-survey-agentdojo-12": "resolved in scope (`validity_defects` scopes `survey-runs`); the expected row's content is not re-verified here",
+    "PC-ast-survey-agentdojo-13": "fixed by D-771: survey-runs@3 withholds the 5 console logs at seal (see section 4)"
+   },
+   "readiness": "ready",
+   "release_notes": [
+    "The withholding plan (survey-runs@3) withholds 2b736e23f895, 827662f31d68, 979bdc64963c, bc1bc47b0262 and d269cdc4106e: exactly the 5 raw objects with the 58 `account-path` findings.",
+    "The sample tie's `stage_code_equal.aer` is false only because main moved the aer engine digest after `d93aa261` (class-1 live-part registry caveats, D-720/D-722/D-729/D-744); all 120 executions are byte-identical.",
+    "The register's out-of-pin rows (6 `select.owned_elsewhere`, 4 `select.dialect_planned` in p10) are absent, as in rg1: POST-agentdyn-a-01."
+   ],
+   "variant": "ast-survey-agentdojo:rg2:rg1",
+   "why": "Every check passes at its building code (`d93aa261`, a merge of main at the post-check): the seal forecast gives 0 refusals; the full-population census equals rg1's except the new withholding plan; the plan withholds exactly the 5 console logs that hold every one of the 58 account-path findings (0 executions), so the release-scan forecast has no residue after the seal; gitleaks finds nothing; dry run 3,243 identical; release-mode re-import byte-identical 120/120."
+  },
+  "ast-survey-agentharm": {
+   "attribution": [
+    "SEM profile `inspect.agentharm@1` → `@2` (D-31).",
+    "Completeness verified_complete → known_incomplete 4 (item 11; the round's table).",
+    "Raw member rows: only the expand `fn_digest` changed on all 1,691 rows (D-451/BF-39, CB-22); container, label, digest, size and CRC equal.",
+    "PROV: inference I +1,056 (one per execution) and statement counts up; no per-execution leaf changed on the sample from the pre-check scratch."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [
+    {
+     "agents_md_12": false,
+     "artefact_proposal": null,
+     "check": "PC10",
+     "cls": "source-defect",
+     "evidence": "Ordinal #20 (8 characters; neither a generic cloud or CI account nor on the release scan's allowlist): 6 matches, one in the `header.json` member of each of the 6 `.eval` logs (member objects 9b6feb8ee59d, 5ac78e51ddfc, 2040b443f665, 754609adf039, 655ac59e381f, 8e86d3ce28fc), under JSON key `location`, the path continuing into a dot-directory (a dataset cache); each `.eval` container holds the same header compressed (of the 85 archive-member findings inside the 6 containers, at most 6 are header copies; the rest are sample members with ordinals #1-#19). It is the same account as PC-ast-survey-agentdojo-13: the survey author's workstation account (the verifier's comparison, names held in memory only). The bare name occurs 0 times in aer/, sem/, prov/, validation/, the index, the register, corpus.json and the raw origin and member rows: the Inspect mapper never copies `eval.dataset` (D-235). Raw only, so CC-11 (S2), not CC-12(a) S0. kexin's `dataset-location-home` pattern matches all 6 headers; no statement covers them (`agentharm-raw-withheld-account-paths` names fragfuse and kexin only). The pre-check missed it (L1-10 screened 0 non-JSON files; the JSON screen did not open the `.eval` header).",
+     "hypothesis_ref": null,
+     "id": "POST-ast-survey-agentharm-01",
+     "part": "all",
+     "recommendation": "User decision (sent to the orchestrator 2026-10-24; one decision can cover both survey parts, as D-771 did for PC-13): (a) a D-604 object-scope withhold in survey-agentharm (@1 → @2), anchored on the header key `location` as kexin's `dataset-location-home`, withholding the 6 headers and their containers, then a re-import (1,056 executions); or (b) `pinned-account` plus a datasheet disclosure (D-604 item 7). Recommended: (a). Done: the user chose (a), D-811 (survey-agentharm@2), re-imported as `ast-survey-agentharm-rg2`; its post-check finds residue 0 (see that dossier).",
+     "reproduction": "see the dossier's section 9",
+     "security": true,
+     "severity": "S2",
+     "title": "Raw `.eval` headers name a third-party account's home directory in `eval.dataset.location`",
+     "verdict": "confirmed",
+     "verdicts": [
+      {
+       "cls": "source-defect",
+       "lens": "reproduction",
+       "reasoning": "re-measured from the committed data files",
+       "severity": "S2",
+       "verdict": "confirmed"
+      }
+     ]
+    }
+   ],
+   "precheck_status": {},
+   "readiness": "never seal",
+   "release_notes": [
+    "Account paths: 20 ordinals. 19 are benchmark or model content (tool-argument keys `image_path`, `video_path`, `file_path`, `mp3_path`, `base_img`, message `content`, AgentHarm prompts), in AER and PROV as well as raw, as the bug pass's /home/ triage classified (synthetic-benchmark or false-positive); statement `benchmark-and-model-home-paths` covers the derived records. The statement counts 18 names; this scan finds 19 such ordinals (it also matches `/Users/`, escaped and Windows forms): the difference is not reconciled here.",
+    "Ordinal #20 is not: see POST-ast-survey-agentharm-01.",
+    "gitleaks: 113 `generic-api-key` (39 lines share a token with the AgentHarm prompts; 74 do not) and 1 `facebook-secret` (in the prompts): every one needs a release-scan triage entry before a deposit."
+   ],
+   "superseded_by": "ast-survey-agentharm-rg2",
+   "why": "Superseded: survey-agentharm@1 has no withholding policy, so a seal would ship 6 raw `.eval` headers naming the survey author's account in `eval.dataset.location` (POST-ast-survey-agentharm-01). The user chose (a), a D-604 object-scope withhold (D-811, survey-agentharm@2); the tree to seal is `ast-survey-agentharm-rg2`. Every other check passed (release-mode re-import byte-identical 1,056/1,056; 0 seal refusals)."
+  },
+  "ast-survey-agentharm-rg2": {
+   "attribution": [
+    "survey-agentharm@1 → @2 (D-811: kexin's `dataset-location-home` rule, object scope); AER header profile digest and version on every execution; SEM and PROV digests follow; validation unchanged.",
+    "Value level: no census leaf other than the withholding plan changed (statements, evidence classes, A3, SEM); the post-check does not compare masked PROV statement values."
+   ],
+   "built_at": "`5fc39c16` (train 18 `785c6c28` + D-811 survey-agentharm@2 + a SEC-12 test change; the regeneration-plan session)",
+   "findings": [],
+   "precheck_status": {
+    "PC-ast-survey-agentharm-01": "unchanged (a raw-level source defect, inspect_evals #2439); the disclosure stays open with the datasheet owner",
+    "PC-ast-survey-agentharm-02": "resolved: `inspect.art.abnormal_finish_max_tokens` and `inspect.art.text_tool_call` are in the Inspect catalogue",
+    "PC-ast-survey-agentharm-03": "open (documentation of the verify report); no data change",
+    "PC-ast-survey-agentharm-04": "unchanged (expected-known); the wording suggestion stays with the family owner",
+    "PC-ast-survey-agentharm-05": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-ast-survey-agentharm-07": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)"
+   },
+   "readiness": "ready-with-caveats",
+   "release_notes": [
+    "The scan forecast runs on the working tree, which still holds the 12 withheld objects: ordinal #20's 6 raw-object findings leave with them at the seal (residue 0).",
+    "The other 19 ordinals and the gitleaks findings are those of rg1 (benchmark or model content; triage needed before a deposit)."
+   ],
+   "variant": "ast-survey-agentharm:rg2:rg1",
+   "why": "Every check passes at its building code: the seal forecast gives 0 refusals; the withholding plan withholds 12 objects (the 6 `header.json` members by `dataset-location-home`, their 6 `.eval` containers by closure) and 0 executions; the withheld account has 0 bare-name and 0 home-path hits in the 4,232 files outside them and no archive lies outside them (residue); the full-population census equals rg1's except the withholding plan; dry run 1,056 identical; validation 1,056 passed; release-mode re-import byte-identical 1,056/1,056. Caveats before a deposit: release-scan triage of the 19 benchmark or model ordinals and the 114 gitleaks findings (as rg1), and the PC-01 disclosure."
+  },
+  "mandate-agentdojo-eval": {
+   "attribution": [
+    "SEM profile `agentdojo.suites@1` → `@2` (D-31 bump, item 1); every execution's SEM stage is renamed.",
+    "Outcome annotations D→I 369, all v1.k14: D-359 (premise propagation through `checker_outcome`; user decision, option A, docs only).",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [],
+   "precheck_status": {
+    "PC-mandate-agentdojo-eval-01": "data unchanged (a raw-level checker defect, catalogued); the catalogue part is fixed: `agentdojo.art.validity_defects` now scopes this profile (CC-07, CC-09)",
+    "PC-mandate-agentdojo-eval-02": "data unchanged (a raw-level checker defect, catalogued); the catalogue part is fixed: `agentdojo.art.validity_defects` now scopes this profile (CC-07, CC-09)",
+    "PC-mandate-agentdojo-eval-03": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-mandate-agentdojo-eval-04": "decided (D-359, option A, docs only); numbers confirmed: outcome D→I 369, all v1.k14 (PC6 SEM census = the round's compare)",
+    "PC-mandate-agentdojo-eval-05": "open with the family owner (documentation); the round changes no data here",
+    "PC-mandate-agentdojo-eval-08": "superseded by the post-check: SEM net = the round's compare; the sample from the pre-check scratch to rg1 has 0 per-execution leaves changed",
+    "PC-mandate-agentdojo-eval-09": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-mandate-agentdojo-eval-10": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)",
+    "PC-mandate-agentdojo-eval-11": "resolved: `agentdojo.art.validity_defects` scopes `mandate-agentdojo-eval`"
+   },
+   "readiness": "ready",
+   "release_notes": [
+    "Nothing to triage."
+   ],
+   "why": "Every check passes; the release-scan forecast is empty (0 native, 0 gitleaks findings); the seal forecast gives 0 refusals; the decided D-359 count (outcome D→I 369, v1.k14) is confirmed."
+  },
+  "rope": {
+   "attribution": [
+    "SEM profile `agentdojo.suites@1` → `@2` (D-31 bump, item 1); every execution's SEM stage is renamed.",
+    "SEM outcome and injection-marker annotations move D to I by item 3 / D-24 / D-80: the SEM rules' `_unverified` twins on unverified-harness code (`verified_code = []`). The pre-check's stored-vs-fresh tables attributed the same move on the samples.",
+    "Completeness: D-372 322 and item 9 2, as the round's table.",
+    "`apv:dispatchStatus apv:NotDispatched` moved from the core bundle to an inference-bundle mention for 753 of 753 unexecuted parts (D-80 addendum (d), 2026-10-15, regeneration-batch item 103: the TraceLogger and DRIFT builds cite the resolved rule, the `_unverified` twin under `verified_code = []`; the issue is a PROV premise since item 24). `l2_check`'s A3 `unexecuted` class reads the core element only and reports the moved parts as `unexecuted_missing`: a tool property (POST-tool-01), not a loss.",
+    "`apv:Denied` (1,709 parts, the ROPE guard denials) was already in the inference bundle in p10.",
+    "Inference-bundle twin statements grew between the pre-check scratch import (`d97d3a57`) and the round (`5b1f6fdf`): equal I and unclassed increments in the inference bundles, the same kind in every AgentDojo-family part. Engine and catalogue items landed in that window (D-621 #15-#26, part C, regeneration items 105-167); the round's closed-world compare covers them. The post-check confirms the kind and the determinism (dry run identical, validation clean, release-mode re-import byte-identical), not a per-item split: the pre-check scratch trees no longer exist."
+   ],
+   "built_at": "`5b1f6fdf` (the round)",
+   "findings": [],
+   "precheck_status": {
+    "PC-rope-01": "open with the family owner: the three entries are present; recounting their values on rg1 is not part of this post-check",
+    "PC-rope-02": "superseded by the post-check (PC6 = the round's compare; release-mode re-import byte-identical)",
+    "PC-rope-03": "resolved by the round: fresh strict validation of the regenerated tree, 0 failed and `results_differ` 0 (PC5)",
+    "PC-rope-04": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-rope-05": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-rope-06": "n/a: a property of a pre-check tool (R5); the post-check measures do not depend on it",
+    "PC-rope-07": "unchanged, disclosed: the fixture key by statement `agentdyn-suite-fixture-key`; the persona home paths need `benchmark-and-model-home-paths` to list rope (POST-adprov-v1-release-02)"
+   },
+   "readiness": "ready-with-caveats",
+   "release_notes": [],
+   "why": "Every check passes (0 seal refusals; release-mode re-imports byte-identical, head 300/300 and rope-slice 90/90). Caveats before a deposit: release-scan triage (2 account ordinals, both AgentDyn suite personas; 156 `private-key` findings, all the AgentDyn fixture key of CC-02, statement `agentdyn-suite-fixture-key`; 136 `generic-api-key`, 36 sharing a token with the suite data) and the statement scope of POST-adprov-v1-release-02."
+  }
+ }
+}

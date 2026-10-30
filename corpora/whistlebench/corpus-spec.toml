@@ -1,0 +1,39 @@
+# Corpus spec of `whistlebench` (HL H.1.6; D-44): DRAFT by the wave-2 pre-release checks (2026-10-29), for the user's
+# approval. Identity and selection come from here and from the source profile it names; counts are computed at sealing
+# (H.2.1(3)). Each origin is the pin the import recorded (D-33).
+
+corpus_id = "whistlebench"
+corpus_version = "0.1.0"
+title = "WhistleBench: Inspect .eval logs of tool-using agents in corporate-misconduct scenarios (legobridge/whistlebench)"
+mode = "import"
+
+[[sources]]
+source_id = "whistlebench"
+profile = "whistlebench@2"
+parts = ["final-runs"]
+
+[[sources.snapshots]]
+snapshot_id = "final-runs"
+origin = { commit = "9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc", kind = "git", repo = "https://github.com/legobridge/whistlebench", subtree = "final_runs" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["inspect.whistlebench@2"]
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only; corpora/personas/).
+[scan]
+personas = [
+  { path = "../personas/whistlebench.observed.personas.toml", sha256 = "sha256:82d1164d01cebcba769b521f8cc906b845d7239d39bb43b98a76fc2c3037ca96" },
+]

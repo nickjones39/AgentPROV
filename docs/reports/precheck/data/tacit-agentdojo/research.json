@@ -1,0 +1,151 @@
+{
+  "corpus_id": "tacit-agentdojo",
+  "parts": [
+    "head"
+  ],
+  "wave": 2,
+  "written": "2026-10-14",
+  "code_commit": "065b0d36",
+  "status": "desk research for the pre-registration; no data check of this corpus has run. Counts marked 'git tree' come from the GitHub trees API listing of the pin (paths and sizes only, no blob content); counts marked 'census' are our own phase-10c/10d reports.",
+  "papers": [
+    {
+      "title": "Agent Safety From Within: Detecting Harmful Trajectories from LLM Internal States (Difan Jiao, Ashton Anderson, University of Toronto); introduces TACIT",
+      "url": "https://arxiv.org/abs/2609.33039v1",
+      "id": "arXiv:2609.33039",
+      "relation": "the corpus's own paper: footnote 1 points to https://github.com/CSSLab/Tacit; Appendix B.1 describes the AgentDojo trajectories as collected by the authors; Table 4 gives their size and label balance. The repository README names it with a different working title ('TACIT: Detecting Harmful Agent Trajectories from Internal Representations'), which is what our profile and README record ('no identifier recorded')",
+      "versions": "v1 only (submitted 2026-09-27T00:09:10Z; arXiv API and abs page 2026-10-14); 'Preprint. Under review.'; arXiv licence field CC BY-SA 4.0; Semantic Scholar CorpusId 292436033, no venue"
+    },
+    {
+      "title": "LLM Safety From Within: Detecting Harmful Content with Internal Representations (Jiao, Liu, Yuan, Tang, Du, Wu, Anderson; same first author; introduces SIREN)",
+      "url": "https://arxiv.org/abs/2604.18519",
+      "id": "arXiv:2604.18519",
+      "relation": "predecessor on content moderation; no AgentDojo data; context only",
+      "versions": "v1 (2026-04-20); journal ref ACL 2026 (Volume 1: Long Papers), DOI 10.18653/v1/2026.acl-long.1844 [corrected: added, arXiv API 2026-10-14]"
+    },
+    {
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+      "url": "https://arxiv.org/abs/2406.13352",
+      "id": "arXiv:2406.13352",
+      "relation": "benchmark the logs run on (suites v1.2.2, important_instructions attack, agentdojo 0.1.35 per the collection script); reference only",
+      "versions": "not compared (reference only)"
+    }
+  ],
+  "repo": "https://github.com/CSSLab/Tacit (Apache-2.0 per GitHub API; created 2026-08-17T16:37:46Z; pushed 2026-09-23T18:38:17Z). Pin 995692d3cd42c32e08cf0db8a5fae55fec272f1a 'initial release' by difanj0713 (Difan Jiao, U Toronto), author date 2026-09-23T18:31:25Z, committer date 2026-09-23T18:34:09Z; it is the ONLY commit and the head of the only branch `main` on 2026-10-14 (https://api.github.com/repos/CSSLab/Tacit/commits), so there is no history around the pin and the code that wrote the logs on 2026-07-10 (census ts_range) is not in version control. No tags, no releases, 0 issues ever opened (https://api.github.com/repos/CSSLab/Tacit/issues?state=all), 1 fork (jie311/Tacit, no own pushes). Tree at the pin: 2,139 blobs, 34,387,446 bytes incl. assets/figure1.png (292,838 bytes; the one blob not fetched in phase 10c, so 34,094,608 bytes without it, matching the profile); 2,076 logs under data/agentdojo/ (32,102,611 bytes), 4 split files data/splits/split_seed{42..45}.json, 59 code/doc files. README claims: data/README.md says data/agentdojo/ holds 'our AgentDojo trajectories (Qwen3-4B and Llama-3.1-8B as agents), as written by scripts/data/collect_agentdojo.sh' and gives the loader's expected output 'agentdojo n=2075 unsafe=1706' (https://github.com/CSSLab/Tacit/blob/995692d3cd42c32e08cf0db8a5fae55fec272f1a/data/README.md). Loader tacit/data/agentdojo.py skips rows whose security is None or whose error is set and labels a row unsafe when security is False (https://github.com/CSSLab/Tacit/blob/995692d3cd42c32e08cf0db8a5fae55fec272f1a/tacit/data/agentdojo.py). Collection: scripts/data/collect_agentdojo.sh serves the model with vLLM (max-model-len 32768, auto tool choice, parser hermes for Qwen / llama3_json for Llama), runs `python -m agentdojo.scripts.benchmark --model <VLLM_PARSED|LOCAL> -ml agentdojo_compat --benchmark-version v1.2.2 -s <suite>` for attack none then important_instructions, four suites in parallel; it writes per-suite process logs and vllm_server.log next to the runs, none of which is in the tree (https://github.com/CSSLab/Tacit/blob/995692d3cd42c32e08cf0db8a5fae55fec272f1a/scripts/data/collect_agentdojo.sh). scripts/data/agentdojo_compat.py is a pydantic-2.13 workaround (TaskResults.model_rebuild, cf. AgentDojo #88). tacit/config.py maps qwen3-4b-instruct -> Qwen/Qwen3-4B-Instruct-2507 and llama3.1-8b-instruct -> meta-llama/Llama-3.1-8B-Instruct, no revision (https://github.com/CSSLab/Tacit/blob/995692d3cd42c32e08cf0db8a5fae55fec272f1a/tacit/config.py).",
+  "data_record": "None. No Zenodo, Hugging Face or Figshare record (Zenodo API query for 'CSSLab/Tacit' or the paper title: 0 hits; HF datasets search 'tacit': 0 hits; 2026-10-14). The logs live only in the Git repository; our pin is the only commit, so pin = head = release; tree counts match the profile (expected_files 2,139; 2,076 logs; 34,094,608 bytes without the PNG). Checksums: git blob SHA-1s from the trees API only; no publisher checksum file.",
+  "harness": "AgentDojo 0.1.35 (PyPI/GitHub tag v0.1.35, 2025-10-27; https://github.com/ethz-spylab/agentdojo/releases/tag/v0.1.35) per the collection script comment and the logs (census: agentdojo_package_version 0.1.35 in 2,076); installation not pinned in the repository (requirements.txt lists only the analysis stack: Python 3.11, torch 2.11.0, transformers 5.9.0, vllm 0.21.0 ...). Benchmark version v1.2.2 (census: 2,076) = 0.1.35's default; workspace has 14 injection tasks (6..13 added in v1.2/v1.2.1). Providers: Llama via AgentDojo's LOCAL client (pipeline_name `local`, AgentDojo's own prompting/parsing), Qwen via VLLM_PARSED (pipeline_name `vllm_parsed`, vLLM hermes parser). No defence. Known 0.1.35 defects relevant here: #150/#202 LocalLLM keeps only the first <function=...> call and drops fenced calls (https://github.com/ethz-spylab/agentdojo/issues/202); #219 LocalLLM drops calls with empty body or trailing text (https://github.com/ethz-spylab/agentdojo/issues/219); #220 LocalLLM turns server errors into an empty final answer scored as a failed attack (https://github.com/ethz-spylab/agentdojo/issues/220); #213 workspace injection_task_6..13 have empty ground truth (https://github.com/ethz-spylab/agentdojo/issues/213); #201 workspace v1.2.2 + important_instructions 0/560 on one model (https://github.com/ethz-spylab/agentdojo/issues/201); #181 banking injection tasks 0/1/3 subject check is dead code (https://github.com/ethz-spylab/agentdojo/issues/181); #168 slack injection_task_5 scored from attempted calls (https://github.com/ethz-spylab/agentdojo/issues/168); #188 slack utility KeyError when post_webpage does not execute (https://github.com/ethz-spylab/agentdojo/issues/188); #214 non-ASCII tool results as \\uXXXX (https://github.com/ethz-spylab/agentdojo/issues/214); #88 TaskResults not fully defined under newer pydantic (https://github.com/ethz-spylab/agentdojo/issues/88). Semantics: the maintainer states security true = attack successful, and always true without an attack (https://github.com/ethz-spylab/agentdojo/issues/95). 0.1.35 imposes utility False / security True on context-length and server errors with a logged error (benchmark.py at v0.1.35); census: error null in 2,076. With an attack and a non-DoS attack, 0.1.35 first runs every injection task as a user task (pre-pass, logged under injection_task_*/none/) — none is in the tree.",
+  "models": [
+    "llama3.1-8b-instruct (directory label) = meta-llama/Llama-3.1-8B-Instruct per tacit/config.py; revision not recorded (HF main 0e9e39f2, lastModified 2024-09-25, gated, licence llama3.1); served by vLLM, AgentDojo LOCAL client; 1,046 logs",
+    "qwen3-4b-instruct (directory label) = Qwen/Qwen3-4B-Instruct-2507 per tacit/config.py; revision not recorded (HF main cdbee75f, lastModified 2025-09-17, apache-2.0); served by vLLM with the hermes tool parser, AgentDojo VLLM_PARSED client; 1,030 logs"
+  ],
+  "reported_results": [
+    {
+      "arm": "AgentDojo, both agents pooled (dataset statistics)",
+      "metric": "trajectories",
+      "value": "2,075",
+      "n": "2,075",
+      "where": "Table 4 (App. B.1), https://arxiv.org/abs/2609.33039v1"
+    },
+    {
+      "arm": "AgentDojo, both agents pooled",
+      "metric": "unsafe trajectories (paper: agent completes the injected task, checked by AgentDojo)",
+      "value": "369",
+      "n": "2,075",
+      "where": "Table 4 and Table 3 ('AgentDojo injected task carried out (369)'), https://arxiv.org/abs/2609.33039v1"
+    },
+    {
+      "arm": "AgentDojo, both agents pooled",
+      "metric": "safe trajectories",
+      "value": "1,706",
+      "n": "2,075",
+      "where": "Table 4, https://arxiv.org/abs/2609.33039v1"
+    },
+    {
+      "arm": "AgentDojo, held-out test split",
+      "metric": "test trajectories",
+      "value": "421",
+      "n": "2,075",
+      "where": "Table 4, https://arxiv.org/abs/2609.33039v1"
+    },
+    {
+      "arm": "AgentDojo, both agents pooled (repository loader)",
+      "metric": "rows loaded / unsafe (loader: unsafe = security is False)",
+      "value": "2,075 / 1,706",
+      "n": "2,075",
+      "where": "data/README.md 'Expected' block, https://github.com/CSSLab/Tacit/blob/995692d3cd42c32e08cf0db8a5fae55fec272f1a/data/README.md"
+    },
+    {
+      "arm": "AgentDojo column, detector (not agent) performance",
+      "metric": "macro-F1 % (TACIT on Qwen3-4B Probe/Ensemble/Multi-layer; on Llama-3.1-8B Probe/Ensemble/Multi-layer; guards Qwen3Guard-4B/LlamaGuard3-8B/AgentDoG-4B)",
+      "value": "65.1/71.0/76.9; 66.6/68.8/72.2; 44.9/62.5/48.2",
+      "n": "421 (test split)",
+      "where": "Table 1, https://arxiv.org/abs/2609.33039v1"
+    },
+    {
+      "arm": "AgentDojo column, leave-one-benchmark-out",
+      "metric": "macro-F1 % (Qwen3-4B P/E/M; Llama-3.1-8B P/E/M; guards Q/L/A)",
+      "value": "58.8/52.1/56.2; 45.5/44.8/46.3; 45.9/54.8/41.5",
+      "n": "2,075",
+      "where": "Table 2, https://arxiv.org/abs/2609.33039v1"
+    },
+    {
+      "arm": "per model, per suite, utility / ASR",
+      "metric": "utility, utility under attack, targeted ASR",
+      "value": "not reported (the paper reports no agent outcome rates for its AgentDojo runs)",
+      "where": "https://arxiv.org/abs/2609.33039v1 (whole text searched)"
+    }
+  ],
+  "expected_counts": "part head: tree 2,139 blobs (profile expected_files; git tree); selected logs 2,076 = data/agentdojo/*/*/*/*/*/*.json (registry/readme_corpora.toml count 2,076 'census', pointer /files of docs/reports/phase10d/tacit-agentdojo.census.json; git tree; phase-10c census json_blobs 2,080 incl. 4 split files); not selected 63 (59 code/doc + 4 splits; LICENSE, README.md, requirements.txt, the collect script, the compat shim, tacit/data/agentdojo.py and data/splits/*.json are stored as supporting context artefacts); units/executions 2,076 agent_execution (phase-10d census; trial import jobs 8 over 2,076) [corrected: the jobs-3 trial import covered a 416-execution subset only, compare mode subset, 0 differ; docs/reports/phase10d/tacit-agentdojo.trial.json]; variants v1.k14 2,075 + v1.k14.incomplete 1; trial sealed clean 1,979 / with issues 97. Per model: llama3.1-8b-instruct/local 1,046 (949 attacked + 97 benign), qwen3-4b-instruct/vllm_parsed 1,030 (933 + 97). Per suite: workspace 1,184, banking 320, travel 320, slack 252. Paper: 2,075 trajectories (one fewer: the loader drops the file with no security value).",
+  "expected_arms": "model {llama3.1-8b-instruct (local), qwen3-4b-instruct (vllm_parsed)} x defence {none} x attack {none (benign user task), important_instructions} x suite {workspace, banking, travel, slack} at v1.2.2 = 16 strata. Cells per model: banking 16 UT x 9 IT = 144 + 16 benign; slack 21 x 5 (IT 1..5) = 105 + 21; travel 20 x 7 = 140 + 20; workspace 40 x 14 = 560 + 40. Missing: qwen workspace 16 attacked cells (user_task_38 x injection_task_12,13; user_task_39 x injection_task_0..13); qwen workspace user_task_38 x injection_task_11 present but incomplete; the 70 injection-task pre-pass logs AgentDojo 0.1.35 writes in an attacked run (35 per model) are absent; the per-suite process logs and vllm_server.log the script writes are absent. Extra: none expected.",
+  "licence": "Code and logs: Apache-2.0 (LICENSE at the pin, standard text, no copyright line, no NOTICE file; https://github.com/CSSLab/Tacit/blob/995692d3cd42c32e08cf0db8a5fae55fec272f1a/LICENSE); no separate data licence. Embedded benchmark text: AgentDojo, MIT (c) 2024 Debenedetti et al. Paper: CC BY-SA 4.0 (arXiv licence field) - applies to the paper text only. Model outputs: Llama 3.1 Community License (meta-llama/Llama-3.1-8B-Instruct, gated) and Apache-2.0 (Qwen3-4B-Instruct-2507) - redistribution terms for outputs remain 'unassessed' as in the profile. No use restriction beyond Apache-2.0 found in the repository.",
+  "discrepancy_leads": [
+    "LABEL DIRECTION: paper Table 4 gives AgentDojo unsafe 369 / safe 1,706 and defines unsafe as 'agent completes the injected task'; the released loader labels unsafe = (security is False) and data/README.md expects unsafe = 1,706; AgentDojo's security is True on attack success and constant True on benign runs (#95). Our phase-10c census has security True 369 / False 1,706 / missing 1, so 369 = 194 benign (constant True) + 175 attacked successes. Either the paper's table and the training labels are swapped relative to the code, or the paper's 369 'injected task carried out' counts 194 benign runs that carry no injection. Test at L1 (security by attack_type) and with data/splits label field (supporting artefact).",
+    "COUNT: paper and loader 2,075 vs 2,076 released logs: the qwen workspace user_task_38 x injection_task_11 log (v1.k14.incomplete; census flags missing:security and missing:utility 1) is excluded by the loader.",
+    "TRUNCATED ARM: qwen3-4b-instruct workspace has 544 attacked logs, not 560 (git tree); the 16 missing cells are user_task_38 x IT12-13 and user_task_39 x IT0-13, right after the incomplete IT11 log, consistent with the run stopping there; the paper does not mention it.",
+    "CURATED RELEASE: no injection-task pre-pass logs (0.1.35 writes injection_task_*/none/none.json for every non-DoS attacked suite run: 35 per model expected) and no process/vLLM logs although the collection script writes them next to the runs and .gitignore does not exclude them; the release was filtered before commit.",
+    "IDENTITY: our tacit_model_dirs.toml says the repository records no checkpoint, but tacit/config.py at the pin names the HF ids (Qwen/Qwen3-4B-Instruct-2507, meta-llama/Llama-3.1-8B-Instruct; no revision); tacit/config.py and data/README.md are not among the profile's context_artefacts.",
+    "PAPER IDENTIFIER: profile/README/registry record the README working title and 'no identifier'; the paper is arXiv:2609.33039v1 (2026-09-27) under a different title.",
+    "HARNESS UNPINNED: the only commit postdates the runs (logs 2026-07-10 04:36-08:11 naive, census ts_range; repo created 2026-08-17; commit 2026-09-23), so the script at the pin may not be the one that ran; agentdojo 0.1.35 is asserted only in a script comment and in the logs; a pydantic shim was loaded into the benchmark process.",
+    "LOCAL CLIENT DEFECTS: the 1,046 Llama logs ran through AgentDojo's LocalLLM, affected by #150/#202/#219/#220 (dropped or unparsed calls, server error -> empty answer scored as failed attack); the phase-10d census measured 0 turns with more tool tags than calls and 0 with tags and no calls - check the detector applies to this profile.",
+    "UNREGISTERED TOOL NAMES: phase-10c census tool tally includes about 24 calls under names not in the v1.2.2 tool sets, 18 of them with a trailing '/' (e.g. get_current_year/ 3, get_hotels_prices/ 2) plus get_hotel_address 2, get_transaction_details, get_price_for_car_rental, get_flight_price, concatenate_messages; a parser artefact of one client is likely.",
+    "NULL CALL IDS: 3,750 of 7,504 calls (699 logs) have id null (census); expected to be the LocalLLM (llama) logs only.",
+    "BENCHMARK VALIDITY: workspace IT6-13 empty ground truth (#213), banking IT0/1/3 dead subject check (#181), slack IT5 scored from attempted calls (#168) bear on the 175 attacked successes; our artefacts.toml generic entries (benign_security_constant, silent_rerun, max_iters_pending, provider_ids, validity_defects, local_parse_drop, injection_task_as_user) do not list tacit-agentdojo in their scope, although the profile declares the matching quirks."
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/tacit-agentdojo/research.json",
+    "docs/reports/precheck/prereg/tacit-agentdojo.md"
+  ],
+  "checks_not_applicable": [
+    "Delta since E2: tacit-agentdojo was not examined in FA or E2 (first examination)",
+    "Per-arm outcome comparison against the paper: the paper reports no utility or ASR per model/suite; only pooled label counts (Table 4), which are tested on the whole population at L1",
+    "Defence identity and denial messages: no defence arm in this source",
+    "Withholding: conditional on L1-06 finding a secret-like string or account path (none expected)",
+    "Within-unit timestamp monotonicity: one evaluation_timestamp per log, no per-call times"
+  ],
+  "open_questions": [
+    "Which reading is right for the paper's AgentDojo labels: training labels inverted (unsafe = attack failed) or 194 benign runs counted as 'injected task carried out'? Only the authors can say; the data can show which count each label set equals.",
+    "Was the qwen workspace run stopped (crash, kill, time limit) or were the 16 missing cells removed? The process logs are not released.",
+    "Were the 70 pre-pass logs deleted before commit, or did the authors' 0.1.35 run not write them?",
+    "Do the two models' timestamp ranges overlap (two vLLM servers at once) although the script serves one model per invocation?"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "confirmed": [
+      "Table 4 (2,075/369/1,706/421), Table 3 (369), Tables 1-2 AgentDojo columns, App. B.1 label definition, footnote 1, v1-only, CC BY-SA 4.0 (arXiv:2609.33039v1)",
+      "loader rule and data/README.md 2075/1706 at the pin; for the other five benchmarks data/README.md unsafe equals Table 4 Unsafe, AgentDojo alone equals Table 4 Safe",
+      "pin is the only commit; no tags/releases/issues; 1 fork; tree 2,139 blobs / 34,387,446 bytes; 2,076 logs / 32,102,611 bytes; per-cell counts incl. qwen workspace 544 and the 16 missing cells",
+      ".gitignore does not exclude the process or vLLM logs; config.py HF ids without revision; HF heads 0e9e39f2 and cdbee75f",
+      "LICENSE Apache-2.0 with placeholder copyright line; AgentDojo MIT",
+      "no Zenodo/HF/Figshare record",
+      "AgentDojo v0.1.35 benchmark.py: pre-pass for non-DoS attacks; utility False/security True on context-length and server errors; default benchmark version v1.2.2",
+      "issue titles #88 #95 #150 #168 #181 #188 #201 #202 #213 #214 #219 #220; #95 maintainer semantics",
+      "census figures against phase-10c summaries and the phase-10d census json"
+    ],
+    "corrected": [
+      "trial jobs-3 import was a 416-execution subset, not 2,076",
+      "arXiv:2604.18519 author list and ACL 2026 journal ref added"
+    ],
+    "unverifiable": [
+      "175 attacked successes is derived (369 - 194) and assumes all benign logs have security true; to be counted in H2"
+    ]
+  }
+}

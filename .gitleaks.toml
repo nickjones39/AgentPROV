@@ -1,0 +1,26 @@
+# gitleaks configuration (CI job `secrets`; DoD Q.16). The default rule set applies in full.
+#
+# The redaction and secret-scan tests (capture/tests, backends/*/tests, tests/integration, tests/cli) need
+# key-shaped strings to prove that keys are redacted, flagged or quarantined (C.13.5, G.6.4, R-51). Every such
+# string is synthetic and carries one of the markers below. The allowlist matches only those markers inside the
+# detected secret, never whole paths, so a real key committed anywhere, tests included, is still reported.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "synthetic key-shaped test values (redaction and secret-scan tests) and AgentPROV execution ids"
+regexTarget = "secret"
+regexes = [
+  '''(?i)sentinel''',
+  '''(?i)not-a-real''',
+  '''(?i)should-not-pass''',
+  '''(?i)abcdefghij''',
+  '''(?i)DUMMYDUMMY''',
+  '''0123456789''',
+  '''1234567890''',
+  '''MIIabc''',  # the body of the fake PEM block in capture/tests/test_redact.py
+  # An AgentPROV execution id (aer/ids.py EXECUTION_ID_RE, base32 form): lists of ids in analysis records trip the generic
+  # API-key rule when an id happens to contain "api" or "key" (docs/reports/analysis/dtap-sample-check-data, 2026-10-12).
+  # Anchored to the whole secret, so a key that merely contains such a string is still reported.
+  '''^ex_[a-z2-7]{26}$''',
+]

@@ -1,0 +1,23 @@
+import subprocess, sys
+from pathlib import Path
+
+ROOT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(ROOT / "tools"))
+import reserve_id as r  # noqa: E402
+
+TEXT = (
+    "- **D-390..D-399 (2026-10-14, desktop GUI research, branch `gui-research`):** umbrella.\n"
+    "- **D-390 (2026-10-14, GUI toolkit; approved):** the real entry.\n"
+)
+
+def test_umbrella_not_a_definition():
+    defs = r.parse_decisions(TEXT, "main")
+    sv = r.Survey(definitions=defs, refs=["main"])
+    probs = r.find_problems(sv, "main")
+    assert probs["duplicates"] == [], probs["duplicates"]
+
+def test_scan_strict_on_real_main(tmp_path):
+    p = subprocess.run([sys.executable, str(ROOT / "tools/reserve_id.py"), "--ids-dir", str(tmp_path / "ids"),
+                        "--scan-ref", "origin/main", "scan", "--strict"], cwd=ROOT, capture_output=True, text=True)
+    print(p.stdout[-1500:], p.stderr[-500:])
+    assert p.returncode == 0, p.stdout[-1500:]

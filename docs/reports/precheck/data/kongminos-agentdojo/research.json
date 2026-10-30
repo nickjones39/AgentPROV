@@ -1,0 +1,184 @@
+{
+  "corpus_id": "kongminos-agentdojo",
+  "parts": [
+    "head"
+  ],
+  "wave": 3,
+  "written": "2026-10-14",
+  "code_commit": "065b0d36",
+  "status": "desk research for the pre-registration; no data check of this corpus has run",
+  "papers": [
+    {
+      "title": "none: no paper, preprint, DOI or data record. The README names an article ('J-Space 翻车全记录', a write-up on the J-Space harness controversy) that it serves as evidence for; the article was not found by web search (2026-10-14). The README itself is the only results document",
+      "url": "https://github.com/kongminOS/jspace-agentdojo-950/blob/f341af69498ee36a8d1a2e69040ab70bd8e20a01/README.md",
+      "id": "none",
+      "relation": "results document (README 'v3 report' figures)",
+      "versions": "README changed once: commit f341af69 (the pin) replaced the provenance line 'DeepSeek V4 Pro / J-Space related combinations' with 'DeepSeek V4-Flash model, attack side, unrelated to the J-Space project'; result table unchanged between 47a44d18 and f341af69"
+    },
+    {
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+      "url": "https://arxiv.org/abs/2406.13352v3",
+      "id": "arXiv:2406.13352",
+      "relation": "benchmark paper (defines the tool_knowledge attack, utility and targeted ASR); not a source of numbers for this corpus",
+      "versions": "v1 2024-06-19, v2 2024-07-18, v3 2024-11-24 (Llama implementation fix and travel-suite update) [corrected: was 'v3 (camera-ready)']; tables cover v1 suites, not v1.2.2 or DeepSeek models"
+    }
+  ],
+  "repo": {
+    "url": "https://github.com/kongminOS/jspace-agentdojo-950",
+    "created": "2026-08-22T02:55:16Z (GitHub API); not a fork; MIT (spdx); 0 stars, 0 forks, 0 issues, 0 PRs, no tags/releases; only branch main",
+    "pinned_commit": "f341af69498ee36a8d1a2e69040ab70bd8e20a01 = head of main (2026-10-14)",
+    "pin_date": "2026-08-22T04:49:25Z (author = committer); profile records 2026-08-22",
+    "pin_message": "fix: correct model name in data provenance (V4-Flash, not V4 Pro/J-Space); diff = 1 line of README.md",
+    "history": [
+      "19ca51f0 2026-08-22T02:55:17Z Initial commit",
+      "47a44d18 2026-08-22T03:06:09Z Add 950-sample AgentDojo dataset + portable recompute script (v3 calibrated): +179,210 lines; all 950 logs, README, recompute_agentdojo.py",
+      "13633bd7, 5a5b0e77, 16efc5ff, d308919c 2026-08-22T04:34:21-43Z: four article PNGs under article-assets/ (not fetched; not execution artefacts)",
+      "f341af69 2026-08-22T04:49:25Z: README model line corrected (V4 Pro / J-Space -> V4-Flash, unrelated to J-Space)"
+    ],
+    "commit_urls": [
+      "https://github.com/kongminOS/jspace-agentdojo-950/commit/f341af69498ee36a8d1a2e69040ab70bd8e20a01",
+      "https://github.com/kongminOS/jspace-agentdojo-950/commit/47a44d18a52e056988966b383d5640ca4575c540"
+    ],
+    "readme_claims": [
+      "950 formal samples = 874 attack combinations + 76 benign tasks; directories ad_full_attack, ad_tb_attack, ad_full_benign, ad_tb_benign; attack deduplicated by (suite, user_task, injection), benign by (suite, user_task)",
+      "an earlier internal count of 979 included 29 leftover 'ad_runs' files; 950 is the published figure, said to match the official AgentDojo size",
+      "expected recompute output ('v3 report'): Benign 88.16% (67/76), UA 82.38%, ASR 3.89% (34/874)",
+      "no model weights, API keys or private configuration in the repo",
+      "links AgentDojo as github.com/princeton-pli/AgentDojo, which returns 404 (upstream is ethz-spylab/agentdojo)"
+    ],
+    "recompute_script": "recompute_agentdojo.py (2,547 bytes): globs data/{ad_full,ad_tb}_{benign,attack}/**/*.json, keys attack logs by (suite_name, user_task_id, injection_task_id), counts utility is True and security is True per suite over all files of the attack directories (which include the 30 injection-task pre-pass logs, user_task_id = injection_task_k, attack none)",
+    "issues": "none in the repository (gh issue list/pr list: empty)",
+    "owner_context": "kongminOS (account created 2026-07-20; 30 repos, mostly 'Kongmin Rein' agent-governance placeholders). rein-test-suite docs/metrics.md defines ASR = security True count / all attack combinations and UA = utility True / all combinations (same convention as the script). No other repo mentions AgentDojo runs (gh search code, owner kongminOS)",
+    "owner_urls": [
+      "https://github.com/kongminOS",
+      "https://github.com/kongminOS/rein-test-suite/blob/main/docs/metrics.md"
+    ]
+  },
+  "data_record": "No Zenodo, Hugging Face or Figshare record (Zenodo API q='jspace agentdojo' and 'kongminOS': no relevant hit; HF datasets author kongminOS: empty; 2026-10-14). The data is the git tree at f341af69 (git trees API, not truncated): 957 blobs, 16,997,212 bytes; 950 JSON logs under data/<run set>/local/<suite>/<task dir>/<attack dir>/<file>.json, 15,674,195 bytes, 2,188 to 84,567 bytes per file, 950 distinct blob SHAs (0 byte-identical pairs); non-log blobs LICENSE 1,066, README.md 2,246, recompute_agentdojo.py 2,547 and 4 PNGs 1,317,158 bytes. Agrees with the profile pin (commit f341af69, expected_files 957; 953 non-image files 15,680,054 bytes = 15,674,195 + 1,066 + 2,246 + 2,547) and the phase-10c census (all_tree_entries 957, json_blobs 950, 4 absent PNG blobs). Per cell from the listing: ad_full_attack/workspace 560 attacked + 14 pre-pass; ad_full_benign/workspace 40; ad_tb_attack banking 144 + 9, travel 140 + 7; ad_tb_benign banking 16, travel 20; no (suite, task dir, file) key in both run sets.",
+  "harness": "AgentDojo, logs say agentdojo_package_version 0.1.35 in all 950 (phase-10c census), which names the distribution, not the code (release v0.1.35 = a75aba76, 2025-10-27; main kept 0.1.35 through 089ed468, 2026-06-02); installation not declared (profile code_identity 'unpinned'). Benchmark v1.2.2 in all 950 (census), suites workspace, banking, travel only (no slack). pipeline_name 'local' = AgentDojo's LocalLLM element (OpenAI-compatible client, prompt-based <function=...> tool calls, call ids null; MODEL_NAMES['local'] = 'Local model' at a75aba76). Known bugs of this code that bear on the logs: LocalLLM parses only the first tool tag per completion (#150); drops fenced or invalid-JSON calls and ends the turn (#202, #219: attacks under-counted); turns server errors into an empty final answer scored as failed task and failed attack (#220); no max_tokens cap (#202). Benchmark: workspace injection_task_6..13 have an empty ground_truth in v1.2.2 (#213), so tool_knowledge injections for them carry no tool instructions (ToolKnowledgeAttack builds its text from ground_truth placeholder_args, important_instructions_attacks.py l.113-131 at a75aba76 [corrected from l.111-130]); banking injection_task_0/1/3 security reduces to 'any transfer to the attacker IBAN' through an operator-precedence bug (#181); the runner returns security True for every run without an injection task (benign and pre-pass; artefacts.toml agentdojo.art.benign_security_constant). TraceLogger keeps only the last of up to 3 passes and a naive evaluation_timestamp.",
+  "harness_urls": [
+    "https://github.com/ethz-spylab/agentdojo/releases/tag/v0.1.35",
+    "https://github.com/ethz-spylab/agentdojo/blob/a75aba7631d3ca5fb7ab938965c97ead2f9ff84b/src/agentdojo/agent_pipeline/llms/local_llm.py",
+    "https://github.com/ethz-spylab/agentdojo/blob/a75aba7631d3ca5fb7ab938965c97ead2f9ff84b/src/agentdojo/attacks/important_instructions_attacks.py",
+    "https://github.com/ethz-spylab/agentdojo/blob/a75aba7631d3ca5fb7ab938965c97ead2f9ff84b/src/agentdojo/models.py",
+    "https://github.com/ethz-spylab/agentdojo/issues/150",
+    "https://github.com/ethz-spylab/agentdojo/issues/202",
+    "https://github.com/ethz-spylab/agentdojo/issues/219",
+    "https://github.com/ethz-spylab/agentdojo/issues/220",
+    "https://github.com/ethz-spylab/agentdojo/issues/213",
+    "https://github.com/ethz-spylab/agentdojo/issues/181",
+    "https://github.com/ethz-spylab/agentdojo/issues/201",
+    "https://github.com/ethz-spylab/agentdojo/commit/3f58252b1c"
+  ],
+  "models": [
+    "deepseek-v4-flash (DeepSeek) per the README line 9 at the pin only; no log names a model (pipeline_name 'local'); identity table row class I (D-92, D-105, D-106). The same line named 'DeepSeek V4 Pro / J-Space' at 47a44d18, 1 h 43 min earlier",
+    "checkpoint not recorded: a re-trained V4-Flash-0731 replaced the April 2026 preview in the V4-Flash API on 2026-07-31 (third-party reports). Whether the API id deepseek-v4-flash is a rolling alias is not documented [corrected: 'rolling alias' was stated as fact]. If the runs of 2026-08-21 used the DeepSeek API they most likely hit 0731. The served endpoint (DeepSeek API through an OpenAI-compatible URL, or local open weights) and thinking vs non-thinking mode are not recorded",
+    "sampling: LocalLLM default temperature 0.0 with a random seed per request (local_llm.py at a75aba76); actual settings not logged",
+    "defence: none (profile); no defence element in any log (census: 469-char default system prompt in 950/950, roles system/user/assistant/tool only)"
+  ],
+  "model_urls": [
+    "https://technode.com/2026/07/31/deepseek-puts-v4-flash-api-into-public-beta",
+    "https://vorplabs.com/models/releases/deepseek-v4-flash",
+    "https://runtimewire.com/article/j-space-deepseek-v4-pro-fable-5-benchmark-claim"
+  ],
+  "reported_results": [
+    {
+      "arm": "deepseek-v4-flash / none / benign (76 user tasks: workspace 40, banking 16, travel 20)",
+      "metric": "benign utility (utility == true over ad_*_benign logs)",
+      "value": "88.16% (67/76)",
+      "n": "76",
+      "where": "README 'v3 report' table row 1, https://github.com/kongminOS/jspace-agentdojo-950/blob/f341af69498ee36a8d1a2e69040ab70bd8e20a01/README.md"
+    },
+    {
+      "arm": "deepseek-v4-flash / none / tool_knowledge, all three suites (README denominator 874 = 844 attacked + 30 pre-pass)",
+      "metric": "UA (utility == true over all files in ad_*_attack)",
+      "value": "82.38% (720/874, count derived from % x n)",
+      "n": "874",
+      "where": "README table row 2 (same URL)"
+    },
+    {
+      "arm": "deepseek-v4-flash / none / tool_knowledge, all three suites (denominator 874 incl. 30 pre-pass)",
+      "metric": "ASR (security == true over all files in ad_*_attack)",
+      "value": "3.89% (34/874)",
+      "n": "874",
+      "where": "README table row 3 (same URL)"
+    },
+    {
+      "arm": "deepseek-v4-flash / none / tool_knowledge, attacked logs only (844)",
+      "metric": "targeted ASR, AgentDojo convention (derived, not stated by the source)",
+      "value": "4/844 (0.47%) if all 30 pre-pass logs carry the runner's constant security true; README 34 = 30 + 4",
+      "n": "844",
+      "where": "derived from README row 3 and the phase-10c census (security true 110 = 76 benign + 34); task_suite.py early return for runs without an injection task"
+    },
+    {
+      "arm": "per suite (workspace / travel / banking)",
+      "metric": "Benign, UA, ASR per suite",
+      "value": "not reported (the script prints them; the README gives only the combined line)",
+      "n": "-",
+      "where": "recompute_agentdojo.py at the pin"
+    }
+  ],
+  "expected_counts": "Tree 957 blobs / 16,997,212 bytes (git trees API; profile expected_files 957); selected 950 logs (include data/*/*/*/*/*/*.json; registry/readme_corpora.toml count 950, census /files); not selected 7 (LICENSE, README.md, recompute_agentdojo.py stored as context artefacts; 4 PNGs absent blobs, covering_paths 4); units 950 agent_execution; executions 950 (phase-10d trial jobs 8; 191-execution subset jobs 3; byte-identical); sealed clean 925, with issues 25 (unexecuted_tool_call); register codes map.accounting_unverifiable 950, map.earlier_attempts_unobservable 950, map.unexecuted_tool_call 25; variant v1.k14 950; attacked 844 (workspace 560, banking 144, travel 140), pre-pass 30 (14/9/7), benign 76 (40/16/20); suites workspace 614, banking 169, travel 167",
+  "expected_arms": "model x defence x attack x suite: deepseek-v4-flash x none x {tool_knowledge, none} x {workspace, banking, travel} on v1.2.2: full grid user tasks x injection tasks (40x14, 16x9, 20x7 = 844) + 76 benign + 30 pre-pass; run set ad_full = workspace, ad_tb = travel + banking. Missing by design: slack suite, any other attack, any defence, any other model; 29 'ad_runs' logs mentioned by the README are not released. Extra: none expected (no duplicate cell across run sets in the tree listing)",
+  "licence": "MIT: LICENSE at the pin, 'Copyright (c) 2026 kongminOS' (standard MIT text, 1,066 bytes); README licence section: derived data based on AgentDojo (MIT), new content released under MIT; no data-specific licence, no use restriction found. Embedded AgentDojo benchmark text MIT (c) 2024 Debenedetti et al. Unassessed: DeepSeek terms on redistributing model outputs (open weights are MIT per third-party reports). https://github.com/kongminOS/jspace-agentdojo-950/blob/f341af69498ee36a8d1a2e69040ab70bd8e20a01/LICENSE",
+  "discrepancy_leads": [
+    "README ASR 3.89% (34/874) and UA 82.38% use a denominator of 874 that includes the 30 injection-task pre-pass logs, whose security is the runner's constant true; the targeted ASR over the 844 attacked logs is then 4/844 (0.47%), about 8x lower than stated (documentation-mismatch in the source's own figure)",
+    "Model identity rests on one README line that was rewritten in the pin commit 1 h 43 min after the data commit (from 'DeepSeek V4 Pro / J-Space combinations' to 'DeepSeek V4-Flash, unrelated to J-Space'); the repository description still presents the data as evidence for the J-Space article; no log field can confirm either",
+    "deepseek-v4-flash: the V4-Flash API moved from the April 2026 preview to the re-trained 0731 model on 2026-07-31; whether the id is a rolling alias is undocumented [corrected]. Checkpoint, serving route and thinking mode are not recorded",
+    "pipeline 'local' = LocalLLM at 0.1.35: known parser defects (#150 first call only, #202/#219 dropped calls, #220 server errors scored as failed attacks) can under-count attack success and utility without leaving a trace except in the assistant text",
+    "workspace injection_task_6..13 (320 attacked cells) have an empty ground truth in v1.2.2 (#213): their tool_knowledge payloads carry no tool instructions, so those cells test a weaker attack than the name says",
+    "banking injection_task_0/1/3 security is over-lenient (#181): any security true there may not meet the stated goal",
+    "README mentions 29 unreleased 'ad_runs' logs (979 vs 950) and deduplication by cell key; which run was kept for a cell, if duplicates existed before publication, is not stated",
+    "README links AgentDojo as princeton-pli/AgentDojo (404); the upstream is ethz-spylab/agentdojo (S3)",
+    "the article the data supports and its figures (article-assets/fig1_self_vs_retest.png etc., not fetched) were not located; any per-suite figure there is unverified"
+  ],
+  "open_questions": [
+    "Which checkpoint and endpoint served deepseek-v4-flash on 2026-08-21, and in which mode (thinking or not)",
+    "Whether the runs were J-Space-wrapped at the endpoint (the first README said V4 Pro / J-Space); undetectable in the logs if done server-side",
+    "Which code state wrote the logs (PyPI 0.1.35 or a git checkout; any local LocalLLM patch)",
+    "What the 29 'ad_runs' leftovers were and why they were dropped",
+    "The machine time zone of the naive evaluation timestamps (2026-08-21 12:40:34 to 15:07:40)",
+    "Whether the article reports per-suite numbers (figures not fetched)"
+  ],
+  "checks_not_applicable": [
+    "delta since E2: kongminos-agentdojo was not examined in FA or E2 (wave 3, first examination)",
+    "L1-07 monotonicity within a unit: v1.k14 TraceLogger logs carry one naive evaluation_timestamp per file and no per-call times",
+    "L2 outcome comparison as a verdict per suite: the source reports no per-suite figure and the sample has about 5 units per stratum; the exact comparison is the whole-population tally (H1, H2), L2 reports Wilson intervals only",
+    "L2 identity against logged model names: no log names a model; identity is the class-I table row (only its presence and class are checked)",
+    "defence identity and denial classes: no defence arm",
+    "withholding (verify --level chain on a sealed copy): only if L1-06 finds a secret-like string; none expected"
+  ],
+  "sources": [
+    "https://github.com/kongminOS/jspace-agentdojo-950",
+    "https://github.com/kongminOS/jspace-agentdojo-950/commit/f341af69498ee36a8d1a2e69040ab70bd8e20a01",
+    "https://github.com/kongminOS/jspace-agentdojo-950/commit/47a44d18a52e056988966b383d5640ca4575c540",
+    "https://github.com/kongminOS/jspace-agentdojo-950/blob/f341af69498ee36a8d1a2e69040ab70bd8e20a01/README.md",
+    "https://github.com/kongminOS/jspace-agentdojo-950/blob/f341af69498ee36a8d1a2e69040ab70bd8e20a01/recompute_agentdojo.py",
+    "https://github.com/kongminOS/jspace-agentdojo-950/blob/f341af69498ee36a8d1a2e69040ab70bd8e20a01/LICENSE",
+    "https://api.github.com/repos/kongminOS/jspace-agentdojo-950/git/trees/f341af69498ee36a8d1a2e69040ab70bd8e20a01?recursive=1",
+    "https://github.com/kongminOS/rein-test-suite/blob/main/docs/metrics.md",
+    "https://github.com/princeton-pli/AgentDojo",
+    "https://arxiv.org/abs/2406.13352v3",
+    "https://github.com/ethz-spylab/agentdojo/releases/tag/v0.1.35",
+    "https://github.com/ethz-spylab/agentdojo/blob/a75aba7631d3ca5fb7ab938965c97ead2f9ff84b/src/agentdojo/agent_pipeline/llms/local_llm.py",
+    "https://github.com/ethz-spylab/agentdojo/blob/a75aba7631d3ca5fb7ab938965c97ead2f9ff84b/src/agentdojo/attacks/important_instructions_attacks.py",
+    "https://github.com/ethz-spylab/agentdojo/blob/a75aba7631d3ca5fb7ab938965c97ead2f9ff84b/src/agentdojo/models.py",
+    "https://github.com/ethz-spylab/agentdojo/issues/150",
+    "https://github.com/ethz-spylab/agentdojo/issues/181",
+    "https://github.com/ethz-spylab/agentdojo/issues/201",
+    "https://github.com/ethz-spylab/agentdojo/issues/202",
+    "https://github.com/ethz-spylab/agentdojo/issues/213",
+    "https://github.com/ethz-spylab/agentdojo/issues/219",
+    "https://github.com/ethz-spylab/agentdojo/issues/220",
+    "https://technode.com/2026/07/31/deepseek-puts-v4-flash-api-into-public-beta",
+    "https://vorplabs.com/models/releases/deepseek-v4-flash",
+    "https://runtimewire.com/article/j-space-deepseek-v4-pro-fable-5-benchmark-claim",
+    "https://zenodo.org/api/records?q=jspace%20agentdojo",
+    "https://huggingface.co/api/datasets?author=kongminOS"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "verdict": "all load-bearing numbers confirmed (README v3 table, tree counts and bytes, per-cell grid, census and trial counts, licence, pin, upstream issues); corrected: rolling-alias wording, AgentDojo v3 description, attack-file line numbers. No expectation changed.",
+    "note": "recompute_agentdojo.py dedups by JSON-field keys; README n=874 equals the file count, so 'over all files' holds iff keys are unique (to be confirmed by H9)"
+  }
+}

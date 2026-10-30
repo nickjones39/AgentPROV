@@ -1,0 +1,23 @@
+import json, sys, tempfile
+from pathlib import Path
+WT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(WT / "tests/adapters/inspect"))
+import inspect_support as s
+from agentprov.aer.reader import load_aer_bytes
+sample = json.loads(json.dumps(s.basic_sample()).replace('"get_x"', '"none"'))
+data = s.build_eval(s.synthetic_header(), {"s1_epoch_1.json": sample})
+with tempfile.TemporaryDirectory() as d:
+    imp = s.import_log(data, Path(d))
+    doc = load_aer_bytes(imp.units[0].data)
+    for i in doc.seal.get("issues", []):
+        print({k: (str(v)[:300]) for k, v in i.items()})
+# Seal the mapped outcome without the fallback to see the writer's findings.
+from agentprov.adapters.runner import seal_outcome
+from agentprov.aer.writer import AerWriteError
+u = imp.units[0]
+with tempfile.TemporaryDirectory() as d:
+    try:
+        seal_outcome(u.outcome, Path(d) / "x.aer.jsonl")
+        print("sealed OK")
+    except AerWriteError as e:
+        print("writer findings:", [(f.code, getattr(f, "pointer", None)) for f in e.findings])

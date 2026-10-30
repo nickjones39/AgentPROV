@@ -1,0 +1,20 @@
+import json, re
+from unittest.mock import MagicMock
+from agentprov.adapters.agentdojo.results_reader import ResultsContainerReader
+from agentprov.ingest.limits import IngestLimits
+row = {"user_task_id": "u0", "injection_task_id": None, "utility": True, "security": False,
+       "messages": [], "duration": 1.0, "error": None}
+c = {"label": "x", "model": "m", "n_results": 1, "aggregate": {"u": 1}, "results": [row]}
+data = json.dumps(c).encode()
+r = ResultsContainerReader()
+items = list(r.parse(data, MagicMock(id="a0"), limits=IngestLimits()))
+v = items[0].value
+print("value keys:", sorted(v))
+print("has container/row shape:", set(v) == {"container", "row"})
+print("aggregate in value:", "aggregate" in v)
+# (b) table rows with conflict
+import tomllib, pathlib
+t = tomllib.loads(pathlib.Path("src/agentprov/adapters/agentdojo/tables/memo_ozdincer_containers.toml").read_text())
+for row in t["row"]:
+    if "conflict" in row:
+        print("conflict row served:", row["served"] if not row["served"].startswith("cluster:") else "cluster:<redacted>/" + row["served"].rsplit("/",1)[-1], "glob:", row["glob"])

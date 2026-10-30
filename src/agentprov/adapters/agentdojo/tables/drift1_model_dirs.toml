@@ -1,0 +1,24 @@
+# Identity table `drift1_model_dirs` (docs/architecture D.4.5): the new run directories of CGboom-git/drift-1 at the pinned
+# commit 0e28729b4d9a6f466ba4803ccdc18a842c50cd20 (626 logs). runs/gpt-4o-mini-2024-07-18/ (1,569 logs) holds byte copies
+# of DRIFT head and is excluded (select.owned_elsewhere, owner drift).
+#
+# DRIFT's pipeline_main.py writes output_dir = runs/<--model> and pipeline_name = <--model> (D-278): `gpt-4o-mini`, the
+# alias as logged (no snapshot date). The PACT directory's name differs from its logged pipeline_name, so it has its own
+# row; its logs carry six extra PACT keys (pact_drift_enabled, task_contract, ...): the PACT extension of DRIFT, named
+# `pact_drift` here, beside the `drift` defence the DRIFT build reads from the key set. Asserted under
+# `agentdojo.pipeline_dir_is_model_identity@1` (class I; D-256).
+
+[[dir]]
+name = "gpt-4o-mini"
+model = "gpt-4o-mini"
+defence = "drift"
+pipeline_name = "gpt-4o-mini"
+basis = "directory = logged pipeline_name (616 logs; DRIFT's runs/<--model> layout, D-278)"
+
+[[dir]]
+name = "pact-gpt-4o-mini-banking10"
+model = "gpt-4o-mini"
+defence = "pact_drift"
+pipeline_name = "gpt-4o-mini"
+basis = "logged pipeline_name (10 logs); the directory names the PACT arm on 10 banking tasks"
+note = "PACT-DRIFT: six extra top-level keys; 9 CALL ERROR texts match neither DRIFT check (drift.call_error_unrecognised)"

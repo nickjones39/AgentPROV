@@ -1,0 +1,47 @@
+"""A-1: discover() output depends on RLIMIT_NOFILE (one open fd per pending sibling dir)."""
+import json
+import subprocess
+import sys
+import textwrap
+
+import pytest
+
+CHILD = textwrap.dedent(r'''
+    import json, os, resource, sys
+    root, soft, shape = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    _s, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
+    from agentprov.ingest.paths import discover, describe_mechanism
+    try:
+        d = discover(root)
+        print(json.dumps({"mech": describe_mechanism()[0], "files": len(d.files),
+                          "rejected": sorted({(r.code, r.detail) for r in d.rejected}),
+                          "nrej": len(d.rejected)}))
+    except OSError as exc:
+        print(json.dumps({"mech": describe_mechanism()[0], "error": str(exc)}))
+''')
+
+
+def _tree(tmp_path, base, n):
+    root = tmp_path / "root"
+    parent = root / base if base else root
+    for i in range(n):
+        d = parent / f"{i:03x}"
+        d.mkdir(parents=True)
+        (d / "obj.json").write_bytes(b"{}")
+    return root
+
+
+def _run(root, soft):
+    out = subprocess.run([sys.executable, "-c", CHILD, str(root), str(soft), ""], capture_output=True, text=True, check=True)
+    return json.loads(out.stdout)
+
+
+@pytest.mark.parametrize("base", ["", "runs"])
+def test_listing_independent_of_fd_limit(tmp_path, base):
+    root = _tree(tmp_path, base, 300)
+    high = _run(root, 4096)
+    assert high.get("files") == 300, high
+    low = _run(root, 256)
+    print(base or "<root>", "soft 256 ->", low)
+    assert low == high, f"discover() differs under soft RLIMIT_NOFILE=256: {low} vs {high}"

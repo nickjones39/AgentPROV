@@ -1,0 +1,221 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "fragfuse-agentharm",
+ "findings": [
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "mapping-defect",
+     "severity": "S0",
+     "reasoning": "Independent regex pass (verifier script, /Users/<seg>/ over aer/sem/prov of l2-logs-j2.partial): AER 25 executions, 2 distinct named segments (digests <account-C> x1940, <account-A> x84), 0 operator, 0 generic; pointers run:/ext/inspect/error/traceback(+_ansi) and events/*/event/error/traceback(+_ansi) 505 each, sample_metadata/carrier_query_path 4; SEM 0, PROV 0. Root cause checked: fragfuse-agentharm.profile.toml has no redact table at HEAD and on origin/main (0 matches); redact.py HARNESS_POINTERS already covers sample error tracebacks, kept error events and sample_metadata, so a harness_text table would catch every pointer. Alternative explanations rejected: not benchmark fiction (harness-written fields only, disjoint from the home-dir content segments), not operator. 25 matches the D-186 addendum figure (25 traceback/metadata samples). Known gap (D-182: 'the kexin, fragfuse and control-arena owners add theirs'), but per CC-03 a real workstation account in AER that our redaction should catch is mapping-defect S0 until the table lands."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "mapping-defect S0 security -> source-defect S0 security. CC-12 (a): the source's own workstation account in harness-written ext tracebacks and sample_metadata; the profile declares no D-182 redact table (0 matches at HEAD and origin/main), so no declared rule missed it and mapping-defect does not apply. Counts, evidence and the D-182 recommendation unchanged."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": "fragfuse-agentharm: AER ext carries a third-party /Users path in 25 executions until the profile declares its D-182 table.",
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-01",
+   "title": "[CC-12] [CC-03, D-182] Third-party workstation account path (2 named /Users segments) in AER ext of 25 executions; profile has no D-182 redact table",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "check": "L2 redaction",
+   "evidence": "aer_pass: users-dir named segments in AER 2 distinct, 25/1,265 executions; pointers scope:/ext/inspect/error/traceback, traceback_ansi, events/*/event/error/traceback, traceback_ansi (505 strings each) and execution:/ext/inspect/sample_metadata/carrier_query_path (8); SEM 0, PROV 0, operator 0. The 32-label sample contains all 16 error logs and all 4 carrier logs, so 25 equals the prereg population figure (H-08). Disjoint from the 3 home-dir named segments (benchmark content).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/fragfuse-agentharm/exam-scripts/aer_pass.py ~/.agentprov/migration-work/precheck/fragfuse-agentharm/l2-logs-j2.partial ~/.agentprov/migration-work/precheck/fragfuse-agentharm/exam/aer-pass.json (segments_distinct aer:users-dir:named 2; executions_with 25)",
+   "hypothesis_ref": "H-08",
+   "recommendation": "Report to the orchestrator at once. Declare the D-182 redact table in fragfuse-agentharm@1 (ext error tracebacks of scope/event records, sample_metadata.carrier_query_path) before the round imports this part; re-run l2_check redaction on a scratch import (expect 0 users-dir in AER)."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "l1-logs.json L1-06: artefacts_with account:users-dir:named 164 of denominator 164; L1-08 flag account_path_named 164; operator 0. These are execution raw objects, not context artefacts: D-186 (c) (user 2026-10-14) names fragfuse and ships such raw as is; CC-11's withhold covers interbolt's raw-store context files, while README section 5 (2026-10-15) makes a third-party path in any raw-store file a security finding to report. The tension is real and the sibling kexin-xu-01-agentharm dossier PC-01 poses the same question, so the decision flag stands; absent a new user ruling D-186 (c) is the operative rule. Class and severity per CC-11 kept."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": "fragfuse-agentharm raw: third-party account path in every log; D-186 (c) vs CC-11 decision needed.",
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-02",
+   "title": "[CC-11] Raw-store logs hold a third-party /Users account path in 164/164 selected logs (2 distinct accounts); D-186 (c) predates the 2026-10-15 decision",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": true,
+   "check": "L1-06",
+   "evidence": "L1-06 account:users-dir:named 3,414 strings in 164/164 artefacts, 17 pointers: samples and event error tracebacks 505 each (x4), header.json error traceback 391 (x2), plan memory_bank_path 136 (x4: header and _journal, params and params_passed), eval dataset location 24 (x2; +4 in the excluded mock logs = prereg 28), carrier_query_path 4 (x5), named_accounts_distinct users-dir 2; operator 0. home-dir named 7,869 strings / 6 distinct are benchmark content (CC-03).",
+   "reproduction": "data/fragfuse-agentharm/l1-logs.json L1-06; uv run python tools/precheck/l1_scan.py --source fragfuse-agentharm --part logs --use-pin",
+   "hypothesis_ref": "H-08",
+   "recommendation": "Orchestrator/user: CC-11 would withhold the files, but every selected log holds the path, so withholding removes the corpus. Decide whether D-186 (c) (raw ships as is) stands as an explicit exception or the raw is released restricted."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Targeted raw check of the 2 unsampled flagged logs through agentprov.ingest (open_zip + strict_json_loads from the pinned git cache, counts only): 6PzM holds all 14 key-shaped strings (anthropic 7, openai 7); W6Si holds 0 (its flag is generic-credential only). So '1 artefact each / 2 artefacts' is wrong: 1 artefact holds both shapes. Each shape is 1 distinct value repeated 7 times (attachments 1, events input content 4, events result 1, messages content 1), next to a 'key' word, delimited (not inside a longer token, so D-188's 'all inside longer tokens' does not describe these 14). Lengths 46 and 43 match neither real format (Anthropic sk-ant-api03 keys are about 108 chars, OpenAI legacy 51); they come from a tool result, i.e. AgentHarm benign task content. Not a live-key shape; S3 kept. Corrections: title/evidence counts; the PC-03 import follow-up is reduced to 6PzM for the AER pointer check, and release_scan must triage these 2 values as benchmark content."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "expected-known S3 unchanged. CC-13 fixture, catalogued (D-188, R2); D-188's 'all inside longer tokens' wording does not describe these 14 delimited strings (R2 documentation note for the entry). Same digests as the benchmark-source tokens of PC-kexin-xu-01-agentharm-10. Security flag left true: whether 6PzM's shapes reach PROV apv:args is unsampled; after the 6PzM import, S3 without security if PROV apv:args holds none (as kexin, PROV 0), S2 security if it does. release_scan allowlist by digest (<secret-A>, <secret-B>)."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": null,
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-03",
+   "title": "[CC-13] API-key-shaped strings (anthropic 7, openai 7; 1 distinct value each) in 1 unsampled artefact (6PzM); lengths match no real key format; benchmark tool content",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": true,
+   "check": "L1-06 / L2 redaction",
+   "evidence": "L1-06: anthropic-api-key 7 strings and openai-api-key 7 in 1/164 artefacts each, pointers events input content 4, attachments 1, events result 1, messages content 1; generic-credential-assignment 79 in 5/164; 0 in header.json. Flagged artefacts 5, sampled 3; AER of the sample: 48 generic-credential substrings, 0 whole, 0 key-shaped (so the key shapes are in the unsampled 6PzM or W6Si log). VERIFIER: raw check via agentprov.ingest: 6PzM holds all 14 (1 distinct value per shape, x7 each, delimited, lengths 46/43, 'key' context, includes events/*/result); W6Si 0 key shapes.",
+   "reproduction": "data/fragfuse-agentharm/aer-pass.json agg.sec; l1-logs.json L1-06",
+   "hypothesis_ref": "H-17",
+   "recommendation": "release_scan triage: 2 benchmark values (digests anthropic <secret-A>, openai <secret-B>) as false positives; on the round import of 6PzM confirm the AER pointers match (no escalation expected: not a real key format)."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "h19.py re-run: run1/logs.json listed 4, missing 4 (21-40-31 and 21-41-29 attempts of 37NWGW and KMWX); logs_archive/logs.json 2/2 present. Alternative (logs moved elsewhere) checked: a tree-wide search for the two eval ids finds only the 21-42-35 attempts in run1 and the 21-49 logs at logs_archive root; the 4 listed files are absent everywhere."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": null,
+   "artefact_proposal": "[inspect.art.eval_set_listing_missing_logs] scope.profiles=[\"fragfuse-agentharm\"]; 4 listed logs absent in logs_archive/agentharm_2025-12-30_run1/logs.json; S3; disclosure only",
+   "id": "PC-fragfuse-agentharm-04",
+   "title": "run1/logs.json lists 4 logs absent from the tree (earlier attempts of 2 claude eval ids)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "check": "L1-01 (H-19)",
+   "evidence": "logs_archive/agentharm_2025-12-30_run1/logs.json: 4 listed, 4 missing (attempts 21-40-31 and 21-41-29 of eval ids 37NWGW, KMWX); the tree holds the 21-42-35 attempts; logs_archive/logs.json 2/2 present.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/fragfuse-agentharm/exam-scripts/h19.py ~/.agentprov/cache/git/github.com/zixin22/fragfuse_agentharm.git 24cc8aea1b9906bee20fb585007410a5d885933a",
+   "hypothesis_ref": "H-19",
+   "recommendation": "Disclose as a partial upload of superseded error attempts (claude-opus, all error logs); no data action."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "aer-pass.json agg.net: 6 rows, all UNCLASSIFIED; artefacts.toml scopes name only survey-agentharm (0 fragfuse entries at HEAD and origin/main)."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": null,
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-05",
+   "title": "[CC-09 analogue, Inspect] No inspect.art.* entry scoped to fragfuse-agentharm@1: every safety-net row UNCLASSIFIED",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "check": "L2 safety net",
+   "evidence": "artefacts.scan on 1,265 sampled: seal_issue sample_limit 40, missing_tool_result 68, dangling_source_ref 68, unmapped_event 24, empty_execution#outcome_only 3, sentinel_time#unknown_not_recorded 23 - all UNCLASSIFIED (inspect.art.* scoped to survey-agentharm only, prereg section 4).",
+   "reproduction": "data/fragfuse-agentharm/aer-pass.json agg.net",
+   "hypothesis_ref": null,
+   "recommendation": "Inspect family owner: widen inspect.art.sample_limit (pop 74), error_logs (20 logs), missing_tool_result (23) scopes to fragfuse-agentharm with these counts."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "l2-logs.json counts: verified_complete 1,247, known_incomplete 15, unverifiable 3. missing_tool_result is in corpus/facets.py LOSS_CODES (item 11, D-372, b7b7d5bf 2026-10-13), after routing R-H4's 1,744 verified-complete figure (phase10h/routing.md:61, prereg line 31). The population figure 23 known_incomplete is the examiner's projection, not verified here."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": null,
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-06",
+   "title": "[regen item 11 / D-372] 15 sampled executions known_incomplete (missing_tool_result); prereg (R-H4 at bfa1951) expected 0",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "check": "L2 completeness",
+   "evidence": "completeness: verified_complete 1,247, known_incomplete 15 (all with missing_tool_result + dangling_source_ref + sample_limit), unverifiable 3 (no_execution_observed). Regen item 11 added missing_tool_result to the loss codes after R-H4; population projection 23 known_incomplete, not 0.",
+   "reproduction": "data/fragfuse-agentharm/l2-logs.json executions.counts",
+   "hypothesis_ref": null,
+   "recommendation": "Update routing R-H4 / phase-10h README figure (1,744 verified complete) to 1,721 verified complete + 23 known_incomplete + 3 unverifiable at current code (R4 note to the owner)."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "os2-sample.json judgement_name_sets: 4-name set (combined_scorer.* + score.*) 1,237, {always_ok, score} 6, none 22. Duplication (2 per value) is in 1,237 executions, not 1,243 (the 6 retrieve executions have 1 per value); title corrected. CD-24 (review-core-d) is the misnamed-score cause and changes fragfuse AER bytes."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": null,
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-07",
+   "title": "[CD-24] Duplicate judgements: 2 per score value (score.* beside combined_scorer.*) in 1,237 sampled executions",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "check": "L2 A3 / identity",
+   "evidence": "judgement name sets: {combined_scorer.score, combined_scorer.refusal, score.score, score.refusal} 1,237; {always_ok, score} 6; none 22.",
+   "reproduction": "data/fragfuse-agentharm/os2-sample.json judgement_name_sets",
+   "hypothesis_ref": "H-07",
+   "recommendation": "Counting must read combined_scorer.* once per sample until RD-2 lands."
+  },
+  {
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l2-logs.json outcomes.arms all {} with the AgentDojo-format note; redaction reports one 'account-path' class (aer 147 / prov 123 executions) with no users-dir/home-dir split (l2_check.py lines 111, 499). Tool issue, not a corpus finding."
+    }
+   ],
+   "part": "logs",
+   "agents_md_12": null,
+   "artefact_proposal": null,
+   "id": "PC-fragfuse-agentharm-08",
+   "title": "l2_check has no Inspect outcome extraction and lumps benchmark /home paths with third-party /Users paths",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "check": "L2 tool",
+   "evidence": "l2-logs.json outcomes.arms all {} with the AgentDojo-format note; redaction reports one 'account-path' class (aer 147 / prov 123 executions) without kind split; examiner scripts aer_pass.py / os2.py supply both.",
+   "reproduction": "data/fragfuse-agentharm/l2-logs.json outcomes, redaction",
+   "hypothesis_ref": null,
+   "recommendation": "Tool owner: add an inspect outcome hook (combined_scorer.*) and a users-dir/home-dir split to l2_check (R5; not a corpus finding)."
+  }
+ ],
+ "refuted": []
+}

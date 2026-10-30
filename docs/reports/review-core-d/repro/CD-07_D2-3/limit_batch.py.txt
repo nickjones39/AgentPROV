@@ -1,0 +1,32 @@
+"""--limit with a container dialect: stored/expanded containers depend on --batch-size."""
+import hashlib, io, sys, tempfile, zipfile
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "tests/adapters/inspect"))
+import inspect_support as insp
+from agentprov.adapters.runner.importer import ArchiveTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+
+def ev(n):
+    h = insp.synthetic_header(); h["eval"]["eval_id"] = f"SyntheticEvalId{n:08d}"; h["eval"]["run_id"] = f"SyntheticRunId{n:09d}"
+    s = insp.basic_sample(f"s{n}"); s["uuid"] = f"SynthUuid{n:013d}"
+    return insp.build_eval(h, {f"s{n}_epoch_1.json": s})
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w") as z:
+    for k in range(3):
+        i = zipfile.ZipInfo(f"agentharm/results/m/{k}.eval", (2026, 6, 10, 0, 0, 0)); i.compress_type = zipfile.ZIP_STORED
+        z.writestr(i, ev(k))
+data = buf.getvalue()
+tmp = Path(tempfile.mkdtemp(dir="repro/D2-3"))
+(tmp / "logs.zip").write_bytes(data); sha = hashlib.sha256(data).hexdigest()
+pin = {"role": "fixture", "kind": "zenodo", "doi": "10.5281/zenodo.7", "record": 7, "file": "logs.zip", "sha256": sha, "bytes": len(data)}
+out = {}
+for bs in (1, 256):
+    tree = ArchiveTree(tmp / "logs.zip", pin=pin, sha256=sha, size=len(data))
+    with CorpusWriter(tmp / f"c{bs}") as w:
+        rep = import_source("agent-security-tools-survey", tree, corpus=w, profile_id="survey-agentharm", part="agentharm",
+                            pin=pin, in_process=True, until="aer", limit=1, batch_size=bs)
+    p = Path(rep.corpus_root)
+    out[bs] = {f: hashlib.sha256((p / f).read_bytes()).hexdigest()[:12] for f in ("raw/members.jsonl", "raw/origins.jsonl", "executions.jsonl", "register.jsonl")}
+    out[bs]["members_rows"] = len((p / "raw/members.jsonl").read_text().splitlines())
+    out[bs]["mapped"] = rep.counters["mapped"]
+for bs, v in out.items(): print(bs, v)

@@ -1,0 +1,16 @@
+--- a/src/agentprov/adapters/agentdojo/mapper.py
++++ b/src/agentprov/adapters/agentdojo/mapper.py
+@@ def _content_parts(self, rec: _Rec, content: object, base: int = 0) -> list[dict[str, Any]]:
+             kind = block.get("type")
+             if kind == "text":
++                if block.get("content") is None:  # a null/absent block body; distinct from content: null
++                    rec.ext().setdefault("null_text_blocks", []).append(k)
+                 parts.append({"t": "text", "text": rec.enc(block.get("content"), f"/parts/{k}/text")})
+--- a/src/agentprov/views/transcript_v1.py
++++ b/src/agentprov/views/transcript_v1.py
+@@ def _converted_turn(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
+         null_content = len([p for p in parts if isinstance(p, Mapping) and p.get("t") == "text"]) == 1 and any(
+             isinstance(p, Mapping) and p.get("t") == "text" and p.get("text") is None for p in parts
+-        )
++        ) and not _ext(message, "agentdojo").get("null_text_blocks")
+(plus a D.6.6 parts-layout row: "a text block with null/absent content -> {t:text, text:null}, k listed in ext.agentdojo.null_text_blocks")

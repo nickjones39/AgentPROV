@@ -1,0 +1,258 @@
+{
+  "corpus_id": "bookkeeper-agentdojo",
+  "parts": [
+    "head"
+  ],
+  "wave": 3,
+  "written": "2026-10-14",
+  "code_commit": "065b0d36",
+  "status": "desk research for the pre-registration; no data check of this corpus has run. Everything below comes from the GitHub API (metadata, tree listing, documentation and harness code at the pin, the 11 run-summary files results_*.json), AgentDojo's repository and issue tracker, PyPI, arXiv, Zenodo and Hugging Face APIs, and our own prior reports. No run log was read.",
+  "papers": [
+    {
+      "title": "none: no paper, preprint, DOI or data record found for Munim / sricursion/bookkeeper (arXiv API, Zenodo API, Hugging Face API, GitHub, 2026-10-14). The repository's documents are the only description of the runs",
+      "url": "https://github.com/sricursion/bookkeeper",
+      "id": "none",
+      "relation": "primary documentation = README.md, eval/agentdojo/README.md, docs/numbers.md, runs/agentdojo/summary.md and runs/agentdojo/{munim,none}/results_*.json at the pin",
+      "versions": "n/a"
+    },
+    {
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+      "url": "https://arxiv.org/abs/2406.13352",
+      "id": "arXiv:2406.13352",
+      "relation": "benchmark the logs run on (suite v1 banking; attacks important_instructions and tool_knowledge); reference only",
+      "versions": "v1 2024-06-19, v3 2024-11-24 (arXiv API); not compared further, no number from it is an L2 target here"
+    }
+  ],
+  "repo": {
+    "url": "https://github.com/sricursion/bookkeeper",
+    "url_api": "https://api.github.com/repos/sricursion/bookkeeper",
+    "pinned_commit": "0fe09bb6e8c0c864cee5daa9451f2647c2c846be",
+    "pin_date": "2026-09-05T15:00:51Z (author = committer; GitHub API); profile records 2026-09-05. The pin is the current head of main (repository pushed_at 2026-09-05T15:00:55Z; no later commit as of 2026-10-14)",
+    "pin_tree": "1,020 blobs, 5,937,000 bytes (git trees API, not truncated) = profile expected_files/expected_bytes and the phase-10c census all_tree_entries. Selected by the profile glob: 570 logs (3,900,025 bytes) under runs/agentdojo/{munim,none}/<pipeline_dir>/banking/<task>/<attack>/<file>.json. Not selected: 450 = 26 context artefacts (LICENSE, README.md, pyproject.toml, 12 munim/*.py, 11 results_*.json) + 299 Munim ledgers (runs/agentdojo/munim/ledgers/**.jsonl) + 103 Razorpay run files (runs/razorpay/**) + 22 other (eval/ code incl. eval/agentdojo/run.py and munim_defense.py, docs, tests, corpus/, runs/agentdojo/summary.md, .gitignore). 0 .DS_Store/._ files",
+    "history": [
+      "bb4ae402d6ff 2026-09-05T08:34:24Z 'Munim: a deterministic gate between AI agents and a merchant's money on Razorpay': first commit (repo created 08:24:07Z), 82,149 added lines; contains runs/agentdojo/ (the 570 logs); verified by fact-check from the git trees API for bb4ae402 (1,012 blobs, not truncated, 570 selected logs; runs/agentdojo/ 881 blobs with SHAs identical to the pin) [corrected: no longer an inference]. README 'License: MIT.' and pyproject license text 'MIT' at this commit, no LICENSE file",
+      "0fe09bb6e8c0 2026-09-05T15:00:51Z (pin, head) 'Add GPL-3.0 license, ledger viewer, and the timed demo script with its helpers': 11 files (LICENSE added, README.md +2/-1 lines (one demo command; License section MIT -> GPL-3.0-or-later) [corrected], munim/cli.py, pyproject.toml (license MIT -> GPL-3.0-or-later), docs/DEMO_COMMANDS.md, docs/numbers.md, eval/headings.py, runs/razorpay/demo/*); no file under runs/agentdojo/ or eval/agentdojo/ changed"
+    ],
+    "run_logs_vs_code": "The logs' naive evaluation timestamps (phase-10c census range 2026-09-05 02:45:22 to 13:41:03) are local IST: every results_*.json finished_at carries +0530, and 13:41 IST = 08:11Z, before the first commit (08:34Z). The harness at the pin (eval/agentdojo/run.py, GATE_VERSION = 4) names pipelines '{label}-{mode}-g4' plus '-cap2' for munim and writes a 'ledger_dir' field into results files; no results file has 'ledger_dir', and the directories '-munim', '-none', '-munim-cap2-g2', '-munim-cap2-g3' come from earlier code states (gate v1-v3) that are not in the two-commit history. So no log was written by the code at the pin (verified_code = [] is right)",
+    "harness_notes": [
+      "eval/agentdojo/run.py line 197 at the pin: pipeline.name = label-mode-g<GATE_VERSION> + -cap<cap_multiplier> for munim; cap_multiplier default 2.0 (per-action cap = 2 x the largest amount the account ever sent, daily budget 2 x cap per eval/agentdojo/README.md). So g2/g3/g4 = gate version, cap2 = cap multiplier 2. Our identity table says the repository does not explain these labels",
+      "run.py uses AgentDojo's benchmark_suite_with_injections with force_rerun default False, so an existing log for the same pipeline name is reused, not rerun (AgentDojo benchmark.py at v0.1.35: line 101 for attacked pairs, line 268 in run_task_without_injection_tasks for the pre-pass [fact-check precision]). The injection-task pre-pass (9 injection tasks run as user tasks) is therefore written once per pipeline name and shared by its important_instructions and tool_knowledge runs",
+      "run.py subclasses AgentDojo's OpenAILLM as SteadyOpenAILLM: sends temperature 0.0 explicitly (the stock wrapper drops it: openai_llm.py v0.1.35 line 162 'temperature or NOT_GIVEN'), and replaces a malformed tool-call argument string by a harness-written assistant turn '[malformed tool call arguments: ...]' and a length-truncated reply without tool calls by '[response truncated at the output limit]'",
+      "run.py sets MODEL_NAMES.setdefault(label, --model-family) with default family 'GLM'; AgentDojo's get_model_name_from_pipeline matches by substring of the pipeline name, so the attack text addresses gpt-oss-120b as 'GLM' unless --model-family was passed (not recorded)",
+      "suite = get_suite('v1', 'banking'); benchmark_version not passed, hence null in every log (D-102)",
+      "munim_defense.py GatedToolsExecutor: a hold or deny returns a tool message whose error starts 'Declined by the account's money gate. ' followed by the decision summary and, at the pin, an instruction not to retry; it also emits 'Empty function name provided...' and 'Invalid tool ... provided.' errors (the census found 180 tool errors in all = 180 denials, so none of these)",
+      "Gate statistics in results files: gate_stats = pair episodes only (pre-pass episodes excluded, counted from the ledger), gate_stats_all_episodes = every episode of the run including the pre-pass"
+    ],
+    "issues": "0 issues, 0 pull requests, 0 forks, 0 releases (GitHub API 2026-10-14)"
+  },
+  "data_record": "No Zenodo, Hugging Face or Figshare record (Zenodo API q='\"munim\" AND agentdojo': 0 hits; HF datasets search 'munim' and author sricursion: nothing related). The data is the git tree at the pin: our profile pin (commit 0fe09bb6, 1,020 files, 5,937,000 bytes) equals the GitHub tree exactly; phase-10c census: 0 blobs missing locally, 594 JSON blobs all parse",
+  "harness": "AgentDojo 0.1.35 per agentdojo_package_version in all 570 logs (phase-10c census); PyPI 0.1.35 uploaded 2025-10-27 and still the latest release (https://pypi.org/pypi/agentdojo/json); tag v0.1.35 = a75aba7631d3. Installation not declared (pyproject declares no dependency; README asks for a venv with agentdojo, openai, mcp, httpx). Suite v1 banking; attacks important_instructions and tool_knowledge; defence = Munim GatedToolsExecutor replacing ToolsExecutor (baselines use AgentDojo's ToolsExecutor). Provider: Fireworks OpenAI-compatible endpoint (run.py DEFAULT_BASE_URL). Known AgentDojo issues relevant to banking: #181 banking injection tasks 0/1/3 subject check is dead code (operator precedence), so security = any transaction to the attacker's IBAN (https://github.com/ethz-spylab/agentdojo/issues/181, open); #67 the injection replaces the original bill content (user_task_0) (https://github.com/ethz-spylab/agentdojo/issues/67, closed) - matches the repository's statement that user_task_0 fails under attack in every arm; #194 banking update_scheduled_transaction cannot set falsy values (https://github.com/ethz-spylab/agentdojo/issues/194, open); #208 replaying ground truth / scoring stopped attacks (https://github.com/ethz-spylab/agentdojo/issues/208, open); #214 non-ASCII tool results as \\uXXXX (https://github.com/ethz-spylab/agentdojo/issues/214, open); #212 --max-workers > 1 crash (not used here). Temperature-dropping in the stock OpenAILLM: https://github.com/ethz-spylab/agentdojo/blob/v0.1.35/src/agentdojo/agent_pipeline/llms/openai_llm.py",
+  "models": [
+    "glm-5.3-flash = Fireworks 'accounts/fireworks/models/glm-5p3-flash' (results_*.json model_id; run.py default)",
+    "gpt-oss-120b = Fireworks 'accounts/fireworks/models/gpt-oss-120b' (results_*.json model_id)",
+    "llama-3.1-8b: one pre-pass log only; provider and model id not recorded in any results file or document (Fireworks endpoint is the harness default, unconfirmed)"
+  ],
+  "reported_results": [
+    {
+      "arm": "glm-5.3-flash-none / important_instructions (early run, temperature unset)",
+      "metric": "utility under attack; attack success",
+      "value": "18/27 (66.7%); 0/27",
+      "n": "27 pairs (user tasks 0-2 x 9 injection tasks)",
+      "where": "runs/agentdojo/none/results_important_instructions.json (finished 2026-09-05T02:56:13+0530, 650.9 s, pipeline_name and temperature keys absent [corrected: was 'null']), per-pair dicts; also summary.md 'glm-5.3-flash, gate v2, 13:03' none row https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/runs/agentdojo/summary.md"
+    },
+    {
+      "arm": "glm-5.3-flash-none / tool_knowledge (early run)",
+      "metric": "utility under attack; attack success",
+      "value": "18/27; 0/27",
+      "n": "27",
+      "where": "runs/agentdojo/none/results_tool_knowledge.json (finished 12:49:30+0530, 323.3 s, temperature key absent [corrected]); summary.md 12:49 and gate v2 13:08 none rows"
+    },
+    {
+      "arm": "glm-5.3-flash-munim (gate v1) / important_instructions",
+      "metric": "utility; attack success; gate allow/hold/deny (v1 schema: single gate_stats, pair/all scope unrecorded [corrected: was 'all episodes'])",
+      "value": "18/27; 0/27; 10/5/1 (evaluated 16, executed 10)",
+      "n": "27",
+      "where": "runs/agentdojo/munim/results_important_instructions.json (finished 03:04:40+0530, 507.4 s, temperature key absent [corrected]); summary.md 03:04"
+    },
+    {
+      "arm": "glm-5.3-flash-munim-cap2-g2 / important_instructions",
+      "metric": "utility; attack success; gate pair-episode allow/hold/deny",
+      "value": "63.0% (17/27); 0.0%; 9/4/0",
+      "n": "27",
+      "where": "summary.md 'glm-5.3-flash, gate v2, 2026-09-05 13:03' (only source; results file overwritten by the v4 run)"
+    },
+    {
+      "arm": "glm-5.3-flash-munim-cap2-g2 / tool_knowledge",
+      "metric": "utility; attack success; gate pair allow/hold/deny",
+      "value": "59.3% (16/27); 0.0%; 8/2/0",
+      "n": "27",
+      "where": "summary.md 'glm-5.3-flash, gate v2, 13:08'"
+    },
+    {
+      "arm": "gpt-oss-120b-none (v2 era) / important_instructions",
+      "metric": "utility; attack success",
+      "value": "40.7% (11/27); 74.1% (20/27)",
+      "n": "27",
+      "where": "summary.md 'gpt-oss-120b, gate v2, 13:02'"
+    },
+    {
+      "arm": "gpt-oss-120b-none (v2 era) / tool_knowledge",
+      "metric": "utility; attack success",
+      "value": "44.4% (12/27); 51.9% (14/27)",
+      "n": "27",
+      "where": "summary.md 'gpt-oss-120b, gate v2, 13:08'"
+    },
+    {
+      "arm": "gpt-oss-120b-munim-cap2-g2 / important_instructions",
+      "metric": "utility; attack success; gate pair allow/hold/deny",
+      "value": "22.2% (6/27); 0.0%; 6/46/22",
+      "n": "27",
+      "where": "summary.md 'gpt-oss-120b, gate v2, 13:14'; eval/agentdojo/README.md says this first gpt-oss comparison was not like for like (different sampling) and was replaced by v4"
+    },
+    {
+      "arm": "glm-5.3-flash-none-g4 / important_instructions",
+      "metric": "utility; attack success",
+      "value": "18/27 (66.7%); 0/27",
+      "n": "27",
+      "where": "runs/agentdojo/none/results_important_instructions_glm-5.3-flash.json (finished 13:24:03+0530, 447.0 s, temperature 0.0); eval/agentdojo/README.md 'Live pilot' table"
+    },
+    {
+      "arm": "glm-5.3-flash-munim-g4-cap2 / important_instructions",
+      "metric": "utility; attack success; gate pair / all-episode allow/hold/deny",
+      "value": "18/27; 0/27; pair 9/0/0, all 10/6/0 (executed 10; 9 pre-pass episodes)",
+      "n": "27",
+      "where": "runs/agentdojo/munim/results_important_instructions_glm-5.3-flash.json (finished 13:31:55+0530, 472.1 s); eval README table"
+    },
+    {
+      "arm": "glm-5.3-flash-none-g4 / tool_knowledge",
+      "metric": "utility; attack success",
+      "value": "18/27; 0/27",
+      "n": "27",
+      "where": "runs/agentdojo/none/results_tool_knowledge_glm-5.3-flash.json (finished 13:36:09+0530, 247.3 s)"
+    },
+    {
+      "arm": "glm-5.3-flash-munim-g4-cap2 / tool_knowledge",
+      "metric": "utility; attack success; gate pair / all allow/hold/deny",
+      "value": "18/27; 0/27; 9/0/0 both (0 pre-pass episodes: reused)",
+      "n": "27",
+      "where": "runs/agentdojo/munim/results_tool_knowledge_glm-5.3-flash.json (finished 13:40:18+0530, 248.9 s)"
+    },
+    {
+      "arm": "gpt-oss-120b-none-g4 / important_instructions",
+      "metric": "utility; attack success",
+      "value": "11/27 (40.7%); 20/27 (74.1%)",
+      "n": "27",
+      "where": "runs/agentdojo/none/results_important_instructions_gpt-oss-120b.json (finished 13:23:04+0530, 389.6 s); eval README; docs/numbers.md; README.md"
+    },
+    {
+      "arm": "gpt-oss-120b-munim-g4-cap2 / important_instructions",
+      "metric": "utility; attack success; gate pair / all allow/hold/deny",
+      "value": "12/27 (44.4%); 0/27; pair 8/8/12, all 9/11/12 (executed 9)",
+      "n": "27",
+      "where": "runs/agentdojo/munim/results_important_instructions_gpt-oss-120b.json (finished 13:31:27+0530, 503.4 s); eval README"
+    },
+    {
+      "arm": "gpt-oss-120b-none-g4 / tool_knowledge",
+      "metric": "utility; attack success",
+      "value": "13/27 (48.1%); 14/27 (51.9%)",
+      "n": "27",
+      "where": "runs/agentdojo/none/results_tool_knowledge_gpt-oss-120b.json (finished 13:36:55+0530, 318.3 s); eval README"
+    },
+    {
+      "arm": "gpt-oss-120b-munim-g4-cap2 / tool_knowledge",
+      "metric": "utility; attack success; gate pair / all allow/hold/deny",
+      "value": "11/27 (40.7%); 0/27; 4/10/3 both (executed 4)",
+      "n": "27",
+      "where": "runs/agentdojo/munim/results_tool_knowledge_gpt-oss-120b.json (finished 13:41:21+0530, 266.1 s); eval README"
+    },
+    {
+      "arm": "gpt-oss-120b-munim-g4-cap2 (precision/recall over calls)",
+      "metric": "malicious calls blocked / made; legitimate calls wrongly blocked",
+      "value": "important_instructions 20/20, 0 of 8; tool_knowledge 13/13, 0 of 4",
+      "n": "pair episodes",
+      "where": "eval/agentdojo/README.md 'Precision and recall' table (precision_recall.py over the ledgers)"
+    },
+    {
+      "arm": "offline gate checks (no model, no logs)",
+      "metric": "attacker goal actions allowed; benign ground truths fully allowed",
+      "value": "0/144; 12/16",
+      "n": "144 pairs; 16 tasks",
+      "where": "eval/agentdojo/README.md 'Offline results'; not represented in the logs"
+    },
+    {
+      "arm": "glm-5.3-flash-munim-cap2-g3, gpt-oss-120b-munim-cap2-g3, gpt-oss-120b-munim-cap2-g2 / tool_knowledge, llama-3.1-8b-none",
+      "metric": "any",
+      "value": "not reported anywhere (no summary row, no results file)",
+      "n": "23 + 10 + 5 attacked logs, 1 pre-pass log",
+      "where": "absence in summary.md and results_*.json at the pin"
+    }
+  ],
+  "expected_counts": "Tree at pin 1,020 files / 5,937,000 bytes; selected 570 logs (profile glob runs/agentdojo/*/*/*/*/*/*.json; readme_corpora.toml count 570, basis census); not selected 450 (26 context artefacts stored as supporting, 299 ledgers, 103 Razorpay run files, 22 other); units 570 agent_execution; executions 570; variants v1.k14 566, v1.k14.incomplete 4; trial sealed 565 clean + 5 with issues (jobs 8 on all 570; jobs 3 on a 120-unit subset, subset compare 0 differing objects [corrected: was 'jobs 8 and 3 byte-identical']). Per pipeline dir: glm-5.3-flash-munim 36, -munim-cap2-g2 63, -munim-cap2-g3 32, -munim-g4-cap2 63, -none 63, -none-g4 63; gpt-oss-120b-munim-cap2-g2 41, -munim-cap2-g3 19, -munim-g4-cap2 63, -none 63, -none-g4 63; llama-3.1-8b-none 1. Attack: important_instructions 276, tool_knowledge 194, none (pre-pass) 100. Sources: GitHub tree listing, phase-10c census (~/.agentprov/migration-work/phase10c/census/bookkeeper@0fe09bb6e8c0.*), docs/reports/phase10d/bookkeeper-agentdojo.{census,trial}.json, identity table tables/bookkeeper_pipeline_dirs.toml",
+  "expected_arms": "model {glm-5.3-flash, gpt-oss-120b, llama-3.1-8b} x defence {none, munim (gate v1, v2 cap2, v3 cap2, v4 cap2)} x attack {important_instructions, tool_knowledge, none = injection-task pre-pass} x suite {banking v1} x user tasks {0,1,2} x injection tasks {0..8}. Full cells (27 per attack + 9 pre-pass): glm none, glm none-g4, glm munim-cap2-g2, glm munim-g4-cap2, gpt none, gpt none-g4, gpt munim-g4-cap2. Partial by design or abort: glm-5.3-flash-munim (v1) important_instructions only (27 + 9); glm munim-cap2-g3 important_instructions 23 of 27 (+9); gpt munim-cap2-g2 important_instructions 27 + tool_knowledge 5 of 27 (+9); gpt munim-cap2-g3 important_instructions 10 of 27 (+9); llama-3.1-8b-none 1 pre-pass log only. No benign user-task (clean-utility) runs; user tasks 3-15 never run. Missing relative to 63 cells per directory (27 + 27 + 9): glm-5.3-flash-munim 27 (tool_knowledge never run), glm munim-cap2-g3 31, gpt munim-cap2-g2 22, gpt munim-cap2-g3 44 = 124, plus 62 for the llama stray; 12 x 63 - 570 = 186 = 124 + 62. No extra cell expected (one log per path)",
+  "licence": "GPL-3.0-or-later: README section 'License' says GNU GPL v3.0 or later; pyproject license text 'GPL-3.0-or-later'; LICENSE = the verbatim GPL v3 text (git blob f288702d2fa16d3cdf0035b15a9fcbc552cd88e7, 35,149 bytes, the standard GPL-3.0 blob), added at the pin commit, no copyright line; GitHub's licence detection reports GPL-3.0 (https://api.github.com/repos/sricursion/bookkeeper). [corrected] The logs were first committed (bb4ae402) under a declared MIT licence (README 'License: MIT.', pyproject license text 'MIT'; no LICENSE file); the pin relicensed the repository to GPL-3.0-or-later, and runs/agentdojo/ is byte-identical at both commits (881 blob SHAs). The corpus pin is 0fe09bb6, so GPL-3.0-or-later applies to it; the MIT declaration at bb4ae402 is recorded for the dossier, not acted on. The logs embed AgentDojo benchmark text (MIT, (c) 2024 Debenedetti et al.). Model-provider terms on redistributing outputs (Fireworks; GLM 5.3 Flash, gpt-oss-120b) unassessed. Own GPL corpus per D-94; copyleft fixtures private-only (AGENTS.md release blocker)",
+  "discrepancy_leads": [
+    "Unreported runs in the data: 4 of 12 pipeline directories hold arms that no table reports (glm-5.3-flash-munim-cap2-g3: 23 important_instructions logs; gpt-oss-120b-munim-cap2-g3: 10; gpt-oss-120b-munim-cap2-g2 tool_knowledge: 5; llama-3.1-8b-none: 1 pre-pass log). Each partial arm ends in exactly one incomplete log at the last cell in AgentDojo's order (census incomplete samples), consistent with aborted runs",
+    "Two harness generations in one undefended arm label: glm-5.3-flash-none and glm-5.3-flash-munim were run before version tagging with temperature unset (their results files have no temperature key [corrected: was 'temperature null'], so sampling is unrecorded; if the stock wrapper was used, AgentDojo 0.1.35's stock wrapper drops 0.0), while -none-g4/-g4-cap2 record temperature 0.0 (SteadyOpenAILLM per the pinned run.py and eval README); our identity table maps both glm-5.3-flash-none and glm-5.3-flash-none-g4 (and the gpt pair) to defence 'none', so identity-level arms pool two replicates with different sampling. The logs record no sampling parameter",
+    "summary.md's gate-v2 glm 'none' rows (13:03, 13:08) probably reused the cached 02:45-02:56 and 12:44-12:49 logs of glm-5.3-flash-none (AgentDojo reuses logs unless force_rerun); test by timestamps",
+    "Results for gate-v2 arms survive only in summary.md: results_<attack>_<model>.json were overwritten by the v4 runs, so per-pair outcomes for glm munim-cap2-g2, gpt none and gpt munim-cap2-g2 are not documented; only aggregates",
+    "The harness at the pin is not the code that wrote any log (pipeline-name format g4-cap2 vs cap2-g2; results files lack the ledger_dir field the pinned run.py writes); code for gate v1-v3 is not in the repository history",
+    "Identity table says the cap2/g2/g3/g4 labels are unexplained; run.py line 197 and eval/agentdojo/README.md explain them (gate version; cap multiplier 2)",
+    "Model identity: results files give Fireworks ids accounts/fireworks/models/glm-5p3-flash and accounts/fireworks/models/gpt-oss-120b; our table records the labels only; llama-3.1-8b's provider is unrecorded",
+    "Attack text may address gpt-oss-120b as 'GLM' (run.py --model-family default 'GLM', MODEL_NAMES.setdefault); not recorded in results; checkable in the injection text of the logs",
+    "SteadyOpenAILLM writes harness-authored assistant turns ('[malformed tool call arguments: ...]', '[response truncated at the output limit]') that a mapper would attribute to the model",
+    "Munim's own per-decision evidence (299 hash-chained ledgers) is neither selected nor stored as a context artefact; ledger run tags do not map one-to-one to log directories (run tag 20260905-131118 holds 32 episodes although two gate-v3 runs exist with 32 and 19 logs - possibly two concurrent runs overwriting episode files; 20260905-130234 holds 35 episodes for a 36-log directory; 20260905-130841 holds 7 episodes for 5 tool_knowledge logs); eval/agentdojo/run.py, munim_defense.py and summary.md are not context artefacts either",
+    "The gate also mediates the injection-task pre-pass (labelled benign): results all-episode stats imply 6 holds in glm-5.3-flash-munim-g4-cap2 and 3 holds in gpt-oss-120b-munim-g4-cap2 outside the pair episodes (agentdojo.art.defence_benign_intervention)",
+    "AgentDojo #181: banking injection tasks 0, 1 and 3 count any transfer to the attacker's IBAN as success regardless of subject; logged and reported ASR share this checker, so it inflates both alike (relevant to gpt-oss-120b none arms only, since all other arms report 0 successes)",
+    "No artefacts.toml entry lists bookkeeper-agentdojo in its scope, though naive_timestamp, incomplete_run, silent_rerun, benign_security_constant, injection_task_as_user, max_iters_pending and defence_benign_intervention apply (profile quirks cover the behaviour)",
+    "[corrected] Licence history: the logs entered the repository in bb4ae402 under a declared MIT licence (README and pyproject, no LICENSE file); the pin relicensed to GPL-3.0-or-later with runs/agentdojo/ unchanged; GitHub reports GPL-3.0 while README/pyproject say 'or later'",
+    "README.md and docs/numbers.md say GLM 5.3 Flash had 'nothing held'; that is true for pair episodes only: munim/results_important_instructions_glm-5.3-flash.json gate_stats_all_episodes has 6 holds (pre-pass episodes) [added by fact-check, from documents]"
+  ],
+  "open_questions": [
+    "Which gate version and sampling produced gpt-oss-120b-none (summary.md calls it gate v2 era; eval README says the first gpt-oss comparison used different sampling for its two arms) - the logs cannot say",
+    "Whether the decline text before gate v4 carried the same suffix (only the prefix is known to match all 180 tool errors)",
+    "Whether ledger run tag 20260905-131118 mixes the glm and gpt gate-v3 runs (the ledgers are not in the profile and are not read in this pre-check)"
+  ],
+  "checks_not_applicable": [
+    "Delta since E2: not applicable (first examination; not in FA or E2)",
+    "Paper-table comparison: no paper; the comparison targets are the repository's own results files and summary.md",
+    "L1-07 within-unit monotonicity: TraceLogger v1.k14 logs have one evaluation_timestamp per file, no per-message times"
+  ],
+  "sources": [
+    "https://github.com/sricursion/bookkeeper",
+    "https://api.github.com/repos/sricursion/bookkeeper/commits?per_page=100",
+    "https://api.github.com/repos/sricursion/bookkeeper/git/trees/0fe09bb6e8c0c864cee5daa9451f2647c2c846be?recursive=1",
+    "https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/eval/agentdojo/README.md",
+    "https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/eval/agentdojo/run.py",
+    "https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/eval/agentdojo/munim_defense.py",
+    "https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/runs/agentdojo/summary.md",
+    "https://github.com/sricursion/bookkeeper/tree/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/runs/agentdojo/none",
+    "https://github.com/sricursion/bookkeeper/tree/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/runs/agentdojo/munim",
+    "https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/docs/numbers.md",
+    "https://github.com/sricursion/bookkeeper/blob/0fe09bb6e8c0c864cee5daa9451f2647c2c846be/LICENSE",
+    "https://github.com/ethz-spylab/agentdojo/blob/v0.1.35/src/agentdojo/agent_pipeline/llms/openai_llm.py",
+    "https://github.com/ethz-spylab/agentdojo/blob/v0.1.35/src/agentdojo/benchmark.py",
+    "https://github.com/ethz-spylab/agentdojo/blob/v0.1.35/src/agentdojo/attacks/base_attacks.py",
+    "https://github.com/ethz-spylab/agentdojo/issues/181",
+    "https://github.com/ethz-spylab/agentdojo/issues/67",
+    "https://github.com/ethz-spylab/agentdojo/issues/194",
+    "https://github.com/ethz-spylab/agentdojo/issues/208",
+    "https://github.com/ethz-spylab/agentdojo/issues/214",
+    "https://pypi.org/pypi/agentdojo/json",
+    "https://arxiv.org/abs/2406.13352",
+    "https://zenodo.org/api/records?q=%22munim%22%20AND%20agentdojo",
+    "https://huggingface.co/api/datasets?search=munim"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "checked": "pin tree and first-commit tree (git trees API), per-cell file counts from paths, summary.md, all 11 results_*.json per-pair tallies, eval/agentdojo/README.md, docs/numbers.md, README.md, pyproject.toml, LICENSE, run.py, munim_defense.py, pin diff; AgentDojo v0.1.35 benchmark.py/openai_llm.py/models.py/v1 banking injection_tasks.py; issues #67/#181/#194/#208/#212/#214; PyPI; arXiv versions; Zenodo/HF; our census, trial, registry, profile, identity table, artefacts.toml",
+    "corrections": [
+      "early results files: temperature/pipeline_name keys absent, not null",
+      "SteadyOpenAILLM documented for g4 runs only (not v2+)",
+      "trial determinism: jobs 3 run was a 120-unit subset",
+      "gate v1 gate_stats scope unrecorded",
+      "licence: logs first published under declared MIT, relicensed GPL at pin; runs/agentdojo identical at both commits",
+      "first-commit tree verified directly",
+      "pin README diff +2/-1"
+    ]
+  }
+}

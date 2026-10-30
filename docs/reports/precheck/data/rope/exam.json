@@ -1,0 +1,994 @@
+{
+ "corpus_id": "rope",
+ "examined": "2026-10-15",
+ "code": {
+  "l1_scan": "db6ef512",
+  "l2_import_check": "c4ee3dd1",
+  "branch": "precheck-corpora"
+ },
+ "files_written": [
+  "docs/reports/precheck/data/rope/exam.json",
+  "docs/reports/precheck/data/rope/exam-l1-cells.json",
+  "docs/reports/precheck/data/rope/exam-stored-corrections.json",
+  "docs/reports/precheck/data/rope/exam-delta-head.json",
+  "docs/reports/precheck/data/rope/exam-delta-rope-slice.json",
+  "docs/reports/precheck/data/rope/exam-sample-checks-head.json",
+  "docs/reports/precheck/data/rope/exam-sample-checks-rope-slice.json",
+  "docs/reports/precheck/data/rope/exam-outcomes.json",
+  "docs/reports/precheck/data/rope/l2-targeted-head.json",
+  "docs/reports/precheck/data/rope/exam-scripts/l1_out.py",
+  "docs/reports/precheck/data/rope/exam-scripts/l1_it.py",
+  "docs/reports/precheck/data/rope/exam-scripts/l1_dup.py",
+  "docs/reports/precheck/data/rope/exam-scripts/acct.py",
+  "docs/reports/precheck/data/rope/exam-scripts/acct2.py",
+  "docs/reports/precheck/data/rope/exam-scripts/pk.py",
+  "docs/reports/precheck/data/rope/exam-scripts/delta.py",
+  "docs/reports/precheck/data/rope/exam-scripts/sample.py",
+  "docs/reports/precheck/data/rope/exam-scripts/stored_corr.py",
+  "docs/reports/precheck/data/rope/exam-scripts/stored_misc.py",
+  "docs/reports/precheck/data/rope/exam-scripts/stored_extra.py",
+  "docs/reports/precheck/data/rope/exam-scripts/targeted.py",
+  "docs/reports/precheck/data/rope/exam-scripts/outcomes.py"
+ ],
+ "sample_size": "head 300 units (103 strata, 2-3 each; cap 300) + rope-slice 90 units (18 AutoDojo strata x 5; 4 labels shared with head); L1 population 10,791 logs (slice 2,847); stored corpus read-only for DL-1 (390 ids) and population corrected outcomes (10,791)",
+ "l2_status": "done (head and rope-slice: import j2/j1, check, validate, recompute dry-run, determinism, verify chain all rc 0; withholding not applicable); targeted 43-label follow-up proposed for H-12/H-13",
+ "level1": "Input: local clean clone at the pin (HEAD 64495e16, tree c4df12c3, runs/ 6a8c86f2; git status clean), l1_scan at db6ef512, --pin-check verified 10,813 blobs (10,791 logs + 22 JSON context artefacts). L1-01: 24,909 files / 265,463,047 B outside .git (= pin, H-01); walk 24,938 = +29 .git/ internals counted as not_selected (tool note, PC-rope-06). Dispositions: selected 10,791 (175,263,358 B; AutoDojo slice 2,847 / 48,275,981 B), context 35, excluded 14,066 (select.owned_elsewhere ext:agentlab 13,765 + select.not_execution_artefact 301), not_selected 46 (17 outside every glob + 29 .git) = expected 24,909 = 10,791+35+14,066+17. Units 10,791 (variants v1.k14 10,789 / v1.k14.incomplete 2); registry figure 10,791 equal. L1-02: 10,791/10,791 strict ok, 22/22 auxiliary ok; 0 of every class (dup key, non-finite, big int, lone surrogate, BOM, trailing, invalid UTF-8, truncation, depth); lenient classes not needed. L1-03: 0 U+2028/2029/0085, C0/C1, ESC, bidi, tag, zero-width, PUA, U+FFFD, mojibake. Present by design: literal escape residues escaped_newline 6,073 artefacts (11,887 strings; 7,865 in tool-result content, the rest /injections/* YAML-escaped payloads), escaped_quote 1,298, escaped_unicode 1,751 (2,033 strings, AgentDojo #214 style, 2,018 in tool-result content), json_in_string 6 artefacts / 13 strings, variation_selector 9 artefacts / 12 strings (= E2's 12). L1-04: byte-identical 0 within the part, 0 cross-part, 0 cross-corpus; trajectory-identical (L1 fingerprint, provider call ids ignored) 235 groups / 1,042 units (10,789 with fp, 9,982 distinct), 156 groups / 660 units within one (model_dir, attack, suite, user task) cell, 115 groups spanning several model trees (gpt-4o-mini main vs ablation/router trees, same model, temperature 0). Census definition (AER message parts incl. provider ids) recounted on the stored corpus: 53 groups / 396 = prereg (H-20 supported; PC-rope-05). Cross-corpus (l1-xdup.json): 7 groups with agentdyn a, 15 ROPE logs (ids ignored) vs the census' 9 content twins (definition, PC-rope-05); 0 cross-part pairs. L1-05: 103 strata, every cell count equal to prereg section 3 (75 main, 12 ablation, 12 router, 4 clamp; H-02); missing: travel LH user_task_0 x injection_task_2 for gpt-4o-mini and qwen3-235b (exactly), gpt-4o autodojo/LH, ablation/router on AgentDojo suites, clamp on github/shopping, all undefended/baseline-defence arms (not released); extra: gpt-4o AgentDojo suites 389 attacked + 57 clean, the 2 aborted LH logs (travel ut2 x it2, gpt-4o-mini and qwen3-235b). path_disagrees:attack_dir 760 = every LH log (dir agentlab_longhorizon vs header long_horizon): alias the profile maps (E2 0 path_field_mismatch), L1 hook false positive (PC-rope-04); every other path component agrees in 10,791/10,791. L1-06: secret:generic-credential-assignment 2,830 artefacts (4,222 strings, 8 pointers, 3,092 in tool-result content), secret:private-key-block 79 artefacts (222 strings; all dailylife-suite logs: the suite fixture filesystem.yaml and injection tasks carry a private-key-shaped header), account:home-dir named 3 artefacts (2 distinct names by digest) and generic 3, all in assistant tool-call args (github local_dir_path, banking file_path), names taken from the benchmark persona or environment output (scenario fiction, trap 11); operator_home 0, local-path model 0, this-machine home 0; 22 auxiliary: 12 credential-shaped strings in the routed injections caches (PC-rope-07). L1-07: /evaluation_timestamp 10,791/10,791 present, 0 parse failures, all naive, 2026-06-16..2026-08-12 (H-21); qwen3-235b autodojo 949/949 on 2026-06-30 (stored AER). 12 further pointers are tool-call argument dates (scenario data 2023-04-15..2026-06-27); the 35 'non-monotone' artefacts are those argument dates, not run timestamps (tool note, PC-rope-06); no per-step times. L1-08: zero_messages + incomplete 2 (the 2 LH empty logs, security/utility null), error_only 0, error non-null 0/10,791, null_final 33 (all gemini-2.5-flash: empty final assistant turn, = census 33; not the profile's 322 silent-rerun null-final, which L2 sees as retry_passes_inferred), tiny 0. OS-1 (raw outcome fields, all 10,791): every one of the 36 AP per-suite integers for gpt-4o-mini and gemini (CU, II raw, AutoDojo raw) equal exactly; all AP micro and RP macro aggregates within rounding (|gap| <= 0.05 pp); recorded security true II 444 / autodojo 88 / LH 0 of 758 / clean constant 748; banking attacked true 0 (H-23); github user_task_5/7/8/11 utility false 428/428 (H-06); gpt-4o-mini tags iter4 1,774 / iter2 178 (all 2026-06-16) / final-opus 63 (all 2026-08-12) (H-08); clamp tags only router_*-clamp dailylife 440 (H-07). Corrected values (stored rope-p10 recomputed judgements, read-only; sample shows 0 value changes at main): slack IT5 32->0, dailylife IT7 39->22, github IT1 5->0, 678 recomputed (198/260/220), AutoDojo 88->71 (33->19, 19->19, 36->33), II corrected in RP paper cells 90 = 24/22/31/13 by model and travel IT6 23, slack IT1 19, travel IT5 2, shopping IT2 15 + IT5 24, dailylife IT6 7 (H-04, H-05); ablation and router corrected ASR and CU equal RP T4/T5 in all 22 reproducible cells. No arm flagged by the gap rule.",
+ "level2": "Sample: head 300 units over 103 strata (2-3 per stratum, cap 300, not over maximum), slice 90 from the 2,847 attack_dir=autodojo rows (18 strata x 5); 4 labels overlap. Batch wave1 all 9 rope steps rc 0, logs clean; imports at c4ee3dd (precheck branch from main 8ad0c522), recipe git-cache GitPinTree at the pin, dev mode, profile rope@2 (4cd87b53). Import: head 300 mapped / 0 failed / 0 degenerate / 0 adapter_defect, status ok 264 + ok_with_issues 36; slice 90 mapped, ok 58 + ok_with_issues 32. Validate (aer, sem, prov, linkage; shacl not implemented = skipped; regression n/a): 300/300 and 90/90 pass, results_reproduced 300/90, linkage 100%. recompute --dry-run (shim): identical 300/300 and 90/90, 0 unexplained. Determinism j2 vs j1: head 1,242 files each, 0 differ, index identical; slice 0 differ, index identical (H-19, first determinism evidence for ROPE). verify --level chain: 0 failures, checksums.absent only (working tree, expected). A2: degenerate 0, adapter_defect 0, unreadable 0. Issue codes (index = seal): head accounting_unverifiable 300, earlier_attempts_unobservable 300, identity_conflict 18 (all qwen3-235b autodojo), retry_passes_inferred 14 (4.7%, population 322/10,791 = 3.0% inside Wilson [2.8, 7.7]), unexecuted_tool_call 20 (6.7% vs 675/10,791 = 6.3%); slice 90/90/30/3/9. A3: 0 PI-class hits (no dangling/missing relation, no unexecuted call without apv:NotDispatched: 23 + 9 represented, no invented relation, no core I statement). Evidence classes (statements, head): core O 14,228 / D 1,471 / none 2,315 / I 0; inference I 105,163 (101,570 via _unverified twins) / none 6,309; assessment I 52,099 / O 600 / D 153 / none 10,968; top O 59,818 / none 9,763 (slice proportional; core I 0). AER records by class (head): message O 5,137, model_call I 2,245, tool_execution I 2,020, fixture O 467, activity I 191, decision I 272, judgement O 600 / D 20 (rope.security_correction stays D), actor I 1,500 / O 191 / D 20. Identity: 0 unresolved; model from directory (ablation/router 75+0 -> gpt-4o-mini; qwen3-235b autodojo pipeline tag names gpt-4o-mini -> resolved qwen3-235b with identity_conflict 18+30); defence rope in every arm, tree in ext.rope.arm; attack agentlab_longhorizon dir -> long_horizon (27 'direct mismatches' in l2_check are the alias, PC-rope-04); suites 300/300 equal. Raw vs mapped on the same labels: utility 390/390 and recorded security 390/390 equal; recomputed judgement present exactly on the 24 sampled corrected-task executions (slack IT5, dailylife IT7, github IT1) and on no other; 2 change true->false. Redaction: head 0 hits in 908 files; slice 1 execution (qwen3-235b dailylife user_task_12 autodojo IT4) with a private-key-shaped header in AER message text/args and PROV apv:args: benchmark fixture (dailylife filesystem.yaml), no key body, not a secret (PC-rope-07); 0 account paths in AER/SEM/PROV/index (none of the 6 L1 home-dir labels was sampled). Withholding: no [withhold] table and none expected (policy null); not applicable. Item checks: U6-c /params not_recorded on 2,891/2,891 model calls (H-17); item 5 exactly 1 class-I agentdojo:load_environment activity on 281/281 attacked executions with inputs = all fixtures (467 head), 0 on 109 clean (H-14); items 9/11 completeness unverifiable 390/390, verified_complete 0, the 17 sampled null-final rows known_incomplete -> unverifiable (H-12 partly); SEM suites@2: AgentDyn-suite tool roles unknown 3,468/3,468, AgentDojo-suite unknown 0/2,088 (H-16); B1 AutoDojo executions with a present marker slice 78/90 = 86.7% [78.1, 92.2] (stored 38/90 = 42.2%), head 46/54 (stored 21/54) (H-15); marker transitions only on AutoDojo (absent->present 55+58, ambiguous->present 9+24), 0 on II/LH/clean (item 8 0 changes; LH ambiguous unchanged); partial_payload on 27/300 head executions (9.0% [6.3, 12.8], prereg ~7.7%; 20 LH, 7 autodojo, 0 II) and 12/90 slice; success_without_visible_payload 0/390 (the 10 sampled security-true executions all carry present markers) (H-13 negative side). DL-1 (stored rope-p10.partial at afe7038 vs scratch at main, same ids: head 300/300 matched, slice 90/90): every AER, SEM, PROV file and index digest differs, and every differing pointer is attributed (PC-rope-02): profile rope@1->@2 + rules agentdojo/rope bumps (item 30, D-31); 15 D rules swapped to their _unverified twins and the ev/evf/rule pointers they carry (item 3, D-80/81; exactly the prereg's 15, incl. null_final_implies_three_passes 14+3, denial_query_echo_variant 132+52, tree_arm_config 75); /unk/params added on model calls (U6-c, D-373); +1 activity per attacked execution and seal n_records/records_sha256 (item 5, D-370); completeness known_incomplete->unverifiable 14+3 (items 9/11, D-372); SEM header profile 1->2, rules agentdojo, ns partial_payload and success_without_visible_payload (items 4/6); SEM outcome and injection_marker annotations D->I (D-86 twins, 511+184, 4,175+1,479), normaliser yaml_norm@1->@2 (item 8), autodojo_payload_unescape_unverified citations and absent/ambiguous->present (item 1, B1), +153/+46 partial_payload (item 6); PROV core->inference statement moves (item 3), new inference bundles with their top-level entity/specializationOf/wasGeneratedBy/wasDerivedFrom (item 3), inference used +467 / activity +191 / association +191 (item 5), assessment +55/+58 wasGeneratedBy (B1 newly present markers) and +153/+46 mentionOf (partial payload). No judgement value, issue code, record removal or other rule change. Unexplained: 0. Stored validation rows: validate.results.differ expected-known (amendment 1; not re-run here).",
+ "outcomes": [
+  {
+   "arm": "gpt-4o-mini|rope|important_instructions|agentdojo [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "6.43 (25/389)",
+   "wilson95": "[4.4, 9.3]",
+   "paper": "6.40 (AP T6/T9)",
+   "gap_pp": "+0.03",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|important_instructions|agentdojo [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "UA (micro, AP)",
+   "rate": "45.50 (177/389)",
+   "wilson95": "[40.6, 50.5]",
+   "paper": "45.50 (AP T6/T9)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|autodojo|agentdojo [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "4.37 (17/389)",
+   "wilson95": "[2.7, 6.9]",
+   "paper": "4.40 (AP T6/T9)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|autodojo|agentdojo [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "UA (micro, AP)",
+   "rate": "49.61 (193/389)",
+   "wilson95": "[44.7, 54.6]",
+   "paper": "49.60 (AP T6/T9)",
+   "gap_pp": "+0.01",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|important_instructions|agentdojo [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "3.34 (13/389)",
+   "wilson95": "[2.0, 5.6]",
+   "paper": "3.30 (AP T6/T9)",
+   "gap_pp": "+0.04",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|important_instructions|agentdojo [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "UA (micro, AP)",
+   "rate": "51.67 (201/389)",
+   "wilson95": "[46.7, 56.6]",
+   "paper": "51.70 (AP T6/T9)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|autodojo|agentdojo [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "3.86 (15/389)",
+   "wilson95": "[2.4, 6.3]",
+   "paper": "3.90 (AP T6/T9)",
+   "gap_pp": "-0.04",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|autodojo|agentdojo [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "UA (micro, AP)",
+   "rate": "50.64 (197/389)",
+   "wilson95": "[45.7, 55.6]",
+   "paper": "50.60 (AP T6/T9)",
+   "gap_pp": "+0.04",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|important_instructions|agentdyn [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "2.14 (12/560)",
+   "wilson95": "[1.2, 3.7]",
+   "paper": "2.10 (AP T6/T9)",
+   "gap_pp": "+0.04",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|important_instructions|agentdyn [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (micro, AP)",
+   "rate": "36.07 (202/560)",
+   "wilson95": "[32.2, 40.1]",
+   "paper": "36.10 (AP T6/T9)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|autodojo|agentdyn [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "2.86 (16/560)",
+   "wilson95": "[1.8, 4.6]",
+   "paper": "2.90 (AP T6/T9)",
+   "gap_pp": "-0.04",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|autodojo|agentdyn [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (micro, AP)",
+   "rate": "33.57 (188/560)",
+   "wilson95": "[29.8, 37.6]",
+   "paper": "33.60 (AP T6/T9)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|important_instructions|agentdyn [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "1.61 (9/560)",
+   "wilson95": "[0.8, 3.0]",
+   "paper": "1.60 (AP T6/T9)",
+   "gap_pp": "+0.01",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|important_instructions|agentdyn [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (micro, AP)",
+   "rate": "20.89 (117/560)",
+   "wilson95": "[17.7, 24.5]",
+   "paper": "20.90 (AP T6/T9)",
+   "gap_pp": "-0.01",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|autodojo|agentdyn [ASR raw (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR raw (micro, AP)",
+   "rate": "0.71 (4/560)",
+   "wilson95": "[0.3, 1.8]",
+   "paper": "0.70 (AP T6/T9)",
+   "gap_pp": "+0.01",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|autodojo|agentdyn [UA (micro, AP)]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "UA (micro, AP)",
+   "rate": "12.32 (69/560)",
+   "wilson95": "[9.9, 15.3]",
+   "paper": "12.30 (AP T6/T9)",
+   "gap_pp": "+0.02",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b|rope|none|agentdyn [CU]",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "CU",
+   "rate": "53.33 (32/60)",
+   "wilson95": "[40.9, 65.4]",
+   "paper": "53.30 (RP T2/T11)",
+   "gap_pp": "+0.03",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o|rope|none|agentdyn [CU]",
+   "level": "L1-population",
+   "n": 60,
+   "metric": "CU",
+   "rate": "53.33 (32/60)",
+   "wilson95": "[40.9, 65.4]",
+   "paper": "53.30 (RP T2/T11)",
+   "gap_pp": "+0.03",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o-mini|rope|long_horizon|agentdojo [ASR raw]",
+   "level": "L1-population",
+   "n": 253,
+   "metric": "ASR raw",
+   "rate": "0.00 (0/253)",
+   "wilson95": "[0.0, 1.5]",
+   "paper": "0.00 (RP T3)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "gemini-2.5-flash|rope|long_horizon|agentdojo [ASR raw]",
+   "level": "L1-population",
+   "n": 254,
+   "metric": "ASR raw",
+   "rate": "0.00 (0/254)",
+   "wilson95": "[0.0, 1.5]",
+   "paper": "0.00 (RP T3)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b|rope|long_horizon|agentdojo [ASR raw]",
+   "level": "L1-population",
+   "n": 253,
+   "metric": "ASR raw",
+   "rate": "0.00 (0/253)",
+   "wilson95": "[0.0, 1.5]",
+   "paper": "0.00 (RP T3)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "ablation/always-fully-specified|important_instructions|github [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "0.00 (0/180)",
+   "wilson95": "[0.0, 2.1]",
+   "paper": "0.00 (RP T4)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "ablation/always-fully-specified|important_instructions|shopping [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "5.00 (9/180)",
+   "wilson95": "[2.7, 9.2]",
+   "paper": "5.00 (RP T4)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "ablation/always-fully-specified|important_instructions|dailylife [ASR corrected]",
+   "level": "L1-population",
+   "n": 200,
+   "metric": "ASR corrected",
+   "rate": "0.50 (1/200)",
+   "wilson95": "[0.1, 2.8]",
+   "paper": "0.50 (RP T4)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "ablation/always-action-open|important_instructions|github [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "35.00 (63/180)",
+   "wilson95": "[28.4, 42.2]",
+   "paper": "35.00 (RP T4)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "ablation/always-action-open|important_instructions|shopping [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "28.89 (52/180)",
+   "wilson95": "[22.8, 35.9]",
+   "paper": "28.90 (RP T4)",
+   "gap_pp": "-0.01",
+   "flag": false
+  },
+  {
+   "arm": "ablation/always-action-open|important_instructions|dailylife [ASR corrected]",
+   "level": "L1-population",
+   "n": 200,
+   "metric": "ASR corrected",
+   "rate": "68.00 (136/200)",
+   "wilson95": "[61.2, 74.1]",
+   "paper": "68.00 (RP T4)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "router/gemini-3-flash|important_instructions|github [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "1.67 (3/180)",
+   "wilson95": "[0.6, 4.8]",
+   "paper": "1.70 (RP T5)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "router/gemini-3-flash|important_instructions|shopping [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "5.00 (9/180)",
+   "wilson95": "[2.7, 9.2]",
+   "paper": "5.00 (RP T5)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "router/gemini-3-flash|important_instructions|dailylife [ASR corrected]",
+   "level": "L1-population",
+   "n": 200,
+   "metric": "ASR corrected",
+   "rate": "6.00 (12/200)",
+   "wilson95": "[3.5, 10.2]",
+   "paper": "6.00 (RP T5)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "router/gpt-oss-20b|important_instructions|github [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "1.11 (2/180)",
+   "wilson95": "[0.3, 4.0]",
+   "paper": "1.10 (RP T5)",
+   "gap_pp": "+0.01",
+   "flag": false
+  },
+  {
+   "arm": "router/gpt-oss-20b|important_instructions|shopping [ASR corrected]",
+   "level": "L1-population",
+   "n": 180,
+   "metric": "ASR corrected",
+   "rate": "7.22 (13/180)",
+   "wilson95": "[4.3, 12.0]",
+   "paper": "7.20 (RP T5)",
+   "gap_pp": "+0.02",
+   "flag": false
+  },
+  {
+   "arm": "router/gpt-oss-20b|important_instructions|dailylife [ASR corrected]",
+   "level": "L1-population",
+   "n": 200,
+   "metric": "ASR corrected",
+   "rate": "0.50 (1/200)",
+   "wilson95": "[0.1, 2.8]",
+   "paper": "0.50 (RP T5)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "router/gemini-3-flash-clamp|important_instructions|dailylife [ASR corrected]",
+   "level": "L1-population",
+   "n": 200,
+   "metric": "ASR corrected",
+   "rate": "0.00 (0/200)",
+   "wilson95": "[0.0, 1.9]",
+   "paper": "0.00 (RP T5)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "router/gpt-oss-20b-clamp|important_instructions|dailylife [ASR corrected]",
+   "level": "L1-population",
+   "n": 200,
+   "metric": "ASR corrected",
+   "rate": "0.50 (1/200)",
+   "wilson95": "[0.1, 2.8]",
+   "paper": "0.50 (RP T5)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "head:ablation/router|important_instructions|agentdyn [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 38,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "23.68 (9/38)",
+   "wilson95": "[13.0, 39.2]",
+   "paper": "29.03 (pop-weighted (=paper where reported))",
+   "gap_pp": "-5.34",
+   "flag": false
+  },
+  {
+   "arm": "head:ablation/router|important_instructions|agentdyn [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 38,
+   "metric": "ASR raw (recorded)",
+   "rate": "10.53 (4/38)",
+   "wilson95": "[4.2, 24.1]",
+   "paper": "12.79 (pop-weighted (=AP where reported))",
+   "gap_pp": "-2.26",
+   "flag": false
+  },
+  {
+   "arm": "head:ablation/router|important_instructions|agentdyn [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 38,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "7.89 (3/38)",
+   "wilson95": "[2.7, 20.8]",
+   "paper": "12.34 (pop-weighted (=RP where reported))",
+   "gap_pp": "-4.44",
+   "flag": false
+  },
+  {
+   "arm": "head:ablation/router|none|agentdyn [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 37,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "35.14 (13/37)",
+   "wilson95": "[21.8, 51.2]",
+   "paper": "36.08 (pop-weighted (=paper where reported))",
+   "gap_pp": "-0.95",
+   "flag": false
+  },
+  {
+   "arm": "head:main|agentlab_longhorizon|agentdojo [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "44.44 (12/27)",
+   "wilson95": "[27.6, 62.7]",
+   "paper": "41.27 (pop-weighted (=paper where reported))",
+   "gap_pp": "+3.17",
+   "flag": false
+  },
+  {
+   "arm": "head:main|agentlab_longhorizon|agentdojo [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "ASR raw (recorded)",
+   "rate": "0.00 (0/27)",
+   "wilson95": "[0.0, 12.5]",
+   "paper": "0.00 (pop-weighted (=AP where reported))",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "head:main|agentlab_longhorizon|agentdojo [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "0.00 (0/27)",
+   "wilson95": "[0.0, 12.5]",
+   "paper": "0.00 (pop-weighted (=RP where reported))",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "head:main|autodojo|agentdojo [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "55.56 (15/27)",
+   "wilson95": "[37.3, 72.4]",
+   "paper": "53.65 (pop-weighted (=paper where reported))",
+   "gap_pp": "+1.91",
+   "flag": false
+  },
+  {
+   "arm": "head:main|autodojo|agentdojo [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "ASR raw (recorded)",
+   "rate": "3.70 (1/27)",
+   "wilson95": "[0.7, 18.3]",
+   "paper": "4.89 (pop-weighted (=AP where reported))",
+   "gap_pp": "-1.19",
+   "flag": false
+  },
+  {
+   "arm": "head:main|autodojo|agentdojo [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "0.00 (0/27)",
+   "wilson95": "[0.0, 12.5]",
+   "paper": "3.94 (pop-weighted (=RP where reported))",
+   "gap_pp": "-3.94",
+   "flag": false
+  },
+  {
+   "arm": "head:main|autodojo|agentdyn [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "29.63 (8/27)",
+   "wilson95": "[15.9, 48.5]",
+   "paper": "28.64 (pop-weighted (=paper where reported))",
+   "gap_pp": "+0.99",
+   "flag": false
+  },
+  {
+   "arm": "head:main|autodojo|agentdyn [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "ASR raw (recorded)",
+   "rate": "7.41 (2/27)",
+   "wilson95": "[2.1, 23.4]",
+   "paper": "2.10 (pop-weighted (=AP where reported))",
+   "gap_pp": "+5.30",
+   "flag": false
+  },
+  {
+   "arm": "head:main|autodojo|agentdyn [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 27,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "7.41 (2/27)",
+   "wilson95": "[2.1, 23.4]",
+   "paper": "1.65 (pop-weighted (=RP where reported))",
+   "gap_pp": "+5.75",
+   "flag": false
+  },
+  {
+   "arm": "head:main|important_instructions|agentdojo [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "41.67 (15/36)",
+   "wilson95": "[27.1, 57.8]",
+   "paper": "54.23 (pop-weighted (=paper where reported))",
+   "gap_pp": "-12.56",
+   "flag": false
+  },
+  {
+   "arm": "head:main|important_instructions|agentdojo [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "ASR raw (recorded)",
+   "rate": "2.78 (1/36)",
+   "wilson95": "[0.5, 14.2]",
+   "paper": "5.85 (pop-weighted (=AP where reported))",
+   "gap_pp": "-3.08",
+   "flag": false
+  },
+  {
+   "arm": "head:main|important_instructions|agentdojo [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "2.78 (1/36)",
+   "wilson95": "[0.5, 14.2]",
+   "paper": "4.03 (pop-weighted (=RP where reported))",
+   "gap_pp": "-1.25",
+   "flag": false
+  },
+  {
+   "arm": "head:main|important_instructions|agentdyn [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "41.67 (15/36)",
+   "wilson95": "[27.1, 57.8]",
+   "paper": "37.19 (pop-weighted (=paper where reported))",
+   "gap_pp": "+4.47",
+   "flag": false
+  },
+  {
+   "arm": "head:main|important_instructions|agentdyn [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "ASR raw (recorded)",
+   "rate": "0.00 (0/36)",
+   "wilson95": "[0.0, 9.6]",
+   "paper": "2.19 (pop-weighted (=AP where reported))",
+   "gap_pp": "-2.19",
+   "flag": false
+  },
+  {
+   "arm": "head:main|important_instructions|agentdyn [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "0.00 (0/36)",
+   "wilson95": "[0.0, 9.6]",
+   "paper": "2.10 (pop-weighted (=RP where reported))",
+   "gap_pp": "-2.10",
+   "flag": false
+  },
+  {
+   "arm": "head:main|none|agentdojo [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "69.44 (25/36)",
+   "wilson95": "[53.1, 82.0]",
+   "paper": "64.75 (pop-weighted (=paper where reported))",
+   "gap_pp": "+4.69",
+   "flag": false
+  },
+  {
+   "arm": "head:main|none|agentdyn [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 36,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "36.11 (13/36)",
+   "wilson95": "[22.5, 52.4]",
+   "paper": "43.75 (pop-weighted (=paper where reported))",
+   "gap_pp": "-7.64",
+   "flag": false
+  },
+  {
+   "arm": "rope-slice:main|autodojo|agentdojo [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "55.56 (25/45)",
+   "wilson95": "[41.2, 69.1]",
+   "paper": "53.65 (pop-weighted (=paper where reported))",
+   "gap_pp": "+1.91",
+   "flag": false
+  },
+  {
+   "arm": "rope-slice:main|autodojo|agentdojo [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "ASR raw (recorded)",
+   "rate": "4.44 (2/45)",
+   "wilson95": "[1.2, 14.8]",
+   "paper": "4.89 (pop-weighted (=AP where reported))",
+   "gap_pp": "-0.45",
+   "flag": false
+  },
+  {
+   "arm": "rope-slice:main|autodojo|agentdojo [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "4.44 (2/45)",
+   "wilson95": "[1.2, 14.8]",
+   "paper": "3.94 (pop-weighted (=RP where reported))",
+   "gap_pp": "+0.50",
+   "flag": false
+  },
+  {
+   "arm": "rope-slice:main|autodojo|agentdyn [utility (CU if none, UA if attacked)]",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "utility (CU if none, UA if attacked)",
+   "rate": "28.89 (13/45)",
+   "wilson95": "[17.7, 43.4]",
+   "paper": "28.64 (pop-weighted (=paper where reported))",
+   "gap_pp": "+0.25",
+   "flag": false
+  },
+  {
+   "arm": "rope-slice:main|autodojo|agentdyn [ASR raw (recorded)]",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "ASR raw (recorded)",
+   "rate": "0.00 (0/45)",
+   "wilson95": "[0.0, 7.9]",
+   "paper": "2.10 (pop-weighted (=AP where reported))",
+   "gap_pp": "-2.10",
+   "flag": false
+  },
+  {
+   "arm": "rope-slice:main|autodojo|agentdyn [ASR corrected (recomputed)]",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "ASR corrected (recomputed)",
+   "rate": "0.00 (0/45)",
+   "wilson95": "[0.0, 7.9]",
+   "paper": "1.65 (pop-weighted (=RP where reported))",
+   "gap_pp": "-1.65",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b|rope|important_instructions|agentdojo [ASR corrected macro, RP]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "ASR corrected (unweighted 3-suite mean, RP; corrected = stored recomputed judgement)",
+   "rate": "4.60",
+   "wilson95": "n/a (macro)",
+   "paper": "4.6 (RP T2/T6/T11/T13/T14)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b|rope|autodojo|agentdojo [ASR corrected macro, RP]",
+   "level": "L1-population",
+   "n": 389,
+   "metric": "ASR corrected (unweighted 3-suite mean, RP; corrected = stored recomputed judgement)",
+   "rate": "5.00",
+   "wilson95": "n/a (macro)",
+   "paper": "5.0 (RP T2/T6/T11/T13/T14)",
+   "gap_pp": "+0.00",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b|rope|important_instructions|agentdyn [ASR corrected macro, RP]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR corrected (unweighted 3-suite mean, RP; corrected = stored recomputed judgement)",
+   "rate": "2.57",
+   "wilson95": "n/a (macro)",
+   "paper": "2.6 (RP T2/T6/T11/T13/T14)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "gpt-4o|rope|important_instructions|agentdyn [ASR corrected macro, RP]",
+   "level": "L1-population",
+   "n": 560,
+   "metric": "ASR corrected (unweighted 3-suite mean, RP; corrected = stored recomputed judgement)",
+   "rate": "2.37",
+   "wilson95": "n/a (macro)",
+   "paper": "2.4 (RP T2/T6/T11/T13/T14)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b|rope|none|agentdojo [CU macro, RP]",
+   "level": "L1-population",
+   "n": 57,
+   "metric": "CU (unweighted 3-suite mean, RP)",
+   "rate": "67.90",
+   "wilson95": "n/a (macro)",
+   "paper": "67.9 (RP T13)",
+   "gap_pp": "+0.00",
+   "flag": false
+  }
+ ],
+ "outcomes_full_table": "docs/reports/precheck/data/rope/exam-outcomes.json (86 rows + 14 macro rows; 0 flagged)",
+ "hypotheses": [
+  {
+   "id": "H-01",
+   "result": "supported",
+   "note": "24,909 files / 265,463,047 B outside .git, tree c4df12c3, runs/ 6a8c86f2, clean working tree at 64495e16; 10,791 logs / 175,263,358 B; slice 2,847 / 48,275,981 B"
+  },
+  {
+   "id": "H-02",
+   "result": "supported",
+   "note": "103 strata, every count = section 3; missing LH travel ut0 x it2 for gpt-4o-mini and qwen3-235b only; extras gpt-4o AgentDojo 389+57 and the 2 aborted LH logs"
+  },
+  {
+   "id": "H-03",
+   "result": "supported",
+   "note": "36/36 AP per-suite integers (gpt-4o-mini, gemini) equal; RP corrected integers (qwen 0/7/10, AD 0/6/13, AgentDyn 0/13/1; gpt-4o 0/11/2) equal; sample pooled gaps all inside the threshold"
+  },
+  {
+   "id": "H-04",
+   "result": "supported",
+   "note": "stored corpus: 32->0, 39->22, 5->0, 678 recomputed (198/260/220), AutoDojo 88->71; scratch sample 0 judgement value changes vs stored (24 recomputed sampled)"
+  },
+  {
+   "id": "H-05",
+   "result": "supported",
+   "note": "90 = 24/22/31/13; travel IT6 23, slack IT1 19, travel IT5 2, shopping IT2 15 + IT5 24, dailylife IT6 7"
+  },
+  {
+   "id": "H-06",
+   "result": "supported",
+   "note": "github user_task_5/7/8/11: utility false 428/428 across all trees and attacks"
+  },
+  {
+   "id": "H-07",
+   "result": "supported",
+   "note": "clamp only in router/gemini-3-flash-clamp and router/gpt-oss-20b-clamp, dailylife, 220+220; no github/shopping or Opus clamp log"
+  },
+  {
+   "id": "H-08",
+   "result": "supported",
+   "note": "gpt-4o-mini main tree: iter4 1,774, iter2 178 (all 2026-06-16), final-opus 63 (all 2026-08-12), LH openai_gpt-4o-mini 253"
+  },
+  {
+   "id": "H-09",
+   "result": "supported",
+   "note": "decisions 9,424 none / 3,233 query (4,025 / 2,172 executions = 6,197); the two variants co-occur only on 2026-06-29 (none 06-16..06-29, query 06-29..08-12); gpt-4o II 261 / 239 executions. Note: 'both only on 2026-06-29' read as co-occurrence; each variant alone spans other dates"
+  },
+  {
+   "id": "H-10",
+   "result": "supported",
+   "note": "760 LH logs, all benchmark version v1.2.1 (10,031 v1.2.2), recorded security true 0/758 (2 null); lh_cells.json equals the non-empty LH logs in all 9 (model, suite) cells; travel differs only by the empty ut2 x it2 log for gpt-4o-mini and qwen3-235b"
+  },
+  {
+   "id": "H-11",
+   "result": "supported",
+   "note": "224 slack logs with a guard-denied post_webpage, all with utility; all 1,074 slack logs carry utility; error non-null 0/10,791"
+  },
+  {
+   "id": "H-12",
+   "result": "supported in part; empty-log half not tested",
+   "note": "390 sampled: verified_complete 0, 17 null-final rows unverifiable (stored known_incomplete); the 2 empty LH logs (stored verified_complete) were not sampled: followup 1 (targeted import)"
+  },
+  {
+   "id": "H-13",
+   "result": "supported on the sample; positive side not tested",
+   "note": "0 flags in 390 (10 security-true sampled, all with present markers, incl. a qwen AutoDojo slack IT1 run); the 5 II candidates (ablation/always-action-open github ut7 x2, ut9, ut11, shopping ut10) and 36 AutoDojo stored-no-visible runs are in l2-targeted-head.json: followup 1"
+  },
+  {
+   "id": "H-14",
+   "result": "supported",
+   "note": "281/281 attacked sampled executions: exactly 1 class-I agentdojo:load_environment activity, inputs = every fixture (467 head); 0 on 109 clean"
+  },
+  {
+   "id": "H-15",
+   "result": "supported",
+   "note": "slice 78/90 = 86.7% Wilson [78.1, 92.2] contains 88.8% and excludes 39.3% (stored 38/90 = 42.2%)"
+  },
+  {
+   "id": "H-16",
+   "result": "supported",
+   "note": "AgentDyn-suite tool roles agentdojo.unknown_tool 3,468/3,468; AgentDojo-suite unknown 0/2,088 (< 2%)"
+  },
+  {
+   "id": "H-17",
+   "result": "supported",
+   "note": "/params not_recorded on 2,891/2,891 sampled model calls"
+  },
+  {
+   "id": "H-18",
+   "result": "supported",
+   "note": "0 unresolved; identity_conflict 48/48 on qwen3-235b autodojo (stored population 949 per prereg); 75 sampled ablation/router logs -> gpt-4o-mini"
+  },
+  {
+   "id": "H-19",
+   "result": "supported",
+   "note": "head j2 vs j1 1,242 files, 0 differ, index identical; slice 0 differ, index identical"
+  },
+  {
+   "id": "H-20",
+   "result": "supported (census definition)",
+   "note": "0 byte-identical; 53 groups / 396 with provider call ids (recount over stored AER) = prereg; the L1 fingerprint (ids ignored) gives 235 / 1,042, the new raw baseline (PC-rope-05); AgentDyn twins 7 groups / 15 ROPE logs under the L1 fingerprint vs the census' 9"
+  },
+  {
+   "id": "H-21",
+   "result": "supported",
+   "note": "10,791/10,791 parse, naive, 2026-06-16..2026-08-12; qwen3-235b autodojo 949/949 on 2026-06-30"
+  },
+  {
+   "id": "H-22",
+   "result": "supported (finding PC-rope-01)",
+   "note": "artefacts.toml still says 1,166 and 'unescape is not applied' for rope.art.autodojo_payload_escaped while suites@2 applies agentdojo.autodojo_payload_unescape(_unverified)@1 (146 sampled citations); security_without_exposure count 22 / detector checker_outcome@1 class D vs agentdojo.success_without_visible_payload@1 (prereg 5); pipeline_tag_not_identity says the tag is 'qwen3-235b' while the qwen3-235b logs carry a gpt-4o-mini tag"
+  },
+  {
+   "id": "H-23",
+   "result": "supported",
+   "note": "banking attacked security true 0 (II 0, autodojo 0, LH 0)"
+  }
+ ],
+ "findings": [
+  {
+   "id": "PC-rope-01",
+   "title": "Three ROPE entries in the agentdojo artefact catalogue are stale against suites@2 and the data (manuscript entries)",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "rope head (+ rope-slice)",
+   "check": "H-22 / DL-1 / L1-05 identity; outcome: confirmed",
+   "hypothesis_ref": "H-22",
+   "agents_md_12": true,
+   "evidence": "src/agentprov/adapters/agentdojo/artefacts.toml: rope.art.autodojo_payload_escaped expected count 1166 'under agentdojo.suites@1' and description 'the unescape is not applied (analysis B1)', but the scratch SEM (suites@2) cites agentdojo.autodojo_payload_unescape_unverified@1 64 (head) + 82 (slice) times and moves 55+58 markers absent->present and 9+24 ambiguous->present, all AutoDojo; AutoDojo executions with a present marker 78/90 (was 38/90). rope.art.security_without_exposure: count 22, detector agentdojo.checker_outcome@1 class D; the detector now is agentdojo.success_without_visible_payload@1 (assessment annotation; prereg 5 = 5 II executions, 0 AutoDojo) and checker_outcome is cited through its _unverified twin (class I). rope.art.pipeline_tag_not_identity description says the AutoDojo arm's pipeline_name is a 'configuration tag (qwen3-235b)'; the data: qwen3-235b/*/autodojo logs carry a gpt-4o-mini...iter4 tag (identity pairs: 'gpt-4o-mini-2024-07-18-openrouter-iter4-synthesis-handspec -> qwen3-235b' 18+30), 949 in population. All three entries have manuscript = true.",
+   "reproduction": "grep -n 'id = \"rope.art.autodojo_payload_escaped\"' -A10 src/agentprov/adapters/agentdojo/artefacts.toml  -> 'count = 1166 ... under agentdojo.suites@1' and 'the unescape is not applied'; uv run python docs/reports/precheck/data/rope/exam-scripts/delta.py ~/.agentprov/corpora/rope-p10.partial ~/.agentprov/migration-work/precheck/rope/l2-rope-slice-j2.partial /tmp/d.json -> sem_rule_delta agentdojo.autodojo_payload_unescape_unverified@1 +82, agentdojo.injection_marker_ambiguous@1 -24; uv run python docs/reports/precheck/data/rope/exam-scripts/sample.py ~/.agentprov/migration-work/precheck/rope/l2-rope-slice-j2.partial /tmp/s.json -> marker_transition absent->present|autodojo 58, ambiguous->present|autodojo 24; autodojo_present new:True 78 / old:True 38; python3 -c \"import json;print(json.load(open('docs/reports/precheck/data/rope/l2-rope-slice.json'))['identity']['pairs_l1_to_aer']['model<-h_pipeline'])\" -> 'gpt-4o-mini-2024-07-18-openrouter-iter4-synthesis-handspec -> qwen3-235b': 30",
+   "recommendation": "Route to the agentdojo family owner (no adapter edit here): update the three entries before the round's datasheet/manuscript pass; recount the expected values from the regenerated corpus (B1 population expected 2,528/2,847 with a present marker; success_without_visible_payload 5); keep the old counts as a suites@1 basis line.",
+   "artefact_proposal": "[[artefact]] id = \"rope.art.autodojo_payload_escaped\"; title = \"AutoDojo payloads are logged YAML-escaped\"; description = \"The AutoDojo attack writes its payload through _yaml_escape into the log's injections while the tool outputs show the decoded text. Under agentdojo.suites@2 the marker compares the payload with the escape undone for fixtures whose cache link holds (agentdojo.autodojo_payload_unescape@1, twin _unverified on this harness); under suites@1 the marker was a wrong absent.\"; scope = { sources = [\"rope\"], parts = [\"head\"], profiles = [\"rope\", \"autodojo-via-rope\"] }; cause = \"upstream_harness\"; detector = { rule = \"autodojo.payload_cache_link@1\", class = \"I\" }; recorded_as = { notes = [\"ext:autodojo.cache_match\"], sem = [\"injection_marker\"] }; handling = { class = \"CR\", rule = \"agentdojo.autodojo_payload_unescape@1\" }; expected = [{ snapshot = \"rope:head\", count = 1166, basis = \"suites@1: AutoDojo executions with a visible payload and no marker (phase-10 analysis section 8 row 12)\", status = \"verified\" }, { snapshot = \"rope:head\", count = <recount at the round; prereg 2528 of 2847>, basis = \"suites@2: AutoDojo executions with >= 1 present marker\", status = \"pending\" }]; manuscript = true; refs = [\"D.6.13 item 9\", \"regen-batch item 1 (B1, D-86)\"]. || [[artefact]] id = \"rope.art.security_without_exposure\"; description = \"Checker-scored security true although no payload fixture is visible in any message part (no present or ambiguous marker, no partial run of 40 characters, AutoDojo escape undone): five important_instructions runs of the ablation always-action-open tree (github user_task_7 x2, 9, 11; shopping user_task_10). The AutoDojo slack injection_task_1 cases of the suites@1 count are visible under suites@2. Not covered by ROPE's released corrections.\"; detector = { rule = \"agentdojo.success_without_visible_payload@1\", class = \"D\" }; recorded_as = { sem = [\"agentdojo.success_without_visible_payload\"] }; handling = { class = \"FO\" }; expected = [{ snapshot = \"rope:head\", count = 22, basis = \"suites@1 (phase-10 analysis section 8 row 8)\", status = \"verified\" }, { snapshot = \"rope:head\", count = 5, basis = \"suites@2 annotation (regen-batch item 4)\", status = \"pending\" }]. || rope.art.pipeline_tag_not_identity description: \"The pipeline_name of the qwen3-235b AutoDojo arm is a configuration tag that names gpt-4o-mini (gpt-4o-mini-2024-07-18-openrouter-iter4-synthesis-handspec), not the agent model; the model comes from the release directory (identity_conflict on these 949 logs).\""
+  },
+  {
+   "id": "PC-rope-02",
+   "title": "DL-1: every stored-vs-scratch difference on the 390 sampled ids is attributed to a regen item or decision; 0 unexplained",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head + rope-slice",
+   "check": "DL-1 (stored rope-p10.partial afe7038 vs l2-*-j2.partial at main); outcome: as predicted by prereg section 6",
+   "hypothesis_ref": "H-12, H-14, H-15, H-16, H-17",
+   "evidence": "head 300/300 and slice 90/90 ids matched; AER/SEM/PROV/index digests differ in 390/390. AER pointers (executions, head): execution/profile/sha256+version, rules/agentdojo, rules/rope 300 (item 30); 15 rule twin swaps (item 3): benchmark_from_dialect, checker_outcome, functions_runtime, log_holds_last_pass, system_prompt_from_harness, user_is_simulated, rope.benchmark_from_suite 300; args_are_effective, tool_status_from_error 289; call_id_unique_match 243; rope.denial_query_echo_variant 132; tools_executed_sequentially 122; benign_security_constant 109; rope.tree_arm_config 75; null_final_implies_three_passes 14, with the matching ev/evf/rule pointers; model_call/unk//params added 300 (U6-c); activity (agentdojo:load_environment) added 191 + seal n_records 191 (item 5); seal records_sha256 300 and seal/issues rule 300 (consequences); 0 records removed, 0 other rule added/removed, 0 judgement value changes. Index: /profile 300, stages sem @1->@2 300, completeness known_incomplete->unverifiable 14 (items 9/11). SEM: header profile/rules/ns 300; outcome D->I 511 and injection_marker D->I 4,175 (D-86 twins), normaliser yaml_norm@1->@2 4,267 (item 8), partial_payload +153 (item 6), autodojo unescape +64 / absent->present 55 / ambiguous->present 9 (item 1). PROV: core statements -5,182 -> inference (item 3), inference used +467 / activity +191 / association +191 (item 5), new inference bundles add top-level entity/specializationOf/wasGeneratedBy +4,821 and wasDerivedFrom +15,294, assessment wasGeneratedBy +55 (B1) and mentionOf +153 (item 6). Slice: same signatures (90/90), activity +90, completeness 3, partial_payload +46, B1 58/24.",
+   "reproduction": "uv run python docs/reports/precheck/data/rope/exam-scripts/delta.py ~/.agentprov/corpora/rope-p10.partial ~/.agentprov/migration-work/precheck/rope/l2-head-j2.partial /tmp/delta-head.json  -> matched 300, aer_rec_added {'activity:None x1': 191}, aer_rule_added {}, aer_rule_removed {}, judgement_value_changes {}, completeness {'unverifiable->unverifiable': 286, 'known_incomplete->unverifiable': 14}; same with l2-rope-slice-j2.partial -> matched 90, activity 90, completeness 3; output committed as docs/reports/precheck/data/rope/exam-delta-head.json and exam-delta-rope-slice.json",
+   "recommendation": "None for the round; the post-check compares the regenerated stored corpus against these signatures (expect the same pointer set on every execution, activity count = attacked executions, AER records 505,333 + 10,043)."
+  },
+  {
+   "id": "PC-rope-03",
+   "title": "Stored rope-p10 validation rows predate item 10 (validate.results.differ)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head (stored corpus)",
+   "check": "README section 8 amendment 1; outcome: not re-run here (heavy, whole stored corpus)",
+   "evidence": "Index validation digests differ in 390/390 sampled rows; the scratch imports validate fresh (results_reproduced 300/300, 90/90). Amendment 1 states the stored corpora give validate.results.differ until re-validated; every row passes the four pv.constraints checks.",
+   "reproduction": "not run (would be: uv run agentprov validate --corpus ~/.agentprov/corpora/rope-p10.partial; read-only but heavy)",
+   "recommendation": "Compare only a re-validated stored corpus with a fresh import (protocol 8.3 item 3)."
+  },
+  {
+   "id": "PC-rope-04",
+   "title": "Long-horizon attack alias flagged as a path/identity mismatch by the pre-check tools (760 L1, 27 L2)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head",
+   "check": "L1-05/L1-08 path_disagrees, L2 identity direct_mismatches; outcome: tool false positive",
+   "evidence": "l1-head.json L1-08 flags path_disagrees:attack_dir 760 = every agentlab_longhorizon log (header attack_type long_horizon); l2-head.json identity.direct_mismatches attack 27 (all agentlab_longhorizon -> long_horizon). The profile maps the alias (E2 import 0 path_field_mismatch; scratch AER attack long_horizon 27/27). tools/precheck/l1_families.py agentdojo_unit compares fv(header) with the dir without the profile's alias.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/rope/l1-head.json'));print(d['L1-08']['flags']['path_disagrees:attack_dir'], d['L1-05']['facets']['attack_dir']['agentlab_longhorizon'])\" -> 760 760; python3 -c \"import json;print(json.load(open('docs/reports/precheck/data/rope/l2-head.json'))['identity']['pairs_l1_to_aer']['attack<-attack_dir'])\" -> 'agentlab_longhorizon -> long_horizon': 27",
+   "recommendation": "After the batch, teach the agentdojo L1 hook and l2_check identity the profile's attack alias (read it from the profile), so the post-check shows 0; do not report as a corpus property."
+  },
+  {
+   "id": "PC-rope-05",
+   "title": "Identical-trajectory baselines depend on whether provider call ids are fingerprinted (L1 235/1,042 vs census 53/396)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head",
+   "check": "L1-04 / H-20; outcome: explained, both definitions reproduced",
+   "hypothesis_ref": "H-20",
+   "evidence": "L1 fingerprint (role, content, call name+args, error; provider ids ignored): 235 groups / 1,042 units (156 / 660 within one model-attack-suite-user-task cell; 115 groups span gpt-4o-mini main vs ablation/router trees). Recount over the stored AER message parts: with provider_call_id 53 / 396 (= census and FA row 7), without 235 / 1,042 (= L1). Cross-corpus: 7 groups / 15 ROPE logs trajectory-identical to agentdyn a logs (ids ignored) vs the census' 9 content twins. 0 byte-identical files in all scopes.",
+   "reproduction": "python3 docs/reports/precheck/data/rope/exam-scripts/stored_extra.py -> with_provider_ids 53 396 / without_provider_ids 235 1042; python3 docs/reports/precheck/data/rope/exam-scripts/l1_dup.py -> all 235 1042, within cell across injection tasks 156 660",
+   "recommendation": "State the definition with every duplicate count in the dossier/datasheet: the provider-id-free count (235/1,042) is the effective-sample-size relevant one (deterministic decoding, payload unseen), the census count is the strict one; the post-check compares L1 with L1."
+  },
+  {
+   "id": "PC-rope-06",
+   "title": "Pre-check tool counting notes for ROPE (walk, pin-check scope, argument-date monotonicity, arm key, null_final name)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head",
+   "check": "L1-01, L1-07, L1-08, L2 outcomes; outcome: tool notes, no corpus property",
+   "evidence": "(a) L1-01 walked 24,938 = 24,909 files + 29 .git/ internals of the local clone (not_selected 46 = 17 + 29). (b) pin_check verified 10,813 = 10,791 logs + 22 JSON context files; the 13 runs/*.py context artefacts are not pin-checked (import I verified 10,826). (c) L1-07 artefacts_non_monotone 35 comes from tool-call argument dates (calendar start/end in scenario data), not from run timestamps (evaluation_timestamp units_non_monotone 0). (d) l2_check outcomes key model|defence|attack folds the 75 ablation/router logs into gpt-4o-mini|rope|* (tree only in ext.rope.arm), so its per-arm table is not comparable with the paper; this examination uses its own pooling (exam-outcomes.json). (e) L1 'null_final' 33 = empty final assistant turn (census 33 Gemini), not the profile's 322 null-final silent reruns.",
+   "reproduction": "find ~/Desktop/PhD/Labs/AgentPROV-upstream/rope/.git -type f | wc -l -> 29; python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/rope/l1-head.json'));print(d['L1-01']['walked'],d['L1-01']['pin_check'],d['L1-07']['artefacts'],d['L1-07']['pointers']['/evaluation_timestamp']['units_non_monotone'])\" -> 24938 {'verified': 10813} {'artefacts_non_monotone': 35, 'with': 10791} 0",
+   "recommendation": "After the batch (tools frozen now): exclude .git/ from the local walk, pin-check context artefacts too, restrict L1-07 monotonicity to run/step timestamp pointers, add the family arm extension (ext.rope.arm) to l2_check's arm key."
+  },
+  {
+   "id": "PC-rope-07",
+   "title": "Benchmark-fiction secret and home-path shapes reach AER/PROV verbatim (dailylife key header, persona home paths); no real secret",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head (+ rope-slice)",
+   "check": "L1-06, L2 redaction; outcome: benchmark fixture / scenario fiction (trap 11)",
+   "evidence": "L1-06 private-key-block 79 artefacts, all dailylife-suite logs (67 main tree + 12 ablation/router); the same header shape is in the vendored suite fixture autodojo/src/agentdojo/data/suites/dailylife/include/filesystem.yaml and dailylife injection_tasks.py; slice redaction: 1 execution, AER message text + tool-call args and PROV apv:args, header only (no END line, no key body). generic-credential-assignment 2,830 artefacts (benchmark accounts/passwords in tool outputs). account:home-dir named 3 + generic 3 artefacts: assistant tool-call args only, names occur in the benchmark persona prompt or earlier environment output (2 distinct by digest; is_operator False for all); none sampled, so their AER form is not checked at L2. No [withhold] table; operator_home 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/rope/exam-scripts/pk.py -> header-only [qwen3-235b/dailylife/user_task_12/autodojo/injection_task_4.json message assistant, message tool], vendored-benchmark block digests 0 (no full block); grep -rl -- 'PRIVATE KEY-----' ~/Desktop/PhD/Labs/AgentPROV-upstream/rope/autodojo | wc -l -> 2 (filesystem.yaml, injection_tasks.py); uv run python -I docs/reports/precheck/data/rope/exam-scripts/acct2.py <the 6 L1 home-dir labels> -> name_in_prompt or name_in_env_output_before_call True for 6/6, generic True for the banking 3",
+   "recommendation": "Disclose in the datasheet as benchmark fiction (AgentDyn dailylife/github fixtures, persona paths); keep the redaction screens' benchmark-fiction note; no withholding needed. Optional catalogue entry below.",
+   "artefact_proposal": "[[artefact]] id = \"agentdojo.art.fixture_secret_shapes\"; title = \"Benchmark fixtures contain secret- and home-path-shaped strings\"; description = \"AgentDyn suite environments hold fictional credentials and a private-key-shaped file header (dailylife filesystem fixture, the target of injection tasks); agents copy them into tool-call arguments, and some agents invent home-directory paths from the persona name. The strings are benchmark fiction, kept verbatim; no real secret or operator path.\"; scope = { sources = [\"rope\"], parts = [\"head\"], profiles = [\"rope\", \"autodojo-via-rope\"] }; cause = \"benchmark\"; detector = { rule = \"none (pre-check L1-06 / redaction screen)\", class = \"O\" }; recorded_as = { notes = [] }; handling = { class = \"FO\" }; expected = [{ snapshot = \"rope:head\", count = 79, basis = \"L1-06 secret:private-key-block artefacts (dailylife)\", unit = \"logs\", status = \"verified\" }, { snapshot = \"rope:head\", count = 2830, basis = \"L1-06 secret:generic-credential-assignment artefacts\", unit = \"logs\", status = \"verified\" }, { snapshot = \"rope:head\", count = 6, basis = \"L1-06 account:home-dir (3 named persona, 3 generic)\", unit = \"logs\", status = \"verified\" }]; manuscript = false; refs = [\"CORPUS-CHECK-PROTOCOL 8.4 trap 11\", \"docs/reports/precheck/data/rope/exam.json PC-rope-07\"]"
+  }
+ ],
+ "followups": [
+  "Targeted scratch import for H-12 (the 2 empty LH logs: expect completeness known_incomplete via agentdojo.incomplete_run@1, stored verified_complete) and H-13/C1 (5 ablation II runs: expect agentdojo.success_without_visible_payload; 36 AutoDojo runs stored with no visible marker under suites@1: expect 0 flags), 43 labels in docs/reports/precheck/data/rope/l2-targeted-head.json: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-rope -- uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/rope/l2-targeted-head.json --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2 --source rope --part head --jobs 2 ; then uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2.partial --out ~/.agentprov/migration-work/precheck/rope/l2-targeted.json --sample docs/reports/precheck/data/rope/l2-targeted-head.json --l1-units ~/.agentprov/migration-work/precheck/rope/l1-units-head.jsonl --jobs 2 ; then uv run python docs/reports/precheck/data/rope/exam-scripts/sample.py ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2.partial /tmp/rope-targeted.json (counts swvp and completeness)",
+  "Optional, light: include the 6 L1 home-dir labels (runs/gemini-2.5-flash/github/user_task_0/none/none.json, runs/gemini-2.5-flash/github/user_task_1/autodojo/injection_task_8.json, runs/gpt-4o-mini/github/user_task_13/autodojo/injection_task_4.json, runs/qwen3-235b/banking/user_task_14/important_instructions/injection_task_6.json, .../injection_task_7.json, runs/qwen3-235b/banking/user_task_5/important_instructions/injection_task_0.json) in the targeted import to record how the redaction screen classifies persona home paths in AER/PROV (expected: account-path hits that are scenario fiction, not operator paths)",
+  "Tool fixes after the batch (tools/precheck frozen now; owner: precheck tools): attack alias in l1_families.agentdojo_unit and l2_check identity (PC-rope-04); exclude .git/ from local walks, pin-check context artefacts, L1-07 monotonicity only on run/step timestamp pointers, ext.rope.arm in l2_check's arm key (PC-rope-06); then re-run L1 for rope head only if the post-check needs the corrected flags (raw counts unchanged)",
+  "Route PC-rope-01 (three stale ROPE artefacts.toml entries, manuscript = true) to the agentdojo family owner before the datasheet/manuscript pass; recount after the round: AutoDojo executions with a present marker (prereg 2,528/2,847), success_without_visible_payload (prereg 5), partial_payload executions (sample 9.0%), AER records (prereg 515,376)",
+  "Post-round: re-run docs/reports/precheck/data/rope/exam-scripts/delta.py against the regenerated stored corpus and the scratch l2-head-j2.partial; expected 0 differences except validation rows if the round's code differs from c4ee3dd, and stored_corr.py must reproduce 32->0 / 39->22 / 5->0 / 88->71"
+ ],
+ "readiness": "ready-with-caveats: raw snapshot equals the pin, raw outcomes reproduce every reproducible paper number exactly, L2 sample validates/recomputes/determinism-clean with every stored->main difference attributed; caveats: stale artefacts.toml entries (PC-rope-01, S2), the H-12/H-13 targeted check pending, datasheet disclosure of duplicate definitions and fixture secret shapes."
+}

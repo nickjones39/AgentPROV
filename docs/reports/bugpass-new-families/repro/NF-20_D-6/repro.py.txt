@@ -1,0 +1,28 @@
+import sys, os, json
+sys.path.insert(0, "tests/adapters/qwencode")
+import qwencode_support as s
+
+base = s.map_run(s.by_criterion("python"))
+items = s.messages(base.label)
+print("result positions in base:", [i for i, m in enumerate(items) if m.get("type") == "result"], "of", len(items))
+second = dict(items[-1]); second["subtype"] = "error_max_turns"; second["is_error"] = True; second["num_turns"] = 999
+dup = s.modified("python", lambda it: it + [second])
+print("base codes:", sorted(base.codes()))
+print("dup  codes:", sorted(dup.codes()))
+print("records base/dup:", len(base.records), len(dup.records))
+n = len(items)
+def cites(doc, pos):
+    blob = json.dumps(doc.records) + json.dumps(doc.header)
+    return f'"/{pos}"' in blob or f'"/{pos}/' in blob
+print("second result (pos %d) cited anywhere:" % n, cites(dup.doc, n))
+print("run status dup:", dup.get("run")["status"], "header result num_turns:", dup.header["ext"]["qwencode"]["result"].get("num_turns"))
+
+base_fx = {f["kind"]: f for f in base.of("fixture")}
+bad = s.modified("python", supp={"OH_evaluation/execution_rules.md": b"\xff"})
+bad_fx = {f["kind"]: f for f in bad.of("fixture")}
+print("fixture kinds base:", sorted(base_fx), " bad rules:", sorted(bad_fx))
+print("bad rules codes:", sorted(bad.codes()))
+print("new codes vs base:", sorted(set(bad.codes()) - set(base.codes())))
+print("sidecars:", bad.header["ext"]["qwencode"].get("sidecars"))
+gone = s.modified("python", supp={"OH_evaluation/execution_rules.md": None})
+print("missing-rules new codes:", sorted(set(gone.codes()) - set(base.codes())), [i.get("detail") for i in gone.issues if i["code"]=="qwencode.sidecar_missing"])

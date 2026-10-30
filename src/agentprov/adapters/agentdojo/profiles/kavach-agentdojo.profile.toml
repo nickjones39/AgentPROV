@@ -1,0 +1,199 @@
+# Source profile `kavach-agentdojo`: the AgentDojo 0.1.35 logs of Ishani018/Kavach (MIT), a runtime tool-call defence
+# evaluated on local models served by Ollama, at three branch pins imported as three snapshots of one corpus (D-95,
+# D-202, D-253; phase 10j; docs/reports/phase10j/census.md §5).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10j census of
+# every selected log of each pinned snapshot (tools/agentdojo/phase10j_profiles.py census), reconciled with
+# tools/agentdojo/phase10j_census.py.
+#
+# The three pins re-serialise one experiment. Imported in the order main, nav-fixer2, rearch-forcedformat-fix, they give
+# 2,625 executions: main's 223 logs are byte-identical in both branches and 147 more are shared by the branches only;
+# these collapse into the first snapshot's execution (dedup.collapsed, n_origins). 650 trajectories occur in several byte
+# forms (2,318 files): separate executions, disclosed (content_dedup = never).
+#
+# The authors mark benchmarks/results_v2/agentdojo_slack_gemma_dell/ invalid (INVALID_README.md: a harness defect echoed
+# tool results back to the model). Its 220 logs are included and disclosed (D-253), never selected on that note.
+# Kavach's blocks are logged as tool errors "[KAVACH BLOCK — decided_by=…]" with the same output text: they map as deny
+# decisions of the kavach defence (agentdojo.defence_denial_message, D-113).
+
+[profile]
+id = "kavach-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "kavach-agentdojo"
+family = "agentdojo"
+parts = ["main", "nav-fixer2", "rearch-forcedformat-fix"]
+title = "Kavach: AgentDojo 0.1.35 logs of a runtime tool-call defence on local Ollama models (Ishani018/Kavach, three branch pins)"
+evidence = ["docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md §2 row 10", "docs/reports/phase10d/deferred.md", "docs/reports/phase10j/census.md §5"]
+
+[source]
+canonical_repo = "https://github.com/Ishani018/Kavach"
+paper = "none (repository README, FINDINGS.md and REPRODUCIBILITY.md)"
+package = { name = "agentdojo", requirement = "agentdojo per requirements.txt; 0.1.35 per the logs", version_identifies_code = false }
+
+[[source.pins]]
+role = "main"
+part = "main"
+primary = true
+kind = "git"
+commit = "53df95452fb5fb207a0c3b5127e84e925e71fbf4"
+note = "default branch at 2026-10-11 (phase 10c); 223 logs, all also in both other pins"
+
+[[source.pins]]
+role = "nav-fixer2"
+part = "nav-fixer2"
+primary = true
+kind = "git"
+commit = "f2dd7efa01aed5a4d92e86e9d2ead5f19a326ab7"
+note = "branch nav-fixer2 at 2026-10-11 (phase 10c, D-95 fetch); 1,518 logs, 1,477 byte-distinct"
+
+[[source.pins]]
+role = "rearch-forcedformat-fix"
+part = "rearch-forcedformat-fix"
+primary = true
+kind = "git"
+commit = "6b31a5546b152c93435772bb4f3521dd78ee3446"
+note = "branch rearch-forcedformat-fix at 2026-10-11 (phase 10c, D-95 fetch); 1,518 logs"
+
+[licence]
+spdx = "MIT"
+holders = ["Kavach Team, PES University"]
+data_licence = "none"
+policy = "include"
+basis = "LICENSE (MIT, (c) 2026 Kavach Team, PES University), identical at the three pins"
+attribution = [
+  "Ishani018/Kavach (MIT, (c) 2026 Kavach Team, PES University), commits 53df9545, f2dd7efa, 6b31a554",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs (Gemma, Llama, Qwen licences)"]
+
+[lineage]
+built_on = ["agentdojo (0.1.35 per the logs) with benchmarks/run_agentdojo_kavach.py (not verified, D-24)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = [
+  "benchmarks/agentdojo_live/*/*/*/*/*/*.json",
+  "benchmarks/results_v2/*/logs/*/*/*/*/*.json",
+  "benchmarks/results_v2/logs/*/*/*/*/*.json",
+]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "benchmarks/{model_dir?}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = [
+  "LICENSE", "README.md", "REPRODUCIBILITY.md", "benchmarks/AGENTDOJO_RUN_GUIDE.md", "benchmarks/run_agentdojo_kavach.py",
+  "benchmarks/kavach_agentdojo_defense.py", "benchmarks/results_v2/*.md", "benchmarks/results_v2/*/INVALID_README.md",
+  "benchmarks/results_v2/*/agentdojo_summary*.json",
+]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/kavach_run_dirs.toml", sha256 = "6c34767d1da5d9cb81877e487cfeed962f8ee688873740bc78c5fcdb4bd068a0" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the logs record only agentdojo's version string; benchmarks/run_agentdojo_kavach.py was not verified (D-24)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+  { label = "kavach_runner", source = "Ishani018/Kavach@53df95452fb5fb207a0c3b5127e84e925e71fbf4:benchmarks/run_agentdojo_kavach.py", sha256 = "2e867516ccb63fb58ec56138498389414c154afacc31a8f8346cd7d17ceeb199", note = "the runner's own prompt (1,225 characters): assembled in benchmarks/run_agentdojo_kavach.py, which holds 8 of its 10 long lines verbatim; labelled by the digest of the logged text (D-109); 1,515 logs", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { main = { files = 13, origin_rule_applied = 12 }, nav-fixer2 = { files = 98, origin_rule_applied = 95 }, rearch-forcedformat-fix = { files = 98, origin_rule_applied = 95 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { main = { files = 10 }, nav-fixer2 = { files = 95 }, rearch-forcedformat-fix = { files = 95 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { main = { null_final_logs = 0 }, nav-fixer2 = { null_final_logs = 0 }, rearch-forcedformat-fix = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { main = { calls = 0, logs = 0 }, nav-fixer2 = { calls = 7, logs = 7 }, rearch-forcedformat-fix = { calls = 6, logs = 6 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { main = { files = 221 }, nav-fixer2 = { files = 380 }, rearch-forcedformat-fix = { files = 430 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { main = { files_without_package_version = 0 }, nav-fixer2 = { files_without_package_version = 0 }, rearch-forcedformat-fix = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { main = { present = 249, present_and_null = 249 }, nav-fixer2 = { present = 749, present_and_null = 749 }, rearch-forcedformat-fix = { present = 832, present_and_null = 832 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { main = { files = 1, null_outcome_files = 0 }, nav-fixer2 = { files = 5, null_outcome_files = 0 }, rearch-forcedformat-fix = { files = 5, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { main = { null_ids = 249, logs_with_null_ids = 221, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 }, nav-fixer2 = { null_ids = 680, logs_with_null_ids = 357, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 }, rearch-forcedformat-fix = { null_ids = 763, logs_with_null_ids = 407, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# D-113: Kavach logs a block as the tool's error with the same text as its output
+params = { denials = [
+  { defences = ["kavach"], error_prefix = ["[KAVACH BLOCK"], content_equals_error = true },
+] }
+observed = { main = { denials = 45 }, nav-fixer2 = { denials = 45 }, rearch-forcedformat-fix = { denials = 45 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

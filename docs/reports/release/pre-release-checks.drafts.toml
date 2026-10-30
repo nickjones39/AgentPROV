@@ -1,0 +1,434 @@
+# DRAFT datasheet statements of the pre-release checks (2026-10-28; docs/reports/release/pre-release-checks.md, check 5).
+#
+# APPLIED 2026-10-29 (e47258d2): every row below is now in corpora/datasheet-statements.toml (the -amended row replaced
+# benchmark-and-model-home-paths; decided lines updated). This file is kept as the record of what was proposed.
+# Originally: not decided and not in corpora/datasheet-statements.toml. Each [[statement]] passes the strict loader (appended to the
+# committed table), the card lint as sealing applies it, and the datasheet claims lint with its figures filled. They land
+# in corpora/datasheet-statements.toml only after the user's own approval in the pre-release-checks session window.
+# benchmark-and-model-home-paths-amended is a REPLACEMENT of the committed benchmark-and-model-home-paths row (U-4).
+
+# ---------------------------------------------------------------------------------------------------- DRAFTS (pre-release checks 2026-10-28; not decided)
+[[statement]]
+id = "checker-outcome-inferred"
+item = "D-359 (Option A kept, user 2026-10-28); pre-check PC-mandate-agentdojo-eval-04"
+corpora = ["mandate-agentdojo-eval", "agentdojo-upstream-head"]
+section = "known_issues"
+decided = "DRAFT for the user (pre-release checks 2026-10-28)"
+source = "docs/architecture/DECISIONS.md D-359; docs/reports/regeneration/option-b-deferred.md; re-counted from the SEM layer (docs/reports/release/pre-release-checks.md, check 5)"
+text = "The rule that reads AgentDojo's own checker result (`agentdojo.checker_outcome@1`) lists only the AgentDojo commit at which its code was verified. These logs were produced at other AgentDojo commits, so they cite the rule's unverified twin, and every security outcome that rests on it is recorded as inferred (class I) rather than derived from observed evidence (class D): {{f:mandate}} security outcomes in `mandate-agentdojo-eval` and {{f:head}} in `agentdojo-upstream-head`. A read-only comparison of the checker code at those commits found no change in how the result is computed or stored. The outcome values are as logged; only their evidence class differs. Analyses that keep only class D outcomes drop these security outcomes."
+
+[statement.figures]
+mandate = { value = "369", source = "SEM census, p10 to rg1 (D-359; re-counted 2026-10-28)" }
+head = { value = "11,236", source = "SEM census, p10 to rg1, v1.k14 logs (D-359; re-counted 2026-10-28)" }
+
+[[statement]]
+id = "survey-console-logs-withheld"
+item = "D-771 (pre-check PC-ast-survey-agentdojo-13; user decision (a), 2026-10-23)"
+corpora = ["ast-survey-agentdojo"]
+section = "known_issues"
+decided = "DRAFT for the user (pre-release checks 2026-10-28)"
+source = "docs/architecture/DECISIONS.md D-771; profile survey-runs@3 [withhold]; seal dry run plan (docs/reports/release/pre-release-checks.md, check 5)"
+text = "{{f:objects}} raw context files of the survey repository (console logs of the benchmark runs) name a workstation account in a home-directory path. They are withheld from this release by a rule of the source profile (reason personal data); `WITHHELD.json` lists each with its pinned origin, from which it can be fetched again. No AER, SEM or PROV record holds the path, so no execution is withheld."
+
+[statement.figures]
+objects = { value = "5", source = "seal dry-run withholding plan at the sealing code (re-counted 2026-10-28)" }
+
+[[statement]]
+id = "survey-agentharm-eval-headers-withheld"
+item = "D-811 (post-check POST-ast-survey-agentharm-01; user decision (a), 2026-10-24)"
+corpora = ["ast-survey-agentharm"]
+section = "known_issues"
+decided = "DRAFT for the user (pre-release checks 2026-10-28)"
+source = "docs/architecture/DECISIONS.md D-811; profile survey-agentharm@2 [withhold]; seal dry run plan (docs/reports/release/pre-release-checks.md, check 5)"
+text = "In {{f:logs}} of the survey's Inspect `.eval` logs, the header member records the dataset location as a path in a workstation account's home directory. Those header members and the `.eval` archives that hold them ({{f:objects}} raw objects) are withheld from this release by a rule of the source profile (reason personal data); `WITHHELD.json` lists each with its pinned origin. The samples are released: no AER, SEM or PROV record holds the path, so no execution is withheld."
+
+[statement.figures]
+logs = { value = "6", source = "seal dry-run withholding plan (6 header members by rule, 6 containers by closure; re-counted 2026-10-28)" }
+objects = { value = "12", source = "seal dry-run withholding plan (re-counted 2026-10-28)" }
+
+[[statement]]
+id = "agentharm-bundled-file-tools-fail"
+item = "pre-check PC-ast-survey-agentharm-01 (source defect; inspect_evals issue 2439)"
+corpora = ["ast-survey-agentharm"]
+section = "known_issues"
+decided = "DRAFT for the user (pre-release checks 2026-10-28); the pre-check asked for this disclosure"
+source = "docs/reports/precheck/ast-survey-agentharm.md PC-ast-survey-agentharm-01; re-counted from the AER (docs/reports/release/pre-release-checks.md, check 5)"
+text = "AgentHarm's file tools `read_file` and `convert_pdf_to_text` resolve the benchmark's bundled files relative to the working directory of the process, and in the survey's runs every call that named a bundled file failed with file not found (`inspect_evals` issue {{f:issue}}, which names only the benign tools; the harmful tools share the defect). {{f:samples}} of {{f:total}} samples hold at least one such failed call ({{f:benign}} benign and {{f:harmful}} harmful, of {{f:per_arm}} each). Their scores rest on a broken tool environment. The data is kept as recorded and nothing is rescored or excluded."
+
+[statement.figures]
+issue = { value = "#2439", source = "UKGovernmentBEIS/inspect_evals issue tracker" }
+samples = { value = "63", source = "AER re-count 2026-10-28 (read_file error type file_not_found, 84 calls; convert_pdf_to_text not-found marker, 62 calls)" }
+total = { value = "1,056", source = "corpus executions" }
+benign = { value = "40", source = "AER re-count 2026-10-28" }
+harmful = { value = "23", source = "AER re-count 2026-10-28" }
+per_arm = { value = "528", source = "corpus executions per arm" }
+[[statement]]
+id = "fictional-benchmark-personas-ast-survey-agentharm"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["ast-survey-agentharm"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "46", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "20", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-ast-survey-agentharm"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["ast-survey-agentharm"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "12", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "16", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-ast-survey-agentharm"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["ast-survey-agentharm"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "1", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "1", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.09 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: inspect_evals/agentharm 1", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "1", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "fictional-benchmark-personas-ast-survey-agentdojo"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["ast-survey-agentdojo"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "76", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "4", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-ast-survey-agentdojo"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["ast-survey-agentdojo"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "22", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "10", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-ast-survey-agentdojo"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["ast-survey-agentdojo"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "3", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "11", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.34 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: workspace 11", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "7", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "fictional-benchmark-personas-rope"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["rope"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "93", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "0", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-rope"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["rope"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "68", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "21", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-rope"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["rope"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "6", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "17", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.16 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: dailylife 10, github 7", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "5", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "fictional-benchmark-personas-agentdojo-upstream-2024-06"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdojo-upstream-2024-06"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "83", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "0", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-agentdojo-upstream-2024-06"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdojo-upstream-2024-06"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "123", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "21", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-agentdojo-upstream-2024-06"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdojo-upstream-2024-06"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "3", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "10", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.05 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: slack 1, workspace 9", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "4", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "fictional-benchmark-personas-adprov-v1-release"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["adprov-v1-release"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "81", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "4", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-adprov-v1-release"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["adprov-v1-release"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "247", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "48", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-adprov-v1-release"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["adprov-v1-release"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "9", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "8", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.05 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: slack 1, travel 1, workspace 6", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "7", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "fictional-benchmark-personas-agentdojo-upstream-head"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdojo-upstream-head"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "83", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "0", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-agentdojo-upstream-head"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdojo-upstream-head"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "282", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "28", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-agentdojo-upstream-head"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdojo-upstream-head"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "4", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "13", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.04 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: slack 3, workspace 10", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "5", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "fictional-benchmark-personas-agentdyn-a"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdyn-a"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "The benchmark invents people, and this corpus quotes their e-mail addresses verbatim wherever the benchmark, the agent or a tool wrote them: {{f:upstream}} distinct addresses occur in the benchmark's own published data at its pinned commit, and {{f:input}} more are first supplied in the logged runs by the benchmark's prompts, tool results, injections or defences. They belong to the benchmark's scenarios, not to anyone the runs involved, and were not checked one by one. The release scan triages each by its digest (the corpus's persona files, which never hold an address) as synthetic-benchmark; addresses at the domains reserved for documentation and testing are triaged as false positives."
+
+[statement.figures]
+upstream = { value = "35", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+input = { value = "8", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-generated-addresses-kept-agentdyn-a"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdyn-a"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "In {{f:executions}} executions the model under test wrote e-mail addresses that occur neither in the benchmark's data nor in its input ({{f:addresses}} distinct addresses, none at a public mail provider). They are kept verbatim, as all model text is, listed by digest in the corpus's persona file and triaged as model-generated. They were not reviewed one by one, and a model can reproduce an address it saw in training."
+
+[statement.figures]
+executions = { value = "762", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "219", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "model-freemail-addresses-withheld-agentdyn-a"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdyn-a"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "Executions in which the model under test wrote an address at a public mail provider that the benchmark did not supply are withheld at sealing, because such an address may belong to a real third party: {{f:addresses}} distinct addresses, {{f:executions}} executions and their raw objects ({{f:share}} of the corpus's executions; {{f:by_suite}}; {{f:tasks}} distinct tasks). WITHHELD.json records the reason as personal data and lists the executions. They are withheld for what they contain, never for their outcome; analyses that need the full design can check the split by suite and task."
+
+[statement.figures]
+addresses = { value = "57", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+executions = { value = "127", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+share = { value = "0.33 %", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+by_suite = { value = "by suite: dailylife 70, github 55, shopping 2", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+tasks = { value = "22", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+[[statement]]
+id = "uncited-raw-objects-withheld-agentdyn-a"
+item = "D-810 (release-scan-email-design.md section 13)"
+corpora = ["agentdyn-a"]
+section = "known_issues"
+decided = "user via the orchestrator, 2026-10-28 (D-810; release-scan-email-design.md section 13); figures re-counted 2026-10-28 from the seal dry runs (statement 4 wording amended for the user, U-12)"
+source = "docs/reports/release/release-scan-email-design.md sections 12 to 14; seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)"
+text = "{{f:objects}} raw run files that the import stored but did not map to any execution (variants of a part this corpus does not import) hold e-mail addresses withheld for personal data: {{f:addresses}} distinct addresses that occur in no execution's records, and {{f:shared}} of the model-written addresses at a public mail provider that are withheld with the executions above. They are withheld at sealing, reason personal data; no execution is affected."
+
+[statement.figures]
+objects = { value = "65", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+addresses = { value = "37", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+shared = { value = "9", source = "seal dry run and release-scan forecast at main 8c244150 (pre-release checks 2026-10-28)" }
+
+
+[[statement]]
+id = "model-home-paths-adprov-v1-release"
+item = "post-check POST-adprov-v1-release-02 (statement scope of datasheet-items.md row 22)"
+corpora = ["adprov-v1-release"]
+section = "known_issues"
+decided = "DRAFT for the user (pre-release checks 2026-10-28)"
+source = "docs/reports/postcheck/adprov-v1-release-rg2.md POST-adprov-v1-release-02; release-scan forecast at main 8c244150 (docs/reports/release/pre-release-checks.md, check 4)"
+text = "Some derived records hold a home-directory-shaped path (`/home/<name>` or `/Users/<name>`) that names no real account: the model under test wrote file paths with {{f:names}} name taken from the AgentDojo suites' fictional data (in its messages and tool-call arguments). It is kept verbatim, as all model text is, and the release scan triages it as a synthetic-benchmark finding."
+
+[statement.figures]
+names = { value = "one", source = "release-scan forecast 2026-10-28 (1 account-path ordinal; the name occurs in the AgentDojo suite data)" }
+
+[[statement]]
+id = "benchmark-home-paths-rope"
+item = "post-check POST-adprov-v1-release-02 (statement scope of datasheet-items.md row 22)"
+corpora = ["rope"]
+section = "known_issues"
+decided = "DRAFT for the user (pre-release checks 2026-10-28)"
+source = "docs/reports/postcheck/rope.md; post-check POST-adprov-v1-release-02; release-scan forecast at main 8c244150 (docs/reports/release/pre-release-checks.md, check 4)"
+text = "Some derived records of ROPE's runs of the AgentDyn suites hold home-directory-shaped paths (`/home/<name>` or `/Users/<name>`) that name no real account: {{f:names}} names of the suites' fictional users, which the model wrote into file paths and the suites' tools echoed. They are kept verbatim, as all benchmark and model text is, and the release scan triages them as synthetic-benchmark findings."
+
+[statement.figures]
+names = { value = "2", source = "release-scan forecast 2026-10-28 (2 account-path ordinals; both names occur in the AgentDyn suite data)" }
+
+[[statement]]
+id = "building-commit-by-digest-5b1f6fdf"
+item = "D-780 (no recorded building commit before it); D-358; pre-release checks 2026-10-28, check 7"
+corpora = ["mandate-agentdojo-eval", "adprov-v1-release", "agentdojo-upstream-2024-06", "rope", "agentdojo-upstream-head", "agentdyn-a"]
+section = "integrity"
+decided = "DRAFT for the user (pre-release checks 2026-10-28; option disclose, not attest)"
+source = "docs/reports/regeneration/d358/; docs/reports/release/pre-release-checks.md checks 7 and 8"
+text = "This corpus was built before AgentPROV recorded the building commit in the manifest, so the producer line says it is not recorded. The stage code digests in `derivation.json` equal those of AgentPROV commit `5b1f6fdf309cb7c365aeaeb3dd459d85fbabecf7`, and a dry-run recompute at that commit, at two worker counts, gave byte-identical records for every execution. The commit is attributed by those digests; the build itself did not record it."
+
+[[statement]]
+id = "building-commit-by-digest-d93aa261"
+item = "D-780 (no recorded building commit before it); D-771 re-import; pre-release checks 2026-10-28, check 7"
+corpora = ["ast-survey-agentdojo"]
+section = "integrity"
+decided = "DRAFT for the user (pre-release checks 2026-10-28; option disclose, not attest)"
+source = "docs/reports/postcheck/ast-survey-agentdojo-rg2.md; docs/reports/release/pre-release-checks.md checks 7 and 8"
+text = "This corpus was built before AgentPROV recorded the building commit in the manifest, so the producer line says it is not recorded. The stage code digests in `derivation.json` equal those of AgentPROV commit `d93aa26138bd848cbe4db613cd4856a75da0c899`, and a dry-run recompute at that commit, at two worker counts, gave byte-identical records for every execution. The commit is attributed by those digests; the build itself did not record it."
+
+# U-4: proposed REPLACEMENT of the committed row `benchmark-and-model-home-paths` (same id, so it is linted here under a
+# temporary id; on approval it replaces the committed row's text, figures and source).
+[[statement]]
+id = "benchmark-and-model-home-paths-amended"
+item = "datasheet-items.md row 22 (amended: pre-release checks 2026-10-28, checks 3 and 4c)"
+corpora = ["ast-survey-agentharm", "agentdyn-a"]
+section = "known_issues"
+decided = "user (2026-10-22); amendment DRAFT for the user (pre-release checks 2026-10-28, U-4)"
+source = "docs/reports/bugpass/home-paths-classification.md; docs/reports/release/pre-release-checks.md checks 3 and 4c (counts and ordinals only); DECISIONS D-604 (model text verbatim)"
+text = "Some derived records hold home-directory-shaped paths (`/home/<name>`, and once a Windows profile path `C:\\Users\\<name>`). None names a real account. In ast-survey-agentharm, {{f:benchmark}} of the {{f:names}} path names come from the benchmark itself (its public prompts and dataset, or the output of its offline stub tools) and {{f:model}} were invented by the model. In agentdyn-a, the model builds such paths from the suites' fictional user and environment names ({{f:dyn_bench}} of the {{f:dyn_names}} names in the derived records, all supplied by the suite data) or invents them ({{f:dyn_model}}); {{f:dyn_raw}} further names occur only in raw run files of variants this corpus does not import. They are kept verbatim, as all benchmark and model text is, and the release scan triages them as synthetic-benchmark or false-positive findings."
+
+[statement.figures]
+names = { value = "19", source = "pre-release checks check 3 (ast-survey-agentharm-rg2, 1,056 AERs; 18 /home/ names of home-paths-classification.md plus 1 Windows path)" }
+benchmark = { value = "9", source = "home-paths-classification.md (S1-S8, S10); pre-release checks check 3" }
+model = { value = "10", source = "home-paths-classification.md (S9, S11-S18) plus the Windows path (#17); pre-release checks check 3" }
+dyn_names = { value = "17", source = "pre-release checks check 4c (agentdyn-a-rg1, all suites, derived records)" }
+dyn_bench = { value = "11", source = "pre-release checks check 4c (names in the AgentDyn suite data)" }
+dyn_model = { value = "6", source = "pre-release checks check 4c (github N6, N9, N13 of home-paths-classification.md and three in other suites)" }
+dyn_raw = { value = "3", source = "pre-release checks check 4c (#18-#20, each in one uncited raw file)" }

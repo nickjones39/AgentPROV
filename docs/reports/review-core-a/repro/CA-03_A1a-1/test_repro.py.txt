@@ -1,0 +1,35 @@
+"""A1a-1: a part id with a >4300-digit ordinal crashes the AER validator / reader instead of being a finding."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+WORKTREE = Path(".")
+sys.path.insert(0, str(WORKTREE / "tests" / "unit" / "aer"))
+
+from aer_support import codes_of, edit, example_records, validate_example  # noqa: E402
+
+from agentprov.aer.ids import is_part_id, split_part_id  # noqa: E402
+from agentprov.aer.reader import AerDocument  # noqa: E402
+
+HUGE = "m1#" + "1" * 5000
+
+
+def test_split_part_id_huge_ordinal_only_raises_documented_error_or_parses() -> None:
+    assert is_part_id(HUGE)
+    try:
+        split_part_id(HUGE)
+    except ValueError as exc:
+        assert str(exc) == "not a part id", str(exc)
+
+
+def test_validator_reports_huge_ordinal_as_finding() -> None:
+    codes = codes_of(validate_example(edit(example_records(), "te0", call=HUGE)))
+    assert "aer.ref.dangling" in codes or "aer.schema.pattern" in codes
+
+
+def test_reader_part_returns_none_for_huge_ordinal() -> None:
+    doc = AerDocument.__new__(AerDocument)
+    object.__setattr__(doc, "_index", {"m1": {"k": "message", "id": "m1", "parts": [{"t": "text"}]}})
+    assert doc.part(HUGE) is None

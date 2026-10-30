@@ -1,0 +1,50 @@
+# Corpus spec of `ast-survey-agentdojo` (HL H.1.6; D-44): the data-free build input. `agentprov package` copies this file, CARD.md
+# and CHANGES.toml into the sealed corpus's rules/ (a record, AD-14). Identity and selection come from here and from the
+# in-package source profile `survey-runs@3` ([import] include/exclude, used because this spec names none); counts are
+# computed at sealing, never written here (H.2.1(3)). The origin is the pin the import recorded (D-33).
+
+corpus_id = "ast-survey-agentdojo"
+corpus_version = "0.1.0"
+title = "Agent Security Tools Survey: the survey's own AgentDojo run logs (Forever-CodingNoob/agent-security-tools-survey)"
+mode = "import"
+
+[[sources]]
+source_id = "agent-security-tools-survey"
+profile = "survey-runs@3"  # D-31: versions 1 and 2 are archived (profiles/archive/); 3 adds the [withhold] table (D-771)
+parts = ["agentdojo-runs"]
+
+[[sources.snapshots]]
+snapshot_id = "agentdojo-runs"
+origin = { kind = "git", repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey", commit = "89c4db2c949797fbb38c5bfed85dc82780ddbfe3", subtree = "agentdojo" }
+alt_origins = [
+  { kind = "zenodo", doi = "10.5281/zenodo.22135957", file = "artifact.zip", md5 = "2cdcea49099b8e79a72263d7aeb47795", member_prefix = "codesafe/" },
+  { kind = "zenodo", doi = "10.5281/zenodo.22140262", file = "artifact.zip", md5 = "f623f7f776b8f24c19cdaeba1a20f654", member_prefix = "codesafe/" },
+]
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["agentdojo.suites@2"]  # D-31 and item 1
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+# LICENSE is the survey repository's at the pinned commit (CC-BY-4.0); supplied at sealing with --licence-file.
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only, never addresses; corpora/personas/). upstream-data:
+# addresses in the benchmark's own published data at its pinned commit (synthetic-benchmark). <corpus>.observed: by where an
+# address first appears in this corpus's executions: benchmark-input (synthetic-benchmark), model-generated (kept, its own
+# triage) and withhold (model output at a public mail provider: sealing withholds the executions that hold one).
+# file-name: strings with the shape of an address (a file name) that a person reviewed (false-positive). Observed and
+# file-name groups apply to this corpus only.
+[scan]
+personas = [
+  { path = "../personas/agentdojo.personas.toml", sha256 = "sha256:6f11d2054854b6d280c7061829ee941c1fd7e1e58f456cbeeff3ff62606c289a" },
+  { path = "../personas/ast-survey-agentdojo.observed.personas.toml", sha256 = "sha256:d5fcb5ca177ab4df47f961e631bc488f3c8867dd6e9d2e042f96468c699c390c" },
+]

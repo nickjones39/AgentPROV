@@ -1,0 +1,264 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "controlarena-persistent",
+ "findings": [
+  {
+   "id": "PC-controlarena-persistent-01",
+   "title": "Seal of the three zip parts refused: corpus.withhold.unscanned (D-450) on the truncated members; 10p t2 seal blocked on D-453/D-454",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "part": "zip-3-001, zip-3-002, zip-3-003",
+   "check": "L2 withholding",
+   "evidence": "l2_check seal on scratch copies: zip-3-001 26, zip-3-002 7, zip-3-003 153 stored archives unscanned (ingest.archive.format) = the L1 truncated members per part (153-127, 38-31, 167-14; 186 in all). tar parts: batch-runs 172/172, auditor 6/6 executions withheld",
+   "reproduction": "python3 -c \"import json;[print(p,json.load(open('l2-'+p+'.json'))['withholding']) for p in ['zip-3-001','zip-3-002','zip-3-003','batch-runs','auditor']]\"",
+   "hypothesis_ref": "H16",
+   "recommendation": "Record as the release blocker of the zip parts: no seal of zip-3-001/002/003 until D-453/D-454 land (decoded scan of truncated members, or withhold them whole). Re-run the scratch seal then (follow-up). Import is unaffected",
+   "artefact_proposal": "DECISIONS D-450/D-453/D-454 (prereg section 5)",
+   "agents_md_12": "controlarena-persistent zip parts: seal refused corpus.withhold.unscanned (186 truncated members) until D-453/D-454; tar parts withhold 100%",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Re-read l2-<part>.json withholding: errors name 26/7/153 unscanned stored archives. L1-08 unreadable_container minus empty_file = 153-127, 38-31, 167-14 = 26/7/153 exactly, so the unscanned set is the truncated members, not empties or a tool fault. Tar parts 172/172 and 6/6 withheld. D-450 is the documented refusal; S2 (release blocker) stands."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-02",
+   "title": "[CC-13] Planted benchmark credentials reach AER in every execution (sk- key at API_KEY 636/636) and PROV in 108/636; AWS/Stripe shapes in zip-3-003 and batch-runs",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": true,
+   "part": "all",
+   "check": "L1-06, L2 redaction",
+   "evidence": "L1: sk-shaped /metadata/API_KEY in 5,632/5,632 frame units (H3). L2 redaction hits (strings): AER openai-style 5,564, aws 270, stripe 611; PROV openai-style 3,837, aws 210, stripe 456; 0 account-path hits; 0 operator hits. Withheld at seal where the seal runs (batch-runs 172/172, auditor 6/6)",
+   "reproduction": "python3 -I exam-scripts/l2_summary.py | grep redaction",
+   "hypothesis_ref": "H3, H16",
+   "recommendation": "Keep D-344 (every execution withheld at seal); release_scan must keep these out of any deposit; no value printed. Already the orchestrator's known item (inspect.planted_credentials)",
+   "artefact_proposal": "profile quirk inspect.planted_credentials; D-344",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Redaction tallies re-summed: AER openai-style 5,564, aws 270, stripe 611; PROV 3,837/210/456; execution:/ext/inspect/sample_metadata/API_KEY hit in 223+110+125+172+6 = 636/636 executions. Correction: 'AER/PROV in every execution' holds for AER only; PROV executions_hit is 37+16+14+41+0 = 108/636. Planted benchmark keys (D-344 quirk), not real secrets; class and severity stand. Title corrected."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "expected-known S2 security unchanged. CC-13 fixture, catalogued (inspect.planted_credentials, D-344, R2); provider-prefixed shapes reach PROV apv:args -> S2 + security; withheld at seal by D-344."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-03",
+   "title": "[CC-03] Named /home/<account> paths in model-visible content of 3 selected logs (zip-3-002, zip-3-003, batch-runs); 0 /Users/, 0 operator; not in the L2 sample",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "zip-3-002, zip-3-003, batch-runs",
+   "check": "L1-06, L1-10, L2 redaction",
+   "evidence": "L1-06 account:home-dir:named: 1 log each, 252 / 95 / 62 strings at tool-call file_text/cmd, message content, attachments, pr_diff (model-visible). account:users-dir 0, this-machine-home 0 in all parts. batch-runs log: 1 distinct non-generic name (sha256[:10] d4a8a26536, 62 occurrences). None of the 3 logs is in the L2 sample, so redaction of this shape is unexercised. L1-10: 0 context files in the archive frame",
+   "reproduction": "uv run python exam-scripts/named_home.py ~/.agentprov/staging/10p/hf_idacy_control-arena/logs_batch_runs-20260730.tar.zst GySnjVzXz6Z6cc59k2H4Xo.eval",
+   "hypothesis_ref": "H11",
+   "recommendation": "Verifier: run named_home.py on the zip-3-002/003 logs and decide (by a cleared reader) whether the name is sandbox/scenario content (CC-03, S3) or a real workstation account (then S0 security, report at once). Add the shape to the D-182 redaction table if it is a person's account",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "named-home.json: batch-runs log 62 occurrences, 1 distinct non-generic name (length withheld, not lower-alpha); 0 /Users/. Alternative (real workstation account) checked: the D-345 workstation account is a macOS /Users/ path (phase-10p README section 5, digest <account-A>), and the phase-10p census already records /home/<name> only in model-visible content with placeholder plus a few unidentified names, judged sandbox/generated code. ~1,000 generic 7-char candidates do not match the digest (no name derived). CC-03 expected-known S3 stands; the 002/003 logs remain unscanned by named_home.py (follow-up), so a cleared-reader confirmation is still owed but this is a routine CC-03 check, not an open S0 suspicion."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-04",
+   "title": "map.accounting_inconsistent (aer.acc.tool_results_linked) on inspect.scorer spans: 14 of 636 sampled executions, all in gradual_f3m1 and honest_all (gpt-4o), each with map.unexecuted_tool_call",
+   "cls": "mapping-defect",
+   "severity": "S3",
+   "security": false,
+   "part": "zip-3-001, zip-3-003",
+   "check": "L2 A2 / issue codes",
+   "evidence": "register: 9 (zip-3-001) + 5 (zip-3-003) executions, one per log, 2 scorer-span scopes each (28 scopes, subtype inspect.scorer); gradual_f3m1 10/50 sampled executions, honest_all 4/25, other arms 0/561; completeness known_incomplete 14; outcomes unaffected (raw = mapped side_task_success on 128/128 labels)",
+   "reproduction": "see exam-scripts (register.jsonl of l2-zip-3-001-j2.partial, code map.accounting_inconsistent)",
+   "hypothesis_ref": "H13 (adjacent; not pre-registered)",
+   "recommendation": "Inspect family owner: check whether tool events inside scorer spans (agentic scorer / monitor runs) should be linked or classed as scorer tool use; if intended, document as a profile quirk (then expected-known). Not a blocker",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "undetermined",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "undetermined",
+     "cls": "mapping-defect",
+     "severity": "S3",
+     "reasoning": "Counts confirmed: register 9 (001) + 5 (003) map.accounting_inconsistent, rule aer.acc.tool_results_linked@1. AER accounting re-read: all 28 inconsistent scopes have reason call_has_several_results with linked == tool_results (2/2 x20, 3/3 x6, 4/4 x2): no result is lost; one call id carries several results inside scorer spans. Alternative explanation not excluded: the source's agentic scorer/monitor reuses tool-call ids (a source property, then a profile quirk / expected-known), rather than a mapper defect. Class cannot be settled without the raw call ids; owner check stays. S3, outcomes unaffected."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-05",
+   "title": "Our docs: the 15 header-bearing byte duplicates (71 samples) are honest_all logs copied inside positional_f3m1.zip (zip-3-001 to zip-3-002); 1,698 is 002's within-part count, but the residual 739 for zip-3-003 misplaces those 71 units (first-occurrence 2,441 / 1,627 / 810)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "zip-3-001, zip-3-002, zip-3-003",
+   "check": "L1-01, L1-04",
+   "evidence": "dups.py: 25 non-empty byte-identical groups: 15 honest_all(001)+positional_f3m1.zip(002) with 71 units, 5 header-less pairs (3 units), 5 gradual_f3m1.zip(001)+gradual_f3m1(003) with 25 units; _cross/l1-xdup cross_part pairs 20 + 5. First-occurrence header-bearing units 2,441 + 1,627 + 810 + 638 + 6 = 5,522 (total agrees with t1)",
+   "reproduction": "python3 -I exam-scripts/dups.py",
+   "hypothesis_ref": "H4",
+   "recommendation": "Correct the phase-10p README / prereg attribution; the round's full import reports measured per-part counts (follow-up) instead of a residual",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "dups.json re-read: 15 honest_all(001) + positional_f3m1.zip(002) groups (71 units), 5 header-less pairs (3), 5 gradual (001->003, 25). Refinement: 1,698 is correct as zip-3-002's within-part header-bearing count (1,701 - 3); the error is 739, a residual (prereg line 37 'derived') that equals 835 - 25 - 71, i.e. it moves zip-3-002's 71 duplicate units into zip-3-003. The prereg's 'import order' explanation is wrong: the duplicates are of zip-3-001, so no import order shifts them to 003. R4 S3 stands."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-06",
+   "title": "Our docs: README listing 2,267 (660/153/810/638/6, nested zips 'not yet read') and profile quirk value 5,754 disagree with the frame (5,632 units, 5,522 deduplicated executions); the census's 96 non-persistent vibe_coding samples are absent from the frame (0/5,632)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "all",
+   "check": "L1-01, L1-05",
+   "evidence": "L1 units 2,452 / 1,701 / 835 / 638 / 6; setting_name vibe_coding_persistent 5,632/5,632; tools/readme_corpora.toml counts 660/153/810/638/6; profile observed samples 5,754",
+   "reproduction": "grep -n count tools/readme_corpora.toml; grep -n 5754 src/agentprov/adapters/inspect/profiles/controlarena-persistent.profile.toml",
+   "hypothesis_ref": "H17, H9",
+   "recommendation": "Profile/registry owner: update the counts after the round's import (regenerate the README blocks); locate the 96 non-persistent samples (held or damaged members) or drop the census note",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "tools/readme_corpora.toml counts 660/153/810/638/6 = 2,267 (zip-3-001 note '4 nested zips not yet read'); profile controlarena-persistent.profile.toml lines 254/284 observed 5754; phase-10p README line 92 lists vibe_coding 96 samples, frame has 0. R4 S3 stands (registry/profile owner)."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-07",
+   "title": "Dataset card says the zips hold Jan-Feb 2026 logs; 801 distinct header-bearing logs are from March 2026",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "zip-3-001, zip-3-002, zip-3-003",
+   "check": "L1-07",
+   "evidence": "label timestamps of distinct header-bearing zip logs: 2026-01 294, 2026-02 120, 2026-03 801, other 3 (1,218); header eval/created range 2026-01-10..2026-03-16, all utc_offset, 0 parse failures",
+   "reproduction": "inline in the dossier section 9",
+   "hypothesis_ref": "H12",
+   "recommendation": "Disclose in the datasheet; no data change",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Pinned card README row for logs_tmp_zips reads 'Jan-Feb 2026 run archives'; L1-07 event timestamps run to 2026-03-16 in 001/002 and 2026-03-10 in 003. The 801 March count is the examiner's label-date tally (not re-derived). R3 S3 (not a headline number)."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-08",
+   "title": "gradual_f3m1 in-log monitors: TD-diff evasion reproduces Table 7 (51/54), full-diffs gives 54/54 (paper 88.9%), no in-log trajectory scores (0/54); the paper's rescored values are in the pin (logs_march_rescored, link_tracker_rescore_finals) but outside the profile frame",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "zip-3-001",
+   "check": "outcome sanity (exploratory)",
+   "evidence": "evasion.py (<= tau): td_diff tau6 51/54 94.4%; full_diffs tau7 54/54 100% [93.4, 100] vs 88.9 (gap +11.1 pp, below the 15 pp rule, 4.5 pp outside Wilson); traj_td / traj_full: 0 of 54 successful runs carry a score",
+   "reproduction": "python3 -I exam-scripts/evasion.py",
+   "hypothesis_ref": "H7 (exploratory)",
+   "recommendation": "Disclose: in-log monitor scores are the original (pre-rescoring, pre-PR #30/#41) values; only success and TD-diff evasion are comparable with the paper",
+   "artefact_proposal": null,
+   "agents_md_12": "controlarena-persistent: CLI gradual success (47/60, 7/60) and TD-diff evasion (51/54) reproduce from the logs; full-diffs/trajectory numbers rest on rescoring files that are in the pin but outside the import frame (untested)",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "evasion.json re-read: td_diff 51/54, full_diffs 54/54, traj 0/54 with score; Wilson lower 54/57.84 = 93.36, paper 88.9 is 4.46 pp below, gap 11.1 < 15: below the rule, correctly exploratory. Correction: the claim that rescored monitor values are absent from the archive is wrong. The pin holds logs_march_rescored/ (15 'V2d5' rescore result JSONs, per-PR score fields, including gradual gpt4o runs; the card itself lists them) and link_tracker_rescore_finals tar.zst; research.json line 145 already said they are outside the logs. They are outside the profile frame, not outside the archive. Whether they reproduce 88.9 / 66.7 / 75.9 is untested (follow-up). Class R3 S3 stands; title, AGENTS.md item and artefact proposal wording corrected."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-09",
+   "title": "[CD-24] Judgement naming as expected: bare 'score' judgements in 631/636 executions, score.<key> in 633/636, every sample scorer duplicated as a bench judgement (636/636)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "all",
+   "check": "L2 judgements",
+   "evidence": "l2_judgements.py cd24 counters over the 5 j2 scratch corpora",
+   "reproduction": "python3 -I exam-scripts/l2_judgements.py out.json",
+   "hypothesis_ref": "H15",
+   "recommendation": "Keep RD-2 / CD-24 open; disclose judgement naming until inspect_ai >= 0.3.217 handling lands",
+   "artefact_proposal": "review-core-d CD-24",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "os2-sample.json cd24: executions 636, with_bare_score 631, with_score_key 633, with_sample_score_dup 636, joined 636. CD-24 / RD-2 expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-controlarena-persistent-10",
+   "title": "L1-04 byte-identical groups count zero-byte files: within-part groups of 127 / 31 / 14 empty members and one cross-corpus group of 347 empty files (with code-agent-misalignment)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "zip-3-001, zip-3-002, zip-3-003",
+   "check": "L1-04",
+   "evidence": "l1-<part>.json L1-04 byte_identical groups 1 each (127, 31, 14 = the 172 empty members); _cross/l1-xdup.json byte_identical.cross_corpus 1 group, 347 members; 0 non-empty cross-corpus duplicates",
+   "reproduction": "python3 -I exam-scripts/l1_summary.py | grep L1-04",
+   "hypothesis_ref": "H4",
+   "recommendation": "Tool (R5): exclude size-0 artefacts from the byte-identical groups or report them separately; not a corpus finding",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "_fp files: e3b0c44298fc (sha256 of empty) digests 127 (001), 31 (002), 14 (003) and 175 in code-agent-misalignment-geminicli.results-raw; 127+31+14+175 = 347 = the cross-corpus group. R5 tool property, not counted in readiness."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

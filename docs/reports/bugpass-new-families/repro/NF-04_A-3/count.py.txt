@@ -1,0 +1,15 @@
+import json, os, collections, sys
+base=os.path.expanduser('~/.agentprov/migration-work/phase10j/profiles')
+union=collections.Counter(); resolved_union=collections.Counter()
+for part in ('main','nav-fixer2','rearch-forcedformat-fix'):
+    unres=collections.Counter(); res=collections.Counter(); n=0
+    for line in open(f'{base}/kavach.{part}.rows.jsonl'):
+        r=json.loads(line); n+=1
+        segs=r['label'].split('/')
+        d='/'.join(segs[1:-4])
+        if 'identity_unresolved' in r['issues']: unres[d]+=1; union[d]+=1
+        else: res[(d, r.get('model') and str(r['model'])[:60])]+=1; resolved_union[d]+=1
+    print(part, 'rows', n, 'unresolved dirs', len(unres), 'logs', sum(unres.values()))
+    for d,c in sorted(unres.items()): print('   U', d, c)
+    for d,c in sorted(res.items()): print('   R', d, c)
+print('union unresolved dirs', len(union), sorted(union)); print('union resolved dirs', len(resolved_union), sorted(resolved_union))

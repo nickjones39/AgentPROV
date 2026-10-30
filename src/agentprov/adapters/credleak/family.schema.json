@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/credleak/family-0.1.json",
+  "title": "[family.credleak] table of a credleak source profile (D.4.1, D.19.13; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["semantics_profile", "judged"],
+  "properties": {
+    "semantics_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}
+    },
+    "judged": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*$"}},
+    "redact": {
+      "description": "Redaction of third-party account paths in tool output (D-605, applying D-604; the D-476 grammar): rules {id, scope, pattern, replacement, leaf?, labels?, note?}, checked further by agentprov.adapters.credleak.redact.parse_redact_rules",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "pattern", "replacement"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "scope": {"type": "string", "enum": ["tool_output"]},
+          "pattern": {"type": "string"},
+          "replacement": {"type": "string"},
+          "leaf": {"type": "string"},
+          "labels": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{12}$"}, "description": "D-605 part 2 (the D-607 approach): redact the span group only, and only when its {span12} label is listed"},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observed"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^credleak\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^credleak\\.[a-z][a-z0-9_.]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+--- a/src/agentprov/sem/reader.py
++++ b/src/agentprov/sem/reader.py
+@@ def load_sem_bytes(data: bytes, *, verify: bool = True) -> SemDocument:
+         kind = record.get("k")
+         if index == 0:
+             if kind != "sem":
+                 raise SemFormatError("line 0 is not the sem header")
++            _check_header_members(record)
+         elif kind == "seal":
+             seal = record
+             continue
+@@
++def _check_header_members(header: dict[str, Any]) -> None:
++    """The members SemDocument's accessors read (ex, aer_digest, profile.id/version); closedness stays the validator's."""
++    profile = header.get("profile")
++    if not (
++        isinstance(header.get("ex"), str)
++        and isinstance(header.get("aer_digest"), str)
++        and isinstance(profile, dict)
++        and isinstance(profile.get("id"), str)
++        and isinstance(profile.get("version"), int)
++        and not isinstance(profile.get("version"), bool)
++    ):
++        raise SemFormatError("line 0: the sem header lacks a well-formed ex, aer_digest or profile")
++

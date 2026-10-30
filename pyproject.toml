@@ -1,0 +1,148 @@
+[project]
+name = "agentprov"
+version = "0.1.0"
+description = "AgentPROV: an execution-provenance framework for LLM-agent security research — source-preserving, evidence-qualified execution records and defensible W3C PROV, with benchmark/framework adapters"
+readme = "README.md"
+requires-python = ">=3.14"          # stdlib zstd (PEP 784), tar 'data' filter default, 2025-26 archive CVE fixes; see docs/architecture
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{ name = "Nicholas Jones" }]
+keywords = ["provenance", "W3C PROV", "LLM agents", "prompt injection", "agent security", "reproducibility"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# Core runtime dependencies are deliberately few. Untrusted bytes are parsed with the stdlib only
+# (src/agentprov/ingest/); no benchmark package (agentdojo, inspect_ai, ...) is ever imported by the core.
+dependencies = [
+    "prov>=3.2.2",            # PROV model, PROV-JSON <-> PROV-O serialisation
+    "rdflib>=7.6.0",          # PROV-O round-trip / RDF checks
+    "rfc8785>=0.1.4",         # RFC 8785 JSON Canonicalisation Scheme (AER lines, digests)
+    "pyyaml>=6.0.3",          # only via agentprov.ingest.yamlsafe (injection-marker normaliser, compat port)
+    "agentprov-capture",      # capture/0.1 event model + hash-chain verifier (shared with live backends)
+    "keyring>=25.6,<26",      # D-702: `agentprov keys` and `run --keychain`; imported only by agentprov.keys.helper
+    "psutil>=7.2,<9",         # D-704: job identity (pid + create time) and process trees; agentprov.jobs only
+]
+
+[project.optional-dependencies]
+live = ["python-dotenv>=1.2.2"]   # read .env at the live CLI entry only
+shacl = ["pyshacl>=0.40.1"]       # optional SHACL profile shapes
+render = ["pydot>=4.0.1"]         # agentprov render (also needs the graphviz `dot` binary)
+zenodo = ["agentprov-zenodo"]     # D-880: the draft-only Zenodo uploader (zenodo/); agentprov never imports it
+
+[project.scripts]
+agentprov = "agentprov.cli.main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "hypothesis>=6.168.5",
+    "ruff>=0.16.10",
+    "mypy>=2.4.0",
+    "jsonschema>=4.26.0",
+    "types-pyyaml>=6.0.12",
+    "pytest-xdist>=3.8",
+    "pytest-testmon>=2.1",
+    "agentprov-zenodo",   # D-880: the uploader in every checkout environment (the GUI runs it from there)
+]
+# The user guide's website (mkdocs.yml; D-760). Not a default group: a plain `uv sync` never installs it.
+# Exact pins: Material for MkDocs is in maintenance mode (Zensical is its named successor) and MkDocs 1.x has no
+# further releases, so nothing moves under the lock by accident.
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.7.7",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.12.22"     # can install CPython 3.14.8 (release-mode floor); raised 2026-10-08 per G.7.1(1)
+exclude-newer = "2026-10-07T00:00:00Z"
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+members = ["capture", "zenodo"]     # backends/* are separate uv projects with their own locks (never members)
+
+[tool.uv.sources]
+agentprov-capture = { workspace = true }
+agentprov-zenodo = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --import-mode=importlib"
+markers = [
+    "slow: slower tests (run in CI, skipped with -m 'not slow')",
+    "network: needs network access (never in default CI)",
+    "backend_agentdojo: needs the backends/agentdojo environment",
+    "backend_autodojo: needs the backends/autodojo environment",
+    "backend_agentdyn: needs the backends/agentdyn environment",
+    "backend_inspect: needs a backends/inspect environment (inspect_ai, inspect_evals and the pinned dataset)",
+    "full_corpus: needs the local baseline corpora (AGENTPROV_BASELINE_CORPUS)",
+    "old_package: needs agentdojo-prov 1.0.0 @ 579a908 in a separate interpreter and the C6 producer's work dir (AGENTPROV_C6_WORK)",
+    "render: needs the render extra (pydot) and, for images, the graphviz dot binary; skipped with the reason when absent",
+    "live_artefacts: consumes capture/0.1 sessions produced by a backend job (AGENTPROV_LIVE_ARTEFACTS; K.8.5)",
+]
+filterwarnings = [
+    "error::UserWarning:agentprov.*",
+    # prov 3.2.2 calls rdflib's deprecated Dataset.default_context; third-party, harmless for the compat oracle
+    "ignore:Dataset.default_context is deprecated:DeprecationWarning:rdflib.graph",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+# docs/architecture/examples/: frozen prototype scripts that generated the specification's example vectors;
+# they are spec artefacts, not product code (the implementation re-implements them under src/).
+# docs/reports/systematic-search/{data,scripts}/: the systematic search's scripts (archived verbatim, and the screening
+# generator that reproduces the appendix tables), a record of the manuscript appendix, not product code.
+extend-exclude = ["backends/*/.venv", "docs/architecture/examples", "docs/reports/systematic-search/data", "docs/reports/systematic-search/scripts", "docs/reports/precheck/data"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "B", "UP", "T20", "PLE2502", "S102", "S301", "S307", "S506"]
+
+[tool.ruff.lint.per-file-ignores]
+# `print` is banned outside the CLI (N.1.12(1)); tests and maintenance scripts may print.
+"src/agentprov/cli/**" = ["T20"]
+"tests/**" = ["T20"]
+"tools/**" = ["T20"]
+"src/agentprov/io/worker_testjobs.py" = ["T20"]  # test-only job kinds that print on purpose (stdout/stderr isolation tests)
+# The five oracle files are a verbatim port of the baseline (R-31): ruff may not push them away from 579a908.
+"src/agentprov/prov/compat/adprov_v2_3/build_prov.py" = ["B", "BLE", "UP", "S", "E7"]
+"src/agentprov/prov/compat/adprov_v2_3/prov_emit.py" = ["B", "BLE", "UP", "S", "E7"]
+"src/agentprov/prov/compat/adprov_v2_3/labeling.py" = ["B", "BLE", "UP", "S", "E7"]
+"src/agentprov/prov/compat/adprov_v2_3/validate.py" = ["B", "BLE", "UP", "S", "E7"]
+"src/agentprov/prov/compat/adprov_v2_3/conformance.py" = ["B", "BLE", "UP", "S", "E7"]
+"tests/prov/compat/adprov_v2_3/test_*.py" = ["B905"]  # ported baseline tests, kept diff-able against 579a908
+
+[tool.mypy]
+python_version = "3.14"
+strict = false
+warn_unused_ignores = true
+packages = ["agentprov"]
+mypy_path = "src"
+
+# The five oracle files are a verbatim baseline port (R-31): never edited to satisfy a type checker.
+[[tool.mypy.overrides]]
+module = [
+    "agentprov.prov.compat.adprov_v2_3.build_prov",
+    "agentprov.prov.compat.adprov_v2_3.prov_emit",
+    "agentprov.prov.compat.adprov_v2_3.labeling",
+    "agentprov.prov.compat.adprov_v2_3.validate",
+    "agentprov.prov.compat.adprov_v2_3.conformance",
+]
+ignore_errors = true
+
+# pydot comes with the optional `render` extra; the default environment type-checks without it.
+[[tool.mypy.overrides]]
+module = ["pydot", "pydot.*"]
+ignore_missing_imports = true
+
+# psutil (D-704) ships no stubs in the lock (types-psutil would be another download), as for the GUI.
+[[tool.mypy.overrides]]
+module = ["psutil", "psutil.*"]
+ignore_missing_imports = true

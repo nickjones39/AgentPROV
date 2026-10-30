@@ -1,0 +1,85 @@
+# What the public repository leaves out of the release commit's tree (D-943, amended by D-1004 for P-3a;
+# docs/reports/release/public-repo-plan.md).
+# The public tree is the release commit's tree minus these paths and minus the fixtures the rule below keeps private;
+# tests/repo/test_repository_hygiene.py lets a listed path be absent and checks it wherever it is present.
+# P-3a, the user's decisions of 2026-10-30 (relayed by the orchestrator): "make sure all AI files, such as claude files
+# and .md files, and any unneeded files are stripped out too. making sure to keep the desktop guide and the landing
+# page"; "do not strip out these files now, we need to make a new repo that has been sanitised"; "yes only in the new
+# repo". Nothing here is removed from the development repository.
+format = "agentprov-public-export/0.1"
+decision = "D-943"
+
+[[exclude]]
+path = "CLAUDE.md"
+reason = "coding-agent operating notes (P-3; P-3a, user 2026-10-30: \"all AI files ... stripped out\")"
+
+[[exclude]]
+path = ".claude/"
+reason = "coding-agent permission settings of the development checkout (P-3; P-3a, user 2026-10-30: \"all AI files ... stripped out\")"
+
+[[exclude]]
+path = "AGENTS.md"
+reason = "coding-agent project memory (P-3a, D-1004; user 2026-10-30: \"all AI files ... stripped out\", \"yes only in the new repo\")"
+
+[[exclude]]
+path = "docs/agents/"
+reason = "coding-agent session briefs and history, the sources of AGENTS.md §0/§13 (P-3a, D-1004; user 2026-10-30: \"all AI files ... stripped out\")"
+
+[[exclude]]
+path = "docs/mac-studio-handoff.md"
+reason = "machine hand-over notes for coding agents (P-3; P-3a, user 2026-10-30: \"all AI files ... stripped out\")"
+
+[[exclude]]
+path = "docs/review/"
+reason = "instructions and plan for the coding agent's code reviews (REVIEW.md, ultrareview plan), found by the P-3a sweep and confirmed by the user (D-1004; user 2026-10-30: \"all AI files ... stripped out\", \"confirm the 3 sweep finds\")"
+
+[[exclude]]
+path = "tools/review/"
+reason = "the coding agent's ultrareview driver, found by the P-3a sweep and confirmed by the user (D-1004; user 2026-10-30: \"confirm the 3 sweep finds\")"
+
+[[exclude]]
+path = "docs/reports/gui/todo-next-session.md"
+reason = "a coding-agent session's to-do brief, found by the P-3a sweep and confirmed by the user (D-1004; user 2026-10-30: \"confirm the 3 sweep finds\")"
+
+[[exclude]]
+path = "docs/workflow/"
+reason = "the multi-session id ledger and session-status schema of the coding-agent workflow (D-1004 addendum; user 2026-10-30: \"drop docs/workflow from the export, keep migration and docs/reports\")"
+
+[[exclude]]
+path = "docs/user-guide/_go-live.md"
+reason = "internal orchestration checklist of the user guide (Q14, user 2026-10-30; D-1004)"
+
+[[exclude]]
+path = "docs/user-guide/_findings.md"
+reason = "internal orchestration checklist of the user guide (Q14, user 2026-10-30; D-1004)"
+
+[fixtures]
+# Computed per commit from the tree's own SOURCE.json files, as tools/building_commit_snapshots.py does (D-942, D-943):
+# keep synthetic entries and licence_class "permissive"; leave out every other non-synthetic entry's sample_file, or
+# its whole directory when it names none.
+keep_classes = ["permissive"]
+keep_synthetic = true
+
+[rewrite]
+".gitleaksignore" = "commit-pinned fingerprints (D-462) are regenerated for the fresh history and accepted again by the user"
+
+[gitignore]
+# Appended to the public tree's .gitignore in the root commit (D-1004), so the coding-agent files can never be committed
+# to the public repository; the development repository's .gitignore is unchanged (user 2026-10-30: "yes only in the new
+# repo"). The export proof records both blobs and these lines.
+reason = "coding-agent files: never committed to the public repository (P-3a, D-1004; user 2026-10-30)"
+append = [
+  "CLAUDE.md",
+  "AGENTS.md",
+  ".claude/",
+  "/docs/agents/",
+  "/docs/review/",
+  "/tools/review/",
+  "/docs/workflow/",
+  "/docs/mac-studio-handoff.md",
+  "GEMINI.md",
+  ".cursorrules",
+  ".windsurfrules",
+  ".clinerules",
+  "copilot-instructions.md",
+]

@@ -1,0 +1,46 @@
+"""C2-4: MCPHunt mapper silently drops a mid-conversation user message and an id-less tool message."""
+from agentprov.adapters.mcphunt.mapper import McpHuntMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, LocatedItem, Locator, Origin
+from agentprov.aer.reader import load_aer_bytes
+from agentprov.aer.rules import RuleRegistry
+from agentprov.aer.validate import validate_records
+
+
+def _trace(msgs, tl):
+    return {"task_id": "T1", "task_prompt": "do", "model": "m", "messages": msgs, "events": [], "turn_log": tl,
+            "labeling": {"any_risk": False}, "measurement": {}, "env_snapshot": {}, "final_message": "bye",
+            "env_type": "benign", "defense": "none"}
+
+
+def _run(t):
+    origin = Origin.from_json({"kind": "hf", "repo": "x/y", "revision": "c4c69322bf9ed7690f5265577365709dad5dd454",
+                               "path": "main/a.json"})
+    art = ArtefactRef(id="a0", sha256="0" * 64, bytes=1, media="application/json", origin=origin, role="primary",
+                      prov_primary="native")
+    item = LocatedItem(artefact=art, locator=Locator(a="a0", p="/traces/0"), dialect="mcphunt.traces",
+                       variant="v2.0.0", flags=frozenset(), value={"envelope": {}, "trace": t})
+    sealed, _info = aer_bytes(map_unit(ExecutionUnit(primary=item), McpHuntMapper(), load_profile("mcphunt")))
+    return load_aer_bytes(sealed)
+
+
+def test_every_source_message_is_mapped_or_disclosed():
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "do"},
+            {"role": "assistant", "content": "a", "tool_calls": []},
+            {"role": "user", "content": "FOLLOW-UP"},
+            {"role": "tool", "content": "stray"},
+            {"role": "assistant", "content": "done", "tool_calls": []}]
+    tl = [{"turn": 1, "n_tool_calls": 0, "has_text": True, "finish_reason": "stop"},
+          {"turn": 2, "n_tool_calls": 0, "has_text": True, "finish_reason": "stop"}]
+    doc = _run(_trace(msgs, tl))
+    mapped = {s["p"] for r in doc.records if r.get("k") == "message" for s in r.get("src", [])
+              if s.get("p", "").startswith("/traces/0/messages/")}
+    issues = [i["code"] for i in doc.seal.get("issues", [])]
+    rep = validate_records([*doc.records, doc.seal], store=None, catalogues=RuleRegistry.default(), mode="release")
+    print("mapped", sorted(mapped))
+    print("issues", issues)
+    print("release findings", sorted({f.code for f in rep.findings}))
+    missing = [i for i in range(len(msgs)) if f"/traces/0/messages/{i}" not in mapped]
+    disclosed = {"orphan_tool_result", "mcphunt.unplaced_message", "unattributed_additional_user_message"} & set(issues)
+    assert not missing or disclosed, f"source messages {missing} dropped with no issue; issues={issues}"

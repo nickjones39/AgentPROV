@@ -1,0 +1,62 @@
+"""A1a-4: dumps_line must reject a cyclic value with CanonError instead of looping forever."""
+
+from __future__ import annotations
+
+import signal
+
+import pytest
+
+from agentprov.aer.canon import CanonError, dumps_line, encode_value, LexHints
+
+
+class _Hang(Exception):
+    pass
+
+
+def _alarm(_signum, _frame):
+    raise _Hang("no result within 3 s")
+
+
+def _with_timeout(fn):
+    old = signal.signal(signal.SIGALRM, _alarm)
+    signal.alarm(3)
+    try:
+        return fn()
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
+
+
+def test_dumps_line_rejects_cycle_with_canon_error() -> None:
+    d: dict[str, object] = {"k": "x"}
+    d["self"] = [d]
+    try:
+        with pytest.raises(CanonError):
+            _with_timeout(lambda: dumps_line(d))
+    except _Hang:
+        pytest.fail("dumps_line did not return or raise within 3 s on a cyclic value (infinite loop)")
+
+
+def test_dumps_line_rejects_list_self_cycle() -> None:
+    lst: list[object] = []
+    lst.append(lst)
+    try:
+        with pytest.raises(CanonError):
+            _with_timeout(lambda: dumps_line({"a": lst}))
+    except _Hang:
+        pytest.fail("dumps_line did not return or raise within 3 s on a self-containing list")
+
+
+def test_encode_value_rejects_cycle_with_canon_error() -> None:
+    d: dict[str, object] = {"k": "x"}
+    d["self"] = [d]
+    with pytest.raises(CanonError):
+        encode_value(d, at="", lex=LexHints())
+
+
+def test_deep_acyclic_value_still_maps_to_canon_error() -> None:
+    v: object = "leaf"
+    for _ in range(5000):
+        v = [v]
+    with pytest.raises(CanonError):
+        dumps_line({"a": v})

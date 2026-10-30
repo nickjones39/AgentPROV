@@ -1,0 +1,24 @@
+Proposal only. This is an ontology term-meaning change (L.1.2) and needs a decision first. Option 1 (vocabulary only) is shown for the two properties the vectors hit. The same edit applies to every property opt()/lit() can fill with null: taskId, attackId, attackTargetId, benchmark, environment, toolName, outcomeValue and others. docs/ns/apv-0.1.ttl must be re-synced (tools/sync_ns), because test_docs_copy_is_byte_identical requires a byte-identical copy.
+
+--- a/src/agentprov/vocab/apv-0.1.ttl
++++ b/src/agentprov/vocab/apv-0.1.ttl
+@@ -1151,6 +1151,5 @@
+ apv:error
+-    a owl:DatatypeProperty ;
++    a rdf:Property ;
+     rdfs:label "Error"@en ;
+-    rdfs:comment "Error text of a tool result."@en ;
+-    rdfs:range xsd:string ;
++    rdfs:comment "Error text of a tool result (xsd:string), or apv:RecordedNull when the source recorded null (EF E.5 item 5)."@en ;
+     rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+@@ -1463,6 +1462,5 @@
+ apv:defenceId
+-    a owl:DatatypeProperty ;
++    a rdf:Property ;
+     rdfs:label "Defence id"@en ;
+-    rdfs:comment "Id of the defence (configuration provenance)."@en ;
+-    rdfs:range xsd:string ;
++    rdfs:comment "Id of the defence (configuration provenance, xsd:string), or apv:RecordedNull when the source recorded null (EF E.5 item 5)."@en ;
+     rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+Option 2 (engine): in prov/rules/nodes.py opt(), when the value is None, emit `<prop>Status apv:RecordedNull` (a new ObjectProperty, like apv:contentStatus) instead of `<prop> apv:RecordedNull`. This changes PROV bytes and the EF E.5 item 5 text.

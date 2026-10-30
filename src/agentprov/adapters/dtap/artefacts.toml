@@ -1,0 +1,545 @@
+# Artefact catalogue `dtap` (docs/architecture D.16.12, D.15.2; DECISIONS D-12, D-29). Data, not code.
+#
+# Every source-data problem of DTap-Bench found by the phase-10b census, with the rule that detects it, how it is
+# recorded and its handling class (D.15.1). The `expected` counts are the census's for the pinned snapshot and stay
+# `unverified` until the step-4 full import confirms them (D.15.6): a regression expectation, never a gate.
+#
+# Claims are specific (sample check §9.1 b1, user-approved 2026-10-12): an entry claims a safety-net finding only through
+# a rule, `claims` item or issue code that belongs to its own case, never through a rule every run cites. Cases that no
+# AER field read by the net carries (the timestamp zone, `(1)` copies, appended goal text, `unknown` result names,
+# secret-like strings) name a `reserved` detector rule of the `dtap` rule catalogue, so they claim nothing. The entries
+# from `event_times_not_recorded` on classify the findings the sample check left unclassified. The version stays 1:
+# nothing is released, and the catalogue digest enters no AER, SEM or PROV file.
+
+version = 1
+family = "dtap"
+namespaces = ["dtap"]
+
+[[artefact]]
+id = "dtap.art.synthetic_trajectory"
+title = "Synthetic (repaired) trajectory"
+description = "A trajectory.json marked synthetic: true is a fabricated 'repaired' refusal, not a run: it is stored and registered select.not_execution_artefact (detail dtap.synthetic), and so is its directory's judge."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.synthetic_marker@1", class = "D" }
+handling = { class = "FO", rule = "dtap.synthetic_marker@1" }
+expected = [{ snapshot = "dtap:head", count = 20, basis = "census c03", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.7", "DECISIONS D-29 item 1"]
+
+[[artefact]]
+id = "dtap.art.harness_failure_judged"
+title = "Harness failure that was judged"
+description = "An OpenClaw agent step action: error (Unknown model, failover, no API key) ends the run in error; the run was judged anyway. Imported with run status error; the judgements are kept beside the issue."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.harness_error_step@1", class = "I" }
+recorded_as = { issues = ["dtap.harness_failure", "dtap.judgement_on_failed_run"] }
+handling = { class = "FO", rule = "dtap.harness_error_step@1" }
+expected = [{ snapshot = "dtap:head", count = 47, basis = "census c26", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §3.7", "DECISIONS D-29 item 2"]
+
+[[artefact]]
+id = "dtap.art.empty_trajectory"
+title = "Empty trajectory"
+description = "trajectory: [] with traj_info.metadata.error (googleadk 14, claudesdk 3; windows, 2026-04-09): an outcome_only unit (no_execution_observed, claimed through this rule), no step invented, judgements kept."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.empty_trajectory@1", class = "D" }
+recorded_as = { issues = ["dtap.empty_trajectory"] }
+handling = { class = "CR", rule = "dtap.empty_trajectory@1" }
+expected = [{ snapshot = "dtap:head", count = 17, basis = "census c10", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.7", "DECISIONS D-29 item 3"]
+
+[[artefact]]
+id = "dtap.art.judge_error"
+title = "Judge error"
+description = "A non-null judge error (Gemini 400, screenshot payload too large); the values are kept."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.judge_error@1", class = "D" }
+recorded_as = { issues = ["dtap.judge_error"] }
+handling = { class = "FO", rule = "dtap.judge_error@1" }
+expected = [{ snapshot = "dtap:head", count = 14, basis = "census c04", unit = "judge_files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §5"]
+
+[[artefact]]
+id = "dtap.art.lfs_pointer_json"
+title = "Git LFS pointer committed for a trajectory"
+description = "Two trajectories are committed as LFS pointers; the pointer is registered (dtap.lfs_pointer) and the object, fetched by its pinned oid and verified, is imported in its place (runner item R3)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.lfs_pointer@1", class = "D" }
+handling = { class = "CR", rule = "dtap.lfs_pointer@1" }
+expected = [{ snapshot = "dtap:head", count = 2, basis = "census c01e", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §2.3", "DECISIONS D-29 item 4"]
+
+[[artefact]]
+id = "dtap.art.lfs_pointer_png"
+title = "Git LFS pointers of screenshots"
+description = "122 screenshots/screenshot_NNN.png files are LFS pointers; they are registered by the profile's exclude and not fetched; the [SEE screenshots/...] texts stay text."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.lfs_pointer@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 122, basis = "census c01e", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §2.3"]
+
+[[artefact]]
+id = "dtap.art.rejudged_results"
+title = "Re-judged attack results"
+description = "458 judge files carry audit_correction (patch h5_rejudge_20260426): the original value and the corrected one are both kept; the corrected one revises the original."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.audit_correction_effective@1", class = "D" }
+handling = { class = "RJ", rule = "dtap.audit_correction_effective@1" }
+expected = [{ snapshot = "dtap:head", count = 458, basis = "census c19", unit = "judge_files", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §5", "DECISIONS D-29 item 5"]
+
+[[artefact]]
+id = "dtap.art.rerun_single_judge"
+title = "Re-run directory with one judge"
+description = "Task directories with several attempts and one judge: every attempt is an execution; the judge is linked by unique content (dtap.judge_attempt_by_content@1) or the group stays unresolved. Only the unresolved groups and the unjudged attempts raise an issue the safety net sees."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.rerun_group@1", class = "D" }
+recorded_as = { issues = ["dtap.judge_attempt_unresolved", "dtap.unjudged_attempt"] }
+handling = { class = "FO", rule = "dtap.rerun_group@1" }
+expected = [{ snapshot = "dtap:head", count = 1291, basis = "census c10/c20", unit = "directories", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §4.2", "DECISIONS D-29 item 6"]
+
+[[artefact]]
+id = "dtap.art.judge_only_directory"
+title = "Judge without a trajectory"
+description = "A task directory holding a judge and no trajectory-bearing file (some hold only a red-teaming log): an outcome_only unit with the judge as primary (no_execution_observed, claimed through this rule). Byte-identical judges of two such directories are one unit with two origins (D-29 addendum, Q4)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.judge_without_trajectory@1", class = "D" }
+handling = { class = "CR", rule = "dtap.judge_without_trajectory@1" }
+expected = [{ snapshot = "dtap:head", count = 22, basis = "census c10 (14 judge-only plus 8 with a red-teaming log; to be confirmed by step 4)", unit = "directories", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §4.2"]
+
+[[artefact]]
+id = "dtap.art.copy_duplicate"
+title = "Byte-identical (1) copies"
+description = "Eight <TS>(1).json trajectories and eight judge_result(1).json files are byte-identical copies: one execution with two origins (register dedup.collapsed). No AER record carries the case, so the safety net counts nothing here; the register does."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.byte_identical_copy@1", class = "D" }
+handling = { class = "CR", rule = "dtap.rerun_group@1" }
+expected = [{ snapshot = "dtap:head", count = 8, basis = "census c18", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §2.3", "DECISIONS D-29 item 7"]
+
+[[artefact]]
+id = "dtap.art.partial_trajectory"
+title = "Partial trajectory"
+description = "partial_trajectory.json is imported with dtap.partial_trajectory and incomplete_run; no gap is filled."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.partial_file_name@1", class = "I" }
+recorded_as = { issues = ["dtap.partial_trajectory", "incomplete_run"] }
+handling = { class = "FO", rule = "dtap.partial_file_name@1" }
+expected = [{ snapshot = "dtap:head", count = 1, basis = "census c01e", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §2.3", "DECISIONS D-29 item 8"]
+
+[[artefact]]
+id = "dtap.art.direct_prompt_constant_task_success"
+title = "Constant task_success in direct_prompt runs"
+description = "direct_prompt task_success is always true with 'task eval not applicable' (and a direct run's null task_success is a harness null): kept with origin harness_default, marked non-informative in SEM."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.direct_task_eval_not_applicable@1", class = "I" }
+handling = { class = "CR", rule = "dtap.direct_task_eval_not_applicable@1" }
+expected = [{ snapshot = "dtap:head", count = 4800, basis = "census c04", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §2.2", "DECISIONS D-29 item 9"]
+
+[[artefact]]
+id = "dtap.art.control_attack_judged"
+title = "Attack judge on the no-attack control"
+description = "direct_no_attack runs are a control, yet the medical attack judge scores them (348 of 1,920 true): SEM reads the value as dtap.attack_judge_on_control."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.control_attack_judgement@1", class = "I" }
+handling = { class = "FO", rule = "dtap.control_attack_judgement@1" }
+expected = [{ snapshot = "dtap:head", count = 1920, basis = "census c04", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §2.2"]
+
+[[artefact]]
+id = "dtap.art.config_join_drift"
+title = "Configuration drift (join tier B or C)"
+description = "The pinned configuration does not verify against the run text (tier B 2,899, tier C 1,693): it is cited, never used for run content."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.config_join_tier@1", class = "D" }
+recorded_as = { issues = ["dtap.config_join_unverified"] }
+handling = { class = "FO", rule = "dtap.config_join_tier@1" }
+expected = [{ snapshot = "dtap:head", count = 4592, basis = "census c07i", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §6.3", "sources/dtap.md §6.4"]
+
+[[artefact]]
+id = "dtap.art.config_missing_or_unparseable"
+title = "Configuration missing or unparseable"
+description = "No configuration at the path (786) or a duplicate-key configuration (9)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.config_path_join@1", class = "D" }
+recorded_as = { issues = ["dtap.config_missing", "dtap.config_unparseable"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 795, basis = "census c07", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §6.3"]
+
+[[artefact]]
+id = "dtap.art.instruction_truncated_500"
+title = "Instruction cut at 500 characters"
+description = "task_info.original_instruction is cut at exactly 500 characters (6,923 verified prefixes)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.instruction_cut_500@1", class = "D" }
+recorded_as = { issues = ["dtap.task_info_truncated"] }
+handling = { class = "FO", rule = "dtap.instruction_cut_500@1" }
+expected = [{ snapshot = "dtap:head", count = 7353, basis = "census c03", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.3"]
+
+[[artefact]]
+id = "dtap.art.goal_rewritten_at_eval"
+title = "Goal rewritten for evaluation"
+description = "malicious_instruction_at_eval (dated 2026-04-26) is the goal the judge used; both texts are fixtures."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.goal_rewritten_at_eval@1", class = "D" }
+recorded_as = { issues = ["dtap.goal_rewritten_at_eval"] }
+handling = { class = "FO", rule = "dtap.goal_rewritten_at_eval@1" }
+expected = [{ snapshot = "dtap:head", count = 1183, basis = "census c03", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §6.5"]
+
+[[artefact]]
+id = "dtap.art.goal_text_appended"
+title = "Goal with appended attacker details"
+description = "The run goal is the configuration goal plus run-time attacker-account details (recorded as goal: prefix in ext.dtap.join; the goal check still verifies). No issue is raised, so the safety net counts nothing here."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.goal_prefix_appended@1", class = "D" }
+handling = { class = "FO", rule = "dtap.config_join_tier@1" }
+expected = [{ snapshot = "dtap:head", count = 1826, basis = "census c07", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §6.4"]
+
+[[artefact]]
+id = "dtap.art.pairing_ambiguous_batch"
+title = "Multi-call batch without call ids"
+description = "Results of a batch with several outstanding calls are paired by FIFO (class I) and disclosed per batch."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.pair_interleaved_fifo@1", class = "I" }
+recorded_as = { issues = ["dtap.pairing_ambiguous_batch"] }
+handling = { class = "FO", rule = "dtap.pair_interleaved_fifo@1" }
+expected = [{ snapshot = "dtap:head", count = 61651, basis = "census c09d", unit = "tool_results", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §3.8"]
+
+[[artefact]]
+id = "dtap.art.claudesdk_unknown_result_name"
+title = "Result tool name 'unknown'"
+description = "claudesdk logs the literal unknown as the result tool_name in multi-call batches; it is kept in ext.dtap.result_tool_name, never in a typed field. The batches themselves are dtap.art.pairing_ambiguous_batch."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.result_name_unknown@1", class = "D" }
+handling = { class = "CR", rule = "dtap.pair_interleaved_fifo@1" }
+expected = [{ snapshot = "dtap:head", count = 20318, basis = "census c09b", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.8"]
+
+[[artefact]]
+id = "dtap.art.no_user_step"
+title = "No user step logged"
+description = "10,154 files hold no user step; the instruction is a task_prompt fixture and no user message is invented."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.user_step_not_logged@1", class = "D" }
+recorded_as = { issues = ["dtap.user_step_not_logged"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 10154, basis = "census c03", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §11.2 item 7"]
+
+[[artefact]]
+id = "dtap.art.python_repr_results"
+title = "Python-repr tool results"
+description = "26.2 % of tool results are Python-repr strings; they are text, never evaluated (ext.dtap.state_form)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.tool_step_is_execution_unverified@1", class = "I" }
+handling = { class = "CR", rule = "dtap.tool_step_is_execution_unverified@1" }
+expected = [{ snapshot = "dtap:head", count = 188050, basis = "census c03", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.3"]
+
+[[artefact]]
+id = "dtap.art.injection_unobservable"
+title = "Injection not observable in the run log"
+description = "Successful attacks whose configuration injects through a tool description, skill or prompt, with no description log and no observed environment payload: exposure configured_only (class I)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.configured_exposure_unverified@1", class = "I" }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 3533, basis = "census c08 (successes)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §7.1", "DECISIONS D-26"]
+
+[[artefact]]
+id = "dtap.art.environment_payload_unobserved"
+title = "Environment payload not found in any tool output"
+description = "Successful attacks with no environment payload in any logged tool output (logged_absent; paraphrase is missed)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.exposure_class@1", class = "D" }
+handling = { class = "FO", rule = "dtap.exposure_class@1" }
+expected = [{ snapshot = "dtap:head", count = 4041, basis = "census c08 (successes)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §7.1"]
+
+[[artefact]]
+id = "dtap.art.no_model_id"
+title = "No structured model id"
+description = "The model comes from the path only; free-text mentions are never used."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.path_model_identity@1", class = "I" }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 67806, basis = "census c03", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.6"]
+
+[[artefact]]
+id = "dtap.art.naive_timestamp"
+title = "Timestamp without a zone"
+description = "7,415 googleadk timestamps have no zone: kept verbatim in t.raw.end with ext.dtap.timestamp_zone none; never converted. The zone is in ext only, so the safety net counts nothing here: the count comes from ext.dtap.timestamp_zone. The unknown times of every run are dtap.art.event_times_not_recorded."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.timestamp_zone_none@1", class = "D" }
+handling = { class = "CR", rule = "dtap.timestamp_is_run_end_unverified@1" }
+expected = [{ snapshot = "dtap:head", count = 7415, basis = "census c03", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.5"]
+
+[[artefact]]
+id = "dtap.art.no_tool_status"
+title = "No tool status"
+description = "Tool results carry no error flag; the status is never inferred from content (unk not_recorded)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.tool_step_is_execution_unverified@1", class = "I" }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 716489, basis = "census c03", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §11.2 item 9"]
+
+[[artefact]]
+id = "dtap.art.trace_id_not_unique"
+title = "trace_id not unique"
+description = "517 trace_id values are shared by several files: kept in ext.dtap only, never identity."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.path_model_identity@1", class = "I" }
+handling = { class = "CR", rule = "dtap.path_model_identity@1" }
+expected = [{ snapshot = "dtap:head", count = 517, basis = "census c03", unit = "values", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.6"]
+
+[[artefact]]
+id = "dtap.art.task_id_not_unique"
+title = "task_info.task_id not unique"
+description = "78 (framework, model, domain, split, id) keys are shared by several task directories: the path is the identity."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.path_model_identity@1", class = "I" }
+handling = { class = "CR", rule = "dtap.path_model_identity@1" }
+expected = [{ snapshot = "dtap:head", count = 78, basis = "census c03", unit = "keys", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.6"]
+
+[[artefact]]
+id = "dtap.art.source_truncation_marker"
+title = "Dataset-side truncation marker"
+description = "A '[truncated' marker in the logged text (54 files): kept verbatim, disclosed."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.source_truncation_marker@1", class = "D" }
+recorded_as = { issues = ["dtap.source_truncation_marker"] }
+handling = { class = "FO", rule = "dtap.source_truncation_marker@1" }
+expected = [{ snapshot = "dtap:head", count = 54, basis = "census c03", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.3"]
+
+[[artefact]]
+id = "dtap.art.secret_like_strings"
+title = "Secret-like strings"
+description = "1,206 trajectory files match a secret-like pattern; decision option A (include): nothing withheld, no value tested; configuration env_vars never read (field allowlist)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.secret_like_string@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 1206, basis = "census c13 (release scan, G)", unit = "files", status = "unverified" }]
+manuscript = true
+refs = ["sources/dtap.md §11.2 item 17", "DECISIONS D-29 item 10"]
+
+# ------------------------------------------------------------------------------------------------------------------
+# Findings the sample check left unclassified (§9.1 b1, §10.2; user-approved 2026-10-12). No census figure exists for most
+# of them, so they carry no `expected` row (D.15.8 item 3: no count is estimated); step 4 measures them.
+
+[[artefact]]
+id = "dtap.art.event_times_not_recorded"
+title = "Only a run timestamp is logged"
+description = "DTap logs one timestamp per run and no time for steps, model calls, tool executions or judgements: those times are unk not_recorded (never invented), the run timestamp's reading as the run end is class I (t.end ambiguous, the value kept in t.raw.end) and durations state no clock (t.dur_s ambiguous)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.timestamp_is_run_end_unverified@1", class = "I" }
+claims = ["artefact.generic.sentinel_time#unknown_not_recorded", "artefact.generic.sentinel_time#unknown_ambiguous"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["sources/dtap.md §3.5", "docs/architecture D.16.4", "dtap sample check §9.1 b1"]
+
+[[artefact]]
+id = "dtap.art.derived_model_calls"
+title = "Model calls derived from agent steps"
+description = "No model call is logged: each maximal segment of agent steps is one derived model call (class I), so the core check aer.acc.agent_calls_vs_assistant is unverifiable by design."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.agent_segment_one_turn_unverified@1", class = "I" }
+claims = ["artefact.generic.accounting_unverifiable#aer.acc.agent_calls_vs_assistant@1"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["docs/architecture D.16.3", "dtap sample check §5 R01m, §10.2"]
+
+[[artefact]]
+id = "dtap.art.no_call_ids"
+title = "No provider call ids"
+description = "Tool calls carry no call id in any harness: no provider_call_id is written (never synthesised) and results are paired by the per-harness order rules (class I, D.16.7)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.pair_strict_alternation@1", class = "I" }
+claims = ["artefact.generic.provider_id_anomaly#absent"]
+handling = { class = "NR" }
+expected = [{ snapshot = "dtap:head", count = 501228, basis = "phase-10b tool census (tools/dtap/tool_census.py): every logged tool call", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["sources/dtap.md §3.8", "docs/architecture D.16.7", "dtap sample check §10.2"]
+
+[[artefact]]
+id = "dtap.art.payload_not_observed"
+title = "No observed payload marker"
+description = "The generic payload_not_reaching_agent detector reads only injection_marker annotations (environment and skill payloads in tool output). For DTap the exposure classes of D.16.6 (dtap.exposure, every channel) are the reading: configured_only, logged_absent, partial_match or no verified configuration (N9, N10, N12)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.exposure_class@1", class = "D" }
+claims = ["artefact.generic.payload_not_reaching_agent"]
+handling = { class = "FO", rule = "dtap.exposure_class@1" }
+manuscript = false
+refs = ["docs/architecture D.16.6", "dtap sample check §8A DT04, §10.2"]
+
+[[artefact]]
+id = "dtap.art.path_domain_spelling"
+title = "Domain spelled differently in the path and task_info"
+description = "task_info.domain or risk_category differs from the path facet (customer_service, os, multi_app): the path is the identity; the difference is recorded (dtap.path_field_mismatch, info) and never corrected (N17)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.path_field_check@1", class = "D" }
+recorded_as = { issues = ["dtap.path_field_mismatch"] }
+handling = { class = "CR", rule = "dtap.path_field_check@1" }
+manuscript = true
+refs = ["sources/dtap.md §3.6", "dtap sample check §9.4 item 4, §10.1 N17"]
+
+[[artefact]]
+id = "dtap.art.harness_default_outcome"
+title = "Harness-default judgement"
+description = "A judgement value set by the harness, not by a checker: benign attack_success null (not judged), direct_prompt task_success constant true, direct task_success null. Kept with origin harness_default and marked non-informative in SEM; rates exclude them (dtap.rate.non_informative) (N13)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "dtap.non_informative@1", class = "I" }
+claims = ["artefact.generic.harness_imposed_outcome#harness_default"]
+handling = { class = "CR", rule = "dtap.benign_attack_not_judged@1" }
+manuscript = true
+refs = ["docs/architecture D.16.8", "docs/architecture D.16.10", "dtap sample check §10.1 N13"]
+
+[[artefact]]
+id = "dtap.art.additional_user_message"
+title = "Additional user step"
+description = "A run with more than one user step: every user step is a simulated user's message (class I); the later ones raise unattributed_additional_user_message because their author is not recorded."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.user_is_simulated_unverified@1", class = "I" }
+recorded_as = { issues = ["unattributed_additional_user_message"] }
+handling = { class = "FO", rule = "dtap.user_is_simulated_unverified@1" }
+manuscript = false
+refs = ["docs/architecture D.16.3", "dtap sample check §8A DT07"]
+
+[[artefact]]
+id = "dtap.art.host_account_paths"
+title = "Harness-host account names in tool output and agent text"
+description = "Five workstation accounts of the harness hosts (pre-check PC-01) appear in account paths, ls listings and munged directory names in 1,094 trajectory files: tool output, OpenClaw harness-config state, agent arguments and text, final responses. The profile lists their salted labels and the mapper redacts every occurrence over every AER string (D-607); raw bytes ship unchanged (D-186)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.value_redacted@1", class = "D" }
+recorded_as = { issues = ["dtap.value_redacted"] }
+handling = { class = "FO", rule = "dtap.value_redacted@1" }
+expected = [{ snapshot = "dtap:head", count = 1094, basis = "D-607 census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/precheck/dtap-bench.md PC-01", "DECISIONS D-607", "docs/architecture D.16.19"]
+
+# ------------------------------------------------------------------------------------------------------------------
+# Wave 2 (D-950): findings of the dtap-bench-w2b census that no entry claimed. Counts are that census's, `unverified`
+# until the sealed import.
+
+[[artefact]]
+id = "dtap.art.call_never_answered"
+title = "Call that no tool step answers"
+description = "A claudesdk call that no later tool step answers (D.16.7: 2 calls never answered): the call part stays, no tool execution is written because whether the call was dispatched is not recorded, and unexecuted_tool_call names the call."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.call_without_result@1", class = "I" }
+recorded_as = { issues = ["unexecuted_tool_call"] }
+handling = { class = "CR", rule = "dtap.call_without_result@1" }
+expected = [{ snapshot = "dtap:head", count = 2, basis = "wave-2 census (D-950), dtap-bench-w2b", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["docs/architecture D.16.7", "sources/dtap.md §3.8"]
+
+[[artefact]]
+id = "dtap.art.content_not_inlined"
+title = "Strings over 1 MiB not inlined"
+description = "A string whose UTF-8 encoding exceeds 1 MiB (one 1.72 MB tool-result text) is replaced in the AER by {not_inlined: {sha256, bytes}} of its bytes under dtap.content_not_inlined@1; the string stays in the raw artefact the record's locator names (D-934)."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.content_not_inlined@1", class = "D" }
+recorded_as = { issues = ["dtap.content_not_inlined"] }
+handling = { class = "CR", rule = "dtap.content_not_inlined@1" }
+expected = [{ snapshot = "dtap:head", count = 1, basis = "wave-2 census (D-950), dtap-bench-w2b", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["C.2.1 item 6", "DECISIONS D-934"]
+
+[[artefact]]
+id = "dtap.art.tool_listing_only"
+title = "Trajectory of tool listings only"
+description = "An openaisdk trajectory whose only steps are List MCP Tools meta-steps: they are harness activities with a tool-name artefact (D.16.3), so the agent_execution has no message, no user step is logged (dtap.user_step_not_logged) and no agent step follows; why the run logged nothing more is not recorded, and refusal or attack-success readings of these runs may be logging gaps (sample check N16). Judgements are kept."
+scope = { sources = ["dtap"], profiles = ["dtap-bench"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "dtap.list_mcp_tools_harness_step@1", class = "I" }
+claims = ["artefact.generic.empty_execution#no_messages"]
+handling = { class = "FO", rule = "dtap.user_step_not_logged@1" }
+expected = [{ snapshot = "dtap:head", count = 18, basis = "wave-2 census (D-950), dtap-bench-w2b: all openaisdk", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/architecture D.16.3", "dtap sample check §10.1 N16"]

@@ -1,0 +1,30 @@
+"""A2a-4: malformed Annotation fields must raise SemAnnotationError (sem.*), never a raw Python exception."""
+from __future__ import annotations
+
+import pathlib
+import sys
+
+import pytest
+
+REPO = pathlib.Path(".")
+sys.path.insert(0, str(REPO / "tests/unit/sem"))
+
+from sem_support import ann, p, syn_sem  # noqa: E402
+
+from agentprov.errors import AgentProvError  # noqa: E402
+from agentprov.sem.engine import SemAnnotationError  # noqa: E402
+from agentprov.sem.types import Annotation  # noqa: E402
+
+CASES = {
+    "span_1_tuple": lambda: ann("m0#0", "integrity", "trusted", at="/text", span=(1,)),
+    "premises_none": lambda: Annotation("te0", "role", ["neutral"], "D", ("tst.d@1",), None),  # type: ignore[arg-type]
+    "huge_ann_id_target": lambda: ann("a" + "9" * 5000, "role", ["neutral"], premises=(p("te0"),)),
+}
+
+
+@pytest.mark.parametrize("name", sorted(CASES))
+def test_profile_defect_is_sem_annotation_error(name: str) -> None:
+    with pytest.raises(SemAnnotationError) as info:
+        syn_sem(CASES[name]())
+    assert info.value.code.startswith("sem.")
+    assert isinstance(info.value, AgentProvError)  # what provjob.job_prov catches to emit sem_error

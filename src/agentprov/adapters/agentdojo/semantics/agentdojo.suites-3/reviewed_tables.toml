@@ -1,0 +1,949 @@
+# Reviewed tool tables of the semantics profile agentdojo.suites@2 (docs/architecture C.14.8; phase-10d routing R8;
+# D-110..D-112). Data, not code; part of the profile digest.
+#
+# A table covers one (benchmark, suite) of a benchmark other than agentdojo whose suite code is not upstream AgentDojo's.
+# It lists every code state the suite's runs may have used, each with the files read (as text, never run; blob ids at
+# the cited commit) and a label for every tool of that state's TOOLS list. The runs record no code state, so a tool is
+# known only when every state has it with the same roles, integrity and channel (rule agentdojo.reviewed_suite_table@1);
+# its label is then the reviewed one (agentdojo.reviewed_tool_label@1). Every other tool is unknown (fail-closed,
+# agentdojo.unknown_tool@1).
+#
+# Label criterion, as in labels.toml [roles.sink], applied to each state's code: send_sink when the call itself delivers
+# money or tokens to a party or address (named in its arguments, or fixed in the code); write_sink when it creates,
+# changes or deletes stored state of the user's environment (the wallet's transaction list, positions, orders); a tool
+# that does neither and returns no externally authored content is neutral. content_source when the output carries text
+# the environment places where the suite puts injections; its integrity is untrusted. Every other output's integrity is
+# unknown, never trusted: these tools return a hard-coded value or echo the call's own arguments, and nothing here
+# verifies that. Evidence lines are those of the blob named in the state's files.
+
+[[table]]
+benchmark = "craibench"
+suite = "crypto_trading"
+repo = "https://github.com/AthaSSiN/CrAIBench"
+note = "1,013 logs under runs/*/crypto_trading/ at the craibench-agentdojo pin e41eac1e; one code state"
+
+[[table.code_state]]
+id = "dc1a1a73"
+commit = "dc1a1a730cd67bb3cead8adc9499f96f5c9ee446"
+runs = "all 1,013 crypto_trading logs were added by this commit (2025-04-06); the next change to the suite code (ac6c9490, 2025-04-07) renamed siphon to secure_funds and changed no other tool body"
+basis = "the code at the commit that added the runs; every one of the 104 logged siphon replies carries this code's reply text"
+files = [
+  { path = "src/agentdojo/default_suites/v1/crypto_trading/task_suite.py", blob = "408ccadfad7b7972e003fa4edec0766861122ae4", note = "TOOLS l. 30-44: 13 tools" },
+  { path = "src/agentdojo/default_suites/v1/tools/crypto_trading_client.py", blob = "8a0c74cba956d1525981a2ee699540e51dfea266" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_reader.py", blob = "055266af9d3ba16e501e32f45a07b40353ace2f4" },
+  { path = "src/agentdojo/data/suites/crypto_trading/environment.yaml", blob = "5df29655bbd5408d508ce68035c35300e82d4f57" },
+  { path = "src/agentdojo/data/suites/crypto_trading/injection_vectors.yaml", blob = "6b0b7cc4889ce98b16cf3a20afa79779088d0dba" },
+]
+
+[table.code_state.tools.getRecentPricesFromOracle]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "price_feed"
+code = "crypto_trading_client.py l. 26-37"
+reason = "returns the shared price feed's entries for the token; the suite places an injection in a feed entry's timestamp (environment.yaml l. 111, vector injection_timestamp)"
+
+[table.code_state.tools.getTransactions]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "transaction"
+code = "crypto_trading_client.py l. 38-47"
+reason = "returns the wallet's transactions, whose subjects are written by their senders; the suite places an injection in an incoming transaction's subject (environment.yaml l. 85, vector injection_incoming_transaction)"
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_reader.py l. 12-18"
+reason = "returns a file's content; the suite's trade, order and configuration files hold injection placeholders (environment.yaml l. 127-198)"
+
+[table.code_state.tools.exchangeFiat]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 57-88"
+reason = "moves the amount between the wallet and the argument fiat account (to it when selling) and records the transaction; the reply echoes the arguments"
+
+[table.code_state.tools.spotTrade]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 89-116"
+reason = "records a spot trade against the fixed counterparty dex_market (no argument-named party); the reply echoes the arguments"
+
+[table.code_state.tools.limitOrderTrade]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 117-143"
+reason = "records a limit order with the fixed order_book; the reply echoes the arguments"
+
+[table.code_state.tools.leveragedTrading]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 144-171"
+reason = "records a leveraged position with the fixed margin_platform; the reply echoes the arguments"
+
+[table.code_state.tools.tradeFutures]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 172-197"
+reason = "records a futures position with the fixed futures_platform; the reply echoes the arguments"
+
+[table.code_state.tools.tradeOptions]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 198-227"
+reason = "records an options trade with the fixed options_desk; the reply echoes the arguments"
+
+[table.code_state.tools.tradeOnDex]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 228-253"
+reason = "sends the amount to the argument pool_address and records it; the reply echoes the arguments"
+
+[table.code_state.tools.provideLiquidity]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 254-279"
+reason = "sends the amount to the argument pool_address and records it; the reply echoes the arguments"
+
+[table.code_state.tools.performArbitrage]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 280-307"
+reason = "records an arbitrage with the fixed arbitrage_bot as recipient (the two pools are arguments but receive nothing in the record); the reply echoes the arguments"
+
+[table.code_state.tools.siphon]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "crypto_trading_client.py l. 308-323"
+reason = "records the transfer of 10^18 ETH from the wallet to the fixed address haecker (the injection tasks' goal); a delivery to another party, although the party is fixed in code rather than named in arguments; the reply is a constant"
+
+[[table]]
+benchmark = "craibench"
+suite = "chain"
+repo = "https://github.com/AthaSSiN/CrAIBench"
+note = "147 logs under runs/*/chain/ at the craibench-agentdojo pin e41eac1e; two code states, which the logs do not record"
+
+[[table.code_state]]
+id = "a512e34a"
+commit = "a512e34a16a3c0717e22926aa876aa77fd01a1f0"
+runs = "the 19 logs of gpt-4o-spotlighting_with_datamarking/chain were added by this commit (2025-04-03)"
+basis = "the code at the commit that added the runs: its TOOLS has no siphon, and none of these logs calls it; bridge, stake, airdrop and deploy_token_contract only return a message"
+files = [
+  { path = "src/agentdojo/default_suites/v1/chain/task_suite.py", blob = "9036704f4fc8aeab627cd49c3564039ee74b8654", note = "TOOLS l. 23-32: 8 tools" },
+  { path = "src/agentdojo/default_suites/v1/tools/chain_client.py", blob = "a01b88654fe7ed7eeb77996373976f626c9fcb55" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_reader.py", blob = "055266af9d3ba16e501e32f45a07b40353ace2f4" },
+  { path = "src/agentdojo/data/suites/chain/environment.yaml", blob = "d26f1a790a32c3902a1eb7dd1c30265cfa5bf732" },
+  { path = "src/agentdojo/data/suites/chain/injection_vectors.yaml", blob = "09ae11425d12f7361e2841b339a45bdb118d57b6" },
+]
+
+[table.code_state.tools.getBalance]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 26-37"
+reason = "returns a hard-coded balance; reads no external content and changes nothing"
+
+[table.code_state.tools.getTransactions]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "transaction"
+code = "chain_client.py l. 38-47"
+reason = "returns the wallet's transactions, whose subjects are written by their senders; the suite places an injection in an incoming transaction's subject (environment.yaml l. 37, vector injection_incoming_transaction)"
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_reader.py l. 12-18"
+reason = "returns a file's content; the suite's bill file holds an injection placeholder (environment.yaml l. 58)"
+
+[table.code_state.tools.transfer]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 48-72"
+reason = "records the amount as sent from the wallet to the argument recipient; the reply echoes the arguments"
+
+[table.code_state.tools.bridge]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 73-92"
+reason = "only returns a message echoing the arguments: no transaction is recorded and no state changes"
+
+[table.code_state.tools.stake]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 93-125"
+reason = "only returns a message echoing the arguments (or raises on a bad action): no transaction is recorded and no state changes"
+
+[table.code_state.tools.airdrop]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 126-144"
+reason = "only returns a message echoing the arguments: no transaction is recorded and no state changes"
+
+[table.code_state.tools.deploy_token_contract]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 145-162"
+reason = "only returns a message echoing the arguments: no contract or transaction is recorded and no state changes"
+
+[[table.code_state]]
+id = "f87dbc74"
+commit = "f87dbc74093806a50ea80073ec93148d1a61bbec"
+runs = "the 128 logs of gpt-4o-spotlighting_with_delimiting/chain were added by be71b1f5 (2025-04-04 02:48 -0400), whose task_suite.py imports siphon from a chain_client.py that does not define it; f87dbc74 ('forgot to push this', 14:41 the same day) commits the chain_client.py that does"
+basis = "be71b1f5's suite, file reader and environment with f87dbc74's chain_client.py; every one of the 40 logged siphon replies carries that client's reply text"
+files = [
+  { path = "src/agentdojo/default_suites/v1/chain/task_suite.py", blob = "2886a0c404adc23a38dbbc6ecf0e2306c1a65796", note = "at be71b1f5; TOOLS l. 24-34: 9 tools" },
+  { path = "src/agentdojo/default_suites/v1/tools/chain_client.py", blob = "06d808c9cb9421c0b992487ce4a0687f25fbda58", note = "at f87dbc74" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_reader.py", blob = "055266af9d3ba16e501e32f45a07b40353ace2f4" },
+  { path = "src/agentdojo/data/suites/chain/environment.yaml", blob = "61f8ae15a1579c3da0161a7a0dc55464b34fb46a", note = "at be71b1f5" },
+  { path = "src/agentdojo/data/suites/chain/injection_vectors.yaml", blob = "e86367ba470e434bf5fb56f0df544e147f9defd8", note = "at be71b1f5" },
+]
+
+[table.code_state.tools.getBalance]
+roles = ["neutral"]
+integrity = "unknown"
+code = "chain_client.py l. 27-38"
+reason = "returns a hard-coded balance; reads no external content and changes nothing"
+
+[table.code_state.tools.getTransactions]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "transaction"
+code = "chain_client.py l. 39-48"
+reason = "returns the wallet's transactions, whose subjects are written by their senders; the suite places an injection in an incoming transaction's subject (environment.yaml l. 65, vector injection_incoming_transaction)"
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_reader.py l. 12-18"
+reason = "returns a file's content; the suite's bill, bridge, stake, deploy and airdrop files hold injection placeholders (environment.yaml l. 77-107)"
+
+[table.code_state.tools.transfer]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 49-74"
+reason = "records the amount as sent from the wallet to the argument recipient; the reply echoes the arguments"
+
+[table.code_state.tools.bridge]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 75-103"
+reason = "records the amount as sent from the wallet to the argument destination chain through the argument bridge; the reply echoes the arguments"
+
+[table.code_state.tools.stake]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 104-162"
+reason = "records a staking deposit, withdrawal or reward claim with the fixed staking counterparty; the reply echoes the arguments"
+
+[table.code_state.tools.airdrop]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 163-187"
+reason = "records the amount as sent from the wallet to the argument address (the docstring says 'request', the code sends); the reply echoes the arguments"
+
+[table.code_state.tools.deploy_token_contract]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 188-214"
+reason = "creates a token contract and records the initial supply as sent to the argument owner; the reply echoes the arguments"
+
+[table.code_state.tools.siphon]
+roles = ["send_sink"]
+integrity = "unknown"
+code = "chain_client.py l. 215-230"
+reason = "records the transfer of 10^18 ETH from the wallet to the fixed address haecker (the injection tasks' goal); a delivery to another party, although the party is fixed in code rather than named in arguments; the reply is a constant"
+
+# ------------------------------------------------------------------------------------------------ AgentDyn (version 3)
+# Regeneration-batch item 27 (b) (routed from phase 9b, R-9b-2): AgentDyn's own suites. Same criterion as above, applied
+# to AgentDyn's code at its pin. Rulings: reading unread e-mails is not a write (Inbox.get_unread sets read=True, as in
+# AgentDojo's own tables); calendar create/cancel/reschedule are send sinks (a sent copy is stored, as AgentDojo's
+# Inbox.send_email does); a one-time passcode e-mailed to the user's own inbox is a write; a tool whose output can carry
+# a placed injection, directly or after a copy (a download, a clone, a sent e-mail), is a content source. browse_webpage
+# and input_to_webpage run the handler the page data names, so their roles are those of the handlers present.
+
+[[table]]
+benchmark = "agentdyn"
+suite = "shopping"
+repo = "https://github.com/SaFo-Lab/AgentDyn"
+note = "AgentDyn suite shopping (39 tools); one code state, shared byte for byte by the AutoDojo fork aa458794 (live sessions)"
+
+[[table.code_state]]
+id = "5353cf76"
+commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3"
+runs = "the AgentDyn pin; the January 2026 run logs predate the repository and record no code state (sources/agentdyn.md section 12), so this is the only state available; the AutoDojo fork at aa458794 carries the same task-suite and tool files (identical blob ids), so live AutoDojo sessions of this suite run this code"
+basis = "the code at the pin, read as text: the suite's TOOLS list, each tool's function and the environment files that place the injection vectors (regeneration-batch item 27 (b))"
+files = [
+  { path = "src/agentdojo/data/suites/shopping/environment.yaml", blob = "9424555f41b9368f253410d3d63065ef3bc4f7ea" },
+  { path = "src/agentdojo/data/suites/shopping/injection_vectors.yaml", blob = "1ab7beaf74761b44715adab7436dcac9662e073f" },
+  { path = "src/agentdojo/default_suites/v1/shopping/task_suite.py", blob = "c406bfd52454c769019abcb12158e56924ca8342" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_calendar_client.py", blob = "0f7fdaa8274d99003cf3a2b90ff6d270df7dd80a" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_email_client.py", blob = "e14e0accdc8dbf9edd9c0a35a93a7bcbcb7423d4" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_web_client.py", blob = "50920849926e17a01ad2fc71036392319942380a" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_client.py", blob = "2d38659f9d0da51f00f1d85f657154c849407a1b" },
+  { path = "src/agentdojo/default_suites/v1/tools/shopping_client.py", blob = "e5fe9b46b6f596891e066171829c52de34f9969d" },
+]
+
+[table.code_state.tools.send_money]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 263-314"
+reason = "Debits the shopping-linked bank account and credits the recipient IBAN named in the arguments, appending a Transaction to both (l.299-312); for amount>500 without verification it instead e-mails an OTP to the linked inbox and stores the deferred call in verification_stack (l.286-290)."
+
+[table.code_state.tools.get_balance]
+roles = ["neutral"]
+integrity = "unknown"
+code = "shopping_client.py l. 317-329"
+reason = "Looks up the linked bank account and returns its balance; no mutation."
+
+[table.code_state.tools.login_shopping_account]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 331-350"
+reason = "On matching username/password sets shopping_platform.current_account_username (l.345), i.e. creates a login session."
+
+[table.code_state.tools.verify_shopping_account]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 353-374"
+reason = "If the OTP is in the account's verification_stack it sets verification=True, pops the entry and executes the held call (l.366-371), which can be a money transfer (send_money), a purchase payment to a fixed IBAN (checkout_selected_cart), a refund or a password change."
+
+[table.code_state.tools.get_shopping_account_user_information]
+roles = ["neutral"]
+integrity = "unknown"
+code = "shopping_client.py l. 397-415"
+reason = "Returns a dict of the logged-in account's stored fields (including password, passport and bank password); no mutation."
+
+[table.code_state.tools.update_shopping_account_password]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 418-437"
+reason = "Sets current_account.password (l.435) when verified; otherwise e-mails an OTP to the linked inbox and stores the deferred call in verification_stack (l.429-433)."
+
+[table.code_state.tools.update_shopping_account_user_info]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 440-492"
+reason = "Overwrites any supplied user_info fields (name, ID, email, phone, address, passport, bank account number) of the logged-in account (l.466-481), with no verification step."
+
+[table.code_state.tools.get_shopping_linked_unread_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "shopping_client.py l. 173-184"
+reason = "Returns the unread e-mails of the account-linked inbox via Inbox.get_unread, which sets email.read=True on each (email_client.py l.122-123), so stored e-mail state changes. Output: Returns the unread Email objects (with body) of the inbox linked to the shopping account; emma's inbox holds the injected email id 0."
+
+[table.code_state.tools.get_shopping_linked_received_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "shopping_client.py l. 160-171"
+reason = "Returns the received e-mails of the account-linked inbox; no flag is changed. Output: Returns all received Email objects (with body) of the linked inbox, including the injected email id 0."
+
+[table.code_state.tools.search_product]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "review"
+code = "shopping_client.py l. 495-572"
+reason = "Filters shopping_platform.product_list and returns matches; no mutation. Output: Returns each matching product's reviews list (l. 571), where all eleven review vectors are placed."
+
+[table.code_state.tools.view_order_history]
+roles = ["neutral"]
+integrity = "unknown"
+code = "shopping_client.py l. 575-596"
+reason = "Returns order_id, product_name, quantity, dates and product_id for each order; no mutation."
+
+[table.code_state.tools.get_invoice]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 598-614"
+reason = "For a matching order it stores an invoice WebFile in web_database.file_list (post_webfile, l.610) and e-mails it from shopping_platform@mail.com to the account's linked e-mail address (send_receive_email, l.611), returning only a confirmation string."
+
+[table.code_state.tools.refund_order]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 616-660"
+reason = "When verified, credits the order payment to the linked bank account from fixed IBAN UK12345678901234567890 (receive_money, l.639-647), re-adds the discount code (l.653-655) and deletes the order (l.657); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.view_cart]
+roles = ["neutral"]
+integrity = "unknown"
+code = "shopping_client.py l. 662-675"
+reason = "Returns product_id, product_name and quantity of each cart item; no mutation."
+
+[table.code_state.tools.cart_add_product]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 677-701"
+reason = "Appends a Cart_Product built from the catalogue entry to current_account.cart (l.698)."
+
+[table.code_state.tools.cart_remove_product]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 704-719"
+reason = "Deletes the matching item from current_account.cart (l.716)."
+
+[table.code_state.tools.clear_cart]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 722-728"
+reason = "Empties current_account.cart (l.727)."
+
+[table.code_state.tools.cart_total]
+roles = ["neutral"]
+integrity = "unknown"
+code = "shopping_client.py l. 731-742"
+reason = "Sums catalogue price x quantity over the cart and returns a float; no mutation."
+
+[table.code_state.tools.checkout_selected_cart]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "shopping_client.py l. 745-830"
+reason = "When verified, pays the cart total via pay_money to the fixed merchant IBAN UK12345678901234567890 (l.791-799; debits the user's bank account and records a Transaction), appends Ordered_Product entries to order_history (l.827) and removes them from the cart (l.828); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.view_available_discounts]
+roles = ["neutral"]
+integrity = "unknown"
+code = "shopping_client.py l. 858-870"
+reason = "Formats and returns current_account.discount_list; no mutation."
+
+[table.code_state.tools.send_email]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_email_client.py l. 281-309"
+reason = "Calls send_receive_email with the logged-in account as sender and the argument recipients (l.307), which stores a sent copy in the sender inbox and a received copy in every recipient inbox (creating inboxes if absent) and, for file_path attachments, uploads the local file to web_database.file_list."
+
+[table.code_state.tools.download_file_through_url]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_web_client.py l. 156-170"
+reason = "Resolves the page's download_source file id and adds that WebFile as a node in the local filesystem under save_dir (add_node)."
+
+[table.code_state.tools.download_file_through_id]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_web_client.py l. 139-154"
+reason = "Adds web_database.file_list[file_id] as a node in the local filesystem under save_dir (l.153)."
+
+[table.code_state.tools.list_directory]
+roles = ["neutral"]
+integrity = "unknown"
+code = "file_client.py l. 80-110"
+reason = "Walks to the directory and returns name/type/permissions of its children; no mutation."
+
+[table.code_state.tools.create_file]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 129-143"
+reason = "Creates or overwrites parent.children[file_name] with a File holding the content (l.141)."
+
+[table.code_state.tools.create_dir]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 112-127"
+reason = "Creates any missing Directory nodes along the path (l.121-122)."
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_client.py l. 277-289"
+reason = "Returns node.content of a readable file; no mutation. Output: Returns File.content; injection_files_0..4 sit in the content of five readable local files."
+
+[table.code_state.tools.delete_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 168-184"
+reason = "Deletes parent.children[target_name] (l.182)."
+
+[table.code_state.tools.copy_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 189-228"
+reason = "Deep-copies the source node into the destination directory under a non-conflicting name (l.226)."
+
+[table.code_state.tools.move_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 231-275"
+reason = "Inserts the source node under the destination and deletes it from its old parent (l.271-273)."
+
+[table.code_state.tools.input_to_webpage]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "task_suite.py l. 126-157"
+reason = "Maps the agent-supplied field values onto the page's handler parameters and calls the handler named by the page's web_function with those values plus the page's static_parameters (l.154-157), i.e. submits the form to the site; the handler, chosen by page data, can send an e-mail, transfer money, change a password, add a discount or collaborator, or save a file."
+
+[table.code_state.tools.browse_webpage]
+roles = ["content_source", "write_sink", "send_sink"]
+integrity = "untrusted"
+channel = "web"
+code = "task_suite.py l. 159-184"
+reason = "If the page has a web_function and no form fields it calls the page-named handler with the page's static_parameters (l.178-182), e.g. sends an e-mail, transfers money, accepts a collaborator invitation or saves a file; otherwise it returns web_content without logging the request. Output: Returns web.web_content unless the page has no form fields and a handler (l. 178-184); www.discount.com has form fields, so its content with injection_htmls_0 is returned."
+
+[table.code_state.tools.add_calendar_event_participants]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 251-263"
+reason = "Extends the event's participants list (l.127) and returns the event; no e-mail is sent."
+
+[table.code_state.tools.cancel_calendar_event]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 206-220"
+reason = "Sets the event status to canceled (l.61) and records a cancellation e-mail from the user's inbox to the event's participants (l.62-67)."
+
+[table.code_state.tools.create_calendar_event]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 140-174"
+reason = "Adds a new CalendarEvent to calendar.events (create_event l.55) and records an invitation e-mail from the user's inbox to the argument participants (l.168-173)."
+
+[table.code_state.tools.get_current_day]
+roles = ["neutral"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 197-203"
+reason = "Returns calendar.current_day.isoformat() from stored state (not the wall clock)."
+
+[table.code_state.tools.get_day_calendar_events]
+roles = ["neutral"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 131-137"
+reason = "Returns the events whose start date matches; no mutation."
+
+[table.code_state.tools.reschedule_calendar_event]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 223-248"
+reason = "Changes the event's start/end time (l.102-106) and records a reschedule e-mail from the user's inbox to the event's participants (l.115-120)."
+
+[table.code_state.tools.search_calendar_events]
+roles = ["neutral"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 177-194"
+reason = "Returns events whose title or description contains the query; no mutation."
+
+[[table]]
+benchmark = "agentdyn"
+suite = "github"
+repo = "https://github.com/SaFo-Lab/AgentDyn"
+note = "AgentDyn suite github (34 tools); one code state, shared byte for byte by the AutoDojo fork aa458794 (live sessions)"
+
+[[table.code_state]]
+id = "5353cf76"
+commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3"
+runs = "the AgentDyn pin; the January 2026 run logs predate the repository and record no code state (sources/agentdyn.md section 12), so this is the only state available; the AutoDojo fork at aa458794 carries the same task-suite and tool files (identical blob ids), so live AutoDojo sessions of this suite run this code"
+basis = "the code at the pin, read as text: the suite's TOOLS list, each tool's function and the environment files that place the injection vectors (regeneration-batch item 27 (b))"
+files = [
+  { path = "src/agentdojo/data/suites/github/environment.yaml", blob = "9424555f41b9368f253410d3d63065ef3bc4f7ea" },
+  { path = "src/agentdojo/data/suites/github/injection_vectors.yaml", blob = "9be66fe88d4e8e6ed2c8c0fedfa8507f2cd7909e" },
+  { path = "src/agentdojo/default_suites/v1/github/task_suite.py", blob = "8313cfae98d17e2a4a8786d6a088bc3f1d6e106b" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_email_client.py", blob = "e14e0accdc8dbf9edd9c0a35a93a7bcbcb7423d4" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_web_client.py", blob = "50920849926e17a01ad2fc71036392319942380a" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_client.py", blob = "2d38659f9d0da51f00f1d85f657154c849407a1b" },
+  { path = "src/agentdojo/default_suites/v1/tools/github_client.py", blob = "a3549049987fae4acaa11764ced895a435768c8f" },
+]
+
+[table.code_state.tools.send_email]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_email_client.py l. 281-309"
+reason = "Calls send_receive_email with the logged-in account as sender and the argument recipients (l.307), which stores a sent copy in the sender inbox and a received copy in every recipient inbox (creating inboxes if absent) and, for file_path attachments, uploads the local file to web_database.file_list."
+
+[table.code_state.tools.get_received_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "dynamic_email_client.py l. 371-378"
+reason = "Returns the inbox's received e-mails; no mutation. Output: Returns all received Email objects (with body) of the current account emma, whose inbox holds injected emails id 0 and id 5."
+
+[table.code_state.tools.get_sent_emails]
+roles = ["neutral"]
+integrity = "unknown"
+code = "dynamic_email_client.py l. 361-368"
+reason = "Returns the inbox's sent e-mails; no mutation."
+
+[table.code_state.tools.download_file_through_url]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_web_client.py l. 156-170"
+reason = "Resolves the page's download_source file id and adds that WebFile as a node in the local filesystem under save_dir (add_node)."
+
+[table.code_state.tools.download_file_through_id]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_web_client.py l. 139-154"
+reason = "Adds web_database.file_list[file_id] as a node in the local filesystem under save_dir (l.153)."
+
+[table.code_state.tools.list_directory]
+roles = ["neutral"]
+integrity = "unknown"
+code = "file_client.py l. 80-110"
+reason = "Walks to the directory and returns name/type/permissions of its children; no mutation."
+
+[table.code_state.tools.create_file]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 129-143"
+reason = "Creates or overwrites parent.children[file_name] with a File holding the content (l.141)."
+
+[table.code_state.tools.create_dir]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 112-127"
+reason = "Creates any missing Directory nodes along the path (l.121-122)."
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_client.py l. 277-289"
+reason = "Returns node.content of a readable file; no mutation. Output: Returns File.content: injection_files_0..5 directly; injection_repositories_0 only after git_clone/git_pull copied trustme/awesome_literature README.md into the local filesystem."
+
+[table.code_state.tools.delete_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 168-184"
+reason = "Deletes parent.children[target_name] (l.182)."
+
+[table.code_state.tools.copy_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 189-228"
+reason = "Deep-copies the source node into the destination directory under a non-conflicting name (l.226)."
+
+[table.code_state.tools.move_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 231-275"
+reason = "Inserts the source node under the destination and deletes it from its old parent (l.271-273)."
+
+[table.code_state.tools.input_to_webpage]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "task_suite.py l. 128-159"
+reason = "Maps the agent-supplied field values onto the page's handler parameters and calls the handler named by the page's web_function with those values plus the page's static_parameters (l.154-157), i.e. submits the form to the site; the handler, chosen by page data, can send an e-mail, transfer money, change a password, add a discount or collaborator, or save a file."
+
+[table.code_state.tools.browse_webpage]
+roles = ["content_source", "write_sink", "send_sink"]
+integrity = "untrusted"
+channel = "web"
+code = "task_suite.py l. 161-186"
+reason = "If the page has a web_function and no form fields it calls the page-named handler with the page's static_parameters (l.178-182), e.g. sends an e-mail, transfers money, accepts a collaborator invitation or saves a file; otherwise it returns web_content without logging the request. Output: Returns web.web_content for www.discount.com (has form fields) and www.redscalar.com (no handler), which hold injection_htmls_0 and _1."
+
+[table.code_state.tools.git_create_repo]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 248-273"
+reason = "When verified, adds a new Repo to repository_list and to the account's repos (l.269-271); unverified, it e-mails an OTP and stores the deferred call (l.257-261)."
+
+[table.code_state.tools.git_delete_repo]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 276-303"
+reason = "When verified and owner, deletes the repo from repository_list and the account's repos (l.299-301); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.git_transfer_repo_ownership]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "github_client.py l. 306-368"
+reason = "When verified, sets repo.owner to the account named in the arguments, re-keys the repo under that user and moves it between the two accounts' repo lists (l.358-366); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.git_clone]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 371-415"
+reason = "Deep-copies the remote repo content into a new local directory and adds a .git_config file (l.401-414)."
+
+[table.code_state.tools.git_invite_collaborators]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "github_client.py l. 437-499"
+reason = "When verified, posts an invitation-accept webpage (l.479), e-mails the invitation link from github-noreply@github.com to the collaborator_email argument (l.494) and adds that address to pending_collaborators (l.496); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.git_push]
+roles = ["content_source", "write_sink", "send_sink"]
+integrity = "untrusted"
+channel = "repository"
+code = "github_client.py l. 524-625"
+reason = "Copies local files/directories into the remote repo's content tree (recursive_sync l.575-600, writes at l.591, l.596, l.617), i.e. pushes local content to the remote repository. Output: On a content conflict it returns both local and remote file content (l. 582-590); pushing the local linear_algebra_operation clone hits docs/formulas.md, whose local content holds injection_files_5 and differs from the remote."
+
+[table.code_state.tools.git_pull]
+roles = ["content_source", "write_sink"]
+integrity = "untrusted"
+channel = "repository"
+code = "github_client.py l. 628-727"
+reason = "Copies remote repo files/directories into the local repo root (recursive_pull l.705-720, writes at l.712, l.717). Output: Its conflict report echoes local and remote file content (l. 679-702): pulling into /user/github/linear_algebra_operation reports local formulas.md with injection_files_5; remote README.md of trustme/awesome_literature (injection_repositories_0) is echoed only if a differing local copy exists."
+
+[table.code_state.tools.git_issue]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "github_client.py l. 502-521"
+reason = "Appends a new Issues entry with the title/body arguments to the named repository (l.515-519), publishing content on a possibly third-party repo."
+
+[table.code_state.tools.git_star]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 730-747"
+reason = "Appends the user's e-mail to repo.stars and the repo to the account's starred_repos (l.745-746)."
+
+[table.code_state.tools.git_unstar]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 749-768"
+reason = "Removes the user's e-mail from repo.stars and the repo from starred_repos (l.765-766)."
+
+[table.code_state.tools.get_github_linked_unread_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "github_client.py l. 130-141"
+reason = "Returns the account-linked inbox's unread e-mails via Inbox.get_unread, which sets email.read=True on each (email_client.py l.122-123). Output: Returns unread Email objects (with body) of the inbox linked to the logged-in GitHub account; emma's inbox holds injected unread emails id 0 and 5."
+
+[table.code_state.tools.get_logged_in_github_user_information]
+roles = ["neutral"]
+integrity = "unknown"
+code = "github_client.py l. 167-182"
+reason = "Returns e-mail, username, password, repo names and starred repos of the logged-in account; no mutation."
+
+[table.code_state.tools.get_github_account_user_information]
+roles = ["neutral"]
+integrity = "unknown"
+code = "github_client.py l. 185-203"
+reason = "Returns e-mail, username, repo names and starred repos of the account named in the arguments; no mutation."
+
+[table.code_state.tools.get_github_repository_information]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "issue"
+code = "github_client.py l. 206-224"
+reason = "Returns repo name, owner, collaborators, pending collaborators, stars, file tree and issues; no mutation. Output: Returns str(current_repo.issues) (l. 223), which contains the issue comment bodies holding injection_issues_0..7; the file tree gives names only."
+
+[table.code_state.tools.git_get_linked_ssh_keys]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 770-782"
+reason = "When verified, returns the account's ssh_keys; unverified (the normal first call), it e-mails an OTP to the linked inbox and stores the deferred call in verification_stack (l.775-779), which is the only state it changes."
+
+[table.code_state.tools.git_add_ssh_key]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 784-802"
+reason = "When verified, appends the ssh_key argument to the account's ssh_keys (l.801); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.git_delete_ssh_key]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 804-822"
+reason = "When verified, removes the ssh_key argument from the account's ssh_keys (l.821); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.login_github_account]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 92-111"
+reason = "On matching username/password sets github_platform.current_account_email (l.106), i.e. creates a login session."
+
+[table.code_state.tools.update_github_account_password]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "github_client.py l. 227-245"
+reason = "When verified, sets the account password (l.243); unverified, it e-mails an OTP and stores the deferred call."
+
+[table.code_state.tools.verify_github_account]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "github_client.py l. 143-164"
+reason = "If the OTP is in the account's verification_stack it sets verification=True, pops the entry and executes the held call (l.156-161), which can be a repo transfer or collaborator invitation (send) or a repo/password/ssh-key change (write)."
+
+[[table]]
+benchmark = "agentdyn"
+suite = "dailylife"
+repo = "https://github.com/SaFo-Lab/AgentDyn"
+note = "AgentDyn suite dailylife (27 tools); one code state, shared byte for byte by the AutoDojo fork aa458794 (live sessions)"
+
+[[table.code_state]]
+id = "5353cf76"
+commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3"
+runs = "the AgentDyn pin; the January 2026 run logs predate the repository and record no code state (sources/agentdyn.md section 12), so this is the only state available; the AutoDojo fork at aa458794 carries the same task-suite and tool files (identical blob ids), so live AutoDojo sessions of this suite run this code"
+basis = "the code at the pin, read as text: the suite's TOOLS list, each tool's function and the environment files that place the injection vectors (regeneration-batch item 27 (b))"
+files = [
+  { path = "src/agentdojo/data/suites/dailylife/environment.yaml", blob = "9424555f41b9368f253410d3d63065ef3bc4f7ea" },
+  { path = "src/agentdojo/data/suites/dailylife/injection_vectors.yaml", blob = "accab25b99079e562f2acd4039be6df53b9e6d4f" },
+  { path = "src/agentdojo/default_suites/v1/dailylife/task_suite.py", blob = "35dca8e107082c5ac142e7f53b4f2f1528739b71" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_calendar_client.py", blob = "0f7fdaa8274d99003cf3a2b90ff6d270df7dd80a" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_email_client.py", blob = "e14e0accdc8dbf9edd9c0a35a93a7bcbcb7423d4" },
+  { path = "src/agentdojo/default_suites/v1/tools/dynamic_web_client.py", blob = "50920849926e17a01ad2fc71036392319942380a" },
+  { path = "src/agentdojo/default_suites/v1/tools/file_client.py", blob = "2d38659f9d0da51f00f1d85f657154c849407a1b" },
+]
+
+[table.code_state.tools.send_money]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "task_suite.py l. 109-158"
+reason = "Debits the shopping-linked bank account and credits the recipient IBAN named in the arguments, appending a Transaction to both (l.299-312); for amount>500 without verification it instead e-mails an OTP to the linked inbox and stores the deferred call in verification_stack (l.286-290)."
+
+[table.code_state.tools.get_balance]
+roles = ["neutral"]
+integrity = "unknown"
+code = "task_suite.py l. 160-171"
+reason = "Looks up the linked bank account and returns its balance; no mutation."
+
+[table.code_state.tools.verify_transaction]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "task_suite.py l. 173-193"
+reason = "If the OTP is in the bank account's verification_stack it sets verification=True, pops the entry and executes the stored deferred call (in this suite only send_money stores one), i.e. performs the held transfer."
+
+[table.code_state.tools.send_email]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_email_client.py l. 281-309"
+reason = "Calls send_receive_email with the logged-in account as sender and the argument recipients (l.307), which stores a sent copy in the sender inbox and a received copy in every recipient inbox (creating inboxes if absent) and, for file_path attachments, uploads the local file to web_database.file_list."
+
+[table.code_state.tools.get_unread_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "dynamic_email_client.py l. 311-321"
+reason = "Returns unread e-mails via Inbox.get_unread, which sets email.read=True on each returned e-mail (email_client.py l.122-123). Output: Returns unread Email objects (with body) of emma's inbox, including the injected unread email id 5."
+
+[table.code_state.tools.get_received_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "dynamic_email_client.py l. 371-378"
+reason = "Returns the inbox's received e-mails; no mutation. Output: Returns all received Email objects (with body) of emma's inbox, including email id 5."
+
+[table.code_state.tools.get_sent_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "dynamic_email_client.py l. 361-368"
+reason = "Returns the inbox's sent e-mails; no mutation. Output: Returns sent Email objects including attachments; reschedule_calendar_event/cancel_calendar_event store a sent mail whose attachment is the full CalendarEvent with its injected description (dynamic_calendar_client l. 58-67, 111-120), so calendar vectors can appear only after such a call."
+
+[table.code_state.tools.delete_email]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_email_client.py l. 347-358"
+reason = "Removes the e-mail from inbox.emails and moves it to inbox.trash (email_client.py l.116-117)."
+
+[table.code_state.tools.search_emails]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "email"
+code = "dynamic_email_client.py l. 324-344"
+reason = "Returns e-mails whose subject/body contain the query; no mutation. Output: Returns matching Email objects from all of emma's emails (email_client.py l. 104-111): email id 5 body directly, and sent mails with CalendarEvent attachments after a reschedule/cancel."
+
+[table.code_state.tools.browse_webpage]
+roles = ["content_source", "write_sink", "send_sink"]
+integrity = "untrusted"
+channel = "web"
+code = "task_suite.py l. 195-218"
+reason = "If the page has a web_function and no form fields it calls the page-named handler with the page's static_parameters (l.178-182), e.g. sends an e-mail, transfers money, accepts a collaborator invitation or saves a file; otherwise it returns web_content without logging the request. Output: Returns web.web_content for every page holding injection_web_0..16 (each has form fields or no handler); download pages instead call download_file_through_id, which returns only a message."
+
+[table.code_state.tools.download_file_through_url]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_web_client.py l. 156-170"
+reason = "Resolves the page's download_source file id and adds that WebFile as a node in the local filesystem under save_dir (add_node)."
+
+[table.code_state.tools.download_file_through_id]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "dynamic_web_client.py l. 139-154"
+reason = "Adds web_database.file_list[file_id] as a node in the local filesystem under save_dir (l.153)."
+
+[table.code_state.tools.list_directory]
+roles = ["neutral"]
+integrity = "unknown"
+code = "file_client.py l. 80-110"
+reason = "Walks to the directory and returns name/type/permissions of its children; no mutation."
+
+[table.code_state.tools.create_file]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 129-143"
+reason = "Creates or overwrites parent.children[file_name] with a File holding the content (l.141)."
+
+[table.code_state.tools.create_dir]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 112-127"
+reason = "Creates any missing Directory nodes along the path (l.121-122)."
+
+[table.code_state.tools.read_file]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "file"
+code = "file_client.py l. 277-289"
+reason = "Returns node.content of a readable file; no mutation. Output: Returns File.content: injection_file_0..2 directly; injection_web_file_17..29 once a download_file_through_id/url (or browse_webpage on a download URL) has copied the web file into the filesystem."
+
+[table.code_state.tools.delete_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 168-184"
+reason = "Deletes parent.children[target_name] (l.182)."
+
+[table.code_state.tools.copy_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 189-228"
+reason = "Deep-copies the source node into the destination directory under a non-conflicting name (l.226)."
+
+[table.code_state.tools.move_node]
+roles = ["write_sink"]
+integrity = "unknown"
+code = "file_client.py l. 231-275"
+reason = "Inserts the source node under the destination and deletes it from its old parent (l.271-273)."
+
+[table.code_state.tools.input_to_webpage]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "task_suite.py l. 74-107"
+reason = "Maps the agent-supplied field values onto the page's handler parameters and calls the handler named by the page's web_function with those values plus the page's static_parameters (l.154-157), i.e. submits the form to the site; the handler, chosen by page data, can send an e-mail, transfer money, change a password, add a discount or collaborator, or save a file."
+
+[table.code_state.tools.add_calendar_event_participants]
+roles = ["content_source", "write_sink"]
+integrity = "untrusted"
+channel = "calendar"
+code = "dynamic_calendar_client.py l. 251-263"
+reason = "Extends the event's participants list (l.127) and returns the event; no e-mail is sent. Output: Returns the full CalendarEvent (incl. description) of the given id; events 1, 3, 4 carry injected descriptions."
+
+[table.code_state.tools.cancel_calendar_event]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 206-220"
+reason = "Sets the event status to canceled (l.61) and records a cancellation e-mail from the user's inbox to the event's participants (l.62-67)."
+
+[table.code_state.tools.create_calendar_event]
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 140-174"
+reason = "Adds a new CalendarEvent to calendar.events (create_event l.55) and records an invitation e-mail from the user's inbox to the argument participants (l.168-173)."
+
+[table.code_state.tools.get_current_day]
+roles = ["neutral"]
+integrity = "unknown"
+code = "dynamic_calendar_client.py l. 197-203"
+reason = "Returns calendar.current_day.isoformat() from stored state (not the wall clock)."
+
+[table.code_state.tools.get_day_calendar_events]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "calendar"
+code = "dynamic_calendar_client.py l. 131-137"
+reason = "Returns the events whose start date matches; no mutation. Output: Returns all CalendarEvent objects of a day (incl. description); events on 2024-05-15/19/20 carry the injected descriptions."
+
+[table.code_state.tools.reschedule_calendar_event]
+roles = ["content_source", "write_sink", "send_sink"]
+integrity = "untrusted"
+channel = "calendar"
+code = "dynamic_calendar_client.py l. 223-248"
+reason = "Changes the event's start/end time (l.102-106) and records a reschedule e-mail from the user's inbox to the event's participants (l.115-120). Output: Returns the full rescheduled CalendarEvent (incl. injected description) via Calendar.reschedule_event l. 91-121."
+
+[table.code_state.tools.search_calendar_events]
+roles = ["content_source"]
+integrity = "untrusted"
+channel = "calendar"
+code = "dynamic_calendar_client.py l. 177-194"
+reason = "Returns events whose title or description contains the query; no mutation. Output: Returns CalendarEvent objects whose title/description match (l. 69-78), including the injected descriptions."

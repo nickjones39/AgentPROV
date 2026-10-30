@@ -1,0 +1,44 @@
+"""A-3: a long string element is re-scanned from its opening quote on every refill (quadratic).
+
+_CHUNK is shrunk to 16 KiB so the quadratic term is visible at 1-2 MiB (the same code path as 1 MiB chunks at 32-64 MiB).
+"""
+import time
+
+import pytest
+
+from agentprov.ingest import jsonstream
+from agentprov.ingest.jsonstream import open_json_stream
+
+
+def _cpu(doc: bytes) -> float:
+    t = time.process_time()
+    s = open_json_stream(doc, arrays=["/a"])
+    n = sum(1 for _ in s)
+    assert n >= 1
+    return time.process_time() - t
+
+
+def _one_string(n: int) -> bytes:
+    return b'{"a":["' + b"x" * n + b'"]}'
+
+
+def _many_strings(n: int) -> bytes:
+    k = n // 1024
+    return b'{"a":[' + b",".join([b'"' + b"x" * 1020 + b'"'] * k) + b"]}"
+
+
+@pytest.fixture
+def small_chunk(monkeypatch):
+    monkeypatch.setattr(jsonstream, "_CHUNK", 16 * 1024)
+
+
+def test_long_string_cost_is_linear(small_chunk):
+    L = 2 * 1024 * 1024
+    one = _cpu(_one_string(L))
+    many = _cpu(_many_strings(L))
+    half = _cpu(_one_string(L // 2))
+    print(f"\n1 MiB string: {half:.3f}s  2 MiB string: {one:.3f}s  2 MiB of 1 KiB strings: {many:.3f}s  "
+          f"doubling ratio {one / half:.2f}  vs-many ratio {one / many:.1f}")
+    # linear cost: doubling the string roughly doubles the time; one long string ~ costs like many short ones
+    assert one / half < 3.0, f"doubling ratio {one / half:.2f} (quadratic ~4)"
+    assert one < 5 * many + 0.05, f"one {L}-byte string {one:.3f}s vs many small {many:.3f}s"

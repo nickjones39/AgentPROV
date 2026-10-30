@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/wirelog/family-0.1.json",
+  "title": "[family.wirelog] table of a wirelog source profile (D.4.1, D.20.10; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["benchmark", "harness", "scorer", "tool_runtime", "synthetic_tools", "final_stop_reason", "send_tool",
+               "recipient_arg", "no_attack_arms", "semantics_profile", "tasks", "payloads"],
+  "properties": {
+    "benchmark": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "harness": {"type": "string", "minLength": 1},
+    "scorer": {"type": "string", "minLength": 1},
+    "tool_runtime": {"type": "string", "minLength": 1},
+    "provider": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+    "synthetic_tools": {"type": "boolean", "description": "the tool runtime is the harness's synthetic dispatcher (D-284)"},
+    "final_stop_reason": {"type": "string"},
+    "max_requests": {"type": "integer", "minimum": 1},
+    "send_tool": {"type": "string"},
+    "recipient_arg": {"type": "string"},
+    "no_attack_arms": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9_]+$"}},
+    "code_only_payload_arms": {"type": "array", "items": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+                               "description": "arms whose payload exists only in the harness code: no payload fixture (wirelog.first_batch_document@1)"},
+    "semantics_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "sha256"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "runs": {"type": "integer", "minimum": 0}
+        }
+      },
+      "description": "task prompts by the SHA-256 of their text (wirelog.task_prompt_table@1)"
+    },
+    "payloads": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^[A-Za-z0-9_]+$"},
+      "description": "arm -> attacks.json retargeted_payloads key (wirelog.payload_table@1)"
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observed"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^wirelog\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^wirelog\\.[a-z][a-z0-9_.]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

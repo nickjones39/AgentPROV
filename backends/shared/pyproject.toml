@@ -1,0 +1,31 @@
+[project]
+name = "agentprov-backend"
+version = "0.1.0"
+description = "AgentPROV live-backend shared library: cell runner, recording transport, worker protocol and test support. Runs inside the isolated Python 3.12 backend environments; never imports agentdojo or agentprov."
+requires-python = ">=3.12"           # live backends run Python 3.12 (AgentDojo 0.1.35 baseline parity)
+license = "MIT"
+authors = [{ name = "Nicholas Jones" }]
+dependencies = [
+    "agentprov-capture",              # path source below
+    "httpx",
+    "openai",
+]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1"]
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.12.22"        # as core (DECISIONS D-6)
+exclude-newer = "2026-10-07T00:00:00Z"  # fixed RFC 3339 timestamp (G.7.1(4)); moved deliberately
+default-groups = ["dev"]
+
+[tool.uv.sources]
+agentprov-capture = { path = "../../capture" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

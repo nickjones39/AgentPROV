@@ -1,0 +1,210 @@
+# Rule catalogue `rope` (docs/architecture D.5.1-D.5.4, D.4.4 profile `rope`, D.6.13; C.3.10, C.6 rows "ROPE …").
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (home: this family, CATALOGUE_HOMES). Rules
+# are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version` (AD-18). Nothing
+# is released yet, so its rules keep @1;
+# the file is at version 2 since the D-31 bumps (2026-10-13), and version 1 (the bytes the stored corpora recorded) ships
+# under rules/archive/rope.rules.v1.toml.
+#
+# Every rope.* rule of the D.5.4 index is declared at its class. Code citations point at xhOwenMa/ROPE @ 64495e16 (the
+# release; its logs come from unreleased code states, sources/rope.md §4.3, so the harness is unpinned) and are read as
+# data: no ROPE code is imported or executed. No rule declares a `verified` assumption: the logs record no framework
+# identity (AER-V34; D.6.11 item 3); assumptions that are not shown are stated on I rules as `asserted`.
+
+[catalogue]
+id = "rope"
+version = 2
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["correction_indeterminate", "correction_code_mismatch"]
+subtypes = []
+types = []
+
+[[rule]]
+id = "rope.denial_error_pattern"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool message whose error matches the ROPE denial pattern (the profile's quirk params: \"The tool '<name>' is not allowed.. Please try other tools …\") records a guard denial of the call it answers: the tool did not run (no tool_execution), the guard is the author of the error text, and the reason for the denial is not recorded. In the released code the guard wraps runtime.run_function and returns (\"\", str(e)) on a ValidationError of the enforcer, so the tool body is never reached; the code state that wrote the logs is unreleased."
+premises = ["/messages"]
+assumptions = ["rope:GuardDeniesBeforeDispatch"]
+verification = [{ assumption = "rope:GuardDeniesBeforeDispatch", status = "asserted" }]
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "src/rope/pipeline.py", lines = "88-99", note = "guarded_run_function returns (\"\", str(e)) on a denial" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "src/rope/enforce.py", lines = "95-119", note = "the same \"is not allowed.\" ValidationError for tool- and argument-level failures, re-raised with the user-task suffix" },
+]
+evidence = ["sources/rope.md §3.4", "verify/rope.md §6 (12,657 denials, all of this form)", "D.6.6 denial row", "C.6 row \"ROPE denial\""]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_guard_denial_is_a_decision_not_an_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.denial_query_echo_variant"
+version = 1
+class = "D"
+status = "active"
+statement = "A denial text ending in \"user task: None.\" was written by the pre-fix enforcer, which interpolated an unset query; any other denial text echoes the real user query (the fix interpolates self.user_query). ext.rope.query_echo is none or query accordingly. The two variants are behaviourally different (the text is fed back to the model) and are not labelled in the logs."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "src/rope/enforce.py", lines = "116-119", note = "THE FIX: interpolate the real user query (secagent used a global that we never set -> None)" },
+]
+evidence = ["sources/rope.md §3.4", "verify/rope.md §6 (9,424 none, 3,233 query; 2026-06-29 the only day with both)"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_denial_query_echo_variants"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.model_dir_identity"
+version = 1
+class = "I"
+status = "active"
+statement = "The agent model of a ROPE log comes from the release directory (runs/<model_dir>/…; the ablation/ and router/ arms are gpt-4o-mini arms of the main tree), never from pipeline_name, which is a configuration tag (run_eval.py: ROPE_PIPELINE_TAG must name an AgentDojo model for the attack templates, independently of ROPE_AGENT_MODEL). Where the tag names another model the issue identity_conflict is raised and both values are kept. Dated snapshots in the tags are labels, not API evidence; the Qwen checkpoint is not recorded."
+premises = ["/pipeline_name"]
+assumptions = ["rope:ReleaseDirectoryNamesModel"]
+verification = [{ assumption = "rope:ReleaseDirectoryNamesModel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "src/rope/run_eval.py", lines = "40-42", note = "agent model and pipeline tag are separate settings" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/_scope.py", lines = "10-13", note = "the aggregators' model directories" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/router.py", lines = "14-17", note = "the Opus router is the gpt-4o-mini main tree; the router/ arms vary only the router" },
+]
+evidence = ["verify/rope.md §5", "sources/rope.md §4.3 finding 1 (949 qwen3-235b autodojo logs tagged gpt-4o-mini)", "C.6 row \"Model identity from a directory name (ROPE)\""]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_identity_from_the_directory_and_the_tag_conflict"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.tree_arm_config"
+version = 1
+class = "D"
+status = "active"
+statement = "The release levels ablation/<policy> and router/<router>[-clamp] give the defence configuration of the arm: a fixed policy replacing the per-task router, or a cheaper router with or without the enforcement clamp (ext.rope.arm). The main tree carries no such level."
+premises = []
+assumptions = []
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/ablation.py", lines = "1-15", note = "Policy ablation: the per-task router replaced by two fixed policies; tree = ablation/<policy>" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/router.py", lines = "1-17", note = "Cheaper-router comparison, with and without the enforcement clamp" },
+]
+evidence = ["sources/rope.md §3.2, §8.2", "verify/rope.md §6 (pipeline tags per tree)"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_release_tree_arms"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.benchmark_from_suite"
+version = 1
+class = "D"
+status = "active"
+statement = "In the ROPE release banking, slack and travel are AgentDojo suites and github, shopping and dailylife are AgentDyn suites (the profile's suite table); the benchmark_version label of an AgentDyn-suite log is not a suite version (the fork registers the AgentDyn suites under every version)."
+premises = ["/suite_name"]
+assumptions = []
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/_scope.py", lines = "8-9", note = "AGENTDYN / AGENTDOJO suite lists" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "autodojo/src/agentdojo/task_suite/load_suites.py", lines = "101-107", note = "AgentDyn suites registered under every benchmark version" },
+]
+evidence = ["sources/rope.md §5.2, §8.2", "verify/rope.md §7"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_release_tree_arms"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.guard_active_in_main_tree"
+version = 1
+class = "I"
+status = "active"
+statement = "The ROPE guard was active in every released run: the main tree and the ablation and router trees (every (tree, arm) group of the release holds guard denials, the long-horizon arms included). A log without a denial is ROPE-defended by its arm membership only; allowed guard decisions leave no trace and are not invented."
+premises = []
+assumptions = ["rope:EveryReleasedArmDefended"]
+verification = [{ assumption = "rope:EveryReleasedArmDefended", status = "asserted" }]
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "src/rope/pipeline.py", lines = "112-122", note = "build_routed_pipeline: SystemMessage, InitQuery, RoutedPolicyBootstrap, llm, ToolsExecutionLoop" },
+]
+evidence = ["verify/rope.md §6 (26 of 26 groups hold denials)", "sources/rope.md §4.3 finding 3"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_guard_denial_is_a_decision_not_an_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.harness_is_vendored_autodojo"
+version = 1
+class = "I"
+status = "active"
+statement = "The ROPE logs were written by the TraceLogger of an AgentDojo 0.1.35 fork akin to the vendored AutoDojo copy (autodojo/src/agentdojo), at unreleased code states: their system prompt (AgentDojo default plus the auto-complete line) is not producible by the released autodojo/ harness, and agentdojo_package_version reports the installed distribution, not the code. It is the basis of the profile's code_identity = unpinned and of its structural I twins."
+premises = ["/agentdojo_package_version", "/messages/0"]
+assumptions = ["rope:HarnessIsAgentDojoFork"]
+verification = [{ assumption = "rope:HarnessIsAgentDojoFork", status = "asserted" }]
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "autodojo/src/agentdojo/logging.py", lines = "163-181", note = "evaluation_timestamp and agentdojo_package_version from importlib.metadata" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "agentlab/src/agentdojo/data/system_messages.yaml", lines = "1-9", note = "the logged system prompt (default + auto-complete line); absent from autodojo/src/agentdojo/data/system_messages.yaml" },
+]
+evidence = ["sources/rope.md §3.1, §4.3 item 2", "verify/rope.md §3"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_profile_pins_and_system_prompt_variant"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.security_correction"
+version = 1
+class = "D"
+status = "active"
+statement = "ROPE's released effect-based corrections recompute security for slack injection task 5, dailylife injection task 7 and github injection task 1 from the executed (error-free) tool messages of the log (corrections.corrected_security dispatching to slack_it5.it5_secure(filtered_trace), dailylife_it7.it7_secure, github_it1.it1_secure; ported verbatim, read as data). The result is a recomputed judgement beside the recorded one (origin recomputed, revises it), attributed to the correcting party; the recorded value is never replaced. A case the released code cannot decide (it raises, or would fail on a value) is not recomputed."
+premises = ["/suite_name", "/injection_task_id", "/user_task_id", "/messages", "/security"]
+assumptions = []
+code = [
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/corrections.py", lines = "1-16", note = "single dispatch point; CU and UA never touched" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/slack_it5.py", lines = "7-27", note = "it5_secure: replica of InjectionTask5.security_from_traces; filtered_trace: tool messages with no error" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/dailylife_it7.py", lines = "8-34", note = "an executed download of the attacker resource into /downloads" },
+  { repo = "https://github.com/xhOwenMa/ROPE", commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb", path = "runs/github_it1.py", lines = "8-32", note = "recorded flag minus attempts that had no effect; raises on a transfer task without a trace" },
+]
+evidence = ["sources/rope.md §3.6", "verify/rope.md §6 (198 / 260 / 220 subject cells; all 32 slack IT5 successes flip)", "verify/autodojo.md #15 (autodojo arm 88 -> 71)", "C.3.10", "D.6.7"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_corrections_are_recomputed_judgements_beside_the_recorded", "tests/adapters/agentdojo/test_rope.py::test_correction_port_cases"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- _unverified twins (D.5.4)
+# Regeneration-batch item 3 (D-24, D-27 c6): the class-I twin of each D rule that a profile cites for a record whose
+# producing code the D rule's `code` list does not cite (or that cites no code: documentary evidence only). The
+# mapper picks the twin per profile and record facets from `[harness] verified_code` (adapters/code_verification.py).
+
+[[rule]]
+id = "rope.benchmark_from_suite_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of rope.benchmark_from_suite@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): In the ROPE release banking, slack and travel are AgentDojo suites and github, shopping and dailylife are AgentDyn suites (the profile's suite table); the benchmark_version label of an AgentDyn-suite log is not a suite version (the fork registers the AgentDyn suites under every version)."
+premises = ["/suite_name"]
+assumptions = []
+evidence = ["sources/rope.md §5.2, §8.2", "verify/rope.md §7", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.tree_arm_config_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of rope.tree_arm_config@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): The release levels ablation/<policy> and router/<router>[-clamp] give the defence configuration of the arm: a fixed policy replacing the per-task router, or a cheaper router with or without the enforcement clamp (ext.rope.arm). The main tree carries no such level."
+premises = []
+assumptions = []
+evidence = ["sources/rope.md §3.2, §8.2", "verify/rope.md §6 (pipeline tags per tree)", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "rope.denial_query_echo_variant_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of rope.denial_query_echo_variant@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): A denial text ending in \"user task: None.\" was written by the pre-fix enforcer, which interpolated an unset query; any other denial text echoes the real user query (the fix interpolates self.user_query). ext.rope.query_echo is none or query accordingly. The two variants are behaviourally different (the text is fed back to the model) and are not labelled in the logs."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/rope.md §3.4", "verify/rope.md §6 (9,424 none, 3,233 query; 2026-06-29 the only day with both)", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[assumption]]
+id = "rope:GuardDeniesBeforeDispatch"
+statement = "In the code state that wrote a log, a ROPE denial was returned by the guard in place of the tool call (as guarded_run_function does at 64495e16), so the denied tool did not run."
+
+[[assumption]]
+id = "rope:ReleaseDirectoryNamesModel"
+statement = "The hand-named release directory (runs/<model_dir>, or the gpt-4o-mini ablation and router arms) names the agent model that produced the logs below it; call-id styles corroborate it (call_* OpenAI via OpenRouter, chatcmpl-tool-* vLLM, tool_* or null Gemini)."
+
+[[assumption]]
+id = "rope:EveryReleasedArmDefended"
+statement = "Every arm of the ROPE release ran with the ROPE guard active; arms are homogeneous in their defence."
+
+[[assumption]]
+id = "rope:HarnessIsAgentDojoFork"
+statement = "The logs were written by an AgentDojo 0.1.35 fork whose TraceLogger, task suites and tool executor behave as the vendored copies at the release commit, apart from the recorded system prompt."

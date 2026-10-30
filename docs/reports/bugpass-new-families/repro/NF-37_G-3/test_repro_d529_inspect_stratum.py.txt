@@ -1,0 +1,40 @@
+"""Repro: inspect sample_stratum splits at the FIRST '!/' (nested chain labels collapse) and never returns None."""
+from __future__ import annotations
+import sys
+from pathlib import Path
+WT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-new-families-aceed5")
+for p in (WT / "tests", WT / "tests/adapters", WT / "tests/adapters/runner", WT / "tests/adapters/inspect", WT / "tests/security"):
+    sys.path.insert(0, str(p))
+import test_nested_archives as T  # noqa: E402
+import agentprov.adapters.runner.importer as importer  # noqa: E402
+from agentprov.adapters.inspect.dialect import InspectEvalReader as R  # noqa: E402
+
+
+def test_hook_outputs():
+    print("\nHOOK elsewhere/file.json ->", R.sample_stratum("elsewhere/file.json"))
+    print("HOOK nested ->", R.sample_stratum("logs/inner.zip!/logs/x.eval!/samples/1_epoch_1.json"))
+
+
+def test_spread_on_nested_archive(tmp_path, monkeypatch):
+    T._profile(monkeypatch)
+    pin, tree, _inner = T._nested_input(
+        tmp_path,
+        direct={"logs/d.eval": T._eval(3, samples=2)},
+        inner={"logs/x.eval": T._eval(10, samples=2), "logs/y.eval": T._eval(11, samples=2)},
+    )
+    seen = {}
+    orig = importer.select_sample
+    def spy(keys, sample):
+        seen["keys"] = list(keys)
+        out = orig(keys, sample)
+        seen["chosen"] = sorted(out)
+        return out
+    monkeypatch.setattr(importer, "select_sample", spy)
+    report = T._import(tree, pin, tmp_path / "c", limits=T.SMALL, sample=importer.ImportSample(3, "spread"))
+    for k, s in seen["keys"]:
+        print("KEY", k, "STRATUM", s)
+    for k in seen["chosen"]:
+        print("CHOSEN", k)
+    print("mapped", report.counters.get("mapped"))
+    logs_chosen = {k.rsplit("!/", 1)[0] for k in seen["chosen"]}
+    assert len(logs_chosen) == 3, f"spread over 3 .eval logs chose from only {sorted(logs_chosen)}"

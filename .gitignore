@@ -1,0 +1,107 @@
+# ---------------------------------------------------------------------------
+# AgentPROV .gitignore
+# Corpora, raw downloads, upstream clones and secrets are NEVER committed.
+# Small, licence-cleared fixtures and golden files under tests/ ARE committed.
+# ---------------------------------------------------------------------------
+
+# --- secrets / local configuration -----------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.netrc
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+**/CLAUDE.local.md
+*.log
+
+# --- Python / uv --------------------------------------------------------------
+.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.testmondata*
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- AgentPROV data (corpora are released via Zenodo, not Git) ---------------
+# Default AGENTPROV_HOME is outside the repository (~/.agentprov); these patterns
+# guard against corpora or raw stores being created inside the working tree.
+/corpus/
+# corpora/ holds committed, data-free build specs (HL H.1.6; MN M.3.1; D-44). Anything else written there is ignored.
+/corpora/*/*
+!/corpora/*/corpus-spec.toml
+!/corpora/*/CARD.md
+!/corpora/*/CHANGES.toml
+# D-810: persona files (sha256 digests of addresses, never an address) that the specs' [scan] tables reference
+!/corpora/personas/*.personas.toml
+/out/
+/raw/
+/staging/
+/store/
+/upstream/
+/runs/
+*.aer.jsonl
+*.sem.jsonl
+*.prov.json
+*.prov.trig
+*.eval
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.zst
+*.parquet
+# ...except the small, licence-cleared test fixtures and golden files:
+!tests/fixtures/**
+!tests/golden/**
+!docs/architecture/examples/**
+
+# --- editors / OS ---------------------------------------------------------------
+.DS_Store
+._*
+.idea/
+.vscode/
+*.swp
+*~
+
+# --- LaTeX by-products (docs/) ---------------------------------------------------
+docs/**/*.aux
+docs/**/*.log
+docs/**/*.out
+docs/**/*.toc
+docs/**/*.fls
+docs/**/*.fdb_latexmk
+
+# migration (J.2.6, J.1.6): local gate configuration and the isolated baseline environment
+migration/local.toml
+.baseline/
+
+# --- project website: the build output (landing page + user guide, D-1000); never commit it.
+# site/ is the landing page's source and is tracked.
+/_site/
+
+# Public repository only (docs/reports/release/public-export.toml): coding-agent files: never committed to the public repository (P-3a, D-1004; user 2026-10-30)
+CLAUDE.md
+AGENTS.md
+.claude/
+/docs/agents/
+/docs/review/
+/tools/review/
+/docs/workflow/
+/docs/mac-studio-handoff.md
+GEMINI.md
+.cursorrules
+.windsurfrules
+.clinerules
+copilot-instructions.md

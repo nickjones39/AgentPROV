@@ -1,0 +1,35 @@
+# Rule catalogue `autodojo` (docs/architecture D.5.1-D.5.4, D.4.4 profile `autodojo-via-rope`, D.6.13).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (home: this family, CATALOGUE_HOMES). Rules
+# are immutable once released; nothing is released yet, so this file is version 1. Code citations point at
+# xhOwenMa/AutoDojo @ aa458794 and are read as data. The live part's instrumentation ids (autodojo.fork_* and
+# autodojo.env_nltk_preprovisioned, D.11.4) are capture/0.1 instrumentation names of the autodojo-live profile, not
+# rules of this catalogue.
+
+[catalogue]
+id = "autodojo"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["payload_cache_unlinked"]
+subtypes = []
+types = []
+
+[[rule]]
+id = "autodojo.payload_cache_link"
+version = 1
+class = "I"
+status = "active"
+statement = "An AutoDojo-attack payload is linked to the optimiser caches whose variant 0 for the same suite, injection task and vector equals it after AutoDojoAttack._yaml_escape (exact), or equals the static ImportantInstructions wrapper the attack applies around such a variant (wrapped). Neither AUTODOJO_CACHE nor AUTODOJO_VARIANT is logged, so the cells consistent with every slot of a log are stored as its ambiguity set (ext.autodojo.cache_cells), never resolved to one; the variant index 0 is the attack's default, not an observation. The digests of the variant-0 texts at the AutoDojo pin (150 cells) and of the three ROPE routed caches are pinned by the autodojo-via-rope profile."
+premises = ["/suite_name", "/injection_task_id", "/injections"]
+assumptions = ["autodojo:DefaultVariantReplay"]
+verification = [{ assumption = "autodojo:DefaultVariantReplay", status = "asserted" }]
+code = [
+  { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", path = "agentdojo/src/agentdojo/attacks/autodojo_attack.py", lines = "11-104", note = "the cache replay, the wrapper template and _yaml_escape (blob 89cce44b, byte-identical to ROPE's vendored copy)" },
+]
+evidence = ["sources/autodojo.md §3.3", "verify/autodojo.md #16 (5,775 slots linked, 3 wrapped; per (model, suite) 1, 8, 40 or 50 candidate cells)"]
+tests = ["tests/adapters/agentdojo/test_rope.py::test_autodojo_payload_cache_link", "tests/adapters/agentdojo/test_rope.py::test_cache_table_is_generated_from_the_pins"]
+since = "0.1.0"
+
+[[assumption]]
+id = "autodojo:DefaultVariantReplay"
+statement = "An AutoDojo-attack run replayed one optimiser cache with the default variant index 0 (AUTODOJO_VARIANT unset), through the attack code of the pinned fork, so its payloads are that cache's variant-0 texts, wrapped where a variant equals its entry's original goal."

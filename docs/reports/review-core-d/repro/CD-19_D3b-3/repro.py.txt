@@ -1,0 +1,85 @@
+"""Repros for capture_mapper candidates (synthetic, in-process), with the production fallback."""
+import copy
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "agentdojo"))
+import capture_support as cs  # noqa: E402
+from agentprov.adapters.agentdojo.capture_mapper import AgentDojoCaptureMapper  # noqa: E402
+from agentprov.adapters.agentdojo.capture_reader import CaptureLogReader  # noqa: E402
+from agentprov.adapters.profiles import load_profile  # noqa: E402
+from agentprov.adapters.runner import aer_bytes, map_unit  # noqa: E402
+
+
+def run(s, label, show=()):
+    profile = load_profile("agentdojo-live")
+    log = s.log_bytes()
+    objects = {hashlib.sha256(log).hexdigest(): log, **s.blobs}
+    if s.native is not None:
+        objects[hashlib.sha256(s.native).hexdigest()] = s.native
+    plan = CaptureLogReader().plan(cs.session_objects(log, s.blobs, s.native, s.session), objects.__getitem__, profile)
+    if not plan.units:
+        print("==", label, "register:", plan.register)
+        return None
+    unit = plan.units[0]
+    mapper = AgentDojoCaptureMapper()
+    outcome = map_unit(unit, mapper, profile, auxiliary=plan.auxiliary)
+    data, info = aer_bytes(outcome, unit=unit, mapper=mapper, profile=profile)
+    recs = [json.loads(x) for x in data.splitlines()]
+    print("==", label)
+    print("  records:", len(recs), "issues:", sorted({i["code"] for i in info.issues}))
+    for i in info.issues:
+        if i["code"] in ("adapter_defect", "unparseable_artefact"):
+            print("   ", i)
+    for r in recs:
+        if r.get("id") in show or r.get("k") in show:
+            print("  ", json.dumps(r)[:600])
+    return recs, info
+
+
+def base(extra=(), mutate=None):
+    s = cs.c13_8_session()
+    s.events.pop()
+    for e in extra:
+        s.events.append(e)
+    if mutate:
+        mutate(s)
+    s.close("complete")
+    return s
+
+
+# 2b. at call -1 on the text-only last assistant message (message 4)
+run(base([{"type": "decision", "pass": 0, "actor": "agent",
+           "data": {"subject": {"at": {"message": 4, "call": -1}}, "verdict": "deny", "actor": "agent"}}]),
+    "decision at message 4 call -1", show=("decision",))
+# 2c. at call 0 of the system message (message 0, not an assistant)
+run(base([{"type": "decision", "pass": 0, "actor": "agent",
+           "data": {"subject": {"at": {"message": 0, "call": 0}}, "verdict": "deny", "actor": "agent"}}]),
+    "decision at message 0 (system) call 0", show=("decision",))
+# 2d. at call 5 (out of range)
+run(base([{"type": "decision", "pass": 0, "actor": "agent",
+           "data": {"subject": {"at": {"message": 2, "call": 5}}, "verdict": "deny", "actor": "agent"}}]),
+    "decision at message 2 call 5")
+
+
+# 3. a non-dict message in the dump, decision at it
+def nondict(s):
+    for e in s.events:
+        if e["type"] == "pass.end":
+            native = json.loads(s.blobs[e["data"]["messages"]["$blob"][7:]])
+            native.append("stray")
+            e["data"]["messages"] = s.blob(native)
+run(base([{"type": "decision", "pass": 0, "actor": "agent",
+           "data": {"subject": {"at": {"message": 5, "call": 0}}, "verdict": "deny", "actor": "agent"}}], nondict),
+    "decision at a non-dict dump message")
+
+# control: a valid at {message: 2, call: 0}
+run(base([{"type": "decision", "pass": 0, "actor": "agent",
+           "data": {"subject": {"at": {"message": 2, "call": 0}}, "verdict": "deny", "actor": "agent"}}]),
+    "CONTROL decision at message 2 call 0", show=("decision",))
+# control: no decision at all
+run(base([]), "CONTROL no decision")
+run(base([], nondict), "CONTROL non-dict dump message, no decision")

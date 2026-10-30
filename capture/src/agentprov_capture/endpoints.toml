@@ -1,0 +1,156 @@
+# AgentPROV endpoint registry (MN M.1.10 item 2; N.2.1 `--model`; N.2.1a; G.9.2).
+# Data, not code: read through importlib.resources by agentprov_capture.endpoints (no __init__.py needed here).
+#
+# Names only: `base_url_env`, `api_key_env` and `model_env` name environment variables (the .env keys); no value is
+# ever stored here. There are no default model ids (Q5, closed): a model id comes from `--model-id` or `model_env`.
+# `base_url` is the public default. Its host is the registered host that any other base URL must match unless
+# `--allow-custom-endpoint` is given (R-39). A base URL MUST be https, except loopback (127.0.0.1, [::1], localhost),
+# and MUST carry no userinfo, query or fragment (G.6.4).
+#
+# `request_headers` / `response_headers` (optional, lower-case header NAMES) extend the global header allowlist of
+# redact_allowlist.toml for that endpoint (G.6.4: "per-endpoint names declared in endpoints.toml"); the hard denylist
+# wins over them. Only request-id style headers are declared; add a name here, with a test, when a provider needs it.
+#
+# `api` (optional) is the wire format: `openai_chat` (default) or `anthropic_messages` (D-656). It selects the LLM
+# element and the wire recorder's decoding; the CLI sets the agent's provider from it.
+#
+# Baseline set from AgentDojo-PROV `runtime.py` (build_* functions and _LLM_BUILDERS); `omlx` is new (D-10); `lmstudio`,
+# `mlx_lm`, `llamacpp` and `vllm` are new (D-690).
+
+version = 1
+
+[endpoints.deepseek]
+base_url = "https://api.deepseek.com/v1"
+base_url_env = "DEEPSEEK_BASE_URL"
+api_key_env = "DEEPSEEK_API_KEY"
+model_env = "DEEPSEEK_MODEL"
+local = false
+
+[endpoints.openai]
+base_url = "https://api.openai.com/v1"
+base_url_env = "OPENAI_BASE_URL"
+api_key_env = "OPENAI_API_KEY"
+model_env = "OPENAI_MODEL"
+local = false
+response_headers = ["x-request-id", "openai-version"]
+
+# One OpenRouter key and base URL serve openrouter, gemini, llama, qwen and glm (baseline `_build_openrouter_llm`).
+[endpoints.openrouter]
+base_url = "https://openrouter.ai/api/v1"
+base_url_env = "OPENROUTER_BASE_URL"
+api_key_env = "OPENROUTER_API_KEY"
+model_env = "OPENROUTER_MODEL"
+local = false
+response_headers = ["x-request-id"]
+
+[endpoints.gemini]
+base_url = "https://openrouter.ai/api/v1"
+base_url_env = "OPENROUTER_BASE_URL"
+api_key_env = "OPENROUTER_API_KEY"
+model_env = "GEMINI_MODEL"
+local = false
+response_headers = ["x-request-id"]
+
+[endpoints.llama]
+base_url = "https://openrouter.ai/api/v1"
+base_url_env = "OPENROUTER_BASE_URL"
+api_key_env = "OPENROUTER_API_KEY"
+model_env = "LLAMA_MODEL"
+local = false
+response_headers = ["x-request-id"]
+
+[endpoints.qwen]
+base_url = "https://openrouter.ai/api/v1"
+base_url_env = "OPENROUTER_BASE_URL"
+api_key_env = "OPENROUTER_API_KEY"
+model_env = "QWEN_MODEL"
+local = false
+response_headers = ["x-request-id"]
+
+[endpoints.glm]
+base_url = "https://openrouter.ai/api/v1"
+base_url_env = "OPENROUTER_BASE_URL"
+api_key_env = "OPENROUTER_API_KEY"
+model_env = "GLM_MODEL"
+local = false
+response_headers = ["x-request-id"]
+
+# The Anthropic Messages API, direct (D-656). The SDK appends /v1/messages to the base URL. Model ids are the bare API
+# ids (claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5, ...), never date-suffixed. Recorded header values: the
+# API version and beta flags sent, and the request id and the two retry headers the SDK's retry decision reads. The
+# organisation id and the rate-limit headers keep their names only; x-api-key is on the hard denylist.
+[endpoints.anthropic]
+base_url = "https://api.anthropic.com"
+base_url_env = "ANTHROPIC_BASE_URL"
+api_key_env = "ANTHROPIC_API_KEY"
+model_env = "ANTHROPIC_MODEL"
+local = false
+api = "anthropic_messages"
+request_headers = ["anthropic-beta", "anthropic-version"]
+response_headers = ["request-id", "retry-after", "x-should-retry"]
+
+# Local OpenAI-compatible servers (N.2.1a; D-690): http on loopback is allowed and no key is needed (an optional
+# `api_key_env` sends one when it is set, D-827). `server` names the server kind; `agentprov models` uses it to
+# fingerprint the server that answers (two kinds share a default port: 8000 omlx/vllm, 8080 mlx_lm/llamacpp) and to
+# read the model identity it exposes. Base URLs are pinned to 127.0.0.1, not `localhost`, which may resolve to ::1.
+# Tool calls: whether a model's replies carry structured `tool_calls` depends on the server, its flags and the model's
+# template; the preflight probe decides (D.10.9 A4), and text-encoded calls need
+# `--allow-text-tool-calls`. `server_max_concurrency` is set only where the server's default is fixed; LM Studio and
+# llama.cpp report their own value, and `--server-max-concurrency` overrides.
+
+# Ollama. Structured tool calls for models whose capabilities include "tools"; others are refused by the server (400).
+# OLLAMA_NUM_PARALLEL depends on the version and memory, and is not reported, so no concurrency default is set.
+[endpoints.ollama]
+base_url = "http://127.0.0.1:11434/v1"
+base_url_env = "LOCAL_LLM_BASE_URL"
+model_env = "LOCAL_MODEL_ID"
+local = true
+server = "ollama"
+
+# oMLX (MLX inference server, Apple Silicon). The model id is the oMLX model directory name or alias (`--model-id`).
+# `server_max_concurrency` is oMLX's `--max-concurrent-requests` default. Structured tool calls through oMLX's parser.
+# `api_key_env` is optional on a local entry (D-827): oMLX can be set up with an API key. When `OMLX_API_KEY` is set
+# (keychain first, then .env), it is sent as a bearer header to the loopback server, and never to a LAN address; when
+# it is not set, no key is sent, as for every other local server. `model_env` (D-827 addendum): `OMLX_MODEL` in .env
+# names the served model id (oMLX's own id, e.g. its folder name, not a Hugging Face repo id) when `--model-id` is not
+# given; without either, a terminal offers a pick.
+[endpoints.omlx]
+base_url = "http://127.0.0.1:8000/v1"
+base_url_env = "OMLX_BASE_URL"
+api_key_env = "OMLX_API_KEY"
+model_env = "OMLX_MODEL"
+local = true
+server = "omlx"
+server_max_concurrency = 8
+
+# LM Studio's server (`lms server start`). Native tool calls for models with `trained_for_tool_use`; for other models LM
+# Studio adds its own tool-use system prompt on the server (invisible to the wire capture), which `run` refuses unless
+# `--allow-text-tool-calls`. The parallel-request limit is read from the loaded instance (`/api/v1/models`).
+[endpoints.lmstudio]
+base_url = "http://127.0.0.1:1234/v1"
+base_url_env = "LMSTUDIO_BASE_URL"
+local = true
+server = "lmstudio"
+
+# mlx_lm.server (MLX LM). The model id is a Hugging Face repo id or a local path. Requests are served one at a time by
+# default. Tool calls depend on the mlx-lm version and the model's chat template; text-encoded calls are common.
+[endpoints.mlx_lm]
+base_url = "http://127.0.0.1:8080/v1"
+base_url_env = "MLX_LM_BASE_URL"
+local = true
+server = "mlx_lm"
+server_max_concurrency = 1
+
+# llama.cpp `llama-server`. Structured tool calls only when started with `--jinja`; the slot count is read from /props.
+[endpoints.llamacpp]
+base_url = "http://127.0.0.1:8080/v1"
+base_url_env = "LLAMACPP_BASE_URL"
+local = true
+server = "llamacpp"
+
+# vLLM's OpenAI-compatible server. Structured tool calls only with `--enable-auto-tool-choice --tool-call-parser <p>`.
+[endpoints.vllm]
+base_url = "http://127.0.0.1:8000/v1"
+base_url_env = "VLLM_BASE_URL"
+local = true
+server = "vllm"

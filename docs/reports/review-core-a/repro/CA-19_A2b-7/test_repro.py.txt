@@ -1,0 +1,37 @@
+"""A2b-7: render_converted gives text null for a single null-content text block; the baseline converter gives ""."""
+import sys
+
+import pytest
+
+sys.path.insert(0, ".")
+
+from agentprov.views.transcript_v1 import _native_message_turn, render_converted  # noqa: E402
+from tests.adapters.agentdojo.agentdojo_support import map_log, new_log  # noqa: E402
+
+
+def _blocks_log(final_content):
+    """A log in the blocks form throughout (no mixed forms), final assistant reply = ``final_content``."""
+    log = new_log()
+    for m in log["messages"]:
+        if isinstance(m.get("content"), str):
+            m["content"] = [{"type": "text", "content": m["content"]}]
+    log["messages"][4]["content"] = final_content
+    return log
+
+
+@pytest.mark.parametrize("final", [[{"type": "text", "content": None}], [{"type": "text"}]],
+                         ids=["content_null", "content_absent"])
+def test_null_text_block_renders_empty_string(final):
+    log = _blocks_log(final)
+    msg = log["messages"][4]
+    # Oracle: the converter rule (baseline message_to_turn) gives "" because msg.content is not None.
+    assert _native_message_turn(msg)["text"] == ""
+    turns = render_converted(map_log(log).records)["turns"]
+    assert turns[4]["role"] == "assistant"
+    assert turns[4]["text"] == "", turns[4]
+
+
+def test_content_null_still_renders_null():
+    log = _blocks_log(None)
+    turns = render_converted(map_log(log).records)["turns"]
+    assert turns[4]["text"] is None

@@ -1,0 +1,222 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "hilarytorn-trajectory-poisoning",
+ "findings": [
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-01",
+   "title": "The run/condition directory ({arm?} layout facet) is not an AER field, so 675 of 990 executions share their task identity with executions of other dirs",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 identity (prereg section 6; prereg section 3 'Run' row already anticipated the arm comes only from the path)",
+   "evidence": "In the 90 sampled executions the arm string occurs only at /artifacts/*/origin/path (80/80 e2e executions; the 10 base executions have no e2e component) and in 80/90 PROV documents through that path; 0/90 SEM files. ext.agentdojo keys error/pipeline_name/task_kind only; task.attack_id carries no run index; no arm string in execution source_key/unit/src/id/ex. Population: e2e_tap_* and e2e_seeded_pair_* labels cover 63 logs each = 3 runs x 21, so 630 attacked executions are in 3-way identity collisions; the 45 pre-pass executions (attack_id null, task_id injection_task_k) collide 9-way across all dirs; total 675/990. Sample tuples: 45 singletons + 5 groups of 9. Phase10d routing R5 pattern (ceferisbarov, proposed agentdojo.attack_arm_from_path@1), which does not name this profile. No outcome bias: per-dir rates from the origin path give AER = raw on 90/90.",
+   "reproduction": "python3 -I ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/exam/armptr.py ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l2-head-j2.partial -> ('aer','execution','/artifacts/*/origin/path') 80; ('prov','files_with_arm_string','') 80; ('sem','files_with_arm_string','') 0; ext.agentdojo keys {'error': 90, 'pipeline_name': 90, 'task_kind': 45}",
+   "hypothesis_ref": "prereg section 3 (Run row), section 6 L2 identity",
+   "recommendation": "Widen R5 (class-I rule agentdojo.attack_arm_from_path@1 writing the {arm?} facet to ext.agentdojo.attack_arm) to this profile before the round, covering the pre-pass executions too. Until then key per-arm statistics on the origin path and disclose that the attack label does not identify the run.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Re-ran armptr.py; checked other AER execution fields (none carries the arm); prereg section 3 already anticipates the facet is path-only, so the expectation is met through the origin path and the class is expected-known under R2 (R5 routing). Corrected severity S2 -> S3 (R5 entry sets none; no outcome bias) and the count 630 -> 675 (45 pre-pass executions collide 9-way)."
+    }
+   ]
+  },
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-02",
+   "title": "C0/DEL code points in 53 model-written tool-call channel arguments (41 logs, e2e candidate conditions only); every such call fails",
+   "cls": "source-defect",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-03 encodings (classify), plus how L2 serialises the same strings",
+   "evidence": "L1-03: c0 in 41/990 artefacts (129 strings), cr 2, fffd 1, at args/channel 53 and error 23. 53 calls in 41 logs, arg key 'channel' 53/53, all 53 ValueError 'channel does not exist'. By dir: persona_v3 8, seeded_pair 8, seeded_pair_run1 5, seeded_pair_run2 5, tap 4, tap_run1 6, tap_run2 5; base 0, baseline 0. 0 of 51 candidate files and 0 tool outputs contain a C0 character; raw bytes hold them as JSON \\u00XX escapes (plus a few \\b, \\f). Mechanism: the model copies the long injected channel name (channel arg up to 2,069 chars) garbled, with control characters in place of some characters; the C0 is one part of the mismatch, not shown to be the sole cause of the failure. Model output recorded faithfully; no control-char handling in upstream code. The 3 sampled logs keep the escapes in AER 3/3 and PROV 3/3 (j1 and j2) and validate.",
+   "reproduction": "uv run python ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/exam/h8c0.py ~/.agentprov/staging/10c/hilarytorn/in-context-trajectory-poisoning.git d71ab8bc2aa9db35ff443cc81e475e70ee8da215 <out> -> c0_logs_by_arm baseline 0, <none> 0, e2e arms 8/8/5/5/4/6/5; all 53 c0 calls errored; cand files_with_c0 0; c0labels.py -> 41 labels, 3 in sample",
+   "hypothesis_ref": "prereg section 6 L1-03",
+   "recommendation": "Disclose in the datasheet. Non-JSON PROV serialisations and transcript renderers must escape C0. Route the proposed artefacts.toml entry to the family owner; no mapping change.",
+   "artefact_proposal": "[[artefact]] id = \"agentdojo.art.control_chars_in_model_args\"; title = \"Control characters in model-written tool arguments\"; description = \"The model copies a long injected string (slack: a channel name holding the injection) into a tool argument, garbled, with C0/DEL code points in place of some characters; the call fails with a tool error (channel does not exist); AER and PROV keep the code points as JSON escapes\"; scope = {sources=[\"hilarytorn-trajectory-poisoning\"], parts=[\"head\"], profiles=[\"hilarytorn-trajectory-poisoning\"]}; cause = \"model output (gpt-4o-2024-05-13) on spliced monitor-priming candidates, not the harness\"; detector = \"L1-03 c0 class at /messages/*/tool_calls/*/args/*\"; claims = [\"tool-error rates of the e2e conditions include these failed calls\"]; recorded_as = \"verbatim args in AER and PROV apv:args; tool_execution status error\"; handling = \"disclose; escape on non-JSON serialisation\"; expected = [{snapshot=\"head\", count=41, unit=\"logs (53 calls, all errored)\", basis=\"precheck L1-03 + exam\", status=\"verified\"}]; refs = [\"docs/reports/precheck/data/hilarytorn-trajectory-poisoning/os-population.json\"]",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S3",
+     "reasoning": "Independent recount through l1_scan readers and agentprov.ingest: 41 logs, 53 calls, 'channel' 53/53; ruled out environment-carried C0 (0 in tool outputs), harness mangling (no upstream handling) and tool invention (escapes present in raw blobs). No artefacts.toml entry covers it: R1 source-defect, S3. Wording correction: each call fails because the channel name is mismatched/garbled; C0 is one part of it."
+    }
+   ]
+  },
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-03",
+   "title": "[CC-09] reference: generic agentdojo.art.* entries whose quirks fire in this source do not list it in their scope",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "R2 scope check of artefacts.toml",
+   "evidence": "The quirks fire (declared with counts in the profile): benign_security_constant 45, injection_task_as_user 45, silent_rerun / earlier_attempts_unobservable 990 with 0 null-final, naive timestamps 990, and 3/945 attacked logs never read the payload (all security false; one each in base important_instructions, persona_v3, seeded_pair_run1; none sampled). agentdojo.art.benign_security_constant, injection_task_as_user, silent_rerun, naive_timestamp and payload_not_reaching_agent all leave hilarytorn-trajectory-poisoning out of scope.sources/profiles. The gap is family-wide: no phase-10d source is scoped (family-raw-layouts.md item 5). scope.profiles gates claiming in agentprov.artefacts.scan, so once scan is wired these hits would be artefact.unclassified; today there is no AER/SEM/PROV or corpus.json effect.",
+   "reproduction": "python3 -c \"import tomllib;d=tomllib.load(open('src/agentprov/adapters/agentdojo/artefacts.toml','rb'));print([a['id'] for a in d['artefact'] if 'hilarytorn-trajectory-poisoning' in str(a['scope'])])\" -> []; uv run python ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/exam/unread.py ~/.agentprov/staging/10c/hilarytorn/in-context-trajectory-poisoning.git d71ab8bc2aa9db35ff443cc81e475e70ee8da215 -> 3 labels, security False",
+   "hypothesis_ref": "",
+   "recommendation": "See CC-09 (recorded once in cross-cutting.md). Family owner: the family-wide widening of the generic agentdojo.art.* scopes, here with the counts 45, 45, 990/0, 990, 3. CC-07 #181/#161 do not apply (slack-only corpus).",
+   "artefact_proposal": "scope widenings only: benign_security_constant (45), injection_task_as_user (45), silent_rerun (990 / 0 null-final), naive_timestamp (990), payload_not_reaching_agent (3)",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Scope scan of every entry: none names this source/profile; the profile declares the quirks with matching counts; unread.py re-run gives 3 labels. Corrections: drop validity_defects (it concerns checker defects, CC-07, none cited); the gap is family-wide; scope gates scan claims but nothing is affected today, so S3."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, wave-2 follow-up, 2026-10-21)",
+     "verdict": "unchanged",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Instance of CC-09: documentation-mismatch S3, a reference, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-04",
+   "title": "The prereg expected about 270 sampled units (25 attacked per arm); the pre-registered rule with the hook's stratum key gives 90 (5 per arm)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 sample design vs prereg section 4 (README amendment 2.4); rule R4",
+   "evidence": "The family hook's stratum key is arm x attack_family (18 strata: 9 attacked of 105 + 9 pre-pass of 5; 5 each = 90), not the (dir, attack label) key the prereg assumed (its 'attack label' meant the injection task, which is not part of the hook key). Every attacked arm has n = 5 < 20, so the sample gap rule applies to no arm; outcome sanity rests on the exact population check (H1, H2). With one attacked stratum per arm the post-stratified rate equals the plain rate.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/hilarytorn-trajectory-poisoning/l2-sample-head.json'));print(d['n'],len(d['population']['strata_sizes']))\" -> 90 18 (quota 5 each)",
+   "hypothesis_ref": "prereg section 4",
+   "recommendation": "Record in the dossier (R4, prereg author). The post-check reuses the 90-label list unchanged; the prereg is not edited.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Sample file: n=90, 18 strata, quota 5 each. The tool applies the pre-registered rule as written (amendment 2.4: hook key, no data-dependent re-keying), so the prereg expectation is what is wrong: R4 documentation-mismatch S3. H1/H2 hold on the population, so no outcome coverage is lost."
+    }
+   ]
+  },
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-05",
+   "title": "l2_check keys outcomes on model|defence|attack, pooling the three runs of tap and of seeded_pair; the arm facet is aliased to defence in the facet table",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 outcome sanity (tool, R5)",
+   "evidence": "l2-head.json /outcomes/arm_key = model|defence|attack; all arms gpt-4o-2024-05-13|none|<attack>, so e2e_tap_* cells mix tap, tap_run1, tap_run2 (and likewise seeded_pair). The pooling follows from the AER having no arm/run field: task.defense_id is correctly none and attack_id is shared across replicates. 'defence<-arm' appears only in the facet pair table; defence is not a DIRECT facet, so it produces no false direct mismatches. Recomputed per dir from the origin path: AER = raw on 90/90, attacked 38/45.",
+   "reproduction": "python3 -I ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/exam/sample_outcomes.py ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l2-head-j2.partial ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/l1-units-head.jsonl <out> -> mismatch_aer_vs_raw {}, attacked_total 38/45",
+   "hypothesis_ref": "",
+   "recommendation": "After the freeze, key l2_check outcomes on the L1 stratum arm (or the origin-path dir) when the layout has {arm?}.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Read Outcomes.add/identity_of in tools/precheck/l2_check.py; confirmed pooling and the alias; re-ran sample_outcomes.py (exact). A tool limitation, not a source or mapping defect: R5 analysis-artefact S3. No CC item covers it."
+    }
+   ]
+  },
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-07",
+   "title": "requirements.txt pins agentdojo 0.1.29 while all 990 logs record 0.1.35",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-05/H6 identity",
+   "evidence": "agentdojo_package_version 0.1.35 in 990/990; requirements.txt at the pin pins agentdojo[transformers]==0.1.29; e2e manifests record 0.1.35. The profile quirk agentdojo.package_version_not_code_identity covers this (code_identity unpinned, verified_code [], D rules cited as _unverified twins).",
+   "reproduction": "uv run python ~/.agentprov/migration-work/precheck/hilarytorn-trajectory-poisoning/exam/versions.py ~/.agentprov/staging/10c/hilarytorn/in-context-trajectory-poisoning.git d71ab8bc2aa9db35ff443cc81e475e70ee8da215 -> agentdojo_package_version=0.1.35: 990",
+   "hypothesis_ref": "H6",
+   "recommendation": "None beyond the existing quirk.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "versions.py reads through the l1_scan readers and agentprov.ingest and matches exactly 990 logs; the pin and the profile documentation (package logged_version, code_identity unpinned, quirk) were confirmed. R2 expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-08",
+   "title": "Account paths occur only in unselected result files (run manifests and result JSONs), outside the corpus",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06 outside the selection",
+   "evidence": "40 account-path lines, all one local account (same truncated digest), in 10 unselected data/results files: the 5 e2e_eval/*/manifest.json (1, 1, 1, 11, 11), persona_priming_v3/results.json (1), llama-3.1-8b_results.json (1), qwen2.5-7b_results.json (1) and two tap_cross_model/*_eval.json (6, 6). 0 in the 7 context artefacts, 0 in data/traces, 0 in the 375 files of each L2 scratch corpus. No value is recorded anywhere in this report.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git -C ~/.agentprov/staging/10c/hilarytorn/in-context-trajectory-poisoning.git cat-file -p d71ab8bc...:<file> | grep -cE <account-path-regex> -> context 0 each; 10 data/results files 40 lines",
+   "hypothesis_ref": "H10",
+   "recommendation": "Keep all of data/results/** out of the selection and out of context_artefacts.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Corpus free of account paths confirmed (selection, context artefacts, data/traces, both scratch corpora); matches are one real upstream account, not a regex artefact. Evidence widened from 5 files / 25 lines to 10 files / 40 lines; title and recommendation adjusted. Class, severity and security=false unchanged."
+    }
+   ]
+  }
+ ],
+ "refuted": [
+  {
+   "id": "PC-hilarytorn-trajectory-poisoning-06",
+   "title": "l2_check twin counting: 1,256 'inference:none' _unverified twins claimed as a CC-08 over-count",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 evidence classes (tool)",
+   "evidence": "/prov/unverified_twin_by_bundle_class {'assessment:I': 2619, 'inference:I': 17485, 'inference:none': 1256} from the pre-CC-08-fix l2_check. Claimed to be an instance of CC-08 (agentdojo-upstream PC-07).",
+   "reproduction": "python3 -c \"import json;print(json.load(open('docs/reports/precheck/data/hilarytorn-trajectory-poisoning/l2-head.json'))['prov']['unverified_twin_by_bundle_class'])\"",
+   "hypothesis_ref": "",
+   "recommendation": "Refuted. The bundle-IRI decoding of is_twin landed at 5efa3575 and recheck12 re-ran l2_check (l2-head.json, committed 4a3e40c1): twin inference I 14,869 / none 1,256, assessment I 2,619; mixed 2,616; native 0.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "refuted",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "refuted",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "The number reproduces but the explanation does not. All 1,256 inference:none are class-less mentionOf statements in inference bundles whose method is a genuine _unverified twin (call_id_unique_match 480, args_are_effective 326, checker_outcome 135, assistant_msg_has_one_call 90, benchmark_from_dialect 90, messages_append_ordered 90, benign_security_constant 45); 0 apv:basisRule references to native class-I _unverified rules, so the pre-fix counts follow the tool's definition. New tool bug: the CC-08-fixed is_twin does not decode bundle-IRI references (bundle.inf.<family>-<rule>_unverified...), re-classifying 9,014 twin-bundle statements as native (under-count); 90 pipeline_dir_is_model_identity rows unresolved. The same may affect other CC-08 re-runs (agentdojo-upstream PC-07)."
+    },
+    {
+     "lens": "recheck12 (CC-08, 2026-10-21)",
+     "verdict": "refuted",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "recheck12 keeps the 1,256 inference:none statements under twin and finds native 0, as the verifier argued. Still not a finding."
+    }
+   ]
+  }
+ ]
+}

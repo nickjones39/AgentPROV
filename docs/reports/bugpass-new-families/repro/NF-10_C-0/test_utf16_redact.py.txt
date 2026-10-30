@@ -1,0 +1,63 @@
+"""Verifier repro: D-476 redaction misses an account path whose observed string encodes to {"$utf16": ...}."""
+from __future__ import annotations
+
+import base64
+import json
+import sys
+from pathlib import Path
+
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "agentdojo"))
+sys.path.insert(0, str(REPO / "tests"))
+
+import test_rescont as T  # noqa: E402
+
+ACCT = T.ACCOUNT  # made-up account from the test module
+
+
+def utf16_hits(data: bytes) -> list[str]:
+    hits: list[str] = []
+
+    def walk(n, p=""):
+        if isinstance(n, dict):
+            if set(n) == {"$utf16"}:
+                s = base64.b64decode(n["$utf16"]).decode("utf-16-be", "surrogatepass")
+                if ACCT in s:
+                    hits.append(p)
+            for k, v in n.items():
+                walk(v, f"{p}/{k}")
+        elif isinstance(n, list):
+            for i, v in enumerate(n):
+                walk(v, f"{p}/{i}")
+
+    for line in data.decode().splitlines():
+        if line.strip():
+            walk(json.loads(line))
+    return hits
+
+
+def _raw(doc):
+    return json.dumps(doc, indent=2, ensure_ascii=True).encode()
+
+
+def test_control_plain_model_is_redacted():
+    m = T.map_all(_raw(T.container(model=T.CLUSTER_LLAMA)))[0]
+    assert ACCT.encode() not in m.data and utf16_hits(m.data) == []
+    assert "rescont.value_redacted" in m.codes
+
+
+def test_lone_surrogate_model_leaks_in_utf16():
+    m = T.map_all(_raw(T.container(model=T.CLUSTER_LLAMA + "\ud800")))[0]
+    hits = utf16_hits(m.data)
+    print("plain-bytes-leak:", ACCT.encode() in m.data, "utf16 hits:", hits,
+          "value_redacted:", "rescont.value_redacted" in m.codes, "codes:", sorted(set(m.codes)))
+    assert hits == [], f"account path survives base64 in {hits}"
+
+
+def test_echo_in_surrogate_content_leaks_in_utf16():
+    r = T.row()
+    r["messages"][4]["content"] = f"I am {T.CLUSTER_LLAMA} \ud800 done"
+    m = T.map_all(_raw(T.container(rows=[r], model=T.CLUSTER_LLAMA)))[0]
+    hits = utf16_hits(m.data)
+    print("utf16 hits:", hits)
+    assert hits == [], f"account path survives base64 in {hits}"

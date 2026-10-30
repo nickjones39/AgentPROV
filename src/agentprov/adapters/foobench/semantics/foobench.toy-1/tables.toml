@@ -1,0 +1,87 @@
+# Semantics profile foobench.toy@1: the tool, artefact and observation tables of the FooBench future-framework test
+# (docs/architecture D.12.1 row 7, C.14, EF E.7). Data, not code: read by agentprov.adapters.foobench.semantics.
+#
+# FooBench is a self-authored toy format. The tools below are the ones its fixture uses; the labels are the profile
+# author's declared reading of those toy tools, not a property any real framework was verified to have, so every
+# annotation derived from these tables is class I (rules foobench.*_table@1, foobench.taint_sink_untrusted@1).
+#
+# Fail-closed (C.14.3): a tool name that is not listed gets role ["unknown"] and its output integrity "unknown"; an
+# artefact type that is not listed gets integrity "unknown". Nothing is ever defaulted to "trusted".
+# Closed vocabularies: roles (EF E.7.1) write_sink, send_sink, execute_sink, egress_read, response_sink,
+# content_source, endorser, neutral, unknown; integrity trusted | untrusted | unknown. "channel" is optional and
+# is a free profile string.
+
+# Tool table. roles: the tool's security roles (on its tool_call parts and its tool_execution). integrity and channel:
+# the label of the tool's output (its tool_result parts).
+[[tool]]
+name = "lookup"
+roles = ["content_source"]
+integrity = "untrusted"      # returns the body of a stored note: content the agent did not write in this run
+channel = "document"
+
+[[tool]]
+name = "save_memory"
+roles = ["write_sink"]       # writes a key-value item into the agent store
+integrity = "trusted"        # the result is the runtime's fixed acknowledgement
+
+[[tool]]
+name = "transfer_to_researcher"
+roles = ["execute_sink"]     # hands the task to a sub-agent, which then acts
+integrity = "unknown"        # the reply is the sub-agent's text, derived from content this profile does not see
+channel = "message"
+
+[[tool]]
+name = "click"
+roles = ["execute_sink"]     # a browser action with effects on an external page
+integrity = "unknown"        # the result reflects the state of an external page
+channel = "web"
+
+[[tool]]
+name = "send_note"
+roles = ["send_sink"]        # sends a note to a named recipient
+integrity = "trusted"        # the result is the runtime's fixed acknowledgement
+
+[[tool]]
+name = "scroll"
+roles = ["neutral"]          # moves the viewport only; no write, send or execution
+integrity = "unknown"        # the result reflects the state of an external page
+channel = "web"
+
+# Artefact table, by artefact.type (the catalogue's declared types). Model-written artefacts are "unknown": the
+# profile has no flow evidence of what they were derived from, so it cannot call them trusted.
+[[artefact]]
+type = "foobench:plan"
+integrity = "unknown"        # the planner's structured plan, model-derived
+
+[[artefact]]
+type = "foobench:memory_item"
+integrity = "unknown"        # written by the agent into the store; may carry content from untrusted outputs
+channel = "memory"
+
+[[artefact]]
+type = "foobench:memory_snippet"
+integrity = "unknown"        # what the harness read back from the store
+channel = "memory"
+
+[[artefact]]
+type = "foobench:screenshot"
+integrity = "untrusted"      # the environment's capture of an external display: content nobody here wrote
+channel = "screen"
+
+# Observation table, by the actor of a harness- or environment-inserted user-role message (the messages that carry no
+# generator in aer/0.1, D.12.2). Labelled from the message's own actor and role only; no link to an artefact is asserted.
+# Integrity only: C.14.3 allows a channel on tool_result parts and artefacts, not on these text and blob parts.
+[[observation]]
+actor = "harness"
+integrity = "unknown"        # the memory snippet the harness injects into the context
+
+[[observation]]
+actor = "env"
+integrity = "untrusted"      # the screenshot observation the environment injects
+
+# Taint policy (EF E.7.3 aprov.a_taint@1, the v2.3 reading): a request whose roles meet subject_roles is potentially
+# influenced by a context member whose integrity is in object_integrity. "unknown" is included on both sides
+# (fail-closed). The exposure of a request-less execution (te5) is not emitted by the engine (DECISIONS D-16).
+[taint]
+subject_roles = ["write_sink", "send_sink", "execute_sink", "unknown"]
+object_integrity = ["untrusted", "unknown"]

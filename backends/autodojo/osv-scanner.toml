@@ -1,0 +1,12 @@
+# osv-scanner configuration for backends/autodojo/uv.lock (CI job `dependencies`; DoD Q.17; G.7.2).
+# Every accepted advisory carries its reason and a date to look again. Accepting one is a user decision.
+
+[[IgnoredVulns]]
+id = "GHSA-8mgp-746c-j5xp"  # CVE-2026-81726, PYSEC-2026-3740: NLTK model-artifact APIs touch files outside allowed roots
+ignoreUntil = 2027-01-11T00:00:00Z
+reason = """Accepted by the user on 2026-10-11: no fixed release exists (affected up to and including nltk 3.10.3, the \
+latest). nltk is a dependency of the pinned AutoDojo fork only (T2, this separate uv project; the core and the other \
+backends do not install it). The fork imports it lazily inside its filter defences, which AgentPROV refuses to run \
+(they need a GPU, weights and a Hugging Face token); punkt_tab is provisioned unextracted from a pinned, digest-checked \
+fetch. Revisit on the date above or when a fixed nltk is released, whichever comes first, and before any filter-defence \
+run is enabled."""

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/mcphunt/family-0.1.json",
+  "title": "[family.mcphunt] table of an mcphunt source profile (D.4.1, D.21.10; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["streamed_arrays", "splits", "semantics_profile", "withhold_basis", "server_packages"],
+  "properties": {
+    "streamed_arrays": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^(/[^/~]+)+$"}, "description": "the arrays read by open_json_stream (D-242), declared"},
+    "splits": {"type": "array", "items": {"type": "string"}},
+    "semantics_profile": {"type": "object", "additionalProperties": false, "required": ["id", "version"],
+                          "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}},
+    "withhold_basis": {"const": "mcphunt.canary_flagged", "description": "the seal issue that selects executions to withhold (D-289, RW-1)"},
+    "server_packages": {"type": "object", "additionalProperties": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+                        "description": "MCP server label -> package names in measurement.mcp_versions (mcphunt.server_package_unverified@1)"},
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "observed"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^mcphunt\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^mcphunt\\.[a-z][a-z0-9_.]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

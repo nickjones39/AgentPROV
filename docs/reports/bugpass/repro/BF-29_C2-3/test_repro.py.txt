@@ -1,0 +1,50 @@
+"""C2-3: a provider call id reused across turns makes mcphunt emit the first tool message twice (D link) and drop the second."""
+from agentprov.adapters.mcphunt.mapper import McpHuntMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, LocatedItem, Locator, Origin
+from agentprov.aer.reader import load_aer_bytes
+
+
+def ev(tool, turn, res):
+    return {"args": {}, "canary_in_args": False, "canary_in_result": False, "canary_visible_to_llm": False, "error": None,
+            "latency_ms": 1, "result_chars": len(res), "result_full": res, "result_preview": res, "result_truncated": False,
+            "server": "filesystem", "success": True, "timestamp": "t", "tool": tool, "turn": turn}
+
+
+def call(cid, name):
+    return {"id": cid, "type": "function", "function": {"name": name, "arguments": "{}"}}
+
+
+def run(t):
+    origin = Origin.from_json({"kind": "hf", "repo": "x/y", "revision": "c4c69322bf9ed7690f5265577365709dad5dd454", "path": "main/a.json"})
+    art = ArtefactRef(id="a0", sha256="0" * 64, bytes=1, media="application/json", origin=origin, role="primary", prov_primary="native")
+    item = LocatedItem(artefact=art, locator=Locator(a="a0", p="/traces/0"), dialect="mcphunt.traces", variant="v2.0.0",
+                       flags=frozenset(), value={"envelope": {}, "trace": t})
+    out = map_unit(ExecutionUnit(primary=item), McpHuntMapper(), load_profile("mcphunt"))
+    sealed, _info = aer_bytes(out)
+    return load_aer_bytes(sealed)
+
+
+def test_reused_call_id_does_not_duplicate_or_drop_tool_messages():
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "do"},
+            {"role": "assistant", "content": "", "tool_calls": [call("call_0", "read")]},
+            {"role": "tool", "tool_call_id": "call_0", "content": "R1"},
+            {"role": "assistant", "content": "", "tool_calls": [call("call_0", "read")]},
+            {"role": "tool", "tool_call_id": "call_0", "content": "R2"},
+            {"role": "assistant", "content": "done", "tool_calls": []}]
+    tl = [{"turn": 1, "n_tool_calls": 1, "has_text": False, "finish_reason": "tool_calls"},
+          {"turn": 2, "n_tool_calls": 1, "has_text": False, "finish_reason": "tool_calls"},
+          {"turn": 3, "n_tool_calls": 0, "has_text": True, "finish_reason": "stop"}]
+    t = {"task_id": "T1", "task_prompt": "do", "model": "m", "messages": msgs, "events": [ev("read", 1, "R1"), ev("read", 2, "R2")],
+         "turn_log": tl, "labeling": {"any_risk": False}, "measurement": {}, "env_snapshot": {}, "final_message": "bye",
+         "env_type": "benign", "defense": "none"}
+    doc = run(t)
+    tool_recs = [r for r in doc.records if r.get("k") == "message" and r.get("role") == "tool"]
+    srcs = [tuple(s["p"] for s in r.get("src", [])) for r in tool_recs]
+    texts = [r["parts"][0].get("text") for r in tool_recs]
+    print("tool records:", [(r["id"], r["parts"][0].get("text"), r["parts"][0].get("responds_to"), r.get("src")) for r in tool_recs])
+    print("issues:", [i["code"] for i in doc.seal.get("issues", [])])
+    # every source tool message represented exactly once
+    assert sorted(p for s in srcs for p in s if p.startswith("/traces/0/messages/")) == ["/traces/0/messages/3", "/traces/0/messages/5"], srcs
+    assert "R2" in texts, texts

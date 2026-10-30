@@ -1,0 +1,53 @@
+# Corpus spec of `ast-survey-agentharm` (HL H.1.6; D-44): the data-free build input. `agentprov package` copies this file, CARD.md
+# and CHANGES.toml into the sealed corpus's rules/ (a record, AD-14). Identity and selection come from here and from the
+# in-package source profile `survey-agentharm@2` ([import] include/exclude, used because this spec names none); counts are
+# computed at sealing, never written here (H.2.1(3)). The origin is the pin the import recorded (D-33).
+
+corpus_id = "ast-survey-agentharm"
+corpus_version = "0.1.0"
+title = "Agent Security Tools Survey: AgentHarm Inspect logs (restricted-use corpus)"
+mode = "import"
+
+[[sources]]
+source_id = "agent-security-tools-survey"
+profile = "survey-agentharm@2"  # D-31: version 1 is archived (profiles/archive/); 2 adds the [withhold] table (D-811)
+parts = ["agentharm"]
+
+[[sources.snapshots]]
+snapshot_id = "agentharm"
+origin = { kind = "git", repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey", commit = "89c4db2c949797fbb38c5bfed85dc82780ddbfe3", subtree = "agentharm/results" }
+alt_origins = [
+  { kind = "zenodo", doi = "10.5281/zenodo.22135957", file = "artifact.zip", md5 = "2cdcea49099b8e79a72263d7aeb47795", member_prefix = "codesafe/" },
+  { kind = "zenodo", doi = "10.5281/zenodo.22140262", file = "artifact.zip", md5 = "f623f7f776b8f24c19cdaeba1a20f654", member_prefix = "codesafe/" },
+]
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["inspect.agentharm@2"]  # D-31 option B
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+# Its own restricted-use licence class (D-44, U-05): the AgentHarm use clause is carried in licences.restrictions from the
+# survey-agentharm profile. LICENSE is the survey repository's (CC-BY-4.0); AgentHarm-LICENSE is the AgentHarm dataset
+# licence (MIT with the additional use clause; HF ai-safety-institute/AgentHarm at e23b3fe6, fetched 2026-10-08 with
+# the user's consent). Both are supplied at sealing with --licence-file.
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE", "AgentHarm-LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only, never addresses; corpora/personas/). upstream-data:
+# addresses in the benchmark's own published data at its pinned commit (synthetic-benchmark). <corpus>.observed: by where an
+# address first appears in this corpus's executions: benchmark-input (synthetic-benchmark), model-generated (kept, its own
+# triage) and withhold (model output at a public mail provider: sealing withholds the executions that hold one).
+# file-name: strings with the shape of an address (a file name) that a person reviewed (false-positive). Observed and
+# file-name groups apply to this corpus only.
+[scan]
+personas = [
+  { path = "../personas/agentharm.personas.toml", sha256 = "sha256:329822507a1b9fa1dd6c26fe735bb8058d3996e978be8048559aed7a346f2bee" },
+  { path = "../personas/ast-survey-agentharm.observed.personas.toml", sha256 = "sha256:4691a88f7948e09d62b449e0a9b39f4497d5e9fa7a1b4b5500d3ac3570b4cf6b" },
+]

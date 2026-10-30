@@ -1,0 +1,126 @@
+[project]
+name = "agentprov-backend-agentdyn"
+version = "0.1.0"
+description = "AgentPROV live backend environment: AgentDyn (SaFo-Lab/AgentDyn, distributed as agentdojo 0.1.35)"
+requires-python = "==3.12.*"
+dependencies = [
+    "agentprov-capture",
+    "agentprov-backend",
+    "agentdojo",        # AgentDyn, from the pinned git source below (D-680)
+]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1"]
+
+[tool.uv]
+package = false
+required-version = ">=0.12.22"      # as core (DECISIONS D-6)
+exclude-newer = "2026-10-07T00:00:00Z"   # fixed RFC 3339 timestamp (G.7.1(4)); the same as backends/agentdojo and autodojo
+default-groups = ["dev"]
+# wheels only (G.7.1(5)); derived from uv.lock (every registry entry carries wheels). agentdojo (AgentDyn) is the one
+# source build, from the pinned git commit.
+no-build-package = [
+    "annotated-types",
+    "anthropic",
+    "anyio",
+    "cachebox",
+    "certifi",
+    "cffi",
+    "charset-normalizer",
+    "click",
+    "cohere",
+    "cryptography",
+    "deepdiff",
+    "distro",
+    "dnspython",
+    "docstring-parser",
+    "email-validator",
+    "fastavro",
+    "filelock",
+    "fsspec",
+    "google-auth",
+    "google-genai",
+    "h11",
+    "hf-xet",
+    "httpcore",
+    "httpcore2",
+    "httpx",
+    "httpx2",
+    "huggingface-hub",
+    "idna",
+    "iniconfig",
+    "jiter",
+    "jsonpatch",
+    "jsonpointer",
+    "langchain",
+    "langchain-core",
+    "langchain-protocol",
+    "langgraph",
+    "langgraph-checkpoint",
+    "langgraph-prebuilt",
+    "langgraph-sdk",
+    "langsmith",
+    "markdown-it-py",
+    "mdurl",
+    "openai",
+    "orderly-set",
+    "orjson",
+    "ormsgpack",
+    "packaging",
+    "pluggy",
+    "pyasn1",
+    "pyasn1-modules",
+    "pycparser",
+    "pydantic",
+    "pydantic-core",
+    "pygments",
+    "pytest",
+    "python-dotenv",
+    "pyyaml",
+    "requests",
+    "requests-toolbelt",
+    "rfc8785",
+    "rich",
+    "sniffio",
+    "tenacity",
+    "tokenizers",
+    "tqdm",
+    "truststore",
+    "types-requests",
+    "typing-extensions",
+    "typing-inspection",
+    "urllib3",
+    "uuid-utils",
+    "websockets",
+    "xxhash",
+    "zstandard",
+]
+# D-681: the impossible-marker overrides below are resolvable only with a closed platform set.
+environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
+# D-681 (recorded deviation): AgentDyn declares seven dependencies beyond agentdojo 0.1.35 that no module outside
+# src/agentdojo/defenses/ imports (static scan at the pin; the backend refuses every defence) and that AgentDyn's own
+# uv.lock does not lock. They are overridden out, so the environment resolves from the uv cache with the SDK versions of
+# backends/agentdojo. tests/test_imports.py checks that a run imports none of them.
+override-dependencies = [
+    "cyclopts; sys_platform == 'never'",
+    "pydantic-ai; sys_platform == 'never'",
+    "tiktoken; sys_platform == 'never'",
+    "vertexai; sys_platform == 'never'",
+    "jsonref; sys_platform == 'never'",
+    "openapi-pydantic; sys_platform == 'never'",
+    "json-repair; sys_platform == 'never'",
+]
+
+[tool.uv.sources]
+agentprov-capture = { path = "../../capture" }
+agentprov-backend = { path = "../shared" }
+# D-680: AgentDyn at its pinned commit. pyproject.toml is at the repository root (no subdirectory); hatchling builds
+# src/agentdojo and runs no upstream build hook.
+agentdojo = { git = "https://github.com/SaFo-Lab/AgentDyn", rev = "5353cf7615b135cace8d07c8f12dac53a16b6db3" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "backend_agentdyn: needs the backends/agentdyn environment (spec M/K name: agentdyn)",
+]

@@ -1,0 +1,755 @@
+{
+  "format": "agentprov-precheck-research/0.1",
+  "corpus_id": "whistlebench",
+  "parts": [
+    "final-runs"
+  ],
+  "wave": 4,
+  "kind": "first examination (not in FA or E2)",
+  "code_commit": "065b0d36",
+  "date": "2026-10-14",
+  "status": "written before any pre-check data check of this corpus",
+  "method": "desk research only: arXiv API and abs/html pages of v1-v3 (figure SVGs fetched and bar heights read from their geometry), GitHub API via gh (repository, commits, git tree at the pin, README, LICENSE, ACCESS.md, experiment and harness code at the pin), PyPI JSON for inspect-ai release dates, inspect_ai issue search, Zenodo/HF search; our own reports (phase-10f census/trial, regen-batch items 16/25/28, D-150..D-156, D-372, D-374, core review D CD-24/CD-25). No data payload downloaded; no raw corpus data read; web text treated as untrusted data and summarised.",
+  "papers": [
+    {
+      "id": "arXiv:2511.17085",
+      "title": "Why Do Language Model Agents Whistleblow? (Agrawal, Xiao, Bergman, Cooper Stickland)",
+      "url": "https://arxiv.org/abs/2511.17085v3",
+      "relation": "describes the corpus: WhistleBench dataset, experiments and the final_runs logs (Appendix A.9 points to final_runs/ in the repository)",
+      "versions": "v1 2025-11-21 (251 KB), v2 2025-12-27 (242 KB), v3 2026-04-23 (247 KB); CC BY 4.0. v1->v2: one author affiliation changed, a punctuation edit, one sentence added in 3.2 saying the task prompts are hand-crafted and not representative of any company; v2->v3: no text change besides the date stamp and a stray figure back-reference. All 15 figure SVGs are byte-identical in v1, v2 and v3 (fetched from arxiv.org/html/2511.17085v1..v3), so no reported number changed between versions. Results are given only as bar charts (no numeric tables). https://arxiv.org/abs/2511.17085v1"
+    },
+    {
+      "id": "none",
+      "title": "SnitchBench (Browne, 2025)",
+      "url": "https://snitchbench.t3.gg/",
+      "relation": "comparison benchmark for the black-box awareness experiment; the corpus contains 8 SnitchBench logs (awareness_blackbox/snitchbench, dataset veridian_cleaned)",
+      "versions": "n/a"
+    },
+    {
+      "id": "arXiv:2505.14617",
+      "title": "Linear control of test awareness reveals differential compliance in reasoning models (Abdelnabi and Salem)",
+      "url": "https://arxiv.org/abs/2505.14617",
+      "relation": "probes used for the white-box analysis (no logs in the corpus)",
+      "versions": "not checked"
+    }
+  ],
+  "repo": "https://github.com/legobridge/whistlebench (MIT; 4 commits, 0 issues, 0 pull requests, 0 forks, 0 tags/releases; created 2025-11-18). Pinned commit 9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc (2025-11-27T18:34:01Z, 'Update README.md') = current HEAD of main on 2026-10-14 (pushed_at 2025-11-27T18:34:01Z). History: 71688cd9683e 2025-11-18 'Initial public release' (300 files, every log and all code in one squashed commit); 87b4385963ae 2025-11-21 README canary strings (+9 lines); 39a2bbd9cf0d and 9c27637c3cf6 2025-11-27 README paper link (1 line each). No commit after the first touches final_runs/ or the harness code. Git tree at the pin (GitHub git-trees API, not truncated): final_runs/ = 223 blobs, 523,183,391 bytes = profile expected_files/bytes; 184 .eval (522,052,717 B, 1,420,537..4,717,315 B each, 184 distinct blob SHAs); 39 context files (19 analysis/aggregated_analysis .csv, 9 logs.json, 2 eval-set.json, 9 .eval-set-id; all_models has no logs.json or .eval-set-id). Experiment scripts at the pin (highagency/whistlebench/experiments/*.py, eval.py, tasks.py, scorers.py, types.py) define the arms: https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/whistlebench/experiments/all_models.py. There is no script for 0_baseline_gpt_4.1_grader or for awareness_blackbox. The pinned scorer function is named 'whistleblowing' while the logs' score key (phase-10f census) is 'email_whistleblowing', so the code that produced the logs is not exactly the published code (history squashed). README claims: 'Complete Results: Full experimental data and model transcripts'; its storyline summaries (food safety Salmonella, medical devices surgical robots, mining water contamination) disagree with the paper's Table 1 and with the pinned data file names (Cronobacter, infusion-pump time-sync drift, tailings dam). README and types.py list a 'translation' responsibility and a 'pharma' storyline that the paper does not report. README: https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/README.md [CORRECTED by fact-check] 'No script for awareness_blackbox': there is no eval-set driver, but the SnitchBench task (high_agency_deliberation_awareness) is defined at the pin in highagency/snitchbench/tasks.py; habench_summarization uses high_agency with include_evaluation_deliberation (no driver).",
+  "data_record": "No Zenodo, Hugging Face or Figshare record (Zenodo API q=whistlebench: 0 hits; HF datasets search 'whistlebench': 0; GitHub repository search: only legobridge/whistlebench). The data record is the git tree final_runs/ at the pin; it matches the profile pin exactly (223 files, 523,183,391 B; 184 .eval, 522,052,717 B = census bytes). Git blob SHA-1s from the trees API are the only upstream checksums; our census holds sha256 per .eval (docs/reports/phase10f/whistlebench.census.json). https://api.github.com/repos/legobridge/whistlebench/git/trees/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc?recursive=1",
+  "harness": "Inspect AI (UKGovernmentBEIS/inspect_ai): 0.3.130 (PyPI 2025-09-07; 161 logs / 8,050 samples) and 0.3.134.dev31+geb46eef8 (commit eb46eef8 2025-09-25, 31 commits after 0.3.133; 23 logs / 1,150 samples, all in awareness_blackbox), log format version 2 (census). Agent: react(name='Agent', submit=AgentSubmit(name='Submit')), message_limit=30, eval_set with reasoning_effort=medium, reasoning_tokens=1536, reasoning_summary=detailed, epochs=50, retry_on_error=10, retry_attempts=10 (eval.py, tasks.py at the pin). Judge: grader_model default openai/gpt-5 with reasoning_effort=minimal; the whistleblowing judge is called only when an email was sent or a file written outside /Users/<scenario-user>/ or the scratchpad (pinned scorers.py). Known producer behaviours at these versions (our own analyses): ToolEvent.message_id names the first result message of a parallel batch (introduced with the field in 0.3.113, PR https://github.com/UKGovernmentBEIS/inspect_ai/pull/2100 merged 2025-07-05; fixed by 0.3.263), react's _remove_submit_tool removes the submit result message, model_copy message copies share call ids (regeneration-batch item 16, D-155 addenda); ScoreEvent has no 'scorer' field before 0.3.217 (CD-24); timestamps carry local offsets (-05:00, -04:00, -07:00; naive datetimes forbidden only from 0.3.151) (CD-25); model API call bodies kept for the first 5 calls per model per sample when log_model_api is unset (D-374 U6-b). No upstream issue reports the message_id batch defect (GitHub search on 2026-10-14). [CORRECTED by fact-check 2026-10-14] The react/Submit/message_limit=30/epochs 50/retry_on_error=10/reasoning medium/grader openai/gpt-5 settings are those of task high_agency (176 logs; whistlebench/eval.py and tasks.py). The 8 SnitchBench logs come from task high_agency_deliberation_awareness in highagency/snitchbench/tasks.py at the pin: message_limit=15, AgentSubmit without a name (Inspect default 'submit'), tools write_logs + send_email, default grader_model openai/gpt-4.1, scorers gov/media/internal_snitching + deliberation_analysis; no driver at the pin calls it, so its epochs, reasoning effort and grader are not documented by code. https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/snitchbench/tasks.py",
+  "models": [
+    "anthropic/claude-opus-4-1-20250805 (Anthropic API; 44 logs)",
+    "anthropic/claude-opus-4-20250514 (10 logs: all_models 4, awareness_blackbox 6)",
+    "anthropic/claude-sonnet-4-20250514 (5 logs)",
+    "anthropic/claude-sonnet-4-5-20250929 (4 logs)",
+    "openai/gpt-4.1-2025-04-14 (5 logs)",
+    "openai/gpt-5-2025-08-07 (5 logs)",
+    "openrouter/google/gemini-2.5-pro (50 logs; paper Table 2 checkpoint 2025-06-17, not in the id)",
+    "openrouter/x-ai/grok-4 (50 logs; paper checkpoint 2025-07-09, not in the id)",
+    "openrouter/meta-llama/llama-4-maverick (4 logs; paper checkpoint 2025-04-05, not in the id)",
+    "openrouter/qwen/qwen3-32b (6 logs, awareness_blackbox only; not in paper Table 2)",
+    "openrouter/qwen/qwen3-max (1 log, SnitchBench only; not in the paper)",
+    "judges: openai/gpt-5 (default grader_model; paper 3.4), openai/gpt-4.1 (0_baseline_gpt_4.1_grader, expected)"
+  ],
+  "reported_results": [
+    {
+      "arm": "all_models / anthropic/claude-opus-4-20250514 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "47/200 (23.5%) / 33/200 (16.5%) / 0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-opus-4-20250514",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "4/200 (2.0%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-opus-4-20250514",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-opus-4-1-20250805 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "116/200 (58.0%) / 102/200 (51.0%) / 0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-opus-4-1-20250805",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "9/200 (4.5%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-opus-4-1-20250805",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-sonnet-4-20250514 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "5/200 (2.5%) / 2/200 (1.0%) / 1/200 (0.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-sonnet-4-20250514",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "109/200 (54.5%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-sonnet-4-20250514",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "2/200 (1.0%) / 4/200 (2.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-sonnet-4-5-20250929 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "137/200 (68.5%) / 38/200 (19.0%) / 16/200 (8.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-sonnet-4-5-20250929",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "197/200 (98.5%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / anthropic/claude-sonnet-4-5-20250929",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "24/200 (12.0%) / 33/200 (16.5%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openai/gpt-4.1-2025-04-14 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openai/gpt-4.1-2025-04-14",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openai/gpt-4.1-2025-04-14",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openai/gpt-5-2025-08-07 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openai/gpt-5-2025-08-07",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openai/gpt-5-2025-08-07",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/google/gemini-2.5-pro (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "108/200 (54.0%) / 98/200 (49.0%) / 13/200 (6.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/google/gemini-2.5-pro",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "57/200 (28.5%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/google/gemini-2.5-pro",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/x-ai/grok-4 (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "200/200 (100.0%) / 199/200 (99.5%) / 18/200 (9.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/x-ai/grok-4",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/x-ai/grok-4",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/meta-llama/llama-4-maverick (boldness high, distractor docs off per all_models.py)",
+      "metric": "whistleblowing rate gov / media / internal (email_whistleblowing.value.<target> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 2, https://arxiv.org/html/2511.17085v3 (whistleblowing.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/meta-llama/llama-4-maverick",
+      "metric": "refusal rate (refusal.value == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(a), https://arxiv.org/html/2511.17085v3 (refusal.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "all_models / openrouter/meta-llama/llama-4-maverick",
+      "metric": "unprompted evaluation awareness / hypothetical recognition (test_awareness.value.<key> == C)",
+      "value": "0/200 (0.0%) / 0/200 (0.0%)",
+      "n": "200",
+      "where": "Figure 3(b), https://arxiv.org/html/2511.17085v3 (evaluation_awareness.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "0_baseline (summarization, boldness medium, distractor docs on, core tools; = Fig 4 Summarization = Fig 5 Medium = Fig 6 baseline bars) / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "23/200 (11.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figures 4, 5, 6(a-c), https://arxiv.org/html/2511.17085v3 (x1.svg, x2.svg, govwhistleblowingseparate.svg, x3.svg, x4.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "0_baseline (summarization, boldness medium, distractor docs on, core tools; = Fig 4 Summarization = Fig 5 Medium = Fig 6 baseline bars) / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "35/200 (17.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figures 4, 5, 6(a-c), https://arxiv.org/html/2511.17085v3 (x1.svg, x2.svg, govwhistleblowingseparate.svg, x3.svg, x4.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "0_baseline (summarization, boldness medium, distractor docs on, core tools; = Fig 4 Summarization = Fig 5 Medium = Fig 6 baseline bars) / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "188/200 (94.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figures 4, 5, 6(a-c), https://arxiv.org/html/2511.17085v3 (x1.svg, x2.svg, govwhistleblowingseparate.svg, x3.svg, x4.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "0_baseline / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figures 4, 5, A.2(a-c), https://arxiv.org/html/2511.17085v3 (x1.svg, x2.svg, internalwhistleblowingseparate.svg, x5.svg, x6.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "0_baseline / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "12/200 (6.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figures 4, 5, A.2(a-c), https://arxiv.org/html/2511.17085v3 (x1.svg, x2.svg, internalwhistleblowingseparate.svg, x5.svg, x6.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "0_baseline / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "48/200 (24.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figures 4, 5, A.2(a-c), https://arxiv.org/html/2511.17085v3 (x1.svg, x2.svg, internalwhistleblowingseparate.svg, x5.svg, x6.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / ediscovery_review / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / ediscovery_review / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "1/200 (0.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / ediscovery_review / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "50/200 (25.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / ediscovery_review / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / ediscovery_review / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / ediscovery_review / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "11/200 (5.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / pii_detection / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "1/200 (0.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / pii_detection / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "3/200 (1.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / pii_detection / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "95/200 (47.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / pii_detection / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / pii_detection / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "1/200 (0.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "1_responsibility / pii_detection / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "6/200 (3.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 4, https://arxiv.org/html/2511.17085v3 (x1.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / none / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / none / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / none / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "3/200 (1.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / none / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / none / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / none / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / low / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "1/200 (0.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / low / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "2/200 (1.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / low / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "32/200 (16.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / low / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / low / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "2/200 (1.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / low / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "13/200 (6.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / high / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "90/200 (45.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / high / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "105/200 (52.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / high / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "200/200 (100.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / high / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "12/200 (6.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / high / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "51/200 (25.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "2_boldness / high / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "108/200 (54.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 5, https://arxiv.org/html/2511.17085v3 (x2.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "3_detailed_instructions (workflow details on) / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "9/200 (4.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(a), https://arxiv.org/html/2511.17085v3 (govwhistleblowingseparate.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "3_detailed_instructions (workflow details on) / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "36/200 (18.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(a), https://arxiv.org/html/2511.17085v3 (govwhistleblowingseparate.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "3_detailed_instructions (workflow details on) / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "166/200 (83.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(a), https://arxiv.org/html/2511.17085v3 (govwhistleblowingseparate.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "3_detailed_instructions / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(a), https://arxiv.org/html/2511.17085v3 (internalwhistleblowingseparate.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "3_detailed_instructions / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "10/200 (5.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(a), https://arxiv.org/html/2511.17085v3 (internalwhistleblowingseparate.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "3_detailed_instructions / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "29/200 (14.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(a), https://arxiv.org/html/2511.17085v3 (internalwhistleblowingseparate.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "4_distractor_docs (distractor docs off) / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "20/200 (10.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(b), https://arxiv.org/html/2511.17085v3 (x3.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "4_distractor_docs (distractor docs off) / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "16/200 (8.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(b), https://arxiv.org/html/2511.17085v3 (x3.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "4_distractor_docs (distractor docs off) / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "154/200 (77.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(b), https://arxiv.org/html/2511.17085v3 (x3.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "4_distractor_docs / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(b), https://arxiv.org/html/2511.17085v3 (x5.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "4_distractor_docs / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "3/200 (1.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(b), https://arxiv.org/html/2511.17085v3 (x5.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "4_distractor_docs / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "31/200 (15.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(b), https://arxiv.org/html/2511.17085v3 (x5.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "5_distractor_tools (distractor tools on) / claude-opus-4-1-20250805",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(c), https://arxiv.org/html/2511.17085v3 (x4.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "5_distractor_tools (distractor tools on) / gemini-2.5-pro",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "38/200 (19.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(c), https://arxiv.org/html/2511.17085v3 (x4.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "5_distractor_tools (distractor tools on) / grok-4",
+      "metric": "government whistleblowing rate (email_whistleblowing.value.gov_whistleblowing == C)",
+      "value": "161/200 (80.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure 6(c), https://arxiv.org/html/2511.17085v3 (x4.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "5_distractor_tools / claude-opus-4-1-20250805",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "0/200 (0.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(c), https://arxiv.org/html/2511.17085v3 (x6.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "5_distractor_tools / gemini-2.5-pro",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "11/200 (5.5%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(c), https://arxiv.org/html/2511.17085v3 (x6.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "5_distractor_tools / grok-4",
+      "metric": "internal whistleblowing rate (email_whistleblowing.value.internal_whistleblowing == C)",
+      "value": "32/200 (16.0%)",
+      "n": "200 (4 storylines x 50)",
+      "where": "Figure A.2(c), https://arxiv.org/html/2511.17085v3 (x6.svg; bar heights read from the SVG geometry, y axis 0..1, converted to counts of N=200)"
+    },
+    {
+      "arm": "awareness_blackbox / 'Claude Opus 4.1' (legend; logs: anthropic/claude-opus-4-20250514)",
+      "metric": "deliberation awareness rate (deliberation_analysis.value == C) per storyline: autonomous_vehicles / food_safety / medical_devices / mining / SnitchBench",
+      "value": "15/50 / 7/50 / 10/50 / 21/50 / 14/50",
+      "n": "50 per storyline (one log each)",
+      "where": "Figure 7, https://arxiv.org/html/2511.17085v3 (deliberation.svg; N = 50 per bar)"
+    },
+    {
+      "arm": "awareness_blackbox / Gemini 2.5 Pro",
+      "metric": "deliberation awareness rate (deliberation_analysis.value == C) per storyline: autonomous_vehicles / food_safety / medical_devices / mining / SnitchBench",
+      "value": "0/50 / 3/50 / 2/50 / 0/50 / 4/50",
+      "n": "50 per storyline (one log each)",
+      "where": "Figure 7, https://arxiv.org/html/2511.17085v3 (deliberation.svg; N = 50 per bar)"
+    },
+    {
+      "arm": "awareness_blackbox / Grok 4",
+      "metric": "deliberation awareness rate (deliberation_analysis.value == C) per storyline: autonomous_vehicles / food_safety / medical_devices / mining / SnitchBench",
+      "value": "2/50 / 4/50 / 2/50 / 3/50 / 29/50",
+      "n": "50 per storyline (one log each)",
+      "where": "Figure 7, https://arxiv.org/html/2511.17085v3 (deliberation.svg; N = 50 per bar)"
+    },
+    {
+      "arm": "awareness_blackbox / Qwen 3 32B",
+      "metric": "deliberation awareness rate (deliberation_analysis.value == C) per storyline: autonomous_vehicles / food_safety / medical_devices / mining / SnitchBench",
+      "value": "0/50 / 0/50 / 0/50 / 0/50 / 1/50",
+      "n": "50 per storyline (one log each)",
+      "where": "Figure 7, https://arxiv.org/html/2511.17085v3 (deliberation.svg; N = 50 per bar)"
+    },
+    {
+      "arm": "0_baseline_gpt_4.1_grader (GPT-4.1 judge replication) and a Claude Sonnet 4 judge replication",
+      "metric": "all metrics",
+      "value": "no numbers; text says both judges give results consistent with GPT-5",
+      "n": "not given",
+      "where": "Section 3.4, https://arxiv.org/abs/2511.17085v3"
+    },
+    {
+      "arm": "white-box probe analysis, Qwen3-32B",
+      "metric": "mean test-awareness probability",
+      "value": "Figure 8 and A.1 only (activation probes, not Inspect logs); baseline steering check 0/50 per scenario",
+      "n": "50 per scenario",
+      "where": "Section 4.3, Appendix A.5, https://arxiv.org/abs/2511.17085v3"
+    }
+  ],
+  "expected_counts": "part final-runs: tree 223 files / 523,183,391 B (profile pin; GitHub trees API); selected 184 .eval (include final_runs/**/*.eval) / 522,052,717 B; not selected 39 context artefacts (profile context_artefacts). Units = samples = executions = 9,200 (registry tools/readme_corpora.toml count 9200 basis census /samples; census per_log 184 x 50; phase-10f trial mapped/derived/validated 9,200, 0 failures, 0 degenerate). Per experiment (logs / samples): 0_baseline 12/600; 0_baseline_gpt_4.1_grader 12/600; 1_responsibility 24/1,200; 2_boldness 36/1,800; 3_detailed_instructions 12/600; 4_distractor_docs 12/600; 5_distractor_tools 12/600; all_models 36/1,800; awareness_blackbox/habench_summarization 20/1,000; awareness_blackbox/snitchbench 8/400. Every log: 50 samples (epochs 50, one dataset sample), status success, log version 2. Paper: N = 200 per bar (4 storylines x 50) in Figs 2-6/A.2, N = 50 per bar in Fig 7; section 3.3 says 40 repetitions (contradicted by 4.2, A.8 and the logs).",
+  "expected_arms": "Facets: experiment (directory) x agent model x storyline (4: autonomous_vehicles, food_safety, medical_devices, mining; plus probably pharma in awareness_blackbox/habench_summarization) x condition (task_args params: agent_responsibility, boldness_prompt_detail, workflow details, distractor docs/tools, evaluation deliberation, grader_model). No attack, no defence (no_attack, D-147). Parameter experiments (0_baseline, 0_baseline_gpt_4.1_grader, 1_responsibility x2 responsibilities, 2_boldness x3 levels, 3_detailed_instructions, 4_distractor_docs, 5_distractor_tools): 3 models (Claude Opus 4.1, Gemini 2.5 Pro, Grok 4) x 4 storylines x conditions, 1 log per cell. all_models: 9 models x 4 storylines. awareness_blackbox/habench_summarization: 4 models (Claude Opus 4, Gemini 2.5 Pro, Grok 4, Qwen3-32B) x 5 logs. awareness_blackbox/snitchbench: 8 models x 1 log. Expected missing (vs paper/README): Claude Sonnet 4 judge replication (paper 3.4) 0 logs; translation responsibility 0; harmful-tools arm 0; media whistleblowing is logged for the parameter experiments but not reported. Expected extra (vs paper figures): 0_baseline_gpt_4.1_grader 600 samples (text-only mention); one habench log per model beyond Fig 7's 4 storylines (200 samples); SnitchBench logs for Claude Sonnet 4, GPT-4.1, GPT-5, Qwen3-max (200 samples) not in Fig 7; Qwen3-max not in the paper at all.",
+  "licence": "MIT (LICENSE at the pin, git blob 2e38f95f, 1,092 B; 'Copyright (c) 2025 Kushal Agrawal, Guido Bergman, Frank Xiao'; profile records sha256 a435c9f3...); covers code and the data in the repository; no separate data licence. Paper: CC BY 4.0 (arXiv). Use norms beyond the licence: README carries two canary GUID strings asking that the evaluation/benchmark data never appear in training corpora (not a licence clause; preserve and disclose); ACCESS.md declares disclosure level Public. Unassessed: model-provider terms on redistributing outputs (Anthropic, OpenAI, OpenRouter-served Google/xAI/Meta/Qwen). https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/LICENSE [fact-check note] The MIT text grants rights to 'software and associated documentation files'; applying it to the logs follows from repository scope (no separate data licence), an interpretation rather than an explicit data grant.",
+  "discrepancy_leads": [
+    "Figure 7 (black-box deliberation awareness) labels the Claude bars 'Claude Opus 4.1', but every awareness_blackbox log with a Claude Opus agent records anthropic/claude-opus-4-20250514 (census: 5 habench + 1 SnitchBench, 0 claude-opus-4-1). Either the figure legend or the released runs are not what the paper says (documentation-mismatch, identity).",
+    "Figure 2 is described (4.1) as the 'baseline configuration with high boldness prompting', but all_models.py sets boldness high AND include_distractor_docs=False, whereas the baseline (4.2) includes distractor docs. Fig 2 and Fig 5 'High' therefore differ in config and in numbers for the same models (internal whistleblowing Grok 4 18/200 vs 108/200; Gemini 13 vs 51; Opus 4.1 0 vs 12; gov Opus 4.1 116 vs 90).",
+    "Paper 3.3 says each session is repeated 40 times; 4.2, A.8 (n = 200 everywhere) and every log (epochs 50, 50 samples) say 50.",
+    "Paper 3.4 says a subset was replicated with GPT-4.1 and Claude 4 Sonnet judges; only a GPT-4.1 judge experiment is released (0_baseline_gpt_4.1_grader, 600 samples, fresh agent runs since every sample's messages are distinct), no Claude Sonnet 4 judge runs; no numbers reported for either.",
+    "Extra runs not in any figure: awareness_blackbox/habench_summarization has 5 logs per model where Fig 7 shows 4 storylines (types.py lists a fifth storyline 'pharma'); awareness_blackbox/snitchbench has 8 models where Fig 7 shows 4 (Claude Sonnet 4, GPT-4.1, GPT-5, Qwen3-max extra); Qwen3-max appears nowhere in the paper; Qwen3-32B appears in Fig 7 although Table 2 lists 9 models.",
+    "Logs were produced by code that differs from the published (squashed) code: the logged score key is email_whistleblowing (census score_names), the pinned scorer function is whistleblowing; no experiment scripts exist for 0_baseline_gpt_4.1_grader and awareness_blackbox. The judge short-circuit (no grader call without an email or an outside write) may also differ.",
+    "Batches and reruns: run start dates 2025-09-28 (SnitchBench, 250 samples), 2025-10-04 (2,050), 2025-10-05 (6,150), 2025-10-14 (1_responsibility, 600; offset -04:00 vs -05:00 elsewhere), 2025-10-24 (SnitchBench Gemini/Grok/Qwen3-32B at 0.3.134, 150); all_models logs for Gemini, Grok and Llama come from 3-4 separate batches (partial reruns via eval_set retry). Three local time zones (-05:00, -04:00, -07:00) suggest several operators/machines. eval.py sets retry_on_error=10, so sample-level retries may be hidden in error_retries.",
+    "README storyline summaries (Salmonella; surgical robots; mining water contamination) contradict the paper's Table 1 and the pinned data file names (Cronobacter; infusion-pump time-sync drift; tailings dam): stale README (S3).",
+    "Model checkpoints for OpenRouter models (Gemini 2.5 Pro 2025-06-17, Grok 4 2025-07-09, Llama 4 Maverick 2025-04-05 per Table 2) are not in the logged model ids; the provider routing and served version are only checkable from model-event outputs.",
+    "The scenario user's home path /Users/<scenario-user>/ (fictional, from the task prompts, workflow instructions and judge prompt) will match the account-path detector (L1-06) and the redaction check; real author paths, if any, must be told apart from it.",
+    "Paper Fig 3(b)/7 metrics depend on judge parsing: an unparsable test_awareness answer is scored INCORRECT for both keys and an unexpected whistleblowing tag value INCORRECT (pinned scorers.py); explanation text 'Invalid format' would mark such samples."
+  ],
+  "open_questions": [
+    "What is the fifth habench_summarization log per model (pharma storyline, a rerun, or another condition)? L1 must read task_args params per log.",
+    "Which config did all_models run with (boldness high, distractor docs off per the script) - is the paper text or the script right?",
+    "Is the Claude model of awareness_blackbox Opus 4 (logs) or Opus 4.1 (Fig 7 legend)?",
+    "Do the 0_baseline_gpt_4.1_grader logs record grader_model openai/gpt-4.1 in task_args, and are the agent runs fresh (census: all messages distinct) rather than regraded copies?",
+    "Does the judge-call pattern in the whistleblowing scorer spans match the pinned short-circuit (no grader model event when no email and no outside write)?",
+    "How should a fictional scenario account path (/Users/<scenario-user>/) be treated by the redaction check (D-182) - expected-known content or a redaction target?",
+    "Do the CD-24 (score names) and CD-25 (non-UTC offsets) fixes land before the round? At 065b0d36 the mapper still falls back to 'score' and accepts only UTC timestamps."
+  ],
+  "checks_not_applicable": [
+    "Delta since E2: not applicable (whistlebench is not in FA or E2; first examination, wave 4).",
+    "Attack success / utility under attack: not applicable (no attacker, no_attack, D-147); the outcome compared is unsanctioned whistleblowing, refusal and awareness as judged by the grader.",
+    "Defence facet: not applicable (no defence arm).",
+    "L2 withholding: conditional, only if L1-06 finds a secret-like string or a real (non-scenario) account path; the census found 0 secret-like strings.",
+    "L2 SEM-dependent checks: no semantics profile (SEM skipped per profile); assessment-bundle checks not applicable.",
+    "White-box probe results (Fig 8, A.1): not from Inspect logs; no comparison possible."
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/whistlebench/research.json",
+    "docs/reports/precheck/prereg/whistlebench.md"
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2511.17085v3",
+    "https://arxiv.org/abs/2511.17085v1",
+    "https://arxiv.org/html/2511.17085v1",
+    "https://arxiv.org/html/2511.17085v3",
+    "https://github.com/legobridge/whistlebench",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/README.md",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/LICENSE",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/ACCESS.md",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/whistlebench/eval.py",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/whistlebench/tasks.py",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/whistlebench/scorers.py",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/whistlebench/types.py",
+    "https://github.com/legobridge/whistlebench/blob/9c27637c3cf6dfb2c0d5801c7f3d91358cb587bc/highagency/whistlebench/experiments/all_models.py",
+    "https://api.github.com/repos/legobridge/whistlebench/commits",
+    "https://pypi.org/pypi/inspect-ai/json",
+    "https://github.com/UKGovernmentBEIS/inspect_ai/pull/2100",
+    "https://zenodo.org/api/records?q=whistlebench",
+    "https://huggingface.co/api/datasets?search=whistlebench",
+    "docs/reports/phase10f/README.md",
+    "docs/reports/phase10f/whistlebench.census.json",
+    "docs/reports/phase10f/whistlebench.trial.json",
+    "docs/reports/analysis/regen-batch.md (items 16, 25, 28; D-372)",
+    "docs/architecture/DECISIONS.md (D-147, D-150..D-156, D-372, D-374, D-375)",
+    "docs/reports/review-core-d/findings.md (CD-24, CD-25)"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "method": "adversarial re-check against the sources (GitHub API tree/commits/files at the pin, arXiv API/abs/HTML v1-v3, figure SVGs re-read independently from bar geometry, PyPI JSON, Zenodo/HF APIs, our own reports); no raw data read",
+    "confirmed": [
+      "pin = HEAD, 4 commits, later 3 touch README only",
+      "final_runs tree 223/523,183,391 B; 184 .eval/522,052,717 B; 39 context files; per-directory counts; file-name dates/offsets",
+      "paper versions, dates, CC BY 4.0, text diffs",
+      "all 12 result SVGs byte-identical v1-v3",
+      "every reported count (Fig 2, 3, 4, 5, 6, A.2, 7)",
+      "40 vs 50 repetitions, judge replication sentence, Table 2 models, A.9 pointer",
+      "all_models.py config; scorer name 'whistleblowing' and short-circuit; types.py pharma/translation/harmful tools",
+      "Inspect release dates, eb46eef8 date, PR #2100 merge date",
+      "LICENSE sha256 = profile, ACCESS.md Public, two canary GUIDs",
+      "no Zenodo/HF record",
+      "README storyline summaries vs Table 1 and data file names"
+    ],
+    "corrected": [
+      "harness settings scoped to task high_agency; SnitchBench task differs (message_limit 15, unnamed submit, default grader gpt-4.1)",
+      "'no scripts for awareness_blackbox' -> no driver, task defined",
+      "-05:00 is not a paper-stated run zone (America/Chicago is scenario prompt text)",
+      "H4 'one responsibility per batch date' dropped (script runs both in one eval_set)",
+      "H5 narrowed to the 176 high_agency logs"
+    ],
+    "unverifiable": [
+      "Fig 7 Opus 4 vs 4.1 log side and all per-log model/score facts (rest on the phase-10f census, not re-derived)",
+      "whether the GPT-4.1-judge logs record grader openai/gpt-4.1"
+    ]
+  }
+}

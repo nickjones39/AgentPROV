@@ -1,0 +1,33 @@
+{
+ "check": "post-check",
+ "corpus_id": "adprov-v1-release",
+ "findings": [
+  {
+   "agents_md_12": false,
+   "artefact_proposal": null,
+   "check": "PC11",
+   "cls": "documentation-mismatch",
+   "evidence": "`corpora/adprov-v1-release/corpus-spec.toml` (since df67f9ac, phase 11, 2026-10-11) has `prov_specs = [\"agentprov-prov/0.1\", \"adprov-v2.3-compat\"]`; every execution of rg1 (and of p10) has only `agentprov-prov/0.1`; the round driver ran no `derive --prov-spec adprov-v2.3-compat`. The seal forecast refuses `stages`.",
+   "hypothesis_ref": null,
+   "id": "POST-adprov-v1-release-01",
+   "part": "all",
+   "recommendation": "Done: user decision (a), `adprov-v1-release-rg2` derived at 5b1f6fdf; post-checked (pass). For the next re-import, `tools/regen/round/run_round.sh` (or the regen plan) needs the step `agentprov derive --prov-spec adprov-v2.3-compat` after the import (`import` defers the compat spec). S2, not R4's S3 default, because it blocked the seal.",
+   "reproduction": "see the dossier's section 9",
+   "security": false,
+   "severity": "S2",
+   "title": "The corpus spec requires the regression-oracle PROV, which no import produces",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "cls": "documentation-mismatch",
+     "lens": "reproduction",
+     "reasoning": "re-measured from the committed data files",
+     "severity": "S2",
+     "verdict": "confirmed"
+    }
+   ]
+  }
+ ],
+ "format": "agentprov-precheck-findings/0.1",
+ "refuted": []
+}

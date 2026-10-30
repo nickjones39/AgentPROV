@@ -1,0 +1,20 @@
+"""A1b-3: a header with a scalar "artifacts" must yield findings, not a TypeError, when a raw store is given."""
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(".")
+sys.path.insert(0, str(REPO / "tests/unit/aer"))
+
+import aer_support as S  # noqa: E402
+from agentprov.aer.validate import validate_records  # noqa: E402
+
+
+@pytest.mark.parametrize("bad", [1, True, 1.5])
+def test_scalar_artifacts_with_store_reports_findings(bad):
+    recs = S.example_records()
+    recs[0]["artifacts"] = bad
+    report = validate_records([*recs, S.seal_record(recs)], store=S.example_store(), catalogues=S.make_registry())
+    assert not report.ok
+    assert any(f.code == "aer.schema.pattern" and f.pointer == "/artifacts" for f in report.errors)

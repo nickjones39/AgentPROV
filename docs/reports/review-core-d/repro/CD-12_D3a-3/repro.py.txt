@@ -1,0 +1,35 @@
+import sys
+sys.path.insert(0, "tests/adapters/agentdojo"); sys.path.insert(0, "tests/adapters"); sys.path.insert(0, "tests")
+from agentdojo_support import new_log, map_log
+
+A = {"function": "get_balance", "args": {}, "id": "call_a"}
+B = {"function": "send_money", "args": {"recipient": "X", "amount": 10.0}, "id": "call_b"}
+
+def run(order, label):
+    d = new_log()
+    d["messages"][2]["tool_calls"] = order
+    d["messages"][3]["tool_call_id"] = "call_b"
+    d["messages"][3]["tool_call"] = B
+    m = map_log(d)
+    print(label, "codes:", m.codes)
+    for c in ("missing_tool_result", "unexecuted_tool_call", "accounting_inconsistent", "accounting_unverifiable"):
+        for i in m.issues(c):
+            print("   ", c, i.get("ids") or i.get("subject") or i)
+    reqs = [r for r in m.records if r.get("k") == "tool_execution"]
+    print("   tool_executions:", [(r["id"], r.get("call")) for r in reqs])
+    rep = m.validate()
+    print("   validate:", getattr(rep, "ok", None), [getattr(f, "code", f) for f in getattr(rep, "findings", [])][:10])
+
+run([A, B], "[call_a, call_b]")
+run([B, A], "[call_b, call_a]")
+# last-assistant variant: drop final text message
+def run_last(order, label):
+    d = new_log()
+    d["messages"][2]["tool_calls"] = order
+    d["messages"][3]["tool_call_id"] = "call_b"
+    d["messages"][3]["tool_call"] = B
+    d["messages"] = d["messages"][:4]
+    m = map_log(d)
+    print(label, "codes:", m.codes)
+run_last([A, B], "last [call_a, call_b]")
+run_last([B, A], "last [call_b, call_a]")

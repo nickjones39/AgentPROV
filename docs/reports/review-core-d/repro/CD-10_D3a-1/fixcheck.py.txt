@@ -1,0 +1,27 @@
+import sys
+sys.path.insert(0, 'tests/adapters/agentdojo')
+import agentprov.adapters.agentdojo.mapper as M
+_S = M._SENTINELS
+_orig = M.weaken_to_rule_class
+def patched(rec):
+    ptrs = []
+    if rec.get("k") == "tool_execution" and isinstance(rec.get("name"), str) and rec["name"].lower() in _S:
+        ptrs.append("/name")
+    if rec.get("k") == "message":
+        for k, part in enumerate(rec.get("parts") or ()):
+            if isinstance(part, dict) and part.get("t") in ("tool_call", "tool_result") and isinstance(part.get("name"), str) and part["name"].lower() in _S:
+                ptrs.append(f"/parts/{k}/name")
+    for p in ptrs:
+        rec.setdefault("unk", {}).setdefault(p, "ambiguous")
+    return _orig(rec)
+M.weaken_to_rule_class = patched
+from agentdojo_support import new_log, map_log
+d = new_log()
+d['messages'][2]['tool_calls'][0]['function'] = 'none'
+d['messages'][3]['tool_call']['function'] = 'none'
+d['messages'][3]['error'] = "Invalid tool none provided."
+m = map_log(d)
+print("records:", len(m.records), "issues:", m.codes)
+te = m.of_kind("tool_execution")[0]; print("te name/unk:", te["name"], te["unk"], te["status"])
+rep = m.validate()
+print("release validate:", [(f.code, f.pointer) for f in rep.findings] if hasattr(rep, "findings") else rep)

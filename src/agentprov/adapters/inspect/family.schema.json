@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/inspect/family-0.1.json",
+  "title": "[family.inspect] table of an inspect source profile (D.4.1, D.4.4, D.9; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["benchmark", "producer_band", "members", "span_roles"],
+  "properties": {
+    "benchmark": {"type": "string", "minLength": 1, "description": "task.benchmark of every sample (D.9.2 header row)"},
+    "live": {
+      "description": "The live part of an Inspect source (D-662..D-666): the backend, its environment project, the pinned inspect_ai wheel (the primary distribution T0 checks), further pinned wheels (the benchmark package), the pinned dataset and the instrumentation items its sessions declare",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "project", "pins", "distribution_pins", "dataset", "instrumentation_accepted"],
+      "properties": {
+        "backend": {"type": "string", "pattern": "^inspect-[a-z][a-z0-9_]*$"},
+        "project": {"type": "string", "pattern": "^backends/inspect/envs/[a-z][a-z0-9_]*$"},
+        "pins": {"$ref": "#/$defs/wheel"},
+        "distribution_pins": {"type": "array", "items": {"$ref": "#/$defs/wheel"}},
+        "dataset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repo", "revision"],
+          "properties": {"repo": {"type": "string", "minLength": 1}, "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}}
+        },
+        "instrumentation_accepted": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]*$"}}
+      }
+    },
+    "no_attack": {"type": "boolean", "description": "true: the benchmark has no attack; task.attack_id is null (D)"},
+    "producer_band": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inspect_ai"],
+      "properties": {"inspect_ai": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}
+    },
+    "log_versions": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}},
+    "members": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "span_roles": {
+      "type": "object",
+      "additionalProperties": {"enum": ["agent", "judge"]}
+    },
+    "submit_tools": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}, "description": "the react agent's submit tool names, whose result message react removes (regeneration-batch item 16 (c))"},
+    "ground_truth_metadata": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "redact": {
+      "type": "array",
+      "description": "D-182: redaction of workstation account paths (agentprov.adapters.inspect.redact); scope model_id (whole observed model ids) or harness_text (harness-written ext/params fields only, optionally narrowed by pointers, D-601)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "pattern", "replacement"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "scope": {"enum": ["model_id", "harness_text"]},
+          "pattern": {"type": "string", "minLength": 1},
+          "replacement": {"type": "string", "minLength": 1},
+          "leaf": {"type": "string", "minLength": 1},
+          "pointers": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^/"}},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^inspect\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^inspect\\.[a-z][a-z0-9_]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "wheel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["distribution", "version", "wheel_sha256"],
+      "properties": {
+        "distribution": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "wheel_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

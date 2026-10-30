@@ -1,0 +1,163 @@
+# Source profile `geryon-agentdojo`: luiacuaniello/geryon, 3,179 v0.k11 TraceLogger logs written by Progent's vendored
+# AgentDojo with openai.gpt-oss-120b and qwen.qwen3-235b-a22b-2507 on Amazon Bedrock, banking, slack and travel, in
+# condition A (no defence) and condition B (Progent), up to three repeats (phase 10d; shortlist row 9;
+# sources/agentdojo-format-candidates.md §3.11).
+#
+# The condition is a property of the log set (results/<run set>/logs-<suite>-<A|B>-r<n>/), not of the pipeline name, so
+# the identity table is keyed by run set and log set (D-104). v0.k11 logs carry no timestamp, benchmark or package
+# version: nothing is filled in. Progent's denials ('The tool ... is not allowed') are defence
+# decisions (quirk agentdojo.defence_denial_message, routing R1, D-113); its JSON-schema argument errors are not.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/geryon@905aae02c418.*).
+
+[profile]
+id = "geryon-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "geryon-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "Geryon: AgentDojo (Progent fork) v0.k11 logs of conditions A and B (luiacuaniello/geryon)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/luiacuaniello/geryon"
+paper = "none found; CITATION.cff: Iacuaniello, Geryon: measuring prompt-injection defences against within-policy attacks"
+package = { name = "agentdojo", vendored = "Progent (sunblaze-ucb/progent) cloned at its HEAD by scripts/setup_env.sh; not pinned", version_identifies_code = false }
+
+# The pin covers the repository root (3,313 files, 30,876,930 bytes; all fetched): the logs and run records under
+# results/, the protocol, the attack corpus, the package and the run scripts.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "905aae02c4185454ffbdb64a8bae6a042f6d7047"
+date = "2026-09-23"
+expected_files = 3313
+expected_bytes = 30876930
+note = "the default branch at 2026-10-11 (phase 10c); 3,179 logs in 28 log sets"
+
+[licence]
+spdx = "Apache-2.0"
+holders = ["Luigi Iacuaniello (CITATION.cff; the LICENSE carries no copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "Apache-2.0 LICENSE at the pin, README section Licence and CITATION.cff; the logs embed AgentDojo benchmark text (MIT)"
+attribution = [
+  "luiacuaniello/geryon (Apache-2.0), commit 905aae02c4185454ffbdb64a8bae6a042f6d7047; cite per CITATION.cff",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+  "Progent (Shi et al., arXiv:2504.11703): the defence of condition B",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["Progent's vendored AgentDojo (v0.k11 writer), cloned at HEAD at setup time (unpinned)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v0.k11"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["results/*/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "results/{model_dir?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the condition protocol, the run
+# scripts and the pair sets.
+context_artefacts = ["LICENSE", "README.md", "CITATION.cff", "docs/running-progent.md", "scripts/run_condition.py", "scripts/setup_env.sh", "scripts/patch_progent_bedrock.py", "scripts/patch_progent_prompts.py", "results/pairs.json", "results/pairs-fork-v1.2.json"]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/geryon_log_sets.toml", sha256 = "48a6ab39d8ef7f23bf76b75c50a8eaf3524763b0ff6d06a1bbe84284cd6cf63d" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# Progent's AgentDojo was cloned at its HEAD when the environment was set up (README, scripts/setup_env.sh); the
+# commit is not recorded
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log: the same text as upstream's default (the v0.k11 writer of
+# Progent), recognised by its digest only.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", note = "same digest as upstream; the writer is Progent's vendored AgentDojo, unpinned", applies = { variant = ["v0.k11"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 212, origin_rule_applied = 211 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 212 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 27 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 28, logs = 28 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = {}
+rules = ["agentdojo.incomplete_run@1"]
+note = "one v0.k11 log (results/runs-claude-policy/) has no utility or security key"
+observed = { head = { files = 1, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# Routing R1 (D-113): Progent's tool denial, whose text says the call was refused. Its JSON-schema argument errors
+# ("... is not one of [...] Failed validating ...") under condition B stay tool errors: their text does not say the call
+# was refused, and Progent's code is not in this repository (AgentDyn's rule agentdyn.progent_denial_pattern@1, read from
+# AgentDyn's vendored copy, draws the same line).
+params = { denials = [
+  { defences = ["progent"], error_regex = "^ValidationError: The tool '[A-Za-z0-9_]+' is not allowed\\.\\. Please try other tools or arguments and continue to finish the user task: .*$" },
+] }
+observed = { head = { denials = 773 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

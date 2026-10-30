@@ -1,0 +1,189 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "redcode-exec-openhands",
+ "findings": [
+  {
+   "id": "PC-redcode-exec-openhands-01",
+   "title": "[CC-13] [CC-11 class] supp zip environment/<seg>/.bash_history (1 member, 2 identical `export HF_TOKEN=` lines) holds one Hugging Face token-shaped string, no placeholder context",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "part": "head",
+   "check": "L1-06/L1-10 gap pass (examiner, supp zip)",
+   "evidence": "agent-execution-decisions-supp.zip (pinned, sha256 = profile): 1 member environment/<seg>/.bash_history at depth 3 (the sibling .bashrc has 0 hits; verifier correction: the examiner's acct2 'files 2' counted .bashrc too and overwrote per-file counts) (outside the vendored OpenHands tree), 144 lines, 2 identical lines each with 1 hf_-shaped token (length withheld, 24 distinct chars, sha256[:8] <secret-C>, the same token in both); 0 placeholder words within 60 chars; 2 Hugging Face login/variable words in the files; 0 named /home or /Users paths in them. The other 7 strict token shapes in environment/ sit in vendored OpenHands tests/frontend with placeholder context (openai 3, anthropic 1, aws 3). Not reached by the profile (environment/ not selected; never in AER/SEM/PROV), but the whole supp zip is a pinned raw-store file of this source.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/envsec.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/envsec.json ; uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/acct2.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/acct2.json (bash_history: files 2, hf_token_shapes 2, huggingface_word 2)",
+   "hypothesis_ref": "H-10",
+   "recommendation": "Report to the orchestrator at once (README section 5: a secret in any raw-store file). Withhold the 2 members at seal, digests kept (CC-11 / D-345 precedent; member-level carving as D-315), or withhold the supp zip with a carved remainder; the user decides whether the anonymous depositors / Zenodo are told. Never print the value.",
+   "artefact_proposal": "[[artefact]] id = \"openhands.art.deposit_shell_history_token\" (proposed): source redcode-exec-openhands, snapshot head, unit members, count 2 (1 distinct token shape), class withhold, basis pre-check PC-redcode-exec-openhands-01",
+   "agents_md_12": "Security: the RedCode/OpenHands Zenodo 23168099 supp zip ships shell-history files with a token-shaped HF credential; withhold at seal.",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Independent pass (verify-pc01.py, agentprov.ingest, shape stats only): 3,373 supp members; hf_ shapes only in environment/ (2), both in the single depth-3 .bash_history (member digest 1e1fd2d2), 2 identical lines; .bashrc 0. Token length withheld = hf_ + length withheld (9 upper, 25 lower, 0 digits, entropy 4.24 bits/char, no runs), which is the live HF user-token format; line prefix is `export HF_TOKEN=` (a real assignment, not docs or a placeholder); 0 occurrences in the 6 trajectory zips. Alternative explanations (vendored test fixture, placeholder, hf_hub identifier) rejected: depth 3 outside environment/OpenHands, no placeholder word, letters-only body. Count corrected from 2 members to 1 member / 2 occurrences. Class CC-11 source-defect S2 security kept: not reachable by the profile's auxiliary globs, but the whole supp zip enters the raw store on import, so the withhold is a precondition of any seal."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "source-defect S2 security -> source-defect S0 security. CC-13 names the RedCode hf_ token as a real-format secret of the source's own infrastructure (live HF user-token format, a real export assignment in a depositor shell history), not a fixture: S0, reported at once. It sits in a raw-store member only (0 in AER/SEM/PROV); the withhold recommendation is unchanged."
+    }
+   ]
+  },
+  {
+   "id": "PC-redcode-exec-openhands-02",
+   "title": "[R5] L1 batch never opened the supp zip: L1-06 auxiliary 0 files and L1-10 0 files screened, so PC-01 and the environment/ account paths were missed by the tools",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06 / L1-10",
+   "evidence": "l1-head.json input.archives lists the 6 trajectory zips only; L1-01 auxiliary_scanned 0; L1-06 auxiliary {} ; l1-10-head.json files_screened 0. Examiner pass over the supp zip (every member; 10 binary members not text-scanned): environment/ 12 distinct non-generic /home/<x>/ names in 40 hits (vendored OpenHands code incl. its sandbox user), results/ 4 names in 22 hits (conversation_log last_response_full), 5 environment files with strict token shapes, 0 operator hits, 0 /Users paths.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/pop.json (supp_scan); jq .L1-01,.L1-06.auxiliary l1-head.json; cat l1-10-head.json",
+   "hypothesis_ref": "H-10",
+   "recommendation": "Tool owner (this session): let l1_scan/l1_context take the source's non-include pins (here the supp zip) as auxiliary/context in archive mode; re-run L1-06 aux and L1-10 for this part in the post-check. No corpus finding.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l1-head.json input.archives = 6 trajectory zips, L1-01 auxiliary_scanned 0, L1-06 auxiliary {}; l1-10-head.json files_screened 0. R5 analysis-artefact S3. Caveat: the examiner's supp-zip /home name counts use the same regex as PC-04 and may include ':'-suffixed variants (e.g. results/ 12ed0620 is one)."
+    }
+   ]
+  },
+  {
+   "id": "PC-redcode-exec-openhands-03",
+   "title": "[R5] l1_families _RC requires the _py/_sh tag: 3,450 S2/S3 members flagged layout_mismatch with stratum <none>; no outcome hook for the supp-zip scores",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 / L1-08 / outcome extraction",
+   "evidence": "l1-head.json L1-08 layout_mismatch 3,450 = S2 2,010 + S3 1,440 (name_ltag S2:None 2,010, S3:None 1,440; S1 0 flagged); L1-05 strata 4 of 8 (3,450 units in model=<none>|target=<none>|language=<none>); family.outcomes {}. The examiner recount from labels gives all 8 arms, 5,460 cells, 0 duplicates.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/pop.json (trajectories.arms, cells, name_ltag)",
+   "hypothesis_ref": "H-03",
+   "recommendation": "Make the language tag optional in _RC (language from the directory) and add a redcode outcome hook reading the conversation_log scores before the post-check; keep the frozen strata definition documented.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Verifier recount of l1-units-head.jsonl labels: S1 names carry _py/_sh (1,440 + 570), S2/S3 names carry no tag (2,010 + 1,440 = 3,450), matching layout_mismatch 3,450 and stratum <none> 3,450. _RC is in tools/precheck/l1_families.py:563 (tool, not product); the product mapper handled all 5,460 in the phase-10g map census. R5 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-redcode-exec-openhands-04",
+   "title": "[CC-03] 12 trajectories with named /home/<x>/: 10 are the OpenHands sandbox user (4 plain, 6 as ':'-suffixed PATH-list regex artefact), 1 vendored OpenHands string, 1 agent-created generic test user (':'-suffixed); 0 operator, 0 workstation account",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06",
+   "evidence": "Non-generic /home names (L1-06 named 12 artefacts, 4 distinct): <account-Q> = OpenHands sandbox user (4 artefacts, qwen only; also in vendored environment/; missing from l1_scan GENERIC_ACCOUNTS, an R5 note); <account-A> (1 artefact) occurs in the RedCode-Exec dataset; <account-B> (6 artefacts, both models, sonnet S1 3 / qwen 3) first seen in sandbox run observations, 8 of 10 contexts a colon-separated path list (/home/<x>/bin), also in results/ conversation_log; 03924d78 (1 artefact, qwen S2 py) created by the agent (mkdir). None equals the 2 run-metadata usernames, none is the operator. Pointers /*/content, /*/message, /*/args/*, tool-call arguments: these reach AER/PROV message and tool content on import.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/acct.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/acct.json ; uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/acct2.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/acct2.json",
+   "hypothesis_ref": "H-10",
+   "recommendation": "No private classification needed. Tool fix (R5): exclude ':' from the l1_scan/l1_context account-name class; add 'openhands' and 'test_user' to GENERIC_ACCOUNTS. CC-03 redaction table (D-182) entry optional for the sandbox user.",
+   "artefact_proposal": "",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Core count (12 artefacts, 0 operator) confirmed, but the conditional S0 is refuted. verify-pc04.py splits each watched name on ':': <account-B> = sha256[:8] of '<<account-Q>>:' where <account-Q> = 'openhands' (the sandbox user), i.e. l1_scan's home-dir regex ([^/\\s\"'<>\\\\]) admits ':' and captured '/home/openhands:/...' in a PATH list (6 artefacts); 03924d78 = '<11601308>:' where 11601308 = 'test_user' (agent mkdir, a generic placeholder name). <account-A> occurs in environment/OpenHands (vendored code, 4 hits), not in dataset/RedCode-Exec (acct.json traj_names_also_in_environment), so 'RedCode dataset string' is corrected to 'vendored OpenHands string'. Hence no unresolved name remains: expected-known CC-03 S3, unconditional; the security flag and the AGENTS.md item for <account-B> are withdrawn. New R5 note: the account regexes should exclude ':' and GENERIC_ACCOUNTS should add 'openhands' and 'test_user'."
+    }
+   ]
+  },
+  {
+   "id": "PC-redcode-exec-openhands-05",
+   "title": "[R5] L1-06 'secret-like' 183 artefacts are the generic credential-assignment rule on RedCode payload code: 1,665 of 1,783 matches are RedCode dataset strings; 0 strict token shapes",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06",
+   "evidence": "L1-06 secret:generic-credential-assignment 183 artefacts / 1,844 strings (prereg: 0, the census pattern set lacks this rule). Examiner: 1,783 matches, 17 distinct; 1,665 occur verbatim in the RedCode-Exec dataset and the prompt-generator output; 1,665 in the task prompt or its echo; 118 not in the prompt (agent 56, observations 62: model/sandbox reproductions of payload code); strict token shapes in trajectories 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/acct.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/acct.json (cred_matches); uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/pop.json (secret_like_traj)",
+   "hypothesis_ref": "H-10",
+   "recommendation": "Benchmark content, not a secret; no withhold. Record the rule difference beside the census figure in the dossier.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "L1-06 secret:generic-credential-assignment 183 artefacts / 1,844 strings; acct.json cred_matches total 1,783, 17 distinct, 1,665 in dataset/RedCode-Exec and prompt-generator, 118 not in the prompt (agent 56, obs 62). Strict shapes in trajectories 0 (L1-06 has no strict class; verifier hf_ scan of the 6 trajectory zips 0). R5 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-redcode-exec-openhands-06",
+   "title": "[R4] Case-hash structure differs from the census reading: 2,730 values; qwen S2 bash shares the S2 python hash (570 triples); 570 S1 bash hashes unique, not 1,140 bash",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-04",
+   "evidence": "Hash groups by arm (labels of all 5,460): sonnet S1 py + qwen S1 py 720; sonnet S3 py + qwen S3 py 720; sonnet S2 py + qwen S2 py + qwen S2 sh 570; sonnet S2 py + qwen S2 py 150; qwen S1 sh alone 570. Census hash_duplicates 2,160 is right (values with > 1 run), but R10g README line 200 and the prereg (H-15, section 3) read it as 2,160 sonnet/qwen pairs and 1,140 unique bash hashes. The score join is by (model, target, language, scenario, index): 5,460/5,460, 1 entry per key, so no join impact.",
+   "reproduction": "python3 over l1-units-head.jsonl labels (dossier section 9 one-liner)",
+   "hypothesis_ref": "H-15",
+   "recommendation": "Phase-10g doc owner: correct R10g line 200 (the hash is a per-(scenario, payload, target) case key for S2, shared across languages). Not a corpus defect.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Verifier recount over 5,460 labels: 2,730 hash values; groups sonnet+qwen S1 py 720, sonnet+qwen S3 py 720, sonnet+qwen S2 py + qwen S2 sh 570, sonnet+qwen S2 py 150, qwen S1 sh alone 570 (values with > 1 run 2,160). Nuance: phase10g README line 200 ('shared by both models' runs ... 2,160 shared values') is incomplete rather than wrong (it omits the 570 S2 bash members sharing the python case hash); the prereg's '1,140 bash hashes are unique' (line 72-73, H-15) is wrong. R4 S3, no join impact (join 5,460/5,460, 1 entry per key)."
+    }
+   ]
+  },
+  {
+   "id": "PC-redcode-exec-openhands-07",
+   "title": "[R3] Deposit documentation and layout: Zenodo description names one trajectories.zip (record has 7 zips); the 3 S1 arms have no <S>_summary.json; S1 scenario summaries carry 'jsonfile' and 21 qwen S1 python lack duration_sec",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-01 / H-05 / H-18",
+   "evidence": "Desk (research.json, prereg fact-check) for the description. Supp zip: arm summaries exist for 5 of 8 arms (sonnet S1 py, qwen S1 py, qwen S1 sh missing); scenario-summary key sets by arm: S1 arms duration_sec+jsonfile (46: sonnet S1 py 24, qwen S1 sh 19, qwen S1 py 3) or jsonfile only (qwen S1 py 21), 67 S1 scenario summaries in all; S2/S3 arms duration_sec only (115). All deposit aggregates present equal the per-record scores (H-05).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/agg2.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/agg2.json ; uv run python -I docs/reports/precheck/data/redcode-exec-openhands/exam-scripts/acct.py ~/.agentprov/migration-work/precheck/redcode-exec-openhands/exam/acct.json (arms_with_summary_json)",
+   "hypothesis_ref": "H-18, H-19",
+   "recommendation": "Disclose in the datasheet (S1 runs summarised by an earlier script; partial re-summary of qwen S1 python). No data change.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "verifier/2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "agg2.json key sets and acct.json arms_with_summary_json (5 arms, the 3 S1 arms missing) confirm; spot-check sonnet S2 csv average row 395/322/3 of 720 equals score3/score0/score1. One-zip description is desk-confirmed in the prereg fact-check. Count corrected: duration_sec+jsonfile is 46, not 67 (67 is all S1 summaries). R3 S3."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

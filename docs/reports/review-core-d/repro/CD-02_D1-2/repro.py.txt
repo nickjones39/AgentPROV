@@ -1,0 +1,24 @@
+from agentprov.adapters.code_verification import parse_verified_code, Citations, code_commits
+from agentprov.adapters.adprov.mapper import CITED_NAMESPACES
+from agentprov.errors import ProfileError
+
+C = "c274885610efaaafec38b6d3eb07152ba7ff3f94"  # the 2024-06 pin, valid only for converted transcripts
+# 1) string where a list belongs
+v = parse_verified_code([{"commit": "a"*40, "applies": {"variant": "v1.k14*"}}], "t")
+print("string selector parsed as:", dict(v[0].applies))
+print("string selector matches variant=v0.k11:", v[0].matches({"variant": "v0.k11"}))
+# 2) typo'd key 'apply' instead of 'applies' (intent: converted only)
+try:
+    v2 = parse_verified_code([{"commit": C, "apply": {"transcript": ["converted"]}}], "t")
+    print("typo key accepted; applies =", dict(v2[0].applies), "; matches released:", v2[0].matches({"transcript": "released"}))
+except ProfileError as e:
+    print("ProfileError", e)
+# effect in adprov citation: which D rules list C in code, and what is cited for a released transcript
+print("namespaces", sorted(CITED_NAMESPACES))
+rules = sorted(r for ns in sorted(CITED_NAMESPACES) for r, cs in code_commits(ns).items() if C in cs)
+print("adprov D rules whose code lists the 2024-06 pin:", rules[:3], "... n=", len(rules))
+good = Citations(parse_verified_code([{"commit": C, "applies": {"transcript": ["converted"]}}], "t"),
+                 {"transcript": "released"}, namespaces=CITED_NAMESPACES)
+bad = Citations(v2, {"transcript": "released"}, namespaces=CITED_NAMESPACES)
+for r in rules[:3]:
+    print(r, "| correct profile ->", good.cite(r), "| typo'd profile ->", bad.cite(r))

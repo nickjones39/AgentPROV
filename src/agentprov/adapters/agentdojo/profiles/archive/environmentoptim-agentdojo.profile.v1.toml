@@ -1,0 +1,176 @@
+# Source profile `environmentoptim-agentdojo`: the new run logs of omseeth/EnvironmentOptim ("Optimizing Environments to
+# Improve Agent Performance", a thesis on soft prompts, images and text nudges injected into the agent's environment),
+# AgentDyn's harness (AgentDojo 0.1.35 plus the AgentDyn suites) on a frozen Qwen3.5-9B agent (phase 10j; D-254, D-255;
+# docs/reports/phase10j/census.md §6, §12).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10j census of
+# every selected log (tools/agentdojo/phase10j_profiles.py census), reconciled with tools/agentdojo/phase10j_census.py.
+#
+# What the pin holds (90,480 TraceLogger logs) and what this profile does with it:
+# * 104 gpt-5.4-2026-03-05 logs (benign utility reference runs): mapped.
+# * 6,016 local Qwen3.5 logs (the thesis's arms: benign images by training checkpoint and size, soft image and language
+#   prompts by seed, token count and RLVR rollout, text prompts, baselines): select.redaction_pending (D-255). Their
+#   pipeline directory and logged pipeline_name are a cluster home path with an account segment; they are mapped once
+#   the agentdojo-family redaction exists (routing R-10j-1), with their identity rows (D-254).
+# * 620 DRIFT logs in runs/gpt-4o-mini-2024-07-18-drift/: AgentDyn's own superseded generation (blob ids equal at
+#   2d4ad05a..785b9127; census §12): select.owned_elsewhere, owner agentdyn (an AgentDyn history part, routing R-10j-2).
+# * 83,740 byte copies: upstream AgentDojo runs/ (36,679, runs/dojo_*) and AgentDyn's runs (47,061, including the 4,258
+#   variant-C DRIFT logs): select.owned_elsewhere. No directory mixes new logs with copies (census §6).
+# One new DRIFT log held a bare private-key header line (no key material); it is AgentDyn's (D-257).
+
+[profile]
+id = "environmentoptim-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "environmentoptim-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "EnvironmentOptim: AgentDyn-harness logs of environment nudges on a frozen Qwen3.5-9B agent, and gpt-5.4 reference runs (omseeth/EnvironmentOptim)"
+evidence = ["docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md §2 row 6", "docs/reports/phase10d/deferred.md", "docs/reports/phase10j/census.md §6"]
+
+[source]
+canonical_repo = "https://github.com/omseeth/EnvironmentOptim"
+paper = "Optimizing Environments to Improve Agent Performance (thesis; repository README)"
+package = { name = "agentdojo", requirement = "the repository's src/agentdojo (AgentDyn's fork of agentdojo 0.1.35), uv.lock", version_identifies_code = false }
+
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "febf82d8d1d8344d6c19e9fd172b51e52d68416a"
+note = "the default branch at 2026-10-11 (phase 10c); 93,042 blobs, 90,480 TraceLogger logs, 6,120 of them new"
+
+[licence]
+spdx = "MIT"
+holders = ["omseeth (EnvironmentOptim)", "Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, Florian Tramèr (LICENSE text)"]
+data_licence = "none"
+policy = "include"
+basis = "README badge 'license MIT' and the repository LICENSE (the MIT text of AgentDojo); the README states that the thesis contributions are optimization/ and the new runs/ subdirectories"
+attribution = [
+  "omseeth/EnvironmentOptim (MIT), commit febf82d8d1d8344d6c19e9fd172b51e52d68416a",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.) and AgentDyn (MIT): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs", "the thesis contributions carry no licence statement of their own beyond the README badge"]
+
+[lineage]
+built_on = ["AgentDyn (SaFo-Lab/AgentDyn) and agentdojo 0.1.35, vendored in src/ (not verified, D-24)"]
+vendored = ["agentdojo and AgentDyn (src/agentdojo, MIT)"]
+duplicates = [
+  { of = "agentdojo-upstream", path = "runs/dojo_*/**", relation = "byte_identical", owner = "agentdojo-upstream" },
+]
+cited_by = ["agentdyn: 47,061 logs under AgentDyn's own pipeline directory names are byte copies of AgentDyn runs (head and history; excluded below, owner agentdyn)"]
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2, agentdyn = 2 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "runs/dojo_*/**", code = "select.owned_elsewhere", owner = "agentdojo-upstream", note = "byte copies of upstream AgentDojo runs/ (36,679)" },
+  { glob = "runs/google_gemini-2.5-*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/gpt-4o-2024-08-06*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/gpt-4o-mini-2024-07-18*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs; -drift holds AgentDyn's superseded DRIFT generation (R-3, routing R-10j-2)" },
+  { glob = "runs/gpt-5-mini-2025-08-07*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/gpt-5.1-2025-11-13*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/meta-llama_llama-3.3-70b-instruct*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/meta_secalign-*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/qwen_qwen3-235b-a22b-2507*/**", code = "select.owned_elsewhere", owner = "agentdyn", note = "byte copies of AgentDyn runs" },
+  { glob = "runs/benign_injection/**", code = "select.redaction_pending", note = "D-255: account path in the pipeline directory and pipeline_name (routing R-10j-1)" },
+  { glob = "runs/soft_image_prompt/**", code = "select.redaction_pending", note = "D-255: account path in the pipeline directory and pipeline_name (routing R-10j-1)" },
+  { glob = "runs/soft_language_prompt/**", code = "select.redaction_pending", note = "D-255: account path in the pipeline directory and pipeline_name (routing R-10j-1)" },
+  { glob = "runs/text_prompt/**", code = "select.redaction_pending", note = "D-255: account path in the pipeline directory and pipeline_name (routing R-10j-1)" },
+  { glob = "runs/qwen3_5-*/**", code = "select.redaction_pending", note = "D-255: account path in the pipeline directory and pipeline_name (routing R-10j-1)" },
+]
+layout = "runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = ["LICENSE", "README.md", "agentdyn_README.md", "agentdojo_README.md", "CITATION.bib"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/environmentoptim_run_dirs.toml", sha256 = "a081e285c2749d4f40441a958011f9f9ab3731056c161c60ba31c008dabc0392" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdyn"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo", dailylife = "agentdyn", github = "agentdyn", shopping = "agentdyn" }
+version_field = "benchmark_version"
+version_label_semantics = "label_not_suite_version"  # AgentDyn's code registers its suites under every version key
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 3 }  # the reviewed AgentDyn tables, as the agentdyn profile
+
+[family.agentdojo.harness]
+# AgentDyn's fork of agentdojo vendored in src/; not verified against these runs (D-24)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "auto_complete_line", source = "SaFo-Lab/AgentDyn@5353cf7615b135cace8d07c8f12dac53a16b6db3:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "21a1c00db164a6d5d9d456be30eea3ed23bc11e6a89af0f56b8098d1f9ee3e36", note = "AgentDojo default plus 'Complete all tasks automatically without requesting user confirmation.' (AgentDyn's default; all 104 gpt-5.4 logs)", applies = { variant = ["v1.k14"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 104, origin_rule_applied = 104 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 104 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 584, present_and_null = 584 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { head = { null_ids = 0, logs_with_null_ids = 0, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

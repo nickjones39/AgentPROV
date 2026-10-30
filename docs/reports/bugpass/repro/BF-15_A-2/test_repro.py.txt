@@ -1,0 +1,38 @@
+"""A-2: a split zip at max_split_parts parts must expand through a real worker (RLIMIT_NOFILE=64)."""
+import io
+import os
+import zipfile
+
+import pytest
+
+from agentprov.ingest.limits import IngestLimits
+from agentprov.io.workers import WorkerLimits, WorkerPool
+from agentprov.raw.members import ContainerSpec, Selection, expand_containers, store_split_descriptor
+from agentprov.raw.store import RawObjectStore
+
+
+def _run(tmp_path, n):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        z.writestr("logs/a.json", b'{"k": 1}' + b" " * (n * 300))
+    data = buf.getvalue()
+    size = -(-len(data) // n)
+    parts = [data[i:i + size] for i in range(0, len(data), size)]
+    assert len(parts) == n
+    store = RawObjectStore(str(tmp_path / "raw"))
+    declared = tuple((store.put(p, ext="bin").sha256, len(p)) for p in parts)
+    sha = store_split_descriptor(store, declared)
+    spec = ContainerSpec(sha, "snap", "logs.zip", (Selection(include=("logs/*",)),), parts=declared)
+    out = expand_containers(store, [spec], pool=WorkerPool(workers=1, store_root=store.objects_dir))
+    return [(r.label, r.disposition) for r in out.rows], [(e.code, e.detail) for e in out.events]
+
+
+def test_defaults_consistent():
+    print("max_split_parts", IngestLimits().max_split_parts, "nofile", WorkerLimits().nofile)
+
+
+@pytest.mark.parametrize("n", [8, IngestLimits().max_split_parts])
+def test_split_at_limit_expands(tmp_path, n):
+    rows, events = _run(tmp_path, n)
+    print("parts", n, rows, events)
+    assert rows == [("logs/a.json", "selected")], events

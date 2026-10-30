@@ -1,0 +1,217 @@
+# Source profile `dca-agentdojo`: the JSON logs of the DCA AgentDojo artefact v1 (Figshare 10.6084/m9.figshare.32657856),
+# the artefact of "Decision-Space Counterfactual Auditing for Prompt Injection Defense in Tool-Using LLM Agents":
+# AgentDojo 0.1.35 (benchmark v1.2.2) runs of gpt-4o-mini, GPT-OSS-20B, Qwen3.6-27B and Qwen2-7B, direct and under DCA
+# (`causal_budgeted`), CaMeL, CaMeL+secpol and DRIFT (phase 10j; D-252; docs/reports/phase10j/census.md §4).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10j census of
+# every selected log (tools/agentdojo/phase10j_profiles.py census), reconciled with tools/agentdojo/phase10j_census.py and,
+# for the DRIFT part, with the phase-10l census (docs/reports/phase10l/census.md).
+#
+# Two parts over one pin, selected by variant (variant_labels): `v1` (13,374 v1.k14 logs) and `drift` (2,847
+# drift.k18.conversations logs, mapped by the DRIFT build, D-270; included like every other part, D-279 addendum, RT-7:
+# 0 of 2,847 attacked runs succeed, which the datasheet may state as context). 3,866 member labels contain `:` (an Ollama
+# tag as a directory name), a label character since D-56. 1,025 logs repeat another log's trajectory in different bytes
+# (CaMeL against CaMeL+secpol where the policy did not intervene; the direct Qwen3.6 run against DCA): separate runs,
+# kept and disclosed (content_dedup = never).
+#
+# Input: the zip is a Figshare download, a `url` pin read as an archive input (D-455, R-10j-3): its members are the
+# logs (`member` origins). A URL is mutable, so the pin records when its bytes were retrieved (`retrieved_at`, the
+# phase-10c acquisition record); an import fetched later uses its own acquisition record.
+
+[profile]
+id = "dca-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "dca-agentdojo"
+family = "agentdojo"
+parts = ["v1", "drift"]
+title = "DCA AgentDojo artefact v1: AgentDojo 0.1.35 logs of gpt-4o-mini, GPT-OSS-20B and Qwen models under DCA, CaMeL and DRIFT (Figshare 32657856)"
+evidence = ["docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md §2 row 3", "docs/reports/phase10j/census.md §4", "docs/reports/phase10l/census.md"]
+
+[source]
+canonical_repo = "https://doi.org/10.6084/m9.figshare.32657856"
+paper = "Decision-Space Counterfactual Auditing for Prompt Injection Defense in Tool-Using LLM Agents (deposit README)"
+package = { name = "agentdojo", requirement = "AgentDojo 0.1.35, benchmark version v1.2.2 (deposit README)", version_identifies_code = false }
+
+# The deposit file (Figshare file 65496114). One pin serves both parts (select them with variant_labels).
+[[source.pins]]
+role = "head"
+part = "v1"
+primary = true
+kind = "url"
+url = "https://ndownloader.figshare.com/files/65496114"
+file = "DCA_AgentDojo_artifact_v1_20260612.zip"
+sha256 = "ed500ca30d4420ed268d0798d4296296d6acfb0a2f82411c5a2f0ec5cbe40ce3"
+md5 = "26a3a9725db78188c06723d714e3fba5"
+size = 54196099
+date = "2026-06-12"
+retrieved_at = "2026-10-11T09:46:41Z"
+note = "retrieved_at is the phase-10c acquisition record of these bytes (user-approved fetch; migration-work/phase10c/meta/acquisitions.jsonl, sha256, size and published md5 equal to the pin; D-455); the one pin serves parts v1 and drift"
+
+[licence]
+spdx = "MIT"
+holders = ["the DCA artefact authors (Figshare 32657856)"]
+data_licence = "none"
+policy = "include"
+basis = "Figshare record licence MIT; third_party_licenses/ carries AgentDojo (MIT), CaMeL (Apache-2.0 text) and DRIFT/ASB (MIT)"
+attribution = [
+  "DCA AgentDojo artefact v1, Figshare 10.6084/m9.figshare.32657856 (MIT)",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+  "CaMeL (Apache-2.0) and DRIFT (MIT): the runners of the CaMeL and DRIFT rows (third_party_licenses/)",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["AgentDojo 0.1.35 with the DCA integration (code/dca_core/), a CaMeL runner (code/camel_runner/) and a DRIFT runner (code/drift_runner/); not verified (D-24)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "drift.k18.conversations"]
+rules = { aer = 1, agentdojo = 2, drift = 1 }
+include = ["DCA_AgentDojo_artifact_v1_20260612/results/logs/*/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+# the identity key is <group>/<run directory>/<pipeline directory> (D-104): a CaMeL run directory holds two arms
+layout = "DCA_AgentDojo_artifact_v1_20260612/results/logs/{model_dir?}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+variant_labels = { "v1.k14" = "v1", "drift.k18.conversations" = "drift" }
+context_artefacts = [
+  "DCA_AgentDojo_artifact_v1_20260612/README.md", "DCA_AgentDojo_artifact_v1_20260612/docs/*.md",
+  "DCA_AgentDojo_artifact_v1_20260612/code/*/README.md", "DCA_AgentDojo_artifact_v1_20260612/third_party_licenses/*",
+]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/dca_run_dirs.toml", sha256 = "f8907bc9de160444db0d728256f59914138ca8fdd4f4f15e08a2fd3879dc3f88" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = []
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# none of the deposit's runners was verified against the runs (D-24, D-272): every D rule through its `_unverified` twin
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"], variant = ["v1.k14"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { v1 = { files = 1036, origin_rule_applied = 1036 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { drift = { files = 0 }, v1 = { files = 454 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { v1 = { null_final_logs = 4269 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { v1 = { calls = 187, logs = 161 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = {}
+rules = ["agentdojo.args_are_effective@1"]
+observed = { drift = { files = 2677 }, v1 = { files = 11209 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { v1 = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { v1 = { present = 31997, present_and_null = 31997 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.positional_match@1"]
+observed = { v1 = { null_ids = 10631, logs_with_null_ids = 3853, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_tool_output_post_isolation"
+applies = { variant = ["drift.k18.conversations"] }
+rules = ["drift.tool_output_post_isolation@1"]
+observed = { drift = { isolation_decisions = 6965, tool_messages = 7455 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_assistant_reserialised"
+applies = { variant = ["drift.k18.conversations"] }
+rules = ["drift.assistant_reserialised@1"]
+observed = { drift = { raw = 2055, reserialised = 8493 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_call_error_as_user"
+applies = { variant = ["drift.k18.conversations"] }
+rules = ["drift.call_error_user_is_validator@1", "drift.call_error_check@1"]
+observed = { drift = { checklist = 618, files = 515, messages = 724, trajectory = 106 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_calls_in_text_not_executed"
+applies = { variant = ["drift.k18.conversations"] }
+rules = ["drift.calls_in_text_not_executed@1"]
+observed = { drift = { final_turns = 291, raw = 101, reserialised = 190 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_no_system_no_injections"
+applies = { variant = ["drift.k18.conversations"] }
+rules = ["drift.no_system_message@1", "drift.no_injection_map@1"]
+observed = { drift = { fixtures = 0, system_messages = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_plan_fields_by_commit"
+applies = { variant = ["drift.k18.conversations"] }
+rules = ["drift.plan_fields_semantics@1"]
+params = { semantics = "initial_plan" }
+observed = { drift = { contradicted = 0, final_plan_state = 0, initial_plan = 2846 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.run_error_imposed_outcome@1"]
+# AgentDojo's runner writes utility false and security true when the run raised (every log with an error string)
+params = { utility = false, security = true }
+observed = { v1 = { files = 4 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.checker_outcome@1",
+]

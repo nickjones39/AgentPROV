@@ -1,0 +1,49 @@
+# Rule catalogue `survey` (docs/architecture D.5.1, D.5.4, D.6.4, D.6.7, D.6.15; phase 10).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (the `survey` namespace is homed in the
+# agentdojo family package, CATALOGUE_HOMES). Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this file is version 1.
+#
+# The source is the AgentDojo part of Forever-CodingNoob/agent-security-tools-survey (profile survey-runs): 3,243
+# TraceLogger logs of three Ollama-served models, produced by AgentDojo @089ed468 plus three local patches that are NOT
+# in git (the submodule gitlink points at the unpatched commit; the patched files are only in the Zenodo archive).
+# Both rules are therefore class I: the model id appears in no record, and the patched code state is the author's claim.
+
+[catalogue]
+id = "survey"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = []
+subtypes = []
+types = []
+
+[[rule]]
+id = "survey.model_from_results_dir"
+version = 1
+class = "I"
+status = "active"
+statement = "The model of a survey AgentDojo log is read from its results directory runs_<slug> through the survey's run script: run_full_benchmark.sh writes the logs of each model id to ../your-results/runs_${model//:/_} (the slug is the Ollama tag with ':' replaced by '_'), so runs_qwen3_14b, runs_qwen3-coder_30b and runs_gpt-oss_120b are the tags qwen3:14b, qwen3-coder:30b and gpt-oss:120b. The logged pipeline_name is the constant openai-compatible in every record, and no record names a model; the mapping is the profile's slug table, never a guess."
+premises = []
+assumptions = []
+code = [
+  { repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey", commit = "89c4db2c949797fbb38c5bfed85dc82780ddbfe3", path = "agentdojo/run_full_benchmark.sh", lines = "11-19", note = "MODELS and logdir=../your-results/runs_${model_slug}" },
+]
+evidence = ["sources/agent-security-tools-survey.md §4.2, §10", "verify/agent-security-tools-survey.md §2.5, §2.7"]
+tests = ["tests/adapters/agentdojo/test_survey.py::test_the_model_comes_from_the_results_directory"]
+since = "0.1.0"
+
+[[rule]]
+id = "survey.internal_server_error_patch"
+version = 1
+class = "I"
+status = "active"
+statement = "A survey run whose error member is non-null (the same logs hold the message 'Skipping task ... because of openai InternalServerError') ended on a provider error the benchmark runner caught, and its outcomes (utility False, security True) were imposed by the survey's local patch (c), not judged by a checker. The patch (adding except InternalServerError blocks to run_task_without_injection_tasks and run_task_with_injection_tasks of benchmark.py) is described in the survey's README and present in the patched benchmark.py of its Zenodo archive, but it is not in the pinned git tree; the code state that wrote the logs is therefore the author's claim. The values copy the convention upstream AgentDojo already applies to cohere ApiError and google ServerError."
+premises = ["/error"]
+assumptions = []
+code = [
+  { repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey", commit = "89c4db2c949797fbb38c5bfed85dc82780ddbfe3", path = "agentdojo/README.md", lines = "143-153", note = "patch (c): except InternalServerError ... utility = False; security = True" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/benchmark.py", lines = "133-147, 302-312", note = "the existing convention: cohere ApiError and google ServerError set utility = False; security = True" },
+]
+evidence = ["sources/agent-security-tools-survey.md §4.1, §4.4", "verify/agent-security-tools-survey.md §1 item 7, §2.4"]
+tests = ["tests/adapters/agentdojo/test_survey.py::test_a_run_error_imposes_the_patched_outcome"]
+since = "0.1.0"

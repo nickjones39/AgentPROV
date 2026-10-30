@@ -1,0 +1,313 @@
+# The single transcript/v1 <-> AER field table (docs/architecture C.15.3 owns it; R-30; K.7.2).
+#
+# Data, not code. Both directions read this file:
+#   * the importer `agentprov.adapters.adprov` (adapter `adprov.transcript_v1`) checks every source object's member
+#     order against [layout] (J.3.2) and places the meta / model_config / usage members named below;
+#   * the view `agentprov.views.transcript_v1` (`render`) resolves every meta, model_config and usage member from the
+#     AER source given here, and orders turn members by [layout].
+# Tests assert that the two directions and this table agree (tests/unit/views/test_fields_table.py).
+#
+# Source syntax:  <record>:<JSON Pointer into that record>
+#   exec                the execution header         actor:<id>     the actor record with that local id
+#   scope:<id>          the scope record             judgement:<n>  the judgement named <n> without `revises`
+#   handler:<name>      a computed member (fixtures, model_config, usage, finish_reasons); see the view
+# A member listed in the layout whose source is absent (or declared unknown) renders as null (C.15.3). Every value is
+# decoded with the record's `ext.lex` hints at its pointer (C.11.4): member order and integral floats come back.
+# `sources` is tried in order; the first present wins.
+
+[table]
+id = "transcript_v1.fields"
+version = 1
+view = "agentprov.views.transcript_v1"
+importer = "adprov.transcript_v1"
+serialisation = "json.dumps(doc, indent=2), Python defaults (ensure_ascii=True, separators ', '/': '), UTF-8, no trailing newline"
+
+# ------------------------------------------------------------------------------------------------ J.3.2 layout
+# Member order of every object the writer emits. "?" marks a member that is present only sometimes.
+[layout]
+top = ["adprov_schema", "meta", "turns", "?discarded_attempts"]
+meta = [
+  "model", "model_id", "suite", "user_task_id", "injection_task_id", "attack_type", "injections", "utility",
+  "security", "started_at", "ended_at", "wall_clock_s", "agentdojo_version", "benchmark_version", "?model_config",
+  "?source", "?pipeline_name", "?timing_stubbed", "?run_error", "?reasoning_alignment", "?n_attempts", "?capture",
+]
+system_turn = ["role", "content"]
+user_turn = ["role", "content"]
+other_turn = ["role", "content"]
+assistant_turn = ["role", "text", "?reasoning", "?tool_calls", "?refusal"]
+# Reasoning attached from the LLM element's side log is added after the refusal (transcript.py _build_turns).
+assistant_turn_log_reasoning = ["role", "text", "?tool_calls", "?refusal", "?reasoning"]
+tool_call = ["id", "function", "args", "?placeholder_args"]
+tool_turn = ["role", "tool_call_id", "function", "args", "content", "content_sha256", "error", "?started_at", "?ended_at"]
+discarded_attempt = ["turns", "?reasoning_alignment"]
+capture = ["complete", "n_attempts", "llm_calls_total", "assistant_turns_total", "passes"]
+capture_pass = ["pass", "llm_calls", "assistant_turns", "tool_calls", "tool_results", "?environment"]
+
+# ------------------------------------------------------------------------------------------------ meta (render)
+[[meta]]
+key = "model"
+sources = ["exec:/ext/adprov/model"]
+note = "harness shorthand (class H, audit/capture.md §5.2)"
+
+[[meta]]
+key = "model_id"
+sources = ["exec:/ext/adprov/model_id", "actor:agent:/model/requested"]
+note = "released: the requested model id; converted: the pipeline name kept verbatim, because it is not a model id (J.4.4)"
+
+[[meta]]
+key = "suite"
+sources = ["exec:/task/suite"]
+
+[[meta]]
+key = "user_task_id"
+sources = ["exec:/task/task_id"]
+
+[[meta]]
+key = "injection_task_id"
+sources = ["exec:/task/attack_target_id"]
+
+[[meta]]
+key = "attack_type"
+sources = ["exec:/task/attack_id"]
+null_renders = "benign"
+rule = "adprov.v1_benign_label@1"
+
+[[meta]]
+key = "injections"
+sources = ["handler:injections"]
+note = "fixtures of kind injection_payload in id order: {vector: content}"
+
+[[meta]]
+key = "utility"
+sources = ["judgement:utility:/value"]
+
+[[meta]]
+key = "security"
+sources = ["judgement:security:/value"]
+
+[[meta]]
+key = "started_at"
+sources = ["scope:run:/t/raw/start"]
+
+[[meta]]
+key = "ended_at"
+sources = ["scope:run:/t/raw/end"]
+
+[[meta]]
+key = "wall_clock_s"
+sources = ["scope:run:/t/dur_s"]
+note = "lex.flt carries an integral wall_clock_s (MIG-10)"
+
+[[meta]]
+key = "agentdojo_version"
+sources = ["actor:bench:/code/dist_version"]
+
+[[meta]]
+key = "benchmark_version"
+sources = ["actor:bench:/version"]
+
+[[meta]]
+key = "model_config"
+sources = ["handler:model_config"]
+note = "members in exec.ext.adprov.v1.model_config_keys order"
+
+[[meta]]
+key = "source"
+sources = ["exec:/ext/adprov/source"]
+
+[[meta]]
+key = "pipeline_name"
+sources = ["exec:/ext/agentdojo/pipeline_name"]
+
+[[meta]]
+key = "timing_stubbed"
+sources = ["exec:/ext/adprov/timing_stubbed"]
+
+[[meta]]
+key = "run_error"
+sources = ["exec:/ext/adprov/run_error"]
+
+[[meta]]
+key = "reasoning_alignment"
+sources = ["exec:/ext/adprov/reasoning_alignment"]
+
+[[meta]]
+key = "n_attempts"
+sources = ["exec:/ext/adprov/n_attempts"]
+
+[[meta]]
+key = "capture"
+sources = ["exec:/ext/adprov/capture_block"]
+note = "kept verbatim (the header field name `capture` is a core slot of execution); passes[].environment also gives state_change records"
+
+# A meta member the layout does not list is kept at exec:/ext/adprov/meta_extra/<key> (issue v1_layout_unknown_member).
+
+# ------------------------------------------------------------------------------------------------ model_config
+[[model_config]]
+key = "temperature"
+sources = ["actor:agent:/params/temperature"]
+note = "configured, not transmitted (adprov.temperature_not_transmitted@1); lex.flt keeps 0.0"
+
+[[model_config]]
+key = "usage"
+sources = ["handler:usage"]
+note = "the run scope's usage, members in exec.ext.adprov.v1.usage_keys order"
+
+[[model_config]]
+key = "finish_reasons"
+sources = ["handler:finish_reasons"]
+note = "agent-role model_call.finish_reason in id order (null where unknown), or exec.ext.adprov.v1.finish_reasons when not alignable (C.7.4)"
+
+# Any other model_config member is kept at exec:/ext/adprov/model_config_extra/<key>.
+
+# ------------------------------------------------------------------------------------------------ usage
+[[usage]]
+key = "prompt_tokens"
+aer = "input_tokens"
+
+[[usage]]
+key = "completion_tokens"
+aer = "output_tokens"
+
+[[usage]]
+key = "total_tokens"
+aer = "total_tokens"
+
+[[usage]]
+key = "n_llm_calls"
+aer = "calls"
+
+[[usage]]
+key = "reasoning_tokens"
+aer = "reasoning_tokens"
+
+[[usage]]
+key = "cached_tokens"
+aer = "cache_read_tokens"
+
+# Any other usage member, and a listed one whose value is not a non-negative integer, is kept at
+# scope:run:/ext/adprov/usage_extra/<key>.
+
+# ------------------------------------------------------------------------------------------------ turns (constants of the view)
+# Turns are the messages of the scored attempt in local-id order; discarded_attempts the non-scored attempts that carry
+# an index, in index order (`[]` when none does and exec.ext.adprov.v1.discarded_attempts_empty is true). Turn member order
+# is [layout] unless the message records `ext.adprov.keys`.
+[[turn]]
+role = "system|user|other"
+member = "content"
+source = "message parts[0].text"
+
+[[turn]]
+role = "assistant"
+member = "text"
+source = "message parts[0].text (the text part)"
+
+[[turn]]
+role = "assistant"
+member = "reasoning"
+source = "the reasoning part's text (evidence I, adprov.reasoning_log_alignment@1)"
+
+[[turn]]
+role = "assistant"
+member = "refusal"
+source = "the refusal part's text (evidence I, adprov.refusal_log_alignment@1)"
+
+[[turn]]
+role = "assistant"
+member = "tool_calls"
+source = "one {id: provider_call_id, function: name, args} per tool_call part; placeholder_args from ext.adprov.placeholder_args/<k>; [] when ext.adprov.keys lists it and there is no tool_call part"
+
+[[turn]]
+role = "tool"
+member = "tool_call_id"
+source = "provider_call_id of the call part the tool_result responds_to (ext.adprov.tool_call_id when unlinked)"
+
+[[turn]]
+role = "tool"
+member = "function"
+source = "tool_execution.name (the execution generating the message, or the subject of the decision that does)"
+
+[[turn]]
+role = "tool"
+member = "args"
+source = "tool_execution.args"
+
+[[turn]]
+role = "tool"
+member = "content"
+source = "tool_result.text"
+
+[[turn]]
+role = "tool"
+member = "content_sha256"
+source = "\"sha256:\" + hex(SHA-256(UTF-8(content))) (ext.adprov.content_sha256 when the source digest differs)"
+
+[[turn]]
+role = "tool"
+member = "error"
+source = "tool_result.error"
+
+[[turn]]
+role = "tool"
+member = "started_at"
+source = "tool_execution.t.raw.start (the converted \"0\" stub included, C.7.3)"
+
+[[turn]]
+role = "tool"
+member = "ended_at"
+source = "tool_execution.t.raw.end"
+
+# ------------------------------------------------------------------------------------------------ render_converted
+# The converted-tree form from an `agentdojo.tracelogger` AER: the baseline converter's documented field rules
+# (convert_runs.py:138-208) applied in the view, never in AER (AD-07; erratum E8).
+[[converted_meta]]
+key = "model"
+source = "exec:/ext/agentdojo/pipeline_name"
+
+[[converted_meta]]
+key = "model_id"
+source = "exec:/ext/agentdojo/pipeline_name"
+
+[[converted_meta]]
+key = "attack_type"
+source = "exec:/task/attack_id; null renders \"benign\" (adprov.v1_benign_label@1)"
+
+[[converted_meta]]
+key = "utility"
+source = "judgement:utility:/value as bool (null stays null)"
+
+[[converted_meta]]
+key = "security"
+source = "judgement:security:/value as bool (null stays null)"
+
+[[converted_meta]]
+key = "started_at"
+source = "constant null"
+
+[[converted_meta]]
+key = "ended_at"
+source = "constant null"
+
+[[converted_meta]]
+key = "wall_clock_s"
+source = "round(float(scope:run:/t/dur_s), 3)"
+
+[[converted_meta]]
+key = "agentdojo_version"
+source = "constant null"
+
+[[converted_meta]]
+key = "benchmark_version"
+source = "constant null"
+
+[[converted_meta]]
+key = "source"
+source = "constant \"agentdojo_native_run_log\""
+
+[[converted_meta]]
+key = "timing_stubbed"
+source = "constant true; every tool turn's started_at/ended_at is the constant \"0\""
+
+[[converted_meta]]
+key = "run_error"
+source = "exec:/ext/agentdojo/error, only when not null"

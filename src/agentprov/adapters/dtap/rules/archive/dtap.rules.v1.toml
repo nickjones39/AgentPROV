@@ -1,0 +1,1146 @@
+# Rule catalogue `dtap` (docs/architecture D.16.11; D.5.1-D.5.2; C.6.4). DTap-Bench, phase 10b.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.dtap` (no CATALOGUE_HOMES entry). Rules are immutable once released: a change of
+# statement, class or behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+#
+# Citation policy (D-24, D-27 c6): no DTap harness code is verified (SDK versions, the OpenClaw runtime and the sandbox
+# images are not recorded; the DTap SDK is not available). Every rule that rests on harness or judge behaviour is class I
+# with an `asserted` assumption; the D rules are deterministic functions of observed fields, declare no assumption, cite
+# no code and cite the census in `evidence` (sources/dtap.md and verify/dtap.md in the research workspace). Documentary
+# evidence (dataset cards, the paper) never makes a rule D.
+#
+# Rules added in step 3 beyond the D.16.11 table (recorded in D.16.18): dtap.no_params_empty_args, dtap.duration_no_clock,
+# dtap.path_field_check, dtap.non_informative. Added by phase-10b follow-up 4 (D.16.9; the catalogue is unreleased, so still
+# version 1): dtap.unknown_server_domain_match. Added by the sample-check fix b1 (2026-10-12; still version 1): five
+# `reserved` detector names for the artefact catalogue (end of file).
+
+[catalogue]
+id = "dtap"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["partial_trajectory", "empty_trajectory", "harness_failure", "judgement_on_failed_run", "pairing_ambiguous_batch", "config_join_unverified", "config_missing", "config_unparseable", "task_info_truncated", "goal_rewritten_at_eval", "user_step_not_logged", "final_response_differs", "source_truncation_marker", "judge_error", "judge_attempt_unresolved", "unjudged_attempt", "path_field_mismatch"]
+subtypes = ["dtap.attack_goal", "dtap.attack_goal_at_eval"]
+types = ["dtap:list_mcp_tools", "dtap:harness_error", "dtap:tool_name_list", "dtap:error_text"]
+
+[[assumption]]
+id = "dtap:PathNamesModel"
+statement = "The model segment of a run's path names the model the agent called (the dataset layout convention); no structured model id exists in the file."
+
+[[assumption]]
+id = "dtap:UnknownServerIsFailedMcpCall"
+statement = "A harness logs a call with server \"unknown\" (other than its own built-ins) when the MCP call failed; the tool is still the configured MCP server's tool of that name."
+
+[[assumption]]
+id = "dtap:PathNamesHarness"
+statement = "The framework segment of a run's path names the agent harness that produced the log."
+
+[[assumption]]
+id = "dtap:ScriptedUser"
+statement = "User steps are issued by the harness from the task, on behalf of a simulated user."
+
+[[assumption]]
+id = "dtap:HarnessLogsInOrder"
+statement = "The harness appends steps to the trajectory array in the order in which they occurred."
+
+[[assumption]]
+id = "dtap:AgentStepIsModelOutput"
+statement = "An agent step with a tool name or a send_message_to_user message records output of the agent model."
+
+[[assumption]]
+id = "dtap:SegmentIsOneTurn"
+statement = "A maximal run of consecutive agent model-output steps was produced by one model call."
+
+[[assumption]]
+id = "dtap:ContextIsLoggedPrefix"
+statement = "A model call's input contains every earlier logged step of the run."
+
+[[assumption]]
+id = "dtap:ToolStepIsExecution"
+statement = "A tool step records the result of one execution of a tool by the tool runtime."
+
+[[assumption]]
+id = "dtap:ResultAfterOwnCall"
+statement = "In a strictly alternating log each tool step is the result of the call immediately before it."
+
+[[assumption]]
+id = "dtap:FifoResults"
+statement = "Within a batch of outstanding calls the harness logs results in call order (first in, first out)."
+
+[[assumption]]
+id = "dtap:SdkListsTools"
+statement = "A List MCP Tools step pair is the SDK's own discovery request to an MCP server, not a model call."
+
+[[assumption]]
+id = "dtap:ErrorStepIsHarness"
+statement = "An agent step with action error records a harness failure, not model output."
+
+[[assumption]]
+id = "dtap:LoggedToolListPerRun"
+statement = "A tool list logged once per run (debug.tool_descriptions or metadata.mcp_tools) was offered on every model call of the run."
+
+[[assumption]]
+id = "dtap:TimestampIsRunEnd"
+statement = "traj_info.timestamp records the end of the run."
+
+[[assumption]]
+id = "dtap:ConfigAtPinIsRunConfig"
+statement = "The configuration at the pinned revision of the tasks dataset is the configuration the run used."
+
+[[assumption]]
+id = "dtap:PartialWindowIsContainment"
+statement = "A payload of which only a 40-character window is found in the logged text is possibly contained in it (paraphrase or truncation)."
+
+[[assumption]]
+id = "dtap:ConfiguredPayloadApplied"
+statement = "A payload configured for a run was applied to it and reached the model through its channel."
+
+[[assumption]]
+id = "dtap:JudgeIsChecker"
+statement = "A judge_result.json value was produced by the DTap judge for the run of its task directory."
+
+[[assumption]]
+id = "dtap:JudgeColocated"
+statement = "The judge file of a task directory with one trajectory judged that trajectory."
+
+[[rule]]
+id = "dtap.path_model_identity"
+version = 1
+class = "I"
+status = "active"
+statement = "The agent model is the path's model segment; free-text model mentions in the file are never used."
+premises = ["origin /path"]
+assumptions = ["dtap:PathNamesModel"]
+verification = [{ assumption = "dtap:PathNamesModel", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.6"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.path_harness_identity"
+version = 1
+class = "I"
+status = "active"
+statement = "The harness is the path's framework segment; OpenClaw's traj_info.metadata.framework corroborates it."
+premises = ["origin /path", "/traj_info/metadata/framework"]
+assumptions = ["dtap:PathNamesHarness"]
+verification = [{ assumption = "dtap:PathNamesHarness", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §2.1", "sources/dtap.md §3.6"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.path_field_check"
+version = 1
+class = "D"
+status = "active"
+statement = "The path facets are compared with task_info.domain and task_info.risk_category; a difference is recorded (dtap.path_field_mismatch) and never corrected."
+premises = ["origin /path", "/task_info/domain", "/task_info/risk_category"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.1", "verify/dtap.md §4"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.user_is_simulated_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "User steps are issued by the harness on behalf of a simulated user; the agent acts on that user's behalf."
+premises = ["/trajectory/*/role"]
+assumptions = ["dtap:ScriptedUser"]
+verification = [{ assumption = "dtap:ScriptedUser", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.2"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.auto_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The tool runtime executes each requested call on behalf of the agent (apv:AutoExecution); the harness code is not available."
+premises = ["/on_behalf_of"]
+assumptions = ["apv:AutoExecution"]
+verification = [{ assumption = "apv:AutoExecution", status = "asserted" }]
+code = []
+evidence = ["as agentdojo.auto_execution_unverified@1", "sources/dtap.md §8"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.steps_append_ordered_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The order of the trajectory array (and step_id, which equals the index) is the order of occurrence."
+premises = ["/trajectory", "/trajectory/*/step_id"]
+assumptions = ["dtap:HarnessLogsInOrder"]
+verification = [{ assumption = "dtap:HarnessLogsInOrder", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.2"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.agent_step_is_model_output_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "An agent step with a tool name and parameters, or a send_message_to_user message, is output of the agent model."
+premises = ["/trajectory/*/role", "/trajectory/*/metadata"]
+assumptions = ["dtap:AgentStepIsModelOutput"]
+verification = [{ assumption = "dtap:AgentStepIsModelOutput", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.2"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.agent_segment_one_turn_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A maximal segment of consecutive agent model-output steps (meta-steps, harness errors and their echoes break a segment) is one model call, which generated the segment's messages."
+premises = ["/trajectory/*/role"]
+assumptions = ["dtap:SegmentIsOneTurn"]
+verification = [{ assumption = "dtap:SegmentIsOneTurn", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §10.1"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.context_is_logged_prefix_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input is every earlier logged message of the run; the unlogged system prompt and tool descriptions are not input members."
+premises = ["/trajectory"]
+assumptions = ["dtap:ContextIsLoggedPrefix"]
+verification = [{ assumption = "dtap:ContextIsLoggedPrefix", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.6"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.no_params_empty_args"
+version = 1
+class = "D"
+status = "active"
+statement = "An agent call step without metadata.tool_params whose action string is exactly '<tool_name>()' called the tool with no arguments (args is the empty object); any other call step without tool_params has args null, declared ambiguous."
+premises = ["/trajectory/*/action", "/trajectory/*/metadata"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.2", "c03_agg metakeys_by_fw (18,083 calls without tool_params, all with an empty argument list in the sample)"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.tool_step_is_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool step records one execution of a tool by the tool runtime; the result message was generated by that execution."
+premises = ["/trajectory/*/role", "/trajectory/*/state"]
+assumptions = ["dtap:ToolStepIsExecution"]
+verification = [{ assumption = "dtap:ToolStepIsExecution", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.2"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.pair_strict_alternation"
+version = 1
+class = "I"
+status = "active"
+statement = "openaisdk and openclaw: a tool step answers the call immediately before it (send_message_to_user steps ignored); the result tool_name must equal the call's, and a batch with more than one call or a different name links nothing."
+premises = ["/trajectory", "/trajectory/*/metadata/tool_name"]
+assumptions = ["dtap:ResultAfterOwnCall"]
+verification = [{ assumption = "dtap:ResultAfterOwnCall", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.8"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_pairing_strict_alternation"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.pair_contiguous_batch_fifo"
+version = 1
+class = "I"
+status = "active"
+statement = "googleadk: in a contiguous batch A^k T^k, result i answers call i; the result names must reproduce the call order, and a non-contiguous batch or a different name links nothing."
+premises = ["/trajectory", "/trajectory/*/metadata/tool_name"]
+assumptions = ["dtap:FifoResults"]
+verification = [{ assumption = "dtap:FifoResults", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.8"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_pairing_googleadk_contiguous_batch"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.pair_interleaved_fifo"
+version = 1
+class = "I"
+status = "active"
+statement = "claudesdk: a tool step answers the oldest outstanding call; result names are ignored (they name the most recent call or are the literal unknown)."
+premises = ["/trajectory"]
+assumptions = ["dtap:FifoResults"]
+verification = [{ assumption = "dtap:FifoResults", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.8"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_pairing_claudesdk_batches"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.call_without_result"
+version = 1
+class = "I"
+status = "active"
+statement = "A call that no later tool step answers has no logged execution; whether it was dispatched is not recorded."
+premises = ["/trajectory"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.8"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_unanswered_call_and_orphan_result"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.list_mcp_tools_harness_step"
+version = 1
+class = "I"
+status = "active"
+statement = "A List MCP Tools step pair is a harness discovery activity whose result is a list of tool names; it is neither model output nor an agent tool call."
+premises = ["/trajectory/*/metadata/tool_name", "/trajectory/*/state"]
+assumptions = ["dtap:SdkListsTools"]
+verification = [{ assumption = "dtap:SdkListsTools", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.4"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.harness_error_step"
+version = 1
+class = "I"
+status = "active"
+statement = "An agent step with action error and metadata.error is a harness error, not model output; the run ended in error."
+premises = ["/trajectory/*/action", "/trajectory/*/metadata/error"]
+assumptions = ["dtap:ErrorStepIsHarness"]
+verification = [{ assumption = "dtap:ErrorStepIsHarness", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.7"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_harness_failure_f08"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.harness_error_echo"
+version = 1
+class = "I"
+status = "active"
+statement = "The send_message_to_user step that follows a harness error echoes it; whether the model or the harness wrote it is not recorded."
+premises = ["/trajectory/*/metadata/message"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.7"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_harness_failure_f08"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.logged_tools_offered_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A run-level logged tool list (debug.tool_descriptions or traj_info.metadata.mcp_tools) was offered on every model call of the run."
+premises = ["/debug/tool_descriptions", "/traj_info/metadata/mcp_tools"]
+assumptions = ["dtap:LoggedToolListPerRun"]
+verification = [{ assumption = "dtap:LoggedToolListPerRun", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.6"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.timestamp_is_run_end_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "traj_info.timestamp is the run end (timestamp minus duration matches the file-name stamp to a median of 1.8 s, against 30 s read as the start); a value without a zone is kept as end_naive and its zone declared ambiguous."
+premises = ["/traj_info/timestamp", "/traj_info/duration", "file stem"]
+assumptions = ["dtap:TimestampIsRunEnd"]
+verification = [{ assumption = "dtap:TimestampIsRunEnd", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §3.5"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_time_aware_and_naive"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.duration_no_clock"
+version = 1
+class = "D"
+status = "active"
+statement = "traj_info.duration and the tool steps' duration_s state no clock, so t.dur_s (which needs dur_clock, C.8.3) is not written: the values stay verbatim in ext.dtap and /t/dur_s is declared ambiguous; no start time is computed."
+premises = ["/traj_info/duration", "/trajectory/*/metadata/duration_s"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.5"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_time_aware_and_naive"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.config_path_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The configuration path of a run is given by the D.16.5 path rule (direct_prompt and direct_no_attack runs map to the direct configuration); a value copied from the joined configuration (a fixture's content and vector) is a deterministic function of the configuration bytes at the recorded pointer."
+premises = ["origin /path", "configuration"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.3"]
+tests = ["tests/adapters/dtap/test_join.py::test_path_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.config_join_tier"
+version = 1
+class = "D"
+status = "active"
+statement = "The join tier is the result of the two D.16.5 text checks (instruction and goal): A both verify, B one, C neither."
+premises = ["/task_info/original_instruction", "/task_info/malicious_instruction", "configuration Task and Attack"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.3"]
+tests = ["tests/adapters/dtap/test_join.py::test_tiers"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.task_id_offset_medical"
+version = 1
+class = "I"
+status = "active"
+statement = "Medical trajectory task ids are zero-based against one-based task directories and configuration ids (billing-support-047 in directory 048)."
+premises = ["/task_info/task_id", "configuration Task.task_id"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.4"]
+tests = ["tests/adapters/dtap/test_join.py::test_task_id_relations"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.task_id_reformatted"
+version = 1
+class = "I"
+status = "active"
+statement = "Telecom, browser and customer-service task ids differ from the configuration's only in format (separators, a numeric suffix)."
+premises = ["/task_info/task_id", "configuration Task.task_id"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.4"]
+tests = ["tests/adapters/dtap/test_join.py::test_task_id_relations"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.config_content_tier_a"
+version = 1
+class = "I"
+status = "active"
+statement = "In a tier-A run, configuration content (the configured attack payloads) describes the run; the revision in force at run time is not recoverable, so this is never observed."
+premises = ["configuration", "/ext/dtap/join"]
+assumptions = ["dtap:ConfigAtPinIsRunConfig"]
+verification = [{ assumption = "dtap:ConfigAtPinIsRunConfig", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §6.3", "sources/dtap.md §8"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.config_payload_attacker_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "Configured payloads and the attack goal are attributed to the attacker."
+premises = ["fixture"]
+assumptions = []
+code = []
+evidence = ["as agentdojo.payload_attributed_to_attacker@1"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.direct_prompt_no_injection"
+version = 1
+class = "I"
+status = "active"
+statement = "direct_prompt runs carry no configured injection: the joined direct configuration's attack steps were not applied (the goal is the user message without a wrapper)."
+premises = ["origin /path", "markers"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.2", "sources/dtap.md §7.3"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_direct_prompt_f09"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.control_split_no_attack"
+version = 1
+class = "I"
+status = "active"
+statement = "direct_no_attack is a control without an attack: attack_id is null and no attack fixture is emitted."
+premises = ["origin /path", "/task_info/malicious_instruction"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.2"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_control_split_f10"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.direct_prompt_replaces_user_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "In a direct run, the configuration's prompt step replaced the user message; when its text is present in a logged user step, the attacker authored that text."
+premises = ["configuration", "user part"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.2"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.instruction_cut_500"
+version = 1
+class = "D"
+status = "active"
+statement = "A 500-character original_instruction that is a proper prefix of the configuration text is the configuration text truncated at 500 characters."
+premises = ["/task_info/original_instruction", "configuration"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.3"]
+tests = ["tests/adapters/dtap/test_join.py::test_tiers"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.instruction_length_500_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A 500-character original_instruction without a verifying configuration is possibly truncated."
+premises = ["/task_info/original_instruction"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.3"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.goal_rewritten_at_eval"
+version = 1
+class = "D"
+status = "active"
+statement = "malicious_instruction_at_eval is the goal text the judge used; malicious_instruction is the run-time text; goal_text_updated is a date label, never a time."
+premises = ["/task_info/malicious_instruction", "/task_info/malicious_instruction_at_eval", "/task_info/goal_text_updated"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.5"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_goal_rewritten_at_eval_f18"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.user_step_not_logged"
+version = 1
+class = "D"
+status = "active"
+statement = "The file holds no user step; the instruction exists only as task_info.original_instruction (possibly the 500-character cut) and no user message is invented."
+premises = ["/trajectory/*/role", "/task_info/original_instruction"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §11.2 item 7"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.final_response_copy"
+version = 1
+class = "D"
+status = "active"
+statement = "traj_info.agent_final_response is compared with the last agent message; a difference is recorded, never corrected."
+premises = ["/traj_info/agent_final_response", "/trajectory"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §11.2 item 6"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.source_truncation_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "A '[truncated' marker in the logged text is dataset-side truncation; the text is kept verbatim."
+premises = ["/trajectory"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.3"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.rerun_group"
+version = 1
+class = "D"
+status = "active"
+statement = "Trajectory-bearing files with distinct bytes that share a task directory are attempts of one re-run group; byte-identical copies are one execution."
+premises = ["the directory listing", "artefact digests"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §4.2"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_rerun_pair_f20"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.synthetic_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "synthetic: true marks a fabricated (repaired) trajectory: it is registered, never an execution."
+premises = ["/task_info/synthetic", "/traj_info/metadata/synthetic"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.7"]
+tests = ["tests/adapters/dtap/test_dialect.py::test_synthetic_is_not_an_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.lfs_pointer"
+version = 1
+class = "D"
+status = "active"
+statement = "A Git LFS pointer file is not a trajectory: it is registered; the pinned, verified object is imported in its place."
+premises = ["the bytes"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.3"]
+tests = ["tests/adapters/dtap/test_dialect.py::test_lfs_pointer_is_registered"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.empty_trajectory"
+version = 1
+class = "D"
+status = "active"
+statement = "trajectory: [] records no execution: the unit is outcome_only, no step is invented and the recorded judgements are kept."
+premises = ["/trajectory", "/traj_info/metadata/error"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.7"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_judge_error_and_empty_trajectory_f11"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.partial_file_name"
+version = 1
+class = "I"
+status = "active"
+statement = "partial_trajectory.json is an incomplete run (the file name is the only evidence); no gap is filled."
+premises = ["the file name"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.3"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_partial_trajectory"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.judge_recorded_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A judge_result.json value was produced by the DTap judge for its directory's run (checker origin); the judge code is not verified for the runs."
+premises = ["judge file"]
+assumptions = ["dtap:JudgeIsChecker"]
+verification = [{ assumption = "dtap:JudgeIsChecker", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §5", "sources/dtap.md §8"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.judge_attempt_by_content"
+version = 1
+class = "D"
+status = "active"
+statement = "A judge string of at least 40 normalised characters found in exactly one attempt of the directory, and in no other, links the judge to that attempt; the other attempts get no judgement."
+premises = ["judge field", "trajectory field"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §4.2", "DECISIONS D-29 item 6"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_rerun_pair_f20"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.judge_dir_colocation"
+version = 1
+class = "I"
+status = "active"
+statement = "The judge of a single-trajectory directory judged that trajectory."
+premises = ["the directory listing"]
+assumptions = ["dtap:JudgeColocated"]
+verification = [{ assumption = "dtap:JudgeColocated", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §4.2"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.judge_without_trajectory"
+version = 1
+class = "D"
+status = "active"
+statement = "A directory with a judge and no trajectory-bearing file yields an outcome-only unit whose primary artefact is the judge file."
+premises = ["the directory listing"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §4.2"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_judge_only_directory"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.audit_correction_effective"
+version = 1
+class = "D"
+status = "active"
+statement = "attack_success is the post-patch value and audit_correction.original_attack_success the pre-patch value: the corrected judgement revises the original and is the effective one."
+premises = ["/audit_correction/original_attack_success", "/audit_correction/patch_id", "/attack_success"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §5", "DECISIONS D-29 item 5"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_rejudged_result"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.direct_task_eval_not_applicable"
+version = 1
+class = "I"
+status = "active"
+statement = "direct_prompt task_success, and a direct null task_success, is a harness constant or null, not a task result (harness_default)."
+premises = ["/task_success", "/task_message"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.2", "sources/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_direct_prompt_f09"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.benign_attack_not_judged"
+version = 1
+class = "I"
+status = "active"
+statement = "A benign attack_success null means not judged (harness_default)."
+premises = ["/attack_success"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.judge_error"
+version = 1
+class = "D"
+status = "active"
+statement = "A non-null judge error is recorded with the values."
+premises = ["/error"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_judge_error_and_empty_trajectory_f11"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.alnum_norm"
+version = 1
+class = "D"
+status = "active"
+statement = "The D.16.6 normaliser: literal \\\\n, \\\\r and \\\\t escapes removed, NFKC and case folding, alphanumerics only; needles are payload strings of at least 24 normalised characters, windows are 40 characters (start, middle, end)."
+premises = ["the text"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §7", "verify/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.env_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "An environment (or skill) payload's needle found in a tool result's text marks the result present; no needle of the payload found marks it absent."
+premises = ["part text", "fixture content"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §7"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.marker_partial_window"
+version = 1
+class = "I"
+status = "active"
+statement = "A match of a 40-character window only (no full needle) is ambiguous: the payload is possibly contained."
+premises = ["part text", "fixture content"]
+assumptions = ["dtap:PartialWindowIsContainment"]
+verification = [{ assumption = "dtap:PartialWindowIsContainment", status = "asserted" }]
+code = []
+evidence = ["verify/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.description_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool or skill payload's needle found in a logged tool-definition entry; the entry is the one named by injected_tool when it exists (else the match is recorded as entry_mismatch)."
+premises = ["fixture entries", "fixture content"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §7.2"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.prompt_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "A prompt payload's needle found in a logged user step."
+premises = ["user part", "fixture content"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §7.3"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.agent_output_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "A payload's needle found only in agent output (calls, messages, the final response): not an exposure observation."
+premises = ["agent parts", "/ext/dtap/final_response"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §7.1"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.exposure_class"
+version = 1
+class = "D"
+status = "active"
+statement = "The D.16.6 exposure class of a configured payload, a deterministic summary of the matcher over the logged locations: observed_tool_output, observed_description_log, observed_user_step, agent_output_only, logged_absent or unmatchable."
+premises = ["fixture content", "logged locations"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §7"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.configured_exposure_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A configured payload in a channel the run does not log reached the model (configured_only)."
+premises = ["fixture", "/ext/dtap/join"]
+assumptions = ["dtap:ConfiguredPayloadApplied"]
+verification = [{ assumption = "dtap:ConfiguredPayloadApplied", status = "asserted" }]
+code = []
+evidence = ["sources/dtap.md §7.2", "DECISIONS D-26"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool's role and output integrity follow from the dtap.tools@1 tables (servers.toml, builtins.toml) for its server and name."
+premises = ["tool name", "server"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.4", "sources/dtap.md §3.6"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.openclaw_prefix_split"
+version = 1
+class = "I"
+status = "active"
+statement = "An OpenClaw tool name is split at the longest declared server prefix (<server>_<tool>)."
+premises = ["tool name"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.unknown_server_domain_match"
+version = 1
+class = "I"
+status = "active"
+statement = "A call logged with server \"unknown\" whose tool name is no listed harness built-in is the tool of that name of the one MCP server, among those the run's domain configures (domains.toml), whose inventory holds the name; with no such server, or more than one, the tool is unknown."
+premises = ["tool name", "server", "/ext/dtap/path_facets/domain"]
+assumptions = ["dtap:UnknownServerIsFailedMcpCall"]
+verification = [{ assumption = "dtap:UnknownServerIsFailedMcpCall", status = "asserted" }]
+code = []
+evidence = ["D.16.9 (census, follow-up 4): 3,786 calls resolve; 3,772 of their results are MCP errors naming a server, the same server in all 3,772"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_unknown_server_resolves_by_domain_or_stays_unknown"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool in no table, or a result whose link is ambiguous, is fail-closed: integrity unknown, role unknown, no channel."
+premises = ["tool name", "link"]
+assumptions = []
+code = []
+evidence = ["C.14.3"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.integrity_principal_content"
+version = 1
+class = "I"
+status = "active"
+statement = "User text is principal content: trusted."
+premises = ["actor"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.integrity_prompt_payload"
+version = 1
+class = "I"
+status = "active"
+statement = "A user part in which a prompt payload is present is untrusted."
+premises = ["prompt marker"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Agent text and calls are trusted (the agent's own output)."
+premises = ["actor"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.integrity_payload_fixture"
+version = 1
+class = "I"
+status = "active"
+statement = "Payload and attack-goal fixtures are untrusted."
+premises = ["fixture kind"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.integrity_tool_definitions"
+version = 1
+class = "I"
+status = "active"
+statement = "A logged tool-definition fixture is of unknown integrity (server text mixed with possible injected suffixes)."
+premises = ["fixture kind"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.integrity_harness_artefact"
+version = 1
+class = "I"
+status = "active"
+statement = "Harness artefacts (dtap:tool_name_list, dtap:error_text) are trusted."
+premises = ["artefact type"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.task_success_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "task_success means the user task was solved (user_task_solved)."
+premises = ["judgement value"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.attack_success_polarity"
+version = 1
+class = "I"
+status = "active"
+statement = "attack_success true means the attack succeeded (attack_succeeded); the field name and message are the only basis."
+premises = ["judgement value"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §5"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.control_attack_judgement"
+version = 1
+class = "I"
+status = "active"
+statement = "In direct_no_attack runs attack_success is the medical attack judge applied to a control (dtap.attack_judge_on_control), never attack_succeeded."
+premises = ["judgement value", "origin /path"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.2"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.non_informative"
+version = 1
+class = "I"
+status = "active"
+statement = "A harness_default judgement (direct_prompt task_success, benign null attack_success, direct null task_success) is not a task or attack result: marked non-informative."
+premises = ["judgement origin"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-29 item 9"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy: a request whose roles include write_sink, send_sink, execute_sink or unknown, exposed to content of untrusted or unknown integrity, is potentially influenced by it."
+premises = ["labels"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 8"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.acc.counters"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: traj_info step_count, actions_count, tool_count and user_turn equal the step populations they count (all steps; agent steps including messages, meta-steps and errors; tool steps; user steps)."
+premises = ["/traj_info/step_count", "/traj_info/actions_count", "/traj_info/tool_count", "/traj_info/user_turn", "/trajectory"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.1"]
+tests = ["tests/adapters/dtap/test_mapper.py::test_counters_check"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- reserved
+# Detector names of artefact-catalogue entries (artefacts.toml) whose case no AER field read by the safety net carries:
+# it is recorded in ext.dtap, in the register or by the release scan. They are never cited in an AER (a `reserved` rule
+# is not citable), so the catalogue entries that name them claim no safety-net finding of another case (dtap sample check
+# §9.1 b1, 2026-10-12). A mapper change that raises one of these cases visibly would activate the rule at @1.
+
+[[rule]]
+id = "dtap.timestamp_zone_none"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: a traj_info.timestamp without a zone is kept verbatim in t.raw.end with ext.dtap.timestamp_zone none and never converted; no field the safety net reads carries the zone, so no AER record cites this rule."
+premises = ["/traj_info/timestamp"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.5"]
+tests = ["tests/adapters/dtap/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.byte_identical_copy"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: a <TS>(1).json or judge_result(1).json file byte-identical to its plain file is the same content; content addressing makes it one execution with two origins (register dedup.collapsed), so no AER record cites this rule."
+premises = ["the directory listing", "artefact digests"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §2.3"]
+tests = ["tests/adapters/dtap/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.secret_like_string"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: a trajectory file matching a secret-like pattern of the release scan (D.16.13, option A: included, no value tested); the release scan finds it, never the mapper, so no AER record cites this rule."
+premises = ["the bytes"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §11.2 item 17"]
+tests = ["tests/adapters/dtap/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.goal_prefix_appended"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: task_info.malicious_instruction is the configuration goal followed by run-time attacker-account details (goal relation prefix in ext.dtap.join, D.16.5); no field the safety net reads carries the relation, so no AER record cites this rule."
+premises = ["/task_info/malicious_instruction", "Attack.malicious_goal"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §6.4"]
+tests = ["tests/adapters/dtap/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.result_name_unknown"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: a tool step whose tool_name is the literal unknown (claudesdk multi-call batches) keeps the value in ext.dtap.result_tool_name, never in a typed field; no field the safety net reads carries it, so no AER record cites this rule."
+premises = ["/trajectory/*/metadata/tool_name"]
+assumptions = []
+code = []
+evidence = ["sources/dtap.md §3.8"]
+tests = ["tests/adapters/dtap/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"

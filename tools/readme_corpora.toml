@@ -1,0 +1,643 @@
+# Input of tools/gen_readme_corpora.py: one [[part]] per registry (source, part), with the execution count recorded in a
+# committed file, and short curated caveats. Data, not code; the README block generated from it is never hand-edited.
+#
+# - count, unit, basis, evidence: the number, what it counts (Inspect samples, AgentDojo-family logs, runs, ... are one
+#   execution each), how it was obtained (full import, census, trial import, mapped in memory, spec) and the
+#   repo-relative file that records it. With `pointer` (RFC 6901) the JSON value must equal `count`; without it the
+#   text file must state the number (1234 or 1,234). The generator and tests/repo/test_readme_corpora.py check both.
+# - where: instead of a count, when no committed file records one (say where it can be found).
+# - notes: caveats the profile data does not carry (decision ids). Withholding rules, copyleft, licence policy and use
+#   restrictions are read from the registry and the profiles, so they are not repeated here.
+# - [use]: a short label for a licence use restriction (other than copyleft), for every part of the source or, as
+#   {text, parts}, for the parts it applies to.
+# - [paper.<source>]: a paper the profile does not identify, found by a web search (arxiv, title, relation = describes |
+#   preprint | builds_on, found = how it was matched to the source and when). The README marks it "found by web search".
+# Never read a corpus or AGENTPROV_HOME for a number: the README must be the same on every machine.
+
+[use]
+agentharm = "AgentHarm's clause, use only to improve AI safety and security"
+agent-security-tools-survey = { text = "AgentHarm's clause, use only to improve AI safety and security", parts = ["agentharm"] }
+kexin-xu-01-agentharm = "AgentHarm's clause, use only to improve AI safety and security"
+fragfuse-agentharm = "AgentHarm's clause, use only to improve AI safety and security"
+
+[paper.openagentsafety]
+arxiv = "2507.06134"
+title = "OpenAgentSafety: A Comprehensive Framework for Evaluating Real-World AI Agent Safety"
+relation = "describes"
+found = "web search 2026-10-14: same name and task set; the first author is the repository owner (sani903); the README's citation says 'coming soon'"
+
+[paper.whistlebench]
+arxiv = "2511.17085"
+title = "Why Do Language Model Agents Whistleblow?"
+relation = "describes"
+found = "web search 2026-10-14: the repository README links this arXiv paper"
+
+[paper.craibench-agentdojo]
+arxiv = "2503.16248"
+title = "Real AI Agents with Fake Memories: Fatal Context Manipulation Attacks on Web3 Agents"
+relation = "describes"
+found = "web search 2026-10-14: the paper introduces CrAIBench, built on AgentDojo; its first author matches the repository owner (AthaSSiN); the repository's CITATION.bib is AgentDojo's"
+
+[paper.seagent-agentdojo]
+arxiv = "2509.22256"
+title = "Secure and Efficient Access Control Framework for Computer-Use Agents via Context Space"
+relation = "preprint"
+found = "web search 2026-10-14: the same four authors (Gong, Li, Chang, Shen; Zhejiang University) as the Zenodo artefact of the ACSAC 2026 SEAgent paper, on intent-aware static access control (the preprint calls the system CSAgent)"
+
+[paper.melon-agentdojo]
+arxiv = "2502.05174"
+title = "MELON: Provable Defense Against Indirect Prompt Injection Attacks in AI Agents"
+relation = "builds_on"
+found = "web search 2026-10-14: the repository README names this paper (ICML 2025) as the original its variants build on"
+
+[[part]]
+source = "agentdojo"
+part = "head"
+count = 36666
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+notes = ["207 outcome-only logs"]
+
+[[part]]
+source = "agentdojo"
+part = "2024-06"
+count = 18231
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+notes = ["207 outcome-only logs"]
+
+[[part]]
+source = "agentdojo"
+part = "live"
+where = "live capture produces new executions; a real-model pilot (2026-10-22, docs/reports/live-pilot/) made working corpora only, never released"
+
+[[part]]
+source = "agentdyn"
+part = "a"
+count = 38154
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+
+[[part]]
+source = "agentdyn"
+part = "b"
+count = 5167
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "agentdyn"
+part = "c"
+count = 4244
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "agentdyn"
+part = "d"
+where = "949 logs, counted under `drift` · `head`"
+
+[[part]]
+source = "agentdyn"
+part = "history"
+count = 16175
+unit = "executions"
+basis = "spec"
+evidence = "src/agentprov/adapters/agentdojo/profiles/agentdyn.profile.toml"
+notes = [
+  "opt-in part of 16,795 superseded git blobs; fingerprint deduplication deferred to v0.2",
+  "first slice pinned at 785b9127: the 621 logs (620 drift.k18.messages, one v1.k14.incomplete) of runs/gpt-4o-mini-2024-07-18-drift/ (R-10j-2, regeneration-batch item 95), not fetched or imported in v0.1",
+]
+
+[[part]]
+source = "agentdyn"
+part = "live"
+where = "live capture from AgentDyn's own pinned code produces new executions; a local real-model pilot (2026-10-22, docs/reports/live-pilot/) made working corpora only, never released"
+
+[[part]]
+source = "agentharm"
+part = "live"
+where = "live runs through the Inspect harness produce new executions; a capped real-model probe (2026-10-23, docs/reports/inspect-harness/probe-d667.md) made working corpora only, never released"
+notes = ["restricted-use corpus, private (D-668)"]
+
+[[part]]
+source = "autodojo"
+part = "live"
+where = "live capture produces new executions; a local real-model pilot (2026-10-22, docs/reports/live-pilot/) made working corpora only, never released"
+
+[[part]]
+source = "autodojo"
+part = "rope-slice"
+count = 2847
+unit = "logs"
+basis = "full import"
+evidence = "docs/reports/rope/rope-q8.json"
+pointer = "/autodojo_slice/logs"
+notes = ["imported, owned and counted under `rope` · `head`"]
+
+[[part]]
+source = "rope"
+part = "head"
+count = 10774
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+
+[[part]]
+source = "adprov-v1"
+part = "release"
+count = 17656
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+
+[[part]]
+source = "adprov-v1"
+part = "converted-legacy"
+where = "derived data of `agentdojo` · `2024-06` (18,027 transcripts); the compat oracle, never released"
+
+[[part]]
+source = "agent-security-tools-survey"
+part = "agentharm"
+count = 1055
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+
+[[part]]
+source = "agent-security-tools-survey"
+part = "agentdojo-runs"
+count = 3232
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+
+[[part]]
+source = "mandate-agentdojo-eval"
+part = "head"
+count = 396
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/pre-release-checks.md"
+
+[[part]]
+source = "dtap"
+part = "head"
+count = 67708
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = [
+  "the census counts 67,808 trajectory files: 67,806 parseable, 20 synthetic (not executions)",
+  "five harness-host account paths redacted over every AER string by a labels allowlist (D-607); raw ships as pinned (D-186)",
+]
+
+[[part]]
+source = "openagentsafety"
+part = "head"
+count = 1558
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "redcode-exec-openhands"
+part = "head"
+count = 5459
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "foobench"
+part = "fixture"
+where = "a self-authored toy format with test fixtures only; no pinned snapshot"
+
+[[part]]
+source = "aiauthz-agentdojo"
+part = "head"
+count = 174
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "bookkeeper-agentdojo"
+part = "head"
+count = 570
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "ceferisbarov-agentdojo"
+part = "head"
+count = 18438
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "craibench-agentdojo"
+part = "head"
+count = 1163
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "gate-agentdojo"
+part = "head"
+count = 3870
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "geryon-agentdojo"
+part = "head"
+count = 3179
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "glitch-agentdojo"
+part = "head"
+count = 1842
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "hilarytorn-trajectory-poisoning"
+part = "head"
+count = 990
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "interbolt-agentdojo"
+part = "head"
+count = 2016
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "kongminos-agentdojo"
+part = "head"
+count = 950
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "linyxus-agentdojo"
+part = "head"
+count = 9068
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "llm-lock-agentdojo"
+part = "head"
+count = 52387
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "melon-agentdojo"
+part = "head"
+count = 1911
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "memo-ozdincer-agentdojo"
+part = "head"
+count = 13064
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["one execution per row of 137 results containers", "1,038 exception rows outcome-only with imposed outcomes (D-475)", "account paths in model ids redacted in the AER (D-476)"]
+
+[[part]]
+source = "menelaus29-ipi-multidomain"
+part = "head"
+count = 858
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "mohameduk-agentdojo"
+part = "head"
+count = 3628
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "sentry-agentdojo"
+part = "head"
+count = 674
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "shreeyavarma-llm-safety"
+part = "head"
+count = 672
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "tacit-agentdojo"
+part = "head"
+count = 2070
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "yockcheng-prompt-injection-harness"
+part = "head"
+count = 280
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "whistlebench"
+part = "final-runs"
+count = 9200
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "seagent-agentdojo"
+part = "head"
+count = 5331
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "kexin-xu-01-agentharm"
+part = "logs"
+count = 2796
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = [
+  "18 logs name local checkpoints by account paths, redacted in the AER (D-182, regeneration-batch item 107)",
+  "raw objects whose model ids carry account paths ship as pinned (D-186)",
+]
+
+[[part]]
+source = "fragfuse-agentharm"
+part = "logs"
+count = 1747
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = [
+  "account paths in tracebacks and one metadata field are redacted in `ext` (D-182, regeneration-batch item 107)",
+]
+
+[[part]]
+source = "agentops-bench"
+part = "pilot-v1-seeded"
+count = 3360
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["the in-scope subset of 7,200 runs (D-143, D-191)"]
+
+[[part]]
+source = "drift"
+part = "head"
+count = 1564
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "drift"
+part = "history"
+count = 1046
+unit = "logs"
+basis = "census"
+evidence = "docs/reports/phase10l/census.md"
+notes = ["committed before any licence statement (D-279)"]
+
+[[part]]
+source = "credleak-p15b"
+part = "head"
+count = 14207
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["withholding per D-265"]
+
+[[part]]
+source = "controlarena-persistent"
+part = "zip-3-001"
+count = 0
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = [
+  "a metadata-only release: all 5,742 executions of the corpus's five parts are withheld at the seal (D-344)",
+  "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
+]
+
+[[part]]
+source = "controlarena-persistent"
+part = "zip-3-002"
+count = 153
+unit = "samples"
+basis = "census"
+evidence = "docs/reports/phase10p/README.md"
+notes = [
+  "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
+  "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
+]
+
+[[part]]
+source = "controlarena-persistent"
+part = "zip-3-003"
+count = 810
+unit = "samples"
+basis = "census"
+evidence = "docs/reports/phase10p/README.md"
+notes = [
+  "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
+  "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
+]
+
+[[part]]
+source = "controlarena-persistent"
+part = "batch-runs"
+count = 638
+unit = "samples"
+basis = "census"
+evidence = "docs/reports/phase10p/README.md"
+notes = [
+  "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
+  "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
+]
+
+[[part]]
+source = "controlarena-persistent"
+part = "auditor"
+count = 6
+unit = "samples"
+basis = "census"
+evidence = "docs/reports/phase10p/README.md"
+notes = [
+  "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
+  "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
+]
+
+[[part]]
+source = "atia-benchmark"
+part = "logs"
+count = 110
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "autogen-guard-placement"
+part = "v1.0"
+count = 1080
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["withholding per D-603"]
+
+[[part]]
+source = "what-surrounds"
+part = "runs-named"
+count = 1334
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["the tools are synthetic by design (D-284)"]
+
+[[part]]
+source = "mcphunt"
+part = "head"
+count = 2190
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["withholding per D-289"]
+
+[[part]]
+source = "code-agent-misalignment-geminicli"
+part = "results-raw"
+count = 2175
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["withholding per D-336, D-609"]
+
+[[part]]
+source = "authority-caps-agentdojo"
+part = "head"
+count = 18734
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["21,999 logs; 3,260 re-packed byte copies collapse into one execution each (D-250)"]
+
+[[part]]
+source = "ipi-defenses-agentdojo"
+part = "head"
+count = 3211
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "dca-agentdojo"
+part = "v1"
+count = 16211
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["the released executions of the whole corpus, parts `v1` and `drift`"]
+
+[[part]]
+source = "dca-agentdojo"
+part = "drift"
+count = 2847
+unit = "logs"
+basis = "census"
+evidence = "docs/reports/phase10j/census.json"
+pointer = "/sources/figshare-32657856/variants_byte_distinct/drift.k18.conversations"
+notes = [
+  "included like every other part (D-279 addendum); 0 of 2,847 attacked runs succeed",
+  "released with the corpus, counted under `dca-agentdojo` · `v1`",
+]
+
+[[part]]
+source = "kavach-agentdojo"
+part = "main"
+count = 2619
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["the released executions of the whole corpus: its three snapshots hold 2,625 distinct executions (D-253)"]
+
+[[part]]
+source = "kavach-agentdojo"
+part = "nav-fixer2"
+count = 1477
+unit = "logs"
+basis = "census"
+evidence = "docs/reports/phase10j/census.json"
+pointer = "/sources/kavach-nav-fixer2/byte_distinct"
+notes = ["released with the corpus, counted under `kavach-agentdojo` · `main`"]
+
+[[part]]
+source = "kavach-agentdojo"
+part = "rearch-forcedformat-fix"
+count = 1518
+unit = "logs"
+basis = "census"
+evidence = "docs/reports/phase10j/census.json"
+pointer = "/sources/kavach-rearch-forcedformat-fix/byte_distinct"
+notes = ["released with the corpus, counted under `kavach-agentdojo` · `main`"]
+
+[[part]]
+source = "drift1-agentdojo"
+part = "drift"
+count = 626
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+
+[[part]]
+source = "redcode-exec-qwencode"
+part = "qwen3coder"
+count = 3299
+unit = "executions"
+basis = "sealed"
+evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+notes = ["4 outputs cut at 64 KiB are salvaged (D-577)"]

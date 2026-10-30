@@ -1,0 +1,25 @@
+import pytest
+from agentprov.errors import IngestError
+from agentprov.ingest.jsonstream import open_json_stream
+from agentprov.ingest.limits import IngestLimits
+from agentprov.ingest.loaders import strict_json_loads
+
+
+def outcome(fn):
+    try:
+        return ("ACCEPT", fn())
+    except IngestError as exc:
+        return ("REJECT", exc.code)
+
+
+@pytest.mark.parametrize("doc,limits", [
+    (b'{"a":{"messages":[NaN, 1]}}', IngestLimits().replace(max_json_depth=3)),
+    (b'{"m":' * 254 + b'{"messages":[NaN]}' + b'}' * 254, IngestLimits()),
+])
+def test_stream_matches_whole_python_json(doc, limits):
+    ptr = "/a/messages" if doc.startswith(b'{"a"') else "/m" * 254 + "/messages"
+    whole = outcome(lambda: strict_json_loads(doc, limits, profile="python-json"))
+    stream = outcome(lambda: [i.value for i in open_json_stream(doc, limits, arrays=[ptr], profile="python-json")])
+    print("whole:", whole, "stream:", stream)
+    assert whole[0] == "REJECT" and whole[1] == "ingest.json.depth"
+    assert stream[0] == whole[0], f"stream {stream} vs whole {whole}"

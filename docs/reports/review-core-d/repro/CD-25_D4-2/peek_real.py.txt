@@ -1,0 +1,19 @@
+import sys, zipfile, json, collections
+# read-only, in-memory; counts timestamp suffixes only (no content printed)
+p = sys.argv[1]
+with zipfile.ZipFile(p) as z:
+    names = [n for n in z.namelist() if n.startswith("samples/")]
+    h = json.loads(z.read("header.json"))
+    print("producer", h["eval"]["packages"].get("inspect_ai"), "samples", len(names))
+    c = collections.Counter()
+    for n in names[:3]:
+        if z.getinfo(n).file_size > 64 * 2**20: continue
+        d = json.loads(z.read(n))
+        for e in d["events"]:
+            for k in ("timestamp", "completed"):
+                t = e.get(k)
+                if isinstance(t, str): c[t[-6:]] += 1
+        for k in ("started_at", "completed_at"):
+            t = d.get(k)
+            c[("sample", t[-6:] if isinstance(t, str) else repr(t))] += 1
+    print(dict(c))

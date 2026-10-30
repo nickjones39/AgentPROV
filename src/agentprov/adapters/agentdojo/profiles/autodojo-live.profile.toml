@@ -1,0 +1,211 @@
+# Source profile `autodojo-live`: AutoDojo cells run live through the backend project backends/autodojo (the fork
+# xhOwenMa/AutoDojo @ aa458794, distributed as `agentdojo` 0.1.35) and recorded as capture/0.1 sessions plus the native
+# TraceLogger JSON of the fork (docs/architecture D.11, D.11.3, D.11.4; I.1.1 row autodojo . live).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18). Version 2 (D-656): the shared harness list gains the two items of the declared AnthropicLLM port,
+# as agentdojo-live v2 does; version 1 ships byte for byte under profiles/archive/autodojo-live.profile.v1.toml (D-31
+# owner's criterion: scratch corpora record it). Version 3 (D-670, D-677; with agentdojo-live v3, after the
+# regeneration round): the six `agentdojo.defence_*@1` items the shared harness declares to record a defence (the
+# accepted list stays the AgentDojo live profile's); no `defences` allow-list, so a defended AutoDojo run stays refused.
+# Version 2 ships byte for byte under profiles/archive/autodojo-live.profile.v2.toml (scratch corpora record it). The
+# import tables serve the shared capture mapper
+# `agentdojo.capture` (D.11.4: "shared unchanged"); `[import] native` names the TraceLogger mapping of the fork's native
+# log (variants `v1.k14` and `v1.k14.incomplete`) that the live-versus-native check runs under this same profile.
+#
+# The `[family.agentdojo.live]` table is the live part (D.4.2): the backend, the pinned fork identity T0 checks before
+# spawn (D.10.6, D.11.3 rule 1), the refusals and the instrumentation ids the capture mapper accepts (D.10.7).
+# `instrumentation_accepted` is the shared harness list of the agentdojo-live profile (the same `agentprov_backend` runs
+# inside the fork environment, D.11.4); the three `instrumentation_extra` items describe the fork's stock behaviour
+# (kind `harness_policy`) and the NLTK provisioning (kind `behaviour_preserving`), declared so that AutoDojo sessions
+# can be compared with AgentDojo sessions. `guarded_sources` is not declared: T0 checks the worker's
+# `inspect.getsource()` digests against the build-time record of the environment (D.10.6), never against a guessed
+# list. The quirks carry no `observed` counts, because no real-model campaign has been run (U-10). The quirk
+# `agentdojo.run_error_imposes_outcome` has the fork's values: `security` is False (upstream imposes True) and the fork
+# writes the extra log key `error_type` (D.11.1).
+
+[profile]
+id = "autodojo-live"
+version = 3
+format = "agentprov-source-profile/0.1"
+source_id = "autodojo"
+family = "agentdojo"
+parts = ["live"]
+title = "AutoDojo live capture (backends/autodojo, fork xhOwenMa/AutoDojo @ aa458794, capture/0.1 + native TraceLogger JSON)"
+evidence = ["sources/autodojo.md", "verify/autodojo.md", "D.11", "C.13"]
+
+[source]
+canonical_repo = "https://github.com/xhOwenMa/AutoDojo"
+paper = "arXiv:2606.15057"
+package = { name = "agentdojo", pypi_latest = "0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "fork_commit_aa458794"
+part = "live"
+kind = "git"
+repo = "https://github.com/xhOwenMa/AutoDojo"
+commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc"
+date = "2026-09-29"
+note = "the fork commit the backend installs (subdirectory agentdojo; distributed as agentdojo 0.1.35, the same name and version as PyPI) and the commit whose tree anchors the provenance of --autodojo-cache files (D.11.3 rule 5)"
+
+[licence]
+spdx = "MIT"
+holders = ["Xinhang Ma", "Taoran Li", "Chaowei Xiao", "Zhiyuan Yu", "Ning Zhang", "Yevgeniy Vorobeychik"]
+policy = "include"
+basis = "the user's own runs of the MIT-licensed fork (LICENSE: Copyright (c) 2026 the holders above); no separate data licence is stated; the licence of the captured data is the user's decision (U-03)"
+attribution = ["LICENSE (MIT, (c) 2026 Ma et al.)", "paper arXiv:2606.15057"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+content_dedup = "never"
+
+[import]
+dialect = "agentprov.capture"
+mapper = "agentdojo.capture"
+variants = ["0.1"]
+rules = { aer = 1, agentdojo = 2, agentdyn = 2, anthropic_messages = 1, cap = 1 }  # anthropic_messages: D-656; agentdyn: the suite benchmark of an AgentDyn cell (regeneration-batch item 27 (a))
+include = ["raw/capture/*.capture.jsonl"]
+native = { dialect = "agentdojo.tracelogger", variants = ["v1.k14", "v1.k14.incomplete"], mapper = "agentdojo.tracelogger" }
+
+[family.agentdojo.identity]
+model_from = "capture"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = []
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", travel = "agentdojo", banking = "agentdojo", slack = "agentdojo", github = "agentdyn", shopping = "agentdyn", dailylife = "agentdyn" }
+version_field = "benchmark_version"
+# AgentDyn registers its suites under every version key, so the label is a suite version for agentdojo suites only
+# (regeneration-batch item 27 (b); as the agentdyn profile reads it)
+version_label_semantics = "suite_version_for_agentdojo_suites_only"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 3 }  # reviewed AgentDyn tables (regeneration-batch item 27 (b))
+
+[family.agentdojo.harness]
+code_identity = "pinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "yaml"
+# D.5.4 "Citation of D rules" (D-24): the harness is the pinned fork commit. The capture mapper's rules rest on the
+# capture; this list governs the TraceLogger mapping of the native log (live-versus-native).
+verified_code = [
+  { commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", note = "the pinned AutoDojo fork commit" },
+]
+system_prompt_variants = []
+
+[family.agentdojo.live]
+backend = "autodojo"
+project = "backends/autodojo"
+llm_element_default = "native"
+pins = { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", subdirectory = "agentdojo" }
+asserts = ["ToolsExecutionLoop.max_input_tokens is None or recorded"]
+refuse = ["defense in ['drift','progent','camel','camel_nopolicy']", "optimiser runs (variant_generation)"]
+# D.10.7 and D.11.4: the instrumentation items a session of this backend may declare; any other id is reported by the
+# capture mapper (agentdojo.instrumentation_unrecognised), never dropped.
+instrumentation_accepted = [
+  "agentdojo.pass_recorder_wrap@1",
+  "agentdojo.executor_mirror@1",
+  "agentdojo.recording_runtime_class@1",
+  "agentdojo.recording_transport@1",
+  "agentdojo.llm_span_brackets@1",
+  "agentdojo.role_rewrite_developer_to_system@1",
+  "agentdojo.temperature_not_transmitted@1",
+  "agentdojo.retry_malformed_tool_json@1",
+  "agentdojo.retry_upstream_failure@1",
+  "agentdojo.http_backoff@1",
+  "agentdojo.reasoning_passback@1",
+  "agentdojo.attack_model_display_name@1",
+  "agentdojo.env_dump_per_pass@1",
+  "agentdojo.transport_scripted@1",
+  "agentdojo.scheduler_parallel_workers@1",
+  "agentdojo.scheduler_start_stagger@1",
+  "agentdojo.anthropic_element_port@1",
+  "agentdojo.anthropic_max_tokens@1",
+  "agentdojo.defence_pipeline_rewrite@1",
+  "agentdojo.defence_recorder@1",
+  "agentdojo.defence_aux_span@1",
+  "agentdojo.defence_code_provisioned@1",
+  "agentdojo.defence_weights_offline@1",
+  "agentdojo.defence_port@1",
+]
+# D.11.4's three items plus the ones the backend emits (D.11.7 item 9): the fork's system role, its OpenRouter extras
+# (only on an openrouter.ai host) and the cache replay of the `autodojo` attack (kind attack_parameter).
+instrumentation_extra = [
+  "autodojo.fork_temperature_transmitted@1",
+  "autodojo.fork_malformed_json_retry@1",
+  "autodojo.env_nltk_preprovisioned@1",
+  "autodojo.fork_system_role@1",
+  "autodojo.fork_openrouter_extras@1",
+  "autodojo.attack_cache_replay@1",
+]
+# D.11.3 rule 5, D.11.9: the `autodojo` attack replays a cache file that T0 verified against the pinned fork tree and
+# staged at `label`; the cell names it by sha256 and variant. The capture reader finds it by that digest (labels are
+# data) and the mapper lists it as a `supporting` artefact.
+attack_cache = { attack = "autodojo", sha256_param = "autodojo_cache_sha256", variant_param = "autodojo_variant", label = "raw/attack/autodojo-cache.json", media = "application/json" }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.dos_security_not_utility"
+applies = { attack_dir = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"] }
+rules = ["agentdojo.dos_security_rule@1", "agentdojo.dos_placeholder_injection_task@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["agentdojo.run_error_imposed_outcome@1"]
+params = { utility = false, security = false, extra_key = "error_type" }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = {}
+rules = ["agentdojo.incomplete_run@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1", "agentdojo.positional_match@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.run_error_imposed_outcome@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

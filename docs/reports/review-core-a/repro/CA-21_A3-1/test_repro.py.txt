@@ -1,0 +1,29 @@
+"""A3-1: the engine fills apv properties that apv-0.1.ttl declares owl:DatatypeProperty / rdfs:range
+xsd:string with the IRI apv:RecordedNull (EF E.5 item 5). Run from the repo root."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+import rdflib
+from rdflib.namespace import OWL, RDF
+
+from agentprov.aer.reader import load_aer
+from agentprov.prov.engine import derive
+from agentprov.prov.serialise.trig import to_trig
+
+REPO = Path.cwd()
+VECTORS = ["adprov_v1_llama_injecagent", "agentdojo_2024_pi_detector"]
+
+
+@pytest.mark.parametrize("name", VECTORS)
+def test_no_iri_object_on_a_datatype_property(name: str) -> None:
+    vocab = rdflib.Graph().parse(REPO / "src/agentprov/vocab/apv-0.1.ttl", format="turtle")
+    data_props = set(vocab.subjects(RDF.type, OWL.DatatypeProperty))
+    derivation = derive(load_aer(REPO / "docs/architecture/examples/C" / f"{name}.aer.jsonl"))
+    ds = rdflib.Dataset()
+    ds.parse(data=to_trig(derivation.prov_json), format="trig")
+    bad = sorted({(str(p), str(o)) for _s, p, o, _g in ds.quads()
+                  if p in data_props and isinstance(o, rdflib.URIRef)})
+    assert bad == [], f"DatatypeProperty with an IRI object: {bad}"

@@ -1,0 +1,70 @@
+# Source profile `autodojo-via-rope`: the AutoDojo-attack slice of the ROPE release (docs/architecture D.4.4; D.3.3 row
+# autodojo · rope-slice; D.6.13).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1.
+#
+# The only released AutoDojo-attack executions are the 2,847 `runs/<model>/<suite>/user_task_*/autodojo/` logs inside
+# ROPE (3 models × 949 cells) [sources/autodojo.md §3.1; verify/autodojo.md #5]. They are owned, selected and mapped by
+# the `rope` profile (`via = "rope"`), so this profile has no [import] table. Its one family table is the payload
+# provenance the ROPE mapping consults for `attack_dir = "autodojo"` cells (quirk agentdojo.autodojo_payload_cache_link of
+# the `rope` profile): the AutoDojo optimiser caches at the fork pin (150 cells) and the three `routed` caches ROPE ships
+# (`autodojo/variant_generation/variants/{github,shopping,dailylife}/openai/gpt-4o-mini/routed/injections.json`).
+# Neither the cache nor the variant index is logged, so the link is class I (`autodojo.payload_cache_link@1`): an exact
+# variant-0 match, stored with its ambiguity set [verify/autodojo.md #16]. The digests of the variant-0 texts are
+# precomputed from both pins by tools/agentdojo/autodojo_cache_table.py into the table pinned below, so the profile digest
+# covers them.
+
+[profile]
+id = "autodojo-via-rope"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "autodojo"
+family = "agentdojo"
+parts = ["rope-slice"]
+via = "rope"
+title = "AutoDojo-attack executions hosted in the ROPE release (served by the rope profile)"
+evidence = ["sources/autodojo.md §3", "verify/autodojo.md #5, #14-#16, §3.1"]
+
+[source]
+canonical_repo = "https://github.com/xhOwenMa/AutoDojo"
+paper = "arXiv:2606.15057"
+
+[[source.pins]]
+role = "fork_commit_aa458794"
+kind = "git"
+repo = "https://github.com/xhOwenMa/AutoDojo"
+commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc"
+date = "2026-09-29"
+note = "the optimiser caches agentdojo/variant_generation/variants/** (150 cells) the payload link reads; the attack code agentdojo/src/agentdojo/attacks/autodojo_attack.py (blob 89cce44b) is byte-identical to ROPE's vendored copy"
+
+[[source.pins]]
+role = "rope_head"
+part = "rope-slice"
+kind = "git"
+repo = "https://github.com/xhOwenMa/ROPE"
+commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb"
+date = "2026-08-31"
+note = "the host of the slice (runs/<model>/<suite>/user_task_*/autodojo/**, 2,847 logs) and of the three routed caches; the executions are imported under source rope"
+
+[licence]
+spdx = "MIT"
+holders = ["Xinhang Ma", "Taoran Li", "Chaowei Xiao", "Zhiyuan Yu", "Ning Zhang", "Yevgeniy Vorobeychik"]
+policy = "include"
+basis = "the slice's logs are ROPE's (MIT, Ma, Xiao, Yeoh, Zhang, Vorobeychik 2026; the rope profile owns them); the payload caches are AutoDojo's (MIT, LICENSE line 3)"
+attribution = ["AutoDojo arXiv:2606.15057 (cite the version)", "ROPE arXiv:2608.27496"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo 0.1.35 fork (xhOwenMa/AutoDojo)"]
+cited_by = ["AutoDojo arXiv:2606.15057v3 Tables 5,6,8,9 (raw security, micro-averaged)", "ROPE arXiv:2608.27496v1 Tables 2,14 (effect-corrected, macro-averaged)"]
+duplicates = []
+content_dedup = "never"
+
+[family.agentdojo.attack_provenance]
+attack = "autodojo"
+cache_repo = "https://github.com/xhOwenMa/AutoDojo"
+cache_commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc"
+rope_caches = "rope@64495e16:autodojo/variant_generation/variants/{github,shopping,dailylife}/openai/gpt-4o-mini/routed/injections.json"
+link_rule = "autodojo.payload_cache_link@1"
+table = { path = "tables/autodojo_cache_variant0.json", sha256 = "c7a590970bd45143efb1f845ec8522d993c0e3813a44432ead18a7461a2dd9bd" }

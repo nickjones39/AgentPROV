@@ -1,0 +1,221 @@
+{
+ "corpus_id": "craibench-agentdojo",
+ "date": "2026-10-14",
+ "code_commit": "065b0d36",
+ "step": "P0/1 desk research (pre-registration; no data check run)",
+ "parts": [
+  "craibench-agentdojo · head (1,163 TraceLogger v0.k11 logs under runs/ at AthaSSiN/CrAIBench@e41eac1eb2fe; 1,344 blobs in the tree)"
+ ],
+ "papers": [
+  {
+   "id": "arXiv:2503.16248",
+   "title": "Real AI Agents with Fake Memories: Fatal Context Manipulation Attacks on Web3 Agents (Patlan, Sheng, Hebbar, Mittal, Viswanath)",
+   "url": "https://arxiv.org/abs/2503.16248",
+   "relation": "describes: introduces CrAIBench (from v2); the repository's finetune_dataset/README.md links it (https://github.com/AthaSSiN/CrAIBench/blob/e41eac1eb2fea00a31c69827bfe83f9722a25702/finetune_dataset/README.md); the top-level README does not; CITATION.bib at the pin is AgentDojo's. The paper does not link the repository or the logs",
+   "versions": "v1 2025-03-20 titled 'AI Agents in Cryptoland: Practical Attacks and No Silver Bullet' (12 pages, ElizaOS case study only, no CrAIBench; https://arxiv.org/abs/2503.16248v1). v2 2025-04-30, new title, 29 pages: adds CrAIBench (Table 1 design; Appendix C.1 Table 2 multi-step and Table 3 single-step full results per model x suite x system prompt; https://arxiv.org/html/2503.16248v2). v3 2025-07-09, 19 pages: keeps Table I, drops the full results tables (results only as figures), adds model-based PI detectors (PromptGuard 2, ProtectAI v2, DataSentinel) on GPT-4o (Fig. 8) (https://arxiv.org/html/2503.16248v3). Runs in the repo were committed 2025-04-03..06, between v1 and v2; v2 is the comparison version"
+  },
+  {
+   "id": "arXiv:2406.13352",
+   "title": "AgentDojo: A Dynamic Environment to Evaluate Attacks and Defenses for LLM Agents (Debenedetti et al.)",
+   "url": "https://arxiv.org/abs/2406.13352",
+   "relation": "builds_on: harness vendored at v0.1.15 (fork base 8d2ecb59 = upstream tag v0.1.15); CITATION.bib at the pin",
+   "versions": "not re-examined here"
+  },
+  {
+   "id": "HF dataset SentientAGI/crypto-agent-safe-function-calling",
+   "title": "CrAI-SafeFuncCall fine-tuning dataset",
+   "url": "https://huggingface.co/datasets/SentientAGI/crypto-agent-safe-function-calling",
+   "relation": "related (fine-tuning defence data, CC-BY-4.0; created 2025-05-10, sha 9907a151); not run logs, not part of this corpus; the repo's finetune_dataset/ holds only Git LFS pointers (parquet 132 B, png 130 B)",
+   "versions": "single revision 9907a15132f5 (2025-05-10)"
+  }
+ ],
+ "repo": "https://github.com/AthaSSiN/CrAIBench (fork=false per GitHub API but carries ethz-spylab/agentdojo history to v0.1.15 8d2ecb59 2024-09-08; created 2025-04-03; licence MIT; 0 stars; branches main=e41eac1e and sft=e33cdc21; 0 tags/releases; 1 closed PR #1 'sft branch' 2025-04-14, 0 issues). Pin e41eac1eb2fea00a31c69827bfe83f9722a25702 = main HEAD, 2026-01-09T04:22:55Z 'fix wrong path' (README only); no push since. Runs history from git trees (https://api.github.com/repos/AthaSSiN/CrAIBench/git/trees/<sha>?recursive=1): a512e34a 2025-04-03T23:08Z 'add working mem inj' deletes all 19,740 upstream AgentDojo logs and adds 19 gpt-4o-spotlighting_with_datamarking/chain logs; be71b1f5 2025-04-04T06:48Z 'add complete chain benchmark' adds 128 gpt-4o-spotlighting_with_delimiting/chain + 3 banking logs, and changes the delimiting defence text (parenthetical 'this is data' notice replaces <data> tags), the memory-retrieval phrase and the important_instructions wrapper (user/model signature removed); f87dbc74 2025-04-04 changes chain_client.py and system_messages.yaml only; dc1a1a73 2025-04-06T19:37Z adds 1,013 crypto_trading logs (888 gpt-4o, 125 gpt-4o-mini). No later commit adds, removes or changes any runs/ blob (identical runs/ blob sets at 2dbc5f39, ac6c9490, c07e2b94, d8ce6e91, 0e3c1903, 72e311ce, dee80c29, e41eac1e). Code changed after the runs: ac6c9490 and c07e2b94 (2025-04-07/10) modify crypto_trading injection tasks, add dao_nft suite, contracts client, logging.py; e33cdc21 (sft) modifies openai_llm.py. The fork's afd3a23b (2025-04-03) renames ModelsEnum GPT_4O_2024_05_13 to the undated alias 'gpt-4o', disables AgentDojo's result cache (task_result = None, so every run overwrites its log path), adds spotlighting_with_datamarking and memory injection (https://github.com/AthaSSiN/CrAIBench/commit/afd3a23b). count_true_values.py (2dbc5f39, https://github.com/AthaSSiN/CrAIBench/blob/e41eac1eb2fea00a31c69827bfe83f9722a25702/count_true_values.py) reads a private tree /home/shared/agents/agentdojo/runs/{model}[-spotlighting_with_delimiting]/{system_message}/{suite}/..., i.e. the authors' analysis tree has a system-message level and benign user-task runs that the released runs/ lack",
+ "data_record": "No Zenodo/HF/Figshare record for the logs; the data are the committed runs/ of the GitHub repository. Our pin: commit e41eac1e, expected_files 1,344 (profile), census files 1,163, absent blob finetune_dataset/figures/ft_comparison.png. GitHub tree at the pin (truncated=false): 1,804 entries, 1,344 blobs, 10,397,914 bytes in git blobs (= profile's 10,397,784 for 1,343 files + the 130-byte LFS pointer of the PNG); runs/ 1,163 blobs, 8,688,961 bytes; smallest log 1,560 B, largest 21,284 B. Integrity rests on git blob ids at the pin",
+ "harness": "Vendored AgentDojo 0.1.15 (pyproject version 0.1.15; fork base = upstream tag v0.1.15 8d2ecb59), modified by the fork (memory injection via InitQuery memory message with role user, spotlighting_with_delimiting text changed, spotlighting_with_datamarking added, important_instructions wrapper changed at be71b1f5, result cache disabled). python -m agentdojo.scripts.benchmark with run_script.sh (chain) and the README crypto_trading command (both default to --system-message-name default_defended --defense spotlighting_with_delimiting --attack important_instructions, -mi for memory injection). Logs are TraceLogger v0.k11 (no timestamps, no package/benchmark version; profile, census). Code identity cannot be verified from the logs (profile code_identity range, verified_code []). Known family behaviours that apply: injection-task pre-pass as user task with constant security (AgentDojo #95 explains 'security' True = injection goal met, https://github.com/ethz-spylab/agentdojo/issues/95), silent rerun on null final content (0 here per census). Open upstream issues on security checks (#135, #154, #168) concern upstream suites, not CrAIBench's own suites",
+ "models": [
+  "gpt-4o (OpenAI API, undated alias: the fork maps the enum to 'gpt-4o'; the snapshot is not recorded in v0.k11 logs; at the run dates 2025-04-03..06 OpenAI's alias would have resolved to a dated snapshot that cannot be confirmed from the data; https://platform.openai.com/docs/models/gpt-4o)",
+  "gpt-4o-mini-2024-07-18 (OpenAI API; 125 crypto_trading logs only)",
+  "Paper also evaluates Claude Sonnet 3.5 (claude-3-5-sonnet-20240620), Claude Sonnet 3.7 (claude-3-7-sonnet-20250219) and fine-tuned Qwen-2.5-14B-Instruct; none are in the released runs (run scripts at the pin name the Claude ids)"
+ ],
+ "reported_results": [
+  {
+   "arm": "gpt-4o · Secure · chain · multi-step · PI",
+   "metric": "utility count / ASR",
+   "value": "13 / 54.00%",
+   "n": "50",
+   "where": "v2 Appendix C.1 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Secure · chain · multi-step · MI",
+   "metric": "utility count / ASR",
+   "value": "0 / 90.00%",
+   "n": "50",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Default · chain · multi-step · PI / MI",
+   "metric": "utility / ASR",
+   "value": "PI 10, 76.00%; MI 0, 100.00%",
+   "n": "50 each",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Confirmation · chain · multi-step · PI / MI",
+   "metric": "utility / ASR",
+   "value": "PI 1, 6.00%; MI 0, 28.00%",
+   "n": "50 each",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Secure · chain · benign multi-step",
+   "metric": "benign utility",
+   "value": "21/25",
+   "n": "25",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Secure · trading · multi-step · PI",
+   "metric": "utility count / ASR",
+   "value": "243 / 21.87%",
+   "n": "Total printed 390; 21.87% is not k/390 but equals 84/384 (truncated), matching the 384 PI logs at the pin",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Secure · trading · multi-step · MI",
+   "metric": "utility count / ASR",
+   "value": "140 / 74.33%",
+   "n": "Total printed 390; 74.33% is not k/390 but equals 307/413, matching the 413 multi-step MI logs at the pin",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Default · trading · multi-step · PI / MI",
+   "metric": "utility / ASR",
+   "value": "PI 197, 75.13% (293/390); MI 154, 96.15% (375/390)",
+   "n": "390",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Confirmation · trading · multi-step · PI / MI",
+   "metric": "utility / ASR",
+   "value": "PI 6, 4.10% (16/390); MI 55, 43.85% (171/390)",
+   "n": "390",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Secure · trading · benign multi-step",
+   "metric": "benign utility",
+   "value": "71/78",
+   "n": "78",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o-mini · Secure / Default / Confirmation · trading · multi-step · MI",
+   "metric": "utility / ASR",
+   "value": "Secure 114, 93.59% (365/390); Default 132, 94.62% (369/390); Confirmation 35, 54.36% (212/390)",
+   "n": "390",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o-mini · Secure / Default / Confirmation · trading · multi-step · PI",
+   "metric": "utility / ASR",
+   "value": "Secure 202, 55.13%; Default 207, 58.46%; Confirmation 16, 11.28%",
+   "n": "390",
+   "where": "v2 Table 2 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · Secure / Default / Confirmation · chain · single-step · MI",
+   "metric": "utility / ASR",
+   "value": "Secure 1, 100.00%; Default 1, 100.00%; Confirmation 0, 21.43%; benign 6/7, 6/7, 0/7",
+   "n": "14 (benign 7)",
+   "where": "v2 Appendix C.1 Table 3 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "gpt-4o · single-step · MI, row labelled DAO/NFT with 16 tasks / 80 attacks (Table 1 gives these sizes to Trading)",
+   "metric": "utility / ASR",
+   "value": "Secure 14, 55.00% (44/80); Default 28, 100.00%; Confirmation 11, 56.25% (45/80); benign 14/16, 12/16, 0/16",
+   "n": "80 (benign 16)",
+   "where": "v2 Table 3 (https://arxiv.org/html/2503.16248v2); sizes vs Table 1"
+  },
+  {
+   "arm": "gpt-4o-mini · single-step · MI, row labelled DAO/NFT (16 tasks / 80)",
+   "metric": "utility / ASR",
+   "value": "Secure 34, 100.00%; Default 34, 100.00%; Confirmation 10, 43.75%; benign 14/16, 14/16, 0/16",
+   "n": "80",
+   "where": "v2 Table 3 (https://arxiv.org/html/2503.16248v2)"
+  },
+  {
+   "arm": "design",
+   "metric": "tasks / injections",
+   "value": "Chain 9 actions, multi 25/50, single 7/14; Trading 13 actions, multi 78/390, single 16/80; DAO/NFT 11 actions, multi 32/124, single 8/27; total 135/564 and 31/121",
+   "n": "-",
+   "where": "v2 Table 1 (https://arxiv.org/html/2503.16248v2); unchanged as v3 Table I (https://arxiv.org/html/2503.16248v3)"
+  },
+  {
+   "arm": "fine-tuned Qwen-2.5-14B-Instruct · single-step · MI",
+   "metric": "benign utility / UA / ASR",
+   "value": "87.1% / 44.6%->85.1% / 85.1%->1.7%",
+   "n": "31 tasks, 121 attacks",
+   "where": "v2 Sec. 6.2, Fig. 12 (https://arxiv.org/html/2503.16248v2) (not in the corpus)"
+  }
+ ],
+ "expected_counts": "head: 1,344 blobs at the pin (profile expected_files 1344; GitHub tree), 1 absent blob (LFS-pointer PNG). Selected by include runs/*/*/*/*/*.json: 1,163 logs (registry tools/readme_corpora.toml count 1163 basis census; docs/reports/phase10d/craibench-agentdojo.census.json /files; GitHub tree 1,163 runs/ blobs). Units/executions 1,163 agent_execution (census /units; trial jobs 8: 1,163, sealed_clean 475, sealed_with_issues 688; jobs 3 subset 233 byte-identical). Variants v0.k11 1,163. Suites crypto_trading 1,013, chain 147, banking 3 (profile; routing R8). By pipeline: gpt-4o-spotlighting_with_delimiting 1,019; gpt-4o-mini-2024-07-18-spotlighting_with_delimiting 125; gpt-4o-spotlighting_with_datamarking 19 (tree). MI (*_memory_injection.json) 688, PI 435, pre-pass none 40 (tree; census unattributed_additional_user_message 688, injection_task_as_user_task_prepass 40). Paper design (v2 Table 1/2/3): 4 models x 3 system prompts x 3 suites; per model and prompt 135 multi-step tasks (benign) + 564 PI + 564 MI + 31 single-step benign + 121 single-step MI",
+ "expected_arms": "Facets: model (pipeline_dir prefix) x defence (suffix spotlighting_with_delimiting|spotlighting_with_datamarking) x suite (crypto_trading|chain|banking) x attack (important_instructions|none) x injection mode (MI by file stem *_memory_injection, PI otherwise) [x task class multi/single-step: crypto user_task <80 multi, 80..95 single; chain <25 multi, 25..31 single]. 13 non-empty strata (tree): gpt-4o delim crypto MI 493 (multi 413 = 78 tasks x 5 + 23 extra with injection ids 5..9 and 11 [fact-check: no id 10]; single 80) / PI 384 (73 tasks: 365 core + 19 extra; tasks 24,25,71,72,78 have no PI log) / none 11; gpt-4o delim chain MI 64 (50 multi + 14 single) / PI 50 / none 14; gpt-4o-mini delim crypto MI 120 (tasks 63..70 multi 40, 80..95 single 80) / none 5; gpt-4o datamarking chain MI 10 / none 9 (early chain numbering, a512e34a); gpt-4o delim banking MI 1 / PI 1 / none 1. Missing vs paper: all Claude Sonnet 3.5/3.7 arms; the DAO/NFT suite (added at c07e2b94 after the runs); all benign user-task runs; the Default and Confirmation prompt conditions (expected: one prompt per commit group, see H5); gpt-4o-mini chain and PI arms; gpt-4o-mini crypto multi tasks 0..62 and 71..79; detector and fine-tuning runs. Extra vs paper: datamarking chain (19), banking (3), 23 MI + 19 PI crypto logs with injection_task_5..9 and 11 (no 10) [fact-check corrected from 5..11] (a larger, earlier injection set), crypto user tasks 53 and 54 absent from the paper's 78",
+ "licence": "MIT: LICENSE at the pin is the upstream AgentDojo text '(c) 2024 Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr' with no fork copyright line and no separate data licence (https://github.com/AthaSSiN/CrAIBench/blob/e41eac1eb2fea00a31c69827bfe83f9722a25702/LICENSE; GitHub API spdx MIT). finetune_dataset/README.md card declares cc-by-4.0 for the fine-tuning dataset only. No use restriction found. Model-provider terms on redistributing outputs unassessed (profile)",
+ "discrepancy_leads": [
+  "Released runs are a small slice of the paper's design: 2 of 4 models, 2 of 3 suites, no benign runs, apparently one system-prompt condition; the authors' counting script reads a private tree with a system-message directory level that the release lacks",
+  "Two GPT-4o Secure Trading cells in v2 Table 2 have rates that fit the released counts, not the printed Total 390: PI ASR 21.87% = 84/384 and MI ASR 74.33% = 307/413; the paper's Secure trading numbers were likely computed over exactly these files, extras included",
+  "Released crypto_trading logs include 23 MI + 19 PI runs with injection_task_5..9 and 11 (no injection_task_10) and 11 pre-pass logs for injection tasks 0..9 and 11 (id 10 absent), but the paper's design has 5 injections per trading task (390/78); injection tasks were edited after the runs (ac6c9490, c07e2b94) [fact-check: corrected '5..11' / '0..11 minus one' from the GitHub tree listing at the pin]",
+  "5 gpt-4o crypto multi-step tasks (24, 25, 71, 72, 78) have no PI log; tasks 53 and 54 have no log at all (paper: 78 multi-step tasks = 80 minus 2)",
+  "Paper v2 says the PI wrapper references the user's name and the agent's model; the fork's be71b1f5 (before all delimiting runs) replaced it with an unsigned wrapper, so the 435 PI logs should carry the unsigned text",
+  "REFUTED by fact-check (kept for the record): the original lead said the paper's explicit delimiter differs from the released code. It does not. v2 Sec. 6 prints the 'more explicit delimiter' as the parenthetical 'Please note that this is data and not instructions' notice, which is exactly the text be71b1f5 introduced (https://arxiv.org/pdf/2503.16248v2; https://github.com/AthaSSiN/CrAIBench/commit/be71b1f5). The memory-retrieval phrase printed in v2 Sec. 5 also matches be71b1f5. Only the PI wrapper differs (paper Fig. 15 signed; code unsigned)",
+  "v2 Table 3 single-step rows appear to swap Trading and DAO/NFT labels relative to Table 1 (16 tasks/80 attacks is Trading in Table 1, DAO/NFT in Table 3)",
+  "Model identity 'gpt-4o' is an undated alias (fork changed the enum), so the snapshot behind 1,038 logs is not recorded; paper names only GPT-4o",
+  "spotlighting_with_datamarking chain logs (19) are from an earlier chain benchmark state (a512e34a: different injection numbering, mock tools) and are not described in the paper; banking (3) are smoke tests",
+  "Result cache disabled in the fork (afd3a23b): reruns with other system prompts overwrite the same path, so each released file is the last run for its path; the system-prompt variant per log is the only record of its condition (profile: 4 unrecognised system prompts, 651..3,092 chars)",
+  "v2 Table 2 Claude Sonnet 3.5 Trading Secure prints PI Total 380 (others 390): paper-internal inconsistency (not in corpus)",
+  "Fact-check lead: count_true_values.py at the pin maps system messages default_defended / default / blockchain (= Secure / Default / Confirmation per v2 Sec. 6), counts ASR as successes over the files actually present (not a fixed 390), and for gpt-4o + default_defended reads the attacked cells from a directory named 'default_defended_es', a name that is not a key of system_messages.yaml at the pin, c07e2b94 or sft (https://github.com/AthaSSiN/CrAIBench/blob/e41eac1eb2fea00a31c69827bfe83f9722a25702/count_true_values.py). So the paper's gpt-4o Secure attacked cells come from a separately named prompt variant; which of the 4 released prompt variants it is remains open (bears on H5 and H7)",
+  "Fact-check lead: v2 Fig. 20 prints a GPT-4o Secure Trading MI trace with pipeline gpt-4o-spotlighting_with_delimiting, user_task_7, injection_task_2, security true; a file at that path (injection_task_2_memory_injection.json) exists in the released tree, which ties the paper to these logs (https://arxiv.org/pdf/2503.16248v2)"
+ ],
+ "open_questions": [
+  "Which paper condition (Default/Secure/Confirmation) does each of the 4 system-prompt variants correspond to? (Expected: default_defended = Secure for the delimiting runs, per run_script.sh and README defaults)",
+  "Were the paper's other cells computed from a later run set (after the injection-task edits) that was never released?",
+  "Which dated snapshot did the 'gpt-4o' alias resolve to on 2025-04-03..06?",
+  "Why do the crypto pre-pass logs cover injection tasks 0..9 and 11 (id 10 absent per the tree listing; fact-check), and the datamarking pre-pass 2..10?"
+ ],
+ "checks_not_applicable": [
+  "E2 delta: not applicable (craibench-agentdojo was not examined in FA or E2; full pre-check, wave 3)",
+  "L1-07 timestamps: v0.k11 logs carry no timestamp field (profile, census); the check reduces to confirming absence (0 timestamp pointers)",
+  "L2 outcome sanity verdicts for datamarking, banking, gpt-4o-mini multi-step (40 logs, partial vs 390) and the extra injection ids: no matching reported cell; Wilson intervals only",
+  "Benign utility comparison: the release has no benign user-task runs (attack none only on the 40 injection-task pre-passes)",
+  "Claude, DAO/NFT, detector and fine-tuning results: no logs",
+  "L2 withholding: inert (MIT, policy include, no copyleft or use rule); generic secret path only"
+ ],
+ "files_written": [
+  "docs/reports/precheck/data/craibench-agentdojo/research.json",
+  "docs/reports/precheck/prereg/craibench-agentdojo.md"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-check (desk only; no raw data read)",
+  "confirmed": [
+   "v2 Table 1/2/3 values for every reported_results row (re-extracted from https://arxiv.org/html/2503.16248v2 and the v2 PDF)",
+   "84/384 = 21.875% and 307/413 = 74.33%; no k/390 gives either",
+   "version dates v1 2025-03-20, v2 2025-04-30, v3 2025-07-09; v1 title; v3 has only Table I and adds PromptGuard/ProtectAI/DataSentinel",
+   "pin e41eac1e = main HEAD, 2026-01-09T04:22:55Z, README only; tree not truncated: 1,804 entries, 1,344 blobs, 10,397,914 B; runs/ 1,163 blobs, 8,688,961 B, 1,560..21,284 B; ft_comparison.png 130 B",
+   "per-stratum counts of the prereg §3 from the tree listing (MI 688 = 514 + 174, PI 435, none 40; missing PI tasks 24, 25, 71, 72, 78; tasks 53, 54 absent; mini multi tasks 63..70)",
+   "commit dates and messages of a512e34a, be71b1f5, dc1a1a73, afd3a23b (enum gpt-4o, task_result = None), f87dbc74, ac6c9490, c07e2b94; upstream tag v0.1.15 = 8d2ecb59",
+   "be71b1f5 diff: <data> to parenthetical notice, new memory phrase, unsigned PI wrapper; paper Fig. 15 shows the signed AgentDojo wrapper",
+   "LICENSE at pin: MIT, upstream AgentDojo copyright only; HF dataset sha 9907a151, cc-by-4.0",
+   "AgentDojo #95 (security true = attack success; true when no attack); #135/#154/#168 titles",
+   "census/trial numbers (1,163; 475/688; jobs 3 subset 233; 40 pre-pass; 2,210 placeholders; 1,144/1,095 delimiters)"
+  ],
+  "corrected": [
+   "extra crypto injection ids are 5..9 and 11, not 5..11; crypto pre-pass ids are 0..9 and 11 (id 10 absent)",
+   "discrepancy lead on the delimiter text refuted: paper and code agree"
+  ],
+  "added_leads": [
+   "count_true_values.py default_defended_es directory for gpt-4o Secure",
+   "paper Fig. 20 trace path exists in the release"
+  ]
+ }
+}

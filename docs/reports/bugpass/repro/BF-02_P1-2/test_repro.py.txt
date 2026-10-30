@@ -1,0 +1,86 @@
+"""P1-2: clear_pycache (size-triggered trim) crashes when another process writes .pyc files concurrently."""
+from __future__ import annotations
+
+import importlib.util
+import os
+import threading
+from pathlib import Path
+
+import pytest
+
+TOOL = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/"
+            "bugpass-perf-10-review-b5384c/tools/suite_queue.py")
+
+
+def _load():
+    spec = importlib.util.spec_from_file_location("suite_queue_p12", TOOL)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+sq = _load()
+
+
+def _build(prefix: Path, ndirs: int = 30, nfiles: int = 5) -> list[Path]:
+    dirs = []
+    for i in range(ndirs):
+        d = prefix / "Users" / "x" / f"wt{i}" / "src" / "__pycache__"
+        d.mkdir(parents=True)
+        for j in range(nfiles):
+            (d / f"m{j}.cpython-314.pyc").write_bytes(b"\0" * 16)
+        dirs.append(d)
+    return dirs
+
+
+def test_deterministic_concurrent_writer(tmp_path, monkeypatch):
+    """A writer drops one .pyc into a directory after rmtree listed it (as a concurrent import would)."""
+    prefix = tmp_path / "cache" / "agentprov" / "pycache"
+    dirs = _build(prefix)
+    target = dirs[0]
+    real_rmdir = os.rmdir
+    fired = []
+
+    def racing_rmdir(path, *a, **kw):
+        if not fired and os.fspath(path) == target.name:
+            fired.append(1)
+            # another session's interpreter writes its bytecode now
+            (target / "late.cpython-314.pyc").write_bytes(b"\0")
+        return real_rmdir(path, *a, **kw)
+
+    monkeypatch.setattr(os, "rmdir", racing_rmdir)
+    sq.clear_pycache(prefix)  # expected: the trim degrades gracefully (like precompile); actual: OSError
+    assert fired
+
+
+def test_threaded_concurrent_writer(tmp_path):
+    prefix = tmp_path / "cache" / "agentprov" / "pycache"
+    failures = 0
+    for _attempt in range(5):
+        _build(prefix, ndirs=60, nfiles=10)
+        stop = threading.Event()
+
+        def writer():
+            k = 0
+            while not stop.is_set():
+                d = prefix / "Users" / "x" / f"wt{k % 60}" / "src" / "__pycache__"
+                try:
+                    d.mkdir(parents=True, exist_ok=True)
+                    (d / f"w{k}.cpython-314.pyc").write_bytes(b"\0")
+                except OSError:
+                    pass
+                k += 1
+
+        t = threading.Thread(target=writer)
+        t.start()
+        try:
+            sq.clear_pycache(prefix)
+        except OSError as exc:
+            failures += 1
+            last = exc
+        finally:
+            stop.set()
+            t.join()
+        import shutil
+        shutil.rmtree(prefix, ignore_errors=True)
+    assert failures == 0, f"clear_pycache raised in {failures}/5 attempts: {last!r}"

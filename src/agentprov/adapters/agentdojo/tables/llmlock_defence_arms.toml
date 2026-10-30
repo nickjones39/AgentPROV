@@ -1,0 +1,56 @@
+# Identity table `llmlock_defence_arms` (docs/architecture D.4.5; phase 10d; routing R4): one row per defence arm of
+# Wakeful-Cloud/llm-lock at the pinned commit 7bb9915b57e087536b6bdeae0066adb0d8999958, keyed by the arm path between
+# data/agentdojo/ and logs/ (nine arms of 5,923 logs each).
+#
+# No log records the agent's model: agentdojo/main.py sets pipeline.name = "local" and takes the model from
+# --llm-api-model / LLM_API_MODEL, whose default (a Llama 4 Scout GGUF) a run environment may override; no run README
+# names it. So no row names a model (R4: the agent is sealed with unk /model not_recorded and identity_unresolved; D-92,
+# never the code default). The defence is the arm: the --defense value of scripts/run.sh for the arm's log directory
+# (main.py DefenseNames), with the transformer classifier for the transformer and hybrid arms; data-delimiter is
+# AgentDojo's spotlighting_with_delimiting and carries that name (D-114). Asserted under
+# `agentdojo.pipeline_dir_is_model_identity@1` (class I).
+
+[[dir]]
+name = "none"
+defence = "none"
+basis = "arm none: scripts/run.sh --defense none; the run README says Defense: N/A"
+
+[[dir]]
+name = "data-delimiter"
+defence = "spotlighting_with_delimiting"
+basis = "arm data-delimiter: main.py DefenseNames.DATA_DELIMITER (l. 407-418) is AgentDojo's spotlighting_with_delimiting verbatim (ethz-spylab/agentdojo@089ed468 agent_pipeline.py l. 267-274: the same system-prompt sentence and the same << >> output formatter around tool_result_to_str), so the defence carries AgentDojo's name (D-114)"
+
+[[dir]]
+name = "embedding"
+defence = "embedding"
+basis = "arm embedding: scripts/run.sh --defense embedding (EmbeddingPIDetector, all-MiniLM-L6-v2 random forest)"
+
+[[dir]]
+name = "llm"
+defence = "llm"
+basis = "arm llm: scripts/run.sh --defense llm (LLMPIDetector); the run README names the detector model, Qwen3-8B GGUF"
+
+[[dir]]
+name = "multiclass"
+defence = "multiclass"
+basis = "arm multiclass: scripts/run.sh --defense multiclass (MulticlassPIDetector: embedding classifier and a detector LLM)"
+
+[[dir]]
+name = "transformer/protectai-deberta-v3-base-prompt-injection-v2"
+defence = "transformer-protectai-deberta-v3-base-prompt-injection-v2"
+basis = "arm transformer/protectai-...: scripts/run.sh --defense transformer --defense-transformer-model-name protectai/deberta-v3-base-prompt-injection-v2"
+
+[[dir]]
+name = "transformer/qualifire-prompt-injection-jailbreak-sentinel-v2"
+defence = "transformer-qualifire-prompt-injection-jailbreak-sentinel-v2"
+basis = "arm transformer/qualifire-...: scripts/run.sh --defense transformer --defense-transformer-model-name qualifire/prompt-injection-jailbreak-sentinel-v2"
+
+[[dir]]
+name = "hybrid/protectai-deberta-v3-base-prompt-injection-v2"
+defence = "hybrid-protectai-deberta-v3-base-prompt-injection-v2"
+basis = "arm hybrid/protectai-...: the directory names the protectai classifier, but scripts/run.sh passes qualifire/prompt-injection-jailbreak-sentinel-v2 for this arm too; which classifier ran is not recorded, so the defence keeps the directory's name"
+
+[[dir]]
+name = "hybrid/qualifire-prompt-injection-jailbreak-sentinel-v2"
+defence = "hybrid-qualifire-prompt-injection-jailbreak-sentinel-v2"
+basis = "arm hybrid/qualifire-...: scripts/run.sh --defense hybrid --defense-transformer-model-name qualifire/prompt-injection-jailbreak-sentinel-v2"

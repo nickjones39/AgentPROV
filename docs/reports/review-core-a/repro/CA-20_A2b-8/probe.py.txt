@@ -1,0 +1,37 @@
+import sys, copy, json
+sys.path.insert(0,'docs/reports/review-core-a/repro/A2b-review')
+from rt import *
+base = json.loads(SRC)
+mc = lambda d: d["meta"]["model_config"]
+M = {
+ "usage_neg": lambda d: mc(d)["usage"].__setitem__("prompt_tokens", -1),
+ "usage_str": lambda d: mc(d)["usage"].__setitem__("prompt_tokens", "9278"),
+ "usage_bool": lambda d: mc(d)["usage"].__setitem__("prompt_tokens", True),
+ "usage_list": lambda d: mc(d).__setitem__("usage", [1]),
+ "finish_null": lambda d: mc(d).__setitem__("finish_reasons", None),
+ "run_error_released": lambda d: d["meta"].__setitem__("run_error", "x"),
+ "source_released": lambda d: d["meta"].__setitem__("source", "x"),
+ "timing_stubbed_released": lambda d: d["meta"].__setitem__("timing_stubbed", False),
+ "pipeline_name_released": lambda d: d["meta"].__setitem__("pipeline_name", "p"),
+ "tool_sha_absent": lambda d: d["turns"][3].pop("content_sha256"),
+ "usage_reasoning": lambda d: mc(d)["usage"].__setitem__("reasoning_tokens", 5),
+ "usage_big": lambda d: mc(d)["usage"].__setitem__("prompt_tokens", 2**60),
+ "wall_neg": lambda d: d["meta"].__setitem__("wall_clock_s", -1.0),
+}
+for name, f in M.items():
+    d = copy.deepcopy(base); f(d); src = json.dumps(d, indent=2).encode()
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "x/y.transcript.json", producer_commit="579a908354b93361efe0905ffb7623256aa96a06")
+    try:
+        outcome, _ = map_artefact(src, origin, profile_id="adprov-v1")
+    except Exception as e:
+        print(name, "MAP RAISES", type(e).__name__, str(e)[:120]); continue
+    if outcome.degenerate: print(name, "degenerate"); continue
+    try:
+        data, _ = aer_bytes(outcome)
+    except Exception as e:
+        print(name, "AER_BYTES RAISES", type(e).__name__, str(e)[:120]); continue
+    recs = [json.loads(l) for l in data.splitlines()]
+    issues = sorted({i.get("code") for r in recs if r.get("kind")=="seal" for i in r.get("issues",[])} )
+    seal = recs[-1]
+    out = serialise(render(recs))
+    print(name, "same" if out==src else "DIFF", "seal keys:", list(seal)[:12], "issues:", [i if isinstance(i,str) else i.get("code") for i in seal.get("issues", [])][:8])

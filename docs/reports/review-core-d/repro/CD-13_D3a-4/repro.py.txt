@@ -1,0 +1,28 @@
+import sys, json
+sys.path.insert(0, "tests/adapters/agentdojo")
+from test_v1_import import v1_log
+from agentdojo_support import map_log
+
+d = v1_log()
+d["messages"][4]["content"] = [
+    {"type": "thinking", "content": "hmm", "id": "SIG"},
+    {"type": "text", "content": "Paid.", "extra_key": "X"},
+    {"type": "text"},
+]
+m = map_log(d)
+txt = m.data.decode()
+print("degenerate:", m.outcome.degenerate)
+print("SIG in AER:", "SIG" in txt)
+print("extra_key in AER:", "extra_key" in txt)
+print("m4 parts:", json.dumps(m.get("m4")["parts"]))
+print("m4 ext:", json.dumps(m.get("m4").get("ext")))
+print("codes:", sorted(set(m.codes)))
+print("unknown_message_shape issues:", m.issues("agentdojo.unknown_message_shape"))
+r = m.validate(); print("validate ok:", r.ok, r.passed)
+
+# baseline: thinking with id only (the real upstream shape)
+d2 = v1_log()
+d2["messages"][4]["content"] = [{"type": "thinking", "content": "hmm", "id": "SIGNATURE_ABC"}, {"type": "text", "content": "Paid."}]
+m2 = map_log(d2)
+print("upstream-shape: SIGNATURE_ABC in AER:", "SIGNATURE_ABC" in m2.data.decode(), "codes:", sorted(set(m2.codes)))
+print("m4 parts:", json.dumps(m2.get("m4")["parts"]))

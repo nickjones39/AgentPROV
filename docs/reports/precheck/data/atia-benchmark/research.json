@@ -1,0 +1,169 @@
+{
+ "format": "agentprov-precheck-research/0.1",
+ "corpus_id": "atia-benchmark",
+ "parts": [
+  "atia-benchmark · logs (5 Inspect .eval logs under logs/ at mattngyn/atia_benchmark@cc71caf5, 123 samples; family inspect, profile atia-benchmark@1, dialect inspect.eval v2, no semantics profile; registry part planned)"
+ ],
+ "wave": 4,
+ "kind": "first examination (not in FA or E2; never stored; prior evidence is the phase-10n census and scratch trials, docs/reports/phase10n/README.md §5)",
+ "code_commit": "065b0d36",
+ "date": "2026-10-14",
+ "method": "desk research only: GitHub REST API via gh (repository, commits, recursive tree with blob sizes and ids, README/LICENSE/code files at the pin, forks, compare, issues/PRs), inspect_ai source and CHANGELOG at tag 0.3.112 and later via gh, Google model page, web and arXiv search for a paper. No .eval log, dataset or media payload downloaded; no raw corpus data read; nothing computed from raw data. Web and repository text treated as untrusted data and summarised.",
+ "files_written": [
+  "docs/reports/precheck/data/atia-benchmark/research.json",
+  "docs/reports/precheck/prereg/atia-benchmark.md"
+ ],
+ "papers": [
+  {
+   "id": "none",
+   "title": "No paper, preprint or report found for ATIA",
+   "url": "https://export.arxiv.org/api/query?search_query=all:%22adversarial%20tool%20infiltration%22&max_results=5",
+   "relation": "The profile already records 'none found in the repository'. arXiv full-text search for the title phrase returned no entry (2026-10-14); two web searches found no paper, GSoC project page or blog. The README describes a Google Summer of Code 2025 project under Google DeepMind and reports no numbers.",
+   "versions": "n/a"
+  },
+  {
+   "id": "arXiv:2306.13213",
+   "title": "Visual Adversarial Examples Jailbreak Aligned Large Language Models (Qi et al. 2023)",
+   "url": "https://arxiv.org/abs/2306.13213",
+   "relation": "method the repository says it re-implements for image attacks (notes/identifiying_papers_used.text at the pin); not a source of ATIA results",
+   "versions": "not checked (not a results source)"
+  },
+  {
+   "id": "arXiv:2307.15043",
+   "title": "Universal and Transferable Adversarial Attacks on Aligned Language Models (Zou et al. 2023)",
+   "url": "https://arxiv.org/abs/2307.15043",
+   "relation": "method the repository says it re-implements for text attacks (same notes file); no Zou-style attack_type label is expected in the logs (see discrepancy leads)",
+   "versions": "not checked (not a results source)"
+  }
+ ],
+ "repo": {
+  "url": "https://github.com/mattngyn/atia_benchmark",
+  "pinned_commit": "cc71caf55c6f35d7aad440a4a746f44ae39d17c4",
+  "pin_date": "2025-10-20T04:27:56Z ('Create LICENSE', Matthew Nguyen); HEAD of main on 2026-10-14 (pushed_at 2025-10-20T04:27:56Z); repository created 2025-07-17T07:32:15Z; not archived; 0 open issues, 0 issues or PRs ever, 0 releases, 0 tags, 1 branch (main); description 'a benchmark for adversarial tool infiltration in agents (GSoC 2025)'",
+  "evidence_url": "https://api.github.com/repos/mattngyn/atia_benchmark/commits?per_page=100",
+  "history": "6 commits in all. Root 5fee82eb (2025-09-01T17:54:40Z, author kizro, 'Final GSoC Submission', no parent) adds everything incl. the five logs; then 4 README-only edits (ea84a023, 2d1355fa, d5b19563 on 2025-09-01; b1972c24 on 2025-10-01 by Jou Barzdukas) and the pin cc71caf5 which adds only LICENSE. History before 2025-09-01 is not public (the repository was created 2025-07-17, the day the logs were written), so the run-time code state cannot be recovered.",
+  "commits_touching_logs": "only the root commit 5fee82eb; no later commit touches logs/, datasets/, harm_categories/, scorer_methods/ or solver_methods/ (https://api.github.com/repos/mattngyn/atia_benchmark/commits/<sha> file lists)",
+  "readme_claims": "README at the pin: 10 harm categories, 5 tools each, ~50 adversarial examples per category, 500+ attacks, 6 jailbreak methods (audio Summarize_Audio, Qi et al. 2023 images, Summarize_Video, Zou et al. 2023 text, Gray Swan silent characters, hidden text in images); scorer harmful_tool_invoked returns CORRECT when any tool named in the sample's harmful_tools is called (attack success); solver use_sample_tools exposes only the sample's harmful+benign tools; example runs on google/gemini-2.0-flash. The README says nothing about the logs and reports no results. The ea84a023 edit removed a 'Jailbreak Techniques Implemented' section (GCG, image, TTS, hidden video, text embedding) and reworded status bullets; no numbers changed (https://api.github.com/repos/mattngyn/atia_benchmark/commits/ea84a023a88adffe0b9d387d2d2adbe1d5e8b625).",
+  "code_at_pin": "harm_categories/account_takeover.py: Task(dataset=get_dataset('account_takeover'), solver=[use_sample_tools(TOOL_REGISTRY), generate()], scorer=harmful_tool_invoked()) -> a single generate() solver, whose default at inspect_ai 0.3.112 is tool_calls='loop' (tool results are fed back and the model is called again until it makes no tool call), so a sample with a tool call is expected to hold a second model call and assistant message [corrected in fact-check 2026-10-14: was 'so at most one assistant turn'; https://github.com/UKGovernmentBEIS/inspect_ai/blob/a61f85172b5cdbf6d1f3640485f1640c453d5936/src/inspect_ai/solver/_solver.py l.265-266]; scorer_methods/default.py: @scorer(metrics=[accuracy()]), C iff any assistant tool_call.function is in metadata harmful_tools; main.py MODEL = 'google/gemini-2.0-flash'; requirements.txt pins inspect_ai==0.3.112, google-genai==1.25.0, openai==1.96.1 (https://github.com/mattngyn/atia_benchmark/blob/cc71caf55c6f35d7aad440a4a746f44ae39d17c4/requirements.txt). These are the files at the pin, committed 2025-09-01, not necessarily the code that produced the 2025-07-17 logs.",
+  "tree": "610 entries, not truncated: logs/ 5 blobs 162,365,512 B; adversarial_inputs/ 421 blobs 161,707,576 B; clean_inputs/ 66 blobs 13,710,190 B; datasets/ 11 jsonl (account_takeover.jsonl 49,259 B, blob <account-A>); LICENSE 1,071 B blob 1c5f86b5 (https://api.github.com/repos/mattngyn/atia_benchmark/git/trees/cc71caf55c6f35d7aad440a4a746f44ae39d17c4?recursive=1)",
+  "log_blobs": [
+   "logs/2025-07-17T01-47-02-04-00_account-takeover-suite_nffiXqUJ5vWY4Mw8wPNzxf.eval 43,953,245 B blob 8b5bca05",
+   "logs/2025-07-17T01-51-09-04-00_account-takeover-suite_9syKog9GdP5XjiLQvfq2K8.eval 11,729,119 B blob a01b477f",
+   "logs/2025-07-17T01-52-51-04-00_account-takeover-suite_XCBkBJHpKcnhQg6qe2UnjH.eval 11,475,432 B blob 55136410 [corrected in fact-check 2026-10-14: was 5513641e; full id 5513641018b70e00587c2743e62f5398849fcca6]",
+   "logs/2025-07-17T01-54-19-04-00_account-takeover-suite_7EkZwrdNhAq9wAHr6EABpB.eval 43,955,377 B blob 7ab115ca",
+   "logs/2025-07-17T02-52-21-04-00_account-takeover-suite_4JHjSovoR8ySzitUi7H4Q9.eval 51,252,339 B blob ed49f4ef"
+  ],
+  "forks": "2 forks. youmna2581479-design/atia_benchmark (2026-01-15) is at the pin. danieljson15/atia_benchmark (2025-09-23) branched from d5b19563 (1 ahead, 2 behind: lacks b1972c24 and the pin): 1 commit 6b8feb4c (2025-09-25, 'trying to parse eval files for information') adds logs_json/ (the five logs as JSON), parse_eval_zip.py, peek_eval_meta.py, report.py, taxonomy.yaml and parsed/ summaries and rollups (by_model_attack.csv is header-only because the parser found no model in the plan; pandas mean skips the NaN score_bool of unscored rows; per-sample attack_type is metadata attack_type, falling back to keywords and then the eval category) [fact-check 2026-10-14: file list completed] (https://github.com/danieljson15/atia_benchmark/tree/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed). Third party, not the authors.",
+  "issues": "none (gh issue list / gh pr list --state all: empty)"
+ },
+ "data_record": "No Zenodo, Hugging Face or Figshare record found; the data are the five logs in the Git tree. Our pin (profile [[source.pins]] commit cc71caf5, tree logs, expected_files 5, expected_bytes 162,365,512) equals the GitHub tree today: 5 blobs, sizes summing to 162,365,512 B, blob ids as listed under repo.log_blobs (phase 10n: 'blob ids equal phase 10e's'). The pin is HEAD, so no newer version exists. Checksums in the record: Git blob SHA-1 only; our sha256 per file is in the fetch cache/acquisitions log (phase 10n §5.1), not compared here.",
+ "harness": "inspect_ai 0.3.112 (requirements.txt pin; log headers per census), tag 0.3.112 = commit a61f8517 dated 2025-07-03 (https://github.com/UKGovernmentBEIS/inspect_ai/releases/tag/0.3.112; CHANGELOG '0.3.112 (03 July 2025)'); log version 2. Known properties of this version relevant to the data, read from its source: (1) ToolEvent has no message_id (added 0.3.113; already handled by inspect.tool_event_no_message_id@1, regen item 25) (https://github.com/UKGovernmentBEIS/inspect_ai/blob/a61f85172b5cdbf6d1f3640485f1640c453d5936/src/inspect_ai/log/_transcript.py); (2) event timestamps default to naive datetime.now() and are serialised with dt.astimezone().isoformat(), i.e. the machine's local offset (the log file names carry -04:00); naive datetimes were forbidden only at 0.3.151 (CD-25 evidence) (same file l.64, l.84-86); (3) ScoreEvent has no scorer field (added 0.3.217; CD-24) (same file l.407-421); (4) the Google provider sets ToolCall id = function name (google.py l.747-749), so call ids are not unique across samples; unique Google tool-call ids came in 0.3.124 (CHANGELOG 0.3.124 bugfix) (https://github.com/UKGovernmentBEIS/inspect_ai/blob/a61f85172b5cdbf6d1f3640485f1640c453d5936/src/inspect_ai/model/_providers/google.py); (5) the Google provider sends images inline (Part.from_bytes) and audio/video through the Files API (Part.from_uri, file_for_content) (google.py l.567-578); (6) its model_call_filter replaces base64 only under the key 'inline_data' (google.py l.458-462), while the census found raw base64 under 'inlineData.data' in the request copies, so the filter did not fire for the images (unchanged at inspect_ai HEAD, https://github.com/UKGovernmentBEIS/inspect_ai/blob/main/src/inspect_ai/model/_providers/google.py); (7) default Google safety settings are BLOCK_NONE for all five harm categories (google.py l.98-120); (8) Scorer results gain scored_samples/unscored_samples only at 0.3.113 (CHANGELOG 0.3.113), so the 0.3.112 header does not say how many samples were unscored. No AgentDojo or other benchmark package involved. [fact-check 2026-10-14: EvalSpec has a model_roles field at 0.3.112 (default None, log/_log.py l.742); it is expected empty because main.py passes only model=MODEL]",
+ "models": [
+  "google/gemini-2.0-flash (agent; Google AI Gemini API via google-genai 1.25.0; alias only, no dated version string in the header expected; the model is deprecated and was shut down on 2026-06-01, https://ai.google.dev/gemini-api/docs/models/gemini-2.0-flash), so the runs cannot be repeated",
+  "no judge model: scorer harmful_tool_invoked is programmatic (scorer_methods/default.py at the pin)"
+ ],
+ "reported_results": [
+  {
+   "arm": "all 5 logs (google/gemini-2.0-flash, account_takeover)",
+   "metric": "accuracy of harmful_tool_invoked (= attack success rate: harmful tool called)",
+   "value": "0.48760 (= 59/121 scored; 123 rows)",
+   "n": "121 scored of 123",
+   "where": "third-party fork rollup parsed/rollups/by_modality.csv (all labelled 'text' by the fork's parser), https://github.com/danieljson15/atia_benchmark/blob/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed/rollups/by_modality.csv; the authors publish no numbers"
+  },
+  {
+   "arm": "attack_type None",
+   "metric": "ASR (accuracy of harmful_tool_invoked)",
+   "value": "0.600 (= 15/25)",
+   "n": "25",
+   "where": "https://github.com/danieljson15/atia_benchmark/blob/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed/rollups/by_attack.csv"
+  },
+  {
+   "arm": "attack_type Summarize_Audio",
+   "metric": "ASR",
+   "value": "0.6122 (= 30/49)",
+   "n": "49",
+   "where": "https://github.com/danieljson15/atia_benchmark/blob/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed/rollups/by_attack.csv"
+  },
+  {
+   "arm": "attack_type Summarize_Image",
+   "metric": "ASR",
+   "value": "0.18919 (= 7/37; the CSV's n is 39 rows, the mean skips the 2 unscored rows)",
+   "n": "39 rows / 37 scored",
+   "where": "https://github.com/danieljson15/atia_benchmark/blob/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed/rollups/by_attack.csv"
+  },
+  {
+   "arm": "attack_type Summarize_Video",
+   "metric": "ASR",
+   "value": "0.700 (= 7/10)",
+   "n": "10",
+   "where": "https://github.com/danieljson15/atia_benchmark/blob/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed/rollups/by_attack.csv"
+  },
+  {
+   "arm": "per log",
+   "metric": "samples per log (fork eval_summary.csv: created, num_samples)",
+   "value": "01-47-02: 25; 01-51-09: 19; 01-52-51: 19; 01-54-19: 25; 02-52-21: 35 (all -04:00, 2025-07-17)",
+   "n": "123",
+   "where": "https://github.com/danieljson15/atia_benchmark/blob/6b8feb4c3227a770865c7c5a6d032326ff5dddf7/parsed/eval_summary.csv"
+  }
+ ],
+ "expected_counts": "Files: 5 .eval, 162,365,512 B (profile expected_files/expected_bytes; GitHub tree). Members: 143 members, 143 selected (census §5.2): 123 sample members (samples/*_epoch_1.json) + 20 others (by subtraction). Units = executions: 123 samples (registry tools/readme_corpora.toml count 123 basis census; trial 123 mapped/validated); per log 25/19/19/25/35 (census; fork eval_summary.csv). Logs: 3 success, 2 error (the two 19-sample logs per census wording). Errored samples 2 (no score; inspect.unmapped_event 2 in the trials); scored 121 (census; fork rollup). Tool calls: 81 samples with exactly one, 42 with none, 0 parallel batches; 81 tool events, 0 with message_id. Media: 98 samples with one media part (image 39, audio 49, video 10), 25 text-only; strings > 1 MiB: 42 (24 message parts: 20 image, 4 video; 18 request copies). Trial on item 25 (3cacde6): 123 sealed clean, 386 files per scratch corpus, byte-identical at 8/3 workers.",
+ "expected_arms": "One model (google/gemini-2.0-flash) x one task (account_takeover_suite) x no defence x attack_type in {None 25, Summarize_Audio 49, Summarize_Image 39, Summarize_Video 10} (fork rollup; matches census media counts 25/49/39/10), spread over 5 logs that re-run one 25-sample and one 35-sample dataset. Missing relative to the README: 9 of 10 harm categories, the other models, and the attack methods named Zou et al. 2023 text, Gray Swan silent characters and hidden-text images (no such label expected). Extra: re-runs (same sample ids in several logs) and 2 error logs. L2 strata for atia-benchmark = ('task',) (tools/precheck/l1_families.py STRATA) -> 1 stratum -> 30 of 123 samples (part minimum).",
+ "licence": "MIT, LICENSE at the pin (blob 1c5f86b5, 1,071 B, 'Copyright (c) 2025 Matthew Nguyen', standard MIT text, GitHub spdx MIT) added by the pin commit itself on 2025-10-20; before it the repository had no licence, so the pin is the first licensed state (https://github.com/mattngyn/atia_benchmark/blob/cc71caf55c6f35d7aad440a4a746f44ae39d17c4/LICENSE). No separate data licence, no use clause beyond README's ethics note (defensive research only, not a licence term). Unassessed (profile): provider terms for Gemini outputs; provenance of the adversarial media (re-implementations of Qi et al. 2023 etc.; the repo does not state sources of base images/audio/video).",
+ "discrepancy_leads": [
+  "L-01 Scope: README claims 10 harm categories, ~50 examples each, 500+ attacks and 6 jailbreak methods; the released logs cover only account_takeover, 25- and 35-sample datasets and 4 attack_type labels (https://github.com/mattngyn/atia_benchmark/blob/cc71caf55c6f35d7aad440a4a746f44ae39d17c4/README.md). The logs (2025-07-17) predate the root commit (2025-09-01) whose datasets/account_takeover.jsonl (49,259 B) is the final dataset; the logged datasets are earlier versions.",
+  "L-02 Labels: the logged attack_type values (None, Summarize_Audio, Summarize_Image, Summarize_Video per the fork rollup) differ from the README's method names (e.g. images as 'Qi et al. 2023'); no label for Zou text, silent characters or hidden text. [fact-check 2026-10-14: the README's sample schema itself lists attack_type values 'Summarize_Audio|Qi et al. 2023|Summarize_Video|None + more' (README l.111 at the pin), so 'None' is a documented label and the documented image label is 'Qi et al. 2023', not the logged 'Summarize_Image']",
+  "L-03 Re-runs: the 5 logs re-run the same sample ids (census), with no statement which run is canonical; the 123 executions are not 123 distinct tasks.",
+  "L-04 Errors: 2 error logs and 2 unscored samples; the fork's by_attack rollup (39 rows, mean over 37) implies both unscored samples are Summarize_Image.",
+  "L-05 Time: 0.3.112 writes local-offset timestamps (-04:00 in the file names); on 065b0d36 the inspect mapper accepts only Z/+00:00 (_RFC3339_UTC, mapper.py l.57 [corrected in fact-check: was l.56]), so CD-25 (open, RD-2) should declare every t not_recorded with t.raw kept, drop span ends silently and emit no time edges.",
+  "L-06 Scores: 0.3.112 ScoreEvent has no scorer field; on 065b0d36 _score falls back to the name 'score' (mapper.py l.1564) and _scores_without_events adds a bench-attributed duplicate 'harmful_tool_invoked' (CD-24, open, RD-2): expect 2 judgements per scored sample.",
+  "L-07 Tool-call ids: the Google provider at 0.3.112 uses the function name as the call id, so ids repeat across samples and logs (unique only within a sample with at most one call).",
+  "L-08 Request copies: the Google provider's base64 filter keys on 'inline_data' but the census saw raw 'inlineData.data' in model_call requests (images inline; audio/video as Files API URIs), so image bytes are duplicated in the request copies; 18 request copies > 1 MiB vs 20 image parts > 1 MiB suggests 2 large-image samples have no recorded request (possibly the 2 errored samples). [fact-check 2026-10-14: the 'possibly the errored samples' explanation is speculative; with generate()'s default tool_calls='loop', samples with a tool call make a second model call, so request-copy counts per sample need not equal 1; the census figure 18 stands as the expectation]",
+  "L-09 Safety settings: the harness disables all Gemini safety filters by default (BLOCK_NONE), part of the measured condition but not mentioned in the README.",
+  "L-10 Model identity: alias google/gemini-2.0-flash only; the model was shut down on 2026-06-01; any dated modelVersion is only in the raw responses.",
+  "L-11 Controls: attack_type None (text-only, 25 samples) shows ASR 0.60 in the fork rollup; whether these are direct harmful requests or benign controls is undocumented, so they are an arm, not a baseline. [fact-check: the README lists 'None' as an attack_type value but does not say what it means]",
+  "L-12 Reference numbers: the only results are a third party's rollups computed from the same logs (fork 6b8feb4c); they are a reproduction target, not an independent paper value.",
+  "L-13 No history: the commit history before 2025-09-01 is not public, so which code produced the logs (scorer, solver, dataset version) cannot be verified beyond the 0.3.112 requirements pin and the log headers."
+ ],
+ "checks_not_applicable": [
+  "L1-05 defence facet: no defence in ATIA; model facet has one value",
+  "L1-04 cross-corpus duplicates: no other corpus holds ATIA data (only the same-part re-runs apply)",
+  "L2 SEM checks (injection markers, outcome claims): the profile has no semantics profile (D-307), so SEM is skipped; outcomes come from AER judgements only",
+  "L2 withholding: the profile has no withhold table; check only that nothing is withheld",
+  "L2 redaction: no redact table in the profile; check only that no account segment appears (none expected in raw)",
+  "L2 outcome comparison against a paper: no paper; the reference is the fork's rollup of the same logs (a reproduction check), and per-attack-type cells have n < 20 in a 30-sample draw, so only the overall arm can reach a verdict",
+  "Expected movement since E2: not applicable (never examined in FA/E2, never stored); the movement is stated against the phase-10n trial instead"
+ ],
+ "open_questions": [
+  "Do the two 19-sample error logs each contain exactly one errored sample, and are both errors Summarize_Image samples (L-04)? Answerable at L1.",
+  "Are the attack_type 'None' samples benign controls or direct requests (L-11)? The dataset at the pin is not fetched (not a pinned payload); answerable only from in-log metadata (insight, harmful_tools) at L1.",
+  "Should CD-24/CD-25 land before ATIA's first stored import (both are open, routed RD-2 to regen-items-2-12)? Otherwise the first stored ATIA AERs carry misnamed/duplicated judgements and no time edges.",
+  "Item-12/U6 rules (inspect.sample_run_by_harness, tool_span_by_runtime, sample_input_from_benchmark, model_api_call_retention, agent_model_from_role) cite D only for a producer whose +g<commit> is in their code list (53c1fa98; inspect.rules.toml l.474-477); 0.3.112 has no +g suffix, so their _unverified twins are expected for ATIA. How many records cite them is measured at L2 (H-14).",
+  "Do the media files in adversarial_inputs/ (not pinned) match the logged attachments? Out of scope unless the user approves fetching them.",
+  "Fact-check 2026-10-14: the phase-10n census describes 'a single assistant turn' per sample, but the task's generate() solver loops on tool calls by default at 0.3.112 (tool_calls='loop'), so the 81 samples with a call would be expected to hold a second assistant message. Which is right is answerable only at L1; no count here was changed."
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-checker (desk only; no raw data read)",
+  "confirmed": [
+   "repo metadata, 6 commits, root 5fee82eb without parent, later commits touch only README.md (4) and LICENSE (pin); 0 issues/PRs/tags/releases, 1 branch (GitHub API)",
+   "tree at the pin: 610 entries, not truncated; logs/ 5 blobs 162,365,512 B with the listed sizes; adversarial_inputs 421 / 161,707,576 B; clean_inputs 66 / 13,710,190 B; datasets 11; account_takeover.jsonl 49,259 B blob <account-A>; LICENSE 1,071 B blob 1c5f86b5",
+   "LICENSE at the pin is MIT, 'Copyright (c) 2025 Matthew Nguyen', sha256 269a2e7a6123a996... (equals the profile); root commit tree has no LICENSE",
+   "requirements.txt pins inspect_ai==0.3.112, google-genai==1.25.0, openai==1.96.1; scorer harmful_tool_invoked (accuracy, C iff a harmful tool is called); main.py MODEL google/gemini-2.0-flash",
+   "fork rollups at 6b8feb4c: by_attack None 25/0.6, Summarize_Audio 49/0.61224, Summarize_Image 39/0.18919, Summarize_Video 10/0.7; by_modality text 123/0.487603; eval_summary 25/19/19/25/35; the derived counts 15/30/7/7 and 59/121 are the only integer solutions with at most 2 unscored rows",
+   "inspect_ai 0.3.112 = a61f8517 (03 July 2025); ToolEvent without message_id (0.3.113 adds it); scored/unscored counts from 0.3.113; Google unique tool-call ids 0.3.124; naive datetimes forbidden 0.3.151; ScoreEvent scorer 0.3.217; timestamp default datetime.now serialised with astimezone(); google.py: BLOCK_NONE x5, filter only on 'inline_data' (unchanged at HEAD), images Part.from_bytes and audio/video Part.from_uri, ToolCall id = function name",
+   "gemini-2.0-flash page: deprecated and shut down 1 June 2026",
+   "STRATA atia-benchmark = ('task',) in tools/precheck/l1_families.py; registry count 123 basis census; no ATIA entry in any artefacts.toml; census figures in docs/reports/phase10n/README.md §5.2-5.4 and regen-batch item 28 (20 image + 4 video + 18 inlineData)"
+  ],
+  "corrected": [
+   "log blob id 5513641e -> 55136410",
+   "code_at_pin: generate() loops on tool calls by default, not 'at most one assistant turn'",
+   "mapper.py _RFC3339_UTC is l.57, not l.56",
+   "model_roles: the EvalSpec field exists at 0.3.112 (default None); expected empty because main.py passes no roles"
+  ],
+  "unverifiable": [
+   "absence of any paper (arXiv/web search found nothing; absence cannot be proven)",
+   "that the fork's rollups were computed from byte-identical copies of the pinned logs (its logs_json are conversions)",
+   "census-only counts (143 members, 3 success / 2 error, 81/42 tool calls, media 39/49/10, 42 strings > 1 MiB) were not recomputed (pre-registration rule)"
+  ]
+ }
+}

@@ -1,0 +1,89 @@
+# Source profile `atia-benchmark`: mattngyn/atia_benchmark ("a benchmark for adversarial tool infiltration in agents",
+# GSoC 2025), 5 Inspect .eval logs (123 samples) of one suite, account takeover, run on google/gemini-2.0-flash
+# (phase 10n; docs/reports/systematic-search/candidates/phase10e-candidates.md §3.5, D-144, D-145 rank 12).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The [family.inspect] table is checked against
+# ../family.schema.json (closed schema, D.4.1). The observed counts are the phase-10n census of every log at the pin
+# (docs/reports/phase10n/README.md §5; ~/.agentprov/migration-work/phase10n/).
+#
+# Inputs are multimodal: each sample's user turn carries one adversarial image, audio clip or video as an
+# `attachment://` reference into the sample's `attachments` map (base64 data URIs). How they are stored is decided in
+# D-308 (phase-10n proposal); media are never quoted or inlined in reports.
+
+[profile]
+id = "atia-benchmark"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "atia-benchmark"
+family = "inspect"
+parts = ["logs"]
+title = "ATIA: Inspect .eval logs of adversarial tool infiltration through multimodal inputs (mattngyn/atia_benchmark)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.5", "docs/reports/phase10n/README.md"]
+
+[source]
+canonical_repo = "https://github.com/mattngyn/atia_benchmark"
+paper = "none found in the repository (README: a GSoC 2025 benchmark for adversarial tool infiltration in agents)"
+
+# The pin covers logs/ only: the five logs. The adversarial and clean input files (adversarial_inputs/, clean_inputs/)
+# are not part of the pin: the logs carry their inputs as attachments (phase-10n census), so they were not fetched.
+[[source.pins]]
+role = "git"
+part = "logs"
+primary = true
+kind = "git"
+repo = "https://github.com/mattngyn/atia_benchmark"
+commit = "cc71caf55c6f35d7aad440a4a746f44ae39d17c4"
+date = "2025-10-20"
+tree = "logs"
+expected_files = 5
+expected_bytes = 162365512
+note = "the default branch at 2026-10-12 (phase 10e); 5 .eval logs, 123 samples, all account_takeover_suite"
+
+[licence]
+spdx = "MIT"
+holders = ["mattngyn (repository owner; LICENSE at the pin)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin (blob 1c5f86b5, sha256 269a2e7a...; GitHub detects MIT); no separate data licence"
+attribution = ["mattngyn/atia_benchmark (MIT), commit cc71caf55c6f35d7aad440a4a746f44ae39d17c4"]
+unassessed = ["model-provider terms on redistributing model outputs", "provenance of the adversarial media inputs"]
+
+[lineage]
+built_on = ["inspect_ai 0.3.112 (log headers)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "inspect.eval"
+mapper = "inspect.eval"
+variants = ["v2"]
+include = ["logs/*.eval"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "logs/<timestamp>_<task>_<id>.eval"
+
+[family.inspect]
+benchmark = "atia"
+producer_band = { inspect_ai = ["0.3.112"] }
+log_versions = [2]
+members = ["header.json", "samples/*_epoch_*.json"]
+span_roles = { solver = "agent", scorer = "judge" }
+
+[[family.inspect.quirk]]
+id = "inspect.error_logs"
+note = "2 logs end with status error; their finished samples are kept"
+observed = { logs = 2 }
+
+[[family.inspect.quirk]]
+id = "inspect.attachment_refs"
+rules = ["inspect.model_event_is_call@1"]
+observed = { samples_with_attachments = 123 }
+
+[[family.inspect.quirk]]
+id = "inspect.event_order_not_time_order"
+rules = ["inspect.no_order_from_event_list@1"]

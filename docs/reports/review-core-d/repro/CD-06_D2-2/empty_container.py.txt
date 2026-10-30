@@ -1,0 +1,32 @@
+"""A .eval container that expands but has no member the reader's member_patterns select."""
+import hashlib, io, json, sys, tempfile, zipfile
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "tests/adapters/inspect"))
+import inspect_support as insp
+from agentprov.adapters.runner.importer import ArchiveTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+
+def z(members, method=zipfile.ZIP_STORED):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as a:
+        for name, data in members.items():
+            i = zipfile.ZipInfo(name, (2026, 6, 10, 0, 0, 0)); i.compress_type = method; a.writestr(i, data)
+    return buf.getvalue()
+h = insp.synthetic_header(); s = insp.basic_sample("s0")
+good = insp.build_eval(h, {"s0_epoch_1.json": s})
+odd = z({"notes/readme.txt": b"hello\n"})
+data = z({"agentharm/results/m/a.eval": good, "agentharm/results/m/b.eval": odd})
+tmp = Path(tempfile.mkdtemp(dir="repro/D2-2"))
+(tmp / "logs.zip").write_bytes(data); sha = hashlib.sha256(data).hexdigest()
+pin = {"role": "fixture", "kind": "zenodo", "doi": "10.5281/zenodo.7", "record": 7, "file": "logs.zip", "sha256": sha, "bytes": len(data)}
+tree = ArchiveTree(tmp / "logs.zip", pin=pin, sha256=sha, size=len(data))
+with CorpusWriter(tmp / "corpus") as w:
+    rep = import_source("agent-security-tools-survey", tree, corpus=w, profile_id="survey-agentharm", part="agentharm",
+                        pin=pin, in_process=True, until="aer")
+print("exit", rep.exit_code, {k: v for k, v in rep.counters.items() if v})
+for r in rep.register: print(" ", r["code"], r["subject"], r.get("disposition"))
+print("failures", rep.failures)
+part = Path(rep.corpus_root)
+for line in (part / "raw" / "members.jsonl").read_text().splitlines():
+    d = json.loads(line); print("  member", d.get("label"), d.get("disposition"), d.get("container", "")[:20])
+print(json.load(open(part / "corpus.json"))["sources"][0]["snapshots"][0]["counts"])

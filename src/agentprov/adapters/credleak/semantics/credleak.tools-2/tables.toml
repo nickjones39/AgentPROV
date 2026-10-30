@@ -1,0 +1,85 @@
+# Version 2 (D-605, D-31; 2026-10-21): version 1's tables unchanged, on the credleak rule catalogue version 2 (one
+# catalogue version per corpus, H.2.5). Version 1 stays for the corpora that recorded it.
+#
+# Semantics profile credleak.tools@1: the tool and observation tables of the credential-leak study's coding-agent
+# harness (docs/architecture D.19.9; C.14; EF E.7). Data, not code: read by agentprov.adapters.credleak.semantics.
+#
+# The harness offers a coding agent's tool set (shell, file read/write/edit, search, web fetch and search, MCP). Its
+# implementation is not in the deposit, so the labels below are the profile author's reading of the tool names, and
+# every annotation derived from them is class I (rules credleak.tool_role_table@1, credleak.tool_output_label_table@1,
+# credleak.observation_label_table@1, credleak.taint_sink_untrusted@1).
+#
+# Fail-closed (C.14.3): a tool name that is not listed exactly (the malformed names some models emitted, such as names
+# with leaked channel tokens, case variants or typos) gets role ["unknown"] and its output integrity "unknown". Nothing
+# is defaulted to "trusted". Closed vocabularies: roles (EF E.7.1) write_sink, send_sink, execute_sink, egress_read,
+# response_sink, content_source, endorser, neutral, unknown; integrity trusted | untrusted | unknown.
+
+[[tool]]
+name = "Bash"
+roles = ["execute_sink", "content_source"]   # runs a shell command (any effect, including network egress); prints output
+integrity = "untrusted"                      # command output: the T-CMD and T-EGRESSCMD injection channels
+channel = "command_output"
+
+[[tool]]
+name = "Read"
+roles = ["content_source"]
+integrity = "untrusted"                      # file contents: the T1, T-LOG, T-DEP, T-RULES channels
+channel = "file"
+
+[[tool]]
+name = "Glob"
+roles = ["content_source"]
+integrity = "untrusted"                      # file names of the workspace
+channel = "file_listing"
+
+[[tool]]
+name = "Grep"
+roles = ["content_source"]
+integrity = "untrusted"                      # matching lines of workspace files
+channel = "file"
+
+[[tool]]
+name = "Edit"
+roles = ["write_sink"]                       # rewrites part of a workspace file
+integrity = "unknown"                        # the harness's acknowledgement or an excerpt of the edited file
+
+[[tool]]
+name = "Write"
+roles = ["write_sink"]                       # writes a workspace file
+integrity = "unknown"
+
+[[tool]]
+name = "WebFetch"
+roles = ["egress_read", "content_source"]    # a request to a URL the agent chose (data can leave in the URL)
+integrity = "untrusted"                      # the fetched page or response: the T-WEB and T4 channels
+channel = "web"
+
+[[tool]]
+name = "WebSearch"
+roles = ["egress_read", "content_source"]
+integrity = "untrusted"
+channel = "web"
+
+[[tool]]
+name = "McpToolCall"
+roles = ["unknown"]                          # calls a tool of an MCP server; what it does depends on the server
+integrity = "untrusted"                      # the MCP response: the T-MCP channel
+channel = "mcp_response"
+
+[[tool]]
+name = "ListMcpTools"
+roles = ["content_source"]
+integrity = "untrusted"                      # tool names and descriptions: the T-MCPDESC channel
+channel = "mcp_tool_description"
+
+# Observation table, by the actor of a user-role message. The scripted user message carries the benign task; the study
+# places its injections in tool-reachable channels (credleak.observation_label_table@1). Integrity only (C.14.3).
+[[observation]]
+actor = "user"
+integrity = "trusted"
+
+# Taint policy (EF E.7.3 aprov.a_taint@1): a request whose roles meet subject_roles is potentially influenced by a context
+# member whose integrity is in object_integrity; "unknown" on both sides (fail-closed).
+[taint]
+subject_roles = ["write_sink", "send_sink", "execute_sink", "egress_read", "unknown"]
+object_integrity = ["untrusted", "unknown"]

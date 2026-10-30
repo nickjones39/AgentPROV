@@ -1,0 +1,28 @@
+"""A1a-5: encode_value must raise CanonError (not ValueError) for integers it cannot spell in decimal."""
+
+import pytest
+
+from agentprov.aer.canon import CanonError, LexHints, encode_value
+from agentprov.ingest import yamlsafe
+
+
+@pytest.mark.parametrize("doc", [
+    b"a: 0x" + b"f" * 4000,           # hex: base 16 is exempt from CPython's int-digit limit at parse time
+    b"a: 0b" + b"1" * 16000,          # binary, same
+])
+def test_yaml_long_radix_int_is_a_canon_error(doc: bytes) -> None:
+    value = yamlsafe.safe_load(doc)
+    assert isinstance(value["a"], int) and value["a"].bit_length() > 14_000
+    with pytest.raises(CanonError):
+        encode_value(value, at="/ext/x", lex=LexHints())
+
+
+def test_decimal_equivalent_is_rejected_by_yamlsafe() -> None:
+    # Contrast: the equivalent decimal literal never gets past the parser.
+    with pytest.raises(yamlsafe.YAMLError):
+        yamlsafe.safe_load(b"a: " + b"9" * 5000)
+
+
+def test_huge_int_direct_is_a_canon_error() -> None:
+    with pytest.raises(CanonError):
+        encode_value(1 << 16000, at="/x", lex=LexHints())

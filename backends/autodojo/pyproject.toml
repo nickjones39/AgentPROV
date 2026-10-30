@@ -1,0 +1,53 @@
+[project]
+name = "agentprov-backend-autodojo"
+version = "0.1.0"
+description = "AgentPROV live backend environment: the AutoDojo fork of agentdojo 0.1.35"
+requires-python = "==3.12.*"
+dependencies = [
+    "agentprov-capture",
+    "agentprov-backend",
+    "agentdojo",        # the AutoDojo fork, from the pinned git source below
+    "json-repair",      # fork runtime need [sources/autodojo.md §7; D.11.2]
+    "nltk",             # idem; punkt_tab is pre-provisioned at build time (D.11.2); variant_generation is never imported
+]
+
+[project.optional-dependencies]
+filters = ["agentdojo[transformers]"]   # PromptGuard/PIGuard/ProtectAI/DataFilter defences; GPU [sources/autodojo.md §7]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1"]
+
+[tool.uv]
+package = false
+required-version = ">=0.12.22"      # as core (DECISIONS D-6)
+exclude-newer = "2026-10-07T00:00:00Z"   # fixed RFC 3339 timestamp (G.7.1(4)); moved deliberately
+default-groups = ["dev"]
+# no `no-build`: the fork is built from git; tests/security/test_supply_chain.py asserts wheels for everything else (G.7.1(5))
+
+[tool.uv.sources]
+agentprov-capture = { path = "../../capture" }
+agentprov-backend = { path = "../shared" }
+agentdojo = { git = "https://github.com/xhOwenMa/AutoDojo", rev = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", subdirectory = "agentdojo" }
+
+[tool.agentprov.nltk]
+# D.11.2 / D.11.7: NLTK punkt_tab for the fork's filter defences (nltk is imported lazily there; nothing imports it
+# otherwise). `agentprov backends build autodojo` provisions it UNEXTRACTED as <env>/nltk_data/tokenizers/punkt_tab.zip
+# (nltk >= 3.9 reads it from the zip) from the verified fetch cache (raw.fetch kind "url"; network only with
+# --allow-network; the acquisition is logged in <cache>/acquisitions.jsonl) and sets NLTK_DATA for the worker.
+# The pin is data, never guessed: `url` must name an immutable location (an nltk_data commit) and `sha256` the bytes;
+# `md5`/`bytes` may add nltk_data's published index checksum. Until both url and sha256 are filled in after a first,
+# consented download, builds record nltk_sha256 = null and a filter-defence run on the environment is refused.
+package = "tokenizers/punkt_tab"
+# Pinned 2026-10-08 (user consent, phase 9): nltk_data gh-pages @ 550b6625; sha256, md5 and size equal the entry of
+# index.xml at the same commit.
+url = "https://raw.githubusercontent.com/nltk/nltk_data/550b6625bcef1f2abff2ff770a5a0d272c9c6b2a/packages/tokenizers/punkt_tab.zip"
+sha256 = "e57f64187974277726a3417ca6f181ec5403676c717672eef6a748a7b20e0106"
+md5 = "27ea9ee08fe27fe4484e4c5585cce748"
+bytes = 4319076
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "backend_autodojo: needs the backends/autodojo environment (spec M/K name: autodojo)",
+]

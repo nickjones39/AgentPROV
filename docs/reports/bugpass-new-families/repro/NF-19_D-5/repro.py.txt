@@ -1,0 +1,39 @@
+import json, sys, os
+REPO = os.getcwd()
+sys.path.insert(0, os.path.join(REPO, "tests/adapters/qwencode"))
+sys.path.insert(0, os.path.join(REPO, "tests/adapters"))
+sys.path.insert(0, REPO)
+import qwencode_support as support
+from agentprov.adapters.qwencode.dialect import parse_label
+from agentprov.aer.rules import RuleRegistry
+from agentprov.aer.validate import validate_records
+from tests.adapters.qwencode.test_mapper import _Store, C
+
+f = parse_label(C("python"))
+member = f"results/Qwen/{f.model}/{f.target}/{f.language}/conversation_log/index{f.scenario}.json"
+entries = json.loads(support.tree()[1][member])
+idx = next(i for i, e in enumerate(entries) if e["index"] == f.case_key)
+print("case entry index", idx, "original score", entries[idx]["score"], type(entries[idx]["score"]).__name__)
+
+def variant(name, mut):
+    es = json.loads(support.tree()[1][member])
+    mut(es[idx])
+    m = support.modified("python", supp={member: json.dumps(es).encode()}, sem=True)
+    j = m.of("judgement")
+    print(f"--- {name}: seal ok, judgements={len(j)}")
+    for r in j:
+        print(" value", repr(r.get("value")), "origin", r.get("origin"), "unk", r.get("unk"), "evf", r.get("evf"), "src", r.get("src"), "rule", r.get("rule"))
+    codes = m.codes()
+    print(" issue codes:", sorted(set(codes)))
+    store = _Store()
+    store.blobs.update({__import__("hashlib").sha256(json.dumps(es).encode()).hexdigest(): json.dumps(es).encode()})
+    for mode in ("dev", "release"):
+        rep = validate_records([*m.doc.records, m.doc.seal], store=store, catalogues=RuleRegistry.default(), mode=mode)
+        print(" validate", mode, rep.ok, [ (x.code, getattr(x,'detail',None)) for x in rep.findings][:5])
+    anns = [a for a in m.sem.annotations if any(s in json.dumps(a) for s in ("attack", "non_informative"))]
+    print(" sem outcome annotations:", [(a["type"], a.get("value", a.get("holds"))) for a in anns][:5])
+
+variant("score deleted", lambda e: e.pop("score"))
+variant("score true", lambda e: e.__setitem__("score", True))
+variant("score '3'", lambda e: e.__setitem__("score", "3"))
+variant("score 3 (control)", lambda e: e.__setitem__("score", 3))

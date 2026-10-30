@@ -1,0 +1,384 @@
+{
+  "format": "agentprov-precheck-research/0.1",
+  "corpus_id": "mcphunt",
+  "parts": [
+    "head"
+  ],
+  "wave": 6,
+  "kind": "first examination (not in FA or E2; never imported, the phase-10m in-memory map is the only full mapping)",
+  "code_commit": "065b0d36",
+  "date": "2026-10-14",
+  "status": "written before any pre-check data check of this corpus",
+  "method": "desk research only: arXiv API, abs page and HTML of v1 (tables read as text); Hugging Face Hub API (dataset info, commits, recursive trees at the pin and at three earlier revisions, discussions) and the pinned README; GitHub API via gh (repository metadata, commit list, per-path histories, commit messages and patches of labeling.py, LICENSE, README, Croissant, config, sanitizer, agent loop at HEAD 6b2f4e5); our reports (phase 10m README/census/map-census/routing, phase-10e candidates, D-286..D-289, D-323 calibration, bug pass BF-27..31), the profile, the registry, artefacts.toml and tools/precheck. No data payload was downloaded; no raw corpus file (including the staged meta/ JSONs) was read. Web and repository text treated as untrusted data and summarised.",
+  "papers": [
+    {
+      "id": "arXiv:2604.27819",
+      "title": "MCPHunt: An Evaluation Framework for Cross-Boundary Data Propagation in Multi-Server MCP Agents (Haonan Li, Tianjun Sun, Yongqing Wang, Qisheng Zhang)",
+      "url": "https://arxiv.org/abs/2604.27819v1",
+      "relation": "describes the corpus: main benchmark (3,615) and mitigation study (2,706); not the live-guard or browser-replication arms",
+      "versions": "only v1, submitted 2026-04-30 13:01 UTC (168 KB), cs.AI, CC BY 4.0 (abs page licence link); 21 pages, 1 figure, 16 tables per the comment (the HTML numbers 20 tables incl. appendices). No later version, so no table changed between versions; post-paper changes are in the repository and dataset only (see leads). https://arxiv.org/abs/2604.27819"
+    }
+  ],
+  "repo": "https://github.com/lihaonan0716/MCPHunt (code MIT; GitHub licence detection NOASSERTION because LICENSE appends a dataset CC BY 4.0 notice and a responsible-use notice; created 2026-04-17, pushed 2026-07-30; 0 issues, 0 pull requests, 0 tags, 0 releases, 1 star, 0 forks). HEAD 6b2f4e5c68ad (2026-07-30 'Clarify release download verification'). The dataset pin is not a code commit: the trace envelopes name pipeline commits ffd333b (2026-07-27 paired live-guard analysis), 4b85018 (2026-07-27 --live-guard-slice flag), 1b7e3c2 (2026-07-24 live-guard actual-sink metric) and 1e188b8 (not in the public history). History relevant to the logs: 4362d6f 2026-04-29 squashed initial commit; 2a0c52d/1e33199 2026-05-09 Windows compatibility and runtime fixes 'found during trace collection'; 6b15fff/3a3b1e6 2026-05-09 memory server switched from the PyPI placeholder mcp-server-memory to npm @modelcontextprotocol/server-memory; eb23947 2026-07-23 signal-count documentation (11 tiered + 1 diagnostic, authority_escalation_ungated); 1b7e3c2 adds the live-guard actual-sink metric (new actual_sink.py) and an is_network_command helper in labeling.py, stating no reported number moves; it also notes taint_tracking traces carry mitigation_level 'none' (clarified by fact-check); 76884ee 2026-07-27 benign/hard-negative reframing (benign 0% policy-forced); ff36a09 2026-07-27 mitigation count 2,885 -> 2,706 in metadata; fe1bfcd 2026-07-28 CRS kappa replaced by post-submission audit; 5ad11d1 2026-07-28 HF bundle v1.1.0 6,786 traces; 1e9d886/63bdb96/2951172 2026-07-28..30 sanitizer (Windows/VSCode PII, private gateway host). No issue tracker entries. Harness constants at HEAD (src/mcphunt/config.py): MAX_TURNS 30, MAX_API_RETRIES 3, temperature 0.0, max tokens 2048 (8192 for thinking models), RESULT_TRUNCATION_CHARS 12,000. Leftover unrelated artefact: artifacts/release/experiment_config.json describes a different study (RIFT ranker conditions), not this corpus.",
+  "data_record": "HF dataset lihaonan0716/mcphunt-agent-traces, created 2026-04-29, CC BY 4.0, not gated; HEAD sha c4c69322bf9ed7690f5265577365709dad5dd454 (2026-07-30T16:43:28Z 'Synchronize sanitized traces and paired provenance') = our pin. Tree at the pin: 32 files, 593,477,795 B, 15 LFS objects = profile and census exactly (per-file LFS sha256 equal to the profile's 15 lfs_object pins; checked: live_guard 56,217,273 c5b5c415..., main/deepseek 110,851,232 3379923a..., minimax_m3_rv1 55,254,774 d052f0de..., and the rest). 20 trace documents (main 5, mitigation 12, live_guard_defense 1, browser_replication 2) + 12 non-trace files (.gitattributes, README.md, croissant.json, crs_audit/ x3, meta/ x5, recall_evaluation/recall_estimation.json) = artefacts.toml mcphunt.art.non_trace_members 12. 14 HF commits: 4 uploads 2026-04-29 (paper-time release 22 files, 526.5 MB at b361c58d 2026-05-01: main 5 + mitigation 12 only), then 2026-07-28 f793a397 'Sync full 6,786-trace bundle' (+live_guard, +browser_replication, rewritten trace files), CRS audit files, recall diagnostic, fe7c3ae paired metadata, and the pin c4c69322 (9 trace documents rewritten again: main x5 and gpt54_m0 +0.32..1.17 MB each, plus live_guard_defense +0.68 MB and both browser_replication files +54/+58 KB; corrected by fact-check, was 'main x5 and gpt54_m0'). HF usedStorage 1.44 GB reflects the superseded LFS objects. Croissant (artifacts/release/croissant.json in GitHub) version 1.1.0, datePublished 2026-05-06, no per-file checksums. Discussions: a parquet-converter bot thread and one third-party submission thread, nothing on data defects.",
+  "harness": "MCPHunt's own harness (src/mcphunt/agent_loop.py, mcp_driver.py), not AgentDojo or Inspect: an OpenAI-compatible chat loop over 8 MCP servers started as subprocesses (uvx: mcp-server-git 2026.1.14, mcp-server-fetch 2025.4.7, mcp-server-time 2026.1.26, mcp-server-sqlite 2025.4.25; npx: @modelcontextprotocol/server-memory 2026.1.26, @modelcontextprotocol/server-filesystem 2026.1.14, @playwright/mcp 0.0.70, shell-command-mcp 0.0.1 per configs/mcp_server_versions.json at HEAD); workspace reset per task; 147 tasks (taxonomy.py), 7 environment variants; labeling by labeling.compute_risk_labels (canary registry, 11 tiered + 1 diagnostic signals), outcome = compute_outcome(artifact_verified, any_risk); trace JSON written per trace with checkpoint/resume. Known harness bugs: (1) memory server command resolved to a PyPI placeholder before 2026-05-09 (6b15fff); (2) Windows runtime issues fixed 2026-05-09 (1e33199: subprocess shell resolution, rmtree locks, rename overwrite); (3) benign aggregate risk is forced to False by design (not a bug, but makes benign 0% non-empirical); (4) tool messages truncated at 12,000 characters while result_full is kept (669 events). Paper: harness runs on Apple silicon 32 GB (App. K); later arms on Windows (sanitizer rules).",
+  "models": [
+    "gpt-5.4 (OpenAI; temperature 0; main 723 + mitigation 1,530 = 2,253)",
+    "gpt-5.2 (OpenAI; main 723)",
+    "deepseek-v4-flash (DeepSeek; main 723 + mitigation 588 + live_guard 387 + browser 78 = 1,776)",
+    "gemini-3.1-pro-preview (Google; main 723; paper name Gemini-3.1-Pro)",
+    "MiniMax-M2.7 (MiniMax; main 723 + mitigation 588 = 1,311)",
+    "calls via OpenAI-compatible endpoints, per the sanitizer through a private paid gateway; no served-model version expected",
+    "judge: none for the per-trace labels (deterministic canary matching); a Claude Opus judge only in recall_evaluation/ (diagnostic, not per-trace)"
+  ],
+  "reported_results": [
+    {
+      "arm": "main / gpt-5.4 / risky pooled",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "23.3% [19.3, 27.7] (= 90/387) ; 78.8% (= 305/387)",
+      "n": "387",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / risky_v1",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "19.0% [13.5, 26.2] (= 28/147) ; 78.9%",
+      "n": "147",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / risky_v2",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "26.7% [19.6, 35.2] (= 32/120) ; 81.7%",
+      "n": "120",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / risky_v3",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "25.0% [18.1, 33.4] (= 30/120) ; 75.8%",
+      "n": "120",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / benign",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "0.0% (policy-forced by code, see leads) ; 83.7%",
+      "n": "147",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / hard-neg pooled",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "11.6% [7.8, 17.0] (= 22/189) ; 77.8%",
+      "n": "189",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / risk tasks in hard-neg",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "20.4% [13.9, 28.9] (= 22/108) ; -",
+      "n": "108",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / hard-neg-specific tasks in hard-neg",
+      "metric": "propagation rate (outcome in {unsafe_success, unsafe_failure}) ; utility (outcome in {safe_success, unsafe_success})",
+      "value": "0.0% ; -",
+      "n": "81",
+      "where": "Table 3, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / quadrants by env class",
+      "metric": "outcome quadrants safe_success / unsafe_success / safe_failure / unsafe_failure",
+      "value": "risky 228/77/69/13 (n=387); benign 123/0/24/0 (n=147); hard-neg 128/19/39/3 (n=189); all 479/96/132/16 (n=723), utility 79.5%",
+      "n": "723",
+      "where": "Table 14 (App. N), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / risky mechanism-tagged",
+      "metric": "propagation: all / CRS / non-CRS (policy-violating)",
+      "value": "90/351 25.6% ; 51/63 81.0% ; 39/288 13.5%",
+      "n": "351",
+      "where": "Table 5, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.4 / risky pooled (v1-v3)",
+      "metric": "propagation ; utility ; policy-violating ; CRS propagation (counts derived from % x n, each consistent to 0.1 pp)",
+      "value": "23.3% (90) ; 78.8% (305) ; 13.5% (39/288) ; 81.0% (51/63)",
+      "n": "387",
+      "where": "Table 6 and Table 15 (App. O.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gpt-5.2 / risky pooled (v1-v3)",
+      "metric": "propagation ; utility ; policy-violating ; CRS propagation (counts derived from % x n, each consistent to 0.1 pp)",
+      "value": "20.2% [16.5, 24.4] (78) ; 85.3% (330) ; 11.5% (33/288) ; 71.4% (45/63)",
+      "n": "387",
+      "where": "Table 6 and Table 15 (App. O.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / deepseek-v4-flash / risky pooled (v1-v3)",
+      "metric": "propagation ; utility ; policy-violating ; CRS propagation (counts derived from % x n, each consistent to 0.1 pp)",
+      "value": "40.8% [36.0, 45.8] (158) ; 71.1% (275) ; 36.5% (105/288) ; 84.1% (53/63)",
+      "n": "387",
+      "where": "Table 6 and Table 15 (App. O.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / gemini-3.1-pro-preview / risky pooled (v1-v3)",
+      "metric": "propagation ; utility ; policy-violating ; CRS propagation (counts derived from % x n, each consistent to 0.1 pp)",
+      "value": "36.4% [31.8, 41.3] (141) ; 77.8% (301) ; 27.1% (78/288) ; 100.0% (63/63)",
+      "n": "387",
+      "where": "Table 6 and Table 15 (App. O.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / MiniMax-M2.7 / risky pooled (v1-v3)",
+      "metric": "propagation ; utility ; policy-violating ; CRS propagation (counts derived from % x n, each consistent to 0.1 pp)",
+      "value": "45.2% [40.3, 50.2] (175) ; 92.2% (357) ; 41.3% (119/288) ; 88.9% (56/63)",
+      "n": "387",
+      "where": "Table 6 and Table 15 (App. O.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / browser_to_local",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "29/39 , 26/39 , 32/39 , 36/39 , 33/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / forced_multi_hop",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "18/39 , 13/39 , 26/39 , 25/39 , 23/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / file_to_file",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "12/39 , 12/39 , 24/39 , 25/39 , 30/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / db_to_artifact",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "11/39 , 11/39 , 24/39 , 15/39 , 16/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / git_history_leak",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "6/39 , 6/39 , 18/39 , 12/39 , 29/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / sensitive_to_shell",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "5/39 , 6/39 , 16/39 , 9/39 , 16/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / file_to_doc",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "1/39 , 2/39 , 4/39 , 9/39 , 14/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / config_to_script",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "8/39 , 1/39 , 13/39 , 10/39 , 12/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / indirect_exposure",
+      "metric": "propagated/39 for gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7",
+      "value": "0/39 , 1/39 , 1/39 , 0/39 , 2/39",
+      "n": "39 per model",
+      "where": "Table 16 (App. O.2); GPT-5.4 column also Table 4, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / risky / signal counts",
+      "metric": "traces where signal fired (gpt-5.4, gpt-5.2, deepseek, gemini, minimax)",
+      "value": "data_flow 80,66,152,130,167; cross_boundary_flow 51,41,71,83,86; sensitive_schema_flow 17,12,54,29,29; opaque_transfer 9,12,3,11,7; secret_in_executable 5,0,10,5,11; secret_in_command 6,2,5,5,1; partial_leak 0,0,6,0,5; semantic_leak 2,0,6,0,6; external_after_sensitive 2,1,3,1,1; browser_sensitive_input and authority_escalation 0 (GPT-5.4)",
+      "n": "387 per model",
+      "where": "Table 17 (App. O.3) and Table 13, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "mitigation / gpt-5.4 / M0 none / risky_v1-v3",
+      "metric": "propagation ; utility ; policy-violating",
+      "value": "22.9% (88) ; 79.4% (305) ; 13.9%",
+      "n": "384",
+      "where": "Table 19 (App. Q.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "mitigation / gpt-5.4 / M1 generic / risky_v1-v3",
+      "metric": "propagation ; utility ; policy-violating",
+      "value": "16.8% (64) ; 79.3% (302) ; 8.1%",
+      "n": "381",
+      "where": "Table 19 (App. Q.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "mitigation / gpt-5.4 / M2 moderate/specific / risky_v1-v3",
+      "metric": "propagation ; utility ; policy-violating",
+      "value": "4.7% (18) ; 79.0% (301) ; 1.4%",
+      "n": "381",
+      "where": "Table 19 (App. Q.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "mitigation / gpt-5.4 / M3 detailed/boundary / risky_v1-v3",
+      "metric": "propagation ; utility ; policy-violating",
+      "value": "2.3% (9) ; 80.5% (309) ; 0.3%",
+      "n": "384",
+      "where": "Table 19 (App. Q.1), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "mitigation / gpt-5.4 / per mechanism",
+      "metric": "propagated/total None, L1, L2, L3",
+      "value": "browser_to_local 29/36,14/36,7/36,2/36; forced_multi_hop 19/39,11/39,1/39,0/39; file_to_file 10/39,11/39,8/37,6/39; db_to_artifact 8/39,10/39,2/39,1/39; git_history_leak 6/39,5/36,0/38,0/39; sensitive_to_shell 6/39,3/39,0/39,0/39; file_to_doc 1/39,1/39,0/39,0/39; config_to_script 9/39,9/39,0/39,0/39; indirect_exposure 0/39 at every level",
+      "n": "36-39 per cell",
+      "where": "Table 20 (App. Q.2), https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "mitigation / risky_v1 / risk tasks only",
+      "metric": "propagation M0, M1, M2, M3 (relative reduction vs own M0)",
+      "value": "gpt-5.4 24.3%, 19.6%, 4.7%, 1.9%; deepseek-v4-flash 47.2%, 47.2%, 25.0%, 12.0%; MiniMax-M2.7 50.9%, 48.1%, 30.6%, 26.9%",
+      "n": "about 108 per cell (147 risky_v1 traces minus 12 benign_control and 27 hard-negative-specific tasks)",
+      "where": "Table 7, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "post-hoc simulated taint guard on the 3,615 main traces",
+      "metric": "policy-violating propagation; unsafe traces blocked; utility drop",
+      "value": "0 for 4 of 5 models; 85-96% blocked; CRS utility -8 to -12 pp (simulation, not the released live_guard arm)",
+      "n": "3,615",
+      "where": "Section 5 'Runtime taint guard (post-hoc simulation)', https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "main / all models",
+      "metric": "collection cost",
+      "value": "59.8 h wall clock (59.6 s/trace mean duration); 218.2M prompt + 9.5M completion tokens (227.8M; 63.1K per trace); 12.1 turns per trace; GPT-5.4 run 10.0 h and 29.9M tokens; mitigation about 28 h [fact-check: 59.6 s/trace is App. K wall-clock 59.8 h / 3,615, not necessarily mean duration_s]",
+      "n": "3,615 (main)",
+      "where": "Appendix K, https://arxiv.org/html/2604.27819v1"
+    },
+    {
+      "arm": "live_guard_defense and browser_replication arms",
+      "metric": "any",
+      "value": "no number in the paper (v1 predates both arms, released 2026-07-28); the authors' figures are in meta/paired_live_guard_analysis.json and meta/live_guard_deepseek_v4_flash_paired.json inside the pinned snapshot (not read in this step)",
+      "n": "387 ; 39 + 39",
+      "where": "https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces README; https://github.com/lihaonan0716/MCPHunt/commit/5ad11d1"
+    }
+  ],
+  "expected_counts": "part head: 32 files / 593,477,795 B at c4c69322 (HF tree API = profile pin = census); 20 trace documents selected by the profile include globs (main/*.json, mitigation/*.json, live_guard_defense/*.json, browser_replication/*.json); 12 non-trace files not selected (artefacts.toml mcphunt.art.non_trace_members, count 12). Units = traces = executions = 6,786 (registry tools/readme_corpora.toml count 6786 basis census; census /traces/total; HF card). Per document: main gpt_5_4, gpt_5_2, deepseek_v4_flash, gemini_3_1_pro_preview, MiniMax_M2_7 723 each (3,615; paper 4.1); mitigation gpt54_m0/m1/m2/m3 384/381/381/384 (1,530; Table 19), deepseek_m0..m3_rv1 147 each (588), minimax_m0..m3_rv1 147 each (588) (2,706; paper, ff36a09); live_guard_defense/deepseek_v4_flash 387; browser_replication baseline 39 + defense 39. Paper total 6,321 (main + mitigation). Phase-10m map: 6,785 of 6,786 mappable in aer/0.1 (1 trace over the 16 MiB AER line); through the product path at 065b0d36 the import is blocked (tools/precheck/l2_import.py BLOCKED: RB-1, RB-2, RB-3).",
+  "expected_arms": "Facets: split (document directory) x model x mitigation_level (none/generic/moderate/detailed) x defense (none/taint_tracking) x env_type (risky_v1/v2/v3, benign, hard_neg_v1/v2/v3) x risk_mechanism (9 families + benign_control = 10) x task_id (147). Main per model: risky_v1 147, risky_v2 120, risky_v3 120, benign 147, hard_neg_v1 135, hard_neg_v2 27, hard_neg_v3 27 (= 723; census for gpt_5_2; paper 4.1/Table 3); risky 387 = 9 mechanisms x 39 + benign_control 36. Mitigation: gpt-5.4 risky_v1-v3 at 4 levels with deficits (M0 -3 browser_to_local; M1 -3 browser_to_local -3 git_history_leak; M2 -3 browser_to_local -1 git_history_leak -2 file_to_file; M3 -3 browser_to_local; Table 20); deepseek and minimax risky_v1 x 147 tasks x 4 levels. live_guard: deepseek risky_v1-v3 387, defense taint_tracking, mitigation none. browser_replication: deepseek browser_to_local risky 39 baseline (defense none) + 39 defense (taint_tracking). Expected totals: defense none 6,360 / taint_tracking 426; mitigation_level none 4,758 / generic 675 / moderate 675 / detailed 678. No attacker (non-adversarial benchmark): attack facet n/a. Expected missing: the 6 GPT-5.4 mitigation deficits above; no mitigation for gpt-5.2 or gemini; no hard-neg/benign in mitigation or live_guard. Expected extra vs paper: the 465 live_guard/browser traces.",
+  "licence": "Dataset: CC BY 4.0 (HF card license: cc-by-4.0 and README 'License CC-BY-4.0' at the pin; Croissant license https://creativecommons.org/licenses/by/4.0/). Code: MIT, 'Copyright (c) 2026 Haonan Li' (GitHub LICENSE), which appends a DATASET LICENSE NOTICE (CC BY 4.0, cite the paper) and a RESPONSIBLE USE NOTICE stating the framework and datasets must not be used for working exploits against deployed MCP systems, unauthorised probing of production servers, misleading safety-evaluation results for marketing or audit fraud, or training models to evade compositional safety checks. That notice is in the code repository only, not in the dataset card; CC BY 4.0 itself forbids adding restrictions, so it reads as a use norm (to record in the datasheet). Paper: CC BY 4.0 (arXiv). Registry/profile: include, CC-BY-4.0, attribution Li, Sun, Wang, Zhang (2026); unassessed: model-provider output terms, third-party web content in fetch/browser results. Sources: https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces ; https://github.com/lihaonan0716/MCPHunt/blob/main/LICENSE ; https://arxiv.org/abs/2604.27819v1",
+  "discrepancy_leads": [
+    "Post-paper rewrite of every trace document: all 20 trace files changed bytes after the paper-time release (HF b361c58d, 2026-05-01). The five main files and mitigation/gpt54_m0.json grew by 0.32-1.17 MB, and live_guard_defense (+0.68 MB) and both browser_replication files (+54/+58 KB) also changed, in the pinned commit c4c69322 (fact-check correction: 9 documents, not 6) ('Synchronize sanitized traces and paired provenance', 2026-07-30); the other mitigation files shrank by 0.2-3.9 KB between b361c58d and f793a397 (sanitizer). The envelopes' pipeline_git_commit values (ffd333b, 4b85018, 1b7e3c2: 2026-07-24..27) post-date the paper. Expectation to test: whole-population tallies of the logged outcome/labeling fields reproduce paper Tables 3, 5, 6/15, 14, 16, 19, 20 within 1 trace per cell; otherwise the labels were recomputed after the paper (documentation-mismatch). Sources: https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces/commits/main ; https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces/tree/c4c69322bf9ed7690f5265577365709dad5dd454?recursive=true",
+    "Pipeline commit 1e188b8 (one of the four envelope commits in the profile) is not in the public GitHub history (GET commits/1e188b8 returns 422); the public repo starts with a squashed 'Initial commit' 4362d6f on 2026-04-29. Which documents carry it is not recorded in our census. Source: https://github.com/lihaonan0716/MCPHunt/commits/main",
+    "Arms not in the paper: live_guard_defense (387) and browser_replication (39 + 39) were added on 2026-07-28 (HF f793a397, GitHub 5ad11d1 'v1.1.0'); arXiv has only v1 (2026-04-30), whose guard is a post-hoc simulation on the 3,615 main traces and whose conclusion counts 6,321 released traces. No paper number exists for these 465 traces. Sources: https://arxiv.org/abs/2604.27819v1 ; https://github.com/lihaonan0716/MCPHunt/commit/5ad11d1",
+    "Memory server placeholder: commit 6b15fff (2026-05-09) says the command mcp-server-memory used before resolved to a reserved PyPI placeholder with no executable, and moved to the npm @modelcontextprotocol/server-memory. Our profile records 6,321 traces naming mcp-server-memory and 465 naming @modelcontextprotocol/server-memory, which equals 387 + 78 (the post-paper arms). Expectation to test: in the 6,321 main+mitigation traces the memory server either offers no tools or every memory event errors; in the 465 later traces memory events succeed. If memory events succeed in the 6,321, the commit message does not describe the collection environment. Sources: https://github.com/lihaonan0716/MCPHunt/commit/6b15fff ; https://github.com/lihaonan0716/MCPHunt/commit/3a3b1e6",
+    "Benign 0% is by construction: labeling.compute_risk_labels forces strict_leakage/tainted_boundary/network_after_sensitive (and so any_risk) to False when env_type == 'benign' (present since the initial commit 4362d6f). The paper presents benign 0% as a pipeline-soundness validation and says benign has no canary markers; the July README (76884ee) says benign workspaces hold sk_test_* values registered as canaries and that 0% is policy-forced. Expectation: 0 benign traces with any_risk true and outcome unsafe_*, while individual risk_signals may be true in some benign traces and canary flags may occur in benign events. Sources: https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/src/mcphunt/labeling.py ; https://github.com/lihaonan0716/MCPHunt/commit/76884ee ; https://arxiv.org/html/2604.27819v1",
+    "Supplemental traces collected on Windows through a private paid gateway: commits 2a0c52d/1e33199 (2026-05-09, 'found during trace collection') and the sanitizer's Windows/VSCode rules (1e9d886, 63bdb96, 2951172: Administrator-anchored paths, git-bash ls owners, USERNAME/COMPUTERNAME/LOGONSERVER, CLAUDE_CODE_EXECPATH, INIT_CWD, ANTHROPIC_BASE_URL in environment dumps, judge_api_base/api_base fields) show environment dumps from the collection host inside tool results. The sanitizer has no rule for API-key or token values. Expectation: placeholder markers (/home/user/, /mcphunt/, <HOME>, MCPHUNT-HOST, <redacted>, <internal-gateway>) occur, concentrated in the 465 later traces; 0 residual '/Users/' segments; 0 credential-shaped strings outside the canary families (any provider-key shape such as an Anthropic, OpenAI, Google or HF key or a bearer token is reported to the orchestrator at once). Source: https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/scripts/sanitize_traces.py",
+    "Mitigation count history: earlier release metadata claimed 2,885 mitigation traces; commit ff36a09 (2026-07-27) corrected it to 2,706 (gpt54 1,530; deepseek 4 x 147; minimax 4 x 147), a difference of 179 that the commit attributes to stale strings. The DeepSeek/MiniMax files carry an '_rv1' suffix (risky_v1 only). Expectation: 2,706 mitigation traces, the DeepSeek/MiniMax ones all env_type risky_v1. Source: https://github.com/lihaonan0716/MCPHunt/commit/ff36a09",
+    "GPT-5.4 mitigation cells are missing relative to the 387-trace design: per Table 20 denominators, M0 lacks 3 browser_to_local, M1 3 browser_to_local + 3 git_history_leak, M2 3 browser_to_local + 1 git_history_leak + 2 file_to_file, M3 3 browser_to_local (384/381/381/384). Expectation: those exact (mechanism, level) deficits. Source: Tables 19-20, https://arxiv.org/html/2604.27819v1",
+    "Our census reports mitigation_level none 5,466 / generic 675 / moderate 675 / detailed 678, which sums to 7,494, not 6,786; the design implies none = 3,615 + 384 + 147 + 147 + 387 + 78 = 4,758. Expectation: the L1 recount gives 4,758 / 675 / 675 / 678 (then the census figure is an analysis artefact); any other split is a source or census finding. Source: docs/reports/phase10m/mcphunt.census.json /conditions/mitigation_level",
+    "Model identity: the logs name requested models (gpt-5.4, gpt-5.2, deepseek-v4-flash, gemini-3.1-pro-preview, MiniMax-M2.7); calls went through an OpenAI-compatible client and, per the sanitizer's comments, a private paid gateway; the paper says exact identifiers are in released configuration files, which the repository does not contain (only configs/api_keys.yaml.example and mcp_server_versions.json). No served-model version is expected in the traces. Sources: https://arxiv.org/html/2604.27819v1 (4.1) ; https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/scripts/sanitize_traces.py",
+    "CRS annotation claim retracted: the paper's second-annotator agreement (97.3%, kappa 0.89) was replaced on 2026-07-28 by a post-submission audit (93.9%, kappa 0.71) after the authors call the earlier figure unsupported (commit fe1bfcd). The frozen CRS labels did not change, so the logged completion_requires_secret should still give the paper's 63/288 split. Source: https://github.com/lihaonan0716/MCPHunt/commit/fe1bfcd",
+    "Croissant v1.1.0 gives dataCollectionTimeframe 2026-Q1 to 2026-Q2, but the live-guard slice flag was added 2026-07-27 (4b85018). Expectation to test: collection_timestamp of main and mitigation traces <= 2026-04-30T13:01Z (arXiv submission); live_guard/browser traces >= 2026-05-09 (memory-server fix); any live_guard trace in Q3 contradicts the Croissant timeframe (S3). Sources: https://github.com/lihaonan0716/MCPHunt/blob/main/artifacts/release/croissant.json ; https://github.com/lihaonan0716/MCPHunt/commit/4b85018",
+    "One 46.9 MB trace (mitigation/minimax_m3_rv1.json /traces/106) makes that document 55 MB against 6.5-6.8 MB for minimax m0-m2; it holds a single very large tool result (phase 10m). result_full is not truncated (RESULT_TRUNCATION_CHARS = 12,000 applies to the message only). Expectation: the four >16 MiB traces are each dominated by one or a few results_full over 1 MiB. Source: docs/reports/phase10m/README.md B.7; https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/src/mcphunt/config.py",
+    "Our profile pin date (2026-10-12) is not the revision's commit date (c4c69322 committed 2026-07-30T16:43:28Z per the HF commits API); other profiles record commit dates. Documentation-mismatch in our own profile (S3). Source: https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces/commits/main",
+    "Cosmetic: HF tags say size_categories n<1K while the card says 1K<n<10K; the card's model table lists 723 traces per model, which covers main only. Source: https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces"
+  ],
+  "open_questions": [
+    "L2 through the product path is blocked at 065b0d36 (tools/precheck/l2_import.py: RB-1 reader not multi_execution, RB-2 64 MiB limit outside [import] limits, RB-3 no carving; no offline pin vouching for HF LFS objects). Does the orchestrator want an interim L2 by the phase-10m in-memory map method on a deterministic trace sample, or is the phase-10m map census (6,785/6,786) accepted as the L2 baseline until the 10m follow-up lands?",
+    "Even when unblocked, the L2 unit (README section 4: the raw artefact the importer selects) is a whole document of up to 723 traces; include_paths cannot subsample traces. Should the L2 unit for this corpus be the trace (locator /traces/<i>) once import --sample (D-529) supports item locators?",
+    "May the authors' aggregate files in the pinned snapshot (meta/mitigation_results.json, meta/paired_live_guard_analysis.json, meta/live_guard_deepseek_v4_flash_paired.json, meta/hard_negative_ci.json, meta/regression_data.csv) be used by the examiner as comparison targets for the arms the paper does not report? They were not read in this pre-registration.",
+    "Which documents carry which pipeline_git_commit, and what is 1e188b8 (absent from the public GitHub history)?",
+    "Does the Responsible Use Notice in the code repository's LICENSE bind the dataset for our release (D-144 licence policy), given CC BY 4.0 forbids additional restrictions?",
+    "Is the memory server functional in the 6,321 main+mitigation traces (commit 6b15fff says the earlier command was a placeholder)? If not, the db_to_artifact/KG sinks of the paper ran without a knowledge-graph server."
+  ],
+  "checks_not_applicable": [
+    "L2 import, validate, recompute --dry-run, determinism, verify --level chain, A2/A3 classes, evidence classes, degenerate/adapter_defect rates, identity resolution, redaction and withholding through the product path: blocked at 065b0d36 (tools/precheck/l2_import.py BLOCKED[('mcphunt','head')]: RB-1, RB-2, RB-3, no offline LFS pin vouching); reported as blocked, with the phase-10m in-memory map census as the latest full-mapping evidence.",
+    "L2 outcome sanity on a sample: not applicable while L2 is blocked; replaced by the whole-population L1 tally of the logged outcome/labeling fields against the paper tables (H8-H12).",
+    "Attack facet and attack success: not applicable (non-adversarial benchmark; propagation of planted canaries during benign tasks, no attacker).",
+    "Delta since E2: not applicable (mcphunt is not in FA or E2; first examination, wave 6).",
+    "Cross-corpus duplicates: checked by l1_xdup but none expected (no other corpus draws on MCPHunt)."
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/mcphunt/research.json",
+    "docs/reports/precheck/prereg/mcphunt.md"
+  ],
+  "sources": [
+    "https://arxiv.org/abs/2604.27819v1",
+    "https://export.arxiv.org/api/query?id_list=2604.27819",
+    "https://arxiv.org/html/2604.27819v1",
+    "https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces",
+    "https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces",
+    "https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces/commits/main",
+    "https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces/tree/c4c69322bf9ed7690f5265577365709dad5dd454?recursive=true",
+    "https://huggingface.co/datasets/lihaonan0716/mcphunt-agent-traces/raw/c4c69322bf9ed7690f5265577365709dad5dd454/README.md",
+    "https://huggingface.co/api/datasets/lihaonan0716/mcphunt-agent-traces/discussions",
+    "https://github.com/lihaonan0716/MCPHunt",
+    "https://github.com/lihaonan0716/MCPHunt/commits/main",
+    "https://github.com/lihaonan0716/MCPHunt/blob/main/LICENSE",
+    "https://github.com/lihaonan0716/MCPHunt/blob/main/README.md",
+    "https://github.com/lihaonan0716/MCPHunt/blob/main/configs/mcp_server_versions.json",
+    "https://github.com/lihaonan0716/MCPHunt/blob/main/artifacts/release/croissant.json",
+    "https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/src/mcphunt/labeling.py",
+    "https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/src/mcphunt/agent_loop.py",
+    "https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/src/mcphunt/config.py",
+    "https://github.com/lihaonan0716/MCPHunt/blob/6b2f4e5c68ad/scripts/sanitize_traces.py",
+    "https://github.com/lihaonan0716/MCPHunt/commit/6b15fff",
+    "https://github.com/lihaonan0716/MCPHunt/commit/3a3b1e6",
+    "https://github.com/lihaonan0716/MCPHunt/commit/1e33199",
+    "https://github.com/lihaonan0716/MCPHunt/commit/2a0c52d",
+    "https://github.com/lihaonan0716/MCPHunt/commit/ff36a09",
+    "https://github.com/lihaonan0716/MCPHunt/commit/5ad11d1",
+    "https://github.com/lihaonan0716/MCPHunt/commit/fe1bfcd",
+    "https://github.com/lihaonan0716/MCPHunt/commit/76884ee",
+    "https://github.com/lihaonan0716/MCPHunt/commit/1b7e3c2",
+    "https://github.com/lihaonan0716/MCPHunt/commit/eb23947",
+    "https://github.com/lihaonan0716/MCPHunt/commit/4b85018",
+    "https://github.com/lihaonan0716/MCPHunt/commit/ffd333b",
+    "https://github.com/lihaonan0716/MCPHunt/commit/1e9d886",
+    "https://github.com/lihaonan0716/MCPHunt/commit/63bdb96",
+    "https://github.com/lihaonan0716/MCPHunt/commit/2951172",
+    "docs/reports/phase10m/README.md",
+    "docs/reports/phase10m/mcphunt.census.json",
+    "docs/reports/phase10m/mcphunt.map-census.json",
+    "docs/reports/phase10m/routing.md",
+    "src/agentprov/adapters/mcphunt/profiles/mcphunt.profile.toml",
+    "src/agentprov/adapters/mcphunt/artefacts.toml",
+    "tools/precheck/l2_import.py",
+    "tools/precheck/l1_families.py",
+    "docs/reports/bugpass/findings.md"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "by": "adversarial fact-checker (desk only; no raw data read)",
+    "confirmed": [
+      "arXiv 2604.27819 v1 only (2026-04-30T13:01:03Z, cs.AI); 6,321 = 3,615 + 2,706 in the conclusion",
+      "Tables 3, 4, 5, 6, 7, 14, 15, 16, 17, 19, 20 re-read: every value and derived count in the prereg matches; Table 16 columns sum to 90/78/158/141/175; Table 20 numerators sum to 88/64/18/9 and denominators + 36 benign_control give 384/381/381/384",
+      "HF HEAD = c4c69322 (2026-07-30T16:43:28Z); 32 files, 593,477,795 B, 15 LFS objects; all 15 oid/size pairs equal the profile pins",
+      "b361c58d had 22 files (main + mitigation); f793a397 changed all 20 trace documents",
+      "CC BY 4.0 on the card and Croissant; LICENSE (unchanged since 4362d6f) = MIT + dataset notice + Responsible Use Notice",
+      "GitHub commits 6b15fff, 1e33199, 76884ee, ff36a09, fe1bfcd, 5ad11d1 say what the prereg says; 1e188b8 returns 422; 0 issues/tags/releases",
+      "config.py at 6b2f4e5: MAX_TURNS 30, retries 3, temperature 0.0, 2048/8192 tokens, truncation 12,000; labeling.py forces benign risk aggregates False since 4362d6f",
+      "census and artefacts.toml numbers quoted in the prereg (mitigation_level 5,466 sum 7,494; finish reasons; canary event sums 14,143/2,172/15,953; 545; 2,392; 669; 410; 245; 1,977 traces in the 4 oversized documents) match our reports"
+    ],
+    "corrected": [
+      "pin commit c4c69322 rewrote 9 trace documents, not 6 (also live_guard_defense and both browser_replication files)",
+      "App. K 59.6 s is wall-clock per trace, not explicitly mean duration_s",
+      "1b7e3c2 is more than a labeling refactor (actual-sink metric added; no reported number moves per its message)"
+    ],
+    "notes": [
+      "configs/api_keys.yaml.example at 6b2f4e5 lists gpt-5.4 with a third-party OpenAI-compatible base URL (right.codes), consistent with the requested-name-only / gateway lead; no served-model ids are in the repo",
+      "H16 lower bound 2026-05-09 is the date of the Windows fix commit, whose message says the issues were found during a collection, so some Windows-collected traces may predate it; 4b85018 (2026-07-27) adds the live-guard collection flag",
+      "HF card bibtex says primaryClass cs.CR while arXiv lists cs.AI (cosmetic)",
+      "generation_max_tokens logged by agent_loop.py at HEAD is GENERATION_MAX_TOKENS (2048) even for thinking models; a logged 8192 is not expected from HEAD code",
+      "census: traces_with_a_recognisable_credential_shape 1,995 + flagged_without_shape 2,601 = 4,596, one more than traces_flagged 4,595 (our census, not the source; for the examiner)"
+    ]
+  }
+}

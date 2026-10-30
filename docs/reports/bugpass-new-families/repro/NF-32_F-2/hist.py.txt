@@ -1,0 +1,21 @@
+import subprocess, os
+R=os.path.expanduser("~/.agentprov/staging/10j/agentdyn-history/AgentDyn.git")
+env=dict(os.environ, GIT_NO_LAZY_FETCH="1")
+D="runs/gpt-4o-mini-2024-07-18-drift/"
+def g(*a): return subprocess.run(["git","-C",R,*a],env=env,capture_output=True,text=True,check=True).stdout
+commits=g("rev-list","--reverse","--topo-order","--all").split()
+prev=None
+pin=None
+for c in commits:
+    m={}
+    for line in g("ls-tree","-r",c,D).splitlines():
+        meta,path=line.split("\t",1); m[path]=meta.split()[2]
+    tree=g("rev-parse",f"{c}:{D}" ).strip() if m else "-"
+    if c.startswith("785b9127"): pin=m
+    if prev is None: s="first"
+    else:
+        same=sum(1 for p in m if prev.get(p)==m[p]); added=len(set(m)-set(prev)); removed=len(set(prev)-set(m)); changed=sum(1 for p in m if p in prev and prev[p]!=m[p])
+        s=f"same={same} added={added} removed={removed} changed={changed}"
+    ds=sum(1 for p in m if p.endswith(".DS_Store"))
+    print(c[:8], len(m), "DS_Store=",ds, "tree=",tree[:8], s)
+    prev=m

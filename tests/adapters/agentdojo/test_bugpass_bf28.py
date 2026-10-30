@@ -1,0 +1,77 @@
+"""Bug pass BF-28 (C2-2, routed to regen-items-2-12): DRIFT isolation decisions only on the tool message DRIFT read, the
+last one of its batch by role (D-274: ``injection_isolate`` reads ``messages[-1]``); an orphan run or a batch split by a
+malformed message gets one decision, on its last tool message. Synthetic logs only."""
+
+from __future__ import annotations
+import hashlib
+import json
+
+
+from agentprov.adapters.agentdojo.dialect import TraceLoggerReader
+from agentprov.adapters.agentdojo.drift_mapper import DriftMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin
+from agentprov.ingest.limits import IngestLimits
+from agentprov.testing import golden
+
+HEAD = "6fd3df4763fad77398c3c273c2a4fe14dd50f7ea"
+
+
+def call(f, i):
+    return {"function": f, "args": {"x": i}, "id": f"tool_call_{i}", "placeholder_args": None}
+
+
+def tool(f, i):
+    return {"role": "tool", "content": "r", "tool_call_id": f"tool_call_{i}", "tool_call": call(f, i), "error": None}
+
+
+def run(msgs):
+    doc = {"suite_name": "banking", "pipeline_name": "gpt-4o-mini", "user_task_id": "user_task_1",
+           "injection_task_id": "injection_task_1", "attack_type": "important_instructions",
+           "build_constraints": True, "injection_isolation": True, "dynamic_validation": True,
+           "adaptive_attack": False, "tool_permission": {}, "initial_trajectory": [], "initial_checklist": "[]",
+           "benchmark_version": "v1.2", "utility": False, "security": False, "total_tokens": 10, "duration": 1.5,
+           "conversations": msgs}
+    raw = json.dumps(doc, indent=4).encode()
+    path = "runs/gpt-4o-mini/banking/user_task_1/important_instructions/injection_task_1.json"
+    reader, mapper, limits = TraceLoggerReader(), DriftMapper(), IngestLimits()
+    sniff = reader.sniff(raw, label=path, limits=limits)
+    origin = Origin.git("https://github.com/SaFo-Lab/DRIFT", HEAD, path, golden.git_blob_sha1(raw))
+    art = ArtefactRef("a0", hashlib.sha256(raw).hexdigest(), len(raw), "application/json", origin, "primary",
+                      mapper.prov_primary(sniff.flags))
+    item = next(reader.parse(raw, art, limits=limits))
+    data, _ = aer_bytes(map_unit(ExecutionUnit(item), mapper, load_profile("drift")))
+    recs = [json.loads(line) for line in data.splitlines()]
+    dec_subjects = {r["subject"] for r in recs if r.get("k") == "decision" and r.get("subtype") == "drift.isolation_pass"}
+    isolated_msgs = sorted(r["id"] for r in recs if r.get("k") == "message" and r.get("role") == "tool"
+                           and str(r.get("generated_by", "")).startswith("dc"))
+    return dec_subjects, isolated_msgs
+
+
+U = {"role": "user", "content": "do it"}
+FIN = {"role": "assistant", "content": "done", "tool_calls": []}
+
+
+def test_control_well_formed_batch():
+    msgs = [U, {"role": "assistant", "content": "x", "tool_calls": [call("a", 1), call("b", 2)]},
+            tool("a", 1), tool("b", 2), FIN]
+    _, isolated = run(msgs)
+    assert isolated == ["m3"]
+
+
+def test_case_a_orphans_after_malformed_assistant():
+    bad = {"role": "assistant", "content": "x", "tool_calls": [{**call("a", 1), "extra": 1}, call("b", 2)]}
+    msgs = [U, bad, tool("a", 1), tool("b", 2), FIN]
+    decs, isolated = run(msgs)
+    # DRIFT's injection_isolate touches messages[-1] only: m2 (first result of the batch) was never inspected
+    assert "m2" not in isolated, f"made-up isolation decision on m2; isolated={isolated}, decisions={decs}"
+    assert len(decs) <= 1
+
+
+def test_case_b_split_batch():
+    msgs = [U, {"role": "assistant", "content": "x", "tool_calls": [call("a", 1), call("b", 2), call("c", 3)]},
+            tool("a", 1), {**tool("b", 2), "extra": 0}, tool("c", 3), FIN]
+    decs, isolated = run(msgs)
+    assert "m2" not in isolated, f"made-up isolation decision on m2 (first of batch); isolated={isolated}"
+    assert len(decs) <= 1

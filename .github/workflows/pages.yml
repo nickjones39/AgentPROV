@@ -1,0 +1,46 @@
+name: pages
+on:
+  # The project website: the landing page (site/; D-1000) at the root and the user guide (mkdocs.yml;
+  # docs/user-guide/) under /docs/. Manual dispatch only: no push, pull_request or schedule trigger (the D-431
+  # pattern). It is dispatched only after the go-live steps (docs/reports/release/public-repo-plan.md step 19): the
+  # project owner's instruction, the repository made public by its owner, the pre-release scans, and Settings > Pages >
+  # Source set to GitHub Actions. tests/repo/test_pages_workflow.py checks the triggers, the permissions and the pins.
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Sync the docs group only (locked)
+        run: uv sync --frozen --only-group docs
+      - name: Build the user guide into _site/docs (strict)
+        run: uv run --frozen --no-sync mkdocs build --strict
+      - name: Add the landing page at the root
+        run: |
+          test -f _site/docs/index.html
+          test ! -e _site/index.html
+          cp -R site/. _site/
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

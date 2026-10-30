@@ -1,0 +1,137 @@
+# Source profile `survey-agentharm`: the survey's AgentHarm Inspect logs (docs/architecture D.4.4, D.9; I.1.1 row 11).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18). Version 2 adds the [withhold] table (D-811); version 1, the bytes the stored corpora and the
+# regeneration round's kept ast-survey-agentharm-rg1 recorded, ships under archive/ (D-31: a recorded profile bumps with
+# archive). The [family.inspect] table is checked against ../family.schema.json (closed schema, D.4.1).
+
+[profile]
+id = "survey-agentharm"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "agent-security-tools-survey"
+family = "inspect"
+parts = ["agentharm"]
+title = "Agent Security Tools Survey: AgentHarm Inspect .eval logs (restricted-use corpus ast-survey-agentharm)"
+evidence = ["sources/agent-security-tools-survey.md §5", "verify/agent-security-tools-survey.md §2"]
+
+[source]
+canonical_repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey"
+paper = "none found (verify/agent-security-tools-survey.md §2.1)"
+concept_doi = "10.5281/zenodo.22135956"
+note = "cited together with the version actually fetched (R-62)"
+
+[[source.pins]]
+role = "git"
+part = "agentharm"
+kind = "git"
+repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey"
+commit = "89c4db2c949797fbb38c5bfed85dc82780ddbfe3"
+date = "2026-08-28"
+tree = "agentharm/results"
+expected_files = 6
+expected_bytes = 11825414
+primary = true
+note = "6 .eval logs, 1,056 samples (SWEEP_r2 EV-3)"
+
+[[source.pins]]
+role = "zenodo_v1_0_0"
+part = "agentharm"
+kind = "zenodo"
+doi = "10.5281/zenodo.22135957"
+primary = false
+note = "alternative origin"
+
+[[source.pins]]
+role = "zenodo_v1_0_1"
+part = "agentharm"
+kind = "zenodo"
+doi = "10.5281/zenodo.22140262"
+primary = false
+note = "alternative origin"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["Jhih-Jhong Lin"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+restrictions = ["AgentHarm task data: MIT License with an additional clause (use only to improve AI safety and security)"]
+basis = "CC-BY-4.0 (repository and Zenodo); AgentHarm data per HF ai-safety-institute/AgentHarm @ e23b3fe6 card"
+attribution = ["AgentHarm (c) 2024 Gray Swan AI and UK AI Safety Institute, MIT License with an additional clause", "inspect_evals (MIT)"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["inspect_evals@2dd469a (agentharm, agentharm_benign)", "inspect_ai 0.3.247.dev69+g53c1fa98b"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "inspect.eval"
+mapper = "inspect.eval"
+variants = ["v2"]
+include = ["agentharm/results/**/*.eval"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+context_artefacts = ["agentharm/results/timing_summary.csv"]
+layout = "agentharm/results/<model>_<split>/<timestamp>_<task>_<id>.eval"
+
+[family.inspect]
+benchmark = "agentharm"
+no_attack = true
+producer_band = { inspect_ai = ["0.3.247.dev69+g53c1fa98b"] }
+log_versions = [2]
+members = ["header.json", "samples/*_epoch_*.json"]
+span_roles = { solver = "agent", scorer = "judge" }
+ground_truth_metadata = ["target_functions", "grading_function"]
+
+[[family.inspect.quirk]]
+id = "inspect.judge_same_model_as_agent"
+note = "qwen3:14b is both agent and judge in two logs; separated by spans"
+
+[[family.inspect.quirk]]
+id = "inspect.event_order_not_time_order"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.working_start_not_monotonic"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.attachment_refs"
+rules = ["inspect.model_event_is_call@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.pool_refs"
+rules = ["inspect.model_event_is_call@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.sample_limit"
+rules = ["inspect.sample_limit@1"]
+observed = { events = 54 }
+note = "9 + 33 + 6 + 6"
+
+[[family.inspect.quirk]]
+id = "inspect.tool_span_separate_from_tool_event"
+rules = ["inspect.no_order_from_event_list@1"]
+note = "every tool event has a sibling span of type tool that the event does not reference; kept as an empty inspect.span scope"
+
+# D-811 (post-check PC-ast-survey-agentharm S2, user decision 2026-10-24, option (a); D-604 object scope, as kexin's
+# rule, item 107): the header.json member of each of the 6 .eval logs records Inspect's eval.dataset.location, a
+# dataset cache under one named third-party account's home directory. The value is in raw only: no AER, SEM or PROV
+# file holds it (D-235). Such a member is withheld at seal with its digest kept in WITHHELD.json, its .eval archive with
+# it (container closure, AD-12); every execution stays released (object scope). The pattern is anchored on the header
+# key and names no account; the 7-character floor skips a generic system account. Census at the pin (the stored rg1
+# corpus): exactly the 6 header members, 1 match each; 0 sample members, 0 derived files.
+[withhold]
+reason = "personal_data"
+public_note = "raw log headers whose dataset location names a third-party account's home directory; withheld, digest kept"
+
+[[withhold.rules]]
+id = "dataset-location-home"
+pattern = "\"location\":\"/home/[a-z0-9_\\-]{7,32}/"
+scope = "object"
+public_note = "dataset location in a third-party account's home (census at the pin: 6 of 6 headers)"

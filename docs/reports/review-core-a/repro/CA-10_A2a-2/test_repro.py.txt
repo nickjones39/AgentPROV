@@ -1,0 +1,47 @@
+"""A2a-2: the SEM reader accepts a header the SemDocument accessors cannot read."""
+
+from __future__ import annotations
+
+import hashlib
+from pathlib import Path
+
+import pytest
+
+from agentprov.aer.canon import dumps_line
+from agentprov.cli.main import main
+from agentprov.sem.reader import SemFormatError, load_sem_bytes
+
+
+def _sealed(header: dict) -> bytes:
+    line = dumps_line(header)
+    seal = {"k": "seal", "id": "seal", "n_records": 2, "records_sha256": hashlib.sha256(line).hexdigest()}
+    return line + dumps_line(seal)
+
+
+BAD_HEADERS = [
+    pytest.param({"k": "sem", "ex": "e"}, id="no-profile-no-aer_digest"),
+    pytest.param({"k": "sem", "profile": {"id": "a.b", "version": 1}, "aer_digest": "sha256:" + "0" * 64}, id="no-ex"),
+    pytest.param({"k": "sem", "ex": "e", "profile": "x", "aer_digest": "sha256:" + "0" * 64}, id="profile-not-object"),
+    pytest.param({"k": "sem", "ex": "e", "profile": {"id": "a.b", "version": "zz"}, "aer_digest": "sha256:" + "0" * 64},
+                 id="profile-version-not-int"),
+    pytest.param({"k": "sem", "ex": "e", "profile": {"id": "a.b", "version": True}, "aer_digest": "sha256:" + "0" * 64},
+                 id="profile-version-bool"),
+]
+
+
+@pytest.mark.parametrize("header", BAD_HEADERS)
+def test_reader_rejects_header_the_accessors_cannot_read(header: dict) -> None:
+    with pytest.raises(SemFormatError):
+        load_sem_bytes(_sealed(header), verify=True)
+
+
+@pytest.mark.parametrize("view", [[], ["--view", "sem"]])
+def test_inspect_reports_invalid_sem_not_internal_error(tmp_path: Path, capsys: pytest.CaptureFixture[str],
+                                                        view: list[str]) -> None:
+    path = tmp_path / "x.sem.jsonl"
+    path.write_bytes(_sealed({"k": "sem", "ex": "e"}))
+    code = main(["inspect", str(path), *view])
+    err = capsys.readouterr().err
+    assert code != 70, err
+    assert "internal error" not in err
+    assert "not a valid SEM document" in err

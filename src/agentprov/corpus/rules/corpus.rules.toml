@@ -1,0 +1,95 @@
+# Rule catalogue `corpus` (docs/architecture: HL H.3.3, H.2.5; D.5.1-D.5.2; C.6.4).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (home `agentprov.corpus`, CATALOGUE_HOMES); no
+# __init__.py in this directory. The rules name the corpus-layer computations that `facet_schema[].from` cites
+# (agentprov.corpus.facets): each facet is a pure function of one execution's AER and SEM documents (H.3.3(3)), and its
+# evidence class is the weakest class of the fields it reads (H.3.3(4)), so a rule here never raises a class: it is a
+# deterministic derivation (class D) without assumptions. Rules are immutable once released: a change of statement or
+# behaviour mints @n+1 and bumps `version` (AD-18). Sealing copies this file byte for byte to `rules/corpus.rules.toml`
+# (a record, never an authority, AD-14).
+
+[catalogue]
+id = "corpus"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = []
+subtypes = []
+types = []
+
+[[rule]]
+id = "corpus.facet_framework"
+version = 1
+class = "D"
+status = "active"
+statement = "The framework facet is the H.2.4 framework id fw_<16 base32> computed from the execution's single benchmark actor: fw = 'fw_' + b32(sha256('aer-fw/1\\n' + JCS({distribution, source, source_tree_sha256, suite_set})))[:16], with distribution = code.dist, source = the recorded code.repo/commit/wheel_sha256, suite_set = the actor's version; null without exactly one benchmark actor or when distribution, source and suite set are all unknown."
+premises = ["/code/dist", "/code/repo", "/code/commit", "/code/wheel_sha256", "/version"]
+assumptions = []
+emits = ["index facet framework"]
+evidence = ["docs/architecture/HL_corpus_versioning.md H.2.4, H.3.3", "docs/reports/phase11/decisions/D-34.md"]
+tests = ["tests/unit/corpus/test_facets.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "corpus.facet_model_requested"
+version = 1
+class = "D"
+status = "active"
+statement = "The model.requested facet is the sorted set of model.requested values that the execution's llm_agent actors record and do not declare unknown."
+premises = ["/model/requested"]
+assumptions = []
+emits = ["index facet model.requested"]
+evidence = ["docs/architecture/HL_corpus_versioning.md H.3.3"]
+tests = ["tests/unit/corpus/test_facets.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "corpus.facet_model_served"
+version = 1
+class = "D"
+status = "active"
+statement = "The model.served facet is the sorted set of model.served values of the llm_agent actors and served_model values of the agent-role model calls that the AER records and does not declare unknown; a served model is never inferred from a requested one."
+premises = ["/model/served", "/served_model"]
+assumptions = []
+emits = ["index facet model.served"]
+evidence = ["docs/architecture/HL_corpus_versioning.md H.2.8, H.3.3"]
+tests = ["tests/unit/corpus/test_facets.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "corpus.facet_counts"
+version = 1
+class = "D"
+status = "active"
+statement = "Each n.* facet counts the AER records of one kind (message, model_call, tool_execution, decision, judgement, state_change, activity, artefact) in the execution."
+premises = ["/k"]
+assumptions = []
+emits = ["index facets n.messages, n.model_calls, n.tool_executions, n.decisions, n.judgements, n.state_changes, n.activities, n.artefacts"]
+evidence = ["docs/architecture/HL_corpus_versioning.md H.3.3"]
+tests = ["tests/unit/corpus/test_facets.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "corpus.facet_generic_types"
+version = 1
+class = "D"
+status = "active"
+statement = "The generic_types facet is the sorted set of the namespaced type values of the execution's activity and artefact records (Addendum B AD-15)."
+premises = ["/type"]
+assumptions = []
+emits = ["index facet generic_types"]
+evidence = ["docs/architecture/HL_corpus_versioning.md H.2.9, H.3.3"]
+tests = ["tests/unit/corpus/test_facets.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "corpus.facet_outcome"
+version = 1
+class = "D"
+status = "active"
+statement = "The outcome facet has one element per AER judgement: name, value and origin copied from the judgement, and claim, holds, score and scale copied from the SEM outcome annotation on it (R-18); a member absent from the AER or the SEM is null, and two disagreeing annotations of one judgement are refused."
+premises = ["/name", "/value", "/origin", "/value/claim", "/value/holds", "/value/score", "/value/scale"]
+assumptions = []
+emits = ["index facet outcome"]
+evidence = ["docs/architecture/HL_corpus_versioning.md H.3.3", "docs/architecture/C_data_model.md C.3.10"]
+tests = ["tests/unit/corpus/test_facets.py"]
+since = "0.1.0"

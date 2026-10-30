@@ -1,0 +1,182 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "menelaus29-ipi-multidomain",
+ "findings": [
+  {
+   "id": "PC-menelaus29-ipi-multidomain-01",
+   "title": "[CC-07, #181/#161] Banking IT0/IT1/IT3 attacked successes: 0 of 33 lack the GOAL datum in an executed attacker-bound transfer subject; #161 not applicable (0 user_task_5 logs)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "CC-07 / H9",
+   "evidence": "raw census of 858 pinned blobs: 33 banking attacked security-true logs on injection_task_0/1/3 (IT0 22, IT1 7, IT3 4; full 19, parity 5, fresh160-def 3, builtin 4, v2b 2); every one has an executed send_money/schedule_transaction to the attacker IBAN whose subject holds the GOAL datum (no_executed_attacker_transfer 0, subject_lacks_target 0). GOAL-datum re-score = logged rate in every banking arm. user_task_5 logs 0/858 -> #161 0/0. Precedence-only re-score for IT1 (7 logs) not computed (checker datum quirk, see interbolt PC-01). L2: raw = mapped 288/288 judgements.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/checker.py ~/.agentprov/migration-work/precheck/menelaus29-ipi-multidomain/exam/checker.json  # cc07_181, cc07_161; uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/os2.py ~/.agentprov/migration-work/precheck/menelaus29-ipi-multidomain/exam/os2.json  # raw_vs_mapped",
+   "hypothesis_ref": "H9",
+   "recommendation": "Record 0 affected under agentdojo.art.validity_defects (scope row count 0); banking ASRs need no #181 caveat beyond the generic one; keep logged booleans.",
+   "artefact_proposal": "agentdojo.art.validity_defects: scope.sources += \"menelaus29-ipi-multidomain\"; expected += { snapshot = \"menelaus29-ipi-multidomain:head\", count = 0, unit = \"executions\", basis = \"pre-check PC-menelaus29-ipi-multidomain-01: 33 banking IT0/1/3 successes, all with GOAL datum in an executed attacker transfer; 0 user_task_5 logs\", status = \"proposed\" }",
+   "agents_md_12": "menelaus29 (CC-07): #181 biases none of the 33 banking IT0/1/3 successes (0/33); #161 not applicable (no user_task_5).",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Not refuted. Independent recount over the 858 pinned blobs (strict ingest, sha1 checked) with a broader matcher: attacker IBAN by whitespace-insensitive regex over all call args, execution via tool_call_id or tool_call.id with error null, GOAL datum anywhere in the args. 33 banking IT0/1/3 security-true attacked logs (IT0 22, IT1 7, IT3 4; per-dir split 2/10/6/3/5/1/1/1/4 = 33), all with an executed send_money to the attacker carrying the datum: no_executed_attacker_transfer 0, lacks_datum 0. #161: 0 user_task_5 paths in the 1,028-blob tree and 0 task_dir facets. Banking successes by task sum to 62 + 1 slack = 63 = H8. Class R2/CC-07 expected-known S3 is the canonical one."
+    }
+   ]
+  },
+  {
+   "id": "PC-menelaus29-ipi-multidomain-02",
+   "title": "[CC-09] No artefacts.toml AgentDojo entry scopes menelaus29-ipi-multidomain; quirk counts verified on 858 logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "CC-09 / L1-01, L1-08",
+   "evidence": "grep -c menelaus src/agentprov/adapters/agentdojo/artefacts.toml = 0. Counts: benign_security_constant 70 (pre-pass, security true 70/70); injection_task_as_user_task_prepass 70; incomplete_run 1 = empty_messages_without_outcome 1 (same file); silent_rerun null-final 0, earlier_attempts_unobservable 144/144 (L2); unexecuted_trailing_calls 0; naive_timestamp 858; spotlighting_delimiters 22 (builtin dir); tool error messages 2.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/menelaus29-ipi-multidomain/exam/pop.json; uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/checker.py ~/.agentprov/migration-work/precheck/menelaus29-ipi-multidomain/exam/checker.json",
+   "hypothesis_ref": "prereg section 5",
+   "recommendation": "See CC-09 (recorded once there); the family owner widens scopes with these counts.",
+   "artefact_proposal": "CC-09 widening rows (status proposed, basis pre-check PC-menelaus29-ipi-multidomain-02): benign_security_constant 70; injection_task_as_user 70; incomplete_run 1; empty_log 1; silent_rerun 858 (earlier pass unobservable), 0 null-final; naive_timestamp 858.",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Not refuted. grep -c menelaus artefacts.toml = 0; no scope line names the source (CC-09). Quirk counts match the phase-10d census measured block: benign_security_constant 70 (origin_rule_applied 70), injection_task_as_user_task_prepass 70, silent_rerun null_final 0, unexecuted_trailing_calls 0, spotlighting_delimiters 22; prepass security True 70/70 (os1). Per CC-09 this is a reference, not a counted corpus finding; class and severity correct."
+    }
+   ]
+  },
+  {
+   "id": "PC-menelaus29-ipi-multidomain-03",
+   "title": "Phase-10d census counts the one zero-message log as both empty_messages_with_outcome and empty_messages_without_outcome, and incomplete_run.null_outcome_files 0, but its outcomes are null",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-08 / H6",
+   "evidence": "L1-08 flags over 858: zero_messages 1, incomplete 1 (same label: v2a banking user_task_12 x injection_task_4, adaptive_b43850c62aa7), layout_mismatch 1 (docs/example_run_output.json). That file has security null and utility null (the only null outcomes of 858). Census measured: empty_messages_with_outcome 1, empty_messages_without_outcome 1, incomplete_run files 1 null_outcome_files 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/menelaus29-ipi-multidomain/exam/pop.json  # null_outcome_labels, flagged_labels; sed -n 120,145p docs/reports/phase10d/menelaus29-ipi-multidomain.census.json",
+   "hypothesis_ref": "H6; prereg section 5 empty_messages_with_outcome lead",
+   "recommendation": "Route to the phase-10d census owner: fix the with/without-outcome and null_outcome_files definitions; no data change. Also route the census.py key definitions (with_outcome not exclusive; null_outcome_files cannot see a missing judgement) to the AgentDojo family owner, report only.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Confirmed, with the cause. Recount: zero-message logs 1 and null-outcome logs 1, the same v2a label. census.py defines empty_messages_with_outcome as every outcome_only unit (not exclusive of without_outcome), so the one log is counted in both; null_outcome_files 0 because a null outcome produces no judgement record, so 'any judgement value None' cannot fire. The census figures follow its code; the key names misdescribe the data. R4 documentation-mismatch S3 holds (no manuscript number); route to the phase-10d census owner and the AgentDojo family owner (census.py metric definitions, report only)."
+    }
+   ]
+  },
+  {
+   "id": "PC-menelaus29-ipi-multidomain-04",
+   "title": "Identity disclosure: example log identity_unresolved; 6 Gemini 3.6 sanity logs model unverifiable (run-time fallback); 22 built-in spotlighting logs carry no model name and map to Gemma 4 by the path table (class I)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 identity / H11",
+   "evidence": "L2: model unresolved 1 (docs/example_run_output.json; profile line 9 documents it), direct mismatches 0; model<-model_dir 22 rows resolved; builtin dir -> google-gemma-4-26b-a4b-it 7/7 sampled; h_pipeline population 710/120/22/6 (H11). Profile pipeline_name_policy verbatim_unreliable_when_differs, D-104.",
+   "reproduction": "see l2-head.json /identity; uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/pop.py  # h_pipeline",
+   "hypothesis_ref": "H11",
+   "recommendation": "Disclose in the datasheet: the 6 sanity_check logs model as labelled by directory only; keep table resolution.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Confirmed. Population h_pipeline 710/120/22/6 exact. The 6 data/sanity_check logs carry the in-log pipeline_name 'google-gemini-3.6-flash [enum alias]', equal to the directory, but the name is fixed at construction and the wrapper in force (fact-checked, research.json) could fall back to gemini-3.5-flash-lite without changing it: the model is unverifiable, as the full title says (the dossier table's 'by directory only' is reworded to that). The 22 builtin logs' pipeline_name holds no model id ('gemini-2.5-flash-preview-04-17-g4-spotlighting...') and they resolve to Gemma 4 through the path table (7/7 sampled). Example log unresolved, as profile line 9 states. R2 expected-known S3 correct."
+    }
+   ]
+  },
+  {
+   "id": "PC-menelaus29-ipi-multidomain-05",
+   "title": "L1-03 escape and encoding residues in payload and tool content (#214 class): escaped_unicode 190 files, mojibake 6, U+2028 5, NEL 3, CR 2, zero-width 1; SEM markers still found in every sampled attacked run",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-03 / H14",
+   "evidence": "L1-03 over 858: escaped_unicode 190 files / 222 strings (111 tool content, 111 /injections/*), escaped_newline 207, escaped_quote 14, mojibake 6 files / 10 strings (tool content), line_sep 5, nel 3, cr 2 (all /injections/*), zero_width 1 file / 3 strings. L2: injection_marker in 85/85 sampled attacked runs (Gemini baseline 15/15 incl. 1 injecagent); agentdojo.partial_payload@1 on 34 statements (class D, D-371).",
+   "reproduction": "l1-head.json /L1-03; uv run python -I docs/reports/precheck/data/menelaus29-ipi-multidomain/exam-scripts/os2.py  # h14_injection_marker, prov_class_d_by_rule",
+   "hypothesis_ref": "H14; prereg L1-03 note",
+   "recommendation": "Expected (encoding payload families, upstream #214); scope gap under CC-09. Population marker rate (H14) from the round import.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Not refuted. l1-head.json L1-03 counts as stated (escaped_unicode 190 files / 222 strings, escaped_newline 207, mojibake 6, zero_width 1). os2: injection marker 70/70 + 15/15 = 85/85 sampled attacked runs. The 34 class-D assessment aprov.a_label statements are all agentdojo.partial_payload@1 (grep over the j2 PROV bundles: 34 occurrences in 10 executions). R2 S3 correct."
+    }
+   ]
+  },
+  {
+   "id": "PC-menelaus29-ipi-multidomain-06",
+   "title": "Pre-registered context-artefact count 13 vs 11 stored: the profile context globs match 11 blobs at the pin (1 JSON + 10 non-JSON)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-01",
+   "evidence": "L1-01: walked 1,028 = selected 858 + context 11 + not_selected 151 + absent_blob 8 (the 8 PNGs, not selected; absent from the blobless clone). git ls-tree of the profile context globs = 11. L2 raw objects 155 = 144 + 11. Prereg section 2 says 13.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git --git-dir ~/.agentprov/staging/10c/menelaus29/ipi-multidomain-agent-study.git ls-tree -r --name-only ec9c9287 | grep -cE \"<profile context globs>\"  # 11",
+   "hypothesis_ref": "prereg section 2",
+   "recommendation": "Post-check uses 11; note in the prereg owner trail (prereg itself unchanged).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Not refuted. ls-tree of ec9c9287: 1,028 blobs, 8 PNGs; the 9 profile context globs match exactly 11 paths. Prereg section 2 and L1-01 row say 13. L1-10's 10 screened files plus the 1 L1-06 aux file (src/payloads/corpus.json, .json goes to L1-06) = 11, consistent. R4 S3 on our own prereg."
+    }
+   ]
+  },
+  {
+   "id": "PC-menelaus29-ipi-multidomain-07",
+   "title": "H10 per-file timestamp vs adding-commit test not runnable: the staged clone is blobless with history trees absent (lazy fetch disabled)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-07 / H10",
+   "evidence": "git log --diff-filter=A on the staged bare clone fails (promisor object missing, lazy fetch disabled). Range part of H10 holds: /evaluation_timestamp 858/858 naive, 2026-08-04 00:11:39 .. 2026-08-17 13:38:58, 0 parse failures.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git --git-dir ~/.agentprov/staging/10c/menelaus29/ipi-multidomain-agent-study.git log --diff-filter=A --name-only --format=\"C %H\" ec9c9287 | tail -1",
+   "hypothesis_ref": "H10",
+   "recommendation": "Optional follow-up with a history-tree clone (network: needs the orchestrator); not a corpus property.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Not refuted. git log --diff-filter=A fails ('could not fetch ... from promisor remote', lazy fetch disabled); commits are present (80, 2026-07-25 .. 2026-08-22), so only the per-file part is blocked. The evaluation_timestamp range 2026-08-04 .. 2026-08-17 lies inside the commit range. Tool/clone property: R5 analysis-artefact S3, not counted."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

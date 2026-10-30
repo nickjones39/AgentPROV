@@ -1,0 +1,50 @@
+import json, sys, os, tempfile, argparse
+from pathlib import Path
+W = Path.cwd()
+sys.path.insert(0, str(W / "tests" / "adapters" / "dtap"))
+sys.path.insert(0, str(W / "tests"))
+os.environ["AGENTPROV_HOME"] = sys.argv[1] + "/home"
+import dtap_support as s
+from agentprov.adapters.runner.importer import import_source, LocalTree
+from agentprov.corpus.writer import CorpusWriter
+from agentprov.cli.common import CommandResult, Context
+from agentprov.cli.import_ import _per_unit_inputs
+from types import SimpleNamespace
+
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+# 1. CLI resolution with --no-context tasks: notice only, no context tree
+pin = {"role": "tasks", "kind": "git", "repo": "https://github.com/x/t", "commit": "a"*40, "tree": "tasks/"}
+prof = SimpleNamespace(id="p", data={"source": {"pins": [pin]}, "import": {"context_artefacts": ["tasks:tasks/*/*.yaml"]}})
+args = argparse.Namespace(cache_dir=str(tmp/"cache"), allow_network=False, dry_run=False, i_consent_to_large_download=False,
+                          context=[], no_context=["tasks"], allow_hardlinks=False)
+res = CommandResult(dry_run=False)
+ctxs, objs, _ = _per_unit_inputs(args, Context(args), prof, None, SimpleNamespace(walk=lambda: iter(())), None, res)
+print("per_unit contexts:", ctxs, "notices:", res.notices)
+
+# 2. import with what --no-context passes (context_trees=[]), as the CLI's common dict does
+runs_root = s.write_tree(tmp / "runs", s.runs_files())
+with CorpusWriter(tmp / "nc") as corpus:
+    import_source("dtap", LocalTree(runs_root), corpus=corpus, profile_id=s.PROFILE,
+                  pin_check=s.vouch(runs_root, s.RUNS_REPO, s.RUNS_COMMIT), context_trees=[],
+                  pinned_objects=[], in_process=True, until="validation")
+part = tmp / "nc.partial"
+man = json.loads((part / "corpus.json").read_text())
+snaps = man.get("snapshots") or man.get("source", {}).get("snapshots")
+def find_snaps(o):
+    if isinstance(o, dict):
+        if "snapshot_id" in o: yield o
+        for v in o.values(): yield from find_snaps(v)
+    elif isinstance(o, list):
+        for v in o: yield from find_snaps(v)
+for sn in find_snaps(man):
+    print("snapshot keys:", sorted(sn.keys()), "context:", sn.get("context", "<absent>"))
+hits = []
+for dp, _d, fs in os.walk(part):
+    for f in fs:
+        p = Path(dp, f)
+        if p.suffix in (".json", ".jsonl"):
+            b = p.read_bytes()
+            for needle in (b"no-context", b"no_context", b"skipped"):
+                if needle in b: hits.append((str(p.relative_to(part)), needle))
+print("trace of the skip in corpus files:", hits)
+print("register codes:", sorted({json.loads(l).get("code") for l in (part/"register.jsonl").read_text().splitlines()}) if (part/"register.jsonl").exists() else "<no register>")

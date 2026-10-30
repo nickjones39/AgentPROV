@@ -1,0 +1,73 @@
+"""B-1: a marker inside a deflated not_selected zip member escapes sealing and both backstops."""
+import hashlib
+import io
+import tomllib
+import zipfile
+
+import pytest
+
+from agentprov.corpus.withhold import parse_policy, plan_withholding, rescan
+from agentprov.raw.members import MemberRow
+from agentprov.raw.origins import Origin, OriginRow
+
+POLICY = parse_policy(tomllib.loads('''
+[withhold]
+reason = "secret"
+public_note = "planted canary"
+[[withhold.rules]]
+id = "canary"
+marker = "CANARY-"
+scope = "object"
+'''), profile_id="p", profile_version=1, profile_sha256="sha256:" + "0" * 64)
+
+SELECTED = b'{"ok": true}' * 10
+HIDDEN = b'{"API_KEY": "CANARY-' + b"x" * 40 + b'"}'
+
+
+def _corpus(method):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", method) as z:
+        z.writestr("results/run1.json", SELECTED)
+        z.writestr("config/env.json", HIDDEN)  # not selected by the profile
+    data = buf.getvalue()
+    c = hashlib.sha256(data).hexdigest()
+    m = hashlib.sha256(SELECTED).hexdigest()
+    fn = "f" * 64
+    infos = {i.filename: i for i in zipfile.ZipFile(io.BytesIO(data)).infolist()}
+    members = [
+        MemberRow(c, fn, "results/run1.json", infos["results/run1.json"].compress_type,
+                  f"{infos['results/run1.json'].CRC:08x}", len(SELECTED), m, "selected"),
+        MemberRow(c, fn, "config/env.json", infos["config/env.json"].compress_type,
+                  f"{infos['config/env.json'].CRC:08x}", len(HIDDEN), None, "not_selected"),
+    ]
+    origins = [
+        OriginRow(c, Origin("zenodo", {"doi": "10.5281/zenodo.1", "file": "a.zip"})),
+        OriginRow(m, Origin("member", {"container": c, "label": "results/run1.json",
+                                       "method": members[0].method, "crc32": members[0].crc32,
+                                       "size": len(SELECTED)})),
+    ]
+    blobs = {f"raw/objects/{c[:2]}/{c}.zip": data, f"raw/objects/{m[:2]}/{m}.json": SELECTED}
+    present = {c: (f"raw/objects/{c[:2]}/{c}.zip", len(data)), m: (f"raw/objects/{m[:2]}/{m}.json", len(SELECTED))}
+    plan = plan_withholding(rows=[], register=[], members=members, origins=origins, present=present, tombstones=[],
+                            snapshots={}, stream=lambda label: [blobs[label]], derived=lambda r: [],
+                            artefacts=lambda r: [], policy=POLICY)
+    return c, data, plan, blobs
+
+
+def test_control_stored_member_container_is_withheld():
+    c, data, plan, _ = _corpus(zipfile.ZIP_STORED)
+    assert b"CANARY-" in data
+    assert c in plan.objects
+
+
+def test_deflated_not_selected_member_canary_is_not_released():
+    c, data, plan, blobs = _corpus(zipfile.ZIP_DEFLATED)
+    # the canary is in the decoded member, which ships inside the released container
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        assert b"CANARY-" in z.read("config/env.json")
+    assert b"CANARY-" not in data
+    released = [label for label in blobs if label.split("/")[-1].split(".")[0] not in plan.objects]
+    backstop = rescan(released, lambda label: [blobs[label]], POLICY)
+    print(f"plan.empty={plan.empty} container_withheld={c in plan.objects} backstop_hits={backstop}")
+    assert c in plan.objects, "container holding an unscanned deflated member with the canary is released; " \
+                              f"plan.empty={plan.empty}, chain/builder rescan hits={backstop}"

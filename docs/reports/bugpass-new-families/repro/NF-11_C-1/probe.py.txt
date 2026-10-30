@@ -1,0 +1,32 @@
+from agentprov.adapters.agentdojo.redact import parse_redact_rules, redact_value, Redactor
+from agentprov.errors import ProfileError
+ACCT = "zzacct"
+cases = [
+ ("B leaf fallback, no groups", "pipeline_name",
+  {"id":"h","scope":"pipeline_name","pattern":r"^_ceph_ssd_students_[^/]+_qwen3_5(?:-[0-9]+B)?$","leaf":r"[A-Za-z0-9_.-]+","replacement":"home:{span12}/{leaf}"},
+  f"_ceph_ssd_students_{ACCT}_qwen3_5-2B"),
+ ("A1 lookahead", "model_id",
+  {"id":"r","scope":"model_id","pattern":r"(?=/scratch/)","replacement":"scratch:{span12}"},
+  f"/scratch/{ACCT}/models/qwen"),
+ ("A2 lookbehind+lookahead", "model_id",
+  {"id":"r","scope":"model_id","pattern":r"(?<=/scratch/)(?=[^/]+/)","replacement":"{span12}"},
+  f"/scratch/{ACCT}/models/qwen"),
+ ("A3 word boundary", "model_id",
+  {"id":"r","scope":"model_id","pattern":r"\b(?=scratch)","replacement":"X{span12}"},
+  f"/scratch/{ACCT}/models/qwen"),
+ ("C R-10j-1 recommended", "pipeline_name",
+  {"id":"p","scope":"pipeline_name","pattern":r"^_ceph_ssd_students_(?P<span>[^_/]+)_(?P<leaf>qwen3_5(?:-[0-9]+B)?)$","replacement":"_ceph_ssd_students_{span12}_{leaf}"},
+  f"_ceph_ssd_students_{ACCT}_qwen3_5-2B"),
+]
+for name, scope, rule, value in cases:
+    try:
+        rules = parse_redact_rules([rule], "probe")
+    except ProfileError as e:
+        print(name, "REJECTED", e); continue
+    label, rid = redact_value(rules, scope, value, salt="p")
+    print(f"{name}: accepted; rid={rid!r}; account_in_label={ACCT in label}; label={label.replace(ACCT,'<acct>')!r}")
+    if rid:
+        r = Redactor("p", 1, rules, {scope: [value]})
+        rec = {"ext": {"x": value}}
+        done = r.apply(rec, lambda p: "rescont.value_redacted@1")
+        print("   Redactor.apply ->", [(p, i) for p, i in done], "account still in record:", ACCT in repr(rec))

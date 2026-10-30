@@ -1,0 +1,35 @@
+import json, os, sys, tempfile
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "dtap"))
+import dtap_support as support
+from test_import import _object
+from agentprov.adapters.profiles import load_profile
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+os.environ["AGENTPROV_HOME"] = str(tmp / "home")
+os.environ.pop("AGENTPROV_UPSTREAM_CACHE", None)
+runs_pin = dict(next(p for p in load_profile(support.PROFILE).data["source"]["pins"] if p["role"] == "runs"))
+tasks_pin = dict(next(p for p in load_profile(support.PROFILE).data["source"]["pins"] if p["role"] == "tasks"))
+from agentprov.adapters.runner.importer import ContextTree, LocalTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+runs_root = support.write_tree(tmp / "runs", support.runs_files())
+tasks_root = support.write_tree(tmp / "tasks", support.tasks_files())
+ctx = [ContextTree("tasks", LocalTree(tasks_root), support.vouch(tasks_root, support.TASKS_REPO, support.TASKS_COMMIT), pin=tasks_pin)]
+with CorpusWriter(tmp / "src") as w:
+    import_source("dtap", LocalTree(runs_root), corpus=w, profile_id=support.PROFILE, pin_check=support.vouch(runs_root, support.RUNS_REPO, support.RUNS_COMMIT),
+                  context_trees=ctx, pinned_objects=[_object(tmp)], pin=runs_pin, in_process=True, until="aer")
+from agentprov.cli.main import main
+code = main(["recompute", "--corpus", str(tmp / "src.partial"), "--out", str(tmp / "new"), "--no-reuse", "--in-process", "--progress", "off", "--json"])
+print("exit", code)
+def snap(p):
+    m = json.loads((p / "corpus.json").read_text())
+    return m["sources"][0]["snapshots"][0]
+a = snap(tmp / "src.partial")
+cands = [tmp / "new", tmp / "new.partial"]
+b = snap(next(c for c in cands if (c / "corpus.json").exists()))
+print("src ctx", json.dumps(a.get("context"))); print("new ctx", json.dumps(b.get("context")))
+for k in ("context", "pinned_objects", "verification", "origin", "pin", "counts"):
+    if a.get(k) != b.get(k):
+        print("DIFF", k, "\n src:", json.dumps(a.get(k))[:600], "\n new:", json.dumps(b.get(k))[:600])
+    else:
+        print("same", k)

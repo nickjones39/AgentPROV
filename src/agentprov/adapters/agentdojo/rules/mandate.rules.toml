@@ -1,0 +1,69 @@
+# Rule catalogue `mandate` (docs/architecture D.5.1, D.5.4, D.6.4, D.6.6, D.6.15; phase 10).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (the `mandate` namespace is homed in the
+# agentdojo family package, CATALOGUE_HOMES). Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this file is version 1.
+#
+# The source is jwilliamsc/mandate-agentdojo-eval (publisher unverified): an AgentDojo 0.1.35 harness whose
+# `MandateToolsExecutor` replaces the stock tool executor and gates the consequential tools of the banking suite. A
+# declined call is logged as a tool message with `content == error == "MANDATE_DECLINE: ..."` and the tool is not run.
+# Allowed decisions and the gate's inputs are not logged. Code citations point at the one commit of the repository.
+#
+# D.5.4 lists two rules (`decline_prefix`, `allow_inferred`). `model_from_pipeline_name` is added in phase 10: the
+# identity of the profile is read from the logged `pipeline_name`, which no agentdojo rule states (the default identity
+# rule says the model is NOT read from pipeline_name); it is the Mandate counterpart of `survey.model_from_results_dir`.
+
+[catalogue]
+id = "mandate"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = []
+subtypes = []
+types = []
+
+[[rule]]
+id = "mandate.decline_prefix"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool message whose error and content are the same string beginning 'MANDATE_DECLINE:' records a decline by the Mandate gate: MandateToolsExecutor appends exactly such a message (content = [text(reason)], error = reason) and does not execute the tool. The gate is the defence of the pipeline whose name carries the -mandate_<mode> suffix; the tool call it answers was requested by the agent and not run."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval", commit = "fa62a977584962f7b4b24a40772a83345fd920d4", path = "agentdojo_mandate_eval.py", lines = "193-239", note = "MandateToolsExecutor.query: on decline, ChatToolResultMessage(content=[text(reason)], error=reason); continue without running the tool" },
+  { repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval", commit = "fa62a977584962f7b4b24a40772a83345fd920d4", path = "agentdojo_mandate_eval.py", lines = "140-181", note = "gate_decision and mandate_decision: every decline reason begins MANDATE_DECLINE:" },
+]
+evidence = ["sources/mandate-agentdojo-eval.md §3", "verify/mandate-agentdojo-eval.md §3.4, §3.7", "D.6.6 decline row"]
+tests = ["tests/adapters/agentdojo/test_mandate.py::test_a_decline_is_a_defence_decision_and_no_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "mandate.allow_inferred"
+version = 1
+class = "I"
+status = "active"
+statement = "In a -mandate_<mode> pipeline a call of a tool the mode gates (envelope: the three money tools; scoped and intent: those plus update_password and update_user_info) that was executed, i.e. that has no decline, passed the gate. The decision is not logged and neither are its inputs (the user text, the live bank account, cap_floor and cap_factor): the allow is derived from the absence of a decline, and the reason it was allowed is unobservable."
+premises = ["/messages", "/pipeline_name"]
+assumptions = []
+code = [
+  { repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval", commit = "fa62a977584962f7b4b24a40772a83345fd920d4", path = "agentdojo_mandate_eval.py", lines = "184-239", note = "gated = CONSEQUENTIAL_TOOLS for scoped and intent, MONEY_TOOLS otherwise; a call passing the gate runs like the stock executor" },
+  { repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval", commit = "fa62a977584962f7b4b24a40772a83345fd920d4", path = "agentdojo_mandate_eval.py", lines = "53-55", note = "MONEY_TOOLS, ADMIN_TOOLS, CONSEQUENTIAL_TOOLS" },
+]
+evidence = ["verify/mandate-agentdojo-eval.md §3.4", "D.6.6 decline row"]
+tests = ["tests/adapters/agentdojo/test_mandate.py::test_a_gated_call_without_a_decline_is_inferred_allowed"]
+since = "0.1.0"
+
+[[rule]]
+id = "mandate.model_from_pipeline_name"
+version = 1
+class = "I"
+status = "active"
+statement = "The model of a Mandate log is the logged pipeline_name minus the -mandate_<mode> suffix, and the suffix names the defence (mandate_envelope, mandate_scoped or mandate_intent): the harness sets pipe.name to the model id, followed by -mandate_<mode> when a mode is given, and writes it as the run directory. A name without the suffix is the undefended baseline pipeline of the same model id. The name is not a model identity the harness checks."
+premises = ["/pipeline_name"]
+assumptions = []
+code = [
+  { repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval", commit = "fa62a977584962f7b4b24a40772a83345fd920d4", path = "agentdojo_mandate_eval.py", lines = "244-272", note = "build_pipeline: pipe.name = model + '-mandate_' + mode" },
+]
+evidence = ["sources/mandate-agentdojo-eval.md §3", "D.4.4 mandate-agentdojo-eval"]
+tests = ["tests/adapters/agentdojo/test_mandate.py::test_identity_is_read_from_the_pipeline_name"]
+since = "0.1.0"

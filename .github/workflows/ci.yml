@@ -1,0 +1,298 @@
+name: ci
+on:
+  # D-431 as updated by D-462 (2026-10-14): the merge gate is local (tools/ci_local.py, whose core job is the full suite
+  # through tools/suite_queue.py; AGENTS.md §8). GitHub CI is optional and switched by repository variables, with no
+  # code edit:
+  #   CI_ON_PUSH  "true" runs the jobs below on push to main and on pull requests; anything else (the default, unset)
+  #               skips every job on those events, so a push costs no minutes and sends no failure email.
+  #               gh variable set CI_ON_PUSH --body true    (or --body false; gh variable delete CI_ON_PUSH)
+  #   CI_RUNNER   a self-hosted runner label (e.g. the Mac Studio's, once one is registered; none is set up now).
+  #               Every job then runs there, except the Windows leg of `core`, which stays GitHub-hosted.
+  #               gh variable set CI_RUNNER --body <label>    (gh variable delete CI_RUNNER for GitHub-hosted)
+  # Dispatch (`gh workflow run ci.yml --ref main`) always runs every job, at the K.19.1 points.
+  # No schedule (user decision 2026-10-11, D-22): backend-autodojo, old-vs-new and fuzz-thorough run only by manual
+  # dispatch, at the points listed in AGENTS.md §8 "Manual CI runs" (before a release tag, a corpus deposit or a thesis
+  # submission). tests/repo/test_repository_hygiene.py checks that every job carries one of the two gates below.
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  # AgentPROV is OS- and architecture-agnostic: Linux, macOS and Windows on x86_64 and arm64. Host-dependent
+  # behaviour (worker isolation) is chosen by probed capabilities (src/agentprov/host.py), so every leg runs the
+  # same tests; the capabilities each host probed are printed by the "Host profile" step.
+  core:
+    name: core (${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }})
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    # With CI_RUNNER set, the matrix is the self-hosted runner plus the GitHub-hosted Windows leg (running the three
+    # other legs on one self-hosted machine would test the same host three times).
+    runs-on: ${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(vars.CI_RUNNER && '["self-hosted", "windows-latest"]' || '["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]') }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Python 3.14 (latest patch)
+        run: uv python install 3.14
+      - name: Every lockfile is current
+        run: |
+          for p in . capture backends/shared backends/agentdojo backends/autodojo backends/agentdyn backends/inspect/envs/agentharm gui; do
+            (cd "$p" && uv lock --check)
+          done
+      - name: Sync (locked)
+        run: uv sync --locked
+      - name: Interpreter at or above the 3.14.8 release-mode floor (AD-16; DoD Q.15a)
+        run: uv run python -c "import sys; print(sys.version); assert sys.version_info >= (3, 14, 8)"
+      - name: Backend and benchmark packages are absent from the core environment
+        run: >-
+          uv run python -c "import importlib.util as u,sys;
+          bad=[m for m in ('agentdojo','agentprov_backend','openai','httpx','inspect_ai') if u.find_spec(m)];
+          print('present:',bad); sys.exit(bool(bad))"
+      - name: Host profile (probed capabilities)
+        run: >-
+          uv run python -c "import json; from agentprov.host import detect_host;
+          print(json.dumps(detect_host().to_record(), indent=1))"
+      - name: Unicode control-character check
+        run: uv run python tools/check_unicode.py
+      - name: Lint
+        run: uv run ruff check .
+      - name: Tests
+        run: uv run pytest -m "not network and not backend_agentdojo and not backend_autodojo and not full_corpus"
+  # capture/ on 3.14 runs through the core workspace (whose requires-python is >=3.14); on 3.12 it runs inside the
+  # backend-shared job, whose environment installs agentprov-capture by path.
+  capture:
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Sync (locked, core workspace)
+        run: uv sync --locked
+      - name: Tests (Python 3.14)
+        run: uv run pytest capture/tests
+  backend-shared:
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      # The runner context is not available in job-level env, so the environment path is exported here; it
+      # keeps the backend env outside the checkout (AD-01(c)).
+      - name: Backend environment outside the checkout
+        run: echo "UV_PROJECT_ENVIRONMENT=$RUNNER_TEMP/envs/shared" >> "$GITHUB_ENV"
+      - name: Sync (locked, Python 3.12)
+        run: uv sync --locked --python 3.12 --project backends/shared
+      - name: Tests (backend-shared and capture, Python 3.12)
+        run: uv run --no-sync --project backends/shared pytest backends/shared/tests capture/tests
+  backend-agentdojo:
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      # The harness tests run cells, and a cell needs the lock digest of the environment it runs in
+      # (agentprov_backend.identity.lock_digest): the AGENTPROV_ENV.json marker of `agentprov backends build`, or the
+      # uv.lock beside an in-project .venv. This job tests the backend project on its own, so it uses the in-project
+      # layout (backends/agentdojo/.venv, gitignored, in this throwaway checkout); live-run covers the built layout.
+      # No --no-config: it would also drop [tool.uv] (exclude-newer, no-build-package), so the lock would
+      # be reported stale and the wheels-only rule lost.
+      - name: Sync (locked, Python 3.12)
+        run: uv sync --locked --python 3.12 --project backends/agentdojo
+      - name: agentdojo is 0.1.35
+        run: uv run --no-sync --project backends/agentdojo python -c "import importlib.metadata as m; assert m.version('agentdojo') == '0.1.35'"
+      - name: Tests
+        run: uv run --no-sync --project backends/agentdojo pytest backends/agentdojo/tests -m "backend_agentdojo and not old_package"
+  # Gate C (J.3.4; K.19 old-vs-new), manual dispatch only (AGENTS.md §8): the frozen baseline package against AgentPROV. C2
+  # (on the golden graphs), C5 and C6 run here (D-209); C3 gets its step when its new side lands (D-214). The baseline
+  # environment is built as J.1.6 says (hash-locked dependencies, a reproducible wheel from 579a908, never editable)
+  # from a checkout of the public baseline repository at the pinned commit; no secret is used.
+  old-vs-new:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: nickjones39/agentdojo-prov
+          ref: 579a908354b93361efe0905ffb7623256aa96a06
+          path: baseline-src
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Paths outside the checkout
+        run: |
+          echo "AGENTPROV_HOME=$RUNNER_TEMP/agentprov-home" >> "$GITHUB_ENV"
+          echo "AGENTPROV_C6_WORK=$RUNNER_TEMP/c6" >> "$GITHUB_ENV"
+          echo "AGENTPROV_GATE_WORK=$RUNNER_TEMP/gates" >> "$GITHUB_ENV"
+      - name: Baseline environment (J.1.6; CPython 3.12.14, --require-hashes)
+        run: |
+          uv python install 3.12.14
+          python_path=$(uv run --no-project --python 3.12 python tools/migration/build_baseline_env.py --baseline-repo baseline-src | tail -n 1)
+          echo "AGENTPROV_BASELINE_PYTHON=$python_path" >> "$GITHUB_ENV"
+      - name: Backend environment (locked, Python 3.12)
+        run: uv sync --locked --python 3.12 --project backends/agentdojo
+      - name: C6 producer (both sides' outputs)
+        run: uv run --no-sync --project backends/agentdojo pytest backends/agentdojo/tests/test_c6_old_vs_new.py -m old_package
+      - name: Core environment (locked, Python 3.14)
+        run: |
+          uv python install 3.14
+          env -u UV_PROJECT_ENVIRONMENT uv sync --locked --extra shacl
+      - name: C6 comparer
+        run: env -u UV_PROJECT_ENVIRONMENT uv run --no-sync pytest tests/migration/test_c6_old_vs_new.py -m old_package
+      - name: C6 summary
+        if: always()
+        run: cat "$AGENTPROV_C6_WORK/c6-summary.json" || true
+      # C2: the baseline validators against the compat port and the generic tier-4 checks, on the golden graphs and their
+      # mutations (the baseline corpora are not in the public repository; the full J.3.4 sample runs locally).
+      - name: C2 (validators, golden scope)
+        run: >-
+          env -u UV_PROJECT_ENVIRONMENT uv run --no-sync python tools/migration/gate_c2.py --scope golden
+          --work "$AGENTPROV_GATE_WORK/c2" --report "$AGENTPROV_GATE_WORK/C2.json"
+      # C5: the baseline converter against the native importer on the golden June-2024 logs and the head fixtures.
+      - name: C5 (converter)
+        run: >-
+          env -u UV_PROJECT_ENVIRONMENT uv run --no-sync python tools/migration/gate_c5.py
+          --work "$AGENTPROV_GATE_WORK/c5" --report "$AGENTPROV_GATE_WORK/C5.json"
+      - name: C2/C5 reports
+        if: always()
+        run: cat "$AGENTPROV_GATE_WORK/C2.json" "$AGENTPROV_GATE_WORK/C5.json" || true
+      # C3 (scoring with agentdojo.scoring@1): its step lands with the new side (regen-batch item 19; D-214).
+  # Phase 8 (N.2.1b; K.8.5, K.12.16; DoD Q.4): the parent side of live runs with the real backend environment.
+  # `agentprov backends build agentdojo --allow-network` is the only step that downloads packages; the scripted runs
+  # that follow use no network and no key (AGENTPROV_BLOCK_NETWORK in the worker). The staging directories kept by
+  # --keep-staging feed the core live_artefacts tests (AGENTPROV_LIVE_ARTEFACTS).
+  live-run:
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Sync (locked, core)
+        run: uv sync --locked
+      - name: Live home outside the checkout
+        run: echo "AGENTPROV_HOME=$RUNNER_TEMP/agentprov-home" >> "$GITHUB_ENV"
+      - name: Build the AgentDojo backend environment (uv sync --locked --no-config)
+        run: uv run agentprov backends build agentdojo --allow-network
+      - name: Verify the build offline
+        run: uv run agentprov backends build agentdojo --offline-check
+      - name: Scripted live run (no network, no key)
+        run: >-
+          uv run agentprov run agentdojo --corpus "$RUNNER_TEMP/live-corpus" --campaign ci --suite banking
+          --user-tasks user_task_1 --attack important_instructions --injection-tasks injection_task_0
+          --model-display-name "Scripted Model" --llm-script tests/fixtures/capture/benign_banking_single_pass/script.json
+          --keep-staging --progress steps --progress-format plain
+      - name: Core mapping of the produced sessions (live_artefacts)
+        run: uv run pytest tests/integration/test_live_mapping.py tests/differential
+        env:
+          AGENTPROV_LIVE_ARTEFACTS: ${{ runner.temp }}/agentprov-home/staging
+      - name: End-to-end and T0 tests (backend_agentdojo)
+        run: uv run pytest tests/integration/test_run_live_agentdojo.py tests/integration/test_run_spawn.py tests/cli/test_backends_cmd.py
+        env:
+          AGENTPROV_TEST_BUILD_NETWORK: "1"
+  # Manual dispatch only (D.11.5; DoD row 9; AGENTS.md §8). Two halves:
+  # 1. the product build: `agentprov backends build autodojo --allow-network` into $AGENTPROV_HOME outside the checkout
+  #    (the only step that downloads: the pinned fork from git and the locked wheels), `--offline-check`, and the core
+  #    build test (PEP 610 pin, marker, nltk_sha256, sandbox probe status recorded; not_applicable on Linux);
+  # 2. the harness tests, offline under the socket guard with no key variable. They need the dev group (pytest), which
+  #    the product build leaves out, and a cell needs the lock digest (agentprov_backend.identity.lock_digest): the
+  #    AGENTPROV_ENV.json marker or a uv.lock beside an in-project .venv. As backend-agentdojo, this job uses the
+  #    in-project layout (backends/autodojo/.venv, gitignored, in this throwaway checkout) -- no UV_PROJECT_ENVIRONMENT.
+  # No --no-config for (2): it would drop [tool.uv] exclude-newer and report the lock stale.
+  backend-autodojo:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Sync (locked, core)
+        run: uv sync --locked
+      - name: Live home outside the checkout
+        run: echo "AGENTPROV_HOME=$RUNNER_TEMP/agentprov-home" >> "$GITHUB_ENV"
+      - name: Build the AutoDojo backend environment (uv sync --locked --no-config; fork pinned at aa458794)
+        run: uv run agentprov backends build autodojo --allow-network
+      - name: Verify the build offline
+        run: uv run agentprov backends build autodojo --offline-check
+      - name: Core build test (backend_autodojo)
+        run: uv run pytest tests/integration/test_backends_build_autodojo.py tests/cli/test_backends_cmd.py
+      # Phase 9b: `agentprov run autodojo` end to end with the real worker and the scripted transport (no model, no key):
+      # the verified cache, a forced kill, the refusals, AgentDyn and v2 suites, live recompute (D.11.3, D.11.7, D.11.9).
+      # The test builds its own environment into a temporary home; on a runner without the uv cache it needs the network.
+      - name: End-to-end scripted runs (backend_autodojo)
+        run: uv run pytest tests/integration/test_run_live_autodojo.py
+        env:
+          AGENTPROV_TEST_BUILD_NETWORK: "1"
+      - name: Harness environment (locked, Python 3.12, in-project)
+        run: uv sync --locked --python 3.12 --project backends/autodojo
+      - name: Harness tests (offline, socket guard, scripted model)
+        run: uv run --no-sync --project backends/autodojo pytest backends/autodojo/tests -m backend_autodojo
+      - name: Fixtures are current (stable projection, RPR-10)
+        run: uv run --no-sync --project backends/autodojo python backends/autodojo/tools/make_capture_fixtures.py --check
+  secrets:
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # The spec's `supply-chain` job (G.10 SEC-23, K.14; DoD Q.17): osv-scanner over every lockfile (`uv lock --check` on
+  # all five projects runs in `core`). One scanner only (AD-10 row 19).
+  dependencies:
+    if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+        with:
+          scan-args: |-
+            --lockfile=uv.lock
+            --lockfile=backends/shared/uv.lock
+            --lockfile=backends/agentdojo/uv.lock
+            --lockfile=backends/autodojo/uv.lock
+            --lockfile=backends/agentdyn/uv.lock
+            --lockfile=backends/inspect/envs/agentharm/uv.lock
+            --lockfile=gui/uv.lock
+  # K.11.1 `thorough` fuzz profile (x20 examples; `slow`), manual dispatch only: there is no schedule (D-22). The `ci`
+  # budgets of the same suites run in `core` (on dispatch, or on push and pull requests when CI_ON_PUSH is "true").
+  fuzz-thorough:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: ">=0.12.22"
+      - name: Python 3.14 (latest patch)
+        run: uv python install 3.14
+      - name: Sync (locked)
+        run: uv sync --locked
+      - name: Fuzz suites, thorough budgets
+        env:
+          AGENTPROV_FUZZ: thorough
+        run: >-
+          uv run pytest tests/fuzz tests/security/test_ingest_fuzz.py tests/adapters/foobench/test_fuzz.py
+          tests/adapters/agentdojo/test_reader.py tests/property

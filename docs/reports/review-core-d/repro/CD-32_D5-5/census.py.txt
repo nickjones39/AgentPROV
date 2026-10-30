@@ -1,0 +1,26 @@
+import sys
+from pathlib import Path
+from collections import Counter
+from agentprov.ingest import yamlsafe
+from agentprov.adapters.dtap.join import allowlisted, attack_steps
+root = Path(sys.argv[1])
+need = {"environment": ("injection_mcp_tool", "kwargs"), "tool": ("injected_tool", "content"),
+        "skill": ("skill_name", "content"), "prompt": ("mode", "content")}
+c = Counter(); bad = Counter(); ex = {}
+for p in sorted(root.glob("*/malicious/*/*/*/config.yaml")):
+    if p.is_symlink(): continue
+    try:
+        doc = yamlsafe.safe_load(p.read_bytes())
+    except Exception:
+        c["unparseable"] += 1; continue
+    cfg, _ = allowlisted(doc)
+    if cfg is None: continue
+    split = p.parts[-4]
+    for t, i, st in attack_steps(cfg):
+        k = st.get("type"); c[(split, k)] += 1
+        if k not in need:
+            bad[(split, "type", repr(k))] += 1; ex.setdefault((split, "type"), str(p.relative_to(root))); continue
+        vf, cf = need[k]
+        if not isinstance(st.get(vf), str): bad[(split, k, vf)] += 1; ex.setdefault((split, k, vf), str(p.relative_to(root)))
+        if cf not in st: bad[(split, k, cf)] += 1; ex.setdefault((split, k, cf), str(p.relative_to(root)))
+print(sorted(c.items(), key=str)); print("BAD", sorted(bad.items(), key=str)); print("EX", ex)

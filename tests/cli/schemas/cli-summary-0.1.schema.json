@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:agentprov:test:cli-summary-0.1",
+  "title": "agentprov-cli-summary/0.1 (test asset; MN N.1.4(2); not a published schema)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "command",
+    "agentprov_version",
+    "exit_code",
+    "outcome",
+    "dry_run",
+    "corpus",
+    "counters",
+    "issues_by_code",
+    "failures",
+    "failures_truncated",
+    "refusal",
+    "notices",
+    "options"
+  ],
+  "properties": {
+    "format": { "const": "agentprov-cli-summary/0.1" },
+    "command": { "type": "string", "minLength": 1 },
+    "agentprov_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+" },
+    "exit_code": { "enum": [0, 1, 2, 3, 4, 5, 70, 130] },
+    "outcome": {
+      "enum": ["ok", "failures", "usage", "environment", "refused", "unsupported", "internal", "interrupted"]
+    },
+    "dry_run": { "type": "boolean" },
+    "corpus": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["corpus_id", "root", "state", "content_digest"],
+          "properties": {
+            "corpus_id": { "type": "string" },
+            "root": { "type": "string" },
+            "state": { "enum": ["working", "sealed"] },
+            "content_digest": { "oneOf": [{ "type": "null" }, { "type": "string" }] }
+          }
+        }
+      ]
+    },
+    "counters": {
+      "type": "object",
+      "additionalProperties": { "type": "integer" }
+    },
+    "issues_by_code": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject", "stage", "code", "detail"],
+        "properties": {
+          "subject": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 1,
+            "properties": {
+              "ex": { "type": "string" },
+              "cell": { "type": "string" },
+              "source_key": { "type": "string" },
+              "path": { "type": "string" }
+            },
+            "additionalProperties": false
+          },
+          "stage": { "type": "string" },
+          "code": { "type": "string", "pattern": "^[a-z0-9_]+(\\.[a-z0-9_]+)+$" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "failures_truncated": { "type": "boolean" },
+    "refusal": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "mode", "status", "lines"],
+          "properties": {
+            "id": { "type": "string" },
+            "mode": { "type": "string" },
+            "status": { "type": "string" },
+            "lines": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
+    },
+    "notices": { "type": "array", "items": { "type": "string" } },
+    "options": { "type": "object" }
+  }
+}

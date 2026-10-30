@@ -1,0 +1,366 @@
+# Artefact catalogue of the `inspect` family (docs/architecture D.15.2, D.15.6; DECISIONS D-12).
+#
+# Data, not code: read by the shared layer agentprov.artefacts. Any byte change bumps `version`. Counts are per pinned
+# snapshot and are regression expectations, never gates that hide data; they come from the full-snapshot import of
+# 2026-10-08 (tests/full_corpus/test_inspect_survey.py; D.9.5). Descriptions hold no source content.
+#
+# The corpus pre-check, wave 1 (docs/reports/precheck/ast-survey-agentharm.md, 2026-10-15; D-581, D-582, regeneration-
+# batch item 109) added the last three entries. Version stays 1: D-31 owner ruling 2026-10-21, in place, no corpus records
+# the artefact catalogue (its bytes enter only the family's adapter_code_sha256, a code digest).
+
+version = 1
+family = "inspect"
+namespaces = ["inspect"]
+
+[[artefact]]
+id = "inspect.art.sample_limit"
+title = "Samples stopped at a message limit"
+description = "The sample hit its message limit (sample_limit event); the run ends with status limit and later work is absent from the log."
+scope = { sources = ["agent-security-tools-survey", "fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"], parts = ["agentharm", "logs", "final-runs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["survey-agentharm", "fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.sample_limit@1", class = "D" }
+recorded_as = { issues = ["inspect.sample_limit"] }
+handling = { class = "CR", rule = "inspect.sample_limit@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 54, basis = "sample_limit events: coder_benign 9, gptoss_benign 33, qwen14_benign 6, qwen14_harmful 6" },
+]
+manuscript = true
+refs = ["sources/agent-security-tools-survey.md §5.2", "docs/architecture/D_adapters.md §D.9.3"]
+
+[[artefact]]
+id = "inspect.art.tool_result_lost_at_limit"
+title = "Tool executions whose result message never entered the log"
+description = "After the message limit was reached, tool events still ran but their result messages (named by message_id) were not appended to the sample; the execution is kept without a result."
+scope = { sources = ["agent-security-tools-survey", "fragfuse-agentharm", "kexin-xu-01-agentharm"], parts = ["agentharm", "logs"], profiles = ["survey-agentharm", "fragfuse-agentharm", "kexin-xu-01-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.tool_event_is_execution@1", class = "D" }
+recorded_as = { issues = ["dangling_source_ref", "missing_tool_result"] }
+handling = { class = "NR", rule = "inspect.tool_event_is_execution@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 16, basis = "tool events with a dangling message_id (also dangling_source_ref): coder_benign 4, qwen14_benign 12" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md §D.9.5"]
+
+[[artefact]]
+id = "inspect.art.judge_same_model_as_agent"
+title = "Judge model equals the agent model"
+description = "qwen3:14b is both the agent and the judge in the qwen14 logs; judge calls are told apart by their scorer spans, never by model id."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "benchmark"
+detector = { rule = "inspect.span_is_scope@1", class = "D" }
+# recorded as: model_call.role auxiliary, actor kind judge (a representation, not an issue, note or SEM type)
+recorded_as = {}
+handling = { class = "CR", rule = "inspect.span_is_scope@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 2, basis = "logs (qwen14_benign, qwen14_harmful)" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md §D.4.4"]
+
+[[artefact]]
+id = "inspect.art.event_order_not_time_order"
+title = "Event list order is not occurrence order"
+description = "Tool events precede the begin of their own tool span in the list and working_start is not monotonic; order is taken from references and timestamps only."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.no_order_from_event_list@1", class = "D" }
+# recorded as: after edges with basis causal, time and proto only (a representation, not an issue, note or SEM type)
+recorded_as = {}
+handling = { class = "CR", rule = "inspect.no_order_from_event_list@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 1056, basis = "samples (the list-order quirk is observed on inspected samples; not counted per event)" },
+]
+manuscript = false
+refs = ["landscape/trace_formats.md §3.2"]
+
+[[artefact]]
+id = "inspect.art.tool_span_separate_from_tool_event"
+title = "Tool spans that their tool event does not reference"
+description = "Every tool event has a sibling span of type tool that holds no event; it is kept as an empty inspect.span scope."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.span_is_scope@1", class = "D" }
+# recorded as: scope kind other, subtype inspect.span (a representation, not an issue, note or SEM type)
+recorded_as = {}
+handling = { class = "CR", rule = "inspect.span_is_scope@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 4164, basis = "spans of type tool" },
+]
+manuscript = false
+refs = ["landscape/trace_formats.md §3.2"]
+
+[[artefact]]
+id = "inspect.art.message_list_not_creation_order"
+title = "TaskState message position is not creation order"
+description = "Solvers insert messages (the system prompt is inserted before the input after the input exists), so no position (pos) edge is emitted between messages."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.no_order_from_event_list@1", class = "D" }
+# recorded as: absence of pos edges (a representation, not an issue, note or SEM type)
+recorded_as = {}
+handling = { class = "CR", rule = "inspect.no_order_from_event_list@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 1056, basis = "samples (all run the system-prompt solver; the insertion is observed on inspected samples, not counted per sample)" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md §D.9.5"]
+
+[[artefact]]
+id = "inspect.art.empty_assistant_text"
+title = "Empty assistant text is ambiguous"
+description = "The OpenAI-compatible path records a provider null content as an empty string; empty assistant texts are kept and declared ambiguous."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.message_content_parts@1", class = "D" }
+# recorded as: unk ambiguous on /parts/<k>/text (a representation, not an issue, note or SEM type)
+recorded_as = {}
+handling = { class = "NR", rule = "inspect.message_content_parts@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 2345, basis = "agent assistant messages with an empty text part: coder_benign 417, coder_harmful 221, gptoss_benign 820, gptoss_harmful 104, qwen14_benign 426, qwen14_harmful 357" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md §D.9.5"]
+
+[[artefact]]
+id = "inspect.art.abbreviated_revision"
+title = "Benchmark code commit is abbreviated"
+description = "eval.revision.commit holds 7 hex digits, which do not identify a commit; it is kept verbatim and the bench actor's code commit is declared ambiguous."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.header_applies_to_samples@1", class = "D" }
+# recorded as: unk ambiguous on bench /code/commit; ext.inspect.revision (a representation, not an issue, note or SEM type)
+recorded_as = {}
+handling = { class = "NR", rule = "inspect.header_applies_to_samples@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 6, basis = "logs" },
+]
+manuscript = false
+refs = ["sources/agent-security-tools-survey.md §5.2"]
+
+[[artefact]]
+id = "inspect.art.condensed_references"
+title = "Inputs and long strings stored by reference"
+description = "Model inputs are input_refs ranges into events_data.messages and long strings are attachment:// references; both are resolved, and a dangling reference is declared unknown, never re-grounded."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.model_event_is_call@1", class = "D" }
+recorded_as = { issues = ["dangling_source_ref"] }
+handling = { class = "CR", rule = "inspect.model_event_is_call@1" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 0, basis = "dangling input_refs or attachment references (the 16 dangling_source_ref issues are tool message_ids)" },
+]
+manuscript = false
+refs = ["landscape/trace_formats.md §3.2"]
+
+[[artefact]]
+id = "inspect.art.bundled_file_not_found"
+title = "Bundled-content file tools fail with file not found"
+description = "AgentHarm's read_file and convert_pdf_to_text (benign_tools and harmful_tools alike) resolve bundled files relative to the process working directory. The survey ran the benchmark from the inspect_evals checkout root (inferred), so every call naming a bundled file failed: read_file with error type file_not_found, convert_pdf_to_text with a file-not-found result text (no structured error, counted by the pre-check scan). The scores of the affected samples rest on a broken tool environment (inspect_evals #2439, which names the benign tools only). All samples are kept."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.tool_error_status@1", class = "D" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 63, basis = "pre-check PC-ast-survey-agentharm-01: samples with at least one harness-failed call (coder_benign 13, coder_harmful 9, gptoss_benign 15, gptoss_harmful 2, qwen14_benign 12, qwen14_harmful 12; benign 40, harmful 23)", unit = "samples", status = "verified" },
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 84, basis = "pre-check PC-ast-survey-agentharm-01: read_file calls on allowlisted bundled files, all failed (93 read_file calls in all; 7 invalid names, 2 directories)", unit = "calls", status = "verified" },
+  { snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 62, basis = "pre-check PC-ast-survey-agentharm-01: convert_pdf_to_text calls with the file-not-found result (of 63; 1 unmatched path)", unit = "calls", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/precheck/ast-survey-agentharm.md PC-ast-survey-agentharm-01", "https://github.com/UKGovernmentBEIS/inspect_evals/issues/2439", "https://github.com/UKGovernmentBEIS/inspect_evals/pull/2455"]
+
+[[artefact]]
+id = "inspect.art.abnormal_finish_max_tokens"
+title = "Model turn stopped at max_tokens"
+description = "The provider reports the finish reason max_tokens: the turn is truncated. The truncated output is kept as recorded and nothing is completed."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentharm"], profiles = ["survey-agentharm"] }
+cause = "provider"
+detector = { rule = "artefact.generic.abnormal_finish", class = "O" }
+claims = ["artefact.generic.abnormal_finish#max_tokens"]
+recorded_as = {}
+handling = { class = "FO" }
+expected = [{ snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 23, basis = "examination 2 (docs/reports/analysis/phase10-examination-2.md section 10.2, A02); pre-check PC-ast-survey-agentharm-02", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/analysis/phase10-examination-2.md section 10.2", "docs/reports/precheck/ast-survey-agentharm.md PC-ast-survey-agentharm-02"]
+
+[[artefact]]
+id = "inspect.art.text_tool_call"
+title = "Tool call written as text"
+description = "An assistant message carries a tool-call marker in its text and no structured call, so no tool ran. Heuristic (the generic detector's marker variant); re-parsing the text into a call is forbidden (D.15.1)."
+scope = { sources = ["agent-security-tools-survey", "kexin-xu-01-agentharm"], parts = ["agentharm", "logs"], profiles = ["survey-agentharm", "kexin-xu-01-agentharm"] }
+cause = "provider"
+detector = { rule = "artefact.generic.text_encoded_call", class = "I" }
+claims = ["artefact.generic.text_encoded_call#marker"]
+recorded_as = {}
+handling = { class = "FO" }
+expected = [{ snapshot = "git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3", count = 12, basis = "examination 2 safety-net run (section 10.2); pre-check PC-ast-survey-agentharm-02", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/analysis/phase10-examination-2.md section 10.2", "docs/reports/precheck/ast-survey-agentharm.md PC-ast-survey-agentharm-02"]
+
+# ---------------------------------------------------------------------------------------------- wave 2 (D-950)
+# The artefact-scope pass of 2026-10-29 over the wave-2 working trees (docs/reports/wave-2-artefacts/README.md): three
+# entries above gained the wave-2 Inspect profiles whose hits cite the same rule (the missing and dangling results of
+# fragfuse and kexin all lie in sample-limit executions). inspect.art.abnormal_finish_max_tokens keeps its scope: its
+# generic detector would claim every stop reason, so inspect.art.abnormal_finish_reported covers max_tokens for wave 2.
+# The entries below are new; each cites the mapper rule that raises its finding. Counts are the wave-2 census, `unverified` until the sealed import confirms them.
+
+[[artefact]]
+id = "inspect.art.times_not_recorded"
+title = "Times the log does not record, or records contradictorily"
+description = "A sample without started_at or completed_at leaves its run scope's start or end not recorded; a model event without a completion time leaves the call's end not recorded; a tool-output truncation decision carries no time. In whistlebench some records at one local offset have a start later than their end: both stay verbatim in t.raw, declared ambiguous, and take no part in time edges. No time is filled."
+scope = { sources = ["atia-benchmark", "fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"], parts = ["logs", "final-runs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["atia-benchmark", "fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"] }
+cause = "upstream_harness"
+detector = { rule = "artefact.generic.sentinel_time", class = "O" }
+claims = ["artefact.generic.sentinel_time"]
+recorded_as = {}
+handling = { class = "NR" }
+expected = [
+  { snapshot = "atia-benchmark:logs", count = 123, basis = "wave-2 census (D-950): every run scope" },
+  { snapshot = "fragfuse-agentharm:logs", count = 19, basis = "wave-2 census (D-950)" },
+  { snapshot = "kexin-xu-01-agentharm:logs", count = 25, basis = "wave-2 census (D-950)" },
+  { snapshot = "whistlebench:final-runs", count = 9200, basis = "wave-2 census (D-950): every run scope not recorded" },
+  { snapshot = "whistlebench:final-runs", count = 40, basis = "wave-2 census (D-950): executions with contradictory start and end (ambiguous)" },
+  { snapshot = "controlarena-persistent", count = 1343, basis = "wave-2 census (D-950), all parts" },
+]
+manuscript = false
+refs = ["D.9.3", "C.7.2", "C.8.6", "regeneration-batch item 82"]
+
+[[artefact]]
+id = "inspect.art.abnormal_finish_reported"
+title = "Truncated, filtered, context-length and unknown stop reasons"
+description = "The model event's stop reason is max_tokens (the output was cut at the token limit), content_filter (the provider filtered the output), model_length (the context window was exhausted) or unknown (Inspect could not map the provider's reason). The output is kept as recorded; nothing is completed."
+scope = { sources = ["fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"], parts = ["logs", "final-runs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"] }
+cause = "provider"
+detector = { rule = "artefact.generic.abnormal_finish", class = "O" }
+claims = ["artefact.generic.abnormal_finish#max_tokens", "artefact.generic.abnormal_finish#content_filter", "artefact.generic.abnormal_finish#model_length", "artefact.generic.abnormal_finish#unknown"]
+recorded_as = {}
+handling = { class = "FO" }
+expected = [
+  { snapshot = "fragfuse-agentharm:logs", count = 9, basis = "wave-2 census (D-950): max_tokens" },
+  { snapshot = "kexin-xu-01-agentharm:logs", count = 22, basis = "wave-2 census (D-950): max_tokens" },
+  { snapshot = "kexin-xu-01-agentharm:logs", count = 50, basis = "wave-2 census (D-950): content_filter" },
+  { snapshot = "whistlebench:final-runs", count = 104, basis = "wave-2 census (D-950): content_filter" },
+  { snapshot = "whistlebench:final-runs", count = 19, basis = "wave-2 census (D-950): unknown" },
+  { snapshot = "controlarena-persistent", count = 2, basis = "wave-2 census (D-950): max_tokens" },
+  { snapshot = "controlarena-persistent", count = 193, basis = "wave-2 census (D-950): model_length" },
+]
+manuscript = false
+refs = ["D.9.3"]
+
+[[artefact]]
+id = "inspect.art.event_kept_in_ext"
+title = "Events with no AER kind kept in ext"
+description = "Events that no aer/0.1 kind represents (info, logger, checkpoint, step, subtask, input, interrupt, error and others) are kept, attachments resolved, in ext.inspect.events of their nearest host record; the info issue inspect.unmapped_event marks them. An error event also ends the run with status error."
+scope = { sources = ["atia-benchmark", "fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"], parts = ["logs", "final-runs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["atia-benchmark", "fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.event_kept_in_ext@1", class = "D" }
+recorded_as = { issues = ["inspect.unmapped_event"], notes = ["ext:inspect.events"] }
+handling = { class = "CR", rule = "inspect.event_kept_in_ext@1" }
+expected = [
+  { snapshot = "atia-benchmark:logs", count = 2, basis = "wave-2 census (D-950)" },
+  { snapshot = "fragfuse-agentharm:logs", count = 24, basis = "wave-2 census (D-950)" },
+  { snapshot = "kexin-xu-01-agentharm:logs", count = 83, basis = "wave-2 census (D-950)" },
+  { snapshot = "whistlebench:final-runs", count = 113, basis = "wave-2 census (D-950)" },
+  { snapshot = "controlarena-persistent", count = 2225, basis = "wave-2 census (D-950): mostly logger events (pre-check A2)" },
+]
+manuscript = false
+refs = ["D.9.3", "docs/reports/precheck/controlarena-persistent.md A2"]
+
+[[artefact]]
+id = "inspect.art.content_not_inlined"
+title = "Strings over 1 MiB not inlined"
+description = "A string whose UTF-8 encoding exceeds 1 MiB (for example a base64 media attachment) is replaced in the AER by its digest, size and media type; the string stays in the raw artefact the record's locator names."
+scope = { sources = ["atia-benchmark", "controlarena-persistent"], parts = ["logs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["atia-benchmark", "controlarena-persistent"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.content_not_inlined@1", class = "D" }
+recorded_as = { issues = ["inspect.content_not_inlined"] }
+handling = { class = "CR", rule = "inspect.content_not_inlined@1" }
+expected = [
+  { snapshot = "atia-benchmark:logs", count = 24, basis = "wave-2 census (D-950): multimodal attachments" },
+  { snapshot = "controlarena-persistent", count = 22, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["C.2.1 item 6", "regeneration-batch item 28", "DECISIONS D-308"]
+
+[[artefact]]
+id = "inspect.art.value_redacted"
+title = "Workstation account paths redacted (Inspect)"
+description = "A value that holds a workstation account path (a model id or a harness-written field such as an error traceback or sample metadata) is replaced by its profile's redaction label (D-182, D-604); the raw bytes are unchanged and withheld at object scope where they name the account."
+scope = { sources = ["fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"], parts = ["logs", "final-runs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["fragfuse-agentharm", "kexin-xu-01-agentharm", "whistlebench", "controlarena-persistent"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.value_redacted@1", class = "D" }
+recorded_as = { issues = ["inspect.value_redacted"] }
+handling = { class = "CR", rule = "inspect.value_redacted@1" }
+expected = [
+  { snapshot = "fragfuse-agentharm:logs", count = 25, basis = "wave-2 census (D-950)" },
+  { snapshot = "kexin-xu-01-agentharm:logs", count = 792, basis = "wave-2 census (D-950)" },
+  { snapshot = "whistlebench:final-runs", count = 1660, basis = "wave-2 census (D-950)" },
+  { snapshot = "controlarena-persistent", count = 106, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["DECISIONS D-182, D-601, D-604", "docs/reports/phase10h/redaction-design.md"]
+
+[[artefact]]
+id = "inspect.art.submit_result_removed"
+title = "react removes the submit tool's result messages"
+description = "With AgentSubmit.keep_in_messages False (the default) react removes the submit tool's result messages once the agent completes, while the tool event keeps the returned value. No result message existed for the model; the missing_tool_result it raises is the harness's design, not a loss. The entry claims the hits that cite this rule only, not every missing_tool_result."
+scope = { sources = ["whistlebench"], parts = ["final-runs"], profiles = ["whistlebench"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.react_submit_message_removed@1", class = "D" }
+recorded_as = {}
+handling = { class = "CR", rule = "inspect.react_submit_message_removed@1" }
+expected = [{ snapshot = "whistlebench:final-runs", count = 9194, basis = "wave-2 census (D-950)" }]
+manuscript = false
+refs = ["D.9.7", "regeneration-batch item 16 (c)"]
+
+[[artefact]]
+id = "inspect.art.message_copies_share_calls"
+title = "Message copies share their calls"
+description = "Inspect copies a message with its id and tool calls (react's submit removal, the reasoning history re-sent to the model), so one call can be held by several messages. The call is the copy the model produced; the other copies' call parts are declared unexecuted under this rule, never counted as separate calls. The entry claims the unexecuted_tool_call hits that cite this rule only; a call with no tool event that is not a copy is another finding."
+scope = { sources = ["whistlebench", "controlarena-persistent"], parts = ["final-runs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["whistlebench", "controlarena-persistent"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.message_copies_share_calls@1", class = "D" }
+recorded_as = {}
+handling = { class = "CR", rule = "inspect.message_copies_share_calls@1" }
+expected = [
+  { snapshot = "whistlebench:final-runs", count = 3442, basis = "wave-2 census (D-950)" },
+  { snapshot = "whistlebench:final-runs", count = 6128, basis = "wave-2 census (D-950)", unit = "calls" },
+  { snapshot = "controlarena-persistent", count = 95, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["D.9.7", "regeneration-batch item 16 (a)"]
+
+[[artefact]]
+id = "inspect.art.repeated_call_ids"
+title = "Repeated call ids within a sample (whistlebench)"
+description = "A ToolCall id held by more than one call part. In 3,442 of the 3,452 executions every repeat is a message copy (inspect.art.message_copies_share_calls); in the other 10 distinct calls share an id, so the id link conflicts (call_result_link_conflict) and those calls are left without an execution; the linked-results check is inconsistent in 10 executions. Nothing is re-linked."
+scope = { sources = ["whistlebench"], parts = ["final-runs"], profiles = ["whistlebench"] }
+cause = "upstream_harness"
+detector = { rule = "inspect.tool_call_id_match@1", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly#repeated", "artefact.generic.accounting_inconsistent#aer.acc.tool_results_linked@1"]
+recorded_as = { issues = ["call_result_link_conflict"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "whistlebench:final-runs", count = 3452, basis = "wave-2 census (D-950): executions with a repeated id (co-occurrence: 3,442 copies + 10 conflicts)" },
+  { snapshot = "whistlebench:final-runs", count = 10, basis = "wave-2 census (D-950): link conflicts" },
+]
+manuscript = false
+refs = ["D.9.3", "docs/reports/wave-2-artefacts/README.md"]
+
+[[artefact]]
+id = "inspect.art.no_model_or_tool_event"
+title = "Samples without a model or tool event"
+description = "A sample that holds no model event and no tool event (for example one that ended before its first generation) is kept as an outcome-only execution with the seal issue no_execution_observed."
+scope = { sources = ["fragfuse-agentharm", "controlarena-persistent"], parts = ["logs", "zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"], profiles = ["fragfuse-agentharm", "controlarena-persistent"] }
+cause = "unknown"
+detector = { rule = "inspect.model_event_is_call@1", class = "D" }
+claims = ["artefact.generic.empty_execution#outcome_only"]
+recorded_as = { issues = ["no_execution_observed"] }
+handling = { class = "CR", rule = "inspect.model_event_is_call@1" }
+expected = [
+  { snapshot = "fragfuse-agentharm:logs", count = 3, basis = "wave-2 census (D-950)" },
+  { snapshot = "controlarena-persistent", count = 15, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["D.9.3"]

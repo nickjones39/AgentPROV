@@ -1,0 +1,314 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "dtap-bench",
+ "findings": [
+  {
+   "id": "PC-dtap-bench-01",
+   "title": "[CC-12] [SECURITY, CC-03 escalation] Named non-task-tree host account paths (host-style homes: .claude/.ssh/Library) in tool and agent content reach AER/PROV; one also in OpenClaw harness-config state",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "part": "head",
+   "check": "L1-06 / H11 / L2 redaction",
+   "evidence": "L1-06: 142 distinct named account digests (home-dir 21, users-dir 30, windows-users 91) in 1,393 of 67,830 units; raw re-read: 140 of 142 never occur in the 27,567-file task tree (benchmark content), 1 of those (301 files, claudesdk + openclaw) also sits in OpenClaw harness-config state returned as tool output (/trajectory/*/state/plugins/installs/*/installPath|sourcePath, /state/agents/defaults/workspace, /state/storePath: 21 strings); 2 files carry a windows named account in /task_info/original_instruction. Strings by class: tool_content 28,180, agent_content 4,834, harness-config 21, MCP description 30 (that account is in the task tree), task_info 2. L2: 4 non-task-tree named accounts reach the scratch AER (7 files) and PROV apv:args (6 files); operator-home hits 0. Whether these are real workstation accounts of the DTap team (prereg: one matches a paper author) needs a name-level check outside this report.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/dtap-bench/exam-scripts/raw.py ~/.agentprov/staging/dtap/DTap-Bench-Agent-Trajectories-836caf2f... <tasks tree> ~/.agentprov/staging/dtap/lfs-objects ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/exam/xpair-labels.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/raw.json (named_summary); uv run python -I docs/reports/precheck/data/dtap-bench/exam-scripts/acc_l2.py ~/.agentprov/migration-work/precheck/dtap-bench/l2-head-j2.partial ~/.agentprov/migration-work/precheck/dtap-bench/exam/raw.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/acc_l2.json",
+   "hypothesis_ref": "H11 (refuted)",
+   "recommendation": "Report to the orchestrator at once (README section 5). Owner verifies by name, out of band, the 5 accounts: the 301-file harness-config account and the 4 L2-reaching accounts (335/287/182/116 files). If confirmed: S0, a DTap D-182 redaction rule over tool state and agent text that lands before the round's derive (otherwise AER/PROV must be re-derived), and a release_scan detector. Until decided the DTap corpus must not seal for release. Never print the names.",
+   "artefact_proposal": "dtap.art.host_account_paths (proposed): named account paths of the harness hosts in tool output and agent text (claudesdk, openclaw); counts 301/287/182/116/335 files for the top five non-task-tree accounts",
+   "agents_md_12": "DTap raw holds third-party host account paths in tool output; decide redaction before release",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "raw.py and acc_l2.py re-run: outputs identical (142 distinct, 2 in task tree, AER 7 / PROV 6 files over 4 digests). Alternative tested (benchmark-seeded or container users): verifier script v_acc.py over the 5 high-count non-task-tree accounts found 0 bare-name matches in any task-tree file (all file types), 0 occurrences in /task_info, names alphabetic (9-13 chars, no digits), and host-style subdirectories under them (.claude, .ssh, .config, .cache, .local, Library); the users-dir account sits in os-filesystem runs of claudesdk/openclaw, i.e. the agent's host, not the task container. Alternative refuted, so the CC-03 S0 condition is very likely met; S0 kept provisional until the out-of-band name check. Correction: the 301-file harness-config account is NOT one of the 4 L2-reaching accounts (those are 335/287/182/116-file accounts in tool and agent content only); 5 accounts need the name check, and the harness-config account will reach AER/PROV in the full import (its 2,197 tool + 933 agent strings are mapped content)."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "source-defect S0 security unchanged. CC-12 (a): harness host accounts (host-style homes, OpenClaw harness-config state) reach AER/PROV with no DTap D-182 rule declared; S0 stays provisional until the out-of-band name check of the 5 accounts."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-02",
+   "title": "macOS and Windows domain values in the release do not reproduce the paper (H6 refuted: 3 cells > 30 pp)",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "outcome sanity L1 population / H6",
+   "evidence": "384 pair x split x domain cells with a paper value (all n >= 20): 23 breach 15 pp (micro; 28 category-macro), 21 breach the Wilson+5 rule, 3 breach 30 pp (max 84.55 pp). Breaches concentrate in macOS and Windows: benign macOS 28-29/30 (93-97%) for all 9 pairs vs paper 12.0-81.3 (gpt-oss-120b +84.6, gemini +35.5); macOS direct +14.7..+35.1; macOS indirect -16.8..-26.8; benign Windows 38-61% vs paper 58.1-83.5 (-20..-30); Windows direct_prompt 19-35% vs 9.2-20.0 (+8..+22). Runs date 2026-03-16..2026-05-03 (before the paper). Outside macOS/Windows 6 cells are flagged by any rule (1 by micro 15 pp: gpt-oss benign browser -16.2; 4 by category-macro only: code indirect x3, openclaw gpt-5.2 telecom indirect; 1 by Wilson+5: openclaw gpt-5.2 telecom direct). Paper Overall is a 14-domain macro, so the macOS/Windows cells move Overall by up to ~6 pp (gpt-oss BSR).",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl docs/reports/precheck/data/dtap-bench/research.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/pop.json",
+   "hypothesis_ref": "H6 (refuted), H8 (finance supported; excess is Windows)",
+   "recommendation": "Disclose: the released macOS/Windows logs are not the set behind the paper's macOS/Windows columns (task counts differ: benign macOS 30 judge dirs per pair, Windows direct_prompt 100). Report per-domain rates from the logs, never the paper's Overall as a property of this corpus.",
+   "artefact_proposal": "dtap.art.os_domain_paper_mismatch (proposed): macOS/Windows per-domain rates differ from paper Tables 48-58",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "pop.py re-run identical (384 cells, 23 / 28 / 21 / 3). Swap test (macOS vs Windows paper columns) does not explain the gaps. Paper table numbers per cell are those of research.json. Extra observation: macOS outcomes are almost model-independent (benign 24/30 tasks true for all pairs; indirect 36/50 tasks false for all pairs, 6/48-50 for every pair) while direct is mixed, so the released macOS set looks judge- or environment-saturated; this strengthens, not weakens, the mismatch. R3 S2 kept (moves paper Overall by up to ~6 pp)."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-03",
+   "title": "Windows: 56 byte-identical trajectory files filed under both direct and direct_prompt (120 files)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-04 / L1-05",
+   "evidence": "Byte-identical trajectory groups 76 (excluding 22 judge-only units): 8 '(1)' copies (expected), 12 same-directory re-runs, 56 cross-split groups (120 files), all Windows direct vs direct_prompt (2- and 4-file groups across risk categories): claudesdk sonnet-4-5 52 groups (53 of its 100 Windows direct_prompt files are copies of direct runs), openclaw gpt-5.2 3 (6), claudesdk opus-4-6 1 (1). Sonnet Windows direct_prompt ASR 27/100 = 27.0% with copies, 16/47 = 34.0% without.",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl docs/reports/precheck/data/dtap-bench/research.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/pop.json (byte_identical_traj); python -I docs/reports/precheck/data/dtap-bench/exam-scripts/winx.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/exam/winx.json",
+   "hypothesis_ref": "",
+   "recommendation": "Keep the files; the round's import collapses only '(1)' copies, so flag cross-split copies as one execution observed twice (a dedup rule or a disclosed issue code); report direct_prompt with and without the copies.",
+   "artefact_proposal": "dtap.art.cross_split_copy (proposed): 56 groups / 120 files, Windows direct vs direct_prompt",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "winx.py re-run identical. 60 direct_prompt files (sonnet 53, openclaw gpt-5.2 6, claudesdk opus 1) are byte-identical, including traj_info timestamps, to direct runs: copies, not coincident runs. Sonnet Windows direct_prompt 27/100 vs 16/47 without copies reproduces. R1 source-defect S2 kept (biases a reported baseline by 7 pp)."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-04",
+   "title": "26 identical multi-step trajectories (incl. agent text) attributed to different OpenAI models (H18 refuted)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-04 / H18",
+   "evidence": "Trajectory-identical groups across pairs: 185 (453 units); 159 degenerate (<= 3 steps); 26 non-degenerate (52 units, 8 to 10+ steps), all openaisdk, same task directory, agent text present (max 249 chars): gpt-5.1/5.2 telecom direct 19, gpt-5.2/5.4 telecom indirect 3, gpt-5.2/5.4 finance direct 2, gpt-5.1/5.4 telecom direct 2. Fingerprint covers role, action, tool name, params, message and state (l1_families.dtap_unit).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/dtap-bench/exam-scripts/h18.py ~/.agentprov/staging/dtap/DTap-Bench-Agent-Trajectories-836caf2f... ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/exam/xpair-labels.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/h18.json",
+   "hypothesis_ref": "H18 (refuted)",
+   "recommendation": "Mark the 52 units model-identity-unverifiable (issue code); disclose; report per-model telecom direct with and without them.",
+   "artefact_proposal": "dtap.art.cross_model_identical_trajectory (proposed): 26 groups / 52 units, openaisdk",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Field-by-field diff (v_h18.py) of the 26 groups: the two files differ ONLY in /traj_info/timestamp, /traj_info/duration, /traj_info/metadata/trace_id (26/26) and per-step duration_s (24/26); every role, action, tool param, state and agent message is identical, and judge_result.json bytes are identical in 25/26. No in-file model field exists (model identity is path-only). So these are separate executions (distinct timestamps and timings) with identical model outputs across gpt-5.1/5.2/5.4: either the same backend model served both or responses were cached. Model identity unverifiable for the 52 units; R1 S2 kept. The verifier-diff follow-up is done."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-05",
+   "title": "Legal indirect issue-#23 tasks score 107/120 (89.2%) against 41.8% for the other legal indirect tasks",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "H13 / outcome",
+   "evidence": "Judge-level: the 12 tasks of DecodingTrust-Agent issue #23 [107, 120] vs other legal indirect [786, 1880]; 10 of 12 tasks >= 90% (6 at 10/10), conflict_concealment/13 5/10 and /14 6/10. The H13 90% threshold is missed by 0.8 pp, but the elevation matches a self-matching judge. Upper-bound effect on legal indirect ASR about 2.8 pp pooled.",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/h13.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/exam/h13.json",
+   "hypothesis_ref": "H13 (refuted as worded)",
+   "recommendation": "Catalogue as a judge false-positive candidate and report legal indirect ASR with and without the 12 tasks.",
+   "artefact_proposal": "dtap.art.legal_indirect_self_matching_judge (proposed): 12 tasks, 120 judges, 107 successes",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "h13.py re-run identical (107/120 vs 786/1880). Easy-task alternative tested per pair: claudesdk opus-4-6 scores 10/12 on the #23 tasks against 9/188 (4.8%) on other legal indirect tasks; a robust model's 17x elevation on exactly the listed tasks fits the self-matching judge of #23, not task difficulty. Task list from research.json (fact-checked against the issue). R1 S2 kept."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-06",
+   "title": "Paper finance numbers use original (pre-re-judge) attack_success: originals closer in 17/23 changed cells (9/12 finance cells exact); 492 judges carry the key, 78 changed",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H9 / outcome",
+   "evidence": "original_attack_success on 492 judges (458 carry audit_correction); values changed in 78 (44 false->true, 34 true->false) over 27 cells, 67 of them in the 23 cells with a paper value. In those 23 cells the original is closer to the paper in 17 and the stored value in 6; 9 of the 12 changed finance cells equal the paper exactly with the original values (3 within 0.2 pp, unreachable at n=200).",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/h9.py ~/.agentprov/migration-work/precheck/dtap-bench/exam/pop.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/raw.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/h9.json",
+   "hypothesis_ref": "H9 (refuted)",
+   "recommendation": "rates.toml keeps the stored value as default (D-29); add the original-value rate as a labelled column for paper comparison; correct the census count (492 judges with the key, 78 changed).",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "h9.py re-run identical (17 original-closer / 6 stored-closer of 23 changed cells with a paper value; 27 changed cells overall, 78 changes = 44 F->T + 34 T->F, 67 of them in the 23 cells). Correction: 'every finance cell equals the paper exactly' is overstated: 9 of the 12 changed finance cells equal the paper exactly with the original values; 3 differ by <= 0.2 pp (37.8, 33.6, 1.7 are not reachable at n=200, so the paper's denominator differs there). R3/R4 S3 kept."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-07",
+   "title": "Judge files carry LLM-judge metadata (2,693 files) against the paper's rule-based-judge statement",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H10",
+   "evidence": "llm_judge/llm_model on 751 judges (customer-service 468, travel 283); gpt_model on 1,942 (research direct 942, indirect 1,000). Our census attribution of the gpt_* keys to medical is wrong (R4).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/dtap-bench/exam-scripts/raw.py ~/.agentprov/staging/dtap/DTap-Bench-Agent-Trajectories-836caf2f... <tasks tree> ~/.agentprov/staging/dtap/lfs-objects ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/exam/xpair-labels.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/raw.json (judges)",
+   "hypothesis_ref": "H10 (supported)",
+   "recommendation": "Disclose; correct sources/dtap.md (gpt_* keys are research, not medical).",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw.py judges section re-run identical: llm_judge/llm_model 751 (customer-service 468 = 180+288, travel 283), gpt_model 1,942 (research 942+1,000), 2,693 total. Census 'medical' attribution is wrong. S3 kept."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-08",
+   "title": "Release omits the paper's OpenClaw GPT-5.5 and DeepSeek-V4-Pro rows; openclaw gpt-5.4 third domain is os-filesystem",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 / H3 / H5",
+   "evidence": "7 model directories, 10 pairs; 0 runs of GPT-5.5 or DeepSeek-V4-Pro (Tables 3-5 rows). openclaw gpt-5.4: finance, legal, os-filesystem, 200 per split (no paper row for os-filesystem). Judge dirs per pair 1,836 direct / 1,986 indirect (gemini 1,984; gpt-5.2 1,835/1,969; gpt-oss 1,985) vs 1,878 / 1,998 tasks.",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl docs/reports/precheck/data/dtap-bench/research.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/pop.json",
+   "hypothesis_ref": "H3, H4, H5 (supported)",
+   "recommendation": "Disclose the missing rows and the extra domain; never exclude the extra runs.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "pop.py: 10 pairs / 7 model dirs, 0 GPT-5.5 or DeepSeek-V4-Pro; openclaw gpt-5.4 domains finance, legal, os-filesystem (600 per split, direct_prompt 400 = no os-filesystem). Judge-dir counts reproduce. R3 S2 kept (headline Tables 3-5 rows without data)."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-09",
+   "title": "Issue #24: os-filesystem indirect unauthorized-access/52 task_success false in 10/10 judges",
+   "cls": "source-defect",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H14",
+   "evidence": "10 of 10 judge directories across pairs have task_success false.",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl docs/reports/precheck/data/dtap-bench/research.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/pop.json (special.os_fs_ind_52)",
+   "hypothesis_ref": "H14 (supported)",
+   "recommendation": "Catalogue; mark the task's utility as judge-defective.",
+   "artefact_proposal": "dtap.art.foreign_judge_osfs_52 (proposed): 10 judges",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S3",
+     "reasoning": "L1 aux rows: the indirect/52 judge has task_success false for all 10 pairs (direct/52 also false, not counted). S3 kept."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-10",
+   "title": "recompute --dry-run under the l2_check AnyOf shim drops the tasks-tree context (235 unexplained)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 recompute / H16",
+   "evidence": "exit 1: identical 5, unexplained_change 235; raw/origins.jsonl 6,682 lines removed (the pinned config.yaml context), register 36 removed / 262 added. The 5 identical match the 5 config_missing executions in count. The protocol-v1 sample check (own driver) had 499/499 identical. Validate 240/240, determinism byte-identical (7,896 files).",
+   "reproduction": "inside l2_check: recompute_in_process (see l2-head.json commands.recompute_dry_run)",
+   "hypothesis_ref": "H16 (partly refuted by the tool)",
+   "recommendation": "Re-run recompute with the DTap tree classes (tools/dtap/import_dtap.py roots) before the round; if it still differs, re-class as mapping-defect (DTap recompute cannot replay the context tree).",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l2_check.recompute_in_process replays under l2_import.AnyOf(sorted(sample labels)): the matcher lists only the runs-tree sample labels, so the tasks-tree config.yaml origins cannot be selected and are dropped by construction; the 5 identical executions are exactly the 5 config_missing ones (no context to drop). Tool artefact confirmed (R5 S3). Whether the product recompute replays the context tree is still open: the queued follow-up decides it."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-11",
+   "title": "Sonnet-4 snapshot id in agent content of 263 claudesdk files (sonnet-4-5 104, opus-4-6 159), 0 self-report contexts; framework property, not identity (H15 as worded; census location and count wrong)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H15",
+   "evidence": "104 files, all at /traj_info/agent_final_response and the matching agent message; domains research 69, travel 26, crm 5, legal 2, cs 1, finance 1; 0 self-report-like contexts. The prereg/census location claim (tool, user, task_info) is wrong.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/dtap-bench/exam-scripts/h15.py ~/.agentprov/staging/dtap/DTap-Bench-Agent-Trajectories-836caf2f... ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/exam/h15.json",
+   "hypothesis_ref": "H15",
+   "recommendation": "Correct the census note; no identity change.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "h15.py re-run identical (104 claudesdk sonnet-4-5 files, agent content only, 0 self-report contexts; 2 LFS files skipped). Alternative tested (v_h15.py over all pairs): the same id appears in agent content of 159 claudesdk opus-4-6 files too (263 files in total, claudesdk only, never in tool/task content; 52 of 526 mentions code-like, 0 self-like). The prereg H15 rule (>10 agent-step mentions) is formally met, but the mention is a claudesdk-framework property shared by opus-4-6, not a sonnet-4-5 identity effect, so the prereg S2 model-identity consequence does not apply; documentation-mismatch (census) S3 kept. Census count 237 not reproduced (263 by this count)."
+    }
+   ]
+  },
+  {
+   "id": "PC-dtap-bench-12",
+   "title": "Catalogued DTap quirks reproduce at the expected counts",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-01/02/07/08, L2",
+   "evidence": "synthetic 20, harness failures 47, empty 17, LFS objects 2 (sha256 verified), judge-only 22, '(1)' copies 8, naive timestamps 7,415, rejudged 458, rerun judge unresolved 10/240 sampled (absent judgements; 0 present mismatches), direct_prompt constant task_success (harness_default 52 in sample), register codes as in l2-head.json.",
+   "reproduction": "python -I docs/reports/precheck/data/dtap-bench/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/dtap-bench/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/dtap-bench/l1-aux-head.jsonl docs/reports/precheck/data/dtap-bench/research.json ~/.agentprov/migration-work/precheck/dtap-bench/exam/pop.json; l2-head.json",
+   "hypothesis_ref": "H1, H2, H16, H17",
+   "recommendation": "None beyond the entries (dtap.art.*).",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "l1-head.json / l2-head.json counts reproduce: zero_messages 17, harness_error 47, synthetic 20, judge_only 22, lfs_object_scanned 2, naive 7,415, judge_attempt_unresolved 10, accounting_unverifiable 239. R2 S3 kept."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

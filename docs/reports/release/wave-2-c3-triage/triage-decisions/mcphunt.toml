@@ -1,0 +1,35 @@
+# Release-scan triage decisions for mcphunt (tree mcphunt-w2b; C-3, D-920): by class, never by value.
+# Source: docs/reports/release/wave-2-c3-triage.md (rule-based classes of wave-2 check 4b; the leftovers'
+# verdicts with their evidence: decision 11's secret review, round-1 check 4c's account classes, D-604 item 7).
+format = "agentprov-triage-decisions/0.1"
+root_digest = "sha256:f296c560c54c8c4f0f1116a0c9e5886bfc21264f78d22f8266caeaa41a31e26c"
+
+[[secret]]
+rule = "generic-api-key"
+key = "JWT_SECRET+SIGNING_KEY"
+origin = "benchmark-input"
+triage = "synthetic-benchmark"
+findings = 1
+reason = "benchmark input: the value is in a record the benchmark supplies (wave-2 pre-release check 4b and decision 11, user-approved 2026-10-29; round-1 method, item 2, 2026-10-28)"
+
+[[secret]]
+rule = "generic-api-key"
+key = "JWT_SECRET+SIGNING_KEY"
+origin = "model-generated"
+triage = "model-generated"
+findings = 1
+reason = "model output: the value is in a record the model wrote, kept and disclosed (wave-2 pre-release check 4b and decision 11, user-approved 2026-10-29; round-1 method, item 2, 2026-10-28)"
+
+[[secret]]
+rule = "generic-api-key"
+key = "sentry_key"
+origin = "model-generated"
+triage = "model-generated"
+findings = 11
+reason = "model output: the value is in a record the model wrote, kept and disclosed (wave-2 pre-release check 4b and decision 11, user-approved 2026-10-29; round-1 method, item 2, 2026-10-28)"
+
+[[account]]
+ordinal = 1
+triage = "false-positive"
+hits = {aer = 18, prov = 6}
+reason = "not a personal account: the generic container account named by pre-check mcphunt L1-06 ('all generic'; compared value-blind), written by the model (first in an assistant message in each of its 4 executions) (round-1 pre-release check 4c method, user-approved; wave-2 decision 11)"

@@ -1,0 +1,60 @@
+"""C2-1: mcphunt.canary_flagged must be raised for a trace with ANY canary-flagged event (D-289), paired or not."""
+import pytest
+from agentprov.adapters.mcphunt.mapper import McpHuntMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, LocatedItem, Locator, Origin
+from agentprov.aer.reader import load_aer_bytes
+
+
+def ev(tool, turn, res, flagged=False):
+    return {"args": {}, "canary_in_args": False, "canary_in_result": flagged, "canary_visible_to_llm": False,
+            "error": None, "latency_ms": 1, "result_chars": len(res), "result_full": res, "result_preview": res,
+            "result_truncated": False, "server": "filesystem", "success": True, "timestamp": "t", "tool": tool,
+            "turn": turn}
+
+
+def call(cid, name):
+    return {"id": cid, "type": "function", "function": {"name": name, "arguments": "{}"}}
+
+
+def run(msgs, events):
+    tl = [{"turn": 1, "n_tool_calls": 1, "has_text": False, "finish_reason": "tool_calls"},
+          {"turn": 2, "n_tool_calls": 0, "has_text": True, "finish_reason": "stop"}]
+    t = {"task_id": "T1", "task_prompt": "do", "model": "m", "messages": msgs, "events": events, "turn_log": tl,
+         "labeling": {"any_risk": False}, "measurement": {}, "env_snapshot": {}, "final_message": "bye",
+         "env_type": "benign", "defense": "none"}
+    origin = Origin.from_json({"kind": "hf", "repo": "x/y", "revision": "c4c69322bf9ed7690f5265577365709dad5dd454",
+                               "path": "main/a.json"})
+    art = ArtefactRef(id="a0", sha256="0" * 64, bytes=1, media="application/json", origin=origin, role="primary",
+                      prov_primary="native")
+    item = LocatedItem(artefact=art, locator=Locator(a="a0", p="/traces/0"), dialect="mcphunt.traces",
+                       variant="v2.0.0", flags=frozenset(), value={"envelope": {}, "trace": t})
+    sealed, _ = aer_bytes(map_unit(ExecutionUnit(primary=item), McpHuntMapper(), load_profile("mcphunt")))
+    doc = load_aer_bytes(sealed)
+    codes = [i["code"] for i in doc.seal.get("issues", [])]
+    tool_msgs = [r["id"] for r in doc.records if r.get("k") == "message" and r.get("role") == "tool"]
+    return codes, tool_msgs
+
+
+def msgs(name):
+    return [{"role": "system", "content": "s"}, {"role": "user", "content": "do"},
+            {"role": "assistant", "content": "", "tool_calls": [call("c1", name)]},
+            {"role": "tool", "tool_call_id": "c1", "content": "PLACEHOLDER"},
+            {"role": "assistant", "content": "done", "tool_calls": []}]
+
+
+CASES = {
+    "paired_control": (msgs("read_file"), [ev("read_file", 1, "x", flagged=True)]),
+    "name_form_differs": (msgs("filesystem-read_file"), [ev("read_file", 1, "x", flagged=True)]),
+    "turn_off_by_one": (msgs("read_file"), [ev("read_file", 0, "x", flagged=True)]),
+}
+
+
+@pytest.mark.parametrize("case", list(CASES))
+def test_flagged_trace_raises_canary_issue(case):
+    m, e = CASES[case]
+    codes, tool_msgs = run(m, e)
+    print(case, "codes", sorted(set(codes)), "tool msgs", tool_msgs)
+    assert tool_msgs, "the tool message (result text) is in the AER"
+    assert "mcphunt.canary_flagged" in codes, f"{case}: flagged event but no canary issue; codes={sorted(set(codes))}"

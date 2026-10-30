@@ -1,0 +1,1356 @@
+# Artefact catalogue of the `agentdojo` adapter family (docs/architecture D.15.2, D.15.5; DECISIONS D-12).
+#
+# Data, not code, read by the shared layer `agentprov.artefacts` (D.15.3). Seeded from the D.15.5 table (the AgentDojo
+# legacy runs: the pinned `2024-06` snapshot, profile `agentdojo-upstream`), plus one entry found by the phase-6 full
+# import (`agentdojo.art.calls_derived_from_messages`). Each entry declares exactly one handling class (D.15.1): CR
+# correct representation, DR derived reconstruction, RJ recomputed judgement, FO flag only, NR not recoverable.
+#
+# `detector.rule` and `handling.rule` are rule ids of shipped catalogues or generic detectors `artefact.generic.<name>`.
+# Of the semantics-profile rules these entries name, `agentdojo.injection_marker_yaml` is active since phase 7 (the
+# semantics profile agentdojo.suites@1); `agentdojo.account_confound`, `.text_tool_call`, `.unwinnable_cell` and
+# `.scoring` stay `reserved` in the `agentdojo` rule catalogue. `claims` lists the generic detector hits an entry wholly
+# accounts for.
+#
+# `expected` counts are regression expectations per pinned snapshot, never gates that hide data (D.15.4). `verified`
+# rows were measured by the phase-6 full import of the 18,241 pinned blobs (docs/reports/agentdojo/import-2024-06.json)
+# and, for the `head` snapshot, by the phase-10 census and full import of the 36,679 head blobs (import-cli-head.json);
+# `unverified` rows are the D.15.5 seed counts over the 18,234-file baseline copy, not yet re-measured on the pin.
+#
+# Any byte change bumps `version` (AD-18); nothing is released yet, so it is still 1. The phase-10 corpus analysis (B4,
+# 2026-10-11) widened the scopes of the generic entries to the phase-10 profiles (rope, autodojo-via-rope, agentdyn,
+# mandate-agentdojo-eval, survey-runs) and added the section "phase-10 corpora" below. The catalogue digest enters no
+# AER, SEM or PROV file and is not recorded in any corpus.json yet, so no corpus is affected.
+#
+# The corpus pre-check, wave 1 (docs/reports/precheck/, 2026-10-15; D-581..D-585, regeneration-batch item 109) added
+# the section "corpus pre-check, wave 1" below, extended `validity_defects` (CC-07) and `defence_benign_intervention`,
+# and corrected the three ROPE entries that described agentdojo.suites@1 behaviour (D-584). Version stays 1: D-31 owner
+# ruling 2026-10-21, in place, no corpus records the artefact catalogue (its bytes enter only the family's
+# adapter_code_sha256, a code digest). Entries whose finding is a recount against a paper or README, with no per-trace
+# detector, cite as `detector` the existing rule whose output the recount reads (D-581); a count the pre-check
+# measured over the whole population is `verified`, a lower bound or a sample-based figure `unverified`, and a
+# pre-registered estimate gets no row.
+# Identical trajectories (manuscript artefact row 7) have no entry, since the `cross_origin_duplicate` detector is not
+# implemented. The two definitions differ (pre-check CC-01, rope.md PC-rope-05): ROPE head has 53 groups / 396
+# executions when provider call ids are part of the fingerprint (only null-id providers then group) and 235 / 1,042
+# without them; 0 files are byte-identical. A count must name its definition.
+
+version = 1
+family = "agentdojo"
+# The family also holds the entries of its sources ROPE, AgentDyn, Mandate, the survey runs and Geryon (D.15.8 item 2).
+namespaces = ["agentdojo", "rope", "agentdyn", "mandate", "survey", "geryon", "drift", "rescont"]
+
+[[artefact]]
+id = "agentdojo.art.empty_log"
+title = "Empty message list with logged outcomes"
+description = "Logs whose messages list is empty but which carry utility and security (all claude-3-opus, workspace, important_instructions). The baseline excluded them; they are kept as outcome-only executions. In ROPE and five wave-2 forks (ceferisbarov, gate, linyxus, menelaus29, shreeyavarma; quirk agentdojo.empty_messages_without_outcome) the empty logs carry no outcome either; they are kept the same way."
+scope = { sources = ["agentdojo", "rope", "ceferisbarov-agentdojo", "gate-agentdojo", "linyxus-agentdojo", "menelaus29-ipi-multidomain", "shreeyavarma-llm-safety"], parts = ["2024-06", "head"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "ceferisbarov-agentdojo", "gate-agentdojo", "linyxus-agentdojo", "menelaus29-ipi-multidomain", "shreeyavarma-llm-safety"] }
+cause = "unknown"
+detector = { rule = "agentdojo.no_execution_observed@1", class = "D" }
+claims = ["artefact.generic.empty_execution#outcome_only"]
+recorded_as = { issues = ["no_execution_observed"], notes = ["unit:outcome_only"] }
+handling = { class = "CR", rule = "agentdojo.no_execution_observed@1" }
+expected = [
+  { snapshot = "2024-06", count = 207, basis = "phase-6 full import", status = "verified" },
+  { snapshot = "head", count = 207, basis = "phase-10 full import of the head pin (census): outcome-only logs", status = "verified" },
+  { snapshot = "rope:head", count = 2, basis = "phase-10 analysis, section 2: ROPE logs with empty messages and no outcomes (unit outcome_only)", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "sources/agentdojo.md section 4.4", "J.4.3 R4", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.run_error_imposed"
+title = "Outcomes imposed by the runner after a run error"
+description = "Run-error logs whose utility and security were set to (False, True) by the runner, not by a checker; some stop before any assistant turn."
+scope = { sources = ["agentdojo", "agentdyn", "agent-security-tools-survey", "authority-caps-agentdojo", "ceferisbarov-agentdojo", "dca-agentdojo"], parts = ["2024-06", "head", "a", "agentdojo-runs", "v1", "drift"], profiles = ["agentdojo-upstream", "agentdyn", "survey-runs", "authority-caps-agentdojo", "ceferisbarov-agentdojo", "dca-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.run_error_imposed_outcome@1", class = "D" }
+recorded_as = { issues = ["outcome_imposed_by_runner"], notes = ["judgement.origin:harness_default"] }
+handling = { class = "CR", rule = "agentdojo.run_error_imposed_outcome@1" }
+expected = [
+  { snapshot = "2024-06", count = 106, basis = "phase-6 full import", status = "verified" },
+  { snapshot = "head", count = 105, basis = "phase-10 full import of the head pin (census): logs with a run error", status = "verified" },
+  { snapshot = "agentdyn:a", count = 5, basis = "phase-10 analysis, section 8 row 2: runs aborted by a harness error", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 11, basis = "phase-10 analysis, section 8 row 2: gpt-oss:120b runs ended on an InternalServerError", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "benchmark.py l. 110-137 at c274885", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.banking_ut15_confound"
+title = "banking user_task_15 prompt names the attacker's IBAN"
+description = "The legacy banking user_task_15 prompt contains the attacker's IBAN, so injection runs of that task confound utility and security."
+scope = { sources = ["agentdojo"], parts = ["2024-06", "head"], profiles = ["agentdojo-upstream"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.account_confound@1", class = "D" }
+recorded_as = { sem = ["agentdojo.account_confound"] }
+handling = { class = "FO", rule = "agentdojo.scoring@1" }
+expected = [
+  { snapshot = "2024-06", count = 200, basis = "D.15.5 seed over the baseline copy" },
+  { snapshot = "head", count = 11, basis = "phase-10 analysis, section 8 row 8: attack successes with no payload anywhere in the trajectory, all banking user_task_15", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.dos_polarity"
+title = "DoS security is not utility"
+description = "Under the DoS attacks the runner sets security = not utility; the baseline counted part of these as attack successes."
+scope = { sources = ["agentdojo", "llm-lock-agentdojo"], parts = ["2024-06", "head"], profiles = ["agentdojo-upstream", "llm-lock-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.dos_security_rule@1", class = "D" }
+claims = ["artefact.generic.harness_imposed_outcome#harness_rule"]
+recorded_as = { notes = ["judgement.origin:harness_rule", "ext.agentdojo.task_kind:dos"] }
+handling = { class = "CR", rule = "agentdojo.dos_security_rule@1" }
+expected = [
+  { snapshot = "2024-06", count = 485, basis = "phase-6 full import", status = "verified" },
+  { snapshot = "head", count = 485, basis = "phase-10 full import of the head pin (census): DoS-attack logs", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "benchmark.py l. 138-139 at c274885"]
+
+[[artefact]]
+id = "agentdojo.art.injection_task_as_user"
+title = "Injection tasks run as user tasks, labelled benign"
+description = "The solvability pre-pass runs each injection task's goal as a user task without injections; the converted tree labels it benign."
+scope = { sources = ["agentdojo", "agentdyn", "mandate-agentdojo-eval", "agent-security-tools-survey"], parts = ["2024-06", "head", "a", "agentdojo-runs"], profiles = ["agentdojo-upstream", "agentdyn", "mandate-agentdojo-eval", "survey-runs"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.injection_task_as_user_task@1", class = "D" }
+recorded_as = { notes = ["ext.agentdojo.task_kind:injection_task_as_user_task"] }
+handling = { class = "CR", rule = "agentdojo.injection_task_as_user_task@1" }
+expected = [
+  { snapshot = "2024-06", count = 432, basis = "phase-6 full import", status = "verified" },
+  { snapshot = "head", count = 804, basis = "phase-10 full import of the head pin (census): solvability pre-passes", status = "verified" },
+  { snapshot = "agentdyn:a", count = 1647, basis = "phase-10 analysis, section 8.3: solvability pre-passes", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 105, basis = "phase-10 analysis, section 8.3: solvability pre-passes", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 27, basis = "phase-10 analysis, section 8.3: solvability pre-passes (all benign security constants)", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "benchmark.py l. 187-193 at c274885", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.benign_security_constant"
+title = "Benign security is the runner's constant True"
+description = "Every benign log records security true: a constant of the runner, not an observation. Benign logs with a run error take the run-error origin instead."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "mandate-agentdojo-eval", "agent-security-tools-survey", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness"], parts = ["2024-06", "head", "a", "agentdojo-runs", "v1", "drift", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "mandate-agentdojo-eval", "survey-runs", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.benign_security_constant@1", class = "D" }
+recorded_as = { notes = ["judgement.origin:harness_default"] }
+handling = { class = "CR", rule = "agentdojo.benign_security_constant@1" }
+expected = [
+  { snapshot = "2024-06", count = 2031, basis = "phase-6 full import: benign logs", status = "verified" },
+  { snapshot = "2024-06", count = 2014, basis = "phase-6 full import: judgements under this rule", unit = "judgements", status = "verified" },
+  { snapshot = "head", count = 3560, basis = "phase-10 full import of the head pin (census): benign logs", status = "verified" },
+  { snapshot = "head", count = 3546, basis = "phase-10 full import of the head pin (census): judgements under this rule", unit = "judgements", status = "verified" },
+  { snapshot = "rope:head", count = 748, basis = "phase-10 analysis, section 8 row 1: benign runs", status = "verified" },
+  { snapshot = "agentdyn:a", count = 5176, basis = "phase-10 analysis, section 8 row 1: benign runs", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 395, basis = "phase-10 analysis, section 8 row 1: benign runs", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 27, basis = "phase-10 analysis, section 8 row 1: benign runs, all pre-passes", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "task_suite.py l. 296-298 at c274885", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.replay_dispute"
+title = "Scored outcomes disputed by baseline replay"
+description = "Outcomes the baseline's replay disputes; replay is deferred (AD-10 row 2) and drift-contaminated replay is never a verdict."
+scope = { sources = ["agentdojo"], parts = ["2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.record_complete_with_replay@1", class = "I" }
+handling = { class = "FO", rule = "agentdojo.record_complete_with_replay@1" }
+expected = [{ snapshot = "2024-06", count = 8, basis = "D.15.5 seed over the baseline copy" }]
+manuscript = false
+refs = ["D.15.5", "AD-10 row 2"]
+
+[[artefact]]
+id = "agentdojo.art.text_tool_call"
+title = "Text-written, unexecuted tool calls (Llama-3 prompting)"
+description = "Tool calls written into the assistant text that the prompting parser did not turn into calls (heuristic counts). Re-parsing them is forbidden (D.15.1). Wave 2 (D-950): the same reading where the profile documents a text-parsing call path: PromptingLLM behind Ollama (llm-lock), the local LLM element (tacit, kongminos: tag-only turns, as agentdojo.art.local_parse_drop counts), Ollama-served Qwen (gate, pre-check PC-gate-agentdojo-07), the CaMeL and DRIFT planners with local models (dca, as for AgentDyn), DRIFT's raw and final <function_call> turns (drift, drift1) and the prompting and Qwen formats of the ResCont script (memo-ozdincer, rescont.request_built_from_messages)."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "gate-agentdojo", "llm-lock-agentdojo", "tacit-agentdojo", "kongminos-agentdojo", "dca-agentdojo", "drift", "drift1-agentdojo", "memo-ozdincer-agentdojo"], parts = ["2024-06", "head", "a", "v1", "drift"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "gate-agentdojo", "llm-lock-agentdojo", "tacit-agentdojo", "kongminos-agentdojo", "dca-agentdojo", "drift", "drift1-agentdojo", "memo-ozdincer-agentdojo"] }
+cause = "provider"
+detector = { rule = "artefact.generic.text_encoded_call", class = "I" }
+claims = ["artefact.generic.text_encoded_call"]
+recorded_as = { sem = ["agentdojo.text_tool_call"] }
+handling = { class = "FO", rule = "agentdojo.text_tool_call@1" }
+expected = [
+  { snapshot = "2024-06", count = 142, basis = "D.15.5 seed over the baseline copy (heuristic)", unit = "calls" },
+  { snapshot = "rope:head", count = 11, basis = "phase-10 analysis, section 8.2: executions with a text-encoded call (heuristic)", status = "verified" },
+  { snapshot = "agentdyn:a", count = 1002, basis = "phase-10 analysis, section 8.2: executions with a text-encoded call (heuristic; includes the CaMeL and DRIFT planners, whose calls an interpreter executes)", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.checker_era"
+title = "Checker era of the June-2024 outcomes"
+description = "The logged outcomes were scored by checkers edited in place since; the generating code is unpinned, so outcomes are kept as logged and flagged."
+scope = { sources = ["agentdojo"], parts = ["2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.benchmark_era_from_commit@1", class = "I" }
+recorded_as = { notes = ["agentdojo.checker_era_unverified"] }
+handling = { class = "FO", rule = "agentdojo.checker_inputs_unverified@1" }
+expected = [{ snapshot = "2024-06", count = 1931, basis = "D.15.5 seed over the baseline copy: logged IT4/IT5 outcomes", unit = "outcomes" }]
+manuscript = true
+refs = ["D.15.5"]
+
+[[artefact]]
+id = "agentdojo.art.provider_ids"
+title = "Provider call-id anomalies"
+description = "Calls with no id (Cohere) or an empty id (Gemini) and the results they leave without a usable id; links are positional and INFERRED, ids stay attributes. Wave 2 (D-950): null ids of local or OpenAI-compatible models and Gemini in five forks, at the counts of each profile's quirk agentdojo.provider_call_id_anomalies; in mohameduk-agentdojo the positional match conflicts in 12 logs (call_result_link_conflict). gate and dca have their own entry (agentdojo.art.null_provider_call_ids), because this entry's detector rule would also claim their orphan tool results, which have other causes."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "ceferisbarov-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "mohameduk-agentdojo", "tacit-agentdojo"], parts = ["2024-06", "head", "a", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "ceferisbarov-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "mohameduk-agentdojo", "tacit-agentdojo"] }
+cause = "provider"
+detector = { rule = "agentdojo.positional_match@1", class = "I" }
+claims = ["artefact.generic.provider_id_anomaly#absent", "artefact.generic.provider_id_anomaly#empty"]
+recorded_as = { issues = ["call_result_link_conflict"], notes = ["unk:provider_call_id", "evf:call:I"] }
+handling = { class = "CR", rule = "agentdojo.call_id_unique_match@1" }
+expected = [
+  { snapshot = "2024-06", count = 4413, basis = "phase-6 full import: calls without an id", unit = "calls", status = "verified" },
+  { snapshot = "2024-06", count = 4522, basis = "phase-6 full import: calls with an empty id", unit = "calls", status = "verified" },
+  { snapshot = "2024-06", count = 2799, basis = "phase-6 full import: logs with either", status = "verified" },
+  { snapshot = "head", count = 4690, basis = "phase-10 full import of the head pin (census): calls without an id", unit = "calls", status = "verified" },
+  { snapshot = "head", count = 12583, basis = "phase-10 full import of the head pin (census): calls with an empty id", unit = "calls", status = "verified" },
+  { snapshot = "head", count = 5239, basis = "phase-10 full import of the head pin (census): logs with either", status = "verified" },
+  { snapshot = "head", count = 47227, basis = "phase-10 full import of the head pin (census): calls with a null id (local models)", unit = "calls", status = "verified" },
+  { snapshot = "rope:head", count = 1496, basis = "phase-10 analysis, section 8 row 14: logs with a null provider call id (Gemini)", status = "verified" },
+  { snapshot = "rope:head", count = 8707, basis = "phase-10 analysis, section 8 row 14: calls with a null provider call id", unit = "calls", status = "verified" },
+  { snapshot = "agentdyn:a", count = 3062, basis = "phase-10 analysis, section 8 row 14: logs with an absent or null provider call id", status = "verified" },
+  { snapshot = "agentdyn:a", count = 15306, basis = "phase-10 analysis, section 8 row 14: calls with a null provider call id", unit = "calls", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "D.6.6.1", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.timing_stub"
+title = "No tool or run times; the converter's timing stub"
+description = "TraceLogger records no per-call or run start and end times. The baseline converter wrote the literal 0 instead; the native AER declares the times unknown and render_converted re-applies the stub inside the view only (erratum E8)."
+scope = { sources = ["agentdojo"], parts = ["2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.duration_scope@1", class = "D" }
+claims = ["artefact.generic.sentinel_time#unknown_not_recorded"]
+recorded_as = { notes = ["unk:t:not_recorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "2024-06", count = 68641, basis = "phase-6 full import: tool executions", unit = "tool_executions", status = "verified" }]
+manuscript = true
+refs = ["D.15.5", "convert_runs.py at 579a908"]
+
+[[artefact]]
+id = "agentdojo.art.silent_rerun"
+title = "Only the last of up to three passes is logged"
+description = "TraceLogger keeps the final pass only, so the attempt index is lost; a final assistant content of null with no run error means the third of three passes on a mutated environment. In dca-agentdojo the DRIFT part's inferred single pass (drift.art.single_pass) is also claimed here, by this entry's generic claim; the two counts overlap there."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "mandate-agentdojo-eval", "agent-security-tools-survey", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness"], parts = ["2024-06", "head", "a", "agentdojo-runs", "v1", "drift", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "mandate-agentdojo-eval", "survey-runs", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.null_final_implies_three_passes@1", class = "D" }
+claims = ["artefact.generic.pass_loss#lost", "artefact.generic.pass_loss#inferred"]
+recorded_as = { issues = ["retry_passes_inferred", "earlier_attempts_unobservable"], notes = ["scope.index:2"] }
+handling = { class = "CR", rule = "agentdojo.null_final_implies_three_passes@1" }
+expected = [
+  { snapshot = "2024-06", count = 47, basis = "phase-6 full import: null-final logs", status = "verified" },
+  { snapshot = "2024-06", count = 18034, basis = "phase-6 full import: logs with an unobservable earlier pass", status = "verified" },
+  { snapshot = "head", count = 82, basis = "phase-10 full import of the head pin (census): null-final logs", status = "verified" },
+  { snapshot = "head", count = 36472, basis = "phase-10 full import of the head pin (census): logs with an unobservable earlier pass", status = "verified" },
+  { snapshot = "rope:head", count = 322, basis = "phase-10 analysis, section 8 row 3: null-final logs", status = "verified" },
+  { snapshot = "agentdyn:a", count = 826, basis = "phase-10 analysis, section 8 row 3: last assistant content None after three passes", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "task_suite.py l. 264-279 at c274885", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.unwinnable_cell"
+title = "Injection runs in unwinnable cells"
+description = "Cells whose injection task cannot succeed because of benchmark check defects (static cell table; uncertain)."
+scope = { sources = ["agentdojo"], parts = ["2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.unwinnable_cell@1", class = "I" }
+recorded_as = { sem = ["agentdojo.unwinnable_cell"] }
+handling = { class = "FO", rule = "agentdojo.unwinnable_cell@1" }
+expected = [{ snapshot = "2024-06", count = 434, basis = "D.15.5 seed over the baseline copy" }]
+manuscript = true
+refs = ["D.15.5"]
+
+[[artefact]]
+id = "agentdojo.art.max_iters_pending"
+title = "Requested calls never executed (max_iters = 15)"
+description = "Tool calls in the last assistant message with no tool message: the loop stopped; the baseline dropped them. Forks keep upstream's loop, but their max_iters is not verified. In mohameduk-agentdojo 12 of the 16 logs with an unexecuted call are positional link conflicts, not trailing calls (agentdojo.art.positional_link_conflict); this entry's generic claim counts them too, as it counts the calls SEAgent's guard drops in seagent-agentdojo (agentdojo.art.seagent_guard_batch_abort)."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "agent-security-tools-survey", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "tacit-agentdojo", "memo-ozdincer-agentdojo"], parts = ["2024-06", "head", "a", "agentdojo-runs", "v1", "drift", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "survey-runs", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "tacit-agentdojo", "memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.unexecuted_trailing_calls@1", class = "D" }
+claims = ["artefact.generic.unexecuted_call"]
+recorded_as = { issues = ["unexecuted_tool_call"] }
+handling = { class = "CR", rule = "agentdojo.unexecuted_trailing_calls@1" }
+expected = [
+  { snapshot = "2024-06", count = 145, basis = "phase-6 full import: logs", status = "verified" },
+  { snapshot = "2024-06", count = 153, basis = "phase-6 full import: calls", unit = "calls", status = "verified" },
+  { snapshot = "head", count = 800, basis = "phase-10 full import of the head pin (census): logs", status = "verified" },
+  { snapshot = "head", count = 815, basis = "phase-10 full import of the head pin (census): calls", unit = "calls", status = "verified" },
+  { snapshot = "rope:head", count = 675, basis = "phase-10 analysis, section 8 row 4: logs", status = "verified" },
+  { snapshot = "rope:head", count = 753, basis = "phase-10 analysis, section 8 row 4: calls", unit = "calls", status = "verified" },
+  { snapshot = "agentdyn:a", count = 1683, basis = "phase-10 analysis, section 8 row 4: logs", status = "verified" },
+  { snapshot = "agentdyn:a", count = 1800, basis = "phase-10 analysis, section 8 row 4: calls", unit = "calls", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 48, basis = "phase-10 analysis, section 8 row 4: logs", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 49, basis = "phase-10 analysis, section 8 row 4: calls", unit = "calls", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "tool_execution.py l. 111-145 at c274885", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.failed_sink"
+title = "Sink calls that raised, counted as sinks by the baseline"
+description = "Tool executions with an error status are executions with that status; the taint subject is the request (EF E.7.3 item 2)."
+scope = { sources = ["agentdojo"], parts = ["2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "baseline_converter"
+detector = { rule = "agentdojo.tool_status_from_error@1", class = "D" }
+recorded_as = { notes = ["tool_execution.status"] }
+handling = { class = "CR", rule = "agentdojo.tool_status_from_error@1" }
+expected = [{ snapshot = "2024-06", count = 628, basis = "D.15.5 seed over the baseline copy", unit = "calls" }]
+manuscript = true
+refs = ["D.15.5", "EF E.7.3 item 2"]
+
+[[artefact]]
+id = "agentdojo.art.context_taint_used"
+title = "Context-visibility used edges and defence-altered content"
+description = "The baseline asserted context membership as PROV usage; AgentPROV states it INFERRED in the inference bundle, and the PI-detector replacement as a redact decision with the original overwritten."
+scope = { sources = ["agentdojo", "agentdyn"], parts = ["2024-06", "head", "a"], profiles = ["agentdojo-upstream", "agentdyn"] }
+cause = "baseline_converter"
+detector = { rule = "agentdojo.pi_detector_sentinel@1", class = "I" }
+recorded_as = { notes = ["decision.verdict:redact", "unk:original:overwritten", "evf:input:I"] }
+handling = { class = "CR", rule = "agentdojo.context_is_prefix@1" }
+expected = [
+  { snapshot = "2024-06", count = 2154, basis = "phase-6 full import: redacted tool outputs", unit = "tool_outputs", status = "verified" },
+  { snapshot = "2024-06", count = 624, basis = "phase-6 full import: logs with a redaction", status = "verified" },
+  { snapshot = "head", count = 2138, basis = "phase-10 full import of the head pin (census): redacted tool outputs", unit = "tool_outputs", status = "verified" },
+  { snapshot = "head", count = 622, basis = "phase-10 full import of the head pin (census): logs with a redaction", status = "verified" },
+  { snapshot = "agentdyn:a", count = 29317, basis = "phase-10 analysis, section 3.3: redacted tool outputs (transformers PI detector, PIGuard, PromptGuard 2, DRIFT)", unit = "tool_outputs", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "agentdojo.art.identity_folding"
+title = "Model folded with the defence; snapshot identity"
+description = "pipeline_name folds the model with the defence; model and defence are split from the directory (INFERRED), and every record carries its own origin commit (2024-06 versus head). The 7 Mixtral logs are not in the baseline copy."
+scope = { sources = ["agentdojo"], parts = ["2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.pipeline_dir_is_model_identity@1", class = "I" }
+recorded_as = { notes = ["actor.model.requested", "task.defense_id", "origin.commit"] }
+handling = { class = "CR", rule = "agentdojo.defence_suffix@1" }
+expected = [{ snapshot = "2024-06", count = 7, basis = "phase-6 full import: Mixtral logs absent from the baseline copy (gate R5)", status = "verified" }]
+manuscript = true
+refs = ["D.15.5", "J.4.1"]
+
+[[artefact]]
+id = "agentdojo.art.validity_defects"
+title = "Benchmark check defects"
+description = "Vacuous utility, lost data, banking precedence, checker misses and unread payloads: per-trace validity flags of the benchmark checks; payload reach comes from the injection marker. Banking precedence (AgentDojo #181): the banking injection tasks 0, 1 and 3 score any transfer to the attacker IBAN as success, whether or not the subject carries the target datum. Vacuous utility (#161): banking user_task_5 can be true without the requested payment, because the v1 check is satisfied by a transaction already in the initial environment. The logged booleans are kept; a datum re-score is a separate column, never a replacement."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "agent-security-tools-survey", "mandate-agentdojo-eval"], parts = ["2024-06", "head", "a", "agentdojo-runs"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "survey-runs", "mandate-agentdojo-eval"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.injection_marker_yaml@1", class = "D" }
+recorded_as = { sem = ["injection_marker"] }
+handling = { class = "FO", rule = "agentdojo.injection_marker_yaml@1" }
+expected = [
+  { snapshot = "2024-06", count = 625, basis = "D.15.5 seed over the baseline copy: payload unread" },
+  { snapshot = "head", count = 182, basis = "phase-10 analysis, section 8 row 9: vacuous utility (utility true with zero tool calls)", status = "verified" },
+  { snapshot = "rope:head", count = 73, basis = "phase-10 analysis, section 8 row 9: vacuous utility", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 4, basis = "phase-10 analysis, section 8 row 9: vacuous utility", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 13, basis = "pre-check PC-ast-survey-agentdojo-04/12 (CC-07): banking precedence (#181), injection task 0 7 of 27 and task 3 6 of 30 successes without the datum in the transfer subject; task 1 not tested, so a lower bound" },
+  { snapshot = "agentdyn:a", count = 2, basis = "phase-10 analysis, section 8 row 9: vacuous utility", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 3, basis = "pre-check PC-mandate-agentdojo-eval-01/11 (CC-07): banking precedence (#181), injection task 1 security true without the companion IBAN in any executed attacker-bound subject, 3 of 18 (all important_instructions); tasks 0 and 3 0 of 16 and 0 of 17", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 4, basis = "pre-check PC-mandate-agentdojo-eval-02/11 (CC-07): vacuous utility (#161), user_task_5 utility true with no executed payment to the Spotify IBAN; 18 of 18 user_task_5 logs are true", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.5", "docs/reports/analysis/phase10-corpus-analysis.md", "docs/reports/precheck/cross-cutting.md CC-07", "docs/reports/precheck/ast-survey-agentdojo.md", "docs/reports/precheck/mandate-agentdojo-eval.md", "https://github.com/ethz-spylab/agentdojo/issues/181", "https://github.com/ethz-spylab/agentdojo/issues/161"]
+
+[[artefact]]
+id = "agentdojo.art.baseline_packaging"
+title = "Baseline packaging defects"
+description = "False datasheet provenance, DoS runs counted as successes and unhashed manifests of the baseline package. AgentPROV answers the provenance defect with the pinned upstream link of each converted transcript and its own corpus layer."
+scope = { sources = ["adprov-v1"], parts = ["converted-legacy"], profiles = ["adprov-v1"] }
+cause = "baseline_converter"
+detector = { rule = "adprov.converted_stem_to_upstream_path@1", class = "D" }
+handling = { class = "CR", rule = "adprov.converted_stem_to_upstream_path@1" }
+manuscript = false
+refs = ["D.15.5", "B F-61 to F-64", "J.4.5"]
+
+[[artefact]]
+id = "agentdojo.art.calls_derived_from_messages"
+title = "Model calls derived from the messages"
+description = "Found by the phase-6 full import. TraceLogger records no model call (nor do a DRIFT conversation and a ResCont row, wave 2): each agent call is derived from an assistant message, so the agent-calls check cannot be verified and earlier-pass calls are not counted."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "mandate-agentdojo-eval", "agent-security-tools-survey", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness", "drift", "drift1-agentdojo", "memo-ozdincer-agentdojo"], parts = ["2024-06", "head", "a", "agentdojo-runs", "v1", "drift", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "mandate-agentdojo-eval", "survey-runs", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness", "drift", "drift1-agentdojo", "memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "aer.acc.agent_calls_vs_assistant@1", class = "D" }
+claims = ["artefact.generic.accounting_unverifiable"]
+recorded_as = { issues = ["accounting_unverifiable"] }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "2024-06", count = 18008, basis = "phase-6 full import: logs with at least one assistant message", status = "verified" },
+  { snapshot = "head", count = 36447, basis = "phase-10 full import of the head pin (census): logs with at least one assistant message", status = "verified" },
+  { snapshot = "rope:head", count = 10789, basis = "phase-10 analysis, section 8.2: accounting agent_calls_vs_assistant unverifiable", status = "verified" },
+  { snapshot = "agentdyn:a", count = 38270, basis = "phase-10 analysis, section 8.2: accounting agent_calls_vs_assistant unverifiable", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 396, basis = "phase-10 analysis, section 8.2: accounting agent_calls_vs_assistant unverifiable", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 3243, basis = "phase-10 analysis, section 8.2: accounting agent_calls_vs_assistant unverifiable", status = "verified" },
+]
+manuscript = true
+refs = ["D.6.9", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+# ---------------------------------------------------------------------------------------------- head snapshot (phase 10)
+# Found while mapping the head pin (089ed468; D.6.12): both concern the v1.k14 logs of the local-model pipelines.
+
+[[artefact]]
+id = "agentdojo.art.local_parse_drop"
+title = "Local-model raw completions with more tool tags than parsed calls"
+description = "The local LLM element parses only the first <function=...> tag of a raw completion into a call, and none when its JSON is broken; a turn whose text holds more tags than parsed calls may have lost calls. The text is kept verbatim with the tag count; the possible loss is flagged, never repaired."
+scope = { sources = ["agentdojo", "agentdyn", "tacit-agentdojo", "kongminos-agentdojo"], parts = ["head", "a"], profiles = ["agentdojo-upstream", "agentdyn", "tacit-agentdojo", "kongminos-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.local_model_tag_count@1", class = "I" }
+recorded_as = { issues = ["agentdojo.local_parse_drop_possible"], notes = ["ext:agentdojo.local_model_tag_count"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "head", count = 2996, basis = "phase-10 full import of the head pin (census): turns", unit = "turns", status = "verified" },
+  { snapshot = "head", count = 1192, basis = "phase-10 full import of the head pin (census): turns with tags and no parsed call", unit = "turns", status = "verified" },  { snapshot = "agentdyn:a", count = 488, basis = "safety-net run over the phase-10 AgentDyn corpus: executions with the issue", status = "verified" },
+  { snapshot = "tacit-agentdojo:head", count = 622, basis = "pre-check PC-tacit-agentdojo-01 raw census (tacit-agentdojo@2 quirk, D-587): llama3.1-8b-instruct turns with more <function= tags than parsed calls, in 444 of 1,046 logs", unit = "turns", status = "verified" },
+  { snapshot = "tacit-agentdojo:head", count = 342, basis = "pre-check PC-tacit-agentdojo-01: of these, tag-only final turns with no parsed call", unit = "turns", status = "verified" },
+  { snapshot = "kongminos-agentdojo:head", count = 478, basis = "pre-check PC-kongminos-agentdojo-02 (kongminos-agentdojo@2 quirk, D-590): turns with more <function= tags than parsed calls, in 154 logs", unit = "turns", status = "verified" },
+  { snapshot = "kongminos-agentdojo:head", count = 17, basis = "pre-check PC-kongminos-agentdojo-03: final turns with a tag and no parsed call", unit = "turns", status = "verified" },
+]
+manuscript = true
+refs = ["D.6.6 local-model row", "D.6.12 item 7", "local_llm.py l. 119-145 at 089ed468", "issue #202", "docs/reports/precheck/tacit-agentdojo.md PC-tacit-agentdojo-01"]
+
+[[artefact]]
+id = "agentdojo.art.package_version_unknown"
+title = "No package version in the head v1.k14 logs"
+description = "Every head v1.k14 log records agentdojo_package_version 'unknown' (importlib.metadata raised PackageNotFoundError: no installed agentdojo distribution was found), so the logs carry no distribution version at all; the code identity is not recoverable from the log."
+scope = { sources = ["agentdojo"], parts = ["head"], profiles = ["agentdojo-upstream"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.benchmark_from_dialect@1", class = "D" }
+recorded_as = { notes = ["unk:code:not_recorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "head", count = 11765, basis = "phase-10 full import of the head pin (census): v1.k14 logs", status = "verified" }]
+manuscript = true
+refs = ["D.6.5 Step 2", "D.6.12 item 2", "logging.py l. 176-181 at 089ed468"]
+
+# ---------------------------------------------------------------------------------------------- phase-10 corpora (B4)
+# Added after the phase-10 corpus analysis (docs/reports/analysis/phase10-corpus-analysis.md sections 6 and 8): the three head
+# classes the safety net left unclassified (naive timestamps, repeated provider ids, incomplete runs), the safety-net finding
+# for a payload that never reached the agent (detector payload_not_reaching_agent, B5), and the artefacts of ROPE (with the
+# AutoDojo-attack slice), AgentDyn, Mandate and the survey runs. The ids `rope.`, `agentdyn.`, `mandate.` and `survey.` are
+# namespaces of this family (D.15.8 item 2). Where the proper handling needs a mapper change that is not applied yet
+# (B1 AutoDojo unescape, B3 CaMeL feedback), the entry is `FO` and says so. Counts are the analysis' (sections 2, 8.1, 8.2).
+# Not added: the identical-trajectories entry of analysis 8.3 (it needs the unimplemented `cross_origin_duplicate`
+# detector, which has no registered name to cite).
+
+[[artefact]]
+id = "agentdojo.art.payload_not_reaching_agent"
+title = "The injected payload never appears in what the agent read"
+description = "Attacked runs in which no tool result carries the payload (no present injection marker in the SEM). Defences that redact or isolate and agents that never read an injected vector both produce it; the run cannot show an attack effect. The finding is only as good as the SEM marker: a wrong absent (for example a YAML-escaped AutoDojo payload) is inherited. Where the log records no injection map (DRIFT, ResCont) no comparison can be made: variant no_marker."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "mandate-agentdojo-eval", "agent-security-tools-survey", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness", "drift", "drift1-agentdojo", "memo-ozdincer-agentdojo"], parts = ["head", "a", "agentdojo-runs", "v1", "drift", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "mandate-agentdojo-eval", "survey-runs", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness", "drift", "drift1-agentdojo", "memo-ozdincer-agentdojo"] }
+cause = "benchmark"
+detector = { rule = "artefact.generic.payload_not_reaching_agent", class = "D" }
+recorded_as = { sem = ["injection_marker"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "head", count = 5895, basis = "safety-net run (read-only) over the phase-10 head corpus; the analysis counted 5,847 over non-DoS attacked executions including the outcome-only logs, this detector includes DoS and excludes outcome-only (the difference of 48 is consistent with that, not decomposed)", status = "verified" },
+  { snapshot = "rope:head", count = 2303, basis = "safety-net run over the phase-10 ROPE corpus (matches analysis row 6; overstated by B1)", status = "verified" },
+  { snapshot = "agentdyn:a", count = 18368, basis = "safety-net run over the phase-10 AgentDyn corpus (matches analysis row 6)", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 600, basis = "safety-net run over the phase-10 survey corpus (matches analysis row 6)", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 23, basis = "safety-net run over the phase-10 Mandate corpus (matches analysis row 6)", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.3", "docs/reports/analysis/phase10-corpus-analysis.md section 8 row 6"]
+
+[[artefact]]
+id = "agentdojo.art.defence_benign_intervention"
+title = "Defences redact or deny in benign runs"
+description = "PI detectors redact tool outputs, guards deny calls and gates decline in runs with no attack; the intervention is recorded as a decision and costs utility. Counts per arm are in the expected rows."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "mandate-agentdojo-eval"], parts = ["head", "a"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "mandate-agentdojo-eval"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.pi_detector_sentinel@1", class = "I" }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "head", count = 81, basis = "phase-10 analysis, section 8 row 10: benign runs with a redaction (124 benign detector runs; 278 of 486 tool outputs)", status = "verified" },
+  { snapshot = "agentdyn:a", count = 938, basis = "phase-10 analysis, section 8 row 10: benign runs with a redaction (transformers PI 546, PIGuard 389, PromptGuard 2 3)", status = "verified" },
+  { snapshot = "rope:head", count = 183, basis = "phase-10 analysis, section 8 row 10: benign runs with a guard denial (425 of 5,238 tool messages)", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 8, basis = "phase-10 analysis, section 8 row 10, envelope arm: runs with at least one MANDATE_DECLINE among the attack-none pre-passes (8 of 9)", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 1, basis = "pre-check PC-mandate-agentdojo-eval-05, intent arm: runs with at least one MANDATE_DECLINE among the attack-none pre-passes (1 of 9; 9 declines, utility still true)", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/analysis/phase10-corpus-analysis.md section 8 row 10", "docs/reports/precheck/mandate-agentdojo-eval.md PC-05"]
+
+[[artefact]]
+id = "survey.art.text_tool_call_unparsed"
+title = "Tool calls emitted as text by qwen3-coder and never executed"
+description = "Through the Ollama OpenAI-compatible endpoint, qwen3-coder:30b sometimes writes its call as <function=...> text; no tool_calls are parsed and the run ends after one turn, scored utility false and security false. Re-parsing is forbidden (D.15.1)."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentdojo-runs"], profiles = ["survey-runs"] }
+cause = "provider"
+detector = { rule = "artefact.generic.text_encoded_call", class = "I" }
+claims = ["artefact.generic.text_encoded_call"]
+handling = { class = "FO" }
+expected = [{ snapshot = "agent-security-tools-survey:agentdojo-runs", count = 174, basis = "phase-10 analysis, section 8 row 11: executions with a text-encoded call (heuristic; 173 end after one turn)", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/analysis/phase10-corpus-analysis.md section 8 row 11"]
+
+[[artefact]]
+id = "rope.art.autodojo_payload_escaped"
+title = "AutoDojo payloads are logged YAML-escaped"
+description = "The AutoDojo attack writes its payload through _yaml_escape into the log's injections, while the tool outputs show the decoded text, so a string match on the logged payload misses it. Under agentdojo.suites@1 the SEM marker is a wrong absent for these runs. Under agentdojo.suites@2 (regeneration-batch item 1, B1) the marker compares the payload with the escape undone wherever the payload cache link holds (agentdojo.autodojo_payload_unescape@1, cited through its _unverified twin on this harness); the logged payload is never edited. The 10 long-horizon markers have no cache link and stay ambiguous."
+scope = { sources = ["rope"], parts = ["head"], profiles = ["rope", "autodojo-via-rope"] }
+cause = "upstream_harness"
+detector = { rule = "autodojo.payload_cache_link@1", class = "I" }
+recorded_as = { notes = ["ext:autodojo.cache_match"], sem = ["injection_marker"] }
+handling = { class = "CR", rule = "agentdojo.autodojo_payload_unescape@1" }
+expected = [
+  { snapshot = "rope:head", count = 1166, basis = "agentdojo.suites@1: phase-10 analysis, section 8 row 12, AutoDojo executions with a visible payload and no marker", status = "verified" },
+  { snapshot = "rope:head", count = 1235, basis = "examination 2 re-measure (regen-batch.md, row 'Item 1 (B1) re-measured'): AutoDojo executions whose tool output holds the whole decoded payload verbatim", status = "verified" },
+  { snapshot = "rope:head", count = 1840, basis = "examination 2 re-measure: markers of the whole decoded payload found verbatim", unit = "markers", status = "verified" },
+  { snapshot = "rope:head", count = 2528, basis = "agentdojo.suites@2 on the stored AERs (regeneration-batch item 1 table, read-only): AutoDojo executions with a present marker, up from 1,118 under suites@1; to be re-counted on the regenerated corpus" },
+]
+manuscript = true
+refs = ["D.6.13 item 9", "docs/reports/analysis/phase10-corpus-analysis.md B1", "docs/reports/analysis/regen-batch.md item 1", "docs/reports/precheck/rope.md PC-rope-01"]
+
+[[artefact]]
+id = "rope.art.security_without_exposure"
+title = "Recorded attack success with no payload in the trajectory"
+description = "Checker-scored security true although no injected text appears in any message. Under agentdojo.suites@1 the analysis screen found 22: 17 slack injection_task_1 runs on the AutoDojo arm and 5 important_instructions runs. Under agentdojo.suites@2 the AutoDojo payloads are visible (the unescape of rope.art.autodojo_payload_escaped), so the 17 are no longer flagged; the 5 (github user_task_7 twice, 9 and 11, shopping user_task_10) carry the SEM annotation agentdojo.success_without_visible_payload (regeneration-batch item 4, C1), in the assessment bundle only. Not covered by ROPE's released corrections."
+scope = { sources = ["rope"], parts = ["head"], profiles = ["rope", "autodojo-via-rope"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.success_without_visible_payload@1", class = "D" }
+recorded_as = { sem = ["agentdojo.success_without_visible_payload", "injection_marker"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "rope:head", count = 22, basis = "agentdojo.suites@1: phase-10 analysis, section 8 row 8, payload windows including unescaped forms", status = "verified" },
+  { snapshot = "rope:head", count = 5, basis = "agentdojo.suites@2 on the stored AERs, whole corpus (regeneration-batch item 4 table, read-only): success_without_visible_payload flags; to be re-counted on the regenerated corpus" },
+]
+manuscript = true
+refs = ["docs/reports/analysis/phase10-corpus-analysis.md C1 and section 8 row 8", "docs/reports/analysis/regen-batch.md item 4", "docs/reports/precheck/rope.md PC-rope-01"]
+
+[[artefact]]
+id = "rope.art.guard_denial"
+title = "ROPE guard denials replace tool results"
+description = "The ROPE guard denies a call before dispatch and the tool message carries the denial text instead of a result; the tool did not run. Two texts occur, because the pre-fix enforcer interpolated an unset query."
+scope = { sources = ["rope"], parts = ["head"], profiles = ["rope", "autodojo-via-rope"] }
+cause = "benchmark"
+detector = { rule = "rope.denial_error_pattern@1", class = "I" }
+handling = { class = "CR", rule = "rope.denial_error_pattern@1" }
+expected = [{ snapshot = "rope:head", count = 12657, basis = "phase-10 analysis, section 2 (profile quirk observed count): denials, 9,424 without and 3,233 with the query echoed", unit = "tool_messages", status = "verified" }]
+manuscript = true
+refs = ["D.15.6", "D.6.13", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "rope.art.pipeline_tag_not_identity"
+title = "ROPE configuration tag names another model"
+description = "The pipeline_name of the qwen3-235b AutoDojo arm is a configuration tag naming gpt-4o-mini, not the agent model; the model comes from the release directory. The other AutoDojo arms carry tags of their own models."
+scope = { sources = ["rope"], parts = ["head"], profiles = ["rope", "autodojo-via-rope"] }
+cause = "upstream_harness"
+detector = { rule = "rope.model_dir_identity@1", class = "I" }
+handling = { class = "CR", rule = "rope.model_dir_identity@1" }
+expected = [{ snapshot = "rope:head", count = 949, basis = "phase-10 analysis, section 8 row 16: qwen3-235b/*/autodojo logs", status = "verified" }]
+manuscript = true
+refs = ["D.6.13 item 6", "docs/reports/analysis/phase10-corpus-analysis.md section 8 row 16", "docs/reports/precheck/rope.md PC-rope-01 (L-06, H-18)"]
+
+[[artefact]]
+id = "rope.art.security_correction"
+title = "ROPE released effect-based security corrections"
+description = "ROPE's own corrected judgements for slack injection task 5, dailylife injection task 7 and github injection task 1 differ from the logged security; both values are kept, the correction beside the recorded one."
+scope = { sources = ["rope"], parts = ["head"], profiles = ["rope", "autodojo-via-rope"] }
+cause = "benchmark"
+detector = { rule = "rope.security_correction@1", class = "D" }
+handling = { class = "RJ", rule = "rope.security_correction@1" }
+expected = [{ snapshot = "rope:head", count = 678, basis = "phase-10 analysis, section 8 row 17: recomputed judgements (slack IT5 198, dailylife IT7 260, github IT1 220)", unit = "judgements", status = "verified" }]
+manuscript = true
+refs = ["D.4.4", "docs/reports/analysis/phase10-corpus-analysis.md section 8 row 17"]
+
+[[artefact]]
+id = "agentdyn.art.camel_feedback_as_user"
+title = "CaMeL interpreter feedback logged as user messages"
+description = "The CaMeL planner receives interpreter errors as user-role messages; they are written by the camel defence, not the simulated user, and the planner's own input (never tool results) is not logged. Mapped since regeneration-batch item 2 (B3): the feedback's author is the camel defence actor and the planner calls declare their input not recorded."
+scope = { sources = ["agentdyn"], parts = ["a"], profiles = ["agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "agentdyn.camel_interpreter_feedback@1", class = "D" }
+handling = { class = "CR", rule = "agentdyn.camel_interpreter_feedback@1" }
+expected = [
+  { snapshot = "agentdyn:a", count = 266, basis = "phase-10 analysis, section 8 row 18: CaMeL logs with feedback messages", status = "verified" },
+  { snapshot = "agentdyn:a", count = 1674, basis = "regeneration-batch item 2 census of the stored corpus: feedback messages in the 386 CaMeL logs", unit = "messages", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/analysis/phase10-corpus-analysis.md B3", "docs/reports/analysis/regen-batch.md item 2"]
+
+[[artefact]]
+id = "agentdyn.art.camel_orphan_results"
+title = "CaMeL interpreter tool results without a planner call"
+description = "In CaMeL logs the interpreter executes the tool calls written inside the planner's Python, so tool results appear that no assistant tool call answers."
+scope = { sources = ["agentdyn"], parts = ["a"], profiles = ["agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "agentdyn.camel_orphan_tool_result@1", class = "I" }
+handling = { class = "CR", rule = "agentdyn.camel_orphan_tool_result@1" }
+expected = [
+  { snapshot = "agentdyn:a", count = 1977, basis = "phase-10 analysis, section 8 row 18: orphan tool results", unit = "tool_results", status = "verified" },
+  { snapshot = "agentdyn:a", count = 240, basis = "phase-10 analysis, section 8 row 18: logs with orphan results (of 386 CaMeL logs)", status = "verified" },
+]
+manuscript = true
+refs = ["D.15.6", "docs/reports/analysis/phase10-corpus-analysis.md section 8 row 18"]
+
+[[artefact]]
+id = "agentdyn.art.drift_user_decision"
+title = "DRIFT validator refusals logged as user messages"
+description = "A user-role message with an error key in a DRIFT log is the validator's refusal feedback, recorded as a decision and not as user content."
+scope = { sources = ["agentdyn"], parts = ["a"], profiles = ["agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "agentdyn.drift_user_error_key@1", class = "D" }
+handling = { class = "CR", rule = "agentdyn.drift_user_error_key@1" }
+expected = [{ snapshot = "agentdyn:a", count = 434, basis = "phase-10 analysis, section 8.3: DRIFT user decisions", unit = "decisions", status = "verified" }]
+manuscript = true
+refs = ["D.15.6", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "mandate.art.gate_decline"
+title = "Mandate gate declines replace tool results"
+description = "The Mandate gate declines a gated call and appends a MANDATE_DECLINE message instead of executing the tool."
+scope = { sources = ["mandate-agentdojo-eval"], parts = ["head"], profiles = ["mandate-agentdojo-eval"] }
+cause = "benchmark"
+detector = { rule = "mandate.decline_prefix@1", class = "D" }
+handling = { class = "CR", rule = "mandate.decline_prefix@1" }
+expected = [{ snapshot = "mandate-agentdojo-eval:head", count = 240, basis = "phase-10 analysis, section 8.3: declines", unit = "tool_messages", status = "verified" }]
+manuscript = true
+refs = ["D.15.6", "docs/reports/analysis/phase10-corpus-analysis.md"]
+
+[[artefact]]
+id = "mandate.art.allow_inferred"
+title = "Mandate allows are not logged"
+description = "A gated call that was executed passed the gate, but the decision is not logged; the allow is inferred from the execution."
+scope = { sources = ["mandate-agentdojo-eval"], parts = ["head"], profiles = ["mandate-agentdojo-eval"] }
+cause = "benchmark"
+detector = { rule = "mandate.allow_inferred@1", class = "I" }
+handling = { class = "CR", rule = "mandate.allow_inferred@1" }
+expected = [{ snapshot = "mandate-agentdojo-eval:head", count = 143, basis = "phase-10 analysis, section 8 row 25: inferred allows", unit = "decisions", status = "verified" }]
+manuscript = true
+refs = ["D.15.6", "docs/reports/analysis/phase10-corpus-analysis.md section 8 row 25"]
+
+[[artefact]]
+id = "agentdyn.art.progent_directory_strays"
+title = "Variant-A logs in a Progent directory"
+description = "A few AgentDyn variant-A logs sit in a directory of another pipeline; the logged pipeline_name and the directory disagree. The identity is taken from the registry row of the directory and the mismatch is recorded, never used to correct it."
+scope = { sources = ["agentdyn"], parts = ["a"], profiles = ["agentdyn"] }
+cause = "unknown"
+detector = { rule = "agentdyn.pipeline_dir_registry@1", class = "I" }
+recorded_as = { issues = ["agentdojo.pipeline_name_mismatch"] }
+handling = { class = "FO" }
+expected = [{ snapshot = "agentdyn:a", count = 12, basis = "phase-10 analysis, section 8 row 24 and safety-net run: pipeline_name_mismatch", status = "verified" }]
+manuscript = false
+refs = ["docs/reports/analysis/phase10-corpus-analysis.md section 8 row 24"]
+
+[[artefact]]
+id = "agentdojo.art.repeated_provider_ids"
+title = "Repeated non-empty call ids within a log (GPT)"
+description = "A provider call id occurs more than once in one log; linking falls back to position for the affected batches."
+scope = { sources = ["agentdojo"], parts = ["head"], profiles = ["agentdojo-upstream"] }
+cause = "provider"
+detector = { rule = "agentdojo.positional_match@1", class = "I" }
+claims = ["artefact.generic.provider_id_anomaly#repeated"]
+handling = { class = "CR", rule = "agentdojo.positional_match@1" }
+expected = [{ snapshot = "head", count = 213, basis = "phase-10 analysis, section 8 row 14 and 8.2: logs with repeated ids", status = "verified" }]
+manuscript = false
+refs = ["D.6.12 item 16", "docs/reports/analysis/phase10-corpus-analysis.md section 8 row 14"]
+
+[[artefact]]
+id = "agentdojo.art.naive_timestamp"
+title = "Run start is a naive local timestamp"
+description = "v1.k14 logs record evaluation_timestamp without a zone, and TraceLogger records no per-call times: the run start is ambiguous (never a PROV time) and the other times are not recorded. The I-class profiles state this with the unverified twin rule. v0.k11 logs (craibench, geryon) have no run timestamp, and a DRIFT conversation records no time at all (D-275): every time is not recorded."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "mandate-agentdojo-eval", "agent-security-tools-survey", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness", "drift", "drift1-agentdojo"], parts = ["head", "a", "agentdojo-runs", "v1", "drift", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "mandate-agentdojo-eval", "survey-runs", "aiauthz-agentdojo", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "craibench-agentdojo", "dca-agentdojo", "gate-agentdojo", "geryon-agentdojo", "glitch-agentdojo", "hilarytorn-trajectory-poisoning", "interbolt-agentdojo", "ipi-defenses-agentdojo", "kavach-agentdojo", "kongminos-agentdojo", "linyxus-agentdojo", "llm-lock-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "mohameduk-agentdojo", "seagent-agentdojo", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness", "drift", "drift1-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.naive_local_timestamp@1", class = "D" }
+claims = ["artefact.generic.sentinel_time#unknown_ambiguous", "artefact.generic.sentinel_time#unknown_not_recorded"]
+handling = { class = "NR" }
+expected = [
+  { snapshot = "head", count = 11765, basis = "phase-10 analysis, section 8.2: v1.k14 logs", status = "verified" },
+  { snapshot = "agentdyn:a", count = 38281, basis = "phase-10 analysis, section 8.2", status = "verified" },
+  { snapshot = "rope:head", count = 10791, basis = "phase-10 analysis, section 8.2", status = "verified" },
+  { snapshot = "mandate-agentdojo-eval:head", count = 396, basis = "phase-10 analysis, section 8.2", status = "verified" },
+  { snapshot = "agent-security-tools-survey:agentdojo-runs", count = 3243, basis = "phase-10 analysis, section 8.2", status = "verified" },
+]
+manuscript = false
+refs = ["D.6.12 item 2", "docs/reports/analysis/phase10-corpus-analysis.md section 8.2"]
+
+[[artefact]]
+id = "agentdojo.art.incomplete_run"
+title = "Logs without outcomes or duration"
+description = "A log without utility, security and duration: the run did not complete (head v1.k14.incomplete, AgentDyn) or the file is an empty shell (ROPE). The outcomes are not recorded and none is invented."
+scope = { sources = ["agentdojo", "rope", "agentdyn", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "gate-agentdojo", "geryon-agentdojo", "kavach-agentdojo", "linyxus-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness"], parts = ["head", "a", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["agentdojo-upstream", "rope", "autodojo-via-rope", "agentdyn", "authority-caps-agentdojo", "bookkeeper-agentdojo", "ceferisbarov-agentdojo", "gate-agentdojo", "geryon-agentdojo", "kavach-agentdojo", "linyxus-agentdojo", "melon-agentdojo", "menelaus29-ipi-multidomain", "sentry-agentdojo", "shreeyavarma-llm-safety", "tacit-agentdojo", "yockcheng-prompt-injection-harness"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.incomplete_run@1", class = "D" }
+recorded_as = { issues = ["incomplete_run", "no_outcome_recorded"] }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "head", count = 1, basis = "phase-10 analysis, section 8.2: seal issue incomplete_run (variant v1.k14.incomplete)", status = "verified" },
+  { snapshot = "agentdyn:a", count = 12, basis = "phase-10 analysis, section 8.3: incomplete runs", status = "verified" },
+]
+manuscript = false
+refs = ["D.6.12", "docs/reports/analysis/phase10-corpus-analysis.md section 8.3"]
+
+# ---------------------------------------------------------------------------------------------- live capture (phase 8)
+# Found while mapping the scripted capture sessions of backends/agentdojo (agentdojo==0.1.35; tests/fixtures/capture/,
+# D.10.10) with the capture mapper agentdojo.capture (D.10.4a). Scope: the live part, profile agentdojo-live. No live
+# campaign has run, so no entry has an `expected` count yet.
+
+[[artefact]]
+id = "agentdojo.art.abort_message_not_logged"
+title = "The abort message of an aborted pass is in the capture only"
+description = "AbortAgentError appends an assistant message with the abort reason (tool_calls []) to the aborted pass's messages; the stock runner scores that list but the TraceLogger never logs it, so the native log ends one message earlier. It is no model reply: the capture mapper keeps it without actor or generator and the live-versus-native comparison leaves it out."
+scope = { sources = ["agentdojo"], parts = ["live"], profiles = ["agentdojo-live"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.capture_abort_message@1", class = "D" }
+recorded_as = { notes = ["message.unk:generated_by"], issues = ["aborted_attempt"] }
+handling = { class = "CR", rule = "agentdojo.capture_abort_message@1" }
+manuscript = false
+refs = ["D.10.4a", "D.10.10 item 10", "errors.py l. 13-28 at 0.1.35", "tests/adapters/agentdojo/test_capture_fixtures.py::test_aborted_pass_abort_message"]
+
+[[artefact]]
+id = "agentdojo.art.injection_yaml_folding"
+title = "Environment YAML folds injection payload whitespace"
+description = "Suite environments are loaded from YAML with the injection placeholders substituted, so line breaks and blank lines of a payload are folded in the model-visible tool output; the payload returned by attack.attack() (capture fixture, native injections) keeps them. Evidence is kept as recorded; the injection marker finds the payload through the YAML reading of the tool output."
+scope = { sources = ["agentdojo"], parts = ["live"], profiles = ["agentdojo-live"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.injection_marker_yaml@1", class = "D" }
+recorded_as = { sem = ["injection_marker"] }
+handling = { class = "FO", rule = "agentdojo.injection_marker_yaml@1" }
+manuscript = false
+refs = ["D.10.10", "task_suite.py l. 144-145 at 0.1.35", "tests/adapters/agentdojo/test_capture_fixtures.py::test_injection_payload_is_found_through_the_yaml_reading"]
+
+[[artefact]]
+id = "agentdojo.art.nested_wire_retries"
+title = "Up to nine wire attempts per element call"
+description = "The stock OpenAI element nests the SDK's two retries inside tenacity's three attempts, so one element call can make up to nine wire requests. Each attempt is an llm.request of its own: the mapper keeps every attempt as a model call (error or discarded) linked by retry_of, and only the answering attempt generates the reply."
+scope = { sources = ["agentdojo"], parts = ["live"], profiles = ["agentdojo-live"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.capture_reply_appended@1", class = "D" }
+recorded_as = { notes = ["model_call.retry_of", "model_call.status:error"] }
+handling = { class = "CR", rule = "agentdojo.capture_reply_appended@1" }
+manuscript = false
+refs = ["D.10.10 item 4", "openai_llm.py chat_completion_request (tenacity) at 0.1.35", "tests/adapters/agentdojo/test_capture_mapper.py::test_wire_retries_are_separate_calls"]
+
+[[artefact]]
+id = "agentdojo.art.http_400_not_retried"
+title = "A provider 400 is not retried"
+description = "A real HTTP 400 surfaces as the SDK's BadRequestError, which tenacity does not retry: the call is one model call with status error and reason http_400; the stock runner catches it (outcomes imposed, run complete) or the cell fails (session errored)."
+scope = { sources = ["agentdojo"], parts = ["live"], profiles = ["agentdojo-live"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.capture_status@1", class = "D" }
+recorded_as = { issues = ["capture_error", "outcome_imposed_by_runner"] }
+handling = { class = "CR", rule = "agentdojo.run_error_imposed_outcome@1" }
+manuscript = false
+refs = ["D.10.10", "tests/adapters/agentdojo/test_capture_fixtures.py::test_run_error_imposes_the_outcomes"]
+
+[[artefact]]
+id = "agentdojo.art.aborted_pass_cause"
+title = "An aborted attempt has two causes"
+description = "In the stock harness only the PI detector raises AbortAgentError; the pass recorder also closes a pass cut by any other exception with pass.end aborted. Attempt status aborted therefore covers both; the second is preceded by an error event (where: pipeline), which the mapper reports as capture_error."
+scope = { sources = ["agentdojo"], parts = ["live"], profiles = ["agentdojo-live"] }
+cause = "capture"
+detector = { rule = "agentdojo.capture_status@1", class = "D" }
+recorded_as = { issues = ["aborted_attempt", "capture_error"] }
+handling = { class = "FO", rule = "agentdojo.capture_status@1" }
+manuscript = false
+refs = ["D.10.10 item 10", "tests/adapters/agentdojo/test_capture_fixtures.py::test_uncaught_failure_is_sealed_errored"]
+
+[[artefact]]
+id = "agentdyn.art.nondeterministic_tools"
+title = "AgentDyn tools read the clock and the random generator"
+description = "AgentDyn's shopping, github, dynamic banking, email and cloud-drive tools draw one-time passcodes and order ids from random and dates and timestamps from the clock inside the call, so the environment state and the passcode-bearing tool results differ between runs of one cell. Values are recorded as observed; a re-run is not a reproduction (phase 9b, R-9b-1)."
+scope = { sources = ["agentdyn", "autodojo"], parts = ["a", "c", "live"], profiles = ["agentdyn", "autodojo-live", "agentdyn-live"] }
+cause = "benchmark"
+detector = { rule = "agentdyn.nondeterministic_tool_state@1", class = "D" }
+handling = { class = "FO" }
+expected = []
+manuscript = true
+refs = ["D.15.1", "docs/reports/phase9b/README.md section 3", "docs/reports/analysis/regen-batch.md item 26", "D.11.10 (the agentdyn backend runs the same tool modules, design F-3)"]
+
+# ---------------------------------------------------------------------------------------------- AgentDyn live backend
+# From the AgentDyn backend design (docs/reports/agentdyn-backend/design.md section 3.3; D-687). AgentDyn's suites run
+# live through two backends: AgentDyn's own pinned code (`agentdyn-live`) and AutoDojo's copy of the suites
+# (`autodojo-live`). These entries say what differs between the two and what AgentDyn's harness does to the evidence.
+
+[[artefact]]
+id = "agentdyn.art.system_prompt_backend_dependent"
+title = "AgentDyn suites get AgentDyn's system prompt only through the agentdyn backend"
+description = "AgentDyn's default system message is AgentDojo's plus 'Complete all tasks automatically without requesting user confirmation.' (sha256 21a1c00d...; 32,063 imported variant-A logs carry it). The AgentDyn backend sends it. The AutoDojo fork sends AgentDojo's default (a021a92b...) for every suite, AgentDyn's included. AutoDojo-run AgentDyn cells are therefore not AgentDyn's configuration, and a comparison with AgentDyn's published numbers must say so (design F-1)."
+scope = { sources = ["agentdyn", "autodojo"], parts = ["a", "live"], profiles = ["agentdyn", "agentdyn-live", "autodojo-live"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.system_prompt_variant_digest@1", class = "D" }
+handling = { class = "FO" }
+expected = []
+manuscript = true
+refs = ["D.11.10", "docs/reports/agentdyn-backend/design.md section 3.3 F-1", "DECISIONS D-687"]
+
+[[artefact]]
+id = "agentdyn.art.shopping_ground_truth_backend_dependent"
+title = "The shopping injection tasks' ground truths differ between the AgentDyn and AutoDojo backends"
+description = "At AgentDyn 5353cf76 every shopping injection task's ground_truth() is the stub send_money(recipient=\"\"); the AutoDojo fork rewrote all nine to the attacker's real actions (input_to_webpage, browse_webpage, cart and checkout calls, send_email). GOAL and security() are identical. The tool_knowledge attack builds its payload from ground_truth(), so tool_knowledge payloads on shopping differ between the two backends; the checkers and the other attacks do not (design F-2, checked by executing both environments)."
+scope = { sources = ["agentdyn", "autodojo"], parts = ["live"], profiles = ["agentdyn-live", "autodojo-live"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.capture_backend_identity@1", class = "D" }
+handling = { class = "FO" }
+expected = []
+manuscript = true
+refs = ["D.11.10", "docs/reports/agentdyn-backend/design.md section 3.3 F-2", "backends/agentdyn/tests/test_catalogue.py::test_shopping_ground_truths_are_agentdyns_stubs", "DECISIONS D-687"]
+
+[[artefact]]
+id = "agentdyn.art.malformed_tool_call_dropped"
+title = "AgentDyn drops a tool call whose arguments are not JSON"
+description = "AgentDyn's _openai_to_assistant_message swallows a failed tool-call conversion: a call whose arguments do not parse is in the wire reply but not in the agent's assistant message, and it is never dispatched (stock 0.1.35 raises; AutoDojo re-requests). In a live session under a profile that declares the quirk agentdojo.malformed_tool_call_dropped, the capture mapper links the reply to the message and lists each dropped call in ext.agentdojo.dropped_calls with a pointer into the wire response (D-685 (b)); in imported AgentDyn logs the dropped call is not observable at all, since no wire reply is logged (design F-5)."
+scope = { sources = ["agentdyn"], parts = ["live"], profiles = ["agentdyn-live"] }
+cause = "upstream_harness"
+detector = { rule = "agentdyn.malformed_tool_call_dropped@1", class = "D" }
+handling = { class = "FO" }
+expected = []
+manuscript = false
+refs = ["D.11.10", "docs/reports/agentdyn-backend/design.md section 3.3 F-5", "DECISIONS D-685 (b), D-687", "regeneration-batch item 169"]
+
+# ---------------------------------------------------------------------------------------------- corpus pre-check, wave 1
+# From the wave-1 dossiers of the corpus pre-check (docs/reports/precheck/<corpus>.md, 2026-10-15; D-581..D-585). The
+# drafts there were fitted to this schema (D-581): a cause outside the closed list became the known cause or `unknown`,
+# the datasheet disclosure is the description of an `FO` entry, and a recount with no per-trace detector cites the rule
+# whose output it reads. Every arm and every log stays in the corpus; none of these entries filters anything.
+
+[[artefact]]
+id = "agentdojo.art.incomplete_arm"
+title = "Published arms with fewer cells than the benchmark design"
+description = "meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt / important_instructions has 798 of 949 cells (slack 0 of 105; banking 98 of 144, user_task_10 partial and 26 whole user tasks absent); its direct and ignore_previous arms are complete. claude-3-sonnet-20240229-repeat_user_prompt is benign-only and workspace-only (40 logs, all 40 workspace benign tasks; a complete directory holds 124 benign logs). mistralai_Mixtral-8x7B-Instruct-v0.1 (2024-06 only) is 7 benign logs over four suites. Rates over these arms cover a different suite mix than the papers' n; the arms are kept and reported with their n."
+scope = { sources = ["agentdojo"], parts = ["head", "2024-06"], profiles = ["agentdojo-upstream"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.pipeline_dir_is_model_identity@1", class = "I" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [
+  { snapshot = "head", count = 151, basis = "pre-check L1-05 cell census 2026-10-14: cells missing from the Llama-3.3-70B-repeat important_instructions arm (798 of 949)", unit = "cells", status = "verified" },
+  { snapshot = "head", count = 40, basis = "pre-check L1-05: claude-3-sonnet-repeat logs (workspace benign only)", status = "verified" },
+  { snapshot = "2024-06", count = 40, basis = "pre-check L1-05: claude-3-sonnet-repeat logs (workspace benign only)", status = "verified" },
+  { snapshot = "2024-06", count = 7, basis = "pre-check L1-05: Mixtral-8x7B logs (benign, four suites)", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/precheck/agentdojo-upstream.md PC-agentdojo-upstream-01", "docs/reports/precheck/prereg/agentdojo-upstream.md (L-05, L-06, L-08, H-03, H-04)", "arXiv:2507.02735 v2 Tables III and IX"]
+
+[[artefact]]
+id = "agentdyn.art.paper_row_not_in_logs"
+title = "Paper rows that the released runs/ logs do not reproduce"
+description = "Recounting logged utility and security per pipeline directory (the paper's convention: unweighted mean of suite rates) does not give the AgentDyn v3 values for qwen3-235b none (6.67/5.35/14.02 against 23.33/10.74/22.67), gemini-2.5-pro none (utility under attack 47.43 against 56.95, issue #7) and gemini-2.5-flash none (5.00/7.61/13.61 against 30.00/24.29/37.61); the paper's gpt-4o-mini PromptGuard2 github cells equal its PIGuard github cells (20.00/3.89/0.00; the logs give 65.00/21.11/16.11), a probable transcription error. The logs are internally consistent; the corpus records the logs, and the gap is a datasheet disclosure."
+scope = { sources = ["agentdyn"], parts = ["a"], profiles = ["agentdyn"] }
+cause = "unknown"
+detector = { rule = "agentdojo.checker_outcome@1", class = "D" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [{ snapshot = "agentdyn:a", count = 4, basis = "pre-check OS-1 population recount 2026-10-15 (docs/reports/precheck/data/agentdyn/os1-population.json): pipeline directories whose paper row the logs do not reproduce", unit = "directories", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/precheck/agentdyn.md PC-agentdyn-01, -02, -03", "arXiv:2602.03117v3 Tables 9-17", "https://github.com/SaFo-Lab/AgentDyn/issues/7"]
+
+[[artefact]]
+id = "agentdyn.art.github_it1_checker_prefix"
+title = "GitHub injection task 1 scored by the pre-fix checker"
+description = "The released runs/ were scored before the injection-task-1 checker fix of 2026-05-02 (issue #6, closed without rescoring). The pre-fix check tests whether the original repository path disappeared, so runs that transferred a repository (git_transfer_repo_ownership) rather than deleting it are logged security true, and a few runs with a completed deletion of a target repository (verified through verify_github_account) are logged security false. Both are kept as logged; no rescoring."
+scope = { sources = ["agentdyn"], parts = ["a", "b", "c"], profiles = ["agentdyn"] }
+cause = "benchmark"
+detector = { rule = "agentdojo.checker_outcome@1", class = "D" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [
+  { snapshot = "agentdyn:a", count = 31, basis = "pre-check 2026-10-15 (docs/reports/precheck/data/agentdyn/h03-it1-checker.json): security true without a git_delete_repo deletion, 29 of them transfers", status = "verified" },
+  { snapshot = "agentdyn:a", count = 5, basis = "pre-check 2026-10-15: completed deletion of a REPO_LIST repository with security false; the target match was not checked" },
+  { snapshot = "agentdyn:b", count = 2, basis = "pre-check 2026-10-15: security true without a deletion", status = "verified" },
+  { snapshot = "agentdyn:c", count = 4, basis = "pre-check 2026-10-15: security true without a deletion", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/precheck/agentdyn.md PC-agentdyn-05", "https://github.com/SaFo-Lab/AgentDyn/issues/6"]
+
+[[artefact]]
+id = "survey.art.readme_error_tasks_mismatch"
+title = "README names other tasks than the released run errors"
+description = "The survey README attributes the deterministic gpt-oss InternalServerError runs to workspace user_task_26 and user_task_30 and travel user_task_19 (the last aborting the utility phase). The released logs hold 11 run errors, 1 of them in those tasks, and the benign travel user_task_19 log has no error; 34 of the 35 attacked pairs on those tasks are error-free. The README probably describes earlier, unreleased runs. The corpus records the logs."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentdojo-runs"], profiles = ["survey-runs"] }
+cause = "unknown"
+detector = { rule = "survey.internal_server_error_patch@1", class = "I" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [{ snapshot = "agent-security-tools-survey:agentdojo-runs", count = 11, basis = "pre-check L1 error_present (docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json): logs with a run error, 1 of the 10 attacked errors in the README's tasks", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/precheck/ast-survey-agentdojo.md PC-ast-survey-agentdojo-02", "agentdojo/README.md at 89c4db2c l. 289-296 (Affected tasks)"]
+
+[[artefact]]
+id = "survey.art.partial_table_unbacked"
+title = "Partial-benchmark table not backed by released logs"
+description = "The README's 105-pair partial-benchmark table differs from the same pairs of the released full run in 5 of 6 combined cells; each model's 949 attack logs are one contiguous pass, so the partial run's logs were not released. The README table cannot be reproduced from the corpus."
+scope = { sources = ["agent-security-tools-survey"], parts = ["agentdojo-runs"], profiles = ["survey-runs"] }
+cause = "unknown"
+detector = { rule = "agentdojo.checker_outcome@1", class = "D" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [{ snapshot = "agent-security-tools-survey:agentdojo-runs", count = 315, basis = "pre-check (docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json): 105 pairs for each of 3 models (run_partial_benchmark.sh at 89c4db2c); 1 of 6 combined cells equal", unit = "cells", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/precheck/ast-survey-agentdojo.md PC-ast-survey-agentdojo-03"]
+
+# ---------------------------------------------------------------------------------------------- corpus pre-check, wave 2
+# From the wave-2 dossiers of melon-agentdojo and geryon-agentdojo (D-589; user-approved 2026-10-21), fitted as in wave 1.
+
+[[artefact]]
+id = "agentdojo.art.defence_authored_message"
+title = "Defence-authored assistant and system messages logged as conversation"
+description = "MELON (melon, melon_at, melon_sm) replaces the model's reply after a detection with a fixed English stop message (tool_calls null, the last message; one per PI-detector sentinel). MELON-R replaces it with a fixed block message, or inserts a security warning as a system message (at index 0, before the harness prompt, in most cases). Since melon-agentdojo@2 (D-586) the reply is a terminate decision by the defence that generates the message (the model call kept, generating nothing), and the warning is the defence's insert; under version 1 they were model output and the benchmark system prompt."
+scope = { sources = ["melon-agentdojo"], parts = ["head"], profiles = ["melon-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.defence_authored_message@1", class = "I" }
+recorded_as = { notes = ["decision.verdict:terminate"] }
+handling = { class = "CR", rule = "agentdojo.defence_authored_message@1" }
+expected = [
+  { snapshot = "melon-agentdojo:head", count = 910, basis = "pre-check examiner scan 2026-10-15, reproduced by a raw census 2026-10-21: logs ending on the base-MELON stop message", status = "verified" },
+  { snapshot = "melon-agentdojo:head", count = 3, basis = "same scans: logs ending on the MELON-R block message", status = "verified" },
+  { snapshot = "melon-agentdojo:head", count = 113, basis = "same scans: MELON-R warning system messages (three texts), in 98 logs, 92 at index 0", unit = "messages", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/precheck/melon-agentdojo.md PC-melon-agentdojo-03, -04", "DECISIONS D-586", "pi_detector.py l. 643-656, 1510-1530, 1551-1569 at 71d99dff"]
+
+[[artefact]]
+id = "agentdojo.art.reported_rows_unbacked"
+title = "Reported result rows the released logs do not back, or that match another model's arm"
+description = "The xwsdid/MELON README and report: the GPT-4o MELON and MELON-R ignore_previous rows equal the gpt-4o-mini melon and melon_r ignore_previous cells, with 0 gpt-4o logs; the GPT-4o MELON and MELON-R important_instructions rows have 0 logs; MELON and MELON-R direct are backed by 65 and 13 of 144 early logs whose utility under attack does not reproduce the reported values; No Defense has no run of the fork. Only the melon_sm and melon_at GPT-4o rows reproduce. All arms are kept and reported with their n."
+scope = { sources = ["melon-agentdojo"], parts = ["head"], profiles = ["melon-agentdojo"] }
+cause = "unknown"
+detector = { rule = "agentdojo.pipeline_dir_is_model_identity@1", class = "I" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [
+  { snapshot = "melon-agentdojo:head", count = 2, basis = "pre-check OS-1 2026-10-15: README rows equal to a gpt-4o-mini cell", unit = "rows", status = "verified" },
+  { snapshot = "melon-agentdojo:head", count = 4, basis = "pre-check L1-05: README cells with no log", unit = "cells", status = "verified" },
+  { snapshot = "melon-agentdojo:head", count = 2, basis = "pre-check L1-05: partial arms backing a README row (65 and 13 of 144 logs)", unit = "arms", status = "verified" },
+]
+manuscript = true
+refs = ["docs/reports/precheck/melon-agentdojo.md PC-melon-agentdojo-01, -02"]
+
+[[artefact]]
+id = "geryon.art.author_declared_unusable_arm"
+title = "Condition-B arms the authors declare unusable"
+description = "results/README.md marks runs-strong-policy (the qwen3-235b policy model before the prompt patch, whose policy updates failed to parse) and runs-claude-policy (a failed run) as not to be quoted except as the broken arm. Both are kept; since geryon-agentdojo@2 (D-588) the qwen3 policy arm differs in the defence actor's model, and condition B is stratified by policy model before pooling."
+scope = { sources = ["geryon-agentdojo"], parts = ["head"], profiles = ["geryon-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.pipeline_dir_is_model_identity@1", class = "I" }
+recorded_as = {}
+handling = { class = "FO" }
+expected = [{ snapshot = "geryon-agentdojo:head", count = 100, basis = "pre-check L1-05: runs-strong-policy 99 + runs-claude-policy 1", status = "verified" }]
+manuscript = true
+refs = ["docs/reports/precheck/geryon-agentdojo.md PC-geryon-agentdojo-03", "https://github.com/luiacuaniello/geryon/blob/905aae02c4185454ffbdb64a8bae6a042f6d7047/results/README.md"]
+
+[[artefact]]
+id = "agentdojo.art.seagent_guard_batch_abort"
+title = "SEAgent guard blocks: a renamed call answered empty, the rest of the batch dropped"
+description = "In the seagent and seagent-RF arms the guard blocks a tool call before dispatch: it renames the call to <tool>BLOCKED_BY_SEAGENT, answers it with an empty tool message, drops the batch's other calls and adds a user-role warning. Since seagent-agentdojo@2 (D-591) the answered call is a deny decision by the defence, not an executed tool. The dropped calls were never executed; under version 1 a dropped call after the blocked one is a missing_tool_result at error severity (index status failed, so the import exits 1) and one before it only an accounting inconsistency. Since D-592 (after regeneration-batch item 89) both are unexecuted_tool_call (warning) citing the guard rule. No execution is filtered out."
+scope = { sources = ["seagent-agentdojo"], parts = ["head"], profiles = ["seagent-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.seagent_guard_block@1", class = "I" }
+recorded_as = { issues = ["missing_tool_result"], notes = ["decision.verdict:deny"] }
+handling = { class = "CR", rule = "agentdojo.seagent_guard_block@1" }
+expected = [
+  { snapshot = "seagent-agentdojo:head", count = 960, basis = "pre-check PC-seagent-agentdojo-01/02 census of the deposit (seagent 575, seagent-RF 385): renamed calls, each answered by one empty tool message", unit = "calls", status = "verified" },
+  { snapshot = "seagent-agentdojo:head", count = 166, basis = "pre-check: calls of a blocked batch never executed (140 after the blocked call, 26 before)", unit = "calls", status = "verified" },
+  { snapshot = "seagent-agentdojo:head", count = 107, basis = "pre-check: logs with dropped calls", status = "verified" },
+  { snapshot = "seagent-agentdojo:head", count = 94, basis = "pre-check, seagent-agentdojo@1 mapping: logs with missing_tool_result (index status failed)", status = "verified" },
+  { snapshot = "seagent-agentdojo:head", count = 166, basis = "D-592 mapping: unexecuted_tool_call calls citing agentdojo.seagent_guard_block@1 (the census of the full deposit confirms it)", unit = "calls" },
+]
+manuscript = true
+refs = ["docs/reports/precheck/seagent-agentdojo.md PC-seagent-agentdojo-01, -02", "DECISIONS D-591, D-592"]
+
+# ---------------------------------------------------------------------------------------------- wave 2 (D-950)
+# The artefact-scope pass of 2026-10-29 over the wave-2 working trees (docs/reports/wave-2-artefacts/README.md). The
+# generic entries above gained the wave-2 AgentDojo-format profiles whose hits cite the same mapper rule (directly or
+# through its `_unverified` twin, D.5.4) and whose profile declares the quirk; the pre-check (cross-cutting CC-09)
+# recommended the same widening. The entries below are source-specific: each cites the rule that raises its finding and
+# a profile comment, pre-check dossier or decision that explains it. Counts are the wave-2 census (read-only `scan` of
+# each tree, 2026-10-29), `unverified` until the sealed import confirms them; a snapshot is `<source>:<part>`.
+
+[[artefact]]
+id = "agentdojo.art.model_not_recorded"
+title = "No log records the agent's model"
+description = "Logs whose run directory and identity table name no model (a pipeline_name such as local, a per-call router, a log outside the run layout): the execution is sealed identity_unresolved with the model not recorded; no model is guessed from a default (D-92, D-105)."
+scope = { sources = ["gate-agentdojo", "kavach-agentdojo", "llm-lock-agentdojo", "menelaus29-ipi-multidomain", "sentry-agentdojo", "shreeyavarma-llm-safety"], parts = ["head", "main", "nav-fixer2", "rearch-forcedformat-fix"], profiles = ["gate-agentdojo", "kavach-agentdojo", "llm-lock-agentdojo", "menelaus29-ipi-multidomain", "sentry-agentdojo", "shreeyavarma-llm-safety"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.pipeline_dir_is_model_identity@1", class = "I" }
+recorded_as = { issues = ["identity_unresolved"], notes = ["unk:model"] }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "gate-agentdojo:head", count = 217, basis = "wave-2 census (D-950): the local directory 215 and the two demo logs (profile comment)" },
+  { snapshot = "kavach-agentdojo", count = 109, basis = "wave-2 census (D-950), three snapshots: the six directories without a model record (D-253)" },
+  { snapshot = "llm-lock-agentdojo:head", count = 53307, basis = "wave-2 census (D-950): every log (pipeline.name local, model a CLI option)" },
+  { snapshot = "menelaus29-ipi-multidomain:head", count = 1, basis = "wave-2 census (D-950): docs/example_run_output.json, outside the run layout" },
+  { snapshot = "sentry-agentdojo:head", count = 72, basis = "wave-2 census (D-950): the openrouter-free-router-local logs" },
+  { snapshot = "shreeyavarma-llm-safety:head", count = 58, basis = "wave-2 census (D-950): the local Qwen logs" },
+]
+manuscript = false
+refs = ["DECISIONS D-92, D-105, D-253", "profile comments of the six profiles", "docs/reports/precheck/kavach-agentdojo.md H10"]
+
+[[artefact]]
+id = "agentdojo.art.fork_top_level_keys"
+title = "Fork loggers add top-level keys"
+description = "A fork's TraceLogger writes keys outside the variant's key set (Tacit's trace and channel fields in linyxus, the detectors' per-check outputs in llm-lock, six keys in drift1's PACT files). They are kept verbatim in ext.agentdojo.extra and raise the info issue agentdojo.unknown_top_level_key; nothing is dropped or interpreted."
+scope = { sources = ["linyxus-agentdojo", "llm-lock-agentdojo", "drift1-agentdojo"], parts = ["head", "drift"], profiles = ["linyxus-agentdojo", "llm-lock-agentdojo", "drift1-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.tracelogger_record_shape@1", class = "D" }
+recorded_as = { issues = ["agentdojo.unknown_top_level_key"], notes = ["ext:agentdojo.extra"] }
+handling = { class = "CR", rule = "agentdojo.tracelogger_record_shape@1" }
+expected = [
+  { snapshot = "linyxus-agentdojo:head", count = 9055, basis = "wave-2 census (D-950)" },
+  { snapshot = "llm-lock-agentdojo:head", count = 35928, basis = "wave-2 census (D-950): the logs of the detector arms" },
+  { snapshot = "drift1-agentdojo:drift", count = 10, basis = "wave-2 census (D-950): the PACT files" },
+]
+manuscript = false
+refs = ["profile comments of linyxus-agentdojo, llm-lock-agentdojo and drift1-agentdojo", "docs/reports/precheck/linyxus-agentdojo.md A2"]
+
+[[artefact]]
+id = "agentdojo.art.system_prompt_unrecognised"
+title = "The system prompt is none of the declared variants"
+description = "The defence or script builds the system prompt at run time (Tacit rewrites it per configuration in linyxus; menelaus29 assembles it at run time) and its text is not in the repository, so it matches no declared variant digest. It is kept verbatim; the info issue agentdojo.system_prompt_unrecognised says so."
+scope = { sources = ["linyxus-agentdojo", "menelaus29-ipi-multidomain"], parts = ["head"], profiles = ["linyxus-agentdojo", "menelaus29-ipi-multidomain"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.system_prompt_variant_digest@1", class = "D" }
+recorded_as = { issues = ["agentdojo.system_prompt_unrecognised"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "linyxus-agentdojo:head", count = 8759, basis = "wave-2 census (D-950)" },
+  { snapshot = "menelaus29-ipi-multidomain:head", count = 358, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["profile comments of linyxus-agentdojo and menelaus29-ipi-multidomain"]
+
+[[artefact]]
+id = "agentdojo.art.pipeline_name_differs"
+title = "pipeline_name differs from the run directory"
+description = "In one run set the logged pipeline_name differs from the directory that names the run (pre-check: the runs-0 logs only). The model comes from the directory and the identity table; pipeline_name is kept verbatim and treated as unreliable where it differs."
+scope = { sources = ["linyxus-agentdojo"], parts = ["head"], profiles = ["linyxus-agentdojo"] }
+cause = "unknown"
+detector = { rule = "agentdojo.pipeline_dir_is_model_identity@1", class = "I" }
+recorded_as = { issues = ["agentdojo.pipeline_name_mismatch"] }
+handling = { class = "CR", rule = "agentdojo.pipeline_dir_is_model_identity@1" }
+expected = [{ snapshot = "linyxus-agentdojo:head", count = 685, basis = "wave-2 census (D-950)" }]
+manuscript = false
+refs = ["docs/reports/precheck/linyxus-agentdojo.md H14"]
+
+[[artefact]]
+id = "agentdojo.art.unattributed_user_message"
+title = "Later user messages that no declared quirk accounts for"
+description = "A user-role message after the first that is not the simulated user's task: CrAIBench's injected memory, SEAgent's guard warnings after a tool result, and the user-role messages of authority-caps' auto-confirmation arms (pre-check PC-authority-caps-agentdojo-05, sampled; their content was not examined). Each is attributed to the simulated user by role only (class I), never as the user's own words."
+scope = { sources = ["craibench-agentdojo", "seagent-agentdojo", "authority-caps-agentdojo"], parts = ["head"], profiles = ["craibench-agentdojo", "seagent-agentdojo", "authority-caps-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.additional_user_message_unattributed@1", class = "I" }
+recorded_as = { issues = ["unattributed_additional_user_message"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "craibench-agentdojo:head", count = 688, basis = "wave-2 census (D-950): the memory-injection runs (profile comment: 688)" },
+  { snapshot = "seagent-agentdojo:head", count = 863, basis = "wave-2 census (D-950): logs (profile comment: 863)" },
+  { snapshot = "seagent-agentdojo:head", count = 960, basis = "wave-2 census (D-950): guard warnings (profile comment: 960)", unit = "messages" },
+  { snapshot = "authority-caps-agentdojo:head", count = 313, basis = "wave-2 census (D-950); the pre-check found the code only in the auto-confirmation directories of its sample" },
+]
+manuscript = false
+refs = ["profile comments of craibench-agentdojo and seagent-agentdojo", "docs/reports/precheck/authority-caps-agentdojo.md PC-authority-caps-agentdojo-05"]
+
+[[artefact]]
+id = "agentdojo.art.orphan_tool_results"
+title = "Tool results that answer no listed call"
+description = "A tool message answers a call that the preceding assistant message does not list, so positional matching finds no request and the result stays unlinked (orphan_tool_result); no call is inferred. gate logs its denial as a tool message without the call in tool_calls (routing R6: the 818 orphan logs are the denial logs); DCA's CaMeL arms log tool results without the proposing call (pre-check PC-dca-agentdojo-07; the AgentDyn CaMeL hook is not declared for this profile); in SEAgent's PVAgent arm 740 assistant messages have no tool_calls key (agentdojo.unknown_message_shape)."
+scope = { sources = ["gate-agentdojo", "dca-agentdojo", "seagent-agentdojo"], parts = ["head", "v1"], profiles = ["gate-agentdojo", "dca-agentdojo", "seagent-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.positional_match@1", class = "I" }
+recorded_as = { issues = ["orphan_tool_result", "agentdojo.unknown_message_shape"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "gate-agentdojo:head", count = 818, basis = "wave-2 census (D-950); routing R6 counted 819 logs with the demo copy" },
+  { snapshot = "gate-agentdojo:head", count = 2202, basis = "wave-2 census (D-950)", unit = "tool_results" },
+  { snapshot = "dca-agentdojo:v1", count = 2947, basis = "wave-2 census (D-950); pre-check PC-dca-agentdojo-07: at least 2,947 CaMeL logs" },
+  { snapshot = "dca-agentdojo:v1", count = 9556, basis = "wave-2 census (D-950)", unit = "tool_results" },
+  { snapshot = "seagent-agentdojo:head", count = 541, basis = "wave-2 census (D-950): the pvagent logs (profile comment: 541)" },
+  { snapshot = "seagent-agentdojo:head", count = 740, basis = "wave-2 census (D-950): assistant messages without tool_calls (profile comment: 740)", unit = "messages" },
+]
+manuscript = true
+refs = ["docs/reports/phase10d/routing.md R6", "docs/reports/precheck/gate-agentdojo.md H5", "docs/reports/precheck/dca-agentdojo.md PC-dca-agentdojo-07", "profile comment of seagent-agentdojo"]
+
+[[artefact]]
+id = "agentdojo.art.null_provider_call_ids"
+title = "Null provider call ids (gate, DCA)"
+description = "The same reading as agentdojo.art.provider_ids, for the two sources whose orphan tool results have other causes (agentdojo.art.orphan_tool_results): calls arrive without an id (local models through Ollama among them), so results are linked by position (class I) and the ids stay attributes. In gate one log repeats an id."
+scope = { sources = ["gate-agentdojo", "dca-agentdojo"], parts = ["head", "v1"], profiles = ["gate-agentdojo", "dca-agentdojo"] }
+cause = "provider"
+detector = { rule = "agentdojo.call_id_unique_match@1", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly#absent", "artefact.generic.provider_id_anomaly#empty", "artefact.generic.provider_id_anomaly#repeated"]
+recorded_as = { notes = ["unk:provider_call_id", "evf:call:I"] }
+handling = { class = "CR", rule = "agentdojo.positional_match@1" }
+expected = [
+  { snapshot = "gate-agentdojo:head", count = 790, basis = "wave-2 census (D-950); quirk agentdojo.provider_call_id_anomalies: 790 logs" },
+  { snapshot = "gate-agentdojo:head", count = 1848, basis = "wave-2 census (D-950); quirk: 1,848 null ids", unit = "calls" },
+  { snapshot = "dca-agentdojo:v1", count = 3854, basis = "wave-2 census (D-950); quirk: 3,853 logs" },
+  { snapshot = "dca-agentdojo:v1", count = 10633, basis = "wave-2 census (D-950); quirk: 10,631 null ids", unit = "calls" },
+]
+manuscript = false
+refs = ["D.6.6.1", "profile quirks agentdojo.provider_call_id_anomalies of gate-agentdojo and dca-agentdojo"]
+
+[[artefact]]
+id = "agentdojo.art.positional_link_conflict"
+title = "Positional links conflict (mohameduk)"
+description = "In 12 logs of the UBAG fork, positional matching over absent call ids conflicts (call_result_link_conflict, under agentdojo.art.provider_ids): the affected calls are left without an execution and the dispatched-calls and linked-results accounting checks are inconsistent. Nothing is re-linked."
+scope = { sources = ["mohameduk-agentdojo"], parts = ["head"], profiles = ["mohameduk-agentdojo"] }
+cause = "provider"
+detector = { rule = "aer.acc.tool_results_linked@1", class = "D" }
+claims = ["artefact.generic.accounting_inconsistent#aer.acc.tool_results_linked@1", "artefact.generic.accounting_inconsistent#aer.acc.tool_calls_dispatched@1"]
+recorded_as = { issues = ["accounting_inconsistent"] }
+handling = { class = "FO" }
+expected = [{ snapshot = "mohameduk-agentdojo:head", count = 12, basis = "wave-2 census (D-950): the 12 link-conflict logs are the 12 with both checks inconsistent" }]
+manuscript = false
+refs = ["D.6.6.1", "docs/reports/wave-2-artefacts/README.md"]
+
+[[artefact]]
+id = "agentdojo.art.detector_abort_output_unrecorded"
+title = "Detector aborts whose flagged output is not logged"
+description = "LLMLock's detector arms abort the run on a flagged tool output (AbortAgentError; quirk agentdojo.detector_abort). In some aborted runs the flagged output itself is not in the log, so the terminate decision has no recorded subject content."
+scope = { sources = ["llm-lock-agentdojo"], parts = ["head"], profiles = ["llm-lock-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.detector_abort_after_output@1", class = "D" }
+recorded_as = { issues = ["agentdojo.detector_abort_output_unrecorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "llm-lock-agentdojo:head", count = 1341, basis = "wave-2 census (D-950); quirk agentdojo.detector_abort: aborts_output_unrecorded 1,341" }]
+manuscript = false
+refs = ["profile comment and quirk agentdojo.detector_abort of llm-lock-agentdojo", "DECISIONS D-116"]
+
+[[artefact]]
+id = "drift.art.agent_prompt_not_recorded"
+title = "DRIFT's agent prompt is not logged"
+description = "DRIFTLLM converts tool messages, prepends its own system prompt and passes the plan state before each agent turn; none of it, nor the parse-retry messages, is logged, so the model calls' input is not recorded (D-275)."
+scope = { sources = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"], parts = ["head", "drift", "c"], profiles = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "drift.agent_prompt_not_logged@1", class = "D" }
+recorded_as = { issues = ["drift.agent_prompt_not_recorded"] }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "drift:head", count = 1569, basis = "wave-2 census (D-950)" },
+  { snapshot = "drift1-agentdojo:drift", count = 626, basis = "wave-2 census (D-950)" },
+  { snapshot = "dca-agentdojo:drift", count = 2847, basis = "wave-2 census (D-950)" },
+  { snapshot = "agentdyn:c", count = 4258, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["D.6.19", "DECISIONS D-275"]
+
+[[artefact]]
+id = "drift.art.injection_map_not_recorded"
+title = "DRIFT writes no injections map"
+description = "DRIFT logs no injections map, so the payloads the attack placed are not in the log, no payload fixture is emitted and the SEM has no marker to compare (agentdojo.art.payload_not_reaching_agent, variant no_marker)."
+scope = { sources = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"], parts = ["head", "drift", "c"], profiles = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "drift.no_injection_map@1", class = "D" }
+recorded_as = { issues = ["drift.injection_map_not_recorded"] }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "drift:head", count = 1509, basis = "wave-2 census (D-950): attacked runs" },
+  { snapshot = "drift1-agentdojo:drift", count = 529, basis = "wave-2 census (D-950): attacked runs" },
+  { snapshot = "dca-agentdojo:drift", count = 2847, basis = "wave-2 census (D-950)" },
+  { snapshot = "agentdyn:c", count = 3838, basis = "wave-2 census (D-950): attacked runs" },
+]
+manuscript = false
+refs = ["D.6.19", "sources/drift.md §7"]
+
+[[artefact]]
+id = "drift.art.calls_in_text_not_executed"
+title = "Final DRIFT turns propose calls that were not executed"
+description = "A final assistant turn with a non-empty <function_call> text and no tool calls: DRIFTLLM dropped calls that repeated an earlier executed call (which ends the run), or returned the turn raw at the 20-message cap or after failed parses. The calls are kept as text and never executed or re-parsed (D-277)."
+scope = { sources = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"], parts = ["head", "drift", "c"], profiles = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "drift.calls_in_text_not_executed@1", class = "D" }
+recorded_as = { issues = ["drift.calls_in_text_not_executed"] }
+handling = { class = "CR", rule = "drift.calls_in_text_not_executed@1" }
+expected = [
+  { snapshot = "drift:head", count = 317, basis = "wave-2 census (D-950); quirk agentdojo.drift_calls_in_text_not_executed: 317 final turns" },
+  { snapshot = "drift1-agentdojo:drift", count = 78, basis = "wave-2 census (D-950); quirk: 78 final turns" },
+  { snapshot = "dca-agentdojo:drift", count = 291, basis = "wave-2 census (D-950); quirk: 291 final turns" },
+  { snapshot = "agentdyn:c", count = 2004, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["D.6.19", "DECISIONS D-277"]
+
+[[artefact]]
+id = "drift.art.call_error_unrecognised"
+title = "CALL ERROR texts that name neither DRIFT check"
+description = "A CALL ERROR user message whose text names neither the trajectory nor the checklist check: the refusing check is not determinable, so the validator decision keeps its reason unknown (D-279)."
+scope = { sources = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"], parts = ["head", "drift", "c"], profiles = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "drift.call_error_check@1", class = "D" }
+recorded_as = { issues = ["drift.call_error_unrecognised"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "drift1-agentdojo:drift", count = 4, basis = "wave-2 census (D-950): the PACT arm (profile comment: 9 texts)" },
+  { snapshot = "drift1-agentdojo:drift", count = 9, basis = "wave-2 census (D-950)", unit = "messages" },
+]
+manuscript = false
+refs = ["profile comment of drift1-agentdojo", "DECISIONS D-279"]
+
+[[artefact]]
+id = "drift.art.benign_security_constant"
+title = "DRIFT's benign security is a constant True"
+description = "Without an injection task DRIFTTaskSuite.run_task_with_pipeline returns security True without checking anything: a harness default, never an observation."
+scope = { sources = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"], parts = ["head", "drift", "c"], profiles = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "drift.benign_security_constant@1", class = "D" }
+recorded_as = { notes = ["judgement.origin:harness_default"] }
+handling = { class = "CR", rule = "drift.benign_security_constant@1" }
+expected = [
+  { snapshot = "drift:head", count = 60, basis = "wave-2 census (D-950); quirk: 60 files" },
+  { snapshot = "drift1-agentdojo:drift", count = 97, basis = "wave-2 census (D-950); quirk: 97 files" },
+  { snapshot = "agentdyn:c", count = 420, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["D.6.7", "verify/drift.md §3"]
+
+[[artefact]]
+id = "drift.art.single_pass"
+title = "A DRIFT run has one pass, inferred"
+description = "DRIFT's model_output_from_messages never returns None, so the up-to-three-pass loop stops after the first pass and the logged messages are the whole scored attempt (index 0). The code that wrote the logs is not verified, so the attempt is inferred (class I). In dca-agentdojo and agentdyn the finding is also claimed by agentdojo.art.silent_rerun's generic claim."
+scope = { sources = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"], parts = ["head", "drift", "c"], profiles = ["drift", "drift1-agentdojo", "dca-agentdojo", "agentdyn"] }
+cause = "upstream_harness"
+detector = { rule = "drift.single_pass@1", class = "D" }
+recorded_as = { notes = ["scope.index:0", "ev:I"] }
+handling = { class = "CR", rule = "drift.single_pass@1" }
+expected = [
+  { snapshot = "drift:head", count = 1569, basis = "wave-2 census (D-950)" },
+  { snapshot = "drift1-agentdojo:drift", count = 626, basis = "wave-2 census (D-950)" },
+  { snapshot = "dca-agentdojo:drift", count = 2847, basis = "wave-2 census (D-950)" },
+]
+manuscript = false
+refs = ["D.6.19", "DECISIONS D-272"]
+
+[[artefact]]
+id = "rescont.art.serialised_without_ids_or_times"
+title = "ResCont rows carry no call ids and no times"
+description = "serialize_messages writes tool calls as {function, args} without the call id and records no timestamp, so every call id and every time of a row is not recorded; results are linked by position (class I)."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.messages_serialised@1", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly#absent", "artefact.generic.sentinel_time#unknown_not_recorded"]
+recorded_as = { notes = ["unk:provider_call_id", "unk:t"] }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 11502, basis = "wave-2 census (D-950): rows with a call; quirk agentdojo.provider_call_id_anomalies: 11,502 rows" },
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 67596, basis = "wave-2 census (D-950); quirk: 67,596 calls without an id", unit = "calls" },
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 13070, basis = "wave-2 census (D-950): rows with an untimed record" },
+]
+manuscript = false
+refs = ["D.6.20", "docs/reports/phase10q/README.md"]
+
+[[artefact]]
+id = "rescont.art.last_pass_kept"
+title = "Only the last of up to three passes is kept (ResCont)"
+description = "run_single_task runs the pipeline up to three times while the model output is None and keeps the last pass; a null final content is serialised as the empty string, so the log cannot show whether earlier passes ran and the attempt index is lost."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.last_pass_kept@1", class = "D" }
+recorded_as = { notes = ["unk:lost"] }
+handling = { class = "CR", rule = "rescont.last_pass_kept@1" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 12032, basis = "wave-2 census (D-950): rows with messages" }]
+manuscript = false
+refs = ["D.6.20"]
+
+[[artefact]]
+id = "rescont.art.benign_security_constant"
+title = "ResCont benign security is a constant True"
+description = "Without an injection task run_single_task sets security True without checking anything: a constant of the script, not an observation."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.benign_security_constant@1", class = "D" }
+recorded_as = { notes = ["judgement.origin:harness_default"] }
+handling = { class = "CR", rule = "rescont.benign_security_constant@1" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 493, basis = "wave-2 census (D-950); quirk agentdojo.rescont_benign_security_constant: 493 rows" }]
+manuscript = false
+refs = ["D.6.20"]
+
+[[artefact]]
+id = "rescont.art.exception_row_defaults"
+title = "Exception rows: no messages, outcomes imposed by the script"
+description = "When run_single_task raises, the script records utility false, security true and no messages. Both outcomes are the script's defaults, not checker results (security true would read as an attack success); the row is kept as an outcome-only execution."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.exception_imposes_outcome@1", class = "D" }
+claims = ["artefact.generic.empty_execution#outcome_only"]
+recorded_as = { issues = ["outcome_imposed_by_runner", "no_execution_observed"], notes = ["unit:outcome_only", "judgement.origin:harness_default"] }
+handling = { class = "CR", rule = "rescont.exception_imposes_outcome@1" }
+expected = [
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 1038, basis = "wave-2 census (D-950); quirk agentdojo.rescont_exception_row_defaults: 1,038 rows" },
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 2076, basis = "wave-2 census (D-950): utility and security of each row", unit = "judgements" },
+]
+manuscript = true
+refs = ["D.6.20"]
+
+[[artefact]]
+id = "rescont.art.request_not_recorded"
+title = "ResCont model requests are not logged"
+description = "The script's LLM element builds each request from the messages so far (tool schemas in the system prompt, tool results as user turns, and for the prompting and Qwen formats a client-side trim to a token budget). The request is not logged, so which earlier messages a call received is inferred."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.request_built_from_messages@1", class = "D" }
+recorded_as = { issues = ["rescont.request_not_recorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 12032, basis = "wave-2 census (D-950): rows with messages" }]
+manuscript = false
+refs = ["D.6.20"]
+
+[[artefact]]
+id = "rescont.art.injection_map_not_recorded"
+title = "ResCont rows record no injection map"
+description = "The rows record no injection map: the attack's payloads appear only inside the tool outputs that carried them, so no payload fixture is emitted (agentdojo.art.payload_not_reaching_agent, variant no_marker)."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.no_injection_map@1", class = "D" }
+recorded_as = { issues = ["rescont.injection_map_not_recorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 12569, basis = "wave-2 census (D-950)" }]
+manuscript = false
+refs = ["D.6.20"]
+
+[[artefact]]
+id = "rescont.art.melon_calls_not_recorded"
+title = "MELON's own model calls are not logged"
+description = "With the melon defences MELONDetector makes the agent's call and a masked call itself and may end the run with its own stop message; neither model call nor the embedding calls are logged."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.melon_block_message@1", class = "D" }
+recorded_as = { issues = ["rescont.melon_calls_not_recorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 583, basis = "wave-2 census (D-950); quirk agentdojo.rescont_melon_block: 583 rows" }]
+manuscript = false
+refs = ["D.6.20"]
+
+[[artefact]]
+id = "rescont.art.defence_unrecorded"
+title = "Containers without a defense field"
+description = "A results container that has no defense field and no identity-table defence: the defence of its rows is not recorded and none is assumed (regeneration-batch item 116)."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.container_fields_apply_to_rows@1", class = "D" }
+recorded_as = { issues = ["rescont.defence_unrecorded"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 637, basis = "wave-2 census (D-950)" }]
+manuscript = false
+refs = ["D.6.20", "regeneration-batch item 116 (NF-6)"]
+
+[[artefact]]
+id = "rescont.art.model_identity_from_documents"
+title = "Model identity from the source's documents: conflicts and gaps"
+description = "The model a container's label denotes comes from a document of the source through the identity table (D-474). Where the documents disagree (Llama 3.3 against 3.1) the execution carries identity_conflict; where no document states it (the tokenless battery, smoke_test.json) it is identity_unresolved."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.model_from_identity_table@1", class = "I" }
+recorded_as = { issues = ["identity_conflict", "identity_unresolved"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 6306, basis = "wave-2 census (D-950): identity_conflict (phase-10q census: 6,306)" },
+  { snapshot = "memo-ozdincer-agentdojo:head", count = 1449, basis = "wave-2 census (D-950): identity_unresolved (phase-10q census: 1,449)" },
+]
+manuscript = false
+refs = ["docs/reports/phase10q/README.md", "DECISIONS D-474"]
+
+[[artefact]]
+id = "rescont.art.value_redacted"
+title = "Workstation account paths redacted (ResCont)"
+description = "The containers' model strings hold workstation account paths; the profile's redaction rule replaces them in the AER by a salted label (D-476). The raw bytes are unchanged."
+scope = { sources = ["memo-ozdincer-agentdojo"], parts = ["head"], profiles = ["memo-ozdincer-agentdojo"] }
+cause = "upstream_harness"
+detector = { rule = "rescont.value_redacted@1", class = "D" }
+recorded_as = { issues = ["rescont.value_redacted"] }
+handling = { class = "CR", rule = "rescont.value_redacted@1" }
+expected = [{ snapshot = "memo-ozdincer-agentdojo:head", count = 7015, basis = "wave-2 census (D-950); profile comment: 7,015 rows redacted" }]
+manuscript = false
+refs = ["DECISIONS D-476"]

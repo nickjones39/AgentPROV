@@ -1,0 +1,113 @@
+{
+ "corpus_id": "shreeyavarma-llm-safety",
+ "date": "2026-10-14",
+ "code_commit": "065b0d36",
+ "step": "P0/1 desk research (pre-registration; no data check run)",
+ "parts": [
+  "shreeyavarma-llm-safety · head (672 new TraceLogger logs at ShreeyaVarma/llm_safety@78d22e4a3daa in six result directories; 24,914 upstream run copies select.owned_elsewhere, owner agentdojo)"
+ ],
+ "papers": [
+  {
+   "id": "none",
+   "title": "No paper, preprint, thesis or report describes these runs (web search 2026-10-14 found nothing; the repository has no CITATION of its own: CITATION.bib is the upstream AgentDojo entry)",
+   "url": "https://github.com/ShreeyaVarma/llm_safety/blob/78d22e4a3daa5e76c77b75076c30ceb1faab22c1/CITATION.bib",
+   "relation": "none: the only documents are the repository's own markdown/LaTeX reports, which describe a hidden-state/feature safety classifier trained on 'AgentDojo result JSON files' (1,000-conversation samples); the reports do not name the directory, but the driver script run_medium_classifier.py defaults to an upstream-style runs/ directory, so the 672 new logs are most likely not the data [softened by fact-check: the reports themselves do not say runs/]",
+   "versions": "single commit 78d22e4a (2025-09-10)"
+  },
+  {
+   "id": "arXiv:2406.13352",
+   "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+   "url": "https://arxiv.org/abs/2406.13352",
+   "relation": "benchmark and vendored harness (fork of ethz-spylab/agentdojo at acb4220a, after tag v0.1.34). Context only: its numbers are v1 (workspace 40 user x 6 injection tasks), not v1.2.1 (40 x 14)",
+   "versions": "v1 2024-06-19, v2 2024-07-18, v3 2024-11-24 (comment: Llama implementation bug fix and travel-suite update). Table 3 GPT-4o all-suite: benign utility 69.00%, UA 50.08%, targeted ASR 47.69% (important_instructions); Table 4 compares TODO/ignore previous/InjecAgent/important message/max; no tool_knowledge row (https://arxiv.org/html/2406.13352v3)"
+  },
+  {
+   "id": "AgentDojo results page",
+   "title": "AgentDojo leaderboard (agentdojo.spylab.ai/results)",
+   "url": "https://agentdojo.spylab.ai/results/",
+   "relation": "context only: gpt-4o-2024-05-13, no defence, tool_knowledge, 2024-06-05: utility 69.07%, UA 57.71%, targeted ASR 34.50% (all-suite aggregate; the page states neither the benchmark version nor the number of cases; '629 v1-era cases' is an inference from the date and the paper, not a page figure [corrected by fact-check])",
+   "versions": "fetched 2026-10-14"
+  }
+ ],
+ "repo": "https://github.com/ShreeyaVarma/llm_safety (GitHub API 2026-10-14: fork=false, created 2025-09-10T12:54Z, pushed 2025-09-10T15:54Z, MIT per API, 1 branch main, 0 releases, 0 issues, 0 PRs, 0 forks, 0 stars). History: 692 commits; the only own commit is the pin 78d22e4a3daa (author+committer 2025-09-10T15:18:57Z, Shreeya Varma, 'Complete LLM safety research framework with attack classification and analysis tools'); its parent is upstream ethz-spylab/agentdojo acb4220a7b19 (2025-06-07, 'Merge pull request #85', vLLM tool-parser support), 14 commits after tag v0.1.34 (928bbae8, 2025-06-02) [corrected by fact-check: was '4'; GitHub compare 928bbae8...acb4220a ahead_by 14] and 26 commits before v0.1.35 (a75aba76, 2025-10-27). The pin is HEAD: no commits before or after it touch the logs separately (all 672 logs and the harness changes arrive in the one commit). Tree at pin (git/trees recursive, not truncated): 28,307 blobs (= profile expected_files), 10,777 trees, 39,084 entries; vs upstream acb4220a: 3,223 blobs added, 22 changed, 0 removed; runs/ 24,914 blobs all byte-identical (same blob sha) to upstream acb4220a AND to our agentdojo head pin 089ed468 (head has 36,679 runs blobs; the 11,765 extra are Meta-SecAlign-70B and Llama-3.3-70B dirs added upstream later). The 22 changed harness files (src/agentdojo/...: benchmark.py, functions_runtime.py, base_tasks.py, task_suite.py, tool_execution.py, agent_pipeline.py, attacks/base_attacks.py, llms/*.py, pi_detector.py, types.py, scripts/benchmark.py ...) are mostly type-annotation edits (Env TypeVar -> TaskEnvironment, model_rebuild calls); behavioural edits: agent_pipeline.py adds provider 'hf_qwen_agent' (HFQwenWithHiddenStates, hidden-state layer index 19) for any model id starting 'Qwen/' and forces llm_name 'Local model' for it; LOCAL_LLM_PORT default changed 8000 -> 11434 (the Ollama port) for the 'local' provider only; the 'vllm_parsed' provider keeps 8000 [precision added by fact-check]; attacks/base_attacks.py get_model_name_from_pipeline accepts 'Local model' and ModelsEnum values. Two files added under src/agentdojo/custom_llms/ (hf_qwen_agent_llm.py and 'function_calling (1).py'). README.md and LICENSE are unchanged upstream blobs (README is the upstream AgentDojo README; it makes no claim about the fork's logs). The author's analysis scripts default to cluster paths under a home directory (e.g. comprehensive_hidden_states_classifier.py l.449 points at my_runs_conda_with_attack), so the logs were produced on a cluster and copied in. URLs: https://github.com/ShreeyaVarma/llm_safety/commit/78d22e4a3daa5e76c77b75076c30ceb1faab22c1 ; https://github.com/ethz-spylab/agentdojo/commit/acb4220a7b19 ; https://github.com/ethz-spylab/agentdojo/releases/tag/v0.1.34",
+ "data_record": "No Zenodo/HF/Figshare record; the data are the six committed result directories of the GitHub repository at the pin. Our pin: commit 78d22e4a (profile date 2025-09-10, expected_files 28,307 = blob count of the GitHub tree), 2,386 absent blobs not fetched in phase 10c (nodejs/, PDFs, PNGs, model weights; none under the six result dirs), 155 covering paths. GitHub tree sizes: the 672 new logs total 9,397,898 bytes; smallest 381 B (my_runs_qwen2_agent_no_attack/local/workspace/user_task_14/none/none.json) and 1,316 B (my_runs_qwen_agent/local/workspace/user_task_1/tool_knowledge/injection_task_13.json), the two census empty-message logs. Integrity rests on git blob ids at the pin (no checksums published). URL: https://github.com/ShreeyaVarma/llm_safety/tree/78d22e4a3daa5e76c77b75076c30ceb1faab22c1",
+ "harness": "Vendored AgentDojo fork (pyproject name agentdojo, version 0.1.34; upstream uv.lock still says 0.1.32, an upstream staleness also present at acb4220a). Logs record agentdojo_package_version 0.1.34 and benchmark_version v1.2.1 in all 672 (phase-10c novel census), the default of scripts/benchmark.py --benchmark-version at acb4220a. TraceLogger v1 logs (variants v1.k14 668, v1.k14.incomplete 4). Code identity 'range', verified_code [] (D-24: D rules via _unverified twins); the 22 locally modified harness files make the upstream tag insufficient as code identity. Known upstream bugs relevant to this version: (1) workspace UserTask16 utility fails when get_unread_emails flips the read flag (issue #116, fixed only in suite v1.2.2 by PR #130, 2025-10-27; v1.2.1 is affected) https://github.com/ethz-spylab/agentdojo/issues/116 https://github.com/ethz-spylab/agentdojo/pull/130 ; (2) workspace injection_task_6..13 (added in v1.2.x) have an empty ground truth, so tool_knowledge-style attacks get no tool sequence for them and check_suites reports them unsolved (open issue #213, 2026-10-02) https://github.com/ethz-spylab/agentdojo/issues/213 ; (3) LocalLLM parsing/serving defects affecting the 56 'local' logs: only the first <function=...> call parsed (#150), fenced JSON calls dropped and no generation cap (#202), empty-body or trailing-text calls dropped (#219), server errors turned into an empty final answer that is scored as a failed attack and not retried (#220) https://github.com/ethz-spylab/agentdojo/issues/150 https://github.com/ethz-spylab/agentdojo/issues/202 https://github.com/ethz-spylab/agentdojo/issues/219 https://github.com/ethz-spylab/agentdojo/issues/220 ; Ollama on port 11434 was not officially supported upstream at the time (issue #89 closed 2025-07-28 without support) https://github.com/ethz-spylab/agentdojo/issues/89 ; (4) workspace injection tasks 11/12 set-membership bug fixed upstream in 2025-04 (#71/#75), before the fork base, so not present https://github.com/ethz-spylab/agentdojo/issues/71 ; (5) utility_from_traces/security_from_traces trace-scoring issues (#168, #189, #218) concern defences that block execution; no defence is used here, so expected inert.",
+ "models": [
+  "gpt-4o-2024-05-13 (OpenAI API; pipeline_name and directory gpt-4o-2024-05-13; 614 logs in my_runs_conda (40) and my_runs_conda_with_attack (574); identity table row, class I)",
+  "unknown local model, pipeline_name 'local' (56 logs: my_runs_qwen_agent 42, my_runs_qwen2_agent_no_attack 14): upstream LocalLLM provider via an OpenAI-compatible server whose default port the fork set to 11434 (Ollama); the model id is read from the server at run time and never logged; directory names say only 'qwen' / 'qwen2' (D-105: identity_unresolved, unk /model not_recorded)",
+  "unknown local model, pipeline_name 'Local model' (2 logs: my_runs_hf_qwen_agent 1, qwen_hf_unattacked 1): the fork's hf_qwen_agent provider (HF transformers, hidden states) forces the name 'Local model' for any 'Qwen/...' model id; the id itself is not logged (a code comment mentions a Qwen2-0.5B-Instruct example, which is not evidence of the run's model)"
+ ],
+ "reported_results": [
+  {
+   "arm": "all 672 new logs",
+   "metric": "any utility/ASR",
+   "value": "none reported",
+   "n": "-",
+   "where": "No paper or README reports results for these logs; the repository's reports (AGENT_SAFETY_CLASSIFICATION_RESULTS.md, COMPREHENSIVE_ANALYSIS_SUMMARY.md) report classifier accuracy on 1,000-conversation samples of 'AgentDojo result JSON files' (directory not named in the reports; run_medium_classifier.py defaults to a runs/ directory) (e.g. 1,000 conversations, 386 safe / 614 unsafe: the 614 there is unrelated to the 614 gpt-4o logs) https://github.com/ShreeyaVarma/llm_safety/blob/78d22e4a3daa5e76c77b75076c30ceb1faab22c1/AGENT_SAFETY_CLASSIFICATION_RESULTS.md"
+  },
+  {
+   "arm": "context: gpt-4o-2024-05-13 · no defence · all suites v1 · tool_knowledge",
+   "metric": "benign utility / UA / targeted ASR",
+   "value": "69.07% / 57.71% / 34.50%",
+   "n": "not stated on the page (inferred v1-era, 629 per the paper) [corrected by fact-check: was '629 injection cases (v1)']",
+   "where": "AgentDojo results page, row dated 2024-06-05 https://agentdojo.spylab.ai/results/ (context only: different suite version and all suites)"
+  },
+  {
+   "arm": "context: gpt-4o · no defence · all suites v1 · important_instructions",
+   "metric": "benign utility / UA / targeted ASR",
+   "value": "69.00% / 50.08% / 47.69%",
+   "n": "629",
+   "where": "AgentDojo paper Table 3, https://arxiv.org/html/2406.13352v3 (context only)"
+  },
+  {
+   "arm": "own census (not a paper number): all 668 complete logs",
+   "metric": "utility True/False; security True/False",
+   "value": "utility 316/352; security 172/496 (4 logs without outcome keys)",
+   "n": "672",
+   "where": "phase-10c novel census ~/.agentprov/migration-work/phase10c/census/shreeyavarma@78d22e4a3daa.novel.summary.json"
+  }
+ ],
+ "expected_counts": "head: 28,307 blobs at the pin (profile expected_files; GitHub tree; phase-10c census files.all_tree_entries = 28,307, i.e. blobs; the 39,084 tree entries incl. 10,777 dirs come from the GitHub tree API only), 25,617 JSON blobs (phase-10c census), parse ok 25,617; selected 672 logs (tools/readme_corpora.toml count 672 basis census; docs/reports/phase10d/shreeyavarma-llm-safety.census.json /files; GitHub tree); select.owned_elsewhere 24,914 (trial counters.excluded); non-TraceLogger JSON 31 (25,617 - 24,914 - 672; census non_tl_dirs, analysis outputs, not selected by include). Executions 672 (trial jobs 8: sealed_clean 614, sealed_with_issues 58; units agent_execution 670, outcome_only 2; register accounting_unverifiable 668, earlier_attempts_unobservable 670, identity_unresolved 58, incomplete_run 2, no_execution_observed 2, no_outcome_recorded 2; stages ok 672; 0 failed validation checks; jobs 8 vs 3 byte-identical on the 137-execution subset). Variants v1.k14 668, v1.k14.incomplete 4.",
+ "expected_arms": "Facets: results_dir × model (pipeline_dir) × defence (none everywhere) × suite (workspace only, v1.2.1) × attack (tool_knowledge | none) × task kind (user | injection pre-pass). 8 non-empty strata (GitHub tree at the pin): my_runs_conda/gpt-4o user none 40; my_runs_conda_with_attack/gpt-4o injection-pre-pass none 14; my_runs_conda_with_attack/gpt-4o tool_knowledge 560 (40 user x 14 injection tasks: full v1.2.1 workspace grid); my_runs_qwen_agent/local injection-pre-pass none 14; my_runs_qwen_agent/local tool_knowledge 28 (user_task_0 and user_task_1 x 14, the upstream README's example task pair); my_runs_qwen2_agent_no_attack/local user none 14 (user tasks 0,1,2,3,5,6,7,8,9,10,11,12,14,21); my_runs_hf_qwen_agent/'Local model' injection_task_0 none 1; qwen_hf_unattacked/'Local model' user_task_0 none 1. Missing relative to a full grid: local tool_knowledge for user tasks 2..39 (532 cells), local benign for 26 user tasks, local pre-pass for the qwen2 and hf runs; no other suite, attack or defence. No documented design to compare against.",
+ "licence": "MIT: LICENSE at the pin is the unchanged upstream AgentDojo blob, (c) 2024 Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, Florian Tramèr; the fork adds no copyright line and no data licence; GitHub API licence spdx MIT (https://github.com/ShreeyaVarma/llm_safety/blob/78d22e4a3daa5e76c77b75076c30ceb1faab22c1/LICENSE). The vendored nodejs/ tree carries its own licences and is not data. Unassessed: model-provider terms on redistributing outputs (OpenAI gpt-4o; the unknown Qwen model's licence varies by size: Apache-2.0 or the Qwen licence). Policy include (registry); no copyleft, no use clause.",
+ "discrepancy_leads": [
+  "Profile quirk note says both empty-message/no-outcome logs are in my_runs_qwen2_agent_no_attack, but the census issue samples (no_execution_observed) and the tree's two smallest files place one in my_runs_qwen2_agent_no_attack (user_task_14, 381 B) and one in my_runs_qwen_agent (user_task_1/tool_knowledge/injection_task_13, 1,316 B): our profile note is wrong (documentation-mismatch, S3)",
+  "Census 'measured' reports agentdojo.empty_messages_with_outcome files 2 AND empty_messages_without_outcome files 2, while the phase-10c novel census counts only 2 empty-message files and 4 logs missing utility/security, and the trial registers no_outcome_recorded 2 for the same 2 files: the with_outcome counter looks mis-defined (or 2 further logs are empty); resolve at L1-08",
+  "The trial labels 2 units 'outcome_only' although the census says those 2 logs hold neither messages nor outcomes: unit-kind naming vs content to be checked at L2",
+  "Benchmark v1.2.1 workspace UserTask16 utility bug (#116, fixed only in v1.2.2): user_task_16 logs (gpt-4o: 1 benign + 14 attacked) can score utility False although the task was done; outcomes are kept as logged, but the bug is undisclosed in our profile/artefacts (no entry) ",
+  "Workspace injection_task_6..13 have an empty ground truth (#213): the tool_knowledge payload for 8 of 14 injection tasks carries no tool sequence, so 320 of the 560 gpt-4o attacked logs ran a weaker attack variant than the name suggests; expected ASR difference between injection tasks 0..5 and 6..13",
+  "The 56 'local' logs come from the upstream LocalLLM path with known parse/serve defects (#150, #202, #219, #220): attacks and utility may be under-counted; the census found 0 '<function=' tag mismatches, so a different call syntax (fenced JSON, <tool_call>) or empty final answers would be invisible to the existing quirk",
+  "Harness is a locally modified fork (22 changed harness files, 2 added) at a commit between v0.1.34 and v0.1.35, committed 2-3 months after the logs were written (logs 2025-06-18..2025-07-12, commit 2025-09-10): the code at the pin is not necessarily the code that wrote the logs",
+  "The local-Qwen arms are fragments (28 attacked cells of 560; 14 of 40 benign; single-task hf runs, both incomplete), consistent with exploratory runs following the upstream README example; any rate from them is anecdotal",
+  "Population tallies imply (if the benign security constant is True for all 81 benign logs with outcomes) 91 attack successes among 587 attacked logs with outcomes; hence gpt-4o tool_knowledge ASR must lie in [64/560, 91/560] = [11.4%, 16.3%], far below the v1 all-suite 34.50% context figure; a value outside the bracket means the constant or the census is wrong"
+ ],
+ "open_questions": [
+  "Which Qwen checkpoints served the 'local' (Ollama port 11434?) and 'Local model' (HF transformers) runs? Nothing in the repository records them (D-105 stands)",
+  "Was the harness at the pin the code that produced the June-July 2025 logs, or were the 22 harness edits made later for the hidden-state experiments?",
+  "Why do 2 logs (local qwen2 user_task_14 and local qwen tool_knowledge UT1/IT13) hold no messages: a crash at write time, or a server error (#220) before the first turn?",
+  "Should a generic artefacts.toml entry cover the v1.2.1 workspace UserTask16 utility bug (#116) for every source on suite v1.2.1, and the empty-ground-truth injection tasks (#213) for tool_knowledge runs?",
+  "Precheck manifest.json (README section 1) is not yet in the tree; staging location assumed ~/.agentprov/staging/10c/shreeyavarma (not read)"
+ ],
+ "checks_not_applicable": [
+  "E2 delta: not applicable (shreeyavarma-llm-safety was not examined in FA or E2; full pre-check)",
+  "L2 outcome comparison against a paper: no paper or reported numbers exist; only the census population tallies and the derived gpt-4o ASR bracket serve as expectations, and the AgentDojo v1 figures are context only",
+  "L2 identity resolution for 58 local logs: unresolvable by design (D-105); the check is that they are sealed identity_unresolved, not that a model resolves",
+  "L2 withholding: inert apart from the generic secret path (MIT, policy include, no copyleft, no use clause)",
+  "Defence facet: no defence in any log (no pipeline_name suffix), so per-defence comparisons do not apply"
+ ],
+ "files_written": [
+  "docs/reports/precheck/data/shreeyavarma-llm-safety/research.json",
+  "docs/reports/precheck/prereg/shreeyavarma-llm-safety.md"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "checked": "GitHub API (repo metadata, pin commit, parents, branches, recursive trees at 78d22e4a, acb4220a and 089ed468, compare with tags v0.1.34/v0.1.35); harness files at the pin and base (pyproject, uv.lock, scripts/benchmark.py, agent_pipeline.py, base_attacks.py, important_instructions_attacks.py, v1_2 and v1_2_1 workspace injection_tasks.py); LICENSE at the pin; upstream issues/PRs #71 #75 #85 #89 #116 #130 #150 #168 #189 #202 #213 #214 #218 #219 #220; arXiv 2406.13352 abs v3 and HTML v3 Table 3/4; agentdojo.spylab.ai/results; our census/trial/reconcile reports, profile, readme_corpora.toml, artefacts.toml, phase-10c census summaries",
+  "corrections": [
+   "repo: acb4220a is 14 (not 4) commits after v0.1.34 (compare API)",
+   "results page: n=629 is not stated on the page (inference only)",
+   "port default change applies to the 'local' provider only",
+   "repository reports do not name runs/ themselves; the claim rests on the classifier script default",
+   "expected_counts: phase-10c all_tree_entries is the blob count (28,307), not 39,084 entries"
+  ]
+ }
+}

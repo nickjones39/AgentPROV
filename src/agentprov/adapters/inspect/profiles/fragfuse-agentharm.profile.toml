@@ -1,0 +1,165 @@
+# Source profile `fragfuse-agentharm`: zixin22/fragfuse_agentharm, 168 Inspect .eval logs inside an inspect_evals working
+# copy: plain AgentHarm runs (logs_archive/) and two attack experiments under
+# src/inspect_evals/agentharm/tasks10_outputs/ (memory-bank retrieval with injected memories, 136 one-sample logs;
+# carrier injection, 4 one-sample logs) (phase 10h; docs/reports/systematic-search/candidates/phase10e-candidates.md §3.4,
+# D-144, D-145).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The [family.inspect] table is checked against
+# ../family.schema.json (closed schema, D.4.1). The observed counts are the phase-10h census of every log at the pin
+# (docs/reports/phase10h/README.md; ~/.agentprov/migration-work/phase10h/census/).
+#
+# Restricted use (LIC 3): the logs embed AgentHarm task data (MIT with an AI-safety use clause), so the corpus is its own
+# restricted-use corpus, never mixed into a permissive one (D-144).
+#
+# Attack (phase-10h proposal D-184): one profile covers both the plain runs and the attack experiments, so `no_attack`
+# is not set and task.attack_id stays unrecorded for every sample. The attack arm is visible only in eval.task, the
+# solver plan (inject_memory_from_bank) and the sample metadata (kept in ext.inspect.sample_metadata).
+#
+# Mock runs (proposal D-183): four logs_archive logs ran the `none/none` model (Inspect's no-model provider; 12 samples,
+# all errored before any generation). They are not executions (D-142: mock-model samples are not counted) and are
+# excluded by exact path with select.not_execution_artefact, as DTap's synthetic trajectories are (D-29).
+#
+# Workstation account names (D-146; D-182, user-approved 2026-10-13, applied by regeneration-batch item 107): no model
+# id carries a path, but every log records a /Users/<account>/ path somewhere (dataset.location, the memory-bank solver
+# parameter, error tracebacks, and metadata.carrier_query_path in 4 samples). The mapper copies sample errors and metadata
+# into ext; the [[family.inspect.redact]] rule below replaces the account segment there (harness text only, never
+# content). dataset.location and the plan are not copied. Never print or quote these paths: refer to them by pointer and
+# count only.
+
+#
+# Version 2 (regeneration-batch item 107: the redaction table); version 1 ships under profiles/archive/fragfuse-agentharm.profile.v1.toml because scratch corpora record it (D-31 owner's ruling).
+[profile]
+id = "fragfuse-agentharm"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "fragfuse-agentharm"
+family = "inspect"
+parts = ["logs"]
+title = "zixin22/fragfuse_agentharm: AgentHarm Inspect .eval logs and memory/carrier attack runs (restricted-use corpus fragfuse-agentharm)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.4", "docs/reports/phase10h/README.md"]
+
+[source]
+canonical_repo = "https://github.com/zixin22/fragfuse_agentharm"
+paper = "none found in the repository (phase 10e)"
+note = "an inspect_evals working copy (not a GitHub fork); the logs are spread over logs_archive/ and task output folders"
+
+# The pin covers the whole commit: the logs sit in two top-level trees (logs_archive/ and src/), and one pin per corpus
+# is the rule (D-108). Only the include globs below are read as executions.
+[[source.pins]]
+role = "git"
+part = "logs"
+primary = true
+kind = "git"
+repo = "https://github.com/zixin22/fragfuse_agentharm"
+commit = "24cc8aea1b9906bee20fb585007410a5d885933a"
+date = "2026-05-24"
+expected_files = 3847
+expected_bytes = 318827530
+note = "the default branch at 2026-10-12 (phase 10e); 168 .eval logs, 1,759 samples (1,747 real-model samples)"
+
+[licence]
+spdx = "MIT"
+holders = ["UK AI Security Institute (LICENSE copyright line, inherited from inspect_evals)"]
+data_licence = "MIT"
+policy = "include"
+restrictions = ["AgentHarm task data: MIT License with an additional clause (use only to improve AI safety and security)"]
+basis = "MIT LICENSE at the pin (blob 72fc8774, sha256 c593c2af...; GitHub detects MIT); AgentHarm data per HF ai-safety-institute/AgentHarm @ e23b3fe6 card"
+attribution = [
+  "zixin22/fragfuse_agentharm (MIT), commit 24cc8aea1b9906bee20fb585007410a5d885933a",
+  "AgentHarm (c) 2024 Gray Swan AI and UK AI Safety Institute, MIT License with an additional clause",
+  "inspect_evals (MIT, (c) 2024 UK AI Security Institute)",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = [
+  "inspect_evals working copy at the pin (agentharm, agentharm_benign, tasks10 retrieve and carrier tasks; no inspect_evals version in the headers)",
+  "inspect_ai 0.3.154.dev37+g1289c1ad, 0.3.158 and 0.3.159.dev20+g3ddd7997 (log headers)",
+]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "inspect.eval"
+mapper = "inspect.eval"
+variants = ["v2"]
+include = ["logs_archive/**/*.eval", "src/inspect_evals/agentharm/tasks10_outputs/**/*.eval"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "logs_archive/2025-12-30T22-06-25+00-00_agentharm-benign_KGn46FpufqVFoqh8omxcQa.eval", code = "select.not_execution_artefact", note = "model none/none (3 samples, no generation); D-183" },
+  { glob = "logs_archive/2025-12-30T22-06-25+00-00_agentharm_cXghW9ubBnVHXWDUAUbjEb.eval", code = "select.not_execution_artefact", note = "model none/none (3 samples, no generation); D-183" },
+  { glob = "logs_archive/2025-12-30T22-07-17+00-00_agentharm-benign_KGn46FpufqVFoqh8omxcQa.eval", code = "select.not_execution_artefact", note = "model none/none (3 samples, no generation); D-183" },
+  { glob = "logs_archive/2025-12-30T22-07-17+00-00_agentharm_cXghW9ubBnVHXWDUAUbjEb.eval", code = "select.not_execution_artefact", note = "model none/none (3 samples, no generation); D-183" },
+]
+context_artefacts = [
+  "src/inspect_evals/agentharm/tasks10_outputs/retrieve_test_logs_memory/**/guardrail_decision.json",
+  "src/inspect_evals/agentharm/tasks10_outputs/bank_*/*.jsonl",
+]
+layout = "logs_archive[/<run>]/<timestamp>_<task>_<id>.eval | src/inspect_evals/agentharm/tasks10_outputs/{retrieve_test_logs_memory,Agentharm/carrier_inject_eval}/task_[test_]<n>-<m>/<timestamp>_<task>_<id>.eval"
+
+[family.inspect]
+benchmark = "agentharm"
+producer_band = { inspect_ai = ["0.3.154.dev37+g1289c1ad", "0.3.158", "0.3.159.dev20+g3ddd7997"] }
+log_versions = [2]
+members = ["header.json", "samples/*_epoch_*.json"]
+span_roles = { solver = "agent", scorer = "judge" }
+ground_truth_metadata = ["target_functions", "grading_function"]
+
+[[family.inspect.quirk]]
+id = "inspect.judge_model_separate_from_agent"
+note = "the AgentHarm judge is openai/gpt-4o-2024-08-06 (32 logs); the tasks10 retrieve logs score with always_ok (no judge)"
+
+[[family.inspect.quirk]]
+id = "inspect.mock_model_runs"
+note = "4 logs ran model none/none (12 samples); excluded by path, D-183"
+observed = { logs = 4, samples = 12 }
+
+[[family.inspect.quirk]]
+id = "inspect.error_logs"
+note = "20 logs end with status error (the 4 none/none logs among them); their finished samples are kept"
+observed = { logs = 20 }
+
+[[family.inspect.quirk]]
+id = "inspect.event_order_not_time_order"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.attachment_refs"
+rules = ["inspect.model_event_is_call@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.sample_limit"
+rules = ["inspect.sample_limit@1"]
+observed = { samples = 74 }
+note = "message limits"
+
+[[family.inspect.quirk]]
+id = "inspect.tool_span_separate_from_tool_event"
+rules = ["inspect.no_order_from_event_list@1"]
+
+# Regeneration-batch item 107 (D-182; docs/reports/phase10h/redaction-design.md).
+[[family.inspect.redact]]
+id = "home_account"
+scope = "harness_text"
+pattern = '(?<=/Users/)[^/\s"]+(?=/)'
+replacement = "<account>"
+note = "tracebacks (34 samples) and metadata.carrier_query_path (4)"
+
+# D-604 (user decision 2026-10-21, bug pass review window; regeneration-batch item 107): every .eval of the pin names a
+# third-party workstation account (/Users/<account>/ in headers, journals and 25 sample members), so those raw objects
+# are withheld at object scope; the executions stay released because the redact rule above leaves no account in a
+# derived record (D-235). Census (item 107, scratch trial at v2): 161 headers, 164 journals, 25 samples, and so all 164
+# of the part's 164 selected .eval containers: the whole raw primary of the part is withheld, while its AER, SEM and PROV
+# ship redacted (datasheet row 20). 0 derived files. The pattern names no account.
+[withhold]
+reason = "personal_data"
+public_note = "raw log objects that name a third-party workstation account path; derived records carry <account>"
+
+[[withhold.rules]]
+id = "users-account-path"
+pattern = "/Users/[A-Za-z0-9._\\-]{1,64}/"
+scope = "object"

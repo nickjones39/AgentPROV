@@ -1,0 +1,171 @@
+# Expected-differences register of gate C (docs/architecture J.3.4; loader and checker: agentprov.migration.xd).
+#
+# Every difference gate C tolerates between the frozen baseline package (579a908) and AgentPROV is listed here. A
+# difference that is not listed fails the gate; a listed one whose count exceeds max_per_item fails too; a C6 scenario
+# must hit exactly the entries it declares (agentprov_backend.testing.c6). Each C6 entry cites the B.9 defect id or the
+# spec section that makes it a deliberate deviation. A port-fidelity defect is never registered here: it is fixed or
+# reported. Text is description only; no payload or source text.
+#
+# Observation keys (agentprov.migration.c6): "v1:<pointer>", "graph:<pointer>", "projection:<pointer>",
+# "wire:/<n><pointer>", "deviation:<id>/<detail>". Items: "scenario:<name>".
+
+[register]
+format = "agentprov-expected-differences/1"
+
+# ------------------------------------------------------------------------------------------------ C6 (J.3.4 C6(b))
+
+[[difference]]
+id           = "XD-C6-F02-discarded-model-calls"
+comparison   = "C6"
+defect       = "F-02"
+applies_to   = ["scenario:*"]
+match        = ["deviation:F-02/mc*"]
+old          = "_CompatLLM retries upstream failures and 5xx replies and re-asks malformed tool-call JSON; only counters reach the transcript (model_config.upstream_errors, malformed_tool_calls, discarded_usage), the replies' content is lost"
+new          = "every reply the gateway_compat port does not keep is a model_call with status discarded or error, retry_of on its successor, its response blob and reason (one observation per such call)"
+evidence     = "B_audit.md B.9 F-02; D_adapters.md D.10.10 items 4 and 17, D.10.4a item 13"
+max_per_item = 8
+
+[[difference]]
+id           = "XD-C6-F05-failed-cell-kept"
+comparison   = "C6"
+defect       = "F-05"
+applies_to   = ["scenario:*"]
+match        = ["deviation:F-05/failed-cell"]
+old          = "a cell whose run raises is caught by generate._run_one_*: no transcript or graph is written, the generation log gets an error row, and a resume re-attempts the cell without evidence of the failure"
+new          = "the session is sealed with status errored and kept (error event with the exception type and an escaped traceback blob); it maps to an AER whose run scope has status error"
+evidence     = "B_audit.md B.9 F-05 (generate.py:600-607); D_adapters.md D.10.10 item 11"
+max_per_item = 1
+
+[[difference]]
+id           = "XD-C6-F13-display-name-preset"
+comparison   = "C6"
+defect       = "F-13"
+applies_to   = ["scenario:*"]
+match        = ["deviation:F-13/display-name"]
+old          = "generate._make_pipeline writes MODEL_NAMES[model_id] = model_id.replace('-', ' ').title() into AgentDojo's global table, and the attack takes its display name from it"
+new          = "attack_params.model_display_name_preset = adprov-v2.3-title-case derives the same name, applied in a scoped registration for attack construction only and declared as the attack_parameter item agentdojo.attack_model_display_name@1 (params.preset); the attack text is identical"
+evidence     = "B_audit.md B.9 F-13; D_adapters.md D.10.5, D.10.7; agentprov_backend.attacks.DISPLAY_NAME_PRESETS"
+max_per_item = 1
+
+[[difference]]
+id           = "XD-C6-D73-capture-verdict"
+comparison   = "C6"
+defect       = "D.7.3"
+applies_to   = ["scenario:*"]
+match        = ["deviation:D.7.3/capture-block"]
+old          = "every live transcript of 579a908 carries meta.n_attempts and meta.capture (complete, per-pass call counts and environment records in the baseline envstate notation)"
+new          = "the AER expresses the passes as attempt scopes with state_change records and the completeness as the seal's accounting verdict (C.12.2); the v1 view of a live AER renders neither member, so C6(a) compares the views without them"
+evidence     = "J_migration.md J.3.4 row C6 (meta.capture.complete -> capture verdict); D_adapters.md D.7.3, D.10.3"
+max_per_item = 1
+
+[[difference]]
+id           = "XD-C6-D105-benign-security"
+comparison   = "C6"
+defect       = "D.10.5"
+applies_to   = ["scenario:*"]
+match        = ["deviation:D.10.5/benign-security"]
+old          = "a benign cell's meta.security is null: generate._run_one_benign called suite.run_task_with_pipeline and _trace_meta wrote None for the unscored security"
+new          = "the backend drives the cell through the stock run_task_without_injection_tasks (D.10.5), which returns security = True as a constant; the AER judgement is true with origin harness_default (D.6.7), and SEM, not the value, carries the polarity. Detected only for a benign cell with old null and new true/harness_default"
+evidence     = "D_adapters.md D.10.5 (driving a cell), D.6.7 (outcome origins), D.10.10 item 12; agentdojo benchmark.py run_task_without_injection_tasks"
+max_per_item = 1
+
+[[difference]]
+id           = "XD-C6-C153-generator-meta"
+comparison   = "C6"
+defect       = "C.15.3"
+applies_to   = ["scenario:*"]
+match        = ["deviation:C.15.3/generator-meta"]
+old          = "meta.model (the harness shorthand, e.g. deepseek) and meta.model_config (configured temperature 0.0 from OpenAILLM's default, reasoning_effort 'provider_default', usage sums of kept replies, finish_reasons, response.model) written by generate._trace_meta and _model_config_from_llm"
+new          = "the field table's only source for meta.model and for the model_config key list is ext.adprov, which a live AER does not carry; the values are not all O facts of the live AER (no shorthand is recorded; the configured params are {} and the element's default temperature 0.0 is not recorded; 'provider_default' is a generator label), so the view renders model null and no model_config rather than fabricating them. Detected only when the old values are present and the view renders neither"
+evidence     = "C_data_model.md C.15.3 (src/agentprov/views/transcript_v1_fields.toml meta.model, meta.model_config); D.10.10 items 4 and 16 (params.configured, temperature_not_transmitted@1)"
+max_per_item = 1
+
+# Gate C5 (J.3.4 row C5; deferrals part D, D-209): the baseline converter (convert_runs.convert_run) against the native
+# importer and the legacy converted view (views.transcript_v1.render_converted) on the golden June-2024 logs and the head
+# fixtures. The June-2024 samples agree in full.
+[[difference]]
+id           = "XD-C5-pipeline-label-source"
+comparison   = "C5"
+defect       = "J.3.4"
+applies_to   = ["head:*"]
+match        = ["v1:/meta/model", "v1:/meta/model_id", "v1:/meta/pipeline_name"]
+old          = "convert_run writes model, model_id and pipeline_name from its pipeline argument, the run directory the converter walked"
+new          = "render_converted writes the log's own pipeline_name (the TraceLogger header); for the v1.k14 local-model logs it is 'local', which is the 'model = local' case J.3.4 predicts for new-format logs"
+evidence     = "docs/reports/migration/C5.json; convert_runs.py:138-175 @ 579a908 (run_to_meta); D.7.4"
+max_per_item = 3
+
+# ------------------------------------------------------------------------------------------------ C2 (J.3.4 C2; deferrals part D)
+# Old: validate_prov_document and ProvValidator of the baseline (579a908). New, generic: the tier-4 structure and
+# constraint checks (validate.prov_structure without its two AgentPROV-format checks; validate.constraints) on the same
+# v2.3 graph. The compat port's verdicts must equal the old ones exactly; no entry absorbs a "compat:" observation.
+# Items: "item:<corpus>/<relpath>" or "item:fixture:three"; keys "generic:<mutation>:<check>:<old>-><new>".
+
+[[difference]]
+id           = "XD-C2-V1-totality"
+comparison   = "C2"
+defect       = "J.3.4"
+applies_to   = ["item:*"]
+match        = ["generic:used=7:*:raised:TypeError->*", "generic:used=true:*:raised:TypeError->*", "generic:used=3.5:*:raised:TypeError->*"]
+old          = "validate_prov_document and ProvValidator raise TypeError on a scalar relation section (audit/validation.md section 7, V1)"
+new          = "the structure check fails the document; the constraint checks skip the malformed section"
+evidence     = "audit/validation.md section 7 V1 and section 6.3; J.3.4 example XD-C2-V1-totality"
+max_per_item = 6
+
+[[difference]]
+id           = "XD-C2-V2-closed-world"
+comparison   = "C2"
+defect       = "J.3.4"
+applies_to   = ["item:*"]
+match        = ["generic:typo_wasGeneratedby:schema:pass->fail", "generic:unprefixed_attribute:schema:pass->fail"]
+old          = "only the builder's seven relation kinds are examined: a typo section and an unprefixed attribute pass the schema check"
+new          = "the structure check knows every PROV-JSON section and requires prefixed qualified names"
+evidence     = "audit/validation.md section 7 V2 and section 6.3"
+max_per_item = 2
+
+[[difference]]
+id           = "XD-C2-V10-agent-shape"
+comparison   = "C2"
+defect       = "J.3.4"
+applies_to   = ["item:*"]
+match        = ["generic:agent_attributes_not_object:schema:pass->fail", "generic:agents_removed:schema:pass->fail"]
+old          = "the schema check passes an agent whose attributes are not an object, and an association to an agent the document no longer declares"
+new          = "the structure check fails a non-object element and a dangling reference"
+evidence     = "audit/validation.md section 7 V10 (the two gates disagree on a non-object agent) and section 6.3"
+max_per_item = 2
+
+[[difference]]
+id           = "XD-C2-V6-closed-world-typing"
+comparison   = "C2"
+defect       = "J.3.4"
+applies_to   = ["item:*"]
+match        = ["generic:agents_removed:constraints:fail->pass", "generic:probe_b:constraints:fail->pass"]
+old          = "'constraint 50' fails a relation whose endpoint is not declared (a closed-world reading)"
+new          = "the typing constraints infer the endpoint's type, as PROV-CONSTRAINTS does; the dangling reference is the structure check's finding"
+evidence     = "audit/validation.md section 7 V6 and section 6.3 probe (b)"
+max_per_item = 2
+
+[[difference]]
+id           = "XD-C2-V8-builder-invariant"
+comparison   = "C2"
+defect       = "J.3.4"
+applies_to   = ["item:fixture:three"]
+match        = ["generic:probe_a:schema:fail->pass"]
+old          = "the schema check carries the builder's own invariant that an entity has one generation (one builder's policy)"
+new          = "two simultaneous generations by different activities are valid PROV-JSON; the generic checks do not hold a builder's policy"
+evidence     = "audit/validation.md section 7 V8 and section 6.3 probe (a)"
+max_per_item = 1
+
+# ------------------------------------------------------------------------------------------------ C3 (J.3.4 C3; deferrals part D)
+
+[[difference]]
+id           = "XD-C3-rerun-inconsistent-counters"
+comparison   = "C3"
+defect       = "I.1.2"
+applies_to   = ["corpus-prov/*"]
+match        = ["rec:rerun_detected:true->null", "verdict@*:rerun:true->false", "verdict@*:scored:false->true",
+                "verdict@*:unscored_reason:rerun_not_reproduced->null", "verdict@*:attack_success:null->*"]
+old          = "stats.rerun_detected reads usage.n_llm_calls above the assistant turns held as a re-run of the pipeline, also when model_config.finish_reasons counts a different number of calls"
+new          = "the adprov-v1 mapper infers lost earlier-pass calls only when the two harness counters agree (adprov.lost_calls_from_count@1); otherwise the scored attempt's index is lost and the seal reports accounting_inconsistent, so the re-run is unknown (None), never asserted; the scoring rules then treat the trace as not re-run"
+evidence     = "DECISIONS D-215 (user-approved 2026-10-13); docs/reports/migration/C3.json (32 released traces, all with finish_reasons count != n_llm_calls); adprov mapper attempt plan; B_audit F-02 (_CompatLLM retries also raise n_llm_calls); adprov artefacts.toml C07 (153 traces)"
+max_per_item = 9
+

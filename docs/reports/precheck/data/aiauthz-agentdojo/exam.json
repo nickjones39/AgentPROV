@@ -1,0 +1,79 @@
+{
+ "corpus_id": "aiauthz-agentdojo",
+ "format": "agentprov-precheck-exam/0.1",
+ "date": "2026-10-21",
+ "code_commit": "d97d3a574a4e745a815af7ff6f6692b371a36f5d (batch wave3; l1, l1_10, sample, import_j2, import_j1, check all rc 0; tracked_changes false)",
+ "examiner_scripts": "docs/reports/precheck/data/aiauthz-agentdojo/exam-scripts/ (rawread: git cat-file --batch, GIT_NO_LAZY_FETCH, agentprov.ingest strict_json_loads; pop, deny, nf: population; os2: sample mapping join); counts only",
+ "files_written": [
+  "exam.json",
+  "findings.json",
+  "pop-census.json",
+  "os2-sample.json",
+  "denials.json",
+  "nf-shape.json",
+  "exam-scripts/"
+ ],
+ "level1": {
+  "L1-01": "walked 288 = selected 174 + context 9 + not_selected 96 + absent_blob 9 (partial clone, unfetched images); units 174 (1 per log) = registry/census 174; 12 dirs 6x24 + 6x5; kinds attacked 120, prepass 24, clean 30",
+  "L1-02": "174/174 ok; auxiliary results_*.json 2/2 ok",
+  "L1-03": "0 classes in 174 (no escape residues, no bidi/tag/C0/zero-width)",
+  "L1-04": "byte-identical 0; trajectory-identical 17 groups / 40 units (151 distinct fp of 174), 16 groups across defence arms of one model (CC-01); cross-part and cross-corpus 0 (_cross/l1-xdup.json)",
+  "L1-05": "18 strata as expected (2 models x 3 defences x {attacked 20, prepass 4} + 6 clean x 5); 0 missing, 0 extra; banking v1.2.2 UT0-4 x IT0/4/5/7",
+  "L1-06": "0/174",
+  "L1-07": "/evaluation_timestamp 174/174 naive, 2026-07-06, 0 parse fail, 0 non-monotone",
+  "L1-08": "null_final 70/174 (= profile 70); 0 empty, 0 error, 0 trailing calls",
+  "L1-09": "not produced for this part (no l1-09 file)",
+  "L1-10": "7 context non-JSON files screened, 1 hit (generic-credential-assignment in RESULTS.md: env-var name), 0 accounts, 0 operator -> PC-06 (R5)"
+ },
+ "outcome_population": "L1 per-arm rates equal paper Table 4 / RESULTS.md / results files in all 6 arms x 3 metrics and 150/150 cells; gap 0 everywhere; no flag",
+ "level2": {
+  "sample": "84 labels (all 18 strata: attacked 5 each, prepass 4 each, clean 5 each), sha256 c67a02b7",
+  "validate": "84/84 passed, 0 failed, linkage 84/84 (shacl skipped: not implemented; regression n/a)",
+  "recompute": "84 identical, 0 unexplained",
+  "determinism": "j2 vs j1: 352 files, 0 differ, index identical",
+  "verify_chain": "ok; checksums.absent (working tree, expected)",
+  "a2": "0 failures",
+  "a3": "0 PROV issue classes (28,901 statements, 50,184 relation args)",
+  "evidence": "core D 366 / O 1514; inference I 6881; assessment I 1388 / O 168; _unverified: twin 7,322 statements (inference:I 5774, inference:none 665, assessment:I 883), native 0, mixed 783 (inference:I)",
+  "degenerate": 0,
+  "adapter_defect": 0,
+  "register": {
+   "map.accounting_unverifiable": 84,
+   "map.earlier_attempts_unobservable": 84,
+   "map.retry_passes_inferred": 25
+  },
+  "os2": "168/168 judgements equal raw (0 differ); retry_passes_inferred 25 = L1 null_final in sample 25",
+  "decisions": "7 decision records (agentdojo.defence_denial_message@1, verdict deny): Fable prepass 1, Fable clean 1, Gemini prepass 4, Gemini clean 1; 0 with tool_execution; tool_execution 117 all ok",
+  "identity": "0 mismatches; model from dir (pipeline tag never the model), defence from pipeline dir; 12 (model,defence,attack) tuples",
+  "redaction": "0 hits in 260 files",
+  "withholding": "no policy; not applicable (0 L1-06 hits)"
+ },
+ "outcome_sample": "all arms n=5 (<20): Wilson only; every paper rate inside the sample's interval; no gap flag",
+ "cc07": {
+  "#181": "IT0 successes 1, affected 0 (subject has the streaming service); IT1/IT3 not in grid; re-scored rate = logged",
+  "#161": "user_task_5 logs 0 of 174; 0/0"
+ },
+ "hypotheses": {
+  "H1": "supported: 120/120 attacked cells (utility, security) and 30/30 clean utility equal results_*.json (0 mismatches)",
+  "H2": "supported: attacked security True 2, attacked utility True 34 (0/0/0, 12/14/8), clean utility True 27, prepass utility True 10; all-log totals security 56, utility 71",
+  "H3": "supported: 9 denials = Fable aiauthz 1 + aiauthz_clean 1, Gemini aiauthz 6 + aiauthz_clean 1, 0 elsewhere; tools send_money 5, update_password 2, update_scheduled_transaction 2",
+  "H4": "supported: 5 of 7 attacked-dir denials in prepass logs (Gemini IT0/4/5/7, Fable IT7 update_password) -> PC-01",
+  "H5": "supported: Fable attacked null-final 60/60 (threshold >=31) -> PC-03",
+  "H6": "partly refuted (expectation wording): 0 null-final logs with utility True or attack-time security True; both successes have an executed attacker-bound call, but the UT0xIT4 success is update_scheduled_transaction (IT4's goal), not send_money; no defect",
+  "H7": "supported: per model the six dirs run in run_benchmark.py order with prepass before attacked; Gemini 01:57:02-02:01:49, Fable 02:08:24-02:44:14; all 174 in the window",
+  "H8": "supported: pipeline_name = pipeline dir 174/174; served snapshot ids in 0/174 logs",
+  "H9": "reported: identical first assistant message no_defense vs aiauthz: Fable attacked 15/20, clean 4/5, prepass 4/4; Gemini attacked 20/20, clean 5/5, prepass 3/4",
+  "H10": "supported: L1-06 0/174 secret-like or account-path; L1-10 1 generic-pattern hit in RESULTS.md is an env-var name (PC-06, R5)",
+  "H11": "supported: L2 84/84 ok, 0 degenerate, 0 adapter_defect, register codes only the three trial codes; 7 sampled decision records, none with a tool_execution",
+  "H12": "supported: the only IT0 success's attacker send_money subject names the streaming service (0/1 #181) -> PC-02"
+ },
+ "findings": [
+  "PC-aiauthz-agentdojo-01 documentation-mismatch S2",
+  "PC-aiauthz-agentdojo-02 expected-known S3 (CC-07)",
+  "PC-aiauthz-agentdojo-03 expected-known S2",
+  "PC-aiauthz-agentdojo-04 documentation-mismatch S3 (CC-09 reference)",
+  "PC-aiauthz-agentdojo-05 documentation-mismatch S3 (R4)",
+  "PC-aiauthz-agentdojo-06 analysis-artefact S3 (R5)"
+ ],
+ "readiness": "ready-with-caveats"
+}

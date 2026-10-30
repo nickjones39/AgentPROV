@@ -1,0 +1,7 @@
+from agentprov.adapters.registry.claims import coverage_phrase
+from agentprov.adapters.registry import REGISTRY
+print("full:", coverage_phrase())
+counted = sorted({(r.source_id, c.part, c.via, c.corpus_id) for r in REGISTRY for c in r.capabilities
+                  if c.role == "source" and c.import_status in ("supported", "partial")}, key=str)
+for x in counted: print(" ", x)
+print("no autodojo:", coverage_phrase(tuple(r for r in REGISTRY if r.source_id != "autodojo")))

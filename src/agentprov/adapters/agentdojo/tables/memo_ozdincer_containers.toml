@@ -1,0 +1,149 @@
+# Container identity table `memo_ozdincer_containers` (docs/architecture D.6.20; DECISIONS D-474): memo-ozdincer/agentdojo
+# at 7c331d978acca38534a3d42951f28a25ba26901b, results containers under results/ and runs/results/.
+#
+# A row applies to a container whose path matches `glob` (fnmatch: `*` also matches `/`) and whose served model name
+# (the container's `model`, after the profile's redaction, D-476) equals `served`; the first such row wins. Rows are
+# keyed by path and the redacted label, never by a raw model string (D-182: a table keyed by the original id would put
+# the workstation account into Git). Each value cites the document of the source that states it (D-92; class I under
+# rescont.model_from_identity_table@1, rescont.lora_adapter_is_defence@1, rescont.attack_from_identity_table@1); a code
+# default is never a basis. `model = "not_recorded"` keeps the model unresolved where no document states it.
+#
+# The Llama version (D-474, user decision 2026-10-14, option (a)): the cluster checkpoint `…/models/llama-70b` is
+# Llama-3.3-70B-Instruct, as results/full_eval/FULL_EVAL_RESULTS.md l.4, results/baseline_defenses/TRACE_ANALYSIS.md l.4,
+# scripts/LLAMA_NATIVE_CLUSTER_HANDOFF.md l.12, agentcontext/docs/ANALYSIS_2026-04-17.md l.5, docs/results/v5_analysis.md
+# l.460 and docs/results/fir_gcg_phase1_final_2026-04-22.md l.27 state; results/EVAL_LOG.md l.9 and
+# results/MULTITURN_RESULTS.md l.4 (both of 2026-03-27) say "Llama 3.1 70B Instruct". Rows on that checkpoint carry the
+# conflict, which the mapper reports as an info issue `identity_conflict`.
+
+# ---------------------------------------------------------------------------------------------- Llama-70B, cluster
+[[row]]
+glob = "results/baseline_defenses/*.json"
+served = "cluster:5d2dbf6fa52a/llama-70b"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "results/baseline_defenses/TRACE_ANALYSIS.md l.4: 'Model: Llama-3.3-70B-Instruct via vLLM PromptingLLM XML format'"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+attack = "training_format"
+attack_basis = "results/baseline_defenses/TRACE_ANALYSIS.md l.5: 'Attack: ToolKnowledgeAttack (model_name=\"Llama\")', the scripts' training_format attack"
+
+[[row]]
+glob = "results/full_eval/*.json"
+served = "cluster:5d2dbf6fa52a/llama-70b"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "results/full_eval/FULL_EVAL_RESULTS.md l.4: 'Model: Llama-3.3-70B-Instruct (vLLM)'"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+attack = "training_format"
+attack_basis = "results/full_eval/FULL_EVAL_RESULTS.md l.5 'Attack: ToolKnowledgeAttack' and results/MULTITURN_RESULTS.md l.7 'ToolKnowledgeAttack with model_name=\"Llama\"' (the same baseline runs), the scripts' training_format attack"
+
+[[row]]
+glob = "results/*.json"
+served = "cluster:5d2dbf6fa52a/llama-70b"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "the checkpoint path itself: scripts/LLAMA_NATIVE_CLUSTER_HANDOFF.md l.12 and agentcontext/docs/ANALYSIS_2026-04-17.md l.5 ('Llama-3.3-70B-Instruct at …/models/llama-70b')"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+note = "api_evals (attacks recorded) and comprehensive_eval (benign smoke)"
+
+# ---------------------------------------------------------------------------------------------- LoRA adapters on Llama-70B
+[[row]]
+glob = "results/full_eval/*.json"
+served = "cb"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "results/full_eval/FULL_EVAL_RESULTS.md l.4: 'Model: Llama-3.3-70B-Instruct (vLLM)'"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+defence = "cb"
+defence_basis = "results/full_eval/FULL_EVAL_RESULTS.md l.6: 'Adapter evaluated: Combined 4-suite MSE (banking+slack+travel+workspace, r16/a32, L30-55)'; container adapter label combined4_mse"
+attack = "training_format"
+attack_basis = "results/full_eval/FULL_EVAL_RESULTS.md l.5 'Attack: ToolKnowledgeAttack', the scripts' training_format attack"
+
+[[row]]
+glob = "results/full_eval/*.json"
+served = "cb_banking"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "results/EVAL_LOG.md l.9-10: the banking adapter served on the cluster checkpoint …/models/llama-70b (D-474 (a))"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+defence = "cb_banking"
+defence_basis = "results/EVAL_LOG.md l.10 and l.16: banking LoRRA adapter, objective nullify, LoRA r16/a32, layers 30-55"
+attack = "training_format"
+attack_basis = "results/MULTITURN_RESULTS.md l.7: 'Attack: ToolKnowledgeAttack with model_name=\"Llama\"' for the CB evals, the scripts' training_format attack"
+
+[[row]]
+glob = "results/full_eval/*.json"
+served = "cb_slack"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "results/EVAL_LOG.md l.9 and l.12: the slack adapter served on the cluster checkpoint …/models/llama-70b (D-474 (a))"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+defence = "cb_slack"
+defence_basis = "results/EVAL_LOG.md l.12 and l.16: slack LoRRA adapter, objective nullify, LoRA r16/a32, layers 30-55"
+attack = "training_format"
+attack_basis = "results/MULTITURN_RESULTS.md l.7: 'Attack: ToolKnowledgeAttack with model_name=\"Llama\"' for the CB evals, the scripts' training_format attack"
+
+[[row]]
+glob = "results/full_eval/*.json"
+served = "cb_workspace"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "results/EVAL_LOG.md l.9 and l.11: the workspace adapter served on the cluster checkpoint …/models/llama-70b (D-474 (a))"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+defence = "cb_workspace"
+defence_basis = "results/EVAL_LOG.md l.11 and l.16: workspace LoRRA adapter, objective nullify, LoRA r16/a32, layers 30-55"
+attack = "training_format"
+attack_basis = "results/MULTITURN_RESULTS.md l.7: 'Attack: ToolKnowledgeAttack with model_name=\"Llama\"' for the CB evals, the scripts' training_format attack"
+
+[[row]]
+glob = "results/comprehensive_eval/*.json"
+served = "mse4"
+model = "meta-llama/Llama-3.3-70B-Instruct"
+basis = "scripts/node1_ood_mse4.sh l.10-11 and l.21-24: mse4 is served as a LoRA on the cluster checkpoint …/models/llama-70b (D-474 (a))"
+conflict = "results/EVAL_LOG.md l.9 and results/MULTITURN_RESULTS.md l.4 name the cluster checkpoint Llama 3.1 70B Instruct"
+defence = "mse4"
+defence_basis = "scripts/node1_ood_mse4.sh l.11: the combined MSE LoRRA adapter (combined_mse/mse0_r16_a32_L30-55)"
+
+# ---------------------------------------------------------------------------------------------- Qwen2.5-7B-Instruct
+[[row]]
+glob = "results/multiturn_eval/smoke_test.json"
+served = "triplet"
+model = "not_recorded"
+basis = "no document states the base model this smoke test's triplet adapter was served on (the name is used for Llama and Qwen adapters)"
+defence = "triplet"
+defence_basis = "the served LoRA adapter name triplet (results/analysis/MODE_B_CASE_STUDIES.md l.30 lists the file among the triplet runs)"
+
+[[row]]
+glob = "results/multiturn_eval/*.json"
+served = "cluster:25a9e7cdf5e9/Qwen2.5-7B-Instruct"
+model = "Qwen/Qwen2.5-7B-Instruct"
+basis = "results/multiturn_eval/logs/qwen_remaining_fast_20260331/RUN_INDEX.md l.6 and qwen_remaining_plan_check/RUN_INDEX.md l.6 ('Model: …/models/Qwen2.5-7B-Instruct'); the checkpoint directory is so named"
+
+[[row]]
+glob = "results/multiturn_eval/*.json"
+served = "mse"
+model = "Qwen/Qwen2.5-7B-Instruct"
+basis = "results/multiturn_eval/logs/qwen_remaining_fast_20260331/RUN_INDEX.md l.6-17 and COMMANDS.sh (server_mse: --model …/Qwen2.5-7B-Instruct, port 8102); logs/20260331_benign_workspace/RUN_INDEX.md l.9 ('port 8000: base + mse LoRA', the same allocation 322545)"
+defence = "mse"
+defence_basis = "results/multiturn_eval/logs/qwen_remaining_fast_20260331/RUN_INDEX.md l.16 ('mse adapter') and COMMANDS.sh (eval_mse_*: --model mse)"
+
+[[row]]
+glob = "results/multiturn_eval/*.json"
+served = "triplet"
+model = "Qwen/Qwen2.5-7B-Instruct"
+basis = "results/multiturn_eval/logs/qwen_remaining_fast_20260331/RUN_INDEX.md l.6-17 and COMMANDS.sh (server_triplet: --model …/Qwen2.5-7B-Instruct, port 8103); logs/20260331_benign_workspace/RUN_INDEX.md l.11 ('port 8002: base + triplet LoRA', the same allocation 322545)"
+defence = "triplet"
+defence_basis = "results/multiturn_eval/logs/qwen_remaining_fast_20260331/RUN_INDEX.md l.17 ('triplet adapter') and COMMANDS.sh (eval_triplet_*: --model triplet)"
+
+[[row]]
+glob = "runs/results/qwen2_5_7b_instruct_eval/*.json"
+served = "cluster:5d2dbf6fa52a/Qwen2.5-7B-Instruct"
+model = "Qwen/Qwen2.5-7B-Instruct"
+basis = "the logged checkpoint directory is named Qwen2.5-7B-Instruct (the container label qwen2_5_7b_instruct_baseline_tool_knowledge_on_*)"
+
+# ---------------------------------------------------------------------------------------------- vast.ai B200, tokenless battery
+[[row]]
+glob = "results/tokenless_battery/*.json"
+served = "/workspace/models/llama-70b"
+model = "not_recorded"
+basis = ".runs_b200/vllm_*.log serve /workspace/models/llama-70b; no document states which Llama-70B checkpoint that directory holds"
+
+[[row]]
+glob = "results/tokenless_battery/*.json"
+served = "triplet_v4a"
+model = "not_recorded"
+basis = ".runs_b200/vllm_v4a_20260420_052037.log l.7: triplet_v4a served as a LoRA on /workspace/models/llama-70b, whose Llama version no document states"
+defence = "triplet_v4a"
+defence_basis = ".runs_b200/vllm_v4a_20260420_052037.log l.7 (lora_modules triplet_v4a) and agentcontext/docs/ANALYSIS_v4_2026-04-19.md l.2639 (the tokenless battery, baseline + v4a)"

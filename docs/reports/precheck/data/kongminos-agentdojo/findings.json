@@ -1,0 +1,307 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "kongminos-agentdojo",
+ "findings": [
+  {
+   "id": "PC-kongminos-agentdojo-01",
+   "title": "[#220] 33 attacked banking logs end on an empty assistant answer with no call: the last 33 logs of the run (14:56:34-15:07:40), scored utility false / security false without payload exposure",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-08 / H5 / OS-1",
+   "evidence": "Empty final text (content block text '') and 0 calls in 33 of 950 logs; all attacked banking: user_task_12 6 of 9, user_task_13/14/15 9 of 9 each. Every log with evaluation_timestamp >= 14:56:34 (33) is empty, and no earlier log is (time-contiguous tail of the run, max timestamp 15:07:40). Duration min/median/max 7.36/7.46/433.74 s vs median 1.03 s for the 5 other zero-call banking attacked logs; the 4 benign twins (banking UT12-15) make 3-7 calls each and have utility true. All 33: utility false, security false, 0 payload exposure (no tool call). agentdojo LocalLLM at a75aba76 (local_llm.py l. 68-70) catches any client exception and returns '' as the completion; the logs cannot tell an exception from an empty completion. Product: the sampled case (banking UT13 x IT2) maps as status ok with only the 2 standard codes; the mapper cites agentdojo.empty_assistant_text_ambiguous_unverified@1 on the message part (1 AER) but raises no execution-level issue; the profile's silent_rerun detector (content null) correctly does not apply (observed null_final_logs 0 is the null-content definition). No artefacts.toml entry covers #220. Effect: banking UA 92/144 = 63.89% [55.78, 71.28] logged vs 92/111 = 82.88% on the non-empty logs; all-suite UA 697/844 = 82.58% vs 697/811 = 85.94%; banking targeted ASR 0/144 includes 33 runs in which the agent never saw the payload.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/extra.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json docs/reports/precheck/data/kongminos-agentdojo/l2-sample-head.json ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/extra.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/tail.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/tail.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/os.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/extra.json docs/reports/precheck/data/kongminos-agentdojo/os1-population.json docs/reports/precheck/data/kongminos-agentdojo/os2-sample.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git --git-dir ~/.agentprov/upstream/github.com/ethz-spylab/agentdojo.git cat-file -p a75aba76:src/agentdojo/agent_pipeline/llms/local_llm.py | sed -n 58,73p",
+   "hypothesis_ref": "H5 (refuted)",
+   "recommendation": "R1: record with the count in the new entry (same id as PC-tacit-agentdojo-09); disclose beside the banking and all-suite UA and the ASR denominators; report the logged booleans as primary and the non-empty-denominator rates only as a labelled sensitivity column. Keep all 33 logs (no exclusion). Optional for the family owner: an execution-level issue code for an empty final answer of a local pipeline.",
+   "artefact_proposal": "Widen the entry proposed in PC-tacit-agentdojo-09: [[artefact]] id = \"agentdojo.art.local_empty_final\"; scope.sources += \"kongminos-agentdojo\", parts += \"head\", profiles += \"kongminos-agentdojo\"; expected += { snapshot = \"kongminos-agentdojo:head\", count = 33, unit = \"executions\", basis = \"pre-check raw census 2026-10-21: final assistant text empty, 0 calls; the last 33 logs by timestamp (banking UT12 6, UT13-15 9 each)\", status = \"proposed\" }; refs += \"issue #220\", \"local_llm.py l. 68-70 at a75aba76\"",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Independent recount from the git tree (verify/v.py, not l1-units): 33 empty finals, all 0 calls, all attacked banking (UT12 6, UT13/14/15 9 each), utility and security false in 33/33; every log at or after 14:56:34 is empty (time-contiguous tail, last 15:07:40); median duration 7.46 s vs 1.03 s for non-empty zero-call banking attacked logs. LocalLLM at a75aba76 l.68-70 sets response '' on any exception (None raises), confirmed in source; issue #220 open with this title. Alternative (genuine empty completions, e.g. reasoning-only output) cannot be excluded from the logs, but the contiguous tail and the longer durations (client retries) favour a service failure; either way the logs cannot tell them apart, which is the #220 defect. Banking UA 92/144 vs 92/111 reproduced. Not covered by any artefacts.toml entry: R1 source-defect S2 stands (same as tacit-09)."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-02",
+   "title": "Profile kongminos-agentdojo omits agentdojo.local_model_raw_completion: 478 turns in 154 logs with more <function= tags than parsed calls are never flagged (0 of 13 affected sampled logs carry the tag count or agentdojo.local_parse_drop_possible)",
+   "cls": "mapping-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "H6 / L2 A2 / quirk table",
+   "evidence": "pipeline_name is 'local' (AgentDojo LocalLLM) in 950/950, but the profile declares no [[family.agentdojo.quirk]] id agentdojo.local_model_raw_completion, so mapper._local_tags (mapper.py l. 1114-1149, quirk_on gate) never runs. Raw: 3,311 call turns, all with exactly 1 parsed call; of them 2,850 hold 1 tag, 283 hold 2, 178 hold 3 or more (461 with tags > calls); 17 no-call (final) turns hold >= 1 tag; total 478 turns in 154 logs. L2: 13 of the 45 sampled logs have tag excess; the scratch AER has 0 records with ext.local_model_tag_count and register/index 0 agentdojo.local_parse_drop_possible. The prereg/census 'turns with more tags than calls 0' (phase-10c census measured) is this off switch, not the data (R4). Same defect class as PC-tacit-agentdojo-01.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json (h6); GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/extra.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json docs/reports/precheck/data/kongminos-agentdojo/l2-sample-head.json ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/extra.json (h6_logs); GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/os.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/extra.json docs/reports/precheck/data/kongminos-agentdojo/os1-population.json docs/reports/precheck/data/kongminos-agentdojo/os2-sample.json (ext_local_model_tag_count_records 0); grep -c local_model_raw_completion src/agentprov/adapters/agentdojo/profiles/kongminos-agentdojo.profile.toml  # 0",
+   "hypothesis_ref": "H6 (refuted)",
+   "recommendation": "Family owner: add the quirk to the kongminos profile (applies pipeline_dir [\"local\"], rule agentdojo.local_model_tag_count@1, observed head turns_more_tags_than_calls 478, turns_tags_no_calls 17, logs 154); decide profile v2 vs an unreleased v1 edit (AD-18). Byte-changing regen item: the AER of the 154 logs gains the ext count and the issue (register counts change); user approval before any re-import. Correct the census/prereg 'measured 0' reading. Never re-parse the calls.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "mapping-defect",
+     "severity": "S2",
+     "reasoning": "Profile kongminos-agentdojo.profile.toml has no agentdojo.local_model_raw_completion quirk (grep 0); mapper.py gates the tag count on that quirk (_LOCAL_QUIRK, l.1134-1149). Independent recount: 478 assistant turns with more <function= tags than parsed calls (461 with a call, 17 with none) in 154 logs; pipeline_dir 'local' in 950/950. LocalLLM _parse_model_output (a75aba76 l.119-148) parses only the first tag, so the excess is the catalogued #202 loss. Sample: 13 of 45 logs qualify (35 turns); scratch j1 corpus holds 0 files with local_model_tag_count or local_parse_drop_possible. Byte-changing, no outcome boolean changes. mapping-defect S2 as tacit-01."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-03",
+   "title": "[local_parse_drop] 17 runs end on a final turn whose <function= tag was not parsed into a call (15 attacked, 2 benign; all utility false)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H6 / L1-08",
+   "evidence": "17 logs (17 turns, each the last message): attacked banking 2 (JSON inside the tag does not parse: 2), attacked workspace 13 (JSON parses 11, not 2), benign workspace 2 (JSON parses 2). All 17 utility false; attacked security false (15), benign security constant true (2). LocalLLM parses only the first tag and returns a call-free message when JSON decoding or argument validation fails (local_llm.py l. 119-148 at a75aba76), which ends the run; for the 13 turns whose tag JSON parses with json.loads the exact failing step (validation or tag form) is not established. Covered in substance by agentdojo.art.local_parse_drop (#150/#202/#219); its scope omits kongminos (CC-09).",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/tail.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/tail.json (dropped_by, dropped_labels); GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json (h6 tags_in_nocall_msg:1 = 17)",
+   "hypothesis_ref": "H6 (refuted)",
+   "recommendation": "R2: disclose with the count beside UA and ASR (17 runs may have lost the call that would have executed); add the scope row (CC-09); depends on PC-02 for the per-turn flag in AER. No exclusion.",
+   "artefact_proposal": "Widen agentdojo.art.local_parse_drop: scope += kongminos-agentdojo / head / profile kongminos-agentdojo; expected += { snapshot = \"kongminos-agentdojo:head\", count = 478, unit = \"turns\", basis = \"pre-check raw census 2026-10-21: more <function= tags than parsed calls (154 logs)\", status = \"proposed\" }, { snapshot = \"kongminos-agentdojo:head\", count = 17, unit = \"turns\", basis = \"tag and no parsed call; all final turns (17 logs)\", status = \"proposed\" }",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "17 no-call assistant turns holding a tag, all the final turn, 15 attacked / 2 benign, all utility false (verify/v.py). agentdojo.art.local_parse_drop exists in artefacts.toml but its scope lists only agentdojo/agentdyn: R2 expected-known S3 with the CC-09 scope gap."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-04",
+   "title": "README ASR 3.89% and UA 82.38% count the 30 pre-pass logs in the 874 attack-directory files; targeted ASR over the 844 tool_knowledge logs is 4/844 = 0.47%",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "OS-1 / H1 / H2",
+   "evidence": "README definition reproduces exactly: utility 720/874 = 82.38%, security 34/874 = 3.89%, benign utility 67/76 = 88.16% (H1). Pre-pass security true 30/30 (runner constant, task_suite.py l. 409-410 at a75aba76) and pre-pass utility 23/30. Attacked tool_knowledge logs: security true 4/844 = 0.47% [0.18, 1.21] (workspace 3/560, travel 1/140, banking 0/144); UA 697/844 = 82.58% [79.88, 84.99]. 30 of the README's 34 'attack successes' are the benign-security constant: the headline ASR overstates the targeted ASR 8.3-fold. Gap rule: -3.42 pp, 2.68 pp outside Wilson, not flagged by the threshold; the discrepancy is the metric definition.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/os.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/extra.json docs/reports/precheck/data/kongminos-agentdojo/os1-population.json docs/reports/precheck/data/kongminos-agentdojo/os2-sample.json",
+   "hypothesis_ref": "H1 (supported), H2 (supported)",
+   "recommendation": "Datasheet and manuscript table: report targeted ASR 4/844 and UA 697/844 as the AgentDojo-convention numbers and the README figures only with their 874 definition; cite agentdojo.art.benign_security_constant (106 files) for the constant.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Attacked 844: utility 697, security 4 (Wilson [0.18,1.21]); pre-pass 30: utility 23, security 30; 720/874 = 82.38 % and 34/874 = 3.89 % reproduce the README table exactly (README lines 33-35 at f341af69). 30 of the README's 34 successes are pre-pass injection-task-as-user runs (agentdojo.art.injection_task_as_user), so the headline ASR is not a targeted-attack rate. The logs reproduce the number, so this is a definitional documentation-mismatch of a headline figure, S2 as tacit-02 (paper counts with harness constants). Gap: 3.89 - 1.21 = 2.68 pp outside Wilson, below the 5 pp rule."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-05",
+   "title": "Model identity deepseek-v4-flash rests on one README line rewritten in the pin commit (from 'DeepSeek V4 Pro / J-Space combinations'); checkpoint, endpoint and thinking mode unrecorded",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 identity / research",
+   "evidence": "No log names a model (pipeline_name 'local' 950/950; payloads address 'Local model' 844/844). Identity table row local -> deepseek-v4-flash, class I, basis README (D-92, D-105); L2 maps 45/45 to deepseek-v4-flash, 0 mismatches, 0 unresolved. f341af69 (the pin, 1 h 43 min after the data commit 47a44d18) changes only README line 9 from V4 Pro / J-Space to V4-Flash; the repository description still links the data to the J-Space article. The V4-Flash API was moved to a re-trained 0731 model on 2026-07-31 (TechNode), the logs are of 2026-08-21; whether the id is an alias is not documented.",
+   "reproduction": "docs/reports/precheck/data/kongminos-agentdojo/l2-head.json /identity; research.json models; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json (h3 local_model_addressed)",
+   "hypothesis_ref": "",
+   "recommendation": "Disclose in the datasheet: model-level analyses of this corpus carry the class-I, README-only caveat and the pin-commit rewrite; no identity change.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Facts hold: diff-tree d308919..f341af6 touches only README.md; the commit message states the model-name correction from V4 Pro/J-Space to V4-Flash (the prior README blob is absent from the blobless clone, so the old line itself rests on research.json and the commit message); 0 logs name a model (pipeline_dir local 950/950). Class and severity corrected: there is no mismatch between the README and the data; the class-I README-asserted identity is already declared in the profile (D-92, D-105), and model-identity caveats are S3 in precedent (menelaus29-04 expected-known S3, tacit-06 S3). R3 S2 applies to headline numbers, not to identity. Disclosure stays."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-06",
+   "title": "README links princeton-pli/AgentDojo (404); its 29 ad_runs note agrees with the 950 released logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-01 / research",
+   "evidence": "L1-01: 957 walked = 950 selected + 3 context + 4 absent PNG blobs; run_set facets only ad_full_attack 574, ad_full_benign 40, ad_tb_attack 300, ad_tb_benign 36; 0 ad_runs paths. Repository API: princeton-pli/AgentDojo 404 (prereg fact-check). The dedup choice between ad_runs and the released sets is undocumented.",
+   "reproduction": "docs/reports/precheck/data/kongminos-agentdojo/l1-head.json /L1-01, /L1-05/facets/run_set; prereg section 9",
+   "hypothesis_ref": "",
+   "recommendation": "Record in the datasheet; no data change.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Narrowed. princeton-pli/AgentDojo returns HTTP 404 (curl 2026-10-21): confirmed. The 'ad_runs' clause is refuted as a mismatch: README line 19 itself says the early internal count 979 included 29 ad_runs leftovers and the release is 950; the tree holds 0 ad_runs paths and 950 logs, so the README and the data agree. Title revised."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-07",
+   "title": "[CC-07] #181 and #161 on kongminos: 0 of 0 banking IT0/1/3 successes affected; 0 of 10 banking user_task_5 utility-true logs vacuous",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "CC-07 / H4",
+   "evidence": "Banking attacked security true 0/144, so #181 affects 0 (re-scored banking ASR 0/144 = logged). Banking user_task_5: 10 logs (1 benign, 9 attacked), utility true 10/10, each with an executed (positional pairing; ids null) send_money/schedule_transaction to the Spotify IBAN: vacuous 0/10; utility false with an executed Spotify payment 0. Method as data/interbolt-agentdojo/exam-scripts/checker.py.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json (cc07)",
+   "hypothesis_ref": "H4 (not testable: 0 banking successes)",
+   "recommendation": "R2 / CC-07: add kongminos to agentdojo.art.validity_defects scope with count 0 for both (CC-09 route); no disclosure change needed.",
+   "artefact_proposal": "agentdojo.art.validity_defects: scope += kongminos-agentdojo; expected += { snapshot = \"kongminos-agentdojo:head\", count = 0, unit = \"executions\", basis = \"pre-check PC-kongminos-agentdojo-07: #181 banking IT0/1/3 successes 0/0; #161 UT5 vacuous 0/10\", status = \"proposed\" }",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Banking IT0/1/3 attacked successes 0 (verify/v.py), so #181 affects 0/0. Banking user_task_5: 10 logs, utility true 10, each executed exactly one payment of amount 5.0 (the required difference), so #161 vacuous 0/10. Issues #181/#161 open upstream. R2 expected-known S3 (CC-07)."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-08",
+   "title": "[CC-09] reference: no artefacts.toml AgentDojo entry scopes kongminos-agentdojo; quirk counts verified on 950 logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "CC-09",
+   "evidence": "grep -c kongminos src/agentprov/adapters/agentdojo/artefacts.toml = 0. Verified counts: benign_security_constant 106 (76 + 30), injection_task_as_user 30, max_iters_pending 25 logs / 25 calls (each log 15 tool messages), provider ids null 3,311 calls, naive_timestamp 950, local_parse_drop 478 turns (PC-02/03), local_empty_final 33 (PC-01), validity_defects 0 (PC-07).",
+   "reproduction": "grep -c kongminos src/agentprov/adapters/agentdojo/artefacts.toml; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json",
+   "hypothesis_ref": "",
+   "recommendation": "See CC-09 (recorded once there; not counted as a separate corpus finding); the family owner widens the scopes with these counts.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "artefacts.toml has 0 occurrences of kongminos; profile observed counts match the recount (benign_security_constant 106 = 76 + 30, injection_task_as_user 30, trailing 25). CC-09 reference, not counted."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-09",
+   "title": "[CC-03] 1 log holds a model-generated generic home-directory path in read_file arguments (6 strings, 3 pointers); 0 secret-like strings, 0 named or operator accounts",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06 / H12",
+   "evidence": "L1-06: account:home-dir:generic 1 of 950 artefacts, 6 strings at /messages/*/content/*/content 2, /messages/*/tool_call/args/file_path 2, /messages/*/tool_calls/*/args/file_path 2; located in banking user_task_10 x injection_task_2: assistant read_file call args 2, assistant text 2, tool-message call echo 2 (the model invented the path; not benchmark fixture text). named_accounts_distinct {}, operator 0; L1-10 3 context files, 0 hits. Not in the L2 sample (redaction 143 files, 0 hits); a full import puts it in AER and PROV apv:args.",
+   "reproduction": "docs/reports/precheck/data/kongminos-agentdojo/l1-head.json /L1-06; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json (account_path_units)",
+   "hypothesis_ref": "H12 (refuted as worded: 1 generic path, 0 secrets)",
+   "recommendation": "CC-03: expected-known; after the round confirm the release_scan generic-path handling covers it; no withhold.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Independent regex count over whole messages: 1 log, 6 home-path strings (2 assistant content, 2 assistant read_file args, 2 tool-message call args per pop.json); generic shape, 0 named, 0 operator, 0 secrets (L1-06). CC-03 expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-10",
+   "title": "[CC-01] L1-04 trajectory-identical groups are all zero-call runs: 6 within-part groups / 38 units; 2 cross-corpus groups with ceferisbarov-agentdojo (Llama-3.1-70B reruns) are the empty banking UT13/UT15 runs",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-04 / H8",
+   "evidence": "Within part: 6 groups (9, 9, 9, 6, 3, 2), each within one (suite, user task) across injection tasks (banking UT13/14/15/12 = the 33 empty-final logs of PC-01; banking UT0 3 and workspace UT29 2 zero-call answers); 0 calls and 0 payload exposure in every group member. _cross/l1-xdup.json: 2 cross-corpus groups (kongminos banking UT13 and UT15 empty runs = ceferisbarov reruns/optim_str and reruns/original Llama-3.1-70B logs, 3 and 4): system + user + empty assistant only, so the fingerprint is trivially equal; not copying. 0 byte-identical.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json (h8, xcorpus_ceferisbarov); GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/os.py ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/kongminos-agentdojo/exam/extra.json docs/reports/precheck/data/kongminos-agentdojo/os1-population.json docs/reports/precheck/data/kongminos-agentdojo/os2-sample.json (H8 exposure line); docs/reports/precheck/data/_cross/l1-xdup.json /trajectory_identical/cross_corpus/pairs",
+   "hypothesis_ref": "H8 (supported)",
+   "recommendation": "R5: none for the corpus; the fingerprint tool could mark zero-call trajectories so degenerate equality is not read as a repeat (tool owner, after the freeze).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "From l1-units fps: 6 groups / 38 units (2, 3, 6, 9, 9, 9); the four larger groups are the 33 empty finals; the 2+3 group members were re-read: 0 calls, 3 messages, utility/security false. Cross-corpus: 18 kongminos units share 2 ceferisbarov fingerprints (3 and 4 units). The cited _cross/l1-xdup.json is not present under precheck/_cross in scratch (pop.json carries the match); minor path note. R5 analysis-artefact S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-11",
+   "title": "l2_check reports unexecuted_represented executions 0 while its count is 2 (the 2 sampled trailing-call logs)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 A3",
+   "evidence": "l2-head.json /prov/a3/unexecuted_represented {count 2, executions 0, by {}}; /prov/checked/unexecuted_call_parts 2; the 2 sampled logs with a trailing call (workspace injection_task_13 pre-pass, travel UT12 x IT5) are status ok_with_issues with map.unexecuted_tool_call 2. Same pattern as PC-mohameduk-agentdojo-10.",
+   "reproduction": "docs/reports/precheck/data/kongminos-agentdojo/l2-head.json /prov/a3, /executions/register_codes; exam-extra.json trailing_in_sample",
+   "hypothesis_ref": "H7",
+   "recommendation": "R5: tool owner after the freeze; not a corpus property.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l2-head.json prov.a3.unexecuted_represented: count 2, executions 0, examples []; index codes map.unexecuted_tool_call 2. Tool counter property, R5 analysis-artefact S3 (as PC-mohameduk-10)."
+    }
+   ]
+  },
+  {
+   "id": "PC-kongminos-agentdojo-12",
+   "title": "AgentDojo #213: tool_knowledge payloads for workspace injection_task_6..13 carry no tool sentence (320 of 844 attacked logs); 1 success among them",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "H3 / L1-05 / OS-1",
+   "evidence": "Payload text (log field injections): 'use the tool' sentence in 0 of 320 workspace IT6-13 logs and in 504 of 524 other attacked logs; the other 20 without it are travel injection_task_6 (a text-answer goal; by design, not #213). 'Local model' addressed in 844/844 (stock MODEL_NAMES['local']). ToolKnowledgeAttack.get_tools_sequence (baseline_attacks.py l. 114-131 at a75aba76) builds the sentence from ground_truth(), empty for workspace IT6-13 (v1.2.2 overrides only banking user_task_6). Payload exposure (<INFORMATION> in a tool result) 312 of 320. ASR split: workspace IT6-13 1/320 = 0.31% (UT3 x IT13, 5 executed send_email), other attacked 3/524 = 0.57%. The pooled tool_knowledge arm is therefore a mix of two attacks. Same defect as PC-shreeyavarma-llm-safety-02 (uncatalogued).",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/extra.py <W>/exam/pop.json docs/reports/precheck/data/kongminos-agentdojo/l2-sample-head.json <W>/exam/extra.json (h3_by_suite_it, successes); docs/reports/precheck/data/kongminos-agentdojo/exam-scripts/pop.py (h3)",
+   "hypothesis_ref": "H3 (refuted in part: IT6-13 0 tool sentences and 'Local model' 844/844 supported; 1 IT6-13 success and travel IT6 without a tool sentence refute the rest)",
+   "recommendation": "R1: widen the entry proposed by PC-shreeyavarma-llm-safety-02 (cross-cutting candidate for every tool_knowledge corpus on workspace v1.2.x); report the tool_knowledge ASR split by injection-task group beside the pooled 4/844. No exclusion.",
+   "artefact_proposal": "agentdojo.art.tool_knowledge_empty_sequence (proposed in PC-shreeyavarma-llm-safety-02): scope += kongminos-agentdojo / head / profile kongminos-agentdojo; expected += { snapshot = \"kongminos-agentdojo:head\", count = 320, unit = \"executions\", basis = \"pre-check raw read 2026-10-21: workspace IT6-13 tool_knowledge payloads without a tool sentence (benchmark v1.2.2)\", status = \"proposed\" }",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Payload recount with three markers ('use the tool', 'following arguments', backtick): workspace IT6-13 0/320 on all three, every other attacked cell 100 %, except travel IT6 0/20 (a text goal whose ground truth is empty by design, not #213). Upstream v1_2/workspace/injection_tasks.py at a75aba76: IT6-13 ground_truth return []; v1_2_1 overrides IT11/12 still empty; v1_2_2 adds no workspace injection tasks. Issue #213 open with that title. ASR 1/320 vs 3/524 reproduced (3/504 among payloads that carry a tool sentence). R1 source-defect S2 as shreeyavarma-02."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

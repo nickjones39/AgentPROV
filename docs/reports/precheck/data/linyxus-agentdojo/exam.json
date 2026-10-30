@@ -1,0 +1,70 @@
+{
+ "corpus_id": "linyxus-agentdojo",
+ "format": "agentprov-precheck-exam/0.1",
+ "date": "2026-10-21",
+ "code_commit": "d97d3a574a4e745a815af7ff6f6692b371a36f5d",
+ "examiner_scripts": ["exam-scripts/lx_lib.py", "exam-scripts/pop.py", "exam-scripts/gaps.py", "exam-scripts/misc.py", "exam-scripts/os2.py", "exam-scripts/pooled.py", "exam-scripts/outcomes.py", "exam-scripts/secret_where.py"],
+ "files_written": ["exam.json", "findings.json", "os1-population.json", "pop-population.json", "gaps.json", "misc.json", "os2-sample.json", "exam-scripts/"],
+ "level1": {
+  "L1-01": {"walked": 17656, "selected": 9068, "excluded_secure_channel_txt": 8383, "not_selected": 201, "context": 4, "units": 9068, "registry": 9068, "verdict": "as expected (H1); not_selected 201 + context 4 = 205 code/docs"},
+  "L1-02": {"ok": 9068, "defects": 0, "verdict": "as expected (H2)"},
+  "L1-03": {"denominator": 9068, "escaped_newline": 7859, "escaped_quote": 205, "variation_selector": 123, "ansi_esc": 33, "c0": 7, "escaped_unicode": 6, "zero_width": 4, "json_in_string": 1, "note": "escapes mostly in eval_scala code args (legitimate); ANSI/ESC 35 strings at tool-result content (Scala runtime diagnostics); escaped_unicode 11 strings (#214 candidates); no bidi/tag/U+FFFD/mojibake"},
+  "L1-04": {"byte_identical_groups": 0, "trajectory_groups": 357, "units_in_groups": 1005, "facets_differing": {"file": 357}, "across_repetitions": 0, "cross_corpus": 0, "note": "CC-01 fingerprint; within-cell groups differ only in the injection task (payload not reaching agent)"},
+  "L1-05": {"strata": 27, "key": "pipeline_dir x run_set_family x suite (amendment 2.4; prereg suggested 52 with attack)", "attacked": 8654, "prepass": 414, "missing_vs_paper": ["gemini-2.5-pro LACUNA workspace (PC-02)"], "extra": "native arms 306, nano 775, claude 528, gpt-5.4 1, deepseek 1, extra repetitions"},
+  "L1-06": {"secret_like": 1, "account_paths": 0, "provider_keys": 0, "l1_10_context_files": 4, "l1_10_hits": 0, "note": "the 1 hit is a symbol-only false positive (PC-09)"},
+  "L1-07": {"evaluation_timestamp": 9068, "naive": 9068, "parse_fail": 0, "range": ["2026-04-13", "2026-05-23"], "runs_april": 7367, "runs_may_deepseek": 1, "lacuna_may": 1700, "model_key": {"lacuna": 1700, "runs-4 deepseek": 1}, "lacuna-runs-0_max": "2026-05-21 23:39:00", "lacuna-runs-1_max": "2026-05-23 18:52:51", "note": "both before their adding commits (2026-05-22T19:56Z, 2026-05-24T10:56Z); benchmark-calendar timestamps in backend args 2024-2026 are content"},
+  "L1-08": {"zero_messages": 3, "incomplete": 15, "null_final": 344, "trailing_calls": 42, "error_present": 0, "note": "census silent_rerun 355 vs L1 null_final 344 (different definitions; follow-up)"}
+ },
+ "level2": {
+  "sample": {"n": 127, "strata": 27, "sha256": "ca1a0e37e4f6e472f05c47ef8f7ce4ba7ef133be20115930ccb489d2e5b643da", "by_root": {"runs-4": 50, "lacuna-runs-1": 21, "runs-0": 17, "runs-3": 17, "lacuna-runs-0": 14, "runs-2": 8}},
+  "import": {"executions": 127, "ok": 103, "ok_with_issues": 24, "adapter_defect": 0, "degenerate": 0, "agent_execution": 126, "outcome_only": 1},
+  "validate": {"passed": 127, "failed": 0, "linkage_pct": 100.0, "shacl": "skipped (not implemented)"},
+  "recompute_dry_run": {"identical": 127, "unexplained": 0},
+  "determinism": {"files": 519, "differ": 0, "index_identical": true},
+  "verify_chain": {"failures": ["checksums.absent (working tree)"]},
+  "a2_codes": {"accounting_unverifiable": 125, "earlier_attempts_unobservable": 126, "unknown_top_level_key": 126, "system_prompt_unrecognised": 116, "pipeline_name_mismatch": 17, "retry_passes_inferred": 4, "unexecuted_tool_call": 4, "incomplete_run": 1, "no_execution_observed": 1, "no_outcome_recorded": 1},
+  "a3": {"statements": 67456, "relation_arguments": 111166, "dangling_or_invented": 0, "unexecuted_represented": 4},
+  "evidence_by_bundle_class": {"core:D": 626, "core:O": 3680, "inference:I": 23488, "assessment:I": 9097, "assessment:O": 254, "top:O": 22044},
+  "twin_native_mixed": {"twin": {"inference:I": 19802, "assessment:I": 2238, "inference:none": 1476}, "native": {}, "mixed": {"inference:I": 3030}},
+  "identity": {"unresolved": 0, "mismatches": 0, "lacuna_runs_defence": "tacit (PC-03)", "pipeline_name_mismatch_only_runs0": true},
+  "tool_executions": {"aer": 424, "raw_tool_results": 424, "backend_trace_calls_unmapped": 617},
+  "redaction": {"files_scanned": 389, "hits": 0},
+  "withholding": "not applicable (no policy; L1-06 hit is a false positive)",
+  "os2_raw_vs_mapped": "6/6 arms equal (utility and security k)"
+ },
+ "outcomes": {
+  "tacit_table4": "8/8 cells exact (runs-4 banking/slack/travel, runs-2 workspace)",
+  "lacuna_table3": "5/7 backed cells exact; gemini travel 57 vs 89 (-22.86 pp, gap rule fires); o4 workspace 261 vs 311 (-8.93 pp); gemini workspace unbacked",
+  "security_true_attacked": 148,
+  "l2_gap_rule": "nano-tacit utility 6/20 vs pooled population 48.41 % (-18.4 pp) fires on the pooled rate; post-stratified population 45.73 % inside Wilson [14.5, 51.9]; raw = mapped; R6, not a finding",
+  "file": "os1-population.json"
+ },
+ "hypotheses": {
+  "H1": "supported (9,068 selected; 8,383 txt excluded; every txt has its log; per-cell counts as section 3)",
+  "H2": "supported",
+  "H3": "supported (3 empty = the 3 listed pre-pass logs; 11 txt-without-key all among the 15 incomplete)",
+  "H4": "supported per cell (8/8 exact); 'one root for all 4 suites' refuted (workspace from runs-2) (PC-04)",
+  "H5": "refuted (2 of 7 cells off by 32 and 50 runs) (PC-01)",
+  "H6": "supported (0 logs) (PC-02)",
+  "H7": "supported (148 attacked; reported defended cells <= 2 in their matching root)",
+  "H8": "supported, finding (PC-03)",
+  "H9": "supported (runs-* April except deepseek; lacuna maxima before commits; model key exactly 1,701)",
+  "H10": "supported (0 byte-identical; 0 identical across repetitions; 0 cross-corpus); within-cell cross-IT groups 1,005 units noted",
+  "H11": "supported (0 keys, 0 account paths; 1 false positive, PC-09)",
+  "H12": "supported (PC-06 disclosure)",
+  "H13": "supported on 127 units (prereg 252 assumed 52 strata; amendment 2.4 key gives 27)",
+  "H14": "supported (17/17 sampled runs-0 logs; 0 elsewhere; identity from pipeline_dir)",
+  "H15": "not tested per paper cell (sample pools roots; n <= 10 per stratum); pooled arms: 1 rule hit explained by R6"
+ },
+ "findings": ["PC-linyxus-agentdojo-01", "PC-linyxus-agentdojo-02", "PC-linyxus-agentdojo-03", "PC-linyxus-agentdojo-04", "PC-linyxus-agentdojo-05", "PC-linyxus-agentdojo-06", "PC-linyxus-agentdojo-07", "PC-linyxus-agentdojo-08", "PC-linyxus-agentdojo-09", "PC-linyxus-agentdojo-10"],
+ "followups": [
+  "verifier pass over findings.json (verdict pending-verify)",
+  "round full import (queued, --cpu 2): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-linyxus-agentdojo -- uv run agentprov import linyxus-agentdojo --input ~/.agentprov/staging/10c/linyxus/agentdojo.git --verify-against-pin --corpus <scratch>; then count map.retry_passes_inferred (reconcile 355 vs L1 344) and SEM injection_marker absent (payload_not_reaching_agent)",
+  "identity table: lacuna defence id/marker and run-root facet (PC-03), byte-changing, regen item via the agentdojo family owner",
+  "profile [source].paper update (PC-05)",
+  "artefacts.toml scope widening with PC-07/PC-08 counts (CC-09)"
+ ],
+ "sample_size": 127,
+ "l2_status": "done (127/127 ok, deterministic, recompute 0)",
+ "readiness": "ready-with-caveats"
+}

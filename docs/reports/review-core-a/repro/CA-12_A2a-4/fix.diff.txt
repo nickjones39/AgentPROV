@@ -1,0 +1,25 @@
+--- a/src/agentprov/sem/engine.py
++++ b/src/agentprov/sem/engine.py
+@@ def _forward_refs(annotation: Annotation, index: int) -> list[str]:
+     """Pointers of the target and premises that name this annotation or a later one."""
+     refs = [("/target", annotation.target)] + [(f"/premises/{i}/id", p.id) for i, p in enumerate(annotation.premises)]
+-    return [where for where, ref in refs if ANN_ID_RE.fullmatch(ref) is not None and int(ref[1:]) >= index]
++    limit = len(str(index))
++    return [where for where, ref in refs if ANN_ID_RE.fullmatch(ref) is not None
++            and (len(ref) - 1 > limit or int(ref[1:]) >= index)]
+@@ def annotate(aer: AerDocument, profile: SemanticsProfile) -> SemDocument:
+         if not isinstance(annotation, Annotation):
+             raise SemAnnotationError(f"annotation {index}: not an Annotation", code="sem.schema", index=index)
++        if not isinstance(annotation.premises, tuple) or not isinstance(annotation.rule, tuple) or not (
++                annotation.span is None or (isinstance(annotation.span, tuple) and len(annotation.span) == 2)):
++            raise SemAnnotationError(f"annotation {index}: premises, rule or span has the wrong shape",
++                                     code="sem.schema", index=index)
+         if not isinstance(annotation.target, str) or not all(isinstance(getattr(p, "id", None), str)
+                                                               for p in annotation.premises):
+@@
+         try:
+             record = annotation.to_record(f"a{index}")
+             line = dumps_line(record)
+-        except (CanonError, AttributeError, TypeError) as exc:
++        except (CanonError, AttributeError, TypeError, IndexError, ValueError) as exc:
+             raise SemAnnotationError(f"annotation {index}: not representable in JCS", code="sem.value", index=index) from exc

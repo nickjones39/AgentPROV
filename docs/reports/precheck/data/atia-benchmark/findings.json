@@ -1,0 +1,202 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "atia-benchmark",
+ "findings": [
+  {
+   "id": "PC-atia-benchmark-01",
+   "title": "Score polarity inverted in the 2 status-error logs: 36/36 scored samples there score C iff NO harmful tool was called; the 3 success logs agree with the published scorer 85/85",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "logs",
+   "check": "L1 outcome / L2 outcome sanity (H-06)",
+   "evidence": "raw (strict ingest, 121 scored samples): value vs 'assistant tool_call names a tool in metadata.harmful_tools' agree 85, disagree 36; disagreements = logs 0a221b5d 18/18 and 97d7fc7e 18/18 (the two status-error 19-sample logs), 0 in fa53c8ad/3eb1c4bd/5d5a02d5. In the error logs value=I with 1 harmful call 29, value=C with 0 calls 7; the score 'answer' field lists the same sample's ToolCall (or []), so the score is computed on the right sample with inverted polarity. Every one of the 81 tool calls names the sample's only offered tool (its harmful tool). AER reproduces raw exactly (judgement values 123/123; tool_execution vs judgement disagree 36). Header revision commit 1192ce1 is shared by both error logs and two success logs (5d5a02d5: 1a88256); neither commit is public, so the run-time scorer cannot be recovered. Effect: logged ASR 59/121 = 48.76% (= fork rollup); a consistent tool-call re-score gives 81/121 = 66.94% [58.15, 74.69] (None 25/25, Summarize_Audio 49/49, Summarize_Image 0/37, Summarize_Video 7/10).",
+   "reproduction": [
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/raw.py ~/.agentprov/migration-work/precheck/atia-benchmark/l2-logs-j2.partial/raw W/exam/raw.json",
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/h06.py ~/.agentprov/migration-work/precheck/atia-benchmark/l2-logs-j2.partial/raw W/exam/h06.json",
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/aer.py ~/.agentprov/migration-work/precheck/atia-benchmark/l2-logs-j2.partial W/exam/aer.json"
+   ],
+   "hypothesis_ref": "H-06 (refuted); H-05 (logged recount supported)",
+   "recommendation": "Keep the logged judgements as primary (no data change, no exclusion). Add an artefacts.toml entry for the inspect family scoped to atia-benchmark; disclose next to any ASR; report the tool-call re-score only as a separate, labelled column.",
+   "artefact_proposal": "[[artefact]] id = \"inspect.art.atia_error_log_score_polarity\"; scope.sources = [\"atia-benchmark\"]; scope.profiles = [\"atia-benchmark\"]; refs = [\"https://github.com/mattngyn/atia_benchmark\"]; expected = [{ snapshot = \"atia-benchmark:logs\", count = 36, unit = \"executions\", basis = \"pre-check PC-atia-benchmark-01: harmful_tool_invoked value is the complement of the tool-call condition in all 36 scored samples of the two status=error logs (01-51-09, 01-52-51); 29 I with a harmful call, 7 C with none\", status = \"proposed\" }]",
+   "agents_md_12": "ATIA logged ASR 59/121 (48.76%) mixes two scorer polarities: the 2 error logs (36 scored samples) are inverted. Tool-call re-score 81/121 (66.94%). Disclose; logged values primary.",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Independent recount (own script, strict ingest): headers show both error logs (created 01:51:09, 01:52:51) carry the same scorer harmful_tool_invoked (options {}) and revision 1192ce1 as success logs fa53c8ad (01:47:02) and 3eb1c4bd (01:54:19), which are consistent; so the inversion sits between two consistent runs of the same commit (a run-time working-tree change is the only fit; not verifiable). Alternative explanations tested and rejected: (a) a stricter positive-polarity scorer (e.g. tool executed successfully) cannot give C to the 7 samples with 0 calls; (b) misattributed answers: the answer field lists the same sample's call or []; (c) different harmful_tools metadata: every sample has 1 harmful tool = the only offered tool, metadata keys identical across logs; (d) inspect re-scoring/reduction: 1 score event per sample, equal to sample.scores. Published scorer polarity (C iff harmful tool called) per research.json (pin read at prereg time; local partial clone lacks the blob, not re-read). Counts reproduce: error logs C 7 / I 29 vs tool-call 29/7; success 52/33 = tool-call; Wilson 59/121 [40.03,57.57], 81/121 [58.15,74.69] recomputed. No profile quirk or artefacts.toml entry covers it (quirk inspect.error_logs only keeps finished samples): R1, S2 because it biases the logged ASR."
+    }
+   ]
+  },
+  {
+   "id": "PC-atia-benchmark-02",
+   "title": "Our docs vs the data: census member count 143 (data 155); census 'single assistant turn' (81 samples make 2 model calls, tool_calls loop); prereg H-12 wording (123 sample scopes carry a duration-only t without t.raw); prereg 30-sample L2 draw (the whole part, 123, is imported under amendment 2.3); prereg L1-03 '0 in harness fields' (ANSI in inspect's traceback_ansi by design)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L1-01, L1-03, L2",
+   "evidence": "raw/members.jsonl: 155 members = 123 samples + header 5 + summaries.json 5 + _journal/start 5 + _journal/summaries 14 + reductions 3. calls_vs_model_events: calls=1,model_events=2: 81; calls=0,model_events=1: 42 (204 model calls). AER: timed records 1223, t.raw 1100, 123 sample scopes with t {dur_s, dur_clock} only. L2 sample file: 5 file units, all imported (123 executions). L1-03 ansi/esc 6 strings in 2 artefacts, all at */error/traceback_ansi.",
+   "reproduction": [
+    "python3 -c 'count dispositions in raw/members.jsonl'",
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/raw.py ...",
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/aer.py ..."
+   ],
+   "hypothesis_ref": "H-01 (refuted as worded), H-12 (wording), fact-check correction 2 (answered)",
+   "recommendation": "Route to the phase-10n census owner (docs/reports/phase10n README §5.2 member count; 'single assistant turn'). Prereg not edited; dossier records the answers.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw/members.jsonl has 155 rows (samples 123, _journal 19, header 5, summaries 5, reductions 3); phase10n README l.241 says 'Members selected 143 of 143' and l.245 'a single assistant turn'. Own recount: the 81 one-call samples have 2 assistant messages and 2 model events; 40 no-call samples have 1/1; the 2 errored have 0 assistant messages, 1 model event. R4 (our docs), S3: no manuscript number changes. The prereg wording items (H-12, L1-03, 30-draw) are minor and correctly recorded, not separate findings."
+    }
+   ]
+  },
+  {
+   "id": "PC-atia-benchmark-03",
+   "title": "Secret-shaped matches (L1 18 strings; AER 60 matches; PROV 54) all lie inside base64 media payloads (data URIs or bare inlineData), 0 in free text: not secrets",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L1-06, L2 redaction (H-17)",
+   "evidence": "raw: google-api-key 12 matches (6 data-URI, 6 bare base64), openai-api-key 6, hf-token 3, slack-token 5, every one inside a >=200-char base64 run at samples:/attachments/<key>. AER: message:/parts/*/uri google-api-key 6 (data-URI base64), model_call:/params/transmitted/contents/*/parts/*/inlineData/data openai-style 49, slack-token 5 (bare base64); PROV apv:paramsTransmitted 49 + 5. Headers: 0. Request http header names: x-irid only (202), no key header. 0 free-text matches.",
+   "reproduction": [
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/raw.py ...",
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/aer.py ..."
+   ],
+   "hypothesis_ref": "H-17 (refuted as worded, supported in substance)",
+   "recommendation": "Pre-check shape detectors should skip base64 runs (tool unchanged during the pre-check, R5). Follow-up: confirm release_scan does not gate the sealed corpus on these base64 matches (allowlist base64 media payloads if it does).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Own scan with independent (looser) patterns over all sample strings: every google/openai/hf/slack-shaped match lies in a 400-char window that is pure base64 alphabet, all at samples:/attachments/<key>; 0 matches elsewhere (counts differ from L1 because the patterns differ; the conclusion holds). Not secrets; detector property, R5. Whether release_scan gates on the AER/PROV copies stays an open heavy follow-up."
+    }
+   ]
+  },
+  {
+   "id": "PC-atia-benchmark-04",
+   "title": "l2_check outcome block is AgentDojo-format only: arms {} for this inspect part; outcomes recounted by the examiner (aer.py)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L2 outcome sanity",
+   "evidence": "l2-logs.json outcomes.arms = {'google/gemini-2.0-flash|none|none': {}}; aer.py recount: judgement C 59 / I 62 / none 2, equal to raw.",
+   "reproduction": [
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/aer.py ..."
+   ],
+   "hypothesis_ref": "H-20",
+   "recommendation": "Record; recount from AER in the post-check (same script).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l2-logs.json outcomes.arms = {'google/gemini-2.0-flash|none|none': {}} with the AgentDojo-format note; aer-pass.json recount C 59 / I 62 / none 2 equals raw. Tool property, R5."
+    }
+   ]
+  },
+  {
+   "id": "PC-atia-benchmark-05",
+   "title": "[CD-24, CD-25] Duplicate judgement (score + harmful_tool_invoked, 2 per scored sample, values equal) and local-offset timestamps declared not_recorded with no time edges, as pre-registered",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L2 A3 / judgements (H-12, H-13)",
+   "evidence": "judgements 2 x 121 (actor bench, origin checker), 0 for the 2 errored; values agree 123/123. t.start present 0, /t/start not_recorded 1223/1223; PROV time terms 0 (prov:startedAtTime/endedAtTime 0; 732 apv:afterCausal only).",
+   "reproduction": [
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/aer.py ..."
+   ],
+   "hypothesis_ref": "H-12, H-13",
+   "recommendation": "None now; CD-24/CD-25 (RD-2) move these when they land (judgements halve, UTC times and time edges).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "aer-pass.json: judgements_per_execution=2 for 121, 0 for 2, values agree 123/123 (CD-24); t_start_not_recorded 1223/1223, 0 prov:startedAtTime/endedAtTime, 732 apv:afterCausal (CD-25). Both are listed in docs/reports/review-core-d/findings.md as non-latent, open (RD-2). R2."
+    }
+   ]
+  },
+  {
+   "id": "PC-atia-benchmark-06",
+   "title": "[profile quirks, items 25/28, D-307] error logs kept (2 unmapped error events), event order not time order (81 non-monotone units), tool events without message_id linked by tool_call_id (81/81), 42 strings not inlined (24 parts + 18 transmitted, 24 executions), attack_id unrecorded",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L1-07, L2 A2/issues (H-15)",
+   "evidence": "seal issues: inspect.unmapped_event 2, inspect.content_not_inlined 24; rule refs content_not_inlined 24 /parts/0/value + 18 /params/transmitted/.../inlineData/data; inspect.tool_event_no_message_id 81, tool_call_id_match 81; L1-07 units_non_monotone 81 (= the 81 two-call samples); task.attack_id None 123, attack_type in ext.inspect.sample_metadata.",
+   "reproduction": [
+    "l2-logs.json",
+    "uv run python -I docs/reports/precheck/data/atia-benchmark/exam-scripts/aer.py ..."
+   ],
+   "hypothesis_ref": "H-15",
+   "recommendation": "None.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Profile atia-benchmark declares quirks inspect.error_logs (2 logs), inspect.attachment_refs, inspect.event_order_not_time_order; seal issues unmapped_event 2, content_not_inlined 24; rule refs content_not_inlined 24 + 18; D-307 is in docs/architecture/DECISIONS.md. 81 non-monotone units = the 81 two-call samples (own recount). R2."
+    }
+   ]
+  },
+  {
+   "id": "PC-atia-benchmark-07",
+   "title": "README design (10 harm categories, 6 jailbreak methods, 500+ attacks) vs the released logs (1 task account_takeover_suite, 4 attack_type labels, 35 distinct samples, 1 model); no results reported anywhere by the authors",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L1-05",
+   "evidence": "L1-05: task account_takeover_suite 5/5 logs; attack_type None 25 / Summarize_Audio 49 / Summarize_Image 39 / Summarize_Video 10; distinct ids 35; model google/gemini-2.0-flash 5/5.",
+   "reproduction": [
+    "l1-logs.json"
+   ],
+   "hypothesis_ref": "H-04",
+   "recommendation": "Disclose the coverage in the datasheet (as pre-registered 'expected missing'); no data change.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "L1-05 and own header census: 1 task file harm_categories/account_takeover.py in 5/5 logs, 4 attack_type labels, 35 ids, 1 model; the pin tree holds datasets for 10 categories, so the README describes the repository's design and the logs are a subset. Nuance: the README does not claim the logs hold 500+ attacks, so this is a coverage disclosure rather than an unreproduced number; R3 S3 kept as the nearest class (pre-registered 'expected missing')."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

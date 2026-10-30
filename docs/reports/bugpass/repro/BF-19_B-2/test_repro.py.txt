@@ -1,0 +1,48 @@
+"""B-2 repro: release-mode chain must fail when a container holding a withheld member is released (AD-12, D-232)."""
+import io
+import shutil
+import sys
+import zipfile
+from pathlib import Path
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+T = REPO / "tests"
+for p in (T / "unit" / "aer", T / "adapters", T / "adapters" / "agentdojo", T / "unit" / "raw", T / "security",
+          T / "corpus", T / "unit" / "corpus", T / "unit" / "release", T / "adapters" / "inspect"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+
+import corpus_harness as harness  # noqa: E402
+import verify_support as vs  # noqa: E402
+from corpus_harness import verify  # noqa: E402
+from test_sec25_withhold_issue import HEAD, ISSUE_RULE, _hits, _inject, _package, corpus, working_template  # noqa: F401,E402
+
+cli = harness.cli
+
+
+def test_released_container_of_withheld_member_fails_chain(cli, corpus, monkeypatch):
+    from agentprov.corpus.withheld import WithheldDocument, decode_withheld, encode_withheld
+
+    _inject(monkeypatch, HEAD + ISSUE_RULE)
+    run = _package(cli, corpus)
+    assert run.code == 0, run.err
+    root = corpus["root"]
+    side = root.with_name("c.withheld")
+    doc = decode_withheld((root / "WITHHELD.json").read_bytes())
+    container = next(e for e in doc.entries if e.basis == "container")
+    members_left = [e for e in doc.entries if e.sha256 != container.sha256]
+    assert members_left, "a withheld member must remain listed"
+    src = next(p for p in (side / "raw" / "objects").rglob(container.sha256 + "*"))
+    dst = root / src.relative_to(side)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    forged = WithheldDocument(tuple(members_left), doc.executions, doc.policies)
+    (root / "WITHHELD.json").write_bytes(encode_withheld(forged))
+    vs.reforge(root)
+    check = verify(cli, root, "--level", "chain", "--release", "--root-digest", vs.root_digest(root))
+    z = zipfile.ZipFile(io.BytesIO(dst.read_bytes()))
+    inside = sum(_hits(z.read(n)) for n in z.namelist())
+    print("chain exit", check.code, "codes", check.codes(),
+          "| canary fragments inside released container members:", inside, "literal:", _hits(dst.read_bytes()))
+    assert inside > 0  # the released container really holds withheld bytes
+    assert check.code != 0, "chain accepted a released container that holds a withheld member (AD-12 closure)"

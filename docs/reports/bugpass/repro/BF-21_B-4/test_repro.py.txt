@@ -1,0 +1,23 @@
+"""B-4 repro: D-182 Redactor leaves a model id that is a dict key (ext.inspect.model_usage) unredacted.
+Uses redact.py from branch regen-items-2-12 (copied via git show into branch_redact.py)."""
+import importlib.util, json, pathlib, sys
+
+
+_spec = importlib.util.spec_from_file_location("branch_redact", pathlib.Path(__file__).with_name("branch_redact.py"))
+redact = importlib.util.module_from_spec(_spec); sys.modules["branch_redact"] = redact; _spec.loader.exec_module(redact)
+
+MID = "vllm//workspace/shared/outputs/jobX/checkpoint-500"
+
+
+def test_model_usage_key_is_redacted():
+    rules = redact.parse_redact_rules([{"id": "ckpt", "scope": "model_id",
+        "pattern": r"/workspace/shared/outputs/[^ ]+", "replacement": "/local-checkpoint-{span12}"}], "p")
+    r = redact.Redactor("prof", 1, rules, [MID])
+    actor = {"k": "actor", "id": "agent", "model": MID}
+    # run scope as _Rec.done() builds it from run.x("model_usage", s["model_usage"])
+    run = {"k": "scope", "id": "run", "ext": {"inspect": {"model_usage": {MID: {"input_tokens": 10}}}}}
+    r.apply(actor, lambda p: "c")
+    r.apply(run, lambda p: "c")
+    assert actor["model"] != MID  # value redacted
+    blob = json.dumps(run)
+    assert "/workspace/shared/outputs" not in blob, blob

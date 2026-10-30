@@ -1,0 +1,146 @@
+# Artefact catalogue `credleak` (docs/architecture D.19.11, D.15.2; DECISIONS D-260..D-265). Data, not code.
+#
+# Every source-data problem of Zenodo 22737462 (v3) found by the phase-10k census, with the rule that detects it, how it
+# is recorded and its handling class (D.15.1). The `expected` counts are the census's for the pinned file and stay
+# `unverified` until a full import confirms them (D.15.6): a regression expectation, never a gate. No entry holds a
+# planted value; counts only.
+
+version = 1
+family = "credleak"
+namespaces = ["credleak"]
+
+[[artefact]]
+id = "credleak.art.malformed_tool_names"
+title = "Malformed or variant tool names"
+description = "Models emitted tool names with leaked channel tokens, case variants, typos, an empty name or a command line as a name. The name is kept verbatim; the semantics profile gives every name not listed exactly the role unknown, and a placeholder name is declared ambiguous."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "provider"
+detector = { rule = "credleak.malformed_tool_name@1", class = "D" }
+handling = { class = "FO", rule = "credleak.malformed_tool_name@1" }
+expected = [{ snapshot = "credleak-p15b:head", count = 290, basis = "census §2", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10k/census.md §2"]
+
+[[artefact]]
+id = "credleak.art.invocation_error"
+title = "Model invocation error"
+description = "A run whose invocationError is true (provider-blocked agentic configurations among them); the run scope ends with status error, its errorDetail is kept in the run fields, and its detector signals are kept."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "provider"
+detector = { rule = "credleak.invocation_error_status@1", class = "I" }
+recorded_as = { issues = ["credleak.invocation_error"] }
+handling = { class = "FO", rule = "credleak.invocation_error_status@1" }
+expected = [{ snapshot = "credleak-p15b:head", count = 59, basis = "census §2", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10k/census.md §2"]
+
+[[artefact]]
+id = "credleak.art.turn_time_role_unknown"
+title = "Turn timestamps of unknown role"
+description = "One timestamp per turn, which cannot be classed as start or end (runs of a cell overlap). It is kept verbatim in ext.credleak and the turn scope's time is declared ambiguous; no time is typed."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "credleak.turn_timestamp_role@1", class = "D" }
+handling = { class = "NR", rule = "credleak.turn_timestamp_role@1" }
+expected = [{ snapshot = "credleak-p15b:head", count = 20176, basis = "census §5", unit = "turns", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10k/census.md §5"]
+
+[[artefact]]
+id = "credleak.art.model_calls_not_recorded"
+title = "No model-call boundaries"
+description = "A turn records one assistant text and the ordered tool calls but no model call; no model_call is written and every agent message declares its generator not recorded (missing_generated_by)."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "credleak.model_calls_not_recorded@1", class = "D" }
+claims = ["artefact.generic.accounting_unverifiable#aer.acc.agent_calls_vs_assistant@1"]
+recorded_as = { issues = ["missing_generated_by"] }
+handling = { class = "NR", rule = "credleak.model_calls_not_recorded@1" }
+expected = [{ snapshot = "credleak-p15b:head", count = 19636, basis = "census §2", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10k/census.md §2, §9"]
+
+[[artefact]]
+id = "credleak.art.planted_credentials"
+title = "Planted canary credentials"
+description = "The study plants canary credentials; 5,422 runs in 325 cells carry a planted value or a key-shaped string in their content. The profile's [withhold] policy withholds those cells' bytes and those runs at sealing (D-265); values are never recorded."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "credleak.planted_credential@1", class = "D" }
+handling = { class = "FO", rule = "credleak.planted_credential@1" }
+expected = [{ snapshot = "credleak-p15b:head", count = 5422, basis = "census §7", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10k/census.md §7", "DECISIONS D-265"]
+
+# Wave 2 (D-950; docs/reports/wave-2-artefacts/README.md): credleak.art.model_calls_not_recorded claims the agent-calls
+# check it leaves unverifiable (D.19.3), and the entries below cover what the wave-2 census found unclassified.
+
+[[artefact]]
+id = "credleak.art.tool_call_count_absent"
+title = "toolCallCount absent from old-schema runs"
+description = "The run field toolCallCount exists only in the newer-schema runs (3,686); in the others the profile's count check has nothing to compare and is unverifiable. Nothing is computed in its place."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "credleak.acc.tool_call_count@1", class = "D" }
+claims = ["artefact.generic.accounting_unverifiable#credleak.acc.tool_call_count@1"]
+recorded_as = { issues = ["accounting_unverifiable"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "credleak-p15b:head", count = 15950, basis = "wave-2 census (D-950): 19,636 runs less the 3,686 newer-schema runs (D.19.7)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["D.19.7", "docs/reports/phase10k/trials.md"]
+
+[[artefact]]
+id = "credleak.art.no_call_ids"
+title = "Tool calls carry no call id"
+description = "A toolCalls entry holds the call and its output together and has no call id, so every call part's provider_call_id is absent; the result is paired with its call through the entry (D), never by order or id."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "credleak.pair_same_entry@1", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly#absent"]
+handling = { class = "CR", rule = "credleak.pair_same_entry@1" }
+expected = [
+  { snapshot = "credleak-p15b:head", count = 18141, basis = "wave-2 census (D-950): runs with at least one call", unit = "executions", status = "unverified" },
+  { snapshot = "credleak-p15b:head", count = 83619, basis = "wave-2 census (D-950)", unit = "tool_calls", status = "unverified" },
+]
+manuscript = false
+refs = ["D.19.5"]
+
+[[artefact]]
+id = "credleak.art.duration_no_clock"
+title = "Durations without a clock, and no typed time"
+description = "durationMs values of runs, turns and calls are kept in ext.credleak with dur_s ambiguous (clock and extent not recorded); no start or end is recorded, so every record's typed time is not recorded. No time is derived from a duration."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "credleak.duration_no_clock@1", class = "D" }
+handling = { class = "NR" }
+expected = [
+  { snapshot = "credleak-p15b:head", count = 19636, basis = "wave-2 census (D-950)", unit = "executions", status = "unverified" },
+  { snapshot = "credleak-p15b:head", count = 308515, basis = "wave-2 census (D-950)", unit = "records", status = "unverified" },
+]
+manuscript = false
+refs = ["D.19.4"]
+
+[[artefact]]
+id = "credleak.art.payload_not_recorded"
+title = "The planted payload is not a field of the run"
+description = "Every scenario plants an indirect injection in a tool-reachable channel, but the mapping (D.19.3) takes the planted text from no field, so no payload fixture is written and the SEM has no marker to compare: every attacked run is a payload_not_reaching_agent finding of variant no_marker. It says nothing about whether the agent read the payload."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "artefact.generic.payload_not_reaching_agent", class = "D" }
+handling = { class = "FO" }
+expected = [{ snapshot = "credleak-p15b:head", count = 19636, basis = "wave-2 census (D-950): every run, variant no_marker", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["D.19.3", "D.15.3"]
+
+[[artefact]]
+id = "credleak.art.tool_output_account_redacted"
+title = "Third-party account paths in tool output redacted"
+description = "The harness's tool runtime printed third-party account names in tool output; the profile's redaction rules replace them in the AER by a salted label (D-605, applying D-604). Model-authored text is never redacted; the raw bytes are unchanged."
+scope = { sources = ["credleak-p15b"], profiles = ["credleak-p15b"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "credleak.value_redacted@1", class = "D" }
+recorded_as = { issues = ["credleak.value_redacted"] }
+handling = { class = "CR", rule = "credleak.value_redacted@1" }
+expected = [{ snapshot = "credleak-p15b:head", count = 4418, basis = "wave-2 census (D-950)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-604, D-605"]

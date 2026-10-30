@@ -1,0 +1,39 @@
+"""Discarded replies with odd tool-call arguments; degenerate header attempt."""
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path.cwd() / "tests" / "adapters" / "agentdojo"))
+import capture_support as cs  # noqa: E402
+from helper import run  # noqa: E402
+
+
+def discarded(arguments, content=None):
+    s = cs.c13_8_session()
+    end = s.events.pop()
+    assert end["type"] == "session.end"
+    # insert a discarded call c2 in pass 0 before pass.end
+    idx = next(i for i, e in enumerate(s.events) if e["type"] == "pass.end")
+    resp = {"id": "fake-x", "model": "scripted-fake", "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
+        "role": "assistant", "content": content,
+        "tool_calls": [{"id": "call_9", "type": "function", "function": {"name": "get_balance", "arguments": arguments}}]}}]}
+    req = {"model": "scripted-fake", "messages": [{"role": "system", "content": "SYS"}, {"role": "user", "content": "Q"}]}
+    evs = [
+        {"type": "llm.request", "pass": 0, "actor": "agent",
+         "data": {"call": "c2", "role": "agent", "attempt": 0, "endpoint": cs.ENDPOINT, "params": cs.PARAMS,
+                  "input_at": [0, 1], "n_messages": 2, "request": s.blob(req)}},
+        {"type": "llm.response", "pass": 0, "actor": "agent",
+         "data": {"call": "c2", "status": "discarded", "reason": "invalid_json", "response": s.blob(resp)}},
+    ]
+    s.events[idx:idx] = evs
+    s.close("complete")
+    return s
+
+
+
+run(discarded("{}"), "discarded, arguments {}", show=("m5",))
+run(discarded("[" * 200000 + "]" * 200000), "discarded, arguments nested 200000")
+run(discarded("[" * 50000 + "]" * 50000), "discarded, arguments nested 50000", show=("m5",))
+run(discarded('{"a": NaN}'), "discarded, arguments NaN", show=("m5",))
+run(discarded('{"a": 1, "a": 2}'), "discarded, duplicate key", show=("m5",))

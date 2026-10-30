@@ -1,0 +1,199 @@
+# Source profile `agentdyn-live`: AgentDyn cells run live through the backend project backends/agentdyn (SaFo-Lab/AgentDyn
+# @ 5353cf76, distributed as `agentdojo` 0.1.35) and recorded as capture/0.1 sessions plus the native TraceLogger JSON
+# (docs/architecture D.11.10; DECISIONS D-680..D-688; docs/reports/agentdyn-backend/design.md).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is 1. The import tables serve the shared capture mapper
+# `agentdojo.capture`; `[import] native` names the TraceLogger mapping of AgentDyn's native log that the
+# live-versus-native check runs under this same profile.
+#
+# The `[family.agentdojo.live]` table is the live part (D.4.2): the backend, the pinned AgentDyn identity T0 checks before
+# spawn (D.10.6), the refusals and the instrumentation ids the capture mapper accepts (D.10.7). `instrumentation_accepted`
+# is the shared harness list (as `agentdojo-live` and `autodojo-live`); `instrumentation_extra` lists AgentDyn's stock
+# request and run behaviour (kind `harness_policy`, D-683). The suite map labels AgentDyn's suites `agentdyn` and
+# AgentDyn's copies of the four AgentDojo suites `agentdojo` (regeneration-batch item 27). The quirks carry no `observed`
+# counts: no real-model campaign has been run (U-10). The run-error quirk has AgentDyn's values: utility False, security
+# True (as upstream), no extra log key (AgentDyn's TraceLogger is stock); AgentDyn also catches json.JSONDecodeError.
+
+[profile]
+id = "agentdyn-live"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "agentdyn"
+family = "agentdojo"
+parts = ["live"]
+title = "AgentDyn live capture (backends/agentdyn, SaFo-Lab/AgentDyn @ 5353cf76, capture/0.1 + native TraceLogger JSON)"
+evidence = ["sources/agentdyn.md", "verify/agentdyn.md", "D.11.10", "C.13", "reports/agentdyn-backend/design.md"]
+
+[source]
+canonical_repo = "https://github.com/SaFo-Lab/AgentDyn"
+paper = "arXiv:2602.03117"
+aliases = ["https://github.com/leolee99/AgentDyn"]
+package = { name = "agentdojo", pypi_latest = "0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "agentdyn_commit_5353cf76"
+part = "live"
+kind = "git"
+repo = "https://github.com/SaFo-Lab/AgentDyn"
+commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3"
+date = "2026-05-19"
+note = "the AgentDyn commit the backend installs (no subdirectory; distributed as agentdojo 0.1.35, the same name and version as PyPI and AutoDojo); the import profile's head pin (D-680)"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti", "Jie Zhang", "Mislav Balunovic", "Luca Beurer-Kellner", "Marc Fischer", "Florian Tramèr"]
+data_licence = "none"
+policy = "include"
+basis = "MIT as declared; not legally settled (D-686, user decision A 2026-10-22: the same basis as the imported agentdyn corpus, applied equally to AgentDyn cells captured through AutoDojo)"
+attribution = [
+  "arXiv:2602.03117",
+  "LICENSE (MIT; the only copyright line is the AgentDojo authors' (c) 2024; AgentDyn adds none of its own)",
+]
+unassessed = [
+  "the AgentDyn authors' own contributions (the suites) carry no separate licence statement",
+  "model-provider terms on redistributing model outputs",
+]
+
+[lineage]
+built_on = ["agentdojo v0.1.35 (a75aba7/5cea589)"]
+vendored = []
+duplicates = []
+content_dedup = "never"
+
+[import]
+dialect = "agentprov.capture"
+mapper = "agentdojo.capture"
+variants = ["0.1"]
+rules = { aer = 1, agentdojo = 2, agentdyn = 2, cap = 1 }
+include = ["raw/capture/*.capture.jsonl"]
+native = { dialect = "agentdojo.tracelogger", variants = ["v1.k14", "v1.k14.incomplete"], mapper = "agentdojo.tracelogger" }
+
+[family.agentdojo.identity]
+model_from = "capture"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = []
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", travel = "agentdojo", banking = "agentdojo", slack = "agentdojo", github = "agentdyn", shopping = "agentdyn", dailylife = "agentdyn" }
+version_field = "benchmark_version"
+# AgentDyn registers its suites under every version key, so the label is a suite version for agentdojo suites only
+version_label_semantics = "suite_version_for_agentdojo_suites_only"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 3 }
+
+[family.agentdojo.harness]
+code_identity = "pinned"
+retry_semantics = "agentdyn.last_assistant_content_none_max3"
+tool_output_format = "yaml"
+# D.5.4 "Citation of D rules" (D-24): the harness is the pinned AgentDyn commit. The capture mapper's rules rest on the
+# capture; this list governs the TraceLogger mapping of the native log (live-versus-native).
+verified_code = [
+  { commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", note = "the pinned AgentDyn commit" },
+]
+system_prompt_variants = [
+  { label = "auto_complete_line", source = "SaFo-Lab/AgentDyn@5353cf7615b135cace8d07c8f12dac53a16b6db3:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "21a1c00db164a6d5d9d456be30eea3ed23bc11e6a89af0f56b8098d1f9ee3e36", note = "AgentDojo default plus 'Complete all tasks automatically without requesting user confirmation.'; the backend never replaces it (design F-1)", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[family.agentdojo.live]
+backend = "agentdyn"
+project = "backends/agentdyn"
+llm_element_default = "native"
+pins = { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3" }
+asserts = []
+refuse = ["llm_element gateway_compat", "every defence (camel, drift, progent, piguard_detector, prompt_guard_2_detector and the stock ones) in v0.1"]
+# D.10.7: the instrumentation items a session of this backend may declare; any other id is reported by the capture
+# mapper (agentdojo.instrumentation_unrecognised), never dropped.
+instrumentation_accepted = [
+  "agentdojo.pass_recorder_wrap@1",
+  "agentdojo.executor_mirror@1",
+  "agentdojo.recording_runtime_class@1",
+  "agentdojo.recording_transport@1",
+  "agentdojo.llm_span_brackets@1",
+  "agentdojo.http_backoff@1",
+  "agentdojo.attack_model_display_name@1",
+  "agentdojo.env_dump_per_pass@1",
+  "agentdojo.transport_scripted@1",
+  "agentdojo.scheduler_parallel_workers@1",
+  "agentdojo.scheduler_start_stagger@1",
+]
+# D-683: AgentDyn's stock request and run behaviour (agentprov_backend.agentdyn).
+instrumentation_extra = [
+  "agentdyn.temperature_transmitted@1",
+  "agentdyn.system_role_for_qwen3_max@1",
+  "agentdyn.malformed_tool_calls_dropped@1",
+  "agentdyn.json_decode_error_imposes_outcome@1",
+  "agentdyn.model_output_last_assistant@1",
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.dos_security_not_utility"
+applies = { attack_dir = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"] }
+rules = ["agentdojo.dos_security_rule@1", "agentdojo.dos_placeholder_injection_task@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdyn.last_assistant_content_none_max3@1"]
+params = { trigger = "last_assistant_content_is_null_anywhere", max_passes = 3 }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["agentdojo.run_error_imposed_outcome@1"]
+params = { utility = false, security = true }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = {}
+rules = ["agentdojo.incomplete_run@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1", "agentdojo.positional_match@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+
+# D-685 (b): AgentDyn drops a wire tool call it cannot convert; the capture mapper matches the reply on the kept calls and
+# lists the dropped ones (ext.agentdojo.dropped_calls). Declared here only: stock AgentDojo and AutoDojo never drop a call.
+[[family.agentdojo.quirk]]
+id = "agentdojo.malformed_tool_call_dropped"
+applies = {}
+rules = ["agentdyn.malformed_tool_call_dropped@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.run_error_imposed_outcome@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

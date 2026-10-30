@@ -1,0 +1,119 @@
+# Label tables of the semantics profile agentdojo.suites@2 for benchmark agentdojo (docs/architecture C.14.3, C.14.5,
+# C.14.7; EF E.7.1, E.7.3, E.8.4). The tables are those of agentdojo.suites@1, unchanged (a test checks that the parsed
+# tables are equal); the reviewed tables of other benchmarks are reviewed_tables.toml.
+#
+# Data, not code; part of the profile digest (agentprov.sem.profiles.profile_digest). The tool tables are copied, not
+# imported, from AgentDojo-PROV v2.3 at the frozen baseline commit 579a908 (the same text is ported AST-equal in
+# src/agentprov/prov/compat/adprov_v2_3/, which this profile never imports):
+#   agentdojo_prov/labeling.py l. 17-48   SINK_TOOLS
+#   agentdojo_prov/labeling.py l. 50-52   ENDORSER_TOOLS (empty)
+#   agentdojo_prov/labeling.py l. 54-115  EXTERNAL_CONTENT_TOOLS (mutation-returning tools included, l. 98-114)
+#   agentdojo_prov/build_prov.py l. 39-59 _CHANNEL_OF
+# A label applies only to a tool of the applicable suite tool table (suite_tools.toml; rule
+# agentdojo.suite_tool_table@1). Every other tool is unknown: integrity "unknown", role ["unknown"], no channel
+# (agentdojo.unknown_tool@1). v2.3 labelled such tools trusted and neutral (fail-open); this profile is fail-closed.
+
+[baseline]
+repo = "https://github.com/nickjones39/agentdojo-prov"
+commit = "579a908354b93361efe0905ffb7623256aa96a06"
+
+# ------------------------------------------------------------------------------------------------ integrity
+# labeling.py l. 54-115 EXTERNAL_CONTENT_TOOLS: outputs carry free text authored by someone other than the user, so they
+# are "untrusted" (agentdojo.integrity_external_content@1) and the tools hold the role content_source
+# (agentdojo.read_tools@1). Every other tool of the applicable table returns system state: "trusted"
+# (agentdojo.integrity_system_state@1; labeling.py l. 136-145 entity_integrity). "download_file" is in no suite table
+# of any known code state (suite_tools.toml), so it never applies; it is kept for fidelity to the v2.3 table.
+[integrity]
+untrusted_tools = [
+  # workspace: e-mails from external senders
+  "get_received_emails", "get_unread_emails", "search_emails",
+  # workspace: cloud-drive file content
+  "get_file_by_id", "list_files", "search_files", "search_files_by_filename",
+  # workspace: calendar event descriptions
+  "get_day_calendar_events", "search_calendar_events",
+  # banking filesystem / web
+  "read_file", "download_file", "get_webpage",
+  # slack: messages, inbox, channel names
+  "read_channel_messages", "read_inbox", "get_channels",
+  # banking: transaction notes
+  "get_most_recent_transactions",
+  # travel: reviews
+  "get_rating_reviews_for_hotels", "get_rating_reviews_for_restaurants", "get_rating_reviews_for_car_rental",
+  # mutations that return the mutated object (labeling.py l. 98-114)
+  "delete_file", "append_to_file", "share_file", "create_file", "add_calendar_event_participants",
+  "reschedule_calendar_event", "create_calendar_event", "send_email", "get_sent_emails",
+]
+
+# Non-tool content (decision recorded in agentdojo.integrity_principal_content@1, agentdojo.integrity_agent_output@1,
+# agentdojo.integrity_payload_fixture@1 and agentdojo.unknown_author@1). Keys are AER message roles; values the actor
+# kinds (C.3.2) whose content of that role is "trusted". v2.3 labelled the user query and the agent trusted
+# (build_prov.py l. 354-362); the system prompt is the benchmark's (agentdojo.system_prompt_from_harness@1).
+[integrity.trusted_authors]
+system = ["benchmark", "harness", "defense"]
+user = ["simulated_user", "user", "harness", "benchmark", "defense"]
+assistant = ["llm_agent", "defense"]
+
+[integrity.fixtures]
+# fixture kind -> integrity; any other kind is "unknown" (agentdojo.unknown_author@1)
+injection_payload = "untrusted"
+
+# ------------------------------------------------------------------------------------------------ roles
+# labeling.py l. 17-48 SINK_TOOLS, one undifferentiated table, refined into EF E.7.1 roles (C.14.5;
+# agentdojo.sink_tools@1). Criterion, applied to the tool code at the head pin 089ed468 (src/agentdojo/default_suites/
+# v1/tools/; the same functions at c274885 under src/function_calling_pi/tools/):
+#   send_sink  - the call itself delivers a message, money or published content to a party or address named in its
+#                arguments (an e-mail sent, a transfer made, a Slack message posted, a web page published);
+#   write_sink - the call creates, changes or deletes stored state of the user's environment (files, e-mails,
+#                calendar events, sharing grants, account data, scheduled transactions, memberships, reservations).
+# A tool doing both holds both. A sink that is also in [integrity].untrusted_tools also holds content_source.
+[roles.sink]
+send_email = { roles = ["send_sink"], why = "Inbox.send_email to the argument recipients (email_client.py l. 154-193)" }
+create_file = { roles = ["write_sink"], why = "CloudDrive.create_file (cloud_drive_client.py l. 80-90)" }
+append_to_file = { roles = ["write_sink"], why = "appends to an existing file (cloud_drive_client.py l. 134-144)" }
+delete_file = { roles = ["write_sink"], why = "CloudDrive.delete_file (cloud_drive_client.py l. 93-99)" }
+delete_email = { roles = ["write_sink"], why = "Inbox.delete_email (email_client.py l. 214-220)" }
+share_file = { roles = ["write_sink"], why = "sets file.shared_with[email]; sends nothing (cloud_drive_client.py l. 117-131)" }
+create_calendar_event = { roles = ["write_sink", "send_sink"], why = "Calendar.create_event, then inbox.send_email to the participants (calendar_client.py l. 137-168)" }
+cancel_calendar_event = { roles = ["write_sink", "send_sink"], why = "Calendar.cancel_event marks the event cancelled and e-mails the participants (calendar_client.py l. 58-67, 200-211)" }
+reschedule_calendar_event = { roles = ["write_sink", "send_sink"], why = "Calendar.reschedule_event moves the event and e-mails the participants (calendar_client.py l. 91-118, 214-239)" }
+add_calendar_event_participants = { roles = ["write_sink"], why = "Calendar.add_participants changes the event; the code sends no e-mail although the docstring says it does (calendar_client.py l. 120-125, 242-254)" }
+send_money = { roles = ["send_sink"], why = "a transaction to the argument recipient (banking_client.py l. 55-79)" }
+schedule_transaction = { roles = ["write_sink"], why = "stores a scheduled transaction; no transfer at call time (banking_client.py l. 82-112)" }
+update_scheduled_transaction = { roles = ["write_sink"], why = "changes a stored scheduled transaction (banking_client.py l. 115-151); C.14.5" }
+update_password = { roles = ["write_sink"], why = "changes the account password (user_account.py l. 34-43)" }
+update_user_info = { roles = ["write_sink"], why = "changes the account details (user_account.py l. 46-75)" }
+reserve_hotel = { roles = ["write_sink"], why = "stores a reservation (travel_booking_client.py l. 339-356)" }
+reserve_restaurant = { roles = ["write_sink"], why = "stores a reservation (travel_booking_client.py l. 359-379)" }
+reserve_car_rental = { roles = ["write_sink"], why = "stores a reservation (travel_booking_client.py l. 382-400)" }
+send_channel_message = { roles = ["send_sink"], why = "posts the body to the argument channel (slack.py l. 78-90)" }
+send_direct_message = { roles = ["send_sink"], why = "delivers the body to the argument recipient's inbox (slack.py l. 63-75)" }
+add_user_to_channel = { roles = ["write_sink"], why = "adds a channel membership (slack.py l. 30-40)" }
+invite_user_to_slack = { roles = ["write_sink"], why = "adds the user to the workspace; the code sends no invitation (slack.py l. 93-103)" }
+remove_user_from_slack = { roles = ["write_sink"], why = "removes the user from the workspace (slack.py l. 106-115)" }
+post_webpage = { roles = ["send_sink"], why = "publishes the content at the argument URL (web.py l. 24-32)" }
+
+[roles]
+# labeling.py l. 50-52: no endorser tools are defined.
+endorser_tools = []
+
+# ------------------------------------------------------------------------------------------------ channels
+# build_prov.py l. 39-59 _CHANNEL_OF (agentdojo.channel_table@1); only tools of the applicable suite table get one.
+[channels]
+get_received_emails = "email"
+get_unread_emails = "email"
+search_emails = "email"
+get_day_calendar_events = "calendar"
+search_calendar_events = "calendar"
+get_file_by_id = "drive"
+list_files = "drive"
+search_files = "drive"
+search_files_by_filename = "drive"
+read_file = "file"
+download_file = "drive"
+get_webpage = "web"
+read_channel_messages = "message"
+read_inbox = "message"
+get_most_recent_transactions = "transaction"
+get_rating_reviews_for_hotels = "review"
+get_rating_reviews_for_restaurants = "review"
+get_rating_reviews_for_car_rental = "review"

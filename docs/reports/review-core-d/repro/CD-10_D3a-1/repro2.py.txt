@@ -1,0 +1,28 @@
+import sys, hashlib, json
+sys.path.insert(0, 'tests/adapters/agentdojo')
+from agentdojo_support import new_log, log_bytes, path_of, git_blob, REPO_URL, C274885
+from agentprov.adapters.agentdojo.dialect import TraceLoggerReader
+from agentprov.adapters.agentdojo.mapper import TraceLoggerMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin
+from agentprov.ingest.limits import IngestLimits
+
+d = new_log()
+d['messages'][2]['tool_calls'][0]['function'] = 'none'
+d['messages'][3]['tool_call']['function'] = 'none'
+d['messages'][3]['error'] = "Invalid tool none provided."
+raw = log_bytes(d); path = path_of(d)
+profile = load_profile("agentdojo-upstream"); reader, mapper = TraceLoggerReader(), TraceLoggerMapper()
+limits = IngestLimits()
+sniff = reader.sniff(raw, label=path, limits=limits)
+origin = Origin.git(REPO_URL, C274885, path, git_blob(raw))
+art = ArtefactRef("a0", hashlib.sha256(raw).hexdigest(), len(raw), "application/json", origin, "primary", mapper.prov_primary(sniff.flags))
+item = next(reader.parse(raw, art, limits=limits))
+unit = ExecutionUnit(item)
+outcome = map_unit(unit, mapper, profile)
+print("map_unit records:", len(outcome.records), "degenerate:", outcome.degenerate)
+data, info = aer_bytes(outcome, unit=unit, mapper=mapper, profile=profile)
+recs = [json.loads(l) for l in data.splitlines()]
+print("sealed records:", len(recs), [r.get('k') for r in recs])
+print("issues:", [(i['code'], i.get('detail')) for i in info.issues])

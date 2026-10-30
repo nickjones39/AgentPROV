@@ -1,0 +1,19 @@
+import json, sys
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "agentdojo")); sys.path.insert(0, str(REPO / "tests"))
+import test_rescont as T
+from agentprov.aer.writer import AerWriteError
+for label, content in [("surrogate_only", "hello \ud800 done"), ("surrogate_with_echo", f"I am {T.CLUSTER_LLAMA} \ud800 done")]:
+    r = T.row(); r["messages"][4]["content"] = content
+    try:
+        m = T.map_all(json.dumps(T.container(rows=[r], model=T.CLUSTER_LLAMA), ensure_ascii=True).encode())[0]
+        print(label, "ok", "value_redacted" , "rescont.value_redacted" in m.codes)
+    except AerWriteError as e:
+        print(label, "AerWriteError", str(e).replace(T.ACCOUNT, "<acct>"), [(f.code, f.pointer, (f.message or "")[:120].replace(T.ACCOUNT,"<acct>")) for f in (e.args[1] if len(e.args)>1 else [])])
+r = T.row(); r["messages"][4]["content"] = "hello \ud800 done"
+try:
+    T.map_all(json.dumps(T.container(rows=[r], model=T.CLUSTER_LLAMA), ensure_ascii=True).encode())
+except AerWriteError as e:
+    print(repr(e.args)[:1500].replace(T.ACCOUNT, "<acct>"), vars(e).keys())
+    print([(f.code, f.pointer, str(getattr(f,'message',''))[:200]) for f in e.findings])

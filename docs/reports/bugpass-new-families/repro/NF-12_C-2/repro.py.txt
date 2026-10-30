@@ -1,0 +1,27 @@
+import json, sys
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "agentdojo")); sys.path.insert(0, str(REPO / "tests"))
+import agentdojo_support as S
+from agentprov.adapters.profiles import parse_profile
+from agentprov.adapters.agentdojo.profile import family_table
+from agentprov.adapters.agentdojo.redact import parse_redact_rules, redact_value
+A = "zzfakeacct"
+text = S.PROFILE_PATH.read_text(encoding="utf-8") + '''
+[[family.agentdojo.redact]]
+id = "home"
+scope = "pipeline_name"
+pattern = '^_ceph_ssd_students_(?P<span>[^_/]+)_(?P<leaf>qwen3_5(?:-[0-9]+B)?)$'
+replacement = "_ceph_ssd_students_{span12}_{leaf}"
+'''
+prof = parse_profile(text.encode(), source="probe")
+rules = parse_redact_rules(family_table(prof).data.get("redact", ()), "probe")
+name = f"_ceph_ssd_students_{A}_qwen3_5"
+print("rules parsed:", [(r.id, r.scope) for r in rules], "would redact to:", redact_value(rules, "pipeline_name", name, salt=prof.id)[0])
+m = S.map_log(S.new_log(pipeline_name=name), profile=prof)
+hdr = m.header
+print("account in AER bytes:", A.encode() in m.data)
+print("ext.agentdojo.pipeline_name has account:", A in json.dumps(hdr.get("ext", {}).get("agentdojo", {}).get("pipeline_name")))
+print("artifacts origin paths with account:", [a.get("origin", {}).get("path") is not None and A in a["origin"]["path"] for a in hdr.get("artifacts", [])])
+print("codes:", sorted(set(m.codes)))
+print("any redaction code:", any("redact" in c for c in m.codes))

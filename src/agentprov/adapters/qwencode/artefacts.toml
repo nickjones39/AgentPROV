@@ -1,0 +1,211 @@
+# Artefact catalogue `qwencode` (docs/architecture D.24.9, D.15.2; DECISIONS D-570..D-578). Data, not code.
+#
+# Every source-data problem of the Qwen Code part of Zenodo 23168099 found by the phase-10o part-C census, with the rule
+# that detects it, how it is recorded and its handling class (D.15.1). `expected` counts are the census's; they stay
+# `unverified` until a full import confirms them (D.15.6). Claims are specific: an entry claims a safety-net finding only
+# through a rule, `claims` item or issue code of its own case; cases no AER field shows name a `reserved` detector rule.
+
+version = 1
+family = "qwencode"
+namespaces = ["qwencode"]
+
+[[artefact]]
+id = "qwencode.art.empty_output"
+title = "Empty output"
+description = "One output is 0 bytes; its score record says the harness timed the run out (300 s). Registered select.not_execution_artefact (qwencode.empty_output), never mapped."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.empty_output_rollout@1", class = "D" }
+handling = { class = "FO", rule = "qwencode.empty_output_rollout@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 1, basis = "phase-10o part-C census", unit = "outputs", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md §3"]
+
+[[artefact]]
+id = "qwencode.art.api_samples"
+title = "Captured API request samples"
+description = "Five _full_api_request_sample.json files, one per group, captured once with a dummy prompt and the settings moved aside: supporting artefacts of their group's runs, never mapped and never a fixture of a run."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "benchmark"
+detector = { rule = "qwencode.api_samples@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 5, basis = "phase-10o part-C census", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md §5"]
+
+[[artefact]]
+id = "qwencode.art.context_pin_path"
+title = "Scores and requests in a second pin"
+description = "The score records, RedCode requests and execution rules are members of the supplementary zip, a context pin the CLI does not wire yet (D-530, routed); until then only trial drivers attach them."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.context_pin_path@1", class = "D" }
+handling = { class = "FO", rule = "qwencode.context_pin_path@1" }
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md §6"]
+
+[[artefact]]
+id = "qwencode.art.truncated_capture"
+title = "Output cut at 64 KiB"
+description = "Four outputs end at exactly 65,536 bytes mid-message (the harness's capture cap); the complete leading messages are mapped (strict-loader salvage, D-577), no result message, the last call unanswered."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.capture_cut_unverified@1", class = "I" }
+recorded_as = { issues = ["qwencode.truncated_capture", "qwencode.no_result_message", "incomplete_run", "missing_tool_result"] }
+claims = ["artefact.generic.accounting_unverifiable#qwencode.acc.turns@1", "artefact.generic.unexecuted_call", "artefact.generic.accounting_inconsistent#aer.acc.tool_calls_dispatched@1"]
+handling = { class = "CR", rule = "qwencode.truncated_salvage@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 4, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10o/part-c.md §3", "DECISIONS D-577"]
+
+[[artefact]]
+id = "qwencode.art.prompt_not_logged"
+title = "The request is not in the run"
+description = "The harness sends the RedCode request on stdin and the output never echoes it: the joined request is a task_prompt fixture (class I) and every run raises qwencode.user_message_not_logged."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.prompt_sent_on_stdin_unverified@1", class = "I" }
+recorded_as = { issues = ["qwencode.user_message_not_logged"] }
+handling = { class = "NR" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 3299, basis = "phase-10o part-C mapping census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-573"]
+
+[[artefact]]
+id = "qwencode.art.usage_not_all_logged"
+title = "Usage above the logged messages"
+description = "result.usage exceeds the summed message usage in 851 runs (calls the output does not show): the usage check is unverifiable there."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.acc.usage@1", class = "D" }
+claims = ["artefact.generic.accounting_unverifiable#qwencode.acc.usage@1"]
+handling = { class = "FO", rule = "qwencode.acc.usage@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 851, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md §3"]
+
+[[artefact]]
+id = "qwencode.art.subagent"
+title = "Sub-agent messages"
+description = "Two runs call the `agent` tool: its task_started/task_notification system messages are harness activities with the message verbatim, and a sub-agent's user text is an unattributed user message."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.subagent_message_unverified@1", class = "I" }
+recorded_as = { issues = ["qwencode.subagent_event", "unattributed_additional_user_message"] }
+handling = { class = "FO", rule = "qwencode.subagent_message_unverified@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 2, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md §3"]
+
+[[artefact]]
+id = "qwencode.art.derived_model_calls"
+title = "Model calls derived from blocks"
+description = "No model request is logged: each block of assistant messages is read as one model call (class I, checked against result.num_turns), so aer.acc.agent_calls_vs_assistant is unverifiable by design."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.block_is_model_turn_unverified@1", class = "I" }
+claims = ["artefact.generic.accounting_unverifiable#aer.acc.agent_calls_vs_assistant@1"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-572"]
+
+[[artefact]]
+id = "qwencode.art.no_time"
+title = "No time anywhere"
+description = "The output carries no timestamp: every record's time is not_recorded; result.duration_ms stays in ext with no clock asserted."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "artefact.generic.sentinel_time", class = "D" }
+claims = ["artefact.generic.sentinel_time#unknown_not_recorded"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-572"]
+
+[[artefact]]
+id = "qwencode.art.request_is_the_attack"
+title = "No injection payload"
+description = "RedCode's attack is the request itself (request types C1-C3), not a payload injected into tool output: no injection_payload fixture or marker exists."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "benchmark"
+detector = { rule = "qwencode.redcode_request_type@1", class = "D" }
+claims = ["artefact.generic.payload_not_reaching_agent#no_marker"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-571"]
+
+[[artefact]]
+id = "qwencode.art.score_one"
+title = "Score 1 is ambiguous"
+description = "The RedCode scorer writes 1 for a failure and as a harness default: origin ambiguous, SEM reads it as qwencode.non_informative."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "benchmark"
+detector = { rule = "qwencode.score_one_ambiguous@1", class = "I" }
+handling = { class = "FO", rule = "qwencode.score_one_ambiguous@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 94, basis = "phase-10o part-C census", unit = "records", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md §4"]
+
+[[artefact]]
+id = "qwencode.art.join_unverified"
+title = "Score or request record not joined"
+description = "No or several records of the run's case key in its score or request file: no judgement or task_prompt fixture (none in the census: 3,300/3,300 joined)."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.score_join@1", class = "D" }
+recorded_as = { issues = ["qwencode.join_unverified"] }
+handling = { class = "FO", rule = "qwencode.score_join@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 0, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md"]
+
+[[artefact]]
+id = "qwencode.art.sidecar_missing"
+title = "Supplementary file missing or unparseable"
+description = "A score, request or rules file the plan names is absent, not strict JSON or (the rules) not UTF-8 (none in the census)."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.unit_inputs@1", class = "D" }
+recorded_as = { issues = ["qwencode.sidecar_missing"] }
+handling = { class = "FO", rule = "qwencode.unit_inputs@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 0, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md"]
+
+[[artefact]]
+id = "qwencode.art.error_result"
+title = "Result message with is_error"
+description = "A result message with is_error true (none in the census: 3,295 success)."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.result_status@1", class = "D" }
+recorded_as = { issues = ["qwencode.error_result"] }
+handling = { class = "FO", rule = "qwencode.result_status@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 0, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md"]
+
+[[artefact]]
+id = "qwencode.art.unmapped_message"
+title = "Message outside the v0.21 vocabulary"
+description = "A message or content block of another type, kept verbatim (none in the census)."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.unmapped_message@1", class = "I" }
+recorded_as = { issues = ["qwencode.unmapped_message"] }
+handling = { class = "FO", rule = "qwencode.unmapped_message@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 0, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md"]
+
+[[artefact]]
+id = "qwencode.art.final_text_differs"
+title = "Result text differs from the last text"
+description = "result.result differs from the last assistant text (none in the census: 3,295/3,295 equal)."
+scope = { sources = ["redcode-exec-qwencode"], profiles = ["redcode-exec-qwencode"], parts = ["qwen3coder"] }
+cause = "upstream_harness"
+detector = { rule = "qwencode.final_text_copy@1", class = "D" }
+recorded_as = { issues = ["qwencode.final_text_differs"] }
+handling = { class = "FO", rule = "qwencode.final_text_copy@1" }
+expected = [{ snapshot = "redcode-exec-qwencode:qwen3coder", count = 0, basis = "phase-10o part-C census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/part-c.md"]

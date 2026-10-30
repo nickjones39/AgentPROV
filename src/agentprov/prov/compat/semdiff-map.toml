@@ -1,0 +1,815 @@
+# The semantic diff adprov-v2.3-compat -> agentprov-prov/0.1 (docs/architecture EF E.8.4, J.3.6; R-33). Owner: EF.
+#
+# Data, not code: read through importlib.resources by agentprov.migration.semdiff (load_map), which checks the closed
+# schema below. Gate E (J.3.6), the generated tables of docs/compat/semantic-diff.md (tools/gen_semdiff_tables.py) and
+# the manuscript's tab:semdiff (O.4.4, from the gate-E reports) all come from this one file; none is edited by hand.
+#
+# One [[row]] per v2.3 element (a relation of the builder's rule set R1-R8 of audit/provenance.md §4.1, a node class, a
+# node or relation attribute) and one per group of agentprov-prov/0.1 elements that have no v2.3 counterpart (`new`).
+#
+# Row keys (closed):
+#   id             unique row id
+#   section        relation | node | attribute: the E.8.4 table the row belongs to
+#   v23_element    the v2.3 element as E.8.4 / audit/provenance.md name it
+#   one matcher    how gate E counts the row: exactly one of
+#                    rule      = R1..R8 | ACT      (a compat edge classified by the recomputed builder predicate)
+#                    node      = ag_llm | e_user_query | a_k | e_k | ag_src
+#                    attribute = "<name>" (+ optional on = [node classes / relation types]; absent = everywhere)
+#                    measure   = an AER measure (agentprov.migration.semdiff.AER_MEASURES) or "statements" (the
+#                                agentprov-prov/0.1 statements of the row's targets in the derivation)
+#   frozen         {released, converted}: frozen counts from `frozen_source` (absent key = the source records none;
+#                  gate E reports the measured value and the full scope reconciles every recorded one, J.3.6)
+#   frozen_extra   {<measure> = {released, converted}}: more frozen counts of the row (taint_pairs, overlaps,
+#                  entailed_not_asserted, value:<v> = instances whose attribute value is <v>)
+#   frozen_source  citation of the frozen counts;  frozen_note: a count the source states only in words
+#   recompute      "phase 13": the row's class changed under AD-05 (or differs from the spec text, see note), so its
+#                  counts and classes are re-derived at full scope in phase 13 (E.8.4)
+#   disposition    J's closed vocabulary: kept | reclassified | moved | replaced | moved-to-assessment | dropped | new
+#   targets        agentprov-prov/0.1 catalogue rule ids (engine catalogue `aprov`) that state the counterpart
+#   assumptions    adapter catalogue rule ids whose assumptions the counterpart rests on for the two v2.3 trees
+#   mentions       rule ids the spec names in the row's text that are not statement-producing targets here
+#   bundle         where the counterpart statements land for the two v2.3 trees: core | inference | assessment | none
+#   evidence_class the classes they carry there: O | D | I (empty iff bundle = ["none"])
+#   content_status the apv: content status the counterpart states (R-08)
+#   counterpart    the prose of the generated tables;  note: implementation notes and spec disagreements
+#   ef / j         the label of the corresponding row of the E.8.4 table (<table>:<first-cell prefix>) / J.3.6 table
+
+[map]
+format = "agentprov-semdiff-map/0.1"
+version = 1
+from = "adprov-v2.3-compat"
+to = "agentprov-prov/0.1"
+catalogue = "aprov@1"
+trees = ["release", "converted"]
+
+# ================================================================================================== relations
+
+[[row]]
+id = "R1"
+section = "relation"
+v23_element = "R1 wasGeneratedBy(e_k, a_k)"
+rule = "R1"
+frozen = { released = 64781, converted = 68620 }
+frozen_source = "audit/provenance.md §4.1; J.1.3 (wasGeneratedBy)"
+recompute = "phase 13"
+disposition = "kept"
+targets = ["aprov.gen_result@1", "aprov.gen_message@1"]
+assumptions = ["adprov.tool_turn_is_one_execution@1", "agentdojo.pi_detector_sentinel@1"]
+mentions = ["agentdojo.tool_msg_is_one_execution@1"]
+bundle = ["core", "inference"]
+evidence_class = ["D", "I"]
+counterpart = "tool_result part <- tool execution (aprov.gen_result@1) + tool message <- tool execution (aprov.gen_message@1); the activity is now only the tool execution"
+note = "E.8.4 states OBSERVED for v1; the adprov-v1 mapper records /generated_by as DERIVED under adprov.tool_turn_is_one_execution@1, so both rules are DERIVED in the core (release); in the converted tree, the outputs a PI-detector decision redacted (agentdojo.pi_detector_sentinel@1: the decision generates the recorded message, the tool execution the pre-decision entity) are INFERRED in inf.agentdojo-pi_detector_sentinel-v1. Native imports: DERIVED iff agentdojo.tool_msg_is_one_execution@1 is verified over the producing code range, else INFERRED (AD-05)."
+ef = "relations:R1"
+j = "R1"
+
+[[row]]
+id = "R2"
+section = "relation"
+v23_element = "R2 wasAssociatedWith(a_k, ag_llm)"
+rule = "R2"
+frozen = { released = 64781, converted = 68620 }
+frozen_source = "audit/provenance.md §4.1; J.1.3 (wasAssociatedWith)"
+recompute = "phase 13"
+disposition = "reclassified"
+targets = ["aprov.assoc_tool@1"]
+assumptions = ["agentdojo.auto_execution_unverified@1"]
+bundle = ["core", "inference"]
+evidence_class = ["D", "I"]
+counterpart = "wasAssociatedWith(tool execution, tool runtime) + actedOnBehalfOf(runtime, agent, tool execution) (aprov.assoc_tool@1); the v2.3 edge is entailed by Inference 14, no longer asserted"
+note = "Association DERIVED in the core; the delegation INFERRED in inf.agentdojo-auto_execution_unverified-v1 for both v1 trees (EF E.10 item 21); DERIVED only with a verified apv:AutoExecution (live capture)."
+ef = "relations:R2"
+j = "R2"
+
+[[row]]
+id = "R3"
+section = "relation"
+v23_element = "R3 used(a_k, e_user_query) (first tool-bearing turn)"
+rule = "R3"
+frozen = { released = 22218, converted = 19838 }
+frozen_source = "audit/provenance.md §4.1; J.1.3 (used decomposition)"
+recompute = "phase 13"
+disposition = "moved"
+targets = ["aprov.use_context@1"]
+assumptions = ["adprov.context_is_prefix@1"]
+bundle = ["inference"]
+evidence_class = ["I"]
+counterpart = "used(llm_1, user message) together with the system message, and in every later invocation of the pass (aprov.use_context@1)"
+note = "AD-05(c): released v1 context membership is INFERRED, in inf.adprov-context_is_prefix-v1 (asserted assumption), unless the user supplies a digest-pinned generation-time harness (U-01). Native imports: inf.agentdojo-context_is_prefix-v1; live capture: OBSERVED or DERIVED."
+ef = "relations:R3"
+j = "R3"
+
+[[row]]
+id = "R4"
+section = "relation"
+v23_element = "R4 used(a_k, e_j) exchange (previous tool-bearing turn)"
+rule = "R4"
+frozen = { released = 72633, converted = 68212 }
+frozen_source = "audit/provenance.md §4.1; J.1.3 (used decomposition)"
+recompute = "phase 13"
+disposition = "moved"
+targets = ["aprov.use_context@1"]
+assumptions = ["adprov.context_is_prefix@1"]
+bundle = ["inference"]
+evidence_class = ["I"]
+counterpart = "used(llm_m, tool message j) for every earlier tool message of the pass (aprov.use_context@1); the previous-turn window is dropped"
+note = "Counts every R4 edge, including the R4 and R6 overlaps (classified once, reasons R4 and R6; J.3.6). Classes as R3 (AD-05)."
+ef = "relations:R4"
+j = "R4"
+
+[[row]]
+id = "R5"
+section = "relation"
+v23_element = "R5 wasInformedBy(a_k, a_j)"
+rule = "R5"
+frozen = { released = 72633, converted = 68212 }
+frozen_source = "audit/provenance.md §4.1; J.1.3 (wasInformedBy)"
+recompute = "phase 13"
+disposition = "replaced"
+targets = ["aprov.comm@1"]
+assumptions = ["adprov.context_is_prefix@1", "agentdojo.positional_match@1"]
+mentions = ["aprov.use_request@1", "aprov.use_context@1"]
+bundle = ["core", "inference"]
+evidence_class = ["D", "I"]
+counterpart = "not emitted; replaced by exactly the Inference-6 closure over named activities (aprov.comm@1, AD-19(c)): tool_exec_j -> llm_m via message j and llm_m -> tool_exec_k via request k, each with apv:premise, plus the llm -> llm, pass, decision and checker communications of E.1.6; the composite tool -> tool edge survives only as a projection in the compat graph"
+note = "llm -> tool rests on aprov.use_request@1 (DERIVED, core; INFERRED in inf.agentdojo-positional_match-v1 for the 2,799 converted executions with positional call links, docs/reports/prov); tool -> llm and llm -> llm rest on context membership (INFERRED, AD-05), so those communications are in inference bundles (R-05)."
+ef = "relations:R5"
+j = "R5"
+
+[[row]]
+id = "R6"
+section = "relation"
+v23_element = "R6 used(a_k, e_j) sink taint (taint-only part)"
+rule = "R6"
+frozen = { released = 26645, converted = 23449 }
+frozen_extra = { taint_pairs = { released = 41066, converted = 36687 }, overlaps = { released = 14421, converted = 13238 }, entailed_not_asserted = { released = 26645, converted = 23449 } }
+frozen_source = "audit/provenance.md §4.1 (taint pairs 41,066 / 36,687, of which 26,645 / 23,449 taint-only; overlaps = the rest, also R4); J.1.3; K.7.4 item 7 and SWEEP_r2 EV-1 (Inference-6 entailed-not-asserted = the taint-only edges)"
+recompute = "phase 13"
+disposition = "moved-to-assessment"
+targets = ["aprov.a_exposure@1", "aprov.a_taint@1"]
+assumptions = ["adprov.context_is_prefix@1"]
+bundle = ["assessment"]
+evidence_class = ["I"]
+counterpart = "apv:Assessment over (request k, message j): exposure apv:ExposedTo (aprov.a_exposure@1) + taint apv:PotentiallyInfluencedBy with the policy id (aprov.a_taint@1); never prov:used"
+note = "Exposure is INFERRED for both v1 trees because its context premise is (AD-05; as R3); taint is INFERRED (policy). Every sink->untrusted pair (taint_pairs, overlaps included) becomes an assessment; the count is the taint-only used edges, which are also the Inference-6 communications the v2.3 graphs entail but do not assert."
+ef = "relations:R6"
+j = "R6"
+
+[[row]]
+id = "R7"
+section = "relation"
+v23_element = "R7 wasDerivedFrom(e_k, e_j) (gated, emit_derived_edges)"
+rule = "R7"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §4.1 (gated off by default)"
+disposition = "dropped"
+targets = []
+mentions = ["aprov.i_arg_literal_overlap@1"]
+bundle = ["none"]
+evidence_class = []
+counterpart = "none; argument-level evidence would come from aprov.i_arg_literal_overlap@1 (engine inference methods deferred, E.1.7)"
+ef = "relations:R7"
+
+[[row]]
+id = "R8"
+section = "relation"
+v23_element = "R8 wasAttributedTo(e_k, ag_src_c) (gated, emit_source_agents)"
+rule = "R8"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §4.1 (gated off by default)"
+disposition = "dropped"
+targets = []
+mentions = ["aprov.a_author@1", "aprov.a_author@2"]
+bundle = ["none"]
+evidence_class = []
+counterpart = "none in PROV; aprov.a_author@1 gives a declared-sender mention and an INFERRED authorship assessment when SEM parses an author"
+ef = "relations:R8"
+
+[[row]]
+id = "acted_on_behalf_of"
+section = "relation"
+v23_element = "actedOnBehalfOf (never emitted)"
+rule = "ACT"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §4.1, §5.7 (prov_emit method never called)"
+disposition = "new"
+targets = ["aprov.assoc_tool@1", "aprov.deleg_user@1"]
+assumptions = ["agentdojo.auto_execution_unverified@1"]
+bundle = ["core", "inference"]
+evidence_class = ["D", "I"]
+counterpart = "the tool runtime acts on behalf of the agent (aprov.assoc_tool@1) and the agent on behalf of the user (aprov.deleg_user@1)"
+note = "E.8.4 states DERIVED; on both v1 trees aprov.deleg_user@1 is DERIVED in the core while the runtime delegation of aprov.assoc_tool@1 is INFERRED (inf.agentdojo-auto_execution_unverified-v1, EF E.10 item 21)."
+ef = "relations:actedOnBehalfOf"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_relations"
+section = "relation"
+v23_element = "(no v2.3 counterpart): relations"
+measure = "statements"
+disposition = "new"
+targets = [
+    "aprov.use_request@1", "aprov.start_tool@1", "aprov.member_request@1", "aprov.gen_part@1", "aprov.assoc_model_call@1",
+    "aprov.use_model@1", "aprov.use_tools@1", "aprov.attr_message@1", "aprov.attr_fixture@1", "aprov.decision@1",
+    "aprov.env_pass@1", "aprov.env_call@1", "aprov.state_patch@1", "aprov.inj_placement@1", "aprov.outcome@1",
+    "aprov.rerun@1", "aprov.assoc_scope@1", "aprov.authorise@1", "aprov.spawn@1",
+]
+mentions = ["aprov.gen_message@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "request usage, tool start, request membership, generation of assistant messages and requests, model-call association and model usage, user and fixture attribution, defence decisions, environment state, injection placement, outcomes and checker inputs, re-runs, scope association"
+note = "Counted as the derived statements of the targets (the report generates the count; J.3.6). aprov.gen_message@1 for assistant messages is counted under R1's targets. The generic rules G-ACT/G-USE/G-GEN/G-ASSOC contribute 0 statements on these trees (J.3.5) and are not targets."
+ef = "relations:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_outcome_claims"
+section = "relation"
+v23_element = "(no v2.3 counterpart): outcome polarity"
+measure = "statements"
+disposition = "new"
+targets = ["aprov.a_label@1", "aprov.a_label@2"]
+bundle = ["assessment"]
+evidence_class = ["D"]
+counterpart = "SEM outcome annotations (user_task_solved, attack_succeeded; DoS polarity) as mentions of the outcome entities with apv:outcomeClaim and apv:outcomeHolds (EF E.7.3)"
+note = "DERIVED from benchmark code (agentdojo.utility_meaning@1, agentdojo.security_polarity@1). v2.3 recorded no outcome in the graph; scoring lived in the analysis code. The INFERRED a_label statements (integrity, role, channel) are counted under the adprov:* attribute rows."
+ef = "relations:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_policy_evaluation"
+section = "relation"
+v23_element = "(no v2.3 counterpart): the policy evaluation"
+measure = "statements"
+disposition = "new"
+targets = ["aprov.a_evaluation@1"]
+bundle = ["assessment"]
+evidence_class = ["O"]
+counterpart = "the assessment bundle's evaluation activity (apv:PolicyEvaluation) and its association with the engine under the semantics profile (EF E.7.2 item 2)"
+note = "One activity and one association per SEM document (EF E.11). v2.3 had no policy activity: its labels were attributes of core nodes."
+ef = "relations:—"
+j = "(no v2.3 counterpart)"
+
+# ================================================================================================== nodes
+
+[[row]]
+id = "ag_llm"
+section = "node"
+v23_element = "ag_llm (one agent per graph)"
+node = "ag_llm"
+frozen = { released = 17664, converted = 18027 }
+frozen_source = "audit/provenance.md §3; J.1.3 (agents)"
+disposition = "reclassified"
+targets = ["aprov.n_actor@1", "aprov.n_model@1"]
+bundle = ["core"]
+evidence_class = ["O", "D"]
+counterpart = "llm_agent actor as apv:AgentSystem; plus the model entity x:L(a).model (requested and served identity) and the model-service agent x:L(a).svc when the served model or provider is known (split)"
+note = "Its adprov:integrity \"trusted\" has no defined meaning and is dropped (row adprov_integrity)."
+ef = "nodes:ag_llm"
+j = "ag_llm"
+
+[[row]]
+id = "e_user_query"
+section = "node"
+v23_element = "e_user_query (one entity per graph)"
+node = "e_user_query"
+frozen = { released = 17664, converted = 18027 }
+frozen_source = "audit/provenance.md §3"
+disposition = "kept"
+targets = ["aprov.n_message@1", "aprov.n_message@2", "aprov.attr_message@1"]
+mentions = ["aprov.a_label@1", "aprov.a_label@2"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "a message entity (role user) attributed to the simulated user; it covers every user message, not only the first of the final pass (generalised); its trusted label moves to the assessment bundle (aprov.a_label@1)"
+note = "v2.3 hashes the first user turn of the final pass; a graph with no user turn still has the node (0-tool-call graphs: 1,417 / 762). Regeneration-batch item 3 (D-24): on the released tree the first user message's attribution rests on agentdojo.user_is_simulated, cited only at c274885 and so through its I twin (the AgentDojo version of the released captures is not recorded); it is INFERRED there. The converted tree keeps D (its logs are the June-2024 code)."
+ef = "nodes:e_user_query"
+j = "e_user_query"
+
+[[row]]
+id = "a_k"
+section = "node"
+v23_element = "a_k (tool-call activity)"
+node = "a_k"
+frozen = { released = 64781, converted = 68620 }
+frozen_source = "audit/provenance.md §3; J.1.3 (activities)"
+disposition = "reclassified"
+targets = ["aprov.n_tool_execution@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "apv:ToolExecution (re-scoped; keeps its times); the LLM inference it also stood for becomes a separate apv:ModelInvocation (row new_model_invocations)"
+ef = "nodes:a_k"
+j = "a_k"
+
+[[row]]
+id = "e_k"
+section = "node"
+v23_element = "e_k (tool output entity)"
+node = "e_k"
+frozen = { released = 64781, converted = 68620 }
+frozen_source = "audit/provenance.md §3"
+disposition = "kept"
+targets = ["aprov.n_message@1", "aprov.n_message@2", "aprov.n_part@1", "aprov.gen_result@1", "aprov.gen_message@1"]
+mentions = ["aprov.a_payload@1", "aprov.a_payload@2"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "tool_result part + tool message; integrity and source channel move to the assessment bundle, the injection marker to aprov.a_payload@1"
+ef = "nodes:e_k"
+j = "e_k"
+
+[[row]]
+id = "ag_src"
+section = "node"
+v23_element = "ag_src_* (gated source agents)"
+node = "ag_src"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §3 (gated off by default)"
+disposition = "dropped"
+targets = []
+bundle = ["none"]
+evidence_class = []
+counterpart = "none"
+ef = "nodes:ag_src_*"
+
+[[row]]
+id = "new_model_invocations"
+section = "node"
+v23_element = "(no v2.3 counterpart): model invocations"
+measure = "model_invocations"
+frozen = { released = 64897, converted = 73551 }
+frozen_source = "J.1.3 (assistant turns); J.3.5; E.8.4 (measured)"
+disposition = "new"
+targets = ["aprov.n_model_call@1"]
+bundle = ["inference"]
+evidence_class = ["I"]
+counterpart = "an apv:ModelInvocation for each held assistant message (N-LLM); the converted count includes the 753 filter-output messages of the -tool_filter pipeline"
+note = "The measure is the assistant messages with a generator. Invocations of lost calls (C.7.4) are counted apart (phase 13; J.3.5). Regeneration-batch item 3 (D-27 c6): adprov.assistant_turn_one_call cites no code, only documentary evidence, so its I twin is cited on both trees and every invocation is INFERRED."
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_requests"
+section = "node"
+v23_element = "(no v2.3 counterpart): tool-call requests"
+measure = "requests"
+frozen = { released = 64829, converted = 68773 }
+frozen_source = "J.1.3 (requested tool calls); E.8.4 (measured)"
+disposition = "new"
+targets = ["aprov.n_part@1", "aprov.member_request@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "request parts, hadMember of their assistant message typed prov:Collection (AD-19(a)), with apv:args"
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_unexecuted_requests"
+section = "node"
+v23_element = "(no v2.3 counterpart): requests never executed"
+measure = "unexecuted_requests"
+frozen = { released = 48, converted = 153 }
+frozen_source = "J.1.3 (never executed); R-33 (153, positional; the 141 of audit/provenance.md §2 is corrected)"
+disposition = "new"
+targets = ["aprov.n_part@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "request parts without a tool execution, apv:dispatchStatus apv:NotDispatched (issue unexecuted_tool_call)"
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_system_messages"
+section = "node"
+v23_element = "(no v2.3 counterpart): system messages"
+measure = "system_messages"
+frozen = { released = 17664, converted = 18027 }
+frozen_source = "J.1.3 (system turns); J.3.5"
+disposition = "new"
+targets = ["aprov.n_message@1", "aprov.n_message@2", "aprov.n_part@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "system message entities and their parts"
+ef = "nodes:—"
+
+[[row]]
+id = "new_assistant_messages"
+section = "node"
+v23_element = "(no v2.3 counterpart): assistant messages"
+measure = "assistant_messages"
+frozen = { released = 64897, converted = 73551 }
+frozen_source = "J.1.3 (assistant turns)"
+disposition = "new"
+targets = ["aprov.n_message@1", "aprov.n_message@2", "aprov.n_part@1", "aprov.gen_message@1", "aprov.gen_part@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "assistant message entities and their parts, including reply text (SEM-7), generated by their invocation"
+note = "Regeneration-batch item 3 (D-27 c6): the generation of an assistant message and its parts by its invocation rests on adprov.assistant_turn_one_call (no code cited: its I twin), so it is INFERRED; the messages themselves stay O in the core."
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_later_user_messages"
+section = "node"
+v23_element = "(no v2.3 counterpart): later user messages"
+measure = "later_user_messages"
+disposition = "new"
+targets = ["aprov.n_message@1", "aprov.n_message@2", "aprov.attr_message@1"]
+bundle = ["core"]
+evidence_class = ["O", "D"]
+counterpart = "every user message after the first gains an entity (1,527 converted traces have more than one user turn; audit/provenance.md §2)"
+frozen_note = "1,527 converted traces have more than one user turn (audit/provenance.md §2); the message count is generated by the report"
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_fixtures"
+section = "node"
+v23_element = "(no v2.3 counterpart): fixtures (injection payloads, task prompts)"
+measure = "fixtures"
+frozen = { released = 26406, converted = 25179 }
+frozen_source = "docs/reports/prov/derive-scan.json (aprov.n_fixture@1, measured in phase 5)"
+disposition = "new"
+targets = ["aprov.n_fixture@1", "aprov.attr_fixture@1", "aprov.inj_placement@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "payload fixtures attributed to the attacker (N-PAYLOAD) and their placement into the environment"
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_outcomes"
+section = "node"
+v23_element = "(no v2.3 counterpart): outcomes and checker runs"
+measure = "judgements"
+frozen = { released = 35328, converted = 36054 }
+frozen_source = "docs/reports/prov/derive-scan.json (aprov.n_judgement@1, measured in phase 5)"
+disposition = "new"
+targets = ["aprov.n_judgement@1", "aprov.outcome@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "outcome entities and checker runs (R-OUTCOME); the checker inputs are INFERRED (agentdojo.checker_inputs_unverified@1)"
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_scopes"
+section = "node"
+v23_element = "(no v2.3 counterpart): run and pass activities"
+measure = "scopes"
+frozen = { released = 35449, converted = 36054 }
+frozen_source = "docs/reports/prov/derive-scan.json (aprov.n_scope@1, measured in phase 5)"
+disposition = "new"
+targets = ["aprov.n_scope@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "apv:Run and apv:Pass activities"
+note = "Regeneration-batch item 3 (D-27 c6): on the released tree a pass read from the call counter (adprov.single_attempt_from_call_count, adprov.lost_calls_from_count; no code cited) is INFERRED; the run and the converted tree's passes are unchanged."
+ef = "nodes:—"
+j = "(no v2.3 counterpart)"
+
+[[row]]
+id = "new_actors"
+section = "node"
+v23_element = "(no v2.3 counterpart): other actors"
+measure = "other_actors"
+disposition = "new"
+targets = ["aprov.n_actor@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "the simulated user, attacker, checker, tool runtime and defence actors as agents typed by kind and role"
+note = "Not listed in E.8.4; the defence actor of the PI-detector pipeline is INFERRED (agentdojo.pi_detector_sentinel@1)."
+
+[[row]]
+id = "new_execution_description"
+section = "node"
+v23_element = "(no v2.3 counterpart): execution description and capture profile"
+measure = "executions"
+frozen = { released = 17664, converted = 18027 }
+frozen_source = "J.1.3 (transcripts); docs/reports/prov/derive-scan.json (aprov.n_header@1, aprov.n_capture_profile@1)"
+disposition = "new"
+targets = ["aprov.n_header@1", "aprov.n_capture_profile@1"]
+bundle = ["core"]
+evidence_class = ["O", "D"]
+counterpart = "the execution description x:exec and the capture profile, one each per execution"
+ef = "nodes:—"
+
+[[row]]
+id = "new_gaps"
+section = "node"
+v23_element = "(no v2.3 counterpart): declared unknowns"
+measure = "statements"
+disposition = "new"
+targets = ["aprov.n_gap@1", "aprov.status@1"]
+bundle = ["core", "inference"]
+evidence_class = ["D", "I"]
+counterpart = "declared unknowns as fixed status properties or apv:Gap entities (R-08); v2.3 omitted the element or wrote a fallback"
+note = "Not listed in E.8.4; counted as derived statements."
+
+# ================================================================================================== attributes
+
+[[row]]
+id = "adprov_integrity"
+section = "attribute"
+v23_element = "adprov:integrity"
+attribute = "adprov:integrity"
+frozen_note = "all entities and agents (audit/provenance.md §6)"
+disposition = "moved-to-assessment"
+targets = ["aprov.a_label@1", "aprov.a_label@2"]
+bundle = ["assessment"]
+evidence_class = ["I"]
+counterpart = "apv:integrity on assessment mentions; three-valued (apv:Trusted, apv:Untrusted, apv:IntegrityUnknown), fail-closed"
+note = "INFERRED (tool-name tables, F.1.8). The trusted label of ag_llm has no defined meaning and has no counterpart."
+ef = "attributes:adprov:integrity"
+
+[[row]]
+id = "adprov_role"
+section = "attribute"
+v23_element = "adprov:role"
+attribute = "adprov:role"
+frozen = { released = 64781, converted = 68620 }
+frozen_extra = { "value:sink" = { released = 15196, converted = 15977 }, "value:endorser" = { released = 0, converted = 0 } }
+frozen_source = "audit/provenance.md §3, §6"
+disposition = "moved-to-assessment"
+targets = ["aprov.a_label@1", "aprov.a_label@2"]
+bundle = ["assessment"]
+evidence_class = ["I"]
+counterpart = "apv:securityRole (multi-class) on assessment mentions of request parts or apv:Labelled assessments of tool executions"
+ef = "attributes:adprov:role"
+
+[[row]]
+id = "adprov_source_channel"
+section = "attribute"
+v23_element = "adprov:source_channel"
+attribute = "adprov:source_channel"
+frozen = { released = 29661 }
+frozen_source = "audit/provenance.md §6"
+disposition = "moved-to-assessment"
+targets = ["aprov.a_label@1", "aprov.a_label@2"]
+bundle = ["assessment"]
+evidence_class = ["I"]
+counterpart = "apv:sourceChannel on assessment mentions"
+ef = "attributes:adprov:source_channel"
+
+[[row]]
+id = "adprov_contains_injection_marker"
+section = "attribute"
+v23_element = "adprov:contains_injection_marker"
+attribute = "adprov:contains_injection_marker"
+frozen = { released = 62606 }
+frozen_extra = { "value:true" = { released = 18640 } }
+frozen_source = "audit/provenance.md §3, §6"
+disposition = "moved-to-assessment"
+targets = ["aprov.a_payload@1", "aprov.a_payload@2"]
+bundle = ["assessment"]
+evidence_class = ["D", "I"]
+counterpart = "apv:ContainsPayload assessment with span (aprov.a_payload@1): DERIVED when present (deterministic decoding), INFERRED when ambiguous"
+ef = "attributes:adprov:contains_injection_marker"
+j = "e_k"
+
+[[row]]
+id = "adprov_defence_omitted"
+section = "attribute"
+v23_element = "adprov:defence_omitted"
+attribute = "adprov:defence_omitted"
+frozen = { released = 0, converted = 2154 }
+frozen_source = "J.1.3; audit/provenance.md §3 (2,154 in 624 converted graphs)"
+disposition = "reclassified"
+targets = ["aprov.decision@1", "aprov.n_decision@1"]
+assumptions = ["agentdojo.pi_detector_sentinel@1"]
+bundle = ["inference"]
+evidence_class = ["I"]
+content_status = "apv:Overwritten"
+counterpart = "a Decision activity with verdict redact (aprov.n_decision@1, aprov.decision@1) and a pre-decision entity x:L(te).out whose content status is apv:Overwritten (R-08); attribute -> activity, INFERRED from the sentinel"
+ef = "attributes:adprov:defence_omitted"
+j = "adprov:defence_omitted"
+
+[[row]]
+id = "adprov_step"
+section = "attribute"
+v23_element = "adprov:step"
+attribute = "adprov:step"
+frozen = { released = 64781 }
+frozen_source = "audit/provenance.md §6"
+disposition = "dropped"
+targets = []
+mentions = ["aprov.after@1"]
+bundle = ["none"]
+evidence_class = []
+counterpart = "none in PROV; order is carried by the apv:after* attributes (E.1.4); step remains in the compat graph and the transcript view (projection)"
+ef = "attributes:adprov:step"
+
+[[row]]
+id = "adprov_turn"
+section = "attribute"
+v23_element = "adprov:turn"
+attribute = "adprov:turn"
+frozen = { released = 64781 }
+frozen_source = "audit/provenance.md §6"
+disposition = "dropped"
+targets = []
+mentions = ["aprov.after@1"]
+bundle = ["none"]
+evidence_class = []
+counterpart = "none in PROV; order is carried by the apv:after* attributes (E.1.4); turn remains in the compat graph and the transcript view (projection)"
+ef = "attributes:adprov:step"
+
+[[row]]
+id = "adprov_attempt"
+section = "attribute"
+v23_element = "adprov:attempt"
+attribute = "adprov:attempt"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §6 (no multi-pass transcript in either corpus)"
+disposition = "reclassified"
+targets = ["aprov.n_scope@1", "aprov.part_of@1"]
+bundle = ["core", "inference"]
+evidence_class = ["O", "D", "I"]
+counterpart = "an apv:Pass activity with apv:index, plus apv:partOf"
+note = "Regeneration-batch item 3 (D-27 c6): an INFERRED pass (released tree) and every apv:partOf naming it are routed to the inference bundle (C.6.5 rule 4; the engine routes a reference to an INFERRED node out of a stronger element)."
+ef = "attributes:adprov:attempt"
+
+[[row]]
+id = "prov_start_time"
+section = "attribute"
+v23_element = "prov:startTime (activity)"
+attribute = "prov:startTime"
+frozen = { released = 64779, converted = 0 }
+frozen_source = "audit/provenance.md §6 (2 withheld: golden R07); J.1.3 (untimed activities: converted 68,620, all)"
+disposition = "kept"
+targets = ["aprov.n_tool_execution@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "the same, on apv:ToolExecution, from the AER t only (no run-start fallback; an overwritten time is a declared unknown)"
+ef = "attributes:prov:startTime"
+
+[[row]]
+id = "prov_end_time"
+section = "attribute"
+v23_element = "prov:endTime (activity)"
+attribute = "prov:endTime"
+frozen = { released = 64779, converted = 0 }
+frozen_source = "audit/provenance.md §6 (2 withheld: golden R07); J.1.3 (untimed activities: converted 68,620, all)"
+disposition = "kept"
+targets = ["aprov.n_tool_execution@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "the same, on apv:ToolExecution, from the AER t only"
+ef = "attributes:prov:startTime"
+
+[[row]]
+id = "adprov_args"
+section = "attribute"
+v23_element = "adprov:args"
+attribute = "adprov:args"
+frozen = { released = 64781 }
+frozen_source = "audit/provenance.md §6"
+disposition = "moved"
+targets = ["aprov.n_part@1", "aprov.n_tool_execution@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "apv:args (JCS) on the request part; apv:argsEffective on the execution when it differs"
+ef = "attributes:adprov:args"
+
+[[row]]
+id = "adprov_error"
+section = "attribute"
+v23_element = "adprov:error"
+attribute = "adprov:error"
+frozen = { released = 6920 }
+frozen_source = "audit/provenance.md §6"
+disposition = "kept"
+targets = ["aprov.n_part@1", "aprov.n_tool_execution@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "apv:error on the tool_result part; apv:exception on the execution when recorded"
+ef = "attributes:adprov:error"
+
+[[row]]
+id = "adprov_content_hash"
+section = "attribute"
+v23_element = "adprov:content_hash"
+attribute = "adprov:content_hash"
+frozen = { released = 82445 }
+frozen_source = "audit/provenance.md §6"
+disposition = "kept"
+targets = ["aprov.n_message@1", "aprov.n_message@2", "aprov.n_part@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "apv:contentSha256 over the UTF-8 bytes of the recorded text (v2.3 hashed decoded text blocks); definition tightened"
+ef = "attributes:adprov:content_hash"
+
+[[row]]
+id = "adprov_content_len"
+section = "attribute"
+v23_element = "adprov:content_len"
+attribute = "adprov:content_len"
+frozen = { released = 82445 }
+frozen_source = "audit/provenance.md §6"
+disposition = "kept"
+targets = ["aprov.n_part@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "apv:contentLength, unit stated (Unicode scalar values); definition tightened"
+ef = "attributes:adprov:content_hash"
+
+[[row]]
+id = "prov_time_used"
+section = "attribute"
+v23_element = "prov:time on used"
+attribute = "prov:time"
+on = ["used"]
+frozen = { released = 121493, converted = 0 }
+frozen_source = "audit/provenance.md §6; J.3.6 (relation times: release only) and J.1.3 (every converted activity untimed)"
+disposition = "dropped"
+targets = []
+bundle = ["none"]
+evidence_class = []
+counterpart = "none: no relation times (AD-19(d)); order as apv: attributes"
+ef = "attributes:prov:time"
+j = "prov:time"
+
+[[row]]
+id = "prov_time_generation"
+section = "attribute"
+v23_element = "prov:time on wasGeneratedBy"
+attribute = "prov:time"
+on = ["wasGeneratedBy"]
+frozen = { released = 64779, converted = 0 }
+frozen_source = "audit/provenance.md §6; J.3.6 (relation times: release only) and J.1.3 (every converted activity untimed)"
+disposition = "dropped"
+targets = []
+bundle = ["none"]
+evidence_class = []
+counterpart = "none: no relation times (AD-19(d))"
+ef = "attributes:prov:time"
+j = "prov:time"
+
+[[row]]
+id = "adprov_time_communication"
+section = "attribute"
+v23_element = "adprov:time on wasInformedBy"
+attribute = "adprov:time"
+on = ["wasInformedBy"]
+frozen = { released = 72631, converted = 0 }
+frozen_source = "audit/provenance.md §6; J.3.6 (relation times: release only) and J.1.3 (every converted activity untimed)"
+disposition = "dropped"
+targets = []
+bundle = ["none"]
+evidence_class = []
+counterpart = "none: no relation times (AD-19(d))"
+ef = "attributes:adprov:time"
+j = "prov:time"
+
+[[row]]
+id = "adprov_agent_kind"
+section = "attribute"
+v23_element = "adprov:agent_kind"
+attribute = "adprov:agent_kind"
+frozen = { released = 17664 }
+frozen_source = "J.1.3 (agents): one llm agent per graph"
+disposition = "reclassified"
+targets = ["aprov.n_actor@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "prov:type with an apv: agent class"
+ef = "attributes:adprov:agent_kind"
+
+[[row]]
+id = "adprov_placeholder_mismatch"
+section = "attribute"
+v23_element = "adprov:placeholder_mismatch (never emitted)"
+attribute = "adprov:placeholder_mismatch"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §5.7 (build_prov never passes it)"
+disposition = "dropped"
+targets = []
+bundle = ["none"]
+evidence_class = []
+counterpart = "none; arguments changed before dispatch appear as args != args_effective when both are recorded"
+ef = "attributes:adprov:placeholder_mismatch"
+
+[[row]]
+id = "prov_label"
+section = "attribute"
+v23_element = "prov:label"
+attribute = "prov:label"
+frozen_note = "all nodes (audit/provenance.md §6)"
+disposition = "reclassified"
+targets = ["aprov.n_tool_execution@1", "aprov.n_part@1"]
+bundle = ["core"]
+evidence_class = ["O"]
+counterpart = "the tool name becomes apv:toolName on the tool execution and on its request and result parts; the synthetic labels (<tool>_output, user_query, llm_agent) have no counterpart"
+note = "Not in the E.8.4 attribute table (audit/provenance.md §6 lists it); added so that every compat attribute is mapped."
+
+[[row]]
+id = "adprov_content"
+section = "attribute"
+v23_element = "adprov:content (gated, emit_content)"
+attribute = "adprov:content"
+frozen = { released = 0, converted = 0 }
+frozen_source = "audit/provenance.md §6 (emit_content off by default)"
+disposition = "dropped"
+targets = []
+bundle = ["none"]
+evidence_class = []
+counterpart = "none in the compat profile; the text is in the AER, and agentprov-prov/0.1 embeds it only under ProvOptions.emit_content"
+note = "Not in the E.8.4 attribute table (audit/provenance.md §6 lists it); added so that every compat attribute is mapped."

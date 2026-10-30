@@ -1,0 +1,40 @@
+import hashlib, json
+from agentprov.adapters.foobench.dialect import FooJsonlReader
+from agentprov.adapters.foobench.mapper import FooMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin
+from agentprov.aer.rules import RuleRegistry
+from agentprov.ingest.limits import IngestLimits
+
+def lines(evs): return b"".join(json.dumps(e, separators=(",", ":")).encode() + b"\n" for e in evs)
+def sha1(d): return hashlib.sha1(b"blob %d\0" % len(d) + d, usedforsecurity=False).hexdigest()
+def art(aid, name, data, role="primary"):
+    o = Origin.git("https://github.com/nickjones39/AgentPROV", "ce45a3d560629e2ec6fa9633315eb1afa187891c", f"x/{name}", sha1(data))
+    return ArtefactRef(aid, hashlib.sha256(data).hexdigest(), len(data), "application/x-ndjson", o, role, "native")
+
+def block(i, to_file):
+    b = [{"type": "llm_request", "id": f"r{i}", "actor": "agent", "add": [{"id": f"u{i}", "role": "user", "author": "user", "text": f"go{i}"}], "context": [f"u{i}"]},
+         {"type": "llm_response", "request": f"r{i}", "reply": {"id": f"a{i}", "role": "assistant", "text": f"reply-from-level-{i}", "calls": ([{"id": f"c{i}", "name": "transfer", "args": {}}] if to_file else [])}}]
+    if to_file:
+        b.append({"type": "handoff", "call": f"c{i}", "name": "transfer", "to": "researcher", "sub_file": to_file, "result": "done"})
+    return b
+names = ["sub-a.jsonl", "sub-b.jsonl", "sub-c.jsonl", "sub-d.jsonl", "sub-e.jsonl"]
+primary = lines([{"schema": "foobench/1", "task": "t1", "agent_model": "m"}] + block(0, names[0]))
+subs = {}
+for k, n in enumerate(names):
+    nxt = names[k + 1] if k + 1 < len(names) else None
+    subs[n] = lines([{"schema": "foobench/1", "parent": {"run": "x"}}] + block(k + 1, nxt))
+ref = art("a0", "p.jsonl", primary)
+(item,) = list(FooJsonlReader().parse(primary, ref, limits=IngestLimits()))
+unit = ExecutionUnit(primary=item, auxiliary={n: art(f"a{k+1}", n, d, "supporting") for k, (n, d) in enumerate(subs.items())})
+prof = load_profile("foobench"); reg = RuleRegistry.default()
+out = map_unit(unit, FooMapper(), prof, registry=reg, auxiliary=subs)
+data, info = aer_bytes(out, registry=reg, unit=unit, mapper=FooMapper(), profile=prof)
+recs = [json.loads(l) for l in data.splitlines()]
+print("degenerate:", out.degenerate)
+print("header artifacts:", [a["id"] if isinstance(a, dict) else a for a in recs[0].get("artifacts", [])])
+print("scopes:", [(r["id"], r.get("kind"), r.get("spawned_by")) for r in recs if r["k"] == "scope"])
+print("model_calls:", [r["id"] for r in recs if r["k"] == "model_call"])
+print("level-5 text present:", b"reply-from-level-5" in data, " level-4 present:", b"reply-from-level-4" in data)
+print("issues:", [(i["code"], i["ids"]) for i in recs[-1]["issues"]])

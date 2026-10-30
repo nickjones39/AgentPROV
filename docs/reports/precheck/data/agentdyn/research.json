@@ -1,0 +1,1831 @@
+{
+ "corpus_id": "agentdyn",
+ "parts": [
+  "agentdyn · a (v1.k14 + v1.k14.incomplete, 38,281 logs)",
+  "agentdyn · b (v0.k11, Progent with vendored AgentDojo 0.1.29, 5,184 logs; registry import_status planned)",
+  "agentdyn · c (drift.k18.messages, 4,258 logs; registry partial)"
+ ],
+ "files_written": [
+  "../AgentPROV-framework/.claude/worktrees/agentprov-corpus-precheck-afa339/docs/reports/precheck/data/agentdyn/research.json",
+  "../AgentPROV-framework/.claude/worktrees/agentprov-corpus-precheck-afa339/docs/reports/precheck/prereg/agentdyn.md"
+ ],
+ "papers": [
+  {
+   "id": "arXiv:2602.03117",
+   "title": "AgentDyn: Are Your Agent Security Defenses Deployable in Real-World Dynamic Environments? (v1/v2 title: AgentDyn: A Dynamic Open-Ended Benchmark for Evaluating Prompt Injection Attacks of Real-World Agent Security System)",
+   "url": "https://arxiv.org/abs/2602.03117",
+   "relation": "primary paper of the source; README says its results are the logs in runs/",
+   "versions": "v1 2026-02-03 (389 KB, 23 pages, 16 tables); v2 2026-02-06 (389 KB; HTML tables identical to v1); v3 2026-05-07 (404 KB, 26 pages, 17 tables, new title). v1->v3: main Table 3 swaps Qwen3 235B for Claude-Sonnet-3.5 and moves Tool Filter to the System category; appendix adds Claude-Sonnet-3.5, Claude-Sonnet-4.5, Qwen3-Coder, Kimi-K2.5 rows (none has logs at the pin); new Table 8 (other attacks: Important/Ignore/Completion/Adaptive for gpt-5-mini, gpt-5.1, Claude-Sonnet-4.5); the only changed value row for a shared (defence, model) is GPT-4o mini x DRIFT (v1 28.33/22.05/2.72 -> v3 18.33/19.31/3.39), matching the 2026-04-19 integrated rerun. Verified by extracting all tables of https://arxiv.org/html/2602.03117v1 and v3."
+  },
+  {
+   "id": "SaFo-Lab/DRIFT (NeurIPS 2025)",
+   "title": "DRIFT: the defence whose original code produced part c",
+   "url": "https://github.com/SaFo-Lab/DRIFT",
+   "relation": "producer of the variant-C logs (maintainer, AgentDyn issue #5); MIT licence file added only 2026-07-16 (commit 6fd3df47)",
+   "versions": "part c ran 2026-01-25..28 (stamps in tool outputs, phase-10l census), before DRIFT 1af2672c (2026-02-04)"
+  }
+ ],
+ "repo": "https://github.com/SaFo-Lab/AgentDyn (paper link https://github.com/leolee99/AgentDyn redirects). Pin 5353cf7615b135cace8d07c8f12dac53a16b6db3 = HEAD of main on 2026-10-14 (committed 2026-05-19T21:56:30Z \"update README.md\"; pushed_at unchanged; 26 commits; no tags or releases). runs/ tree at the pin = 90d6d50d31e14f65b83a59478ceaa9a09badfbd8 with 76 entries (gh api, 2026-10-14), equal to the profile pin. Commits around the pin touching logs or harness: de473e58 (2026-01-31 init, first logs; openai_llm.py sends `temperature or NOT_GIVEN`), 90224933 (2026-02-03 update logs, runs/DRIFT), 73ee3416 (2026-02-03 add runs), 2d4ad05a (2026-02-14 update logs: removed runs/DRIFT and the Google-API base directories gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-pro-piguard_detector, gemini-2.5-pro-transformers_pi_detector; added the -drift, -progent, -camel and meta_secalign directories) [CORRECTED by fact-check: the OpenRouter google_gemini-2.5-pro/-flash directories at the pin were added in 73ee3416 (2026-02-03 19:22 UTC, after v1 05:20 UTC, before v2) next to the Google-API ones and are byte-unchanged since (tree 709f254c / 397e6333); 2d4ad05a only removed the Google-API copies], 3855c261 (2026-02-14 dailylife __all__ typo), e26cbc3d/bd3fc6bc (2026-03-04 temperature `is not None` fix, PR #4), 68aba5bf/173d2b34/785b9127 (2026-04-09 CaMeL/Progent/DRIFT integration code, gpt-4o-mini-progent on AgentDojo suites added then removed, travel strays), 4d2748c6 (2026-04-19 06:09 drift logs from DRIFT original), 6623a721 (2026-04-19 fix drift call error bugs: user/tool validation-error messages with an `error` key), a4eb0787 (2026-04-19 23:26 integrated --defense drift rerun, 648 files), ae6513a8/1a6d11d5/2c99edcb (2026-05-02 GitHub InjectionTask1 checker replaced by security_from_traces, closes #6; logs not rescored), 5353cf76 (2026-05-19 README). Issues: #1 closed (HF hosting declined); #2-#4 closed (temperature 0.0 ignored for OpenAI-compatible client); #5 closed (DRIFT reproduction; maintainer: variant C from original DRIFT code, paper DRIFT row to be revised); #6 closed (GitHub IT1 false positive, checker fixed after the runs); #7 open (2026-09-23, Gemini-2.5-Pro: paper UA 56.95 vs released logs 47.43); #8 open (2026-10-12, github user_task_5/7/8/11 can never reach utility True: 0 of 749/749/749/740 in runs/); PR #9 open (fix for #8, not merged; the Progent vendored copy is left unfixed).",
+ "data_record": "No Zenodo, Figshare or HF execution record. Zenodo search q=AgentDyn: 1 unrelated hit (22691782); HF datasets search: only agentdyn-dataset/agentdyn (sha f599709d33581c2ab2ec5bf36ae618299813ad35, created/last modified 2026-05-06, 10 parquet configs of task/environment definitions: user_tasks 60, injection_tasks 28, tools 100, 7 env tables; no executions, no licence, affiliation unverified; unchanged since the 2026-10-07 investigation). The data record is the git tree: runs/ at 5353cf76 = tree 90d6d50d31e14f65b83a59478ceaa9a09badfbd8, 47,723 JSON files, 598,326,615 bytes (profile pin expected_files/expected_bytes; E2-era import verified all 47,723 against the tree). Not re-downloaded in this step (metadata only; tree sha checked through the GitHub API). Parts a, b and c share this one pin (variant_labels); part d (949 src/ DRIFT copies) is owned by `drift`; history (16,795 superseded blobs, 16,175 executions) is out of scope.",
+ "harness": "Variant A (part a): AgentDyn fork of AgentDojo v0.1.35 as released (a75aba7 / 5cea5891, 2025-10-27; https://github.com/ethz-spylab/agentdojo/releases/tag/v0.1.35), package name/version unchanged (`agentdojo` 0.1.35, so version_identifies_code=false); 13 files modified (openai_llm.py silently drops malformed tool calls; benchmark.py imposes utility False/security True on JSONDecodeError; model_output_from_messages takes the last assistant message anywhere; system prompt adds an auto-complete line). January runs predate the repository (created 2026-01-29), so the producing code is unpinned. Known bugs of that code relevant to the logs: (1) OpenAI-compatible client sends `temperature or NOT_GIVEN`, so 0.0 is dropped and the provider default applies (AgentDyn #2, fixed 2026-03-04 after all January runs; https://github.com/SaFo-Lab/AgentDyn/blob/de473e58/src/agentdojo/agent_pipeline/llms/openai_llm.py#L179); the Google client passes temperature=0.0 (google_llm.py l. 285 at de473e58); (2) LocalLLM (SecAlign) turns server errors into an empty final answer scored as a failed attack (agentdojo #220), drops calls with empty body or trailing text (#219) and fenced calls (#202), and sends an unlogged random seed per request; (3) --max-workers > 1 passes benchmark_suite arguments in the wrong order (#212 reports a crash, #177 corrupted results) [unknown whether used]; (4) tool results with non-ASCII are \\uXXXX-escaped by yaml.safe_dump/json.dumps (#214); (5) security_from_traces counts proposed calls (#189; used by AgentDyn only after the 2026-05-02 fix, not for the logs); (6) tool_filter can yield zero tool calls (#209, reported for a local model only); (7) TraceLogger keeps only the last of up to 3 passes. Variant B (part b): Progent vendored with AgentDojo 0.1.29 (no evaluation_timestamp, no package version, unmodified 0.1.29 system prompt; its suites differ in user_tasks.py, github injection_tasks.py and task_suite.py). Variant C (part c): standalone SaFo-Lab/DRIFT pipeline_main.py (January 2026, before 1af2672c), outputs re-keyed conversations->messages and relocated by the AgentDyn authors (E11).",
+ "models": [
+  "gpt-4o-mini-2024-07-18 (OpenAI API, dated id)",
+  "gpt-4o-2024-08-06 (OpenAI)",
+  "gpt-5-mini-2025-08-07 (OpenAI; no temperature sent for gpt-5)",
+  "gpt-5.1-2025-11-13 (OpenAI)",
+  "gemini-2.5-pro (OpenRouter for every A/B arm per identity table; undated alias)",
+  "gemini-2.5-flash (OpenRouter for none/repeat/spotlighting/tool_filter/progent; Google API for the three detector arms; undated alias)",
+  "meta-llama/llama-3.3-70b-instruct (OpenRouter; routed backend varies per call: mixed call-id families within 80 runs)",
+  "qwen/qwen3-235b-a22b-2507 (OpenRouter)",
+  "Meta-SecAlign-70B and Meta-SecAlign-8B (local client, pipeline_name \"local\"; 70B vs 8B rests on the directory label only)",
+  "qwen/qwen-2.5-72b-instruct (OpenRouter; 2 travel debugging strays only)",
+  "paper-only, no logs at the pin: Claude-Sonnet-3.5, Claude-Sonnet-4.5 (213 superseded blobs in history only), Qwen3-Coder, Kimi-K2.5; history-only without a paper row: Claude Haiku 4.5 (648)",
+  "auxiliary models (not logged as calls): ProtectAI deberta PI detector, PIGuard, Llama-Prompt-Guard-2-86M, tool-filter LLM (same model), DRIFT planner/validator/isolator, CaMeL P-LLM/Q-LLM, Progent policy model"
+ ],
+ "reported_results": [
+  {
+   "arm": "a:meta_secalign-70B (Meta-SecAlign x Meta-SecAlign 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "55.00 (40.00/55.00/70.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta_secalign-70B (Meta-SecAlign x Meta-SecAlign 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "53.35 (41.67/48.89/69.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta_secalign-70B (Meta-SecAlign x Meta-SecAlign 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "8.98 (10.00/4.44/12.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta_secalign-8B (Meta-SecAlign x Meta-SecAlign 8B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "5.00 (0.00/15.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta_secalign-8B (Meta-SecAlign x Meta-SecAlign 8B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "7.22 (0.00/11.67/10.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta_secalign-8B (Meta-SecAlign x Meta-SecAlign 8B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "5.26 (0.00/2.78/13.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash (None x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "30.00 (10.00/25.00/55.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash (None x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "24.29 (4.44/29.44/39.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash (None x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "37.61 (14.44/23.89/74.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-piguard_detector (PIGuard x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "8.33 (0.00/5.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-piguard_detector (PIGuard x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "1.83 (0.00/5.00/0.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-piguard_detector (PIGuard x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "2.00 (0.00/0.00/6.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-prompt_guard_2_detector (PromptGuard2 x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "26.67 (10.00/25.00/45.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-prompt_guard_2_detector (PromptGuard2 x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "11.19 (0.00/5.56/28.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-prompt_guard_2_detector (PromptGuard2 x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "23.87 (2.78/8.33/60.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-repeat_user_prompt (Prompt Sandwiching x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "16.67 (10.00/20.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-repeat_user_prompt (Prompt Sandwiching x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "14.33 (7.22/17.78/18.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-repeat_user_prompt (Prompt Sandwiching x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "18.22 (6.11/15.56/33.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-spotlighting_with_delimiting (Spotlighting x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "13.33 (0.00/15.00/25.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-spotlighting_with_delimiting (Spotlighting x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "12.50 (1.11/13.89/22.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-spotlighting_with_delimiting (Spotlighting x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "17.74 (7.22/10.00/36.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-tool_filter (Tool Filter x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-tool_filter (Tool Filter x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-tool_filter (Tool Filter x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-transformers_pi_detector (ProtectAI x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-transformers_pi_detector (ProtectAI x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.19 (0.00/0.56/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-flash-transformers_pi_detector (ProtectAI x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.04 (0.00/1.11/2.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro (None x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "51.67 (35.00/70.00/50.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro (None x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "56.95 (41.67/71.67/57.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro (None x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "20.61 (15.00/13.33/33.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-piguard_detector (PIGuard x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "11.67 (5.00/15.00/15.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-piguard_detector (PIGuard x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "2.17 (2.22/2.78/1.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-piguard_detector (PIGuard x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.83 (0.00/0.00/5.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-prompt_guard_2_detector (PromptGuard2 x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "58.33 (45.00/75.00/55.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-prompt_guard_2_detector (PromptGuard2 x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "17.18 (4.44/6.11/41.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-prompt_guard_2_detector (PromptGuard2 x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "14.50 (2.22/7.78/33.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-repeat_user_prompt (Prompt Sandwiching x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "51.67 (35.00/55.00/65.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-repeat_user_prompt (Prompt Sandwiching x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "49.08 (35.56/61.67/50.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-repeat_user_prompt (Prompt Sandwiching x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "23.94 (20.00/18.33/33.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-spotlighting_with_delimiting (Spotlighting x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "58.33 (35.00/75.00/65.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-spotlighting_with_delimiting (Spotlighting x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "52.61 (37.78/65.56/54.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-spotlighting_with_delimiting (Spotlighting x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "16.87 (11.67/14.44/24.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-tool_filter (Tool Filter x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-tool_filter (Tool Filter x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.93 (0.00/2.78/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-tool_filter (Tool Filter x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-transformers_pi_detector (ProtectAI x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-transformers_pi_detector (ProtectAI x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.74 (0.00/2.22/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro-transformers_pi_detector (ProtectAI x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.69 (0.00/0.56/1.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06 (None x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "53.33 (50.00/55.00/55.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06 (None x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "55.52 (48.89/66.67/51.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06 (None x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "37.80 (25.00/18.89/69.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-piguard_detector (PIGuard x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "10.00 (5.00/10.00/15.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-piguard_detector (PIGuard x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "1.46 (2.78/1.11/0.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-piguard_detector (PIGuard x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/0.00/5.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-prompt_guard_2_detector (PromptGuard2 x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "60.00 (50.00/70.00/60.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-prompt_guard_2_detector (PromptGuard2 x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "20.80 (6.11/17.78/38.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-prompt_guard_2_detector (PromptGuard2 x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "27.15 (9.44/10.00/62.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-repeat_user_prompt (Prompt Sandwiching x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "63.33 (50.00/75.00/65.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-repeat_user_prompt (Prompt Sandwiching x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "56.13 (46.67/67.22/54.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-repeat_user_prompt (Prompt Sandwiching x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "31.17 (19.44/15.56/58.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-spotlighting_with_delimiting (Spotlighting x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "55.00 (40.00/65.00/60.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-spotlighting_with_delimiting (Spotlighting x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "52.24 (43.89/63.33/49.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-spotlighting_with_delimiting (Spotlighting x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "27.61 (24.44/18.89/39.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-tool_filter (Tool Filter x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "8.33 (0.00/15.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-tool_filter (Tool Filter x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "4.91 (0.00/7.22/7.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-tool_filter (Tool Filter x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "4.22 (0.56/1.11/11.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-transformers_pi_detector (ProtectAI x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-transformers_pi_detector (ProtectAI x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.56 (0.00/1.67/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-2024-08-06-transformers_pi_detector (ProtectAI x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.85 (0.00/0.56/2.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-camel (CaMeL x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-camel (CaMeL x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-camel (CaMeL x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift (DRIFT x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "18.33 (10.00/35.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift (DRIFT x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "19.31 (12.22/32.22/13.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift (DRIFT x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "3.39 (1.11/0.56/8.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18 (None x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "46.67 (35.00/65.00/40.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18 (None x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "35.69 (35.00/45.56/26.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18 (None x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "50.00 (28.89/41.11/80.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-piguard_detector (PIGuard x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "16.67 (20.00/20.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-piguard_detector (PIGuard x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "3.26 (3.89/3.89/2.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-piguard_detector (PIGuard x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.33 (0.00/0.00/4.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-prompt_guard_2_detector (PromptGuard2 x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "30.00 (30.00/20.00/40.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-prompt_guard_2_detector (PromptGuard2 x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "13.70 (12.22/3.89/25.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-prompt_guard_2_detector (PromptGuard2 x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "28.54 (6.11/0.00/79.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-repeat_user_prompt (Prompt Sandwiching x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "43.33 (35.00/50.00/45.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-repeat_user_prompt (Prompt Sandwiching x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "37.78 (34.44/48.89/30.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-repeat_user_prompt (Prompt Sandwiching x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "33.80 (15.56/18.33/67.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-spotlighting_with_delimiting (Spotlighting x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "38.33 (25.00/50.00/40.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-spotlighting_with_delimiting (Spotlighting x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "35.78 (28.89/49.44/29.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-spotlighting_with_delimiting (Spotlighting x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "47.33 (27.78/42.22/72.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-tool_filter (Tool Filter x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "6.67 (0.00/10.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-tool_filter (Tool Filter x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "4.80 (0.00/8.89/5.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-tool_filter (Tool Filter x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "6.15 (0.56/3.89/14.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-transformers_pi_detector (ProtectAI x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-transformers_pi_detector (ProtectAI x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.93 (0.00/2.78/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-transformers_pi_detector (ProtectAI x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.37 (0.00/1.11/3.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07 (None x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "65.00 (45.00/70.00/80.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07 (None x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "64.76 (48.89/73.89/71.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07 (None x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.37 (0.00/1.11/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-piguard_detector (PIGuard x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "18.33 (25.00/10.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-piguard_detector (PIGuard x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "7.35 (7.78/12.78/1.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-piguard_detector (PIGuard x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-prompt_guard_2_detector (PromptGuard2 x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "65.00 (40.00/75.00/80.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-prompt_guard_2_detector (PromptGuard2 x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "33.92 (19.44/18.33/64.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-prompt_guard_2_detector (PromptGuard2 x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-repeat_user_prompt (Prompt Sandwiching x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "73.33 (60.00/75.00/85.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-repeat_user_prompt (Prompt Sandwiching x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "65.22 (48.33/73.33/74.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-repeat_user_prompt (Prompt Sandwiching x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.37 (0.00/1.11/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-spotlighting_with_delimiting (Spotlighting x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "68.33 (60.00/65.00/80.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-spotlighting_with_delimiting (Spotlighting x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "61.13 (45.56/68.33/69.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-spotlighting_with_delimiting (Spotlighting x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.56 (0.56/1.11/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-tool_filter (Tool Filter x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-tool_filter (Tool Filter x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-tool_filter (Tool Filter x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-transformers_pi_detector (ProtectAI x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-transformers_pi_detector (ProtectAI x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.93 (0.00/2.78/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07-transformers_pi_detector (ProtectAI x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13 (None x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "61.67 (45.00/75.00/65.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13 (None x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "50.04 (34.44/66.67/49.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13 (None x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "4.96 (1.67/2.22/11.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-piguard_detector (PIGuard x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "11.67 (5.00/5.00/25.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-piguard_detector (PIGuard x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "2.72 (2.22/4.44/1.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-piguard_detector (PIGuard x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.17 (0.00/0.00/3.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-prompt_guard_2_detector (PromptGuard2 x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "55.00 (30.00/70.00/65.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-prompt_guard_2_detector (PromptGuard2 x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "22.26 (7.22/15.56/44.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-prompt_guard_2_detector (PromptGuard2 x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "3.71 (0.56/0.56/10.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-repeat_user_prompt (Prompt Sandwiching x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "58.33 (45.00/65.00/65.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-repeat_user_prompt (Prompt Sandwiching x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "53.78 (40.00/63.33/58.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-repeat_user_prompt (Prompt Sandwiching x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.20 (0.00/1.11/2.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-spotlighting_with_delimiting (Spotlighting x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "56.67 (45.00/70.00/55.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-spotlighting_with_delimiting (Spotlighting x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "50.06 (31.11/65.56/53.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-spotlighting_with_delimiting (Spotlighting x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "3.43 (1.11/1.67/7.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-tool_filter (Tool Filter x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/0.00/5.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-tool_filter (Tool Filter x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "3.67 (0.00/10.00/1.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-tool_filter (Tool Filter x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-transformers_pi_detector (ProtectAI x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-transformers_pi_detector (ProtectAI x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.56 (0.00/1.67/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13-transformers_pi_detector (ProtectAI x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct (None x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "10.00 (0.00/10.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct (None x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "6.15 (0.00/4.44/14.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct (None x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "11.91 (2.22/5.00/28.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-piguard_detector (PIGuard x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "3.33 (0.00/0.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-piguard_detector (PIGuard x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-piguard_detector (PIGuard x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.67 (0.00/0.00/2.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-prompt_guard_2_detector (PromptGuard2 x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "8.33 (0.00/5.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-prompt_guard_2_detector (PromptGuard2 x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "6.44 (0.00/3.33/16.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-prompt_guard_2_detector (PromptGuard2 x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "11.07 (2.78/4.44/26.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-repeat_user_prompt (Prompt Sandwiching x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "5.00 (0.00/5.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-repeat_user_prompt (Prompt Sandwiching x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "7.35 (0.00/5.56/16.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-repeat_user_prompt (Prompt Sandwiching x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "9.96 (1.67/2.22/26.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-spotlighting_with_delimiting (Spotlighting x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "10.00 (0.00/5.00/25.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-spotlighting_with_delimiting (Spotlighting x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "6.78 (0.00/3.33/17.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-spotlighting_with_delimiting (Spotlighting x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "14.85 (2.78/7.78/34.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-tool_filter (Tool Filter x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "5.00 (0.00/0.00/15.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-tool_filter (Tool Filter x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "4.65 (0.00/4.44/9.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-tool_filter (Tool Filter x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "2.52 (0.56/0.00/7.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-transformers_pi_detector (ProtectAI x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-transformers_pi_detector (ProtectAI x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "1.11 (0.00/3.33/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:meta-llama_llama-3.3-70b-instruct-transformers_pi_detector (ProtectAI x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.56 (0.00/1.67/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507 (None x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "23.33 (5.00/20.00/45.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507 (None x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "10.74 (0.56/11.67/20.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507 (None x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "22.67 (5.00/20.00/43.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-piguard_detector (PIGuard x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/0.00/5.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-piguard_detector (PIGuard x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.70 (0.00/1.10/1.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-piguard_detector (PIGuard x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.83 (0.00/0.00/5.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-prompt_guard_2_detector (PromptGuard2 x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "15.00 (5.00/10.00/30.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-prompt_guard_2_detector (PromptGuard2 x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "10.50 (2.78/7.22/21.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-prompt_guard_2_detector (PromptGuard2 x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "22.00 (8.89/16.11/41.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-repeat_user_prompt (Prompt Sandwiching x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "16.67 (5.00/15.00/30.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-repeat_user_prompt (Prompt Sandwiching x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "14.82 (3.89/15.56/25.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-repeat_user_prompt (Prompt Sandwiching x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "25.70 (11.11/20.00/46.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-spotlighting_with_delimiting (Spotlighting x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "20.00 (5.00/15.00/40.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-spotlighting_with_delimiting (Spotlighting x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "13.02 (2.78/12.78/23.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-spotlighting_with_delimiting (Spotlighting x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "27.72 (12.78/23.89/46.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-tool_filter (Tool Filter x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-tool_filter (Tool Filter x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.33 (0.00/0.00/1.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-tool_filter (Tool Filter x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.33 (0.00/0.00/1.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-transformers_pi_detector (ProtectAI x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 10 (https://arxiv.org/html/2602.03117v3#A7.T10); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-transformers_pi_detector (ProtectAI x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "0.74 (0.00/2.22/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 13 (https://arxiv.org/html/2602.03117v3#A7.T13); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "a:qwen_qwen3-235b-a22b-2507-transformers_pi_detector (ProtectAI x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.07 (0.00/2.22/1.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 16 (https://arxiv.org/html/2602.03117v3#A7.T16); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:google_gemini-2.5-flash-progent (Progent x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (0.00/5.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:google_gemini-2.5-flash-progent (Progent x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "2.04 (0.00/6.11/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:google_gemini-2.5-flash-progent (Progent x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "2.24 (0.00/2.22/4.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:google_gemini-2.5-pro-progent (Progent x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "25.00 (20.00/30.00/25.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:google_gemini-2.5-pro-progent (Progent x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "16.06 (10.56/26.11/11.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:google_gemini-2.5-pro-progent (Progent x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.59 (1.11/1.67/2.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-4o-2024-08-06-progent (Progent x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "6.67 (0.00/15.00/5.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-4o-2024-08-06-progent (Progent x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "5.83 (0.56/14.44/2.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-4o-2024-08-06-progent (Progent x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.69 (0.56/0.00/4.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-4o-mini-2024-07-18-progent (Progent x GPT-4o mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "6.67 (0.00/15.00/5.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-4o-mini-2024-07-18-progent (Progent x GPT-4o mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "3.83 (0.00/10.00/1.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-4o-mini-2024-07-18-progent (Progent x GPT-4o mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "10.33 (3.33/6.67/21.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-5-mini-2025-08-07-progent (Progent x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "23.33 (5.00/35.00/30.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-5-mini-2025-08-07-progent (Progent x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "17.63 (11.67/27.22/14.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-5-mini-2025-08-07-progent (Progent x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-5.1-2025-11-13-progent (Progent x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "15.00 (5.00/25.00/15.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-5.1-2025-11-13-progent (Progent x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "14.98 (5.56/28.89/10.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:gpt-5.1-2025-11-13-progent (Progent x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.22 (0.56/1.11/2.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:meta-llama_llama-3.3-70b-instruct-progent (Progent x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "3.33 (0.00/5.00/5.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:meta-llama_llama-3.3-70b-instruct-progent (Progent x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "2.28 (0.00/3.33/3.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:meta-llama_llama-3.3-70b-instruct-progent (Progent x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.52 (0.00/0.56/1.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:qwen_qwen3-235b-a22b-2507-progent (Progent x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "8.33 (0.00/5.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:qwen_qwen3-235b-a22b-2507-progent (Progent x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "2.19 (0.00/0.56/6.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "b:qwen_qwen3-235b-a22b-2507-progent (Progent x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "13.59 (4.44/8.33/28.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:google_gemini-2.5-flash-drift (DRIFT x Gemini-2.5 Flash)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "18.33 (10.00/25.00/20.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:google_gemini-2.5-flash-drift (DRIFT x Gemini-2.5 Flash)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "12.41 (10.00/17.22/10.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:google_gemini-2.5-flash-drift (DRIFT x Gemini-2.5 Flash)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "2.82 (3.89/0.56/4.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift (DRIFT x Gemini-2.5 Pro)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "36.67 (30.00/45.00/35.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift (DRIFT x Gemini-2.5 Pro)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "33.04 (24.44/36.67/38.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift (DRIFT x Gemini-2.5 Pro)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "1.09 (1.11/1.67/0.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-4o-2024-08-06-drift (DRIFT x GPT-4o)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "30.00 (15.00/40.00/35.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-4o-2024-08-06-drift (DRIFT x GPT-4o)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "27.09 (19.44/33.33/28.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-4o-2024-08-06-drift (DRIFT x GPT-4o)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.83 (0.00/0.00/2.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-5-mini-2025-08-07-drift (DRIFT x GPT-5-mini)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "10.00 (10.00/10.00/10.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-5-mini-2025-08-07-drift (DRIFT x GPT-5-mini)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "17.17 (18.89/21.11/11.50)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-5-mini-2025-08-07-drift (DRIFT x GPT-5-mini)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift (DRIFT x GPT-5.1)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "1.67 (5.00/0.00/0.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift (DRIFT x GPT-5.1)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "6.12 (1.11/12.24/5.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:gpt-5.1-2025-11-13-drift (DRIFT x GPT-5.1)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.00 (0.00/0.00/0.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:meta-llama_llama-3.3-70b-instruct-drift (DRIFT x Llama 3.3 70B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "11.67 (10.00/20.00/5.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:meta-llama_llama-3.3-70b-instruct-drift (DRIFT x Llama 3.3 70B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "8.96 (5.56/18.33/3.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:meta-llama_llama-3.3-70b-instruct-drift (DRIFT x Llama 3.3 70B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "5.89 (5.00/1.67/11.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:qwen_qwen3-235b-a22b-2507-drift (DRIFT x Qwen3 235B-A22B)",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "36.67 (25.00/50.00/35.00)",
+   "n": "60 (20/suite)",
+   "where": "arXiv:2602.03117v3 Table 11 (https://arxiv.org/html/2602.03117v3#A7.T11); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:qwen_qwen3-235b-a22b-2507-drift (DRIFT x Qwen3 235B-A22B)",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "33.19 (27.78/42.78/29.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 14 (https://arxiv.org/html/2602.03117v3#A7.T14); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "c:qwen_qwen3-235b-a22b-2507-drift (DRIFT x Qwen3 235B-A22B)",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "9.07 (7.78/4.44/15.00)",
+   "n": "560 (180/180/200)",
+   "where": "arXiv:2602.03117v3 Table 17 (https://arxiv.org/html/2602.03117v3#A7.T17); overall = unweighted mean of the three suite rates"
+  },
+  {
+   "arm": "no logs at pin: Claude-Sonnet-3.5 x None",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "11.89 (2.78/13.89/19.00)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15)"
+  },
+  {
+   "arm": "no logs at pin: Claude-Sonnet-4.5 x None",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "0.87 (0.00/1.11/1.50)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15)"
+  },
+  {
+   "arm": "no logs at pin: Kimi-K2.5 x None",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "11.65 (7.22/17.22/10.50)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15)"
+  },
+  {
+   "arm": "no logs at pin: Qwen3-Coder x None",
+   "metric": "asr % overall (shopping/github/dailylife)",
+   "value": "14.61 (10.00/13.33/20.50)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 15 (https://arxiv.org/html/2602.03117v3#A7.T15)"
+  },
+  {
+   "arm": "no logs at pin: Claude-Sonnet-3.5 x None",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "60.00 (45.00/70.00/65.00)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9)"
+  },
+  {
+   "arm": "no logs at pin: Claude-Sonnet-4.5 x None",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "71.67 (55.00/70.00/90.00)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9)"
+  },
+  {
+   "arm": "no logs at pin: Kimi-K2.5 x None",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "71.67 (55.00/70.00/90.00)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9)"
+  },
+  {
+   "arm": "no logs at pin: Qwen3-Coder x None",
+   "metric": "benign_utility % overall (shopping/github/dailylife)",
+   "value": "18.33 (5.00/25.00/25.00)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 9 (https://arxiv.org/html/2602.03117v3#A7.T9)"
+  },
+  {
+   "arm": "no logs at pin: Claude-Sonnet-3.5 x None",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "55.43 (46.11/66.67/53.50)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12)"
+  },
+  {
+   "arm": "no logs at pin: Claude-Sonnet-4.5 x None",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "70.74 (53.89/73.33/85.00)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12)"
+  },
+  {
+   "arm": "no logs at pin: Kimi-K2.5 x None",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "54.17 (42.22/62.78/57.50)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12)"
+  },
+  {
+   "arm": "no logs at pin: Qwen3-Coder x None",
+   "metric": "utility_under_attack % overall (shopping/github/dailylife)",
+   "value": "15.76 (3.33/24.44/19.50)",
+   "n": "n/a (no released logs)",
+   "where": "arXiv:2602.03117v3 Table 12 (https://arxiv.org/html/2602.03117v3#A7.T12)"
+  },
+  {
+   "arm": "a:gpt-4o-mini-2024-07-18-drift (DRIFT x GPT-4o mini), paper v1/v2 value",
+   "metric": "benign_utility / utility_under_attack / asr % overall (shopping/github/dailylife)",
+   "value": "v1: 28.33 (25.00/30.00/30.00) / 22.05 (20.56/26.10/19.50) / 2.72 (1.11/0.56/6.50); replaced in v3 by 18.33 / 19.31 / 3.39",
+   "n": "60 / 560 / 560",
+   "where": "arXiv:2602.03117v1 Tables 10/13/16 (https://arxiv.org/html/2602.03117v1#A4.T10) vs v3 Tables 11/14/17; the only row whose values changed between v1 and v3"
+  },
+  {
+   "arm": "Table 3 headline (GPT-4o, Gemini-2.5 Pro, Claude-Sonnet-3.5, Llama 3.3 70B; Meta SecAlign 70B)",
+   "metric": "utility no attack / under attack / ASR",
+   "value": "identical to the appendix overall values for every logged model (e.g. GPT-4o None 53.33/55.52/37.80; Gemini-2.5 Pro DRIFT 36.67/33.04/1.09); v1 Table 3 had Qwen3 235B-A22B where v3 has Claude-Sonnet-3.5, and Tool Filter moved from Prompting to System",
+   "n": "60/560/560",
+   "where": "https://arxiv.org/html/2602.03117v3#S3.T3 and https://arxiv.org/html/2602.03117v1#S3.T3"
+  },
+  {
+   "arm": "a:gpt-5-mini-2025-08-07 (None), important_instructions",
+   "metric": "AU / ASR (Table 8, Important column)",
+   "value": "64.8 / 0.4",
+   "n": "560",
+   "where": "https://arxiv.org/html/2602.03117v3#A6.T8 (v3 only)"
+  },
+  {
+   "arm": "a:gpt-5.1-2025-11-13 (None), important_instructions",
+   "metric": "AU / ASR (Table 8, Important column)",
+   "value": "50.0 / 5.0",
+   "n": "560",
+   "where": "https://arxiv.org/html/2602.03117v3#A6.T8 (v3 only)"
+  },
+  {
+   "arm": "gpt-5-mini / gpt-5.1 / Claude-Sonnet-4.5, attacks Ignore, Completion, Adaptive",
+   "metric": "AU / ASR (Table 8)",
+   "value": "gpt-5-mini 64.5/0.0, 62.3/0.4, 63.0/2.1; gpt-5.1 54.4/0.5, 52.7/1.7, 49.4/5.6; Claude-Sonnet-4.5 70.7/0.9 (Important), 70.4/0.4, 70.6/0.4, 68.2/3.0. No logs at the pin for any of these attacks; the pin has 291 gpt-5.1 `direct` files that match no column",
+   "n": "not stated",
+   "where": "https://arxiv.org/html/2602.03117v3#A6.T8"
+  },
+  {
+   "arm": "a:google_gemini-2.5-pro (None)",
+   "metric": "BU / UA / ASR recomputed from the released logs by a third party (issue #7) and by our investigation",
+   "value": "issue #7: 53.33 / 47.43 / 21.43 (paper 51.67 / 56.95 / 20.61); investigation 2026-10-07 (pooled over 560): 53.33 / 47.50 / 21.79",
+   "n": "60 / 560 / 560",
+   "where": "https://github.com/SaFo-Lab/AgentDyn/issues/7; ../AgentPROV/investigation/sources/agentdyn.md section 4.3"
+  },
+  {
+   "arm": "c:google_gemini-2.5-pro-drift (DRIFT)",
+   "metric": "BU / UA / ASR recomputed from the released logs",
+   "value": "issue #7: 36.67 / 33.04 / 1.09 = paper; investigation (pooled): 36.67 / 33.21 / 1.07",
+   "n": "60 / 560 / 560",
+   "where": "https://github.com/SaFo-Lab/AgentDyn/issues/7"
+  },
+  {
+   "arm": "DRIFT original code, gpt-4o-mini, AgentDyn suites (DRIFT repo logs, not in this corpus)",
+   "metric": "BU / UA / ASR per suite stated by the maintainer",
+   "value": "shopping 10.00/12.22/1.67; github 30.00/32.78/0.56; dailylife 15.00/16.00/7.00 [CORRECTED by fact-check: ASR 7.00 read from the maintainer comment]",
+   "n": "per suite",
+   "where": "https://github.com/SaFo-Lab/AgentDyn/issues/5 (maintainer comment 2026-04-19)"
+  },
+  {
+   "arm": "github user_task_5, 7, 8, 11 across all pipelines at the pin",
+   "metric": "utility True count (third-party recount)",
+   "value": "0 of 749 (tasks 5, 7, 8 each) and 0 of 740 (task 11): benchmark defects, not model behaviour",
+   "n": "749/749/749/740",
+   "where": "https://github.com/SaFo-Lab/AgentDyn/issues/8 (open, 2026-10-12); fix PR https://github.com/SaFo-Lab/AgentDyn/pull/9 (open)"
+  }
+ ],
+ "expected_counts": "One pin, 47,723 runs/ files (598,326,615 B) = a 38,281 (38,269 v1.k14 + 12 v1.k14.incomplete) + b 5,184 (v0.k11) + c 4,258 (drift.k18.messages); 949 src/ DRIFT copies select.owned_elsewhere (owner drift). One execution per file. Registry/README listing: a 38,281 executions (full import, import-cli-agentdyn.json), b 5,184 logs (spec, I_matrix), c 4,258 logs (phase-10l census). Paper: 60 user tasks + 560 injection cases per (model, defence); nominal cell 648 files = 60 benign + 28 injection-task-as-user pre-pass + 560 attacked. Per-part exceptions: a: gpt-5-mini tool_filter 6 aborted; gpt-5.1 +291 direct; camel 386; 14 travel strays (12 in the gpt-5-mini-progent dir, 2 qwen-2.5-72b); b: 8 dirs x 648; c: 6 dirs x 620 (no pre-pass) + gpt-5.1-drift 538 (github attacked 98/180). select.dialect_planned when importing one part = 47,723 minus that part: a 9,442, b 42,539, c 43,465 [fact-check: the prereg had b 43,465 and c 43,539, corrected]. CaMeL 386 = github 209 (20 benign + 9 pre-pass + 180) + shopping 169 (20 + 9 + 140) + dailylife 8 benign (user_task_0..7) [fact-check, GitHub tree listing].",
+ "expected_arms": "Part a: 62 directories hold part-a files (61 variant-A rows of the identity table plus the 12 travel strays in the gpt-5-mini-2025-08-07-progent directory); the 61 rows = 8 models x 7 configs (none, repeat_user_prompt, spotlighting_with_delimiting, transformers_pi_detector, piguard_detector, prompt_guard_2_detector, tool_filter) + gpt-4o-mini drift (integrated) + gpt-4o-mini camel + meta_secalign-70B/8B + qwen-2.5-72b progent strays. Part b: 8 models x progent. Part c: 7 models x drift (original code; no gpt-4o-mini). Attack facet: important_instructions (attacked), none (benign user tasks and injection-task-as-user pre-pass), direct (gpt-5.1 only, 291). Suites: shopping (20 user x 9 injection), github (20 x 9), dailylife (20 x 10), travel (14 strays, part a only). Missing vs paper design: CaMeL for 7 of 8 models; gpt-5-mini tool_filter (6 aborted); gpt-5.1 drift github 82 attacked cells; camel dailylife attacked 200, shopping attacked 40, dailylife benign 12 of 20 (only user_task_0..7 present) and dailylife pre-pass 10 [CORRECTED by fact-check, per the GitHub tree listing and INV section 4.2]; Claude/Qwen3-Coder/Kimi rows (no logs); Table 8 Ignore/Completion/Adaptive attacks. Extra vs paper: gpt-5.1 direct 291; 14 travel strays; qwen-2.5-72b progent; injection-task-as-user pre-pass files (not in any paper metric).",
+ "licence": "Repository LICENSE (blob 006aed0b22a430c0f3c6a4fb46768d967b8c3dbc) is MIT with the single copyright line of the AgentDojo authors (c) 2024; AgentDyn adds no copyright line and no separate data licence; runs/ has no licence file (https://github.com/SaFo-Lab/AgentDyn/blob/5353cf7615b135cace8d07c8f12dac53a16b6db3/LICENSE). Profile policy include, basis \"MIT as declared; not legally settled\". Vendored: CaMeL Apache-2.0; Progent and DRIFT carry no licence file of their own inside AgentDyn (the vendored progent/agentdojo copy holds AgentDojo's MIT LICENSE [CORRECTED by fact-check]; upstream sunblaze-ucb/progent and SaFo-Lab/DRIFT are MIT; DRIFT added its LICENSE 2026-07-16). Paper: arXiv non-exclusive distribution licence 1.0. HF dataset agentdyn-dataset/agentdyn has no licence (must not be used). Unassessed: model-provider terms on redistributing outputs. No use clause restricting research use found.",
+ "discrepancy_leads": [
+  "H-02 (AgentDyn issue #8, open 2026-10-12, https://github.com/SaFo-Lab/AgentDyn/issues/8): github user_task_5/7/8/11 can never reach utility=true (invitation page never stored; wrong checks). Expect 0 utility=true files for tasks 5 and 7 in parts a, b and c, and for tasks 8 and 11 in parts a and c (part b vendors different user_tasks.py: count only). Any utility=true refutes the claim for that part. Consequence: github utility is capped at 16/20 tasks; no artefacts.toml entry covers it yet.",
+  "H-03 (issue #6, https://github.com/SaFo-Lab/AgentDyn/issues/6): the released github injection_task_1 labels were scored by the pre-2026-05-02 checker (repository disappearance), which counts a legitimate transfer as attack success. Expect, in github/user_task_2/important_instructions/injection_task_1 files with security=true, at least 50% with no executed `git_delete_repo` call (tool name at the pin, github_client.py l. 276; the user task itself calls `git_transfer_repo_ownership`). No artefacts.toml entry yet.",
+  "H-05 (issue #7, https://github.com/SaFo-Lab/AgentDyn/issues/7): google_gemini-2.5-pro (None) released logs give UA 47.43 vs paper 56.95 (BU 53.33 vs 51.67, ASR 21.43 vs 20.61). Expect |UA(logs) - UA(paper)| >= 5 pp and BU, ASR within 2 pp. Likely cause (inferred): the paper row comes from the Google-API run (directory gemini-2.5-pro, present until 2d4ad05a, 2026-02-14); the OpenRouter directory google_gemini-2.5-pro at the pin was added in 73ee3416 (2026-02-03 19:22 UTC, after v1) and v2/v3 did not update the row. [CORRECTED by fact-check: earlier text said the runs were replaced in 2d4ad05a]",
+  "H-06: google_gemini-2.5-flash (None) has the same history (OpenRouter directory added in 73ee3416, Google-API directory gemini-2.5-flash removed in 2d4ad05a) [CORRECTED by fact-check]; expect at least one of BU/UA/ASR to differ from the paper (30.00/24.29/37.61) by >= 5 pp. Falsified if all three agree within 2 pp.",
+  "H-12 (generation condition, extends E2 S01/N3): the OpenAI-compatible client of the January code drops temperature 0.0 (AgentDyn #2; openai_llm.py l. 179 at de473e58) while the Google client sends 0.0 (google_llm.py l. 285). Expect identical-trajectory cell rates >= 40% for each pair of the three Google-client gemini-2.5-flash detector arms (E2: 425, 357, 275 of 648) and <= 2% for every pair of arms that both use the OpenAI-compatible client (excluding cells where both runs end in an empty reply). This explains rather than merely flags the undefended-vs-detector split.",
+  "H-04 (paper metric): paper overall = unweighted mean of three suite rates (checked: GPT-4o None UA macro 55.52 = paper, pooled 55.36). A whole-population raw recount (benign = user_task_*/none/none, attacked = important_instructions files, macro mean) should reproduce >= 90% of the 222 comparable (arm, metric) paper values within 0.05 pp; every value off by > 5 pp is a documentation-mismatch finding. Excluded from the comparison: gpt-5-mini tool_filter (6 aborted files), qwen-2.5-72b strays.",
+  "H-08: part-a gpt-4o-mini-2024-07-18-drift (integrated rerun 2026-04-19) reproduces paper v3 (18.33/19.31/3.39; per suite BU 10/35/10, UA 12.22/32.22/13.50, ASR 1.11/0.56/8.50) within 0.05 pp, and not v1 (BU 28.33). The v1 row came from superseded DRIFT-original logs (history, out of scope).",
+  "H-09: part-c gpt-5.1-2025-11-13-drift has 98 github attacked files with 12 utility=true (paper github UA 12.24 = 12/98): the paper computed this cell on the partial upload.",
+  "H-10/H-11: CaMeL (386 files, paper 0/0/0) shows 0 utility=true and 0 attacked security=true; gpt-5-mini tool_filter has 6 files with [system, user] only and no outcome keys, so the paper zeros (Tables 11/14/17) have no log support.",
+  "H-14: no file at the pin belongs to Claude-Sonnet-3.5, Claude-Sonnet-4.5, Qwen3-Coder or Kimi-K2.5 (paper v3 rows; Sonnet 4.5 has 213 superseded blobs in history only); Claude Haiku 4.5 history logs have no paper row.",
+  "H-24: gpt-5.1 has 291 `direct`-attack files (shopping 180, github 111, dailylife 0) that match no paper number (Table 8 attacks are Important/Ignore/Completion/Adaptive).",
+  "H-13 (agentdojo #219/#220/#202; https://github.com/ethz-spylab/agentdojo/issues/220): LocalLLM in the 0.1.35 code (byte-identical in the fork) turns server errors into an empty final answer and drops some calls. Expect the share of executions ending in an empty assistant reply with no tool call in meta_secalign-70B/8B to be >= 2x the pooled share of the OpenAI/OpenRouter arms of part a; falsified otherwise. (Rates reported per arm in any case; E2 N4 had 4,631 such executions corpus-wide.)",
+  "H-15: part b = vendored AgentDojo 0.1.29: 5,184/5,184 logs lack the auto-complete system line (system prompt sha256 a021a92b...), have no evaluation_timestamp/agentdojo_package_version, and carry the bare model as pipeline_name; Progent suites differ from main (user_tasks.py, github IT1, task_suite.py), so paper Progent rows are confounded with prompt and checker version (I_matrix card 5 C26).",
+  "RT-10 (phase-10l routing): private-key header strings in 4 part-c files (presumably fictional github suite data); the agentdyn profile has no [withhold] table, so withholding is untested for this corpus. Expect L1-06 to count exactly these 4 files in part c.",
+  "Paper-internal: v3 Table 9 Kimi-K2.5 None row equals the Claude-Sonnet-4.5 None row (71.67/55/70/90); Table 15 Claude-Sonnet-4.5 Prompt Sandwiching/Spotlighting dailylife ASR 1.11 is not k/200. No logs exist for these models, so not testable; documentation note only.",
+  "Released data differs from the paper description: the paper says all defences ran with the official code plus the auto-complete instruction, but part b (Progent) lacks that instruction; part c is DRIFT original code re-keyed by the authors (not the AgentDyn --defense drift path); CaMeL logs (2026-01-22) predate the repository CaMeL code (2026-04-09); README lists GEMINI_2_5_FLASH/GEMINI_2_5_PRO (Google provider) but the undefended Gemini arms at the pin are OpenRouter."
+ ],
+ "checks_not_applicable": [
+  "verify --level chain on a sealed copy with withholding: not applicable, the agentdyn profile declares no [withhold] table (RT-10 open); the chain check itself still runs on the scratch corpora",
+  "L1-07 parse/zone/monotonicity for parts b and c: no timestamp field exists (presence count 0 is the check); run-time stamps inside part-c tool outputs are content, counted only",
+  "L2 for part b through the CLI: registry import_status planned, the N.3.1 gate refuses `agentprov import agentdyn --snapshot b` (exit 5, cli.unsupported.import); L2 runs only if tools/precheck/l2_import.py (direct import_source) maps it, and results are labelled as a trial of an unsupported part",
+  "L2 outcome verdicts per arm: about 5 sampled executions per arm (< 20), so per README section 4 arm gaps are reported with Wilson intervals and no verdict; the outcome comparison with power is the whole-population raw recount pre-registered as H-04 (L1-05b)",
+  "Redaction table check: the agentdojo family declares no redact table for agentdyn; the check is the generic one (no account path in AER/SEM/PROV)",
+  "agentdyn history and part d: out of scope (opt-in history part planned; d owned by drift)"
+ ],
+ "open_questions": [
+  "May the examiner run L2 on part b (registry planned) through l2_import.py, or is part b L1-only in this pre-check?",
+  "Is the whole-population outcome recount (L1-05b, raw utility/security fields per arm) accepted as an L1 addition to README section 3? It is the only outcome test with power here.",
+  "Did the paper Gemini None rows come from the Google-API runs removed in 2d4ad05a? Testable only with the history part (out of scope).",
+  "Which code produced the January runs (repository created 2026-01-29)? Unknown; all D rules cite _unverified twins.",
+  "Should new artefacts.toml entries be proposed for the github unwinnable tasks (issue #8) and the pre-fix IT1 checker (issue #6)? Text only, routed through the orchestrator.",
+  "RT-10 withhold decision for the 4 part-c private-key files is still open (D-230..D-237 path)."
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "method": "GitHub API trees/commits/issues at the pin, arXiv HTML v1/v2/v3 table extraction, HF and Zenodo APIs; no payload download, no raw file content read",
+  "confirmed": [
+   "225/225 prereg BU/UA/ASR overall values = v3 Tables 9-17; 225/225 per-suite values in reported_results = v3 tables",
+   "v1->v3: only GPT-4o mini x DRIFT changed among 246 v1 cells; v1 = v2 tables",
+   "pin 5353cf76 = HEAD, runs/ tree 90d6d50d (76 entries), 47,723 blobs, 598,326,615 B; per-directory counts; part bytes a/b/c",
+   "LICENSE blob 006aed0b MIT, single AgentDojo (c) 2024 line; CaMeL Apache-2.0",
+   "issues #1-#9 and PR #9 states and contents; temperature lines at de473e58; LocalLLM seed; agentdojo v0.1.35 a75aba76",
+   "DRIFT 1af2672c 2026-02-04, LICENSE 6fd3df47 2026-07-16; HF sha f599709d no licence; Zenodo 1 unrelated hit"
+  ],
+  "corrected": [
+   "dialect_planned b 42,539 / c 43,465 (prereg section 2)",
+   "CaMeL also missing dailylife benign 12/20 and pre-pass 10",
+   "Gemini base-run history: OpenRouter dirs added 73ee3416 (2026-02-03, after v1), Google-API dirs removed 2d4ad05a; not 'replaced in 2d4ad05a'",
+   "issue #5 dailylife ASR 7.00",
+   "vendored progent/agentdojo carries AgentDojo MIT LICENSE",
+   "agentdojo #212 crash / #177 corruption; #209 local model only"
+  ],
+  "unverifiable": [
+   "message/tool/outcome/timestamp/secret counts (cited internal reports only)",
+   "part c produced by DRIFT original code (maintainer statement)",
+   "CaMeL run dates"
+  ]
+ }
+}

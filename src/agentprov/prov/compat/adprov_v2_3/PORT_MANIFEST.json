@@ -1,0 +1,332 @@
+{
+  "schema": "agentprov-compat-port-manifest/1",
+  "spec_id": "adprov-v2.3-compat",
+  "status": "apv:RegressionOracle",
+  "note": "A strict port (RESOLUTIONS R-31): every function and class body is AST-equal to the baseline, and import statements are the only change. The oracle MUST NOT be edited; semantics changes belong in agentprov-prov.",
+  "baseline": {
+    "repository": "AgentDojo-PROV-framework",
+    "commit": "579a908354b93361efe0905ffb7623256aa96a06",
+    "tag": "agentprov-baseline-2026-10-07"
+  },
+  "ast_digest": {
+    "algorithm": "agentprov-compat-ast-digest/1",
+    "definition": "sha256 of the compact JSON of a recursive form of ast.parse(source): [node type, [field, value]...] with None and empty-list fields dropped, constants as [python type, repr], and every import statement replaced by the marker '<import>'. Implemented by tools/compat_port.py:normalised_ast_digest."
+  },
+  "files": {
+    "build_prov.py": {
+      "baseline_path": "agentdojo_prov/build_prov.py",
+      "baseline_sha256": "7079925a632a5b246e6e448884887a8e53ba99f248cd9215fde9be9c08e7bd44",
+      "baseline_lines": 524,
+      "ast_sha256": "bb23c52e5e5b1b557bee1578e0956c6c31c8eb42d4c1033c93f9a552d8792214",
+      "port_sha256": "8f79871e4ece348310d1dc851f2b5fb4e13aa737cc9e176245bf854d5ca5f785",
+      "imports": [
+        {
+          "line": 26,
+          "end_line": 26,
+          "baseline": "from __future__ import annotations",
+          "port": "from __future__ import annotations",
+          "changed": false
+        },
+        {
+          "line": 28,
+          "end_line": 28,
+          "baseline": "import re",
+          "port": "import re",
+          "changed": false
+        },
+        {
+          "line": 29,
+          "end_line": 29,
+          "baseline": "from datetime import datetime",
+          "port": "from datetime import datetime",
+          "changed": false
+        },
+        {
+          "line": 31,
+          "end_line": 36,
+          "baseline": "from agentdojo_prov.labeling import Label, NodeRole, classify_activity, entity_integrity",
+          "port": "from agentprov.prov.compat.adprov_v2_3.labeling import Label, NodeRole, classify_activity, entity_integrity",
+          "changed": true
+        },
+        {
+          "line": 37,
+          "end_line": 37,
+          "baseline": "from agentdojo_prov.prov_emit import ProvDocumentBuilder, _sha256",
+          "port": "from agentprov.prov.compat.adprov_v2_3.prov_emit import ProvDocumentBuilder, _sha256",
+          "changed": true
+        },
+        {
+          "line": 251,
+          "end_line": 251,
+          "baseline": "import yaml",
+          "port": "from agentprov.prov.compat.adprov_v2_3 import yaml_shim as yaml",
+          "changed": true
+        }
+      ]
+    },
+    "prov_emit.py": {
+      "baseline_path": "agentdojo_prov/prov_emit.py",
+      "baseline_sha256": "021b2d5ad8e455024f89322a760250a491026586f82dd66caace7bd33f5fef34",
+      "baseline_lines": 253,
+      "ast_sha256": "02c3ad6b09e0a717483bac19b407d16e5d74886f90a792ec37beb5f278fd801c",
+      "port_sha256": "021b2d5ad8e455024f89322a760250a491026586f82dd66caace7bd33f5fef34",
+      "imports": [
+        {
+          "line": 9,
+          "end_line": 9,
+          "baseline": "from __future__ import annotations",
+          "port": "from __future__ import annotations",
+          "changed": false
+        },
+        {
+          "line": 11,
+          "end_line": 11,
+          "baseline": "import hashlib",
+          "port": "import hashlib",
+          "changed": false
+        },
+        {
+          "line": 12,
+          "end_line": 12,
+          "baseline": "import json",
+          "port": "import json",
+          "changed": false
+        },
+        {
+          "line": 13,
+          "end_line": 13,
+          "baseline": "from datetime import datetime, timezone",
+          "port": "from datetime import datetime, timezone",
+          "changed": false
+        },
+        {
+          "line": 14,
+          "end_line": 14,
+          "baseline": "from pathlib import Path",
+          "port": "from pathlib import Path",
+          "changed": false
+        },
+        {
+          "line": 15,
+          "end_line": 15,
+          "baseline": "from typing import Any",
+          "port": "from typing import Any",
+          "changed": false
+        }
+      ]
+    },
+    "labeling.py": {
+      "baseline_path": "agentdojo_prov/labeling.py",
+      "baseline_sha256": "943d9b530a292ae5841be88f93e6a2a942dfe1d8baa4cc4666fe519aa31fc5f1",
+      "baseline_lines": 175,
+      "ast_sha256": "f050f2180a9a6b51138def5687d78cd077f4023631d1fed1b4f0ba936250336c",
+      "port_sha256": "943d9b530a292ae5841be88f93e6a2a942dfe1d8baa4cc4666fe519aa31fc5f1",
+      "imports": [
+        {
+          "line": 1,
+          "end_line": 1,
+          "baseline": "from __future__ import annotations",
+          "port": "from __future__ import annotations",
+          "changed": false
+        },
+        {
+          "line": 3,
+          "end_line": 3,
+          "baseline": "from enum import Enum",
+          "port": "from enum import Enum",
+          "changed": false
+        }
+      ]
+    },
+    "validate.py": {
+      "baseline_path": "agentdojo_prov/validate.py",
+      "baseline_sha256": "df8e49be9c072c0ae33de3a77d6a49c294d3519c4ca43d25f2051fb054a2cf0e",
+      "baseline_lines": 453,
+      "ast_sha256": "8dae68d138e4cb44fd308f273ded1d320a3b76fc626f25d3cf555192b56e2a77",
+      "port_sha256": "f54517e487e215135c03de029cd8825741c91cc3cb5060d2f9d8a4c0ce608819",
+      "imports": [
+        {
+          "line": 12,
+          "end_line": 12,
+          "baseline": "from __future__ import annotations",
+          "port": "from __future__ import annotations",
+          "changed": false
+        },
+        {
+          "line": 14,
+          "end_line": 14,
+          "baseline": "from dataclasses import dataclass, field",
+          "port": "from dataclasses import dataclass, field",
+          "changed": false
+        },
+        {
+          "line": 16,
+          "end_line": 16,
+          "baseline": "from agentdojo_prov.prov_emit import ADPROV_NS",
+          "port": "from agentprov.prov.compat.adprov_v2_3.prov_emit import ADPROV_NS",
+          "changed": true
+        },
+        {
+          "line": 263,
+          "end_line": 263,
+          "baseline": "from agentdojo_prov.build_prov import _timestamp",
+          "port": "from agentprov.prov.compat.adprov_v2_3.build_prov import _timestamp",
+          "changed": true
+        }
+      ]
+    },
+    "conformance.py": {
+      "baseline_path": "agentdojo_prov/conformance.py",
+      "baseline_sha256": "9648d0fd6a363decf682ef98c6d6061d55e109f1fe6839372159b2c026282ead",
+      "baseline_lines": 607,
+      "ast_sha256": "a8c2c7b6de5529d3a56e0b80c153df75d80dadbd0e4346ab64112abc1edeab8a",
+      "port_sha256": "72796cff45c98317e64d7749462f8109fb0ea5a268d4c4071b9b1a5d42113d1a",
+      "imports": [
+        {
+          "line": 43,
+          "end_line": 43,
+          "baseline": "from __future__ import annotations",
+          "port": "from __future__ import annotations",
+          "changed": false
+        },
+        {
+          "line": 45,
+          "end_line": 45,
+          "baseline": "import json",
+          "port": "import json",
+          "changed": false
+        },
+        {
+          "line": 46,
+          "end_line": 46,
+          "baseline": "from dataclasses import dataclass, field",
+          "port": "from dataclasses import dataclass, field",
+          "changed": false
+        },
+        {
+          "line": 47,
+          "end_line": 47,
+          "baseline": "from typing import Any, Dict, List, Optional, Sequence",
+          "port": "from typing import Any, Dict, List, Optional, Sequence",
+          "changed": false
+        },
+        {
+          "line": 49,
+          "end_line": 49,
+          "baseline": "from agentdojo_prov.prov_emit import ADPROV_NS",
+          "port": "from agentprov.prov.compat.adprov_v2_3.prov_emit import ADPROV_NS",
+          "changed": true
+        },
+        {
+          "line": 50,
+          "end_line": 50,
+          "baseline": "from agentdojo_prov.validate import validate_prov_document",
+          "port": "from agentprov.prov.compat.adprov_v2_3.validate import validate_prov_document",
+          "changed": true
+        },
+        {
+          "line": 262,
+          "end_line": 262,
+          "baseline": "from prov.model import ProvDocument",
+          "port": "from prov.model import ProvDocument",
+          "changed": false
+        },
+        {
+          "line": 263,
+          "end_line": 263,
+          "baseline": "import rdflib",
+          "port": "import rdflib",
+          "changed": false
+        },
+        {
+          "line": 264,
+          "end_line": 264,
+          "baseline": "from rdflib.compare import isomorphic, to_isomorphic",
+          "port": "from rdflib.compare import isomorphic, to_isomorphic",
+          "changed": false
+        },
+        {
+          "line": 314,
+          "end_line": 314,
+          "baseline": "from pyshacl import validate as shacl_validate",
+          "port": "from pyshacl import validate as shacl_validate",
+          "changed": false
+        },
+        {
+          "line": 330,
+          "end_line": 330,
+          "baseline": "import rdflib",
+          "port": "import rdflib",
+          "changed": false
+        },
+        {
+          "line": 336,
+          "end_line": 336,
+          "baseline": "import rdflib",
+          "port": "import rdflib",
+          "changed": false
+        },
+        {
+          "line": 337,
+          "end_line": 337,
+          "baseline": "from prov.model import ProvDocument",
+          "port": "from prov.model import ProvDocument",
+          "changed": false
+        },
+        {
+          "line": 397,
+          "end_line": 397,
+          "baseline": "import rdflib",
+          "port": "import rdflib",
+          "changed": false
+        },
+        {
+          "line": 398,
+          "end_line": 398,
+          "baseline": "from rdflib import RDF, URIRef",
+          "port": "from rdflib import RDF, URIRef",
+          "changed": false
+        },
+        {
+          "line": 452,
+          "end_line": 452,
+          "baseline": "from datetime import datetime",
+          "port": "from datetime import datetime",
+          "changed": false
+        },
+        {
+          "line": 571,
+          "end_line": 571,
+          "baseline": "from prov.model import ProvDocument",
+          "port": "from prov.model import ProvDocument",
+          "changed": false
+        }
+      ]
+    }
+  },
+  "rewrites": [
+    {
+      "kind": "package",
+      "from": "from agentdojo_prov.<module> import ...",
+      "to": "from agentprov.prov.compat.adprov_v2_3.<module> import ...",
+      "reason": "the oracle's own modules are addressed inside the new package"
+    },
+    {
+      "kind": "yaml",
+      "file": "build_prov.py",
+      "from": "import yaml",
+      "to": "from agentprov.prov.compat.adprov_v2_3 import yaml_shim as yaml",
+      "reason": "R-31 / AD-17: PyYAML is imported only by agentprov.ingest.yamlsafe; yaml_shim.safe_load is the only route. The body's yaml.safe_load(content) is untouched. The parsed fallback is reached on 7 outputs of the frozen corpora, none with aliases or duplicate keys, all below 1 KiB (MR-3)."
+    }
+  ],
+  "glue": [
+    "__init__.py",
+    "serialise.py",
+    "yaml_shim.py"
+  ],
+  "adprov_ttl": {
+    "port_path": "adprov.ttl",
+    "baseline_path": "docs/ns/adprov.ttl",
+    "sha256": "4a9dcf4a0687c1ae9a2fc0b5acf14be630a7b94e591ab909df83b753c023dca3"
+  }
+}

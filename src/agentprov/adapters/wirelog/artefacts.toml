@@ -1,0 +1,168 @@
+# Artefact catalogue `wirelog` (docs/architecture D.20.11, D.15.2; DECISIONS D-281..D-285). Data, not code.
+#
+# Every source-data problem of Zenodo 21944598 found by the phase-10m census, with the rule that detects it, how it is
+# recorded and its handling class (D.15.1). The `expected` counts are the census's for the pinned snapshot; they stay
+# `unverified` until a full import confirms them (D.15.6): a regression expectation, never a gate.
+#
+# Claims are specific: an entry claims a safety-net finding only through a rule, `claims` item or issue code of its own
+# case. Cases no AER field read by the net carries (the deposit's non-run files, the synthetic-tools disclosure) name a
+# `reserved` detector rule of the wirelog catalogue, so they claim nothing. The version stays 1: nothing is released.
+
+version = 1
+family = "wirelog"
+namespaces = ["wirelog"]
+
+[[artefact]]
+id = "wirelog.art.non_run_members"
+title = "Deposit files that are not runs"
+description = "The paper, README, citation, licences, harness and scoring scripts, the example environment file and the statistics output sit beside the runs; they are outside the include globs, stay not_selected members of the archive input and are never decompressed or mapped. results.csv and attacks.json are read as auxiliaries."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.non_run_member@1", class = "D" }
+handling = { class = "FO", rule = "wirelog.non_run_member@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 20, basis = "phase-10m census (22 top-level files, 2 read as auxiliaries)", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3"]
+
+[[artefact]]
+id = "wirelog.art.synthetic_tools"
+title = "Synthetic tools"
+description = "By design no real system was used: read_file answers from the harness's own documents and send_email sends nothing and returns a constant. The runtime actor is the harness's synthetic dispatcher (ext.wirelog.synthetic); the profile and the datasheet say so, and no record claims that a file was read or a mail was sent."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.synthetic_tools_disclosure@1", class = "D" }
+handling = { class = "FO", rule = "wirelog.synthetic_tools_disclosure@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 2001, basis = "phase-10m census (1,245 read_file, 756 send_email results)", unit = "results", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-284", "docs/reports/phase10m/README.md §A.3"]
+
+[[artefact]]
+id = "wirelog.art.metadata_channel_payload"
+title = "Payload delivered in tool metadata"
+description = "In the tool-description and parameter-description arms the payload is part of the tool configuration, not of any tool result, so injection markers (on tool results) find it absent, and a run without a tool call has no marker at all. The tool_definitions fixture is marked untrusted and the payload fixture records where the request log carries it (found_in)."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.integrity_tool_definitions@1", class = "I" }
+recorded_as = { sem = ["integrity"] }
+claims = ["artefact.generic.payload_not_reaching_agent#absent", "artefact.generic.payload_not_reaching_agent#no_marker"]
+handling = { class = "CR", rule = "wirelog.integrity_tool_definitions@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 646, basis = "phase-10m census (586 tool-description, 60 parameter-description runs)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10m/README.md §A.3 (joins)"]
+
+[[artefact]]
+id = "wirelog.art.first_batch_payload_in_code"
+title = "First-batch payloads exist only in the harness code"
+description = "The first batch's four attacked ticket variants are constants of run_trials.py, not data, so there is no payload fixture and no injection marker; the delivered document is recognised by its digest (SEM integrity untrusted and author attacker)."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.first_batch_document@1", class = "D" }
+recorded_as = { sem = ["integrity", "author"] }
+claims = ["artefact.generic.payload_not_reaching_agent#no_marker"]
+handling = { class = "FO", rule = "wirelog.first_batch_document@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 288, basis = "phase-10m census (358 first-batch runs, 70 clean)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10m/README.md §A.3 (joins)"]
+
+[[artefact]]
+id = "wirelog.art.payload_not_delivered"
+title = "Payload never delivered"
+description = "A tool-result arm whose run never called the tool that returns the poisoned document: the payload fixture is kept, no request carries it (wirelog.payload_not_delivered) and the markers are absent."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "provider"
+detector = { rule = "wirelog.payload_located@1", class = "D" }
+recorded_as = { issues = ["wirelog.payload_not_delivered"] }
+claims = ["artefact.generic.payload_not_reaching_agent#absent"]
+handling = { class = "FO", rule = "wirelog.payload_located@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 1, basis = "phase-10m census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3 (joins)"]
+
+[[artefact]]
+id = "wirelog.art.meta_rewritten"
+title = "Run metadata rewritten after the run"
+description = "The first batch's meta.json files carry a source_dir naming their original directory and a run_id equal to the renamed one: they were rewritten when the runs were moved into runs_named/. Values kept verbatim, disclosed, never corrected."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.meta_rewritten@1", class = "D" }
+recorded_as = { issues = ["wirelog.meta_rewritten"] }
+handling = { class = "FO", rule = "wirelog.meta_rewritten@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 358, basis = "phase-10m census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10m/README.md §A.3.5"]
+
+[[artefact]]
+id = "wirelog.art.final_texts_not_logged"
+title = "No split of the final text"
+description = "The earliest 154 runs predate the harness's split of the final text into user-facing text and reasoning (final_user_text.txt, final_reasoning.txt) and the token totals in meta.json: disclosed; the usage check is unverifiable for them (the counts are in the responses)."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "upstream_harness"
+detector = { rule = "wirelog.final_texts_not_logged@1", class = "D" }
+recorded_as = { issues = ["wirelog.final_texts_not_logged"] }
+claims = ["artefact.generic.accounting_unverifiable#wirelog.acc.usage_totals@1"]
+handling = { class = "NR" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 154, basis = "phase-10m census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3"]
+
+[[artefact]]
+id = "wirelog.art.outcome_at_save"
+title = "Outcome labels written by the harness"
+description = "outcome.txt is the harness's own label at save time (origin harness_rule) and outcome_v2.txt a later re-derivation (origin recomputed, revising it); the results table's columns are the deposit's scoring (origin checker). All are kept verbatim beside each other."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.outcome_file_unverified@1", class = "I" }
+claims = ["artefact.generic.harness_imposed_outcome#harness_rule"]
+handling = { class = "CR", rule = "wirelog.outcome_file_unverified@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 1334, basis = "phase-10m census (358 with outcome_v2)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3"]
+
+[[artefact]]
+id = "wirelog.art.event_times_not_recorded"
+title = "Only the save time is logged"
+description = "No request, response or tool call carries a time; the only clock value is meta.json's save timestamp, kept verbatim in the run scope's t.raw.end with the typed end ambiguous (class I reading); provider latencies state no clock (t.dur_s ambiguous). Nothing is invented."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "upstream_harness"
+detector = { rule = "wirelog.save_timestamp_unverified@1", class = "I" }
+claims = ["artefact.generic.sentinel_time#unknown_not_recorded", "artefact.generic.sentinel_time#unknown_ambiguous"]
+handling = { class = "NR" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 1334, basis = "phase-10m census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3 (time)"]
+
+[[artefact]]
+id = "wirelog.art.anthropic_messages_run"
+title = "One run in another wire format"
+description = "Run 0001 holds Anthropic Messages request and response bodies, which no shipped script sends; it is mapped by the anthropic-messages variant with the same AER shape (calls paired by tool_use id; served model and response id recorded)."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "upstream_harness"
+detector = { rule = "wirelog.call_id_unique_match@1", class = "D" }
+handling = { class = "CR", rule = "wirelog.call_id_unique_match@1" }
+expected = [{ snapshot = "what-surrounds:runs-named", count = 1, basis = "phase-10m census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-283"]
+
+[[artefact]]
+id = "wirelog.art.context_diverges"
+title = "A request does not extend the previous one"
+description = "A request whose items differ from the previous request's (or that does not echo the previous response) starts new records for the differing items and is disclosed; nothing is aligned by position. None in the pinned snapshot."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "upstream_harness"
+detector = { rule = "wirelog.request_prefix@1", class = "D" }
+recorded_as = { issues = ["wirelog.context_diverges"] }
+handling = { class = "FO", rule = "wirelog.request_prefix@1" }
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3"]
+
+[[artefact]]
+id = "wirelog.art.label_field_mismatch"
+title = "Directory name and records disagree"
+description = "The run directory's model, arm or number differs from the logged model, meta.json or the results row: recorded and never corrected. None in the pinned snapshot."
+scope = { sources = ["what-surrounds"], profiles = ["what-surrounds"], parts = ["runs-named"] }
+cause = "benchmark"
+detector = { rule = "wirelog.run_dir_layout@1", class = "D" }
+recorded_as = { issues = ["wirelog.label_field_mismatch"] }
+handling = { class = "FO", rule = "wirelog.run_dir_layout@1" }
+manuscript = false
+refs = ["docs/reports/phase10m/README.md §A.3"]

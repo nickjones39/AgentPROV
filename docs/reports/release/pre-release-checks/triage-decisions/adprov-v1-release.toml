@@ -1,0 +1,26 @@
+# Release-scan triage decisions for adprov-v1-release (C-3, D-920): by class, never by value.
+# Source: docs/reports/release/pre-release-checks.md (table 4b, table 4c, check 3, item 6).
+format = "agentprov-triage-decisions/0.1"
+root_digest = "sha256:f90e6d33634da679ed4be35718f420b3ebae7d32887da970413d447a5cf514a1"
+
+[[secret]]
+rule = "generic-api-key"
+key = "password"
+origin = "model-generated"
+triage = "model-generated"
+findings = 2
+reason = "model output: the value is in a record the model wrote, kept and disclosed (pre-release check 4b, user-approved 2026-10-28, item 2)"
+
+[[secret]]
+rule = "generic-api-key"
+key = "password"
+origin = "upstream-data"
+triage = "synthetic-benchmark"
+findings = 2
+reason = "benchmark fixture data: a token of the line occurs in the benchmark's own suite data (pre-release check 4b, user-approved 2026-10-28, item 2)"
+
+[[account]]
+ordinal = 1
+triage = "synthetic-benchmark"
+hits = {aer = 6, prov = 6, "raw-object" = 6}
+reason = "an account name in the benchmark's own data (a persona of the suite), written into paths: the AgentDojo suite data (pre-release check 4c)"

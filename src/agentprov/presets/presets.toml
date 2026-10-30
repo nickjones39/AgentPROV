@@ -1,0 +1,89 @@
+# AgentPROV host presets (MN N.2.1a; DECISIONS D-10). Data, not code: read through importlib.resources by
+# agentprov.presets (no __init__.py in this directory; the module agentprov/presets.py wins the import).
+#
+# Every value here is recorded in the corpus.json producer block as preset{name, version, resolved{...}} (N.2.1a(2)).
+# `calibrated = true` means measured on the target machine with `run --tune-jobs` (D-823); each compute row says
+# whether its value is measured or still provisional. `version` is bumped whenever any value changes.
+
+format = 1
+
+[presets.m5ultra]
+version = 2
+calibrated = true
+calibration = "docs/reports/mac-studio-calibration/README.md"
+description = "Mac Studio M5 Ultra, 80-core GPU, 256 GB unified memory (about 1.2 TB/s), oMLX on loopback"
+endpoint = "omlx"
+start_stagger_per_worker_s = 1      # worker i starts at i s, so the first request warms oMLX's prefix cache
+request_timeout_s = 900
+gpu_budget_fraction = 0.75          # M_budget = fraction x physical memory
+reserve_gib = 16                    # R = reserve_gib + per_worker_reserve_gib x workers
+per_worker_reserve_gib = 0.5
+default_context_tokens = 32768
+kv_bytes = 2
+kv_trace_fallback_gib = 4           # KV_trace when layers, kv_heads or head_dim are unknown
+server_max_concurrency_default = 8  # oMLX --max-concurrent-requests default
+
+[presets.m5ultra.expected_host]
+os_family = "darwin"
+arch = "arm64"
+min_memory_gib = 240
+
+# J_compute from the active parameter count A (billions): the first row whose max_active_params_b >= A applies;
+# a row without max_active_params_b is the catch-all (A > the previous bound). Unknown A uses the LAST (most
+# conservative) row. Rows are ordered by increasing bound.
+# v2: the <= 15 B row is measured (Qwen3.8-Flash-Next Q4, 6 B active: the throughput knee is 4 jobs, on a quiet machine
+# too). No model above 15 B active was measured; those rows are capped at the measured 4 (v1 had 6 and 4), because a
+# larger model should not get more concurrent jobs than a smaller one on the same server.
+[[presets.m5ultra.compute_caps]]
+max_active_params_b = 15
+jobs = 4
+basis = "measured"
+
+[[presets.m5ultra.compute_caps]]
+max_active_params_b = 40
+jobs = 4
+basis = "provisional"
+
+[[presets.m5ultra.compute_caps]]
+jobs = 4
+basis = "provisional"
+
+# D-826: the local-run estimate's time per cell, from the recommended arm (jobs 4) of the quiet re-measure.
+# p50 = the arm's wall x jobs / cells (85.642 s x 4 / 24); p90 = p50 x the cells' p90 / mean run span
+# (20.207 / 10.509 s). No catch-all row: a model above 15 B active, or of unknown size, keeps the priors' time.
+[[presets.m5ultra.cell_seconds]]
+max_active_params_b = 15
+p50 = 14.3
+p90 = 27.4
+jobs = 4
+source = "docs/reports/mac-studio-calibration/tune-jobs/qwen3.8-flash-next-q4-remeasure-2026-10-28/tune-jobs.json"
+
+[[presets.m5ultra.evidence]]
+claim = "oMLX aggregate generation throughput on an M3 Ultra (Qwen3.5-122B-A10B, 4-bit): 56.6, 92.1, 135.1 and 190.2 tok/s at 1, 2, 4 and 8 concurrent requests"
+source = "oMLX published benchmark"
+
+[[presets.m5ultra.evidence]]
+claim = "oMLX scales less on agent prompts of about 4.3K tokens than on chat prompts"
+source = "SiliconBench, arXiv 2609.19169"
+
+[[presets.m5ultra.evidence]]
+claim = "108 tok/s from a single stream on an M5 Ultra"
+source = "MacStories measurement"
+
+[[presets.m5ultra.evidence]]
+claim = "oMLX server limit --max-concurrent-requests defaults to 8"
+source = "oMLX documentation"
+
+# v2 measurements (2026-10-28, software 8d187c61, environment agentdojo-db3901f1, oMLX on loopback, gateway_compat;
+# 24 cells per arm: banking, slack, travel, workspace x user tasks 0-2, benign and important_instructions).
+[[presets.m5ultra.evidence]]
+claim = "Qwen3.8-Flash-Next-UD-Q4_K_XL (6 B active, 103.7 GiB): 429, 724, 968, 872, 780 and 869 traces/h at 1, 2, 4, 6, 8 and 12 jobs, every cell conclusive, no timeouts; recommended 4. Measured under load: load average 7-11 for jobs 1-4 and 22-39 for jobs 6-12 (shared queue tickets)"
+source = "docs/reports/mac-studio-calibration/tune-jobs/qwen3.8-flash-next-q4-2026-10-28/tune-jobs.json sha256:f7869e012322133e37cb6f61765b4b22be33e9e57c5173423f5160464535b32d"
+
+[[presets.m5ultra.evidence]]
+claim = "Quiet re-measure of the same model (exclusive ticket, load average 2.3-4.5): 1009 traces/h at 4 jobs, 834 at 6; generation about 222 tok/s at both, so jobs above 4 only lengthen each cell; recommended 4"
+source = "docs/reports/mac-studio-calibration/tune-jobs/qwen3.8-flash-next-q4-remeasure-2026-10-28/tune-jobs.json sha256:bd9f9fcc79a1500a5a33ee4e6db28b6cb94d413b7c0b7f2612759f6e5643c17c"
+
+[[presets.m5ultra.evidence]]
+claim = "Qwen3.5-4B-MLX-4bit: the campaign canary stopped the sweep after 10 cells at 1 job (A4: 1 of 41 calls looked like a text-encoded tool call); no recommendation, so the model does not calibrate this preset"
+source = "docs/reports/mac-studio-calibration/tune-jobs/qwen3.5-4b-2026-10-28/tune-jobs.json sha256:13f209cc3ccc23413935f52bc0cdea12be72981be9fe52068b80b263206feefd"

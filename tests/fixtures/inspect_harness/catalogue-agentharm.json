@@ -1,0 +1,232 @@
+{
+ "backend": "inspect-agentharm",
+ "benchmark": "agentharm",
+ "dataset": {
+  "repo": "ai-safety-institute/AgentHarm",
+  "revision": "e23b3fe60a0da9037314b88e5ee3a0c054970dad"
+ },
+ "format": "agentprov-inspect-catalogue/0.1",
+ "inspect_ai": "0.3.263",
+ "tasks": [
+  {
+   "default_solver": "default",
+   "fixed": {
+    "max_messages": 20,
+    "max_retries": 3,
+    "max_tokens": 4096,
+    "seed": 0,
+    "temperature": 0.0
+   },
+   "name": "inspect_evals/agentharm",
+   "params": [
+    {
+     "choices": [
+      "test_public",
+      "val"
+     ],
+     "default": "test_public",
+     "name": "split",
+     "type": "str"
+    },
+    {
+     "choices": [
+      "default",
+      "refusal"
+     ],
+     "default": "default",
+     "name": "agent",
+     "type": "str"
+    },
+    {
+     "default": null,
+     "name": "detailed_behaviors",
+     "type": "bool|null"
+    },
+    {
+     "default": null,
+     "name": "hint_included",
+     "type": "bool|null"
+    },
+    {
+     "default": 0,
+     "maximum": 64,
+     "minimum": 0,
+     "name": "n_irrelevant_tools",
+     "type": "int"
+    },
+    {
+     "choices": [
+      "auto",
+      "forced_first",
+      "none"
+     ],
+     "default": "auto",
+     "maps_to": "agent_kwargs.tool_choice",
+     "name": "tool_choice",
+     "type": "str"
+    },
+    {
+     "choices": [
+      "standard",
+      "cot",
+      "react",
+      "refusal"
+     ],
+     "default": "standard",
+     "maps_to": "agent_kwargs.prompt_technique",
+     "name": "prompt_technique",
+     "type": "str"
+    }
+   ],
+   "scorers": [
+    {
+     "judge_roles": [
+      {
+       "calls_per_sample": "varies",
+       "default_model": "openai/gpt-4o-2024-08-06",
+       "role": "refusal_judge"
+      },
+      {
+       "calls_per_sample": "varies",
+       "default_model": "openai/gpt-4o-2024-08-06",
+       "role": "semantic_judge"
+      }
+     ],
+     "name": "combined_scorer"
+    }
+   ],
+   "solvers": [
+    "default",
+    "refusal"
+   ],
+   "splits": [
+    {
+     "name": "test_public",
+     "samples": 176,
+     "tool_definition_chars": {
+      "max": 3286,
+      "mean": 1321
+     }
+    },
+    {
+     "name": "val",
+     "samples": 32,
+     "tool_definition_chars": {
+      "max": 1439,
+      "mean": 953
+     }
+    }
+   ]
+  },
+  {
+   "default_solver": "default",
+   "fixed": {
+    "max_messages": 20,
+    "max_retries": 3,
+    "max_tokens": 4096,
+    "seed": 0,
+    "temperature": 0.0
+   },
+   "name": "inspect_evals/agentharm_benign",
+   "params": [
+    {
+     "choices": [
+      "test_public",
+      "val"
+     ],
+     "default": "test_public",
+     "name": "split",
+     "type": "str"
+    },
+    {
+     "choices": [
+      "default",
+      "refusal"
+     ],
+     "default": "default",
+     "name": "agent",
+     "type": "str"
+    },
+    {
+     "default": null,
+     "name": "detailed_behaviors",
+     "type": "bool|null"
+    },
+    {
+     "default": null,
+     "name": "hint_included",
+     "type": "bool|null"
+    },
+    {
+     "default": 0,
+     "maximum": 64,
+     "minimum": 0,
+     "name": "n_irrelevant_tools",
+     "type": "int"
+    },
+    {
+     "choices": [
+      "auto",
+      "forced_first",
+      "none"
+     ],
+     "default": "auto",
+     "maps_to": "agent_kwargs.tool_choice",
+     "name": "tool_choice",
+     "type": "str"
+    },
+    {
+     "choices": [
+      "standard",
+      "cot",
+      "react",
+      "refusal"
+     ],
+     "default": "standard",
+     "maps_to": "agent_kwargs.prompt_technique",
+     "name": "prompt_technique",
+     "type": "str"
+    }
+   ],
+   "scorers": [
+    {
+     "judge_roles": [
+      {
+       "calls_per_sample": "varies",
+       "default_model": "openai/gpt-4o-2024-08-06",
+       "role": "refusal_judge"
+      },
+      {
+       "calls_per_sample": "varies",
+       "default_model": "openai/gpt-4o-2024-08-06",
+       "role": "semantic_judge"
+      }
+     ],
+     "name": "combined_scorer"
+    }
+   ],
+   "solvers": [
+    "default",
+    "refusal"
+   ],
+   "splits": [
+    {
+     "name": "test_public",
+     "samples": 176,
+     "tool_definition_chars": {
+      "max": 3270,
+      "mean": 1321
+     }
+    },
+    {
+     "name": "val",
+     "samples": 32,
+     "tool_definition_chars": {
+      "max": 1440,
+      "mean": 921
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+import sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "tests/adapters/inspect")
+from inspect_support import import_log
+from agentprov.adapters.profiles import load_profile
+data = Path(sys.argv[1]).read_bytes()
+with tempfile.TemporaryDirectory(dir="repro/D4-1") as d:
+    imp = import_log(data, Path(d), path="x.eval", profile=load_profile(sys.argv[2]))
+    for u in imp.units[:2]:
+        for j in u.of_kind("judgement"):
+            print(j["id"], j["name"], j["actor"], j.get("generated_by"), j["value"])

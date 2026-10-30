@@ -1,0 +1,16 @@
+--- a/.github/workflows/ci.yml	2026-10-13 08:56:02
++++ b/.github/workflows/ci.yml	2026-10-13 08:56:02
+@@ -204,6 +204,13 @@
+         run: uv run agentprov backends build autodojo --offline-check
+       - name: Core build test (backend_autodojo)
+         run: uv run pytest tests/integration/test_backends_build_autodojo.py tests/cli/test_backends_cmd.py
++      # Phase 9b: `agentprov run autodojo` end to end with the real worker and the scripted transport (no model, no key):
++      # the verified cache, a forced kill, the refusals, AgentDyn and v2 suites, live recompute (D.11.3, D.11.7, D.11.9).
++      # The test builds its own environment into a temporary home; on a runner without the uv cache it needs the network.
++      - name: End-to-end scripted runs (backend_autodojo)
++        run: uv run pytest tests/integration/test_run_live_autodojo.py
++        env:
++          AGENTPROV_TEST_BUILD_NETWORK: "1"
+       - name: Harness environment (locked, Python 3.12, in-project)
+         run: uv sync --locked --python 3.12 --project backends/autodojo
+       - name: Harness tests (offline, socket guard, scripted model)

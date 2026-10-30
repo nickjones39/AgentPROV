@@ -1,0 +1,21 @@
+import sys, traceback
+sys.path.insert(0, "repro/D4-4")
+from agentprov.adapters.inspect import mapper as M
+cls = [c for c in vars(M).values() if isinstance(c, type) and hasattr(c, "_link_result")][0]
+orig = cls._link_result
+def wrapped(self, msg, rec):
+    try:
+        return orig(self, msg, rec)
+    except Exception:
+        traceback.print_exc(limit=-2); raise
+cls._link_result = wrapped
+exec(open("repro/D4-4/repro.py").read().replace('run("int id (hashable, non-str)", 12345)\n', '').replace('run("dict id", {"a": 1})', ''))
+print("---- with fix")
+src = open(M.__file__).read()
+def fixed(self, msg, rec):
+    tid = msg.value.get("tool_call_id")
+    if not isinstance(tid, str):
+        msg.value = dict(msg.value); msg.value["tool_call_id"] = None
+    return orig(self, msg, rec)
+cls._link_result = fixed
+run("list id (guarded)", ["call_synthetic_1"])

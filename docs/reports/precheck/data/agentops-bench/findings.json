@@ -1,0 +1,257 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "agentops-bench",
+ "findings": [
+  {
+   "id": "PC-agentops-bench-01",
+   "title": "[CC-11, CC-03] Named third-party /Users/ account path (1 name) in run_python output of 13 in-scope run files (42 raw-store files: 36 run + 6 side); D-199 would map it into AER",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": true,
+   "part": "pilot-v1-seeded",
+   "check": "L1-06 / H12",
+   "evidence": "L1-06: account:users-dir:named in 13/3360 artefacts, 30 strings, pointers result/stdout 13, result 12, result/stderr 5; named_accounts_distinct users-dir 1. Raw census: all 30 in tool run_python results (runs: /result 9, /result/stdout 10, /result/stderr 1; union 13); 0 hits in any non-trace field (agent_id, condition, run_number, task_id, scores). L1-10 screened 0 context files (archive input, no aux). Already catalogued as agentops.art.operator_account_path (13 in scope / 36 all) with D-199 'kept as tool output', which conflicts with D-182 and with the user decision of 2026-10-15 (third-party account path in any raw-store file = security finding). Not yet in AER/SEM/PROV only because L2 is blocked; on import under D-199 it would reach AER message content, i.e. a CC-03 S0 escalation. VERIFIER: full-record scan: 13 in-scope runs, 30 strings, only in tool results; all files 36 run files + 6 side files = 42; not the operator.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/raw.py ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz <W>/exam/raw-census.json (H12.by_class, distinct_names); l1-pilot-v1-seeded.json /L1-06",
+   "hypothesis_ref": "H12 (supported: exactly 13 runs, 0 identity fields)",
+   "recommendation": "Report to the orchestrator now. Before any import: a D-182 redaction rule (path-segment replacement in tool output, stdout and stderr, not only tracebacks) or a [withhold] at seal covering all 42 raw-store files (36 run + 6 side, CC-11 precedent), plus the release_scan home-path detector; the account name is never written.",
+   "artefact_proposal": "update agentops.art.operator_account_path: add security=true, the CC-11 route and 'redaction required before import (D-182 supersedes D-199)'",
+   "agents_md_12": "D-199 vs D-182 conflict for agentops-bench: decision needed before the first import",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "raw.py re-run byte-identical to raw-census.json. Independent full-record scan (every string of every record, no trailing-slash requirement, verify/v1.py, v2.py): in scope the /Users/ account (1 digest, length withheld lower-case segment) occurs only under tool_results/*/result (result 12, stdout 13, stderr 5 = 30 strings, 13 runs); 0 hits in reasoning, tool_call args, final_output or any non-trace field. Alternatives checked: not the operator (digest differs from the session account); not a sandbox/fixture path (run_python executes on the producer host, and the same segment is in 6 of the 14 side files); not already handled (profile has no redaction; rule agentops.account_path is 'reserved', mapper keeps content per D-199). Scope correction: 36 run files (13 in scope + 23 out of scope) plus 6 side files = 42 raw-store files carry it (the catalogue's '36 in all' counts run files only). The catalogue says 'tracebacks', but 13 of 30 strings are plain stdout. Class/severity per CC-11 (S2, security); CC-03 S0 only if it reaches AER, which is untested (L2 blocked)."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-06",
+   "title": "119 Llama 4 Scout runs end on a zero-token completion accepted as completed (no error), completion 0; uncatalogued, not flagged by L1-08 (3 Opus empty runs are error runs, already counted)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "L1-08 supplement",
+   "evidence": "empty-answer.json: openrouter_meta-llama_llama-4-scout 119, anthropic_claude-opus-4-7 3; all final_output empty, completion 0. L1-08 counts only zero-step runs (101, all error_only). Cause undetermined: an empty model response or a harness/adapter parse loss of the provider reply (cf. agentops.art.text_encoded_call 21). 119 of 420 Llama in-scope runs; it feeds Llama's adversarial completion 0.147. VERIFIER: 119 Llama: 1 step, llm_output_tokens 0, total_output_tokens 0, error null, completed true; domain code 60/60 adversarial code runs. 3 Opus: error set, completed false (in L1-08 errors 133).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/degen.py ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz data/agentops-bench/empty-answer.json",
+   "hypothesis_ref": "H8 (101/133 supported; this class is extra)",
+   "recommendation": "Catalogue agentops.art.empty_answer (119 in scope, Llama 4 Scout; cause: zero-token provider completion accepted as final, model vs provider undetermined) with disclosure on Llama's completion; keep every run and its recorded score. At L2 check that these map as executions with one model call and an empty answer (no invented content).",
+   "artefact_proposal": "agentops.art.empty_answer: runs with >=1 step, no reasoning text, no tool call, empty final_output (122 in scope: llama-4-scout 119, opus-4-7 3), completion 0",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "degen.py re-run identical. Scope correction: the 3 Opus runs are error runs (trace.error set, completed false) and are inside L1-08's 133 errors, so only the 119 Llama runs escape L1-08. Cause narrowed: each of the 119 has exactly 1 step with reasoning null, no calls, llm_output_tokens 0 and total_output_tokens 0 (input tokens > 0), error null, completed true, final_output ''. So the provider returned a zero-token completion and the harness accepted it as a finished answer; a harness parse loss of a non-empty reply is ruled out by the 0 output-token counts. The pattern is task-dependent, not random: domain code 60 (= all 60 in-scope Llama adversarial code runs), data 28, safety 21, tool 6, research 4; condition adversarial 105, noisy 9, clean 5. Whether the empty completion is the model or OpenRouter is not determinable from the logs. It is uncatalogued and drives Llama's completion (0.147), so R1 source-defect S2 stands. The recorded scores stay as recorded; nothing is excluded."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-02",
+   "title": "[CC-03] /home/<name> in 4 web_search fixture results (2 slash-terminated names, 3 name-shaped segments)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "L1-06 / H12",
+   "evidence": "L1-06 account:home-dir:named 4 artefacts (4 strings: snippet 3, result 1); raw census: all 4 in tool web_search (results/*/snippet 3 runs, string result 1 run); 2 distinct names by digest; 0 operator hits.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/raw.py ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz <W>/exam/raw-census.json (H12)",
+   "hypothesis_ref": "H12 (supported: other /home/ only in web-search results)",
+   "recommendation": "Disclose as benchmark fixture content (CC-03); include in the D-182 table review together with PC-01.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Re-run reproduces 4 strings / 4 runs, web_search tool results only, 0 operator. A slash-free scan finds a third name-shaped segment (3 characters, followed by punctuation, not '/') in 3 of the same snippets, so 'distinct names 2' is a regex-granularity undercount (2 with a trailing slash, 3 shapes in all; one out-of-scope 2-character segment in 1 run and 1 side file). Benchmark fixture content: CC-03 expected-known S3 is right."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-03",
+   "title": "Run files carry the pre-5678816d CNA formula: cost_normalized_accuracy = round(completion/max(cost_usd,1e-4),4) in 2,881/2,881 in-scope runs with completion > 0; the paper's exp form matches 0",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "H6",
+   "evidence": "Raw census H6: n 2881, old_formula 2881, exp_formula 0. The paper (5678816d onwards) defines CNA = completion*exp(-0.105*cost); the released runs predate the change.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/raw.py ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz <W>/exam/raw-census.json (H6)",
+   "hypothesis_ref": "H6 (supported)",
+   "recommendation": "Name the AER judgement after the recorded (old) definition or annotate it; disclose that the paper's CNA column is not reproducible from the run files (R3).",
+   "artefact_proposal": "agentops.art.cna_superseded_formula: scores.cost_normalized_accuracy uses completion/max(cost,1e-4) (2,881 in-scope runs with completion>0), not the paper's exp form",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw.py H6 re-run: n 2,881, old ratio formula 2,881, exp form 0. research.json: CNA column added at 5678816d, the paper's CNA is recomputed by analyze_pilot.py, so the paper is reproducible and only the stored field's definition differs: documentation-mismatch S3 (not S2: the headline CNA is not taken from the stored field)."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-04",
+   "title": "Tool-output time values exist besides tool_calls[].timestamp: 240 values in 3 pointers (asof_utc 196: 137 naive, 59 offset; unix_timestamp 22; utc 22); 8 runs non-monotone in asof_utc",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "L1-07 / H10",
+   "evidence": "L1-07: /trace/steps/*/tool_calls/*/timestamp 5,651 all Z, parse_fail 0, units_non_monotone 0 (2,650 units with, 710 without). Additional pointers inside tool_results[].result: asof_utc 196 (161 units, 8 non-monotone), unix_timestamp 22, utc 22 (22 units each). These are tool-output content (fixture clocks), not event times. Prereg/census expected 0 other time fields.",
+   "reproduction": "l1-pilot-v1-seeded.json /L1-07",
+   "hypothesis_ref": "H10 (refuted on '0 other time fields'; call timestamps supported)",
+   "recommendation": "Census/prereg note corrected (R4, phase-10i census owner). At L2 confirm that the mapper never takes these as event times (D-197).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "l1-pilot-v1-seeded.json L1-07 re-read: asof_utc 196 (161 units, 8 non-monotone; forms naive 137, utc_offset 59), unix_timestamp 22, utc 22; call timestamps 5,651 all Z, 0 non-monotone. Fixture clock values inside tool output, so R4 S3 (our census said 0 other time fields)."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-05",
+   "title": "[CC-01] 59 identical-trajectory groups span agents (657 units); explained by fingerprint granularity (reasoning+calls+results only; 433 single-step no-call units, 122 empty-answer units), not by copied files",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "L1-04 / H9",
+   "evidence": "L1-04: 227 groups / 1,245 units in groups; byte-identical 0; l1-xdup cross_part 0 and cross_corpus 0 for agentops-bench. dup-groups.json: cross-agent groups 59 (657 units), shapes: 1 step with reasoning and 0 calls 311, 1 step empty 0 calls 122, 2 steps 1 call 162, others 62; one 122-unit group crosses tasks (the empty-answer runs, PC-06).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/dupgrp.py ~/.agentprov/migration-work/precheck/agentops-bench/l1-units-pilot-v1-seeded.jsonl ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz data/agentops-bench/dup-groups.json",
+   "hypothesis_ref": "H9 (refuted as worded: cross-agent fingerprint repeats exist; byte and cross-corpus parts supported)",
+   "recommendation": "No corpus action. Keep the definition for the post-check (CC-01).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "dupgrp.py re-run byte-identical to dup-groups.json (59 cross-agent groups, 657 units; byte-identical 0). The 122-unit cross-task group is the 119 + 3 empty runs of PC-06. CC-01 analysis-artefact S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-07",
+   "title": "[L1-09] 7,270 AppleDouble ._* members: 2,400 match the include globs (stray, 391,200 B), 4,850 not selected, 20 under select.not_execution_artefact; 7 symlinks rejected",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "L1-01 / L1-09 / H1",
+   "evidence": "l1-09: appledouble walked 7,270, include_match 2,400 -> stray, not_selected 4,870. L1-01: walked 14,493 = 14,486 regular + 7 links (47 dirs not emitted); selected 3,360; out_of_scope 3,842; not_execution_artefact 34 = 14 side files + 20 AppleDouble; rejected ingest.archive.link 7. Matches agentops.art.non_execution_members 7,291 = 7,270 + 14 + 7.",
+   "reproduction": "l1-09-pilot-v1-seeded.json; l1-pilot-v1-seeded.json /L1-01",
+   "hypothesis_ref": "H1 (supported)",
+   "recommendation": "None; keep the stray disposition.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "l1-09 re-read: walked 7,270, include_match 2,400 (391,200 B), not_selected 4,870; L1-01 links 7. Matches agentops.art.non_execution_members 7,291 = 7,270 + 14 + 7. R2 expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-08",
+   "title": "Opus 4.7 ran in two parts (opus_4_7 and opus_4_7_part2; part2 starts 1 h 41 min after part1 ends) and left 2 superseded clean/research copies (7,202 files vs 7,200 stated); paper states one $200 cap",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "L1-05 / H2 / H3",
+   "evidence": "Raw census: duplicate cells anthropic_claude-opus-4-7|clean|research|011|1 and |2 (n 2 each, out of scope); call timestamps opus_4_7 max 2026-04-28T18:43:02Z, part2 min 20:24:11Z; L1-05 agent_dir opus_4_7 150, opus_4_7_part2 270. Catalogued: agentops.art.superseded_part1_copies (2). The paper text vs merge_opus_parts.py ($50 part-1 cap) is from research.json.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/raw.py ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz <W>/exam/raw-census.json (duplicate_cells, ts_by_agent_dir)",
+   "hypothesis_ref": "H2, H3 (supported)",
+   "recommendation": "Disclose the two-part Opus run and the 2 copies (R3).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw.py re-run: 2 duplicate cells (Opus clean research 011 runs 1 and 2, n 2 each, out of scope); part-1 max call timestamp 18:43:02Z before part-2 min 20:24:11Z. Catalogued as superseded_part1_copies. The $50 vs $200 cap rests on the fact-checked research.json (not re-read here). R3 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-09",
+   "title": "Paper internal: 12 attack classes in the text vs 13 rows in tab:per-payload (the data's 15 payloads match the text's 15)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "H11 / L1-05",
+   "evidence": "Raw census H11: 2,011 payload results in 1,373 runs, 15 distinct payloads (sha256 prefixes in raw-census.json), all adversarial, all appended as '\\n\\n'+payload; injections_present equals the payload count in 3,360/3,360. Paper/CHANGELOG counts from research.json. Per-class run counts (tab:per-payload) not tested: the PAYLOAD_CLASS map is not read here.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentops-bench/exam-scripts/raw.py ~/.agentprov/staging/10i/zenodo_19875693/agentops-bench-v1.0-pilot-traces.tar.gz <W>/exam/raw-census.json (H11)",
+   "hypothesis_ref": "H11 (supported); H7 class counts not tested",
+   "recommendation": "Use the 15 payload ids (by digest) as the attack facet; disclose the class-count inconsistency (R3).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw.py H11 re-run: 15 distinct payloads, 2,011 payload results in 1,373 runs. research.json: the paper text and CHANGELOG themselves say 15 payloads in 12 classes, so the data agree with the paper's payload count; the mismatch is internal to the paper (12 classes in the text vs 13 rows in tab:per-payload). Title reworded; R3 S3 stands."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentops-bench-10",
+   "title": "Our docs: Zenodo 19875603 is called a 'later' version but is the earlier one; the profile names the record creator as licence holder while LICENSE says 'AgentOps-Bench Contributors'",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "pilot-v1-seeded",
+   "check": "research",
+   "evidence": "research.json and prereg section 9 fact-check (Zenodo API timestamps; LICENSE blob 986b286e at the tag). Not data-derived.",
+   "reproduction": "see research.json /records",
+   "hypothesis_ref": "prereg section 8 leads",
+   "recommendation": "Phase-10i owner corrects the census note and the profile licence holder (R4).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "grep: docs/reports/phase10i/README.md l.26 and systematic-search/candidates/phase10e-candidates.md l.213 call 19875603 'later'; research.json gives creation 05:35:07Z for 19875603 vs 05:40:40Z for 19875693 (and the ids order the same way). Profile [licence] holders names the record creator; LICENSE names 'AgentOps-Bench Contributors'. R4 S3."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

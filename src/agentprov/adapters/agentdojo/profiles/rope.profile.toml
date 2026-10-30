@@ -1,0 +1,239 @@
+# Source profile `rope`: the ROPE defence-evaluation TraceLogger run logs, including the AutoDojo-attack slice
+# (xhOwenMa/ROPE runs/; docs/architecture D.4.4; D.3.3 rows rope and autodojo · rope-slice; D.6.13).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since the D-31 bumps
+# (2026-10-13); version 1 (the bytes the stored corpora recorded) ships under profiles/archive/rope.profile.v1.toml.
+# The `[family.agentdojo]` part is checked against the
+# closed schema `family.schema.json` of this family (D.4.1).
+#
+# 10,791 v1.k14 logs (2 of them v1.k14.incomplete: empty messages, no outcomes), all ROPE-defended, written by an
+# AgentDojo 0.1.35 fork at unreleased code states [sources/rope.md §3-§4; verify/rope.md]. Implementation notes and the
+# deviations from the D.4.4 sketch are in D.6.13:
+# * the pin is the whole commit (24,909 files), not runs/ only: the context artefacts outside runs/ and the excluded
+#   agentlab/** and autodojo/** trees must be vouched for by the pin and walked to be registered;
+# * the layout's optional component is the arm directory `{model_dir?}`: one segment (a model directory) in the main
+#   tree, two in the ablation/<policy> and router/<router>[-clamp] trees, which have no model level; those arms are
+#   gpt-4o-mini arms (identity rows) and their configuration is ext.rope.arm (quirk agentdojo.rope_release_tree);
+# * the system-prompt variant `auto_complete_line` is pinned by the digest of ROPE's own copy of the AgentDyn-like
+#   prompt (agentlab/src/agentdojo/data/system_messages.yaml, key default, 543 characters), equal to every logged one.
+# Every `observed` count below is reproduced from the sealed AERs of the full pinned snapshot by
+# tools/agentdojo/profile_census.py (tests/full_corpus/test_profile_census.py); those of D.4.4 and the investigation
+# reproduce unchanged, the others are measured there and named as such.
+
+[profile]
+id = "rope"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "rope"
+family = "agentdojo"
+parts = ["head"]
+title = "ROPE (xhOwenMa/ROPE) defence-evaluation TraceLogger run logs, including the AutoDojo-attack slice"
+evidence = ["sources/rope.md", "verify/rope.md", "sources/autodojo.md §3", "verify/autodojo.md"]
+
+[source]
+canonical_repo = "https://github.com/xhOwenMa/ROPE"
+paper = "arXiv:2608.27496"
+package = { name = "agentdojo", pypi_latest = "0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "64495e16e640d687e06e6b1b6cee6dccc5b9b7cb"
+date = "2026-08-31"
+tree_sha1 = "c4df12c3afe361b1923c33a1e6f26c763462dff8"
+expected_files = 24909
+expected_bytes = 265463047
+note = "the whole commit (main, 3 commits, no tags or releases); runs/ is tree 6a8c86f2 with 10,805 files (10,791 logs, lh_cells.json and 13 aggregators); agentlab/res/** (13,525 files) is AgentLAB's, byte-identical at TanqiuJiang/AgentLAB@36f58e60"
+
+[licence]
+spdx = "MIT"
+holders = ["Xinhang Ma", "Chaowei Xiao", "William Yeoh", "Ning Zhang", "Yevgeniy Vorobeychik"]
+data_licence = "none"
+policy = "include"
+basis = "MIT by repository (LICENSE: Copyright (c) 2026 Ma, Xiao, Yeoh, Zhang, Vorobeychik); no separate data licence; runs/ falls under the repository licence"
+attribution = ["LICENSE (MIT, (c) 2026 Ma et al.)", "ROPE arXiv:2608.27496", "AutoDojo payloads: arXiv:2606.15057", "long-horizon payloads: AgentLAB arXiv:2602.16901", "suite text: AgentDojo (MIT) and AgentDyn"]
+unassessed = ["model-provider terms on redistributing model outputs", "payloads contain prompt-injection strings by design"]
+
+[lineage]
+built_on = ["autodojo (vendored AgentDojo 0.1.35 fork, between bf2e4cb3 and abbcbd8d)", "agentdyn suites (SaFo-Lab/AgentDyn@5353cf76)"]
+vendored = ["autodojo/src/agentdojo (AutoDojo fork)", "agentlab/src/agentdojo (AgentLAB overlay)"]
+duplicates = [
+  { of = "ext:agentlab", path = "agentlab/res/**", relation = "byte_identical", owner = "ext:agentlab" },
+]
+cited_by = ["AutoDojo arXiv:2606.15057v3 Tables 5,6,8,9 (raw security, micro-averaged)", "ROPE arXiv:2608.27496v1 Tables 2,14 (effect-corrected, macro-averaged)"]
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2, autodojo = 1, rope = 2 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "runs/lh_cells.json", code = "select.not_execution_artefact", note = "the matched long-horizon cells of the paper (context artefact)" },
+  { glob = "agentlab/**", code = "select.owned_elsewhere", owner = "ext:agentlab", note = "AgentLAB's attack artefacts and victim traces, vendored byte-identically" },
+  { glob = "autodojo/**", code = "select.not_execution_artefact", note = "the vendored AutoDojo fork and its optimiser caches (the three routed caches are context artefacts)" },
+]
+layout = "runs/{model_dir?}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = [
+  "runs/lh_cells.json",
+  "runs/*.py",
+  "src/rope/scopes/**",
+  "autodojo/variant_generation/variants/*/openai/gpt-4o-mini/routed/injections.json",
+]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "config_tag_never_model"
+rule = "rope.model_dir_identity@1"
+attack_dir_alias = { agentlab_longhorizon = "long_horizon" }
+id_style_corroboration = { "call_*" = "openai_via_openrouter", "chatcmpl-tool-*" = "vllm", "tool_*" = "gemini" }
+
+[[family.agentdojo.identity.dir]]
+pipeline_dir = "ablation/*"
+model = "gpt-4o-mini"
+rule = "rope.model_dir_identity@1"
+basis = "the ablation arms are gpt-4o-mini runs with the per-task router replaced by a fixed policy (runs/ablation.py; tags gpt-4o-mini-2024-07-18-openrouter-iter4-synthesis-handspec-always-*; call_* ids)"
+
+[[family.agentdojo.identity.dir]]
+pipeline_dir = "router/*"
+model = "gpt-4o-mini"
+rule = "rope.model_dir_identity@1"
+basis = "the router arms are gpt-4o-mini runs that vary only the router (runs/router.py ROUTERS; tags gpt-4o-mini-…-iter4-synthesis-router_*; call_* ids)"
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", github = "agentdyn", shopping = "agentdyn", dailylife = "agentdyn" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version_for_agentdojo_suites_only"
+dos_attacks = []
+semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+
+[family.agentdojo.harness]
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "yaml"
+# D.5.4 "Citation of D rules" (D-24): the logs were written by unreleased fork states (verify/rope.md §3), so no code is
+# verified for them and every D rule of the family catalogues, the ROPE pin's included, is cited through its
+# `_unverified` twin (class I). rope.security_correction@1 is a released computation over the logged messages, not a
+# reading of the harness, and stays D (agentdojo/citation.py).
+verified_code = []
+system_prompt_variants = [
+  { label = "auto_complete_line", source = "xhOwenMa/ROPE@64495e16e640d687e06e6b1b6cee6dccc5b9b7cb:agentlab/src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "21a1c00db164a6d5d9d456be30eea3ed23bc11e6a89af0f56b8098d1f9ee3e36", note = "AgentDojo default + 'Complete all tasks automatically without requesting user confirmation.'; not producible by the released autodojo/ harness (verify/rope.md §3)" },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rope_guard_denial"
+applies = {}
+rules = ["rope.guard_active_in_main_tree@1", "rope.denial_error_pattern@1", "rope.denial_query_echo_variant@1"]
+params = { regex = "^The tool '[^']*' is not allowed\\.\\. Please try other tools", none_variant_suffix = "user task: None." }
+observed = { head = { denials = 12657, none_variant = 9424, query_variant = 3233 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rope_release_tree"
+applies = {}
+rules = ["rope.tree_arm_config@1", "rope.benchmark_from_suite@1"]
+observed = { head = { ablation_files = 1240, router_files = 1680, router_clamp_files = 440 } }
+note = "the curated release layout (sources/rope.md §3.2): ablation/<policy> and router/<router>[-clamp] arms of gpt-4o-mini"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 322 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.pipeline_name_not_identity"
+applies = {}
+rules = ["rope.model_dir_identity@1"]
+params = { model_tokens = ["gpt-4o-mini", "gpt-4o", "gemini-2.5-flash", "qwen3-235b"] }
+observed = { head = { qwen_autodojo_mislabelled = 949 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.empty_messages_without_outcome"
+applies = {}
+rules = ["agentdojo.no_execution_observed@1"]
+observed = { head = { files = 2 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 2 } }
+note = "the two empty-message logs lack utility and security (sources/rope.md §4.4); they are sealed with no_outcome_recorded"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { logs = 675, calls = 753 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1", "agentdojo.positional_match@1"]
+params = { null = ["gemini-2.5-flash"] }
+observed = { head = { null_ids = 8707, logs_with_null_ids = 1496 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 748, origin_rule_applied = 748 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 10520 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 2268 } }
+note = "'unknown' in every qwen3-235b log (PackageNotFoundError): the bench actor declares /code not_recorded (C.7.3)"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 83362, present_and_null = 83362 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benchmark_version_label_not_suite_version"
+applies = { suite = ["github", "shopping", "dailylife"] }
+rules = ["agentdojo.version_label_semantics@1"]
+note = "the fork registers the AgentDyn suites under every benchmark version: v1.2.2 on a github/shopping/dailylife log is no suite version (version_label_semantics)"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rope_effect_correction"
+applies = { suite = ["slack", "dailylife", "github"] }
+rules = ["rope.security_correction@1"]
+params = { scripts = { "runs/corrections.py" = "f49ccc12e52168c966d33b2c23a49fb41b570af9e5a43b06b99496542b0a7bd7", "runs/slack_it5.py" = "e61164f68815d02f9f196d63fd25d228d4d391666420aa664ff41bde1571e8e8", "runs/dailylife_it7.py" = "2e1f8f4152d7555c8a22e88521778a453f550f2a2feab9da1d54c35e265a7474", "runs/github_it1.py" = "337dcf20f683695fdb4762388a18118a2127b9b28d4a36b389086395aa13ae06" } }
+observed = { head = { slack_it5 = 198, dailylife_it7 = 260, github_it1 = 220, slack_it5_recorded_true = 32, dailylife_it7_recorded_true = 39, github_it1_recorded_true = 5, slack_it5_corrected_true = 0, dailylife_it7_corrected_true = 22, github_it1_corrected_true = 0, autodojo_recorded_true = 88, autodojo_effective_true = 71 } }
+note = "subject and recorded-true counts: sources/rope.md §3.6; all 32 slack IT5 flips and the autodojo arm 88 -> 71: verify/rope.md §6, verify/autodojo.md #15; corrected-true counts of dailylife IT7 and github IT1 measured by the census"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.autodojo_payload_cache_link"
+applies = { attack_dir = ["autodojo"] }
+rules = ["autodojo.payload_cache_link@1"]
+params = { provenance_profile = "autodojo-via-rope" }
+observed = { head = { slots = 5775, slots_linked = 5775, slots_exact = 5772, slots_wrapped = 3, files_linked = 2847, files_cells_1 = 1824, files_cells_8 = 228, files_cells_16 = 28, files_cells_20 = 30, files_cells_38 = 2, files_cells_40 = 315, files_cells_50 = 420 } }
+note = "slots: verify/autodojo.md #16 (5,775 linked, 3 wrapped); the per-file ambiguity sets are measured by the census; their intersection per (model, suite) is 1, 8, 40 or 50 cells as the investigation found (docs/reports/rope/)"
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.run_error_imposed_outcome@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.checker_outcome@1",
+]

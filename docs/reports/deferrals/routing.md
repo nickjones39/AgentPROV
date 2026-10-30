@@ -1,0 +1,12 @@
+# Deferrals session: routing notes for the orchestrator
+
+Items outside this session's files (AGENTS.md §0 ownership). Each needs the owner's change; nothing here was edited
+in the owner's files on the `deferrals` branch.
+
+| # | Item | Owner | Blocks | Proposed interface or change |
+|---|---|---|---|---|
+| DF-1 | **Member origins in the TraceLogger mapper** (phase 10f routing F2; D-156 part 2; D-204). For an archive input the map job's `origin` is `member {container, label, method, crc32, size}`; `label` is the member's NFC name, the same string the profile's `include` globs and layout templates matched. | `adapters/agentdojo/` (regen-batch session) | release-mode import of `seagent-agentdojo` and every zip-held AgentDojo source (Figshare 32657856, Zenodo 22973265) | `mapper.py` l. 354: when the artefact's origin kind is `member`, the layout locator is `{"a": "a0", "o": "/label"}` instead of `_ORIGIN_PATH` (`/path`). The layout match at l. 296 already falls back to `label`. No stored AER moves (no stored corpus has a member-origin AgentDojo log). A scratch trial with exactly this change: `docs/reports/deferrals/part-a-trials.md` |
+| DF-2 | **SEAgent pin record** (D-201). The `seagent-agentdojo` pin has `doi`, `file`, `sha256`, `md5`, `size`; it may add `record = 23218779` and, if the deposit states one, `version`. Optional: the import works without them (the record id is derived from the DOI). | phase 10f (profile) | nothing | add the two keys at the profile's next version |
+| DF-3 | **SEAgent registry status.** The part stays `planned` until DF-1 lands and a full import is recorded (HON-10). | phase 10f / orchestrator | the CLI import (status gate) | flip to `partial` with DF-1 |
+| DF-4 | **FooBench hand-off file** (`[import] auxiliary`). The runner joins per-unit auxiliary files only for a reader with `auxiliary_for` (DTap); FooBench's sub-agent file is not joined, so an import records `dangling_source_ref` for the hand-off. Not one of the four refusals of part A. | runner (this session) or FooBench reader | nothing real (FooBench is fixture-only) | a follow-up: join `[import] auxiliary` files of the unit's directory by file name |
+| DF-5 | **SEC-19 test rewritten** (`tests/security/test_sec19_cross_snapshot.py`, phase 12c's): its first case pinned the one-snapshot refusal that D-202 lifts; it now pins the collapse and the remaining G4 refusal. | phase 12c (merged) / orchestrator | — | review only |

@@ -1,0 +1,49 @@
+"""D3b-2: a redact decision rejected by _decision_event still overrides the tool message's generator."""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path.cwd() / "tests" / "adapters" / "agentdojo"))
+import capture_support as cs  # noqa: E402
+from helper import run  # noqa: E402
+
+
+def base(extra, before_dispatch=False):
+    s = cs.c13_8_session()
+    s.events.pop()
+    kind = "tool.dispatch" if before_dispatch else "tool.result"
+    idx = next(i for i, e in enumerate(s.events) if e["type"] == kind) + (0 if before_dispatch else 1)
+    s.events[idx:idx] = extra
+    s.close("complete")
+    return s
+
+
+ok = {"type": "decision", "pass": 0, "actor": "env",
+      "data": {"subject": {"occ": "o0"}, "verdict": "redact", "actor": "env", "reason": "pi detected"}}
+run(base([ok]), "control: redact decision, valid", show=("decision", "m3"))
+bad = {"type": "decision", "pass": 0, "actor": "env",
+       "data": {"subject": {"occ": "o0"}, "verdict": "redact", "actor": "ghost"}}
+run(base([bad]), "redact decision, data.actor undeclared", show=("m3",))
+run(base([ok], before_dispatch=True), "redact decision sequenced before the dispatch of its subject", show=("m3",))
+
+# underlying writer error
+import hashlib  # noqa: E402
+from agentprov.adapters.agentdojo.capture_mapper import AgentDojoCaptureMapper  # noqa: E402
+from agentprov.adapters.agentdojo.capture_reader import CaptureLogReader  # noqa: E402
+from agentprov.adapters.profiles import load_profile  # noqa: E402
+from agentprov.adapters.runner import map_unit  # noqa: E402
+s = base([bad]); profile = load_profile("agentdojo-live"); log = s.log_bytes()
+objects = {hashlib.sha256(log).hexdigest(): log, **s.blobs}
+plan = CaptureLogReader().plan(cs.session_objects(log, s.blobs, s.native, s.session), objects.__getitem__, profile)
+out = map_unit(plan.units[0], AgentDojoCaptureMapper(), profile, auxiliary=plan.auxiliary)
+print("map_unit outcome:", type(out).__name__, {k: (str(v)[:300]) for k, v in vars(out).items() if k != "records"} if hasattr(out, "__dict__") else str(out)[:600])
+import tempfile  # noqa: E402
+from agentprov.adapters.runner import seal_outcome  # noqa: E402
+from agentprov.aer.writer import AerWriteError  # noqa: E402
+m3 = next(r for r in out.records if r.get("id") == "m3")
+print("m3.generated_by:", m3.get("generated_by"), "| dc0 emitted:", any(r.get("id") == "dc0" for r in out.records))
+with tempfile.TemporaryDirectory() as t:
+    try:
+        seal_outcome(out, Path(t) / "x.aer.jsonl")
+    except AerWriteError as exc:
+        print("writer:", type(exc).__name__, str(exc)[:300], getattr(exc, "code", None), [str(f)[:200] for f in exc.findings])

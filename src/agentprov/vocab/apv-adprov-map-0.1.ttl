@@ -1,0 +1,106 @@
+@prefix apv:     <https://w3id.org/agentprov/ns#> .
+@prefix adprov:  <https://nickjones39.github.io/agentdojo-prov/ns#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+#################################################################
+# Mapping from the frozen AgentDojo-PROV vocabulary (adprov, 1.0) to apv 0.1.0
+#
+# docs/architecture/EF_provenance.md E.4.6 item 4 and E.8.4 (attribute table).
+#
+# Only skos:closeMatch (a counterpart with changed semantics) and skos:relatedMatch (a counterpart of a
+# different kind: an attribute became a class, an individual or an activity) are used. owl:equivalentProperty
+# and rdfs:subPropertyOf are never used: no adprov term keeps its v2.3 semantics in apv. For example
+# adprov:integrity sat on core entities and agents, whereas apv:integrity sits on assessment mentions.
+#
+# Terms of adprov with no apv counterpart are listed with a skos:note and no match.
+# The frozen file src/agentprov/prov/compat/adprov_v2_3/adprov.ttl is not modified by this mapping.
+#################################################################
+
+<https://w3id.org/agentprov/ns/adprov-map>
+    a owl:Ontology ;
+    owl:versionIRI <https://w3id.org/agentprov/ns/adprov-map/0.1.0> ;
+    owl:versionInfo "0.1.0" ;
+    owl:imports <https://w3id.org/agentprov/ns/0.1.0> ;
+    rdfs:label "AgentDojo-PROV (adprov) to AgentPROV (apv) mapping"@en ;
+    rdfs:comment "Relates the frozen adprov v2.3 terms to apv 0.1.0 terms with SKOS match properties and a comment on how the semantics changed."@en ;
+    dcterms:license <https://opensource.org/licenses/MIT> ;
+    skos:note "The w3id.org/agentprov namespace is registered (perma-id/w3id.org pull request 6836, merged 2026-10-09)."@en .
+
+## -- Attributes that moved to assessment mentions ------------------------------------------------
+
+adprov:integrity
+    skos:closeMatch apv:integrity ;
+    rdfs:comment "Moved to assessment (E.8.4). v2.3 put the string trusted or untrusted on every entity and agent. apv:integrity sits only on assessment mentions, takes the individuals apv:Trusted, apv:Untrusted or apv:IntegrityUnknown (three-valued, fail-closed), and is INFERRED unless the SEM annotation says otherwise."@en .
+
+adprov:role
+    skos:closeMatch apv:securityRole ;
+    rdfs:comment "Moved to assessment (E.8.4). v2.3 put one string (sink, endorser or neutral) on a tool-call activity. apv:securityRole is multi-valued, takes the individuals apv:WriteSink, apv:SendSink, apv:ExecuteSink, apv:EgressRead, apv:ResponseSink, apv:ContentSource, apv:Endorser, apv:Neutral or apv:RoleUnknown, and sits on assessment mentions of request parts or on apv:Labelled assessments of tool executions."@en .
+
+adprov:source_channel
+    skos:closeMatch apv:sourceChannel ;
+    rdfs:comment "Moved to assessment (E.8.4). v2.3 put the channel on the output entity. apv:sourceChannel sits on assessment mentions and carries a profile vocabulary string."@en .
+
+adprov:contains_injection_marker
+    skos:relatedMatch apv:ContainsPayload ;
+    rdfs:comment "Moved to assessment (E.8.4), DERIVED. v2.3 stored a boolean on the entity. apv has no attribute: it states an apv:Assessment with apv:claim apv:ContainsPayload, apv:subject the part, apv:object the payload fixture and an optional span (apv:spanStart, apv:spanEnd). Absent and gap markers give no statement."@en .
+
+## -- Attributes kept, moved or tightened ---------------------------------------------------------
+
+adprov:args
+    skos:closeMatch apv:args ;
+    rdfs:comment "Moved (E.8.4). v2.3 put the arguments on the tool-call activity. apv:args is on the tool-call request part (a JCS string); apv:argsEffective is on the tool execution only when it differs from the request."@en .
+
+adprov:error
+    skos:closeMatch apv:error ;
+    rdfs:comment "Kept (E.8.4). v2.3 put the error string on the tool-call activity. apv:error is on the tool_result part; apv:exception is on the tool execution when recorded."@en .
+
+adprov:content_hash
+    skos:closeMatch apv:contentSha256 ;
+    rdfs:comment "Kept, definition tightened (E.8.4). v2.3 hashed decoded text blocks and wrote a sha256: prefixed string. apv:contentSha256 is the SHA-256 over the UTF-8 bytes of the recorded text of a part, or over the JCS bytes of the parts of a message."@en .
+
+adprov:content_len
+    skos:closeMatch apv:contentLength ;
+    rdfs:comment "Kept, definition tightened (E.8.4). apv:contentLength is stated in Unicode scalar values."@en .
+
+adprov:content
+    skos:closeMatch apv:text ;
+    rdfs:comment "Counterpart of the gated raw content. apv:text is emitted only with emit_content, on the part."@en .
+
+## -- Reclassified: the counterpart is of a different kind ---------------------------------------
+
+adprov:agent_kind
+    skos:relatedMatch apv:AgentSystem ;
+    rdfs:comment "Reclassified (E.8.4). v2.3 used the string llm or external_source. apv uses prov:type with an apv: agent class chosen by the AER actor kind (for llm: apv:AgentSystem plus prov:SoftwareAgent). The external_source agent is dropped."@en .
+
+adprov:attempt
+    skos:relatedMatch apv:Pass, apv:index ;
+    rdfs:comment "Reclassified (E.8.4). v2.3 put a pass number on the tool-call activity. apv has an apv:Pass activity with apv:index, and the tool execution refers to it through apv:partOf."@en .
+
+adprov:defence_omitted
+    skos:relatedMatch apv:contentStatus, apv:Decision, apv:Overwritten ;
+    rdfs:comment "Reclassified (E.8.4), INFERRED from the sentinel. v2.3 stored a boolean on the entity. apv states an apv:Decision activity (verdict redact) and marks the pre-decision entity apv:contentStatus apv:Overwritten."@en .
+
+## -- Dropped: no apv counterpart -----------------------------------------------------------------
+
+adprov:step
+    skos:note "Dropped (E.8.4). Order is carried by apv:after* attributes, never by a relation or a counter. The step remains only in the compat graph and the transcript view."@en .
+
+adprov:turn
+    skos:note "Dropped (E.8.4). The turn remains only in the compat graph and the transcript view."@en .
+
+adprov:placeholder_mismatch
+    skos:note "Dropped (E.8.4); never emitted. Arguments changed before dispatch appear as apv:args differing from apv:argsEffective when both are recorded."@en .
+
+adprov:time
+    skos:note "Dropped (E.8.4). apv relations carry no times; times are on activities only."@en .
+
+adprov:len_bucket
+    skos:note "No counterpart: it exists only in the benchmark-safe corpus-ml export, which is not part of the agentprov-prov/0.1 output."@en .
+
+adprov:has_error
+    skos:note "No counterpart: it exists only in the benchmark-safe corpus-ml export. A tool execution has apv:execStatus."@en .

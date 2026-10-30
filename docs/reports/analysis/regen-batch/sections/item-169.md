@@ -1,0 +1,6 @@
+## Item 169 (pre-round; D-685 (b); AgentDyn backend session, orchestrator ruling 2026-10-22, D-31 owner conditions)
+
+| # | Item | Source | Changes | Notes |
+|---|---|---|---|---|
+| 169 | D-685 (b): AgentDyn drops a wire tool call it cannot convert. The capture mapper's quirk-gated recognition (`agentdojo.malformed_tool_call_dropped`) matches the reply on the kept calls, keeps the assistant message's `generated_by`, and lists the dropped calls in `ext.agentdojo.dropped_calls` under `agentdyn.malformed_tool_call_dropped@1` (class D). That rule is appended to agentdyn v2 **in place** | `docs/reports/agentdyn-backend/README.md` §5; DECISIONS D-685, D-31 addendum | **class 1:** the agentdyn catalogue digest (v2 bytes) and the agentdojo family's `adapter_code_sha256` (capture_mapper.py) | Inert without the quirk: no shipped profile on this branch declares it (`agentdyn-live`, held for after the round, is the only one), so every AER, SEM and PROV pin is unchanged (`regen_pins --check` clean). The catalogue version stays 2. A v3 would have needed every profile that declares agentdyn (agentdyn, autodojo-live, environmentoptim-agentdojo) to move to `agentdyn = 3` in the same commit. Must land before the round's first kept import of a corpus that declares agentdyn. Scratch corpora that recorded agentdyn v2 report `aer.rules.drift` (D-460), accepted |
+

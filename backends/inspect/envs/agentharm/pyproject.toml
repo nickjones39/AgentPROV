@@ -1,0 +1,159 @@
+[project]
+name = "agentprov-backend-inspect-agentharm"
+version = "0.1.0"
+description = "AgentPROV live backend environment inspect-agentharm: inspect_ai 0.3.263 + inspect_evals 0.20.0 (D-661)"
+requires-python = "==3.12.*"
+dependencies = [
+    "agentprov-capture",              # path source below
+    "agentprov-backend",              # path source below
+    "agentprov-backend-inspect",      # path source below
+    "inspect-ai==0.3.263",            # D-661: the kexin-xu-01-agentharm producer band
+    "inspect-evals==0.20.0",          # D-661: the benchmark code of that band
+]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1"]
+
+[tool.uv]
+package = false
+required-version = ">=0.12.22"        # as core (DECISIONS D-6)
+exclude-newer = "2026-10-07T00:00:00Z"  # fixed RFC 3339 timestamp (G.7.1(4)); shared by every backend lock
+default-groups = ["dev"]
+# wheels only (G.7.1(5)): every registry package of uv.lock, derived from the lock (all carry wheels); `no-build = true`
+# cannot be used because the path packages are source trees.
+no-build-package = [
+    "agent-client-protocol",
+    "aioboto3",
+    "aiobotocore",
+    "aiofiles",
+    "aiohappyeyeballs",
+    "aiohttp",
+    "aioitertools",
+    "aiosignal",
+    "annotated-doc",
+    "annotated-types",
+    "anyio",
+    "attrs",
+    "backoff",
+    "beautifulsoup4",
+    "boto3",
+    "botocore",
+    "certifi",
+    "charset-normalizer",
+    "click",
+    "colorama",
+    "datasets",
+    "debugpy",
+    "dill",
+    "docstring-parser",
+    "fastapi",
+    "filelock",
+    "frozenlist",
+    "fsspec",
+    "h11",
+    "hf-xet",
+    "httpcore",
+    "httpcore2",
+    "httpx",
+    "httpx2",
+    "httpx2-jsfetch",
+    "huggingface-hub",
+    "idna",
+    "ijson",
+    "iniconfig",
+    "inspect-ai",
+    "inspect-evals",
+    "jinja2",
+    "jiter",
+    "jmespath",
+    "jsonlines",
+    "jsonpatch",
+    "jsonpath-ng",
+    "jsonpointer",
+    "jsonref",
+    "jsonschema",
+    "jsonschema-specifications",
+    "linkify-it-py",
+    "markdown-it-py",
+    "markupsafe",
+    "mdit-py-plugins",
+    "mdurl",
+    "mmh3",
+    "multidict",
+    "multiprocess",
+    "nest-asyncio2",
+    "numpy",
+    "openai",
+    "opentelemetry-api",
+    "packaging",
+    "pandas",
+    "pathlib-abc",
+    "pillow",
+    "platformdirs",
+    "pluggy",
+    "propcache",
+    "psutil",
+    "pyarrow",
+    "pydantic",
+    "pydantic-core",
+    "pygments",
+    "pytest",
+    "python-dateutil",
+    "python-dotenv",
+    "pyyaml",
+    "referencing",
+    "regex",
+    "requests",
+    "rfc8785",
+    "rich",
+    "rpds-py",
+    "s3fs",
+    "s3transfer",
+    "semver",
+    "shortuuid",
+    "six",
+    "sniffio",
+    "soupsieve",
+    "starlette",
+    "tenacity",
+    "textual",
+    "tiktoken",
+    "toml",
+    "tqdm",
+    "truststore",
+    "typing-extensions",
+    "typing-inspection",
+    "tzdata",
+    "universal-pathlib",
+    "urllib3",
+    "uvicorn",
+    "wrapt",
+    "xxhash",
+    "yarl",
+    "zipfile-zstd",
+    "zipp",
+    "zstandard",
+]
+
+[tool.uv.sources]
+agentprov-capture = { path = "../../../../capture" }
+agentprov-backend = { path = "../../../shared" }
+agentprov-backend-inspect = { path = "../.." }
+
+# D-663: the pinned dataset `agentprov backends build inspect-agentharm` provisions into <env>/share/agentprov/datasets,
+# offline from AgentPROV's fetch cache (fetched 2026-10-22 with the user's consent; acquisitions.jsonl). The revision is
+# the one inspect_evals 0.20.0 pins (AGENTHARM_DATASET_REVISION); agentprov_backend_inspect.benchmarks.agentharm holds the
+# same digests (a backend test compares them).
+[tool.agentprov.dataset]
+kind = "hf"
+repo = "ai-safety-institute/AgentHarm"
+revision = "e23b3fe60a0da9037314b88e5ee3a0c054970dad"
+benchmark = "agentharm"
+files = [
+    { path = "benchmark/benign_behaviors_test_public.json", sha256 = "65b4ebd4d8d2e7c9a79db4e11bc642f1800e642be0626ba0a990c763a325957a", bytes = 138721 },
+    { path = "benchmark/benign_behaviors_validation.json", sha256 = "b74ffb781ce54182775a8b2843ea341ab2fb4cfea5743bfa89a368e52a76c27a", bytes = 23508 },
+    { path = "benchmark/chat_public_test.json", sha256 = "699a8325ce6dc355fd6ebef07bd2a9e76cca4c0ca7b6971774f2ff117e8f4512", bytes = 17984 },
+    { path = "benchmark/chat_validation.json", sha256 = "06684a6968e0bb65bcb15bc1cdaf3bd8c486fc54164e7623a35e3ee58bf93565", bytes = 3134 },
+    { path = "benchmark/harmful_behaviors_test_public.json", sha256 = "fc3e4abbcd812022b85150b0e6f81c0bdbdfabb486e5b82ec46f1ba135f3ba08", bytes = 134140 },
+    { path = "benchmark/harmful_behaviors_validation.json", sha256 = "40cd099915258b41142acfc88a9f2b4e15cd631c5490ad02a0dce0cf2b9c175e", bytes = 22584 },
+]

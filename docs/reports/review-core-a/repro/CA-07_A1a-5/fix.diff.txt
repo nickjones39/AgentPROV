@@ -1,0 +1,15 @@
+--- a/src/agentprov/aer/canon.py
++++ b/src/agentprov/aer/canon.py
+@@ -148,7 +148,12 @@ def encode_value(value: object, *, at: str, lex: LexHints) -> Json:
+     if value is None or isinstance(value, bool):
+         return value
+     if isinstance(value, int):
+-        return {"$int": str(value)} if abs(value) > I_JSON_MAX else value
++        if abs(value) <= I_JSON_MAX:
++            return value
++        try:
++            return {"$int": str(value)}
++        except ValueError as exc:  # beyond CPython's int-to-str digit limit (a YAML 0x/0b/0o literal can get here)
++            raise CanonError("integer has too many digits") from exc
+     if isinstance(value, float):
+(Also update the docstring's CanonError sentence. Complementary, outside aer/: in ingest/yamlsafe.py reject constructed ints whose decimal size would exceed limits.max_int_digits, e.g. bit_length() > max_int_digits*3.33, raising YAMLError/ingest.number.digits, so DTap/agentops treat the config as unparseable.)

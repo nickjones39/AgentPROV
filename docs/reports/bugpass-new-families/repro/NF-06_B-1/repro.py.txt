@@ -1,0 +1,20 @@
+import sys, os
+W="~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-new-families-aceed5"
+sys.path[:0]=[W+"/tests/adapters/agentdojo", W+"/tests"]
+os.environ.setdefault("AGENTPROV_HOME", os.path.dirname(os.path.abspath(__file__))+"/home")
+import test_rescont as T
+for label, mutate in [("defense key present (null)", lambda d: d.__setitem__("defense", None)),
+                      ("defense key absent", lambda d: d.pop("defense"))]:
+    doc = T.container(); mutate(doc)
+    m = T.one(doc)
+    h = m.header
+    print(label, "| has key:", "defense" in doc,
+          "| task.defense_id:", repr(h["task"].get("defense_id","<missing>")),
+          "| evf:", h["evf"].get("/task/defense_id"),
+          "| unk:", h.get("unk",{}).get("/task/defense_id"),
+          "| src /defense:", any(s.get("p")=="/defense" for s in h["src"]),
+          "| rules:", [r for r in h["rule"] if "defense" in r])
+    # compare attack absent
+doc = T.container(); doc.pop("attack", None)
+m = T.one(doc)
+print("attack key absent | task.attack_id:", repr(m.header["task"].get("attack_id","<missing>")), "| unk:", m.header.get("unk",{}).get("/task/attack_id"))

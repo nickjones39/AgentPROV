@@ -1,0 +1,32 @@
+from agentprov.aer import validate as V
+from agentprov.aer.validate import I_JSON_MAX
+
+def _walk(self, index, rec):
+    stack = [(rec, "")]
+    esc = lambda k: str(k).replace('~', '~0').replace('/', '~1')
+    while stack:
+        value, at = stack.pop()
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int) and abs(value) > I_JSON_MAX:
+            self._add("aer.schema.pattern", "AER-V18", index, at, "integer_outside_i_json")
+        elif isinstance(value, float) and not (value == value and abs(value) != float("inf")):
+            self._add("aer.schema.pattern", "AER-V18", index, at, "non_finite_number")
+        elif isinstance(value, list):
+            stack.extend((v, f"{at}/{i}") for i, v in enumerate(value))
+        elif isinstance(value, dict):
+            if set(value) == {"$lit"} and isinstance(value["$lit"], dict):
+                stack.extend((v, f"{at}/$lit/{esc(k)}") for k, v in value["$lit"].items())
+            elif "$blob" in value and isinstance(value["$blob"], str):
+                self._blob(index, at, value)
+            elif set(value) == {"$int"} and isinstance(value["$int"], str):
+                try:
+                    in_range = abs(int(value["$int"])) <= I_JSON_MAX
+                except ValueError:
+                    in_range = False
+                if in_range:
+                    self._add("aer.schema.pattern", "AER-V18", index, at, "int_wrapper_in_range")
+            else:
+                stack.extend((v, f"{at}/{esc(k)}") for k, v in value.items())
+
+V.AerValidator._walk_numbers_and_blobs = _walk

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/credleak/ext-0.1.json",
+  "title": "ext.credleak of AER records written by the credleak.cell mapper (C.10; D.19.3; closed member list)",
+  "description": "Verbatim cell and run fields without a core slot. Values copied from the source are untrusted, open JSON; the member names are closed. Not a published corpus schema in v0.1 (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "run_index": {"type": "integer", "minimum": 0, "description": "execution: the run's 0-based index in runs[]"},
+    "path_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "channel", "file", "layout_class", "prefix"],
+      "properties": {
+        "section": {"type": "string"}, "channel": {"type": "string"}, "model_dir": {"type": "string"},
+        "file": {"type": "string"}, "layout_class": {"enum": ["roster", "excluded-models", "underscore"]},
+        "prefix": {"type": "string"}, "underscore_dir": {"type": "string"}
+      },
+      "description": "execution: the cell path's facets (D.19.1); never identity"
+    },
+    "repetition": {"description": "execution: runs[i].repetition verbatim"},
+    "scenario_name": {"description": "execution: runs[i].scenarioName verbatim"},
+    "run_duration_ms": {"description": "execution: runs[i].durationMs verbatim (no clock; never a time)"},
+    "cell_run_id": {"description": "execution: the cell's runId verbatim (a batch id shared by several cells; never identity or a time)"},
+    "cell_timestamp": {"description": "execution: the cell's timestamp verbatim (never a time)"},
+    "config": {"description": "execution: the cell's config verbatim (judge and embedder labels, thresholds, maxTurns)"},
+    "cell_summary": {"description": "execution: the cell's summary verbatim (the harness's per-cell aggregates)"},
+    "cell_note": {"description": "execution: the cell's __note verbatim"},
+    "run_fields": {"type": "object", "description": "execution: every other run field verbatim (signals not judged, errorDetail, intentVerdicts, toolCallCount, ...)"},
+    "duration_ms": {"description": "scope run or agent_invocation, tool_execution: durationMs verbatim (no clock; never a time)"},
+    "timestamp": {"description": "scope agent_invocation: the turn's timestamp verbatim (role not determinable; never a typed time)"},
+    "canary_detected": {"description": "scope agent_invocation: the harness detector's canaryDetected verbatim"},
+    "canaries_found_count": {"type": "integer", "minimum": 0, "description": "scope agent_invocation: the number of canariesFound labels (the labels are not copied, D-264)"},
+    "canary_in_input": {"description": "tool_execution: the harness detector's canaryInInput verbatim"},
+    "canary_in_output": {"description": "tool_execution: the harness detector's canaryInOutput verbatim"},
+    "redacted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["p", "rule"],
+        "properties": {"p": {"type": "string"}, "rule": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*@[1-9][0-9]*#[a-z][a-z0-9_]*$"}}
+      },
+      "description": "message (tool result): D-605, the redacted pointers and the profile rule of each, [{p, rule: <profile id>@<version>#<rule id>}]; never the original"
+    }
+  }
+}

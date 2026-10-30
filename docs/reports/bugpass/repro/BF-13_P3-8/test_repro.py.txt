@@ -1,0 +1,39 @@
+"""P3-8: DEAD detection matches jobs by path containment; nested worktrees mask a dead main-checkout suite."""
+import json, os, sys
+from pathlib import Path
+
+WT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(WT / "tools"))
+import queue_status as qs  # noqa: E402
+import session_status as ss  # noqa: E402
+from _workflow import utc_now  # noqa: E402
+
+
+def _doc(worktree: Path) -> dict:
+    return {"schema": ss.SCHEMA, "name": "main-sess", "worktree": str(worktree), "branch": "main", "head": "a" * 40,
+            "dirty": False, "base": {"ref": "origin/main", "sha": "b" * 40, "ahead": 0, "behind": 0},
+            "state": "suite-running", "waits_on": {"kind": "none", "what": "", "since": utc_now()},
+            "updated_at": utc_now(), "heartbeat_at": utc_now()}
+
+
+def test_nested_worktree_job_masks_dead_main_suite(tmp_path: Path) -> None:
+    main = tmp_path / "repo"
+    nested = main / ".claude" / "worktrees" / "other"
+    nested.mkdir(parents=True)
+    (tmp_path / "q" / "tickets").mkdir(parents=True)
+    # Another session (its own status file names `nested`) holds the queue.
+    holder = {"pid": os.getpid(), "cwd": str(nested), "label": "other", "started_at": utc_now()}
+    (tmp_path / "q" / "holder.json").write_text(json.dumps(holder), encoding="utf-8")
+    queue = qs.read_queue(tmp_path / "q")
+    assert queue["holder"] is not None
+    row = qs.assess(_doc(main), now=__import__("time").time(), stale_hours=2.0, queue=queue)
+    # Expected: the main-checkout session's suite is dead (no job belongs to it).
+    assert "DEAD" in row["flags"], f"flags={row['flags']} (holder cwd is another worktree nested under main)"
+
+
+def test_control_empty_queue_flags_dead(tmp_path: Path) -> None:
+    main = tmp_path / "repo"
+    main.mkdir()
+    (tmp_path / "q" / "tickets").mkdir(parents=True)
+    row = qs.assess(_doc(main), now=__import__("time").time(), stale_hours=2.0, queue=qs.read_queue(tmp_path / "q"))
+    assert row["flags"] == ["DEAD"]

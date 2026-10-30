@@ -1,0 +1,196 @@
+# Rule catalogue `aer` (docs/architecture: C.6.4, C.8.2, C.12.2; D.5.1-D.5.2).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory).
+# Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version`.
+# The ten `aer.acc.*` entries are accounting checks (C.12.2); their ids are cited as the `id` of a seal check and
+# as the `rule` of the mirrored accounting issues (C.12.3).
+
+[catalogue]
+id = "aer"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = []
+subtypes = []
+types = []
+
+[[rule]]
+id = "aer.output_after_generator"
+version = 1
+class = "D"
+status = "active"
+statement = "A message occurs after the activity named in its generated_by (an output cannot precede its producer)."
+premises = ["/generated_by"]
+assumptions = []
+emits = ["after(basis=causal)"]
+evidence = ["docs/architecture/C_data_model.md C.8.2"]
+tests = ["tests/unit/aer/test_order.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.execution_after_call"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool execution occurs after the message that holds the request it executes."
+premises = ["/call"]
+assumptions = []
+emits = ["after(basis=causal)"]
+evidence = ["docs/architecture/C_data_model.md C.8.2"]
+tests = ["tests/unit/aer/test_order.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.decision_after_subject"
+version = 1
+class = "D"
+status = "active"
+statement = "A decision occurs after the thing it decides about exists."
+premises = ["/subject"]
+assumptions = []
+emits = ["after(basis=causal)"]
+evidence = ["docs/architecture/C_data_model.md C.8.2"]
+tests = ["tests/unit/aer/test_order.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.time_order"
+version = 1
+class = "D"
+status = "active"
+statement = "R occurs after X when both carry intervals on the same clock and X.end is strictly before R.start (C.8.6)."
+premises = ["/t"]
+assumptions = []
+emits = ["after(basis=time)"]
+evidence = ["docs/architecture/C_data_model.md C.8.6"]
+tests = ["tests/unit/aer/test_order.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.agent_calls_vs_assistant"
+version = 1
+class = "D"
+status = "active"
+statement = "Kept agent-role model calls and the assistant messages they generate are in 1:1 correspondence; unverifiable when the calls are derived from the messages."
+premises = ["model_call", "message"]
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = ["tests/unit/aer/test_accounting.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.reported_counts"
+version = 1
+class = "D"
+status = "active"
+statement = "Source-reported call counts and finish-reason lists agree with the held assistant messages plus the emitted lost calls."
+premises = ["/usage/calls", "/finish_reason"]
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = ["tests/unit/aer/test_accounting.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.tool_calls_dispatched"
+version = 1
+class = "D"
+status = "active"
+statement = "Every tool_call part has exactly one of: a tool execution, a deny decision, or a listing in the unexecuted_tool_call issue."
+premises = ["/parts", "/call", "/subject"]
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = ["tests/unit/aer/test_accounting.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.tool_results_linked"
+version = 1
+class = "D"
+status = "active"
+statement = "Every tool_result part has a resolving responds_to (or is listed as an orphan) and no tool_call part has more than one result."
+premises = ["/parts"]
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = ["tests/unit/aer/test_accounting.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.executions_have_results"
+version = 1
+class = "D"
+status = "active"
+statement = "Every tool execution generates a result message, directly or through a redact or modify decision on it."
+premises = ["/generated_by"]
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = ["tests/unit/aer/test_accounting.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.assistant_generated_by"
+version = 1
+class = "D"
+status = "active"
+statement = "Every assistant message authored by an llm_agent has generated_by, or an unk entry plus the missing_generated_by issue."
+premises = ["/generated_by"]
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = ["tests/unit/aer/test_accounting.py"]
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.passes_closed"
+version = 1
+class = "D"
+status = "active"
+statement = "Live capture: every pass.start has a pass.end, aborted passes included (computed by the capture mapper)."
+premises = []
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = []
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.dispatch_vs_results"
+version = 1
+class = "D"
+status = "active"
+statement = "Live capture: tool.dispatch and tool.result events correspond 1:1 by occurrence id (computed by the capture mapper)."
+premises = []
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = []
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.env_recorded"
+version = 1
+class = "D"
+status = "active"
+statement = "Live capture: each attempt has before and after state digests or an issue (computed by the capture mapper)."
+premises = []
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = []
+since = "0.1.0"
+
+[[rule]]
+id = "aer.acc.capture_chain"
+version = 1
+class = "D"
+status = "active"
+statement = "Live capture: the capture log's hash chain verifies and ends with session.end (computed by the capture mapper)."
+premises = []
+assumptions = []
+emits = ["seal.accounting.check"]
+evidence = ["docs/architecture/C_data_model.md C.12.2"]
+tests = []
+since = "0.1.0"

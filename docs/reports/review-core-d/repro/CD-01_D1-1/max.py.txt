@@ -1,0 +1,9 @@
+from agentprov.adapters.registry.render import registry_rows, source_detail
+def walk(v, acc):
+    if isinstance(v,str): acc.append(len(v))
+    elif isinstance(v,dict): [walk(x,acc) for x in v.values()]
+    elif isinstance(v,list): [walk(x,acc) for x in v]
+acc=[]; walk(registry_rows(),acc)
+ids={r["source"] if "source" in r else r.get("id") for r in registry_rows()["parts"]}
+print("max registry str", max(acc), "n>500", sum(a>500 for a in acc))
+print(list(registry_rows()["parts"][0].keys()))

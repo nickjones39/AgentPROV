@@ -1,0 +1,14 @@
+--- a/src/agentprov/views/transcript_v1.py
++++ b/src/agentprov/views/transcript_v1.py
+@@ def _converted_turn(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
+     role = message.get("role")
+     parts = _list(message.get("parts"))
+     if len(parts) == 1 and isinstance(parts[0], Mapping) and parts[0].get("t") == "other" and \
+             parts[0].get("type") == "agentdojo.unknown_message":
+-        return _native_message_turn(doc.value(message, "/parts/0/value")[1])
++        try:  # the value is verbatim untrusted source JSON; the converter rules assume its types
++            return _native_message_turn(doc.value(message, "/parts/0/value")[1])
++        except (TypeError, ValueError, AttributeError) as exc:  # UnicodeEncodeError is a ValueError
++            raise ViewError(f"message {message.get('id')!s}: /parts/0/value has a shape the converter rules "
++                            f"cannot render ({type(exc).__name__})") from None
+     if role == "assistant":

@@ -1,0 +1,13 @@
+import json, os, glob, collections
+C = os.path.expanduser("~/.agentprov/migration-work/regen-items-2-12/r10j2/agentdyn-history.partial")
+v = collections.Counter(); paths = {}
+for f in glob.glob(C + "/aer/*/*.aer.jsonl"):
+    with open(f) as fh:
+        ex = json.loads(fh.readline())
+    var = ex["dialect"]["variant"]; v[var] += 1
+    if var != "drift.k18.messages":
+        o = ex["artifacts"][0]["origin"]
+        paths[var] = (o.get("member") or o.get("path"), o.get("blob_sha1","")[:8], o.get("commit","")[:8], ex.get("ext",{}).get("agentdojo",{}).get("pipeline_name"))
+print(v); print(paths)
+ex_lines = [json.loads(l) for l in open(C + "/executions.jsonl")]
+print(len(ex_lines), collections.Counter(str(e.get("variant") or e.get("dialect",{}).get("variant") if isinstance(e.get("dialect"),dict) else e.get("dialect_variant")) for e in ex_lines))

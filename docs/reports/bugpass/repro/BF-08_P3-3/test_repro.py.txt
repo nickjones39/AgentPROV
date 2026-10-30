@@ -1,0 +1,26 @@
+"""P3-3: append to a ledger lacking a final newline glues records; ids handed out twice."""
+import sys
+from pathlib import Path
+
+ROOT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(ROOT / "tools"))
+import reserve_id as ri  # noqa: E402
+
+
+def _res(d, purpose):
+    rec = ri.reserve(kind="decision", scope="", count=10, align=10, session="s", branch="b",
+                     purpose=purpose, ledger_dir=d, sv=ri.Survey(), mirror=None, host="h")
+    return rec["first"], rec["last"]
+
+
+def test_missing_final_newline_does_not_lose_records(tmp_path):
+    d = tmp_path / "ids"
+    one = _res(d, "one")
+    ledger = d / "ledger.jsonl"
+    ledger.write_bytes(ledger.read_bytes().rstrip(b"\n"))  # hand edit / short write
+    two = _res(d, "two")
+    three = _res(d, "three")
+    recs, bad = ri.read_ledger(ledger)
+    print("one", one, "two", two, "three", three, "records", len(recs), "bad", bad)
+    assert len({one, two, three}) == 3, "same range handed out twice"
+    assert bad == 0 and len(recs) == 3

@@ -1,0 +1,608 @@
+{
+ "corpus_id": "ast-survey-agentharm",
+ "files_written": [
+  "docs/reports/precheck/data/ast-survey-agentharm/exam.json",
+  "docs/reports/precheck/data/ast-survey-agentharm/dl1-delta.json",
+  "docs/reports/precheck/data/ast-survey-agentharm/raw-hypotheses.json",
+  "docs/reports/precheck/data/ast-survey-agentharm/aer-pass.json",
+  "docs/reports/precheck/data/ast-survey-agentharm/outcomes.json",
+  "docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/dl1_diff.py",
+  "docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/raw_checks.py",
+  "docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/raw_checks2.py",
+  "docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/toolerr.py",
+  "docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/tz.py",
+  "docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/aer_pass.py"
+ ],
+ "findings": [
+  {
+   "agents_md_12": true,
+   "artefact_proposal": "[[artefact]]\nid = \"inspect.art.bundled_file_not_found\"\ntitle = \"Bundled-content file tools fail with file not found\"\ndescription = \"AgentHarm's read_file and convert_pdf_to_text resolve their bundled files relative to the working directory; the survey ran the benchmark from the inspect_evals checkout root, so these calls returned a file-not-found error (read_file) or result text (convert_pdf_to_text). Scores of the affected samples rest on a broken tool environment (inspect_evals #2439).\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentharm\"], profiles = [\"survey-agentharm\"] }\ncause = \"upstream_harness\"\ndetector = { rule = \"<new: inspect.file_tool_not_found@1, tool_execution status error with error type file_not_found, or env result marker 'File not found at'>\", class = \"O\" }\nrecorded_as = {}\nhandling = { class = \"FO\" }\nexpected = [\n  { snapshot = \"git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3\", count = 63, basis = \"samples with >= 1 failed call: coder_benign 13, coder_harmful 9, gptoss_benign 15, gptoss_harmful 2, qwen14_benign 12, qwen14_harmful 12; calls: read_file 84 of 93, convert_pdf_to_text 63 of 63, edit_txt 0 of 2\" },\n]\nmanuscript = true\nrefs = [\"https://github.com/UKGovernmentBEIS/inspect_evals/issues/2439\", \"docs/reports/precheck/data/ast-survey-agentharm/raw-hypotheses.json\"]",
+   "check": "H-10 / L1 raw tool events + L2 AER tool_execution status / outcome: no gap, scores published without the defect / delta: none (raw)",
+   "cls": "documentation-mismatch",
+   "evidence": "Raw (6/6 logs): read_file file_not_found error 84 of 93 calls (coder_benign 22/22, coder_harmful 10/10, gptoss_benign 24/27, qwen14_benign 12/16, qwen14_harmful 16/18), convert_pdf_to_text result 'File not found at benchmark/...' 63 of 63 calls (12/8/26/5/7/5), edit_txt 0/2; samples with >= 1 such call 63 of 1,056 (coder_benign 13, coder_harmful 9, gptoss_benign 15, gptoss_harmful 2, qwen14_benign 12, qwen14_harmful 12: benign 40/528, harmful 23/528). AER: tool_execution status error 84 = read_file only. Mean score affected vs not: gptoss_benign 0.378 (15) vs 0.664 (161); others within about 0.07 or higher. No artefacts.toml entry; the survey README reports the scores without this note. Lead L-07 (#2439, open).",
+   "hypothesis_ref": "H-10",
+   "id": "PC-ast-survey-agentharm-01",
+   "part": "agentharm",
+   "recommendation": "Disclose in the dossier/datasheet: AgentHarm scores of this corpus include 63 samples whose bundled-file tools failed (harness working-directory defect, #2439); keep all data (no exclusion). Route the artefacts.toml entry below to the inspect family owner; a detector needs either a tool_execution status/error-type rule (read_file) or an env-result text marker (convert_pdf_to_text). Optional assessment flag per affected sample.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/toolerr.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial  -> calls {coder_benign|read_file: 22, ..., qwen14_benign|edit_txt: 2}; samples_with_file_not_found {coder_benign: 13, coder_harmful: 9, gptoss_benign: 15, gptoss_harmful: 2, qwen14_benign: 12, qwen14_harmful: 12}; error templates 'read_file|error:file_not_found|File <q> was not found.' 84, 'convert_pdf_to_text|result|...Error: File not found at benchmark<path>' 63",
+   "security": false,
+   "severity": "S2",
+   "title": "Bundled-content file tools return file-not-found in 63 samples (inspect_evals #2439 confirmed in the data)"
+  },
+  {
+   "agents_md_12": false,
+   "artefact_proposal": "See phase10-examination-2.md section 10.2 (entries inspect.art.abnormal_finish_max_tokens count 23 and inspect.art.text_tool_call count 12); no new text.",
+   "check": "L2 A2 / safety net / no movement since E2",
+   "cls": "expected-known",
+   "evidence": "agentprov.artefacts.scan over 1,056 scratch executions: artefact.generic.abnormal_finish#max_tokens n 23 in 23 executions UNCLASSIFIED; artefact.generic.text_encoded_call#marker n 12 in 12 executions UNCLASSIFIED; inspect/artefacts.toml has 9 entries, none for these. Raw: agent max_tokens stops 23 (gptoss_benign 2, qwen14_benign 10, qwen14_harmful 11); '<function=' in 13 assistant messages / 13 model events of 12 samples (coder_benign 8, coder_harmful 4); the prereg's '14 turns' is not reproduced.",
+   "hypothesis_ref": "H-16",
+   "id": "PC-ast-survey-agentharm-02",
+   "part": "agentharm",
+   "recommendation": "Family owner adds the two entries drafted in phase10-examination-2.md section 10.2 (inspect.art.abnormal_finish_max_tokens, inspect.art.text_tool_call; counts 23 and 12, basis: executions/locators); state the text-call basis as 12 samples / 13 messages.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/aer_pass.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial /tmp/aer_pass.json  -> agg.net: 'artefact.generic.abnormal_finish#max_tokens|UNCLASSIFIED|' 23; 'artefact.generic.text_encoded_call#marker|UNCLASSIFIED|' 12",
+   "security": false,
+   "severity": "S3",
+   "title": "Safety-net catalogue gap E2-b5 still open: max_tokens 23 and text-encoded calls 12 unclassified"
+  },
+  {
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "check": "L1-01 / H-02",
+   "cls": "documentation-mismatch",
+   "evidence": "ZIP central directory through agentprov.ingest.archives.iter_zip_members equals raw/members.jsonl labels in 6/6 logs; per log coder_harmful 229, coder_benign 247, gptoss_harmful 272, gptoss_benign 286, qwen14_harmful 317, qwen14_benign 340 = 1,691 (1,062 selected, 629 not selected); stored and scratch members tables identical except fn_digest.",
+   "hypothesis_ref": "H-02",
+   "id": "PC-ast-survey-agentharm-03",
+   "part": "agentharm",
+   "recommendation": "Correct verify/agent-security-tools-survey.md section 2.3 (286 is gptoss_benign only); the prereg row stays as registered; no corpus change.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/raw_checks.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial /tmp/rc.json  -> logs.*.members_zip = members_rows (229/247/272/286/317/340), members_equal true x 6",
+   "security": false,
+   "severity": "S3",
+   "title": "Verify report's members-per-log figure (6 x 286 = 1,716) is one log's count; the 25-member gap (L-10) does not exist"
+  },
+  {
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "check": "H-12 / L1-08 / seal issues",
+   "cls": "expected-known",
+   "evidence": "Limit-stopped 54 (message limit 20); message-list lengths 18 (1, coder_benign) and 16 (2, qwen14_benign), the other 51 at 20; the 3 short ones and one more qwen14_benign sample have unanswered tool calls: 4 samples, 16 calls = seal missing_tool_result 16 / dangling_source_ref 16 in 4 executions (inspect.art.tool_result_lost_at_limit).",
+   "hypothesis_ref": "H-12",
+   "id": "PC-ast-survey-agentharm-04",
+   "part": "agentharm",
+   "recommendation": "Add one sentence to inspect.art.sample_limit / tool_result_lost_at_limit descriptions: the limit counts tool results that the log then drops, so a limit-stopped sample can hold fewer messages than the limit; no mapping change.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/raw_checks2.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial /tmp/rc2.json  -> coder_benign limit_msgs=18: 1, limit_msgs=20: 8, unanswered_tool_calls_at_limit 4; qwen14_benign limit_msgs=16: 2, limit_msgs=20: 4, limit_samples_with_unanswered_tool_calls 3, unanswered 12",
+   "security": false,
+   "severity": "S3",
+   "title": "Three of the 54 limit-stopped samples hold fewer than 20 messages: the dropped tool results count toward the message limit"
+  },
+  {
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "check": "L2-C outcomes / A2 (tool)",
+   "cls": "analysis-artefact",
+   "evidence": "l2-agentharm.json outcomes.arms = 3 empty arms 'model|none|none' (judgements combined_scorer.score/refusal are numeric, judgements_of keeps booleans only; the arm key has no suite, so 176 harmful + 176 benign share an arm); no 'a2' key in the report (protocol 8.1 lists A2 under L2-C). OS-2 and A2 here come from the examiner script aer_pass.py: AER score distributions equal the raw L1 distributions in 6/6 arms, refusals 35/109/93/161/11/51.",
+   "hypothesis_ref": "",
+   "id": "PC-ast-survey-agentharm-05",
+   "part": "agentharm",
+   "recommendation": "After the batch (tools frozen): l2_check reads numeric judgements (mean, share == 1, k/n of 0/1 values) and adds suite/task to the arm key; add an A2 section (finish reasons, tool statuses, unk kinds, seal codes). Post-check: re-run aer_pass.py or the fixed l2_check.",
+   "reproduction": "python3 -c \"import json;print(json.load(open('docs/reports/precheck/data/ast-survey-agentharm/l2-agentharm.json'))['outcomes']['arms'])\"  -> {'ollama/gpt-oss:120b|none|none': {}, 'ollama/qwen3-coder:30b|none|none': {}, 'ollama/qwen3:14b|none|none': {}}",
+   "security": false,
+   "severity": "S3",
+   "title": "l2_check gives no outcome table and no A2 section for Inspect (boolean-only judgements; arm key merges harmful and benign)"
+  },
+  {
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "check": "L1-04 cross-part (tool coverage)",
+   "cls": "analysis-artefact",
+   "evidence": "_cross/l1-xdup.json inputs: agent-security-tools-survey.agentharm units 1,056, artefacts 0 (unit rows carry the container sha, so byte identity is compared only for the 6 containers); kexin-xu-01-agentharm and fragfuse-agentharm are not among the 10 inputs (later waves). Within part: 1,056 distinct member sha256 and fingerprints.",
+   "hypothesis_ref": "H-17",
+   "id": "PC-ast-survey-agentharm-06",
+   "part": "agentharm",
+   "recommendation": "Re-run l1_xdup.py once the AgentHarm-family parts of later waves have L1 fingerprints; let l1_xdup compare member sha256 (from l1 rows or members.jsonl) for archive-member units.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/_cross/l1-xdup.json'));print([i for i in d['inputs'] if i['part']=='agentharm'])\"  -> [{... 'units': 1056, 'artefacts': 0}]",
+   "security": false,
+   "severity": "S3",
+   "title": "Cross-corpus duplicate check does not cover Inspect sample members and lacks the other AgentHarm corpora"
+  }
+ ],
+ "followups": [
+  "After the waves holding kexin-xu-01-agentharm and fragfuse-agentharm: uv run python tools/precheck/l1_xdup.py  (why: H-17 cross-corpus duplicates for the three AgentHarm corpora are untested; PC-06)",
+  "Optional, read-only confirmation of amendment 1 on the stored corpus (only if validate --corpus does not write into it): uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentharm -- uv run agentprov validate --corpus ~/.agentprov/corpora/ast-survey-agentharm-p10.partial --jobs 2  (why: expected exit 1 validate.results.differ, expected-known)",
+  "After the batch (tools unfrozen): extend tools/precheck/l2_check.py with Inspect numeric outcomes (arm key incl. suite) and an A2 section, then re-run l2_check on ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial (why: PC-05; the examiner script aer_pass.py is the stopgap)",
+  "No rerun needed for wave 1: l1, sample, import_j2, import_j1 and check all rc 0 for this part."
+ ],
+ "hypotheses": [
+  {
+   "id": "H-01",
+   "note": "6 logs x 176, status success 6/6, 0 sample errors, epoch 1 in 1,056/1,056",
+   "result": "supported"
+  },
+  {
+   "id": "H-02",
+   "note": "ZIP central directory = members.jsonl in 6/6; per log 229/247/272/286/317/340 = 1,691; the 1,716 figure assumed 286 for every log (PC-03); no directory entries needed to explain it",
+   "result": "supported"
+  },
+  {
+   "id": "H-03",
+   "note": "strict parse: only big_int, 10 strings in 1 artefact (post_id), 0 other classes",
+   "result": "supported"
+  },
+  {
+   "id": "H-04",
+   "note": "1 distinct sample-id set across the 3 harmful logs and 1 across the 3 benign logs (176 each)",
+   "result": "supported"
+  },
+  {
+   "id": "H-05",
+   "note": "24/24 header results cells within +-0.0005 of README l. 342-349",
+   "result": "supported"
+  },
+  {
+   "id": "H-06",
+   "note": "refusals 161/93/109/35/51/11 (460); recounted avg_score, avg_full_score, avg_score_non_refusals within +-0.0005 in 6/6",
+   "result": "supported"
+  },
+  {
+   "id": "H-07",
+   "note": "empty text with reasoning: coder 0/0; gptoss_benign 872, gptoss_harmful 119, qwen14_benign 426, qwen14_harmful 357",
+   "result": "supported"
+  },
+  {
+   "id": "H-08",
+   "note": "benign samples graded by grade_setup_meeting_location: 12 (4 per log), 0 with score 1.0",
+   "result": "supported"
+  },
+  {
+   "id": "H-09",
+   "note": "0 JSON-integer score tokens (1,056 floats); avg_full_score over 176 equals the header in 6/6, so #2146 does not bite",
+   "result": "supported"
+  },
+  {
+   "id": "H-10",
+   "note": "file_not_found on bundled-content tools: read_file 84/93 calls, convert_pdf_to_text 63/63, edit_txt 0/2; 63 samples (benign 40/528, harmful 23/528); direction of the score effect mixed",
+   "result": "supported (the lead fires): finding PC-01"
+  },
+  {
+   "id": "H-11",
+   "note": "0 of 1,112 refusal explanations match an error pattern (error|exception|traceback|failed to)",
+   "result": "supported"
+  },
+  {
+   "id": "H-12",
+   "note": "3 of 54 limit-stopped samples hold < 20 messages (18, 16, 16); all three are among the 4 lost-result samples (16 unanswered calls = inspect.art.tool_result_lost_at_limit); the 4 lost-result samples are all limit-stopped",
+   "result": "refuted (expected-known cause, PC-04)"
+  },
+  {
+   "id": "H-13",
+   "note": "judge model events 1,601: seed None, max_tokens None, temperature 0.0; agent 3,660: temperature 0.0, seed 0, max_tokens 4096",
+   "result": "supported"
+  },
+  {
+   "id": "H-14",
+   "note": "all timestamps parse, all +00:00; range inside 2026-08-21T21:23:06Z..2026-08-22T13:23:23Z; no overlap of model or log windows; total_time sums within 0.6 % of README minutes",
+   "result": "supported"
+  },
+  {
+   "id": "H-15",
+   "note": "dataset location account path 6/6 (1 segment); 0 occurrences in AER/SEM/PROV/index/validation (scratch and stored) and in committed precheck reports; content /home/ and /Users/ strings are content pointers only (benchmark fiction or model text)",
+   "result": "supported"
+  },
+  {
+   "id": "H-16",
+   "note": "safety net: abnormal_finish#max_tokens 23 and text_encoded_call#marker 12, both unclassified; raw 13 assistant messages in 12 samples carry '<function=' (the prereg's '14 turns' not reproduced)",
+   "result": "supported"
+  },
+  {
+   "id": "H-17",
+   "note": "0 byte-identical members, 0 identical trajectories",
+   "result": "supported within part and across the wave-1 parts; cross-corpus with kexin-xu-01-agentharm and fragfuse-agentharm not tested (not yet in l1-xdup; member-level rows absent, PC-06)"
+  },
+  {
+   "id": "H-18",
+   "note": "0 secret-shaped strings in AER (l2_check); raw generic-credential-assignment 21 strings in 3 logs, all in content pointers",
+   "result": "supported"
+  }
+ ],
+ "l2_status": "done",
+ "level1": "L1 at a871e2d7 (batch wave1, l1 rc 0, 6.7 s), pinned git 89c4db2c tree agentharm/results. L1-01: walked 7 blobs; 6 selected (.eval) + 1 not_selected (timing_summary.csv); 0 excluded/rejected/strays; units 1,056 = registry figure 1056 = 6 x 176 (expected). Archive members (H-02, from the scratch raw store through agentprov.ingest): ZIP central directory equals raw/members.jsonl in 6/6 logs; per log 229 (coder_harmful) / 247 (coder_benign) / 272 (gptoss_harmful) / 286 (gptoss_benign) / 317 (qwen14_harmful) / 340 (qwen14_benign) = 1,691 = 1,062 selected (6 header + 1,056 samples) + 629 not selected (617 _journal, 6 summaries.json, 6 reductions.json); the verify report's '286 per log' is gptoss_benign only (L-10 resolved, PC-03). L1-09 not in plan for this part (git tree, no archive input). L1-02: 6/6 artefacts primary class ok; only class big_int in 1/6 (coder_benign): 10 strings at 5 normalised post_id pointers (2 each) = expected 10 (H-03); AER carries 6 $int wrappers in 1 AER (expected 6). L1-03: in 6/6 artefacts escaped_newline 1,008, escaped_quote 120, escaped_unicode 404 (literal escapes 1,532 >= E2 AER 1,492), json_in_string 7,285 (model-API tool-call arguments and attachments, expected Inspect form), variation_selector 351 (>= E2 AER 260); 0 U+2028/2029/0085, C0/C1, ESC, bidi, tag, zero-width, PUA, U+FFFD, mojibake (expected 0). 'Intact Windows paths 110' has no L1-03 class (not tested; L1-06 windows-users 70 strings). L1-04: within part 0 byte-identical groups, 0 trajectory-identical groups (1,056 fingerprints, 1,056 distinct; 1 fp_fallback unit); sample-member sha256 1,056 distinct of 1,056; cross-part file _cross/l1-xdup.json (wave-1 parts only): 0 groups involving this part (byte and trajectory); the agentharm rows enter with artefacts 0 (unit rows), so member-level byte identity across corpora is not covered, and kexin-xu-01-agentharm / fragfuse-agentharm are not in it yet (PC-06). L1-05: model x split = 3 x 2 cells, 1 log and 176 units each (coder/gptoss/qwen14 x benign/harmful), header status success 6/6, producer 0.3.247.dev69+g53c1fa98b 6/6, tasks inspect_evals/agentharm 3 + agentharm_benign 3; missing cells 0, extra cells 0 (expected none); categories 8 (Copyright 144, Cybercrime 120, Disinformation 120, Drugs 120, Fraud 144, Harassment 144, Hate 120, Sexual 144 over 1,056). L1-06: account:home-dir:named 2,958 strings in 6/6 artefacts (67 pointers; 8 distinct accounts), home-dir:generic 91 in 4/6, windows-users named 36 in 2/6 (6 distinct) and generic 34 in 1/6, secret:generic-credential-assignment 21 in 3/6; every pointer is a content pointer (attachments, messages, tool args/results, outputs, refusal explanations, sample input/prompt). Header dataset location holds an account path in 6/6 logs, 1 distinct segment (L-12, H-15); that segment occurs 0 times in sample content, 0 in scratch and stored AER/SEM/PROV/validation/index, 0 in docs/reports/precheck (positive control 4,324 '/home/'+'/Users/' hits in scratch AER). The 8 content segments: 5 occur in benchmark input or env tool results, 3 only in model output/tool arguments (scenario fiction, protocol trap 11); 0 operator home. L1-07: 18 timestamp pointers, 0 parse failures; per-event timestamp 45,131 and completed 9,425 all +00:00 (UTC), call/response/created 4,631 epoch seconds; harness dates 2026-08-21..2026-08-22, event range 2026-08-21T21:23:06.99Z..2026-08-22T13:23:22.73Z (inside the expected window); tool-argument timestamps 19 (2023-04-15..2026-08-21, benchmark content). Event timestamps non-monotone in 766/1,056 units = exactly the samples with >= 1 tool event (168/114/154/27/166/137); working_start non-monotone in 1,056/1,056 (consistent with inspect.art.event_order_not_time_order count 1,056). Sample windows: no overlap across models or logs; per-log sum of total_time within 0.6 % of the README minutes. L1-08: 0 empty, 0 zero-message, 0 error-only, 0 unterminated, 0 tiny; unit flags sample_limit 54 (coder_benign 9, gptoss_benign 33, qwen14_benign 6, qwen14_harmful 6) = expected 54; 0 sample errors.",
+ "level2": "Sample: all 6 containers (6 strata x 1; < 30 units so the part is imported whole) = 1,056 executions; L2 sample = population. Batch steps sample/import_j2/import_j1/check rc 0 (import_j2 199 s, j1 356 s). validate (aer,sem,prov,linkage,shacl,regression; tiers run 4): 1,056 passed, 0 failed, results_reproduced 1,056, linkage 1,056/1,056; shacl not implemented (skipped), regression n/a. recompute --dry-run (shim): 1,056 identical, 0 changed, 0 failed, 0 unexplained. verify --level chain: 1,056 executions, 1,062 members and 1,068 raw objects rehashed, 0 failed; checksums.absent unverified (working tree, expected). Determinism j2 vs j1: 4,243 vs 4,243 files, 0 differ, index identical. A2 (examiner script; l2_check has no A2 section, PC-05): agent model calls 3,660 (finish stop 979, tool_calls 2,658, max_tokens 23), judge (auxiliary) 1,601; tool executions 4,164 (ok 3,931, error 84 = all read_file file_not_found, invalid 149: send_email 108, post_on_x 21, create_ai_video 10, other 10); empty assistant text unk ambiguous 2,345 (/parts/0 696 + /parts/1 1,649; exact empty strings 417/221/820/104/426/357 = artefact basis; 125 whitespace-only gptoss texts are not empty); text-encoded calls 12 samples / 13 assistant messages; /params/transmitted lost 630; seal issues inspect.sample_limit 54, dangling_source_ref 16 and missing_tool_result 16 in 4 executions; register codes map.inspect.sample_limit 54, map.dangling_source_ref 4, map.missing_tool_result 4. A3 (PI classes): dangling 0, missing_generation 0/9,409, missing_use_request 0/4,164, missing_use_input 0/5,261, invented 0, forbidden 0, time_inferred 0, unexecuted 0 over 366,830 statements and 468,344 relation arguments; time_not_run_scope 23,093 (model calls 5,261, solver scopes 5,280, other scopes 8,388, tool executions 4,164; all from O/D time fields, informational). Evidence classes (PROV statements): core D 126,531 / O 100,305 / none 4,164 (hadMember); inference I 1,056 (system_message_from_task_plan only); assessment D 46,462 / I 18,752 (SEM annotations) / O 2,112 / none 10,424; top O 53,856 / none 3,168; _unverified twins 0 (producer +g53c1fa98b verified, expected). Degenerate 0, adapter_defect 0, unreadable 0; status ok 1,052 / ok_with_issues 4; completeness verified_complete 1,052 / known_incomplete 4 (item 11, D-372). Identity: agent models gpt-oss:120b / qwen3-coder:30b / qwen3:14b 352 each (L1 model and results_dir map 1:1, 0 mismatches, 0 unresolved); judge0 qwen3:14b in 1,012 executions (unk /code,/version not_recorded); bench agentharm version '2' (D) 1,056 with /code/commit ambiguous (2dd469a abbreviated); harness inspect_ai 1,056; env actor in the 766 executions with tool events; suites agentharm 528 / agentharm_benign 528; defence/attack none. Redaction: no account path of the operator and 0 of the dataset-location segment in AER/SEM/PROV/index/validation; the l2_check account-path screen hits AER in 95 executions and PROV in 71 (args), all content pointers (benchmark prompt copied into ext.inspect.sample_metadata, refusal-explanation model text, message parts, tool args, state patches, fixture content); benchmark fiction, not a leak; 0 secret-shaped strings in AER. Withholding: profile has no [withhold] table (policy null); nothing withheld (expected). Safety net (agentprov.artefacts.scan, shipped catalogues): classified inspect.sample_limit 54, missing_tool_result 16 (4 ex), dangling_source_ref 16 (4 ex); UNCLASSIFIED abnormal_finish#max_tokens 23 and text_encoded_call#marker 12 (E2-b5 still open, PC-02). DL-1 (stored ast-survey-agentharm-p10 vs scratch j2, same 1,056 execution ids, 0 only-old/only-new; dl1-delta.json): AER, SEM, PROV and validation digests differ in 1,056/1,056; register identical; members rows identical but fn_digest. Every differing pointer is attributed: item 30 (rules inspect 1->2, SEM inspect.agentharm@1->@2 with 0 annotation-body differences, PROV rules/sem entities and assessment bundle id), item 12 c3 (9,444 scopes -> harness 5,280 / env 4,164 and +9,444 core wasAssociatedWith), item 12 c4 (2,112 messages -> bench, m1 D / m0 I with src a1:/plan/steps, +1,056 core wasAttributedTo, new inference bundle with +1 top entity/specializationOf/wasGeneratedBy/wasAssociatedWith and +5 wasDerivedFrom), U6-a (bench /version 2 + task_version moved out of ext 1,056; judge unk 1,012; core entity net -2 in the 44 executions without a judge actor), U6-b (630 calls in 266 executions /params/transmitted lost), items 9/11 (4 index rows completeness), index /stages SEM key (item 30), expand bundles (fn_digest). Unexplained: 0. All prereg section 7 predictions hold (counts 1,056 / 9,444 / 2,112 / 1,598 judge prompts unattributed / 1,012 / 630 in 266 / 4).",
+ "outcomes": [
+  {
+   "arm": "coder_benign",
+   "flag": false,
+   "gap_pp": "-0.01",
+   "level": "L1-population",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.199 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.1989",
+   "wilson95": "[0.1466, 0.264]"
+  },
+  {
+   "arm": "coder_benign",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L1-population",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.54 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.5398",
+   "wilson95": "[0.4661, 0.6118]"
+  },
+  {
+   "arm": "coder_benign",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L1-population",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.791 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.7908",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "coder_benign",
+   "flag": false,
+   "gap_pp": "-0.01",
+   "level": "L2-sample",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.199 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.1989",
+   "wilson95": "[0.1466, 0.264]"
+  },
+  {
+   "arm": "coder_benign",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L2-sample",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.54 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.5398",
+   "wilson95": "[0.4661, 0.6118]"
+  },
+  {
+   "arm": "coder_benign",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L2-sample",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.791 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.7908",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "coder_harmful",
+   "flag": false,
+   "gap_pp": "0.03",
+   "level": "L1-population",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.619 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.6193",
+   "wilson95": "[0.5458, 0.6878]"
+  },
+  {
+   "arm": "coder_harmful",
+   "flag": false,
+   "gap_pp": "-0.05",
+   "level": "L1-population",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.205 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.2045",
+   "wilson95": "[0.1516, 0.2701]"
+  },
+  {
+   "arm": "coder_harmful",
+   "flag": false,
+   "gap_pp": "-0.01",
+   "level": "L1-population",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.394 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.3939",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "coder_harmful",
+   "flag": false,
+   "gap_pp": "0.03",
+   "level": "L2-sample",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.619 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.6193",
+   "wilson95": "[0.5458, 0.6878]"
+  },
+  {
+   "arm": "coder_harmful",
+   "flag": false,
+   "gap_pp": "-0.05",
+   "level": "L2-sample",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.205 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.2045",
+   "wilson95": "[0.1516, 0.2701]"
+  },
+  {
+   "arm": "coder_harmful",
+   "flag": false,
+   "gap_pp": "-0.01",
+   "level": "L2-sample",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.394 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.3939",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "gptoss_benign",
+   "flag": false,
+   "gap_pp": "0.04",
+   "level": "L1-population",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.528 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.5284",
+   "wilson95": "[0.4548, 0.6008]"
+  },
+  {
+   "arm": "gptoss_benign",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L1-population",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.432 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.4318",
+   "wilson95": "[0.3609, 0.5057]"
+  },
+  {
+   "arm": "gptoss_benign",
+   "flag": false,
+   "gap_pp": "-0.0",
+   "level": "L1-population",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.64 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.64",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "gptoss_benign",
+   "flag": false,
+   "gap_pp": "0.04",
+   "level": "L2-sample",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.528 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.5284",
+   "wilson95": "[0.4548, 0.6008]"
+  },
+  {
+   "arm": "gptoss_benign",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L2-sample",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.432 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.4318",
+   "wilson95": "[0.3609, 0.5057]"
+  },
+  {
+   "arm": "gptoss_benign",
+   "flag": false,
+   "gap_pp": "-0.0",
+   "level": "L2-sample",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.64 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.64",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "gptoss_harmful",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L1-population",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.915 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.9148",
+   "wilson95": "[0.8642, 0.9477]"
+  },
+  {
+   "arm": "gptoss_harmful",
+   "flag": false,
+   "gap_pp": "-0.0",
+   "level": "L1-population",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.108 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.108",
+   "wilson95": "[0.0702, 0.1624]"
+  },
+  {
+   "arm": "gptoss_harmful",
+   "flag": false,
+   "gap_pp": "0.05",
+   "level": "L1-population",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.131 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.1315",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "gptoss_harmful",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L2-sample",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.915 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.9148",
+   "wilson95": "[0.8642, 0.9477]"
+  },
+  {
+   "arm": "gptoss_harmful",
+   "flag": false,
+   "gap_pp": "-0.0",
+   "level": "L2-sample",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.108 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.108",
+   "wilson95": "[0.0702, 0.1624]"
+  },
+  {
+   "arm": "gptoss_harmful",
+   "flag": false,
+   "gap_pp": "0.05",
+   "level": "L2-sample",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.131 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.1315",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "qwen14_benign",
+   "flag": false,
+   "gap_pp": "-0.05",
+   "level": "L1-population",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.063 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.0625",
+   "wilson95": "[0.0353, 0.1084]"
+  },
+  {
+   "arm": "qwen14_benign",
+   "flag": false,
+   "gap_pp": "0.01",
+   "level": "L1-population",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.284 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.2841",
+   "wilson95": "[0.2226, 0.3548]"
+  },
+  {
+   "arm": "qwen14_benign",
+   "flag": false,
+   "gap_pp": "-0.04",
+   "level": "L1-population",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.607 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.6066",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "qwen14_benign",
+   "flag": false,
+   "gap_pp": "-0.05",
+   "level": "L2-sample",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.063 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.0625",
+   "wilson95": "[0.0353, 0.1084]"
+  },
+  {
+   "arm": "qwen14_benign",
+   "flag": false,
+   "gap_pp": "0.01",
+   "level": "L2-sample",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.284 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.2841",
+   "wilson95": "[0.2226, 0.3548]"
+  },
+  {
+   "arm": "qwen14_benign",
+   "flag": false,
+   "gap_pp": "-0.04",
+   "level": "L2-sample",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.607 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.6066",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "qwen14_harmful",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L1-population",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.29 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.2898",
+   "wilson95": "[0.2278, 0.3607]"
+  },
+  {
+   "arm": "qwen14_harmful",
+   "flag": false,
+   "gap_pp": "-0.01",
+   "level": "L1-population",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.199 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.1989",
+   "wilson95": "[0.1466, 0.264]"
+  },
+  {
+   "arm": "qwen14_harmful",
+   "flag": false,
+   "gap_pp": "0.03",
+   "level": "L1-population",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.495 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.4953",
+   "wilson95": "n/a (mean of graded scores)"
+  },
+  {
+   "arm": "qwen14_harmful",
+   "flag": false,
+   "gap_pp": "-0.02",
+   "level": "L2-sample",
+   "metric": "refusal_rate",
+   "n": 176,
+   "paper": "0.29 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.2898",
+   "wilson95": "[0.2278, 0.3607]"
+  },
+  {
+   "arm": "qwen14_harmful",
+   "flag": false,
+   "gap_pp": "-0.01",
+   "level": "L2-sample",
+   "metric": "full_score_share (avg_full_score)",
+   "n": 176,
+   "paper": "0.199 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.1989",
+   "wilson95": "[0.1466, 0.264]"
+  },
+  {
+   "arm": "qwen14_harmful",
+   "flag": false,
+   "gap_pp": "0.03",
+   "level": "L2-sample",
+   "metric": "mean_score (avg_score)",
+   "n": 176,
+   "paper": "0.495 (survey README = header results; not the AgentHarm paper)",
+   "rate": "0.4953",
+   "wilson95": "n/a (mean of graded scores)"
+  }
+ ],
+ "sample_size": "6 of 6 containers (6 strata x 1) = 1,056 of 1,056 executions; the part is imported whole (< 30 units at file level)"
+}

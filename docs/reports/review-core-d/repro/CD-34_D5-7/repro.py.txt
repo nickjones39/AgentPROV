@@ -1,0 +1,13 @@
+from agentprov.adapters.dtap.join import task_id_relation
+print("small:", task_id_relation("t-11", "t-12", "medical"))
+print("4299 digits:", task_id_relation("t-"+"1"*4299, "t-"+"1"*4298+"2", "medical"))
+try:
+    r = task_id_relation("t-"+"1"*5000, "t-"+"1"*4999+"2", "medical")
+    print("5000 digits:", r)
+except Exception as e:
+    print("5000 digits RAISED:", type(e).__name__, str(e)[:90])
+# only the run side oversized, config equal prefix
+try:
+    print("run-only:", task_id_relation("t-"+"1"*5000, "t-7", "medical"))
+except Exception as e:
+    print("run-only RAISED:", type(e).__name__, str(e)[:90])

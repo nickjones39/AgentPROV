@@ -1,0 +1,53 @@
+{
+  "format": "agentprov-fixture-caps/0.1",
+  "decision": "D-360 (user decision, 2026-10-13): total cap 16 MiB, per-file cap 1 MiB with listed exceptions, per-source budget 512 KiB with listed exceptions",
+  "spec": "docs/architecture/K_testing.md K.4.1(5)",
+  "tree": "tests/fixtures",
+  "caps": {
+    "total_bytes": 16777216,
+    "file_bytes": 1048576,
+    "source_budget_bytes": 524288
+  },
+  "oversize_files": [
+    {
+      "path": "inspect/survey-agentharm/2026-08-21T21-23-06-00-00_agentharm_TQQjY9dzdqeuyNhWvATriR.eval",
+      "reason": "the one complete Inspect .eval log (1,388,361 B, the smallest of the six survey AgentHarm logs; SWEEP_r2 EV-3)"
+    },
+    {
+      "path": "inspect/whistlebench/2025-09-28T01-40-34-07-00_high-agency-deliberation-awareness_XCjRzLn3CNEPBwfNqkrydH.eval",
+      "reason": "the one complete WhistleBench .eval log (1,420,537 B, the smallest of the 184 pinned logs; phase 10f, D-150)"
+    }
+  ],
+  "source_exceptions": [
+    {
+      "source": "agentdojo_prov_v1",
+      "budget_bytes": 1114112,
+      "reason": "the J.2 golden set of the frozen AgentDojo-PROV baseline (579a908): 19 transcript/graph pairs and 9 native logs, the byte-for-byte regression oracle of prov/compat/adprov_v2_3 (the R08 graph alone is 590,922 B); 1,071,984 B on 2026-10-13"
+    },
+    {
+      "source": "autogen",
+      "budget_bytes": 589824,
+      "reason": "phase 10n (D.22.7, D-302): the phase-6 InjecAgent tool-block arm of Zenodo 23025259 (runs, event log and guard log of one phase directory, byte-identical members) with the context files its rows need (InjecAgent cases, config, phase-0 capture) and the deposit's three licence texts; the smallest set that exercises one execution per JSONL line, guard blocks and a call rejected before its body; 533,210 B on 2026-10-13"
+    },
+    {
+      "source": "capture",
+      "budget_bytes": 1245184,
+      "reason": "the frozen capture/0.1 sessions of phases 8 and 9 (D.10, D.11): eight scripted AgentDojo sessions and four AutoDojo scenarios, each with its hash-chained log and blobs; 566,153 B on 2026-10-13. D-656 adds five scripted provider-anthropic sessions (Messages wire, synthetic SSE replies) under capture/anthropic/: 810,562 B on 2026-10-22. D-670 adds seven scripted defended sessions under capture/defence/ (environment snapshots off; repeat_user_prompt, spotlighting, tool_filter, a stand-in PI detector, MELON block and pass, a stand-in gate): 383,215 B; 1,212,584 B in all"
+    },
+    {
+      "source": "inspect",
+      "budget_bytes": 3080192,
+      "reason": "two complete .eval logs, each listed in oversize_files (survey AgentHarm, K.4.1(5); WhistleBench, phase 10f D-150), plus the survey members and the expected AERs; 3,049,864 B on 2026-10-13"
+    },
+    {
+      "source": "openhands",
+      "budget_bytes": 1048576,
+      "reason": "phase 10g (D.17.12, D-179): seven OpenAgentSafety runs and four RedCode members with their auxiliary files (61 files), chosen by criterion to cover both event-stream variants; 1,025,419 B on 2026-10-13"
+    },
+    {
+      "source": "qwencode",
+      "budget_bytes": 819200,
+      "reason": "phase 10o part C (D.24.10, D-578): seven RedCode-Exec Qwen Code runs of Zenodo 23168099 chosen by criterion (set cover), each with the score-record file and RedCode request file of its scenario from the supplementary zip (request files 24-270 KB, each serving 30 runs) and one group's API sample (19 byte-identical members); 782,631 B on 2026-10-15"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+PROPOSAL ONLY (published apv 0.1.0; E.4.6 counts a change of meaning as a version bump, so the user must decide)
+Option B, vocabulary follows the documented engine behaviour (E.10 item 11):
+--- a/src/agentprov/vocab/apv-0.1.ttl
++++ b/src/agentprov/vocab/apv-0.1.ttl
+@@ -760,7 +760,6 @@
+ apv:assumption
+-    a owl:ObjectProperty ;
++    a rdf:Property ;
+     rdfs:label "Assumption"@en ;
+-    rdfs:comment "An assumption individual cited by a rule: a core apv: term or an adapter-declared term."@en ;
+-    rdfs:range apv:Assumption ;
++    rdfs:comment "An assumption cited by a rule: a core apv:Assumption individual (an IRI), or an adapter-declared term written as the string <ns>:<Name> (documents declare no adapter prefixes)."@en ;
+     rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+(and the same change in docs/ns/apv-0.1.ttl; EF E.1.5 item 4 table row: "core `apv:` individuals (QNames) or adapter-declared `<ns>:<Name>` strings (E.10 item 11)")
+Option A, engine follows the vocabulary: declare each cited adapter namespace as a PROV-JSON prefix and emit q(a) for every assumption in prov/engine.py:955. This changes PROV bytes in every corpus that uses adapter assumptions.

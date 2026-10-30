@@ -1,0 +1,23 @@
+import agentprov.aer.accounting as A
+from agentprov.aer.accounting import REPORTED
+def _reported_checks(self):
+    out = []
+    cached = {c["id"] for c in self._agent_calls if c["answering"] and not c["kept"]}
+    for scope in self._reported_scopes():
+        subtree = self._subtree(scope)
+        held = [c for c in self._agent_calls if c["scope"] in subtree and c["kept"]]
+        lost = sum(1 for c in self._agent_calls if c["scope"] in subtree and c["lost"])
+        messages = sum(1 for a in self._assistants if a["scope"] in subtree and a["generated_by"] not in cached)
+        finish = sum(1 for c in held if c["finish"])
+        reported = self._usage_calls[scope]
+        observed = {"assistant_messages": messages, "lost_calls": lost, "reported_calls": reported}
+        if finish:
+            observed["finish_reasons"] = finish
+        reason = None
+        if reported != messages + lost:
+            reason = "reported_calls_differ"
+        elif finish and finish != len(held):
+            reason = "finish_reasons_differ"
+        out.append(self._entry(REPORTED, scope, "consistent" if reason is None else "inconsistent", observed, reason))
+    return out
+A.AccountingTally._reported_checks = _reported_checks

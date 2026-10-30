@@ -1,0 +1,29 @@
+import sys, json
+sys.path.insert(0, "tests/adapters/agentdojo")
+import hashlib
+from agentdojo_support import new_log, log_bytes, path_of, git_blob, REPO_URL, C274885
+from agentprov.adapters.agentdojo.dialect import TraceLoggerReader
+from agentprov.adapters.agentdojo.mapper import TraceLoggerMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin
+from agentprov.ingest.limits import IngestLimits
+
+def run(doc):
+    raw = log_bytes(doc); path = path_of(doc)
+    profile = load_profile("agentdojo-upstream"); reader, mapper = TraceLoggerReader(), TraceLoggerMapper()
+    limits = IngestLimits(); sniff = reader.sniff(raw, label=path, limits=limits)
+    origin = Origin.git(REPO_URL, C274885, path, git_blob(raw))
+    art = ArtefactRef("a0", hashlib.sha256(raw).hexdigest(), len(raw), "application/json", origin, "primary", mapper.prov_primary(sniff.flags))
+    unit = ExecutionUnit(next(reader.parse(raw, art, limits=limits)))
+    out = map_unit(unit, mapper, profile)
+    print("  map_unit degenerate:", out.degenerate, "records:", len(out.records), "issues:", [i["code"] for i in out.issues])
+    data, info = aer_bytes(out, unit=unit, mapper=TraceLoggerMapper(), profile=profile)
+    recs = [json.loads(l) for l in data.splitlines()]
+    print("  sealed records:", len(recs), "task:", recs[0].get("task"), "issues:", [(i["code"], str(i.get("detail"))[:90]) for i in info.issues])
+
+for kw in [dict(user_task_id="unknown"), dict(suite_name="none"), dict(attack_type="none"), dict(injection_task_id="none"),
+           dict(pipeline_name="unknown"), dict(suite_name=""), dict(attack_type=""), dict(user_task_id="")]:
+    print("==", kw)
+    try: run(new_log(**kw))
+    except Exception as e: print("  RAISED", type(e).__name__, str(e)[:200])

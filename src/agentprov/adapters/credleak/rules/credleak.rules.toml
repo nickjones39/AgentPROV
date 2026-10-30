@@ -1,0 +1,461 @@
+# Rule catalogue `credleak` (docs/architecture D.19.8; D.5.1-D.5.2; C.6.4). Zenodo 22737462, phase 10k.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.credleak` (no CATALOGUE_HOMES entry). Rules are immutable once released: a change of
+# statement, class or behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so its rules keep @1;
+# the file is at version 2 since D-605 (2026-10-21: credleak.value_redacted@1 and the issue code value_redacted), and
+# version 1 (the bytes the scratch corpora and the gui-build sealed copy recorded) ships under
+# rules/archive/credleak.rules.v1.toml.
+#
+# Citation policy (as for dtap, D-24, D-27 c6): the study's harness is not published in the deposit and no harness code
+# is verified. Every rule that rests on harness behaviour is class I with an `asserted` assumption; the D rules are
+# deterministic functions of observed fields (their names and structure), declare no assumption, cite no code and cite
+# the census (docs/reports/phase10k/census.md) in `evidence`. The deposit's README never makes a rule D.
+
+[catalogue]
+id = "credleak"
+version = 2
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["path_outside_grammar", "turn_number_mismatch", "cell_run_disagree", "invocation_error", "value_redacted"]
+subtypes = []
+types = []
+
+[[assumption]]
+id = "credleak:ScriptedUser"
+statement = "The user message of a turn is issued by the harness from the scenario, on behalf of a simulated user."
+
+[[assumption]]
+id = "credleak:ScenarioPlantsInjection"
+statement = "Every scenario of the study plants an indirect prompt injection in the channel its technique names (the attacker is the study's scenario author)."
+
+[[assumption]]
+id = "credleak:EntryIsModelCall"
+statement = "A toolCalls entry records a tool call the agent model emitted (its tool name and input as the model wrote them)."
+
+[[assumption]]
+id = "credleak:ResponseIsModelText"
+statement = "The assistantResponse of a turn is text the agent model wrote in that turn."
+
+[[assumption]]
+id = "credleak:EntryIsExecution"
+statement = "A toolCalls entry's output records the result of one execution of that call by the harness's tool runtime."
+
+[[assumption]]
+id = "credleak:AutoExecution"
+statement = "The harness's tool runtime executes the agent's calls without a human in the loop, on behalf of the agent."
+
+[[assumption]]
+id = "credleak:EntriesInOrder"
+statement = "The harness appends a turn's toolCalls entries in the order in which the calls were executed, each after the previous call's result."
+
+[[assumption]]
+id = "credleak:TurnsInOrder"
+statement = "The harness appends turns in the order in which they occurred; a turn's user message follows the end of the previous turn."
+
+[[assumption]]
+id = "credleak:ResponseAfterUser"
+statement = "A turn's assistantResponse was written after that turn's user message was given to the agent."
+
+[[assumption]]
+id = "credleak:DetectorFields"
+statement = "The run-level signal fields (hijackSucceeded, exfiltrationDetected, ...) are the outputs of the harness's detectors evaluated on that run."
+
+[[assumption]]
+id = "credleak:InvocationError"
+statement = "A run whose invocationError is true ended because the model invocation failed."
+
+[[assumption]]
+id = "credleak:ToolRoleTable"
+statement = "The tool table of credleak.tools@1 states the security roles and output labels of the harness's tools as the profile author reads their names; no tool implementation is verified."
+
+[[assumption]]
+id = "credleak:ScriptedUserTrusted"
+statement = "The scripted user message carries the benign task; the study places its injections in tool-reachable channels, not in the user message."
+
+# ---------------------------------------------------------------------------------------------- structure (D)
+[[rule]]
+id = "credleak.cell_field_roles"
+version = 1
+class = "D"
+status = "active"
+statement = "A cell names the task by its scenario, technique and defence fields; within a turn, userMessage is the user's message, assistantResponse the assistant's text and a toolCalls entry's output the tool's result (the fields' names and nesting)."
+premises = ["/scenario", "/technique", "/defence", "/runs/*/turns/*/userMessage", "/runs/*/turns/*/assistantResponse", "/runs/*/turns/*/toolCalls/*/output"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §1, §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.model_label_is_requested"
+version = 1
+class = "D"
+status = "active"
+statement = "The run's model field (equal to the cell's) is the harness's label of the model it was configured to call; it is the requested model, never a served one."
+premises = ["/model", "/runs/*/model"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §3"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.pair_same_entry"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool result belongs to the call recorded in the same toolCalls entry: the entry holds the call's tool and input and its output together (no order inference)."
+premises = ["/runs/*/turns/*/toolCalls/*/tool", "/runs/*/turns/*/toolCalls/*/input", "/runs/*/turns/*/toolCalls/*/output"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_each_result_is_linked_to_the_call_of_its_own_entry"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.turn_timestamp_role"
+version = 1
+class = "D"
+status = "active"
+statement = "A turn's timestamp is kept verbatim in ext.credleak; whether it marks the turn's start, its end or the time the harness wrote it is not determinable (runs of a cell overlap), so the turn scope's time is ambiguous."
+premises = ["/runs/*/turns/*/timestamp"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §5"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_no_time_is_typed_and_the_turn_timestamp_is_kept_verbatim"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.duration_no_clock"
+version = 1
+class = "D"
+status = "active"
+statement = "A durationMs value is a duration of unrecorded clock and extent; it is kept verbatim in ext.credleak and gives no typed time (dur_s is ambiguous, start and end are not recorded)."
+premises = ["/runs/*/durationMs", "/runs/*/turns/*/durationMs", "/runs/*/turns/*/toolCalls/*/durationMs"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §5"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_no_time_is_typed_and_the_turn_timestamp_is_kept_verbatim"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.model_calls_not_recorded"
+version = 1
+class = "D"
+status = "active"
+statement = "A cell records no model-call boundary (a turn may span several calls, up to the configured maxTurns), so no model_call is written and the generator of every agent message is not recorded."
+premises = ["/config/maxTurns", "/runs/*/turns"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §2, §9 (Q1)"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_agent_messages_declare_no_generator"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.turn_number_index"
+version = 1
+class = "D"
+status = "active"
+statement = "A turn's turnNumber equal to its 0-based position in turns is the index of its agent_invocation scope; any other value leaves the index ambiguous."
+premises = ["/runs/*/turns/*/turnNumber"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.path_facets"
+version = 1
+class = "D"
+status = "active"
+statement = "The cell's path names its section, channel directory, model directory, layout class (roster, excluded-models, an underscore directory) and file-name prefix; these are facets, never the run's identity."
+premises = ["/label", "/path"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §1"]
+tests = ["tests/adapters/credleak/test_dialect.py::test_path_grammar"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.cell_run_agreement"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile check: a run's model and scenarioId equal its cell's model and scenario (true for all 19,636 runs of v3)."
+premises = ["/model", "/scenario", "/runs/*/model", "/runs/*/scenarioId"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §2, §3"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_cell_run_disagreement_is_an_issue"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.acc.tool_call_count"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: a run's toolCallCount, where recorded, equals the number of its toolCalls entries over all turns."
+premises = ["/runs/*/toolCallCount", "/runs/*/turns/*/toolCalls"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_tool_call_count_check"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- harness behaviour (I)
+[[rule]]
+id = "credleak.user_is_scripted_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The user messages are issued by the harness on behalf of a simulated user, and the agent acts on that user's behalf."
+premises = ["/runs/*/turns/*/userMessage"]
+assumptions = ["credleak:ScriptedUser"]
+verification = [{ assumption = "credleak:ScriptedUser", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.scenario_is_injection_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "Every run's scenario planted an indirect prompt injection in the channel its technique names; the attacker is the scenario's author."
+premises = ["/technique", "/scenario"]
+assumptions = ["credleak:ScenarioPlantsInjection"]
+verification = [{ assumption = "credleak:ScenarioPlantsInjection", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §4"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.call_entry_is_model_output_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A toolCalls entry's tool and input are a tool call the agent model emitted; the entry is an assistant message of one tool_call part."
+premises = ["/runs/*/turns/*/toolCalls/*/tool", "/runs/*/turns/*/toolCalls/*/input"]
+assumptions = ["credleak:EntryIsModelCall"]
+verification = [{ assumption = "credleak:EntryIsModelCall", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.response_is_model_output_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A turn's assistantResponse is text the agent model wrote in that turn."
+premises = ["/runs/*/turns/*/assistantResponse"]
+assumptions = ["credleak:ResponseIsModelText"]
+verification = [{ assumption = "credleak:ResponseIsModelText", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.tool_entry_is_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A toolCalls entry records one execution of its call by the tool runtime; the entry's output was generated by that execution."
+premises = ["/runs/*/turns/*/toolCalls/*/output"]
+assumptions = ["credleak:EntryIsExecution"]
+verification = [{ assumption = "credleak:EntryIsExecution", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.auto_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The tool runtime executes the agent's calls without a human in the loop, on behalf of the agent, and authors the results."
+premises = ["/runs/*/turns/*/toolCalls/*/output"]
+assumptions = ["credleak:AutoExecution"]
+verification = [{ assumption = "credleak:AutoExecution", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.calls_in_entry_order_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A turn's first call followed its user message, and each later call followed the previous call's result (toolCalls array order is occurrence order)."
+premises = ["/runs/*/turns/*/toolCalls"]
+assumptions = ["credleak:EntriesInOrder"]
+verification = [{ assumption = "credleak:EntriesInOrder", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.turns_in_array_order_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A turn's user message followed the end of the previous turn (its last tool result and its assistant text); turns array order is occurrence order."
+premises = ["/runs/*/turns"]
+assumptions = ["credleak:TurnsInOrder"]
+verification = [{ assumption = "credleak:TurnsInOrder", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2, §5"]
+tests = ["tests/adapters/credleak/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.response_after_user_message_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A turn's assistant text followed that turn's user message; its position relative to the turn's tool calls is not recorded, so no order is asserted between them."
+premises = ["/runs/*/turns/*/assistantResponse"]
+assumptions = ["credleak:ResponseAfterUser"]
+verification = [{ assumption = "credleak:ResponseAfterUser", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_the_response_is_ordered_after_the_user_message_only"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.detector_signal_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A run-level signal field (hijackSucceeded, exfiltrationDetected, agentDetected, ...) is a verdict of the harness's detectors on that run, recorded verbatim; no detector code is verified (the deposit's later T-EMIT correction is not run data)."
+premises = ["/runs/*/hijackSucceeded", "/runs/*/exfiltrationDetected", "/runs/*/agentDetected", "/runs/*/maliciousArtifactEmitted"]
+assumptions = ["credleak:DetectorFields"]
+verification = [{ assumption = "credleak:DetectorFields", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §6"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_detector_signals_are_judgements"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.invocation_error_status"
+version = 1
+class = "I"
+status = "active"
+statement = "A run whose invocationError is true ended with an error (status error); errorDetail, where present, is its message."
+premises = ["/runs/*/invocationError", "/runs/*/errorDetail"]
+assumptions = ["credleak:InvocationError"]
+verification = [{ assumption = "credleak:InvocationError", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10k/census.md §2, §6"]
+tests = ["tests/adapters/credleak/test_mapper.py::test_an_invocation_error_ends_the_run_with_status_error"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- semantics profile (I)
+[[rule]]
+id = "credleak.tool_role_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool call and its execution get the security roles the credleak.tools@1 tool table lists for the tool's name; an unlisted name (including the malformed names models emitted) gets unknown."
+premises = ["/name", "/parts/*/name"]
+assumptions = ["credleak:ToolRoleTable"]
+verification = [{ assumption = "credleak:ToolRoleTable", status = "asserted" }]
+code = []
+evidence = ["docs/architecture/D_adapters.md D.19.9"]
+tests = ["tests/adapters/credleak/test_semantics.py::test_roles_and_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.tool_output_label_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool result gets the integrity and channel the credleak.tools@1 tool table lists for the tool that generated it; an unlisted tool gives unknown."
+premises = ["/name"]
+assumptions = ["credleak:ToolRoleTable"]
+verification = [{ assumption = "credleak:ToolRoleTable", status = "asserted" }]
+code = []
+evidence = ["docs/architecture/D_adapters.md D.19.9"]
+tests = ["tests/adapters/credleak/test_semantics.py::test_roles_and_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.observation_label_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The scripted user message gets the integrity the credleak.tools@1 observation table lists for its actor."
+premises = ["/actor", "/role"]
+assumptions = ["credleak:ScriptedUserTrusted"]
+verification = [{ assumption = "credleak:ScriptedUserTrusted", status = "asserted" }]
+code = []
+evidence = ["docs/architecture/D_adapters.md D.19.9"]
+tests = ["tests/adapters/credleak/test_semantics.py::test_roles_and_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy of credleak.tools@1: a request whose roles meet write, send, execute, egress-read or unknown is potentially influenced by a context member of untrusted or unknown integrity."
+premises = ["/name"]
+assumptions = ["credleak:ToolRoleTable"]
+verification = [{ assumption = "credleak:ToolRoleTable", status = "asserted" }]
+code = []
+evidence = ["docs/architecture/D_adapters.md D.19.9"]
+tests = ["tests/adapters/credleak/test_semantics.py::test_the_taint_policy"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- D-605 (catalogue version 2)
+[[rule]]
+id = "credleak.value_redacted"
+version = 1
+class = "D"
+status = "active"
+statement = "A third-party account path in tool output is replaced by the label its profile's [[family.credleak.redact]] rule specifies (D-605, applying D-604): every match of the rule's pattern in a string or member name of a toolCalls entry's output, which the mapper copies into the tool result message, is replaced before encoding, so every copy the AER holds (value, member name, ext.lex) is the label. The label is literal text with {span12} (12 hex digits of SHA-256 over the profile id, NUL and the span) and {leaf} (a last path segment the rule allows). A labelled rule (a structural pattern such as the owner and group columns of an ls -l line) replaces only its span group, and only when the span's {span12} is in the rule's labels list, so it redacts the listed accounts only. The pointer's locator stays on the raw field; ext.credleak.redacted names the profile rule; the original and its full digest are never recorded. Model-authored text (tool-call input, assistant text) and the scripted user message are never redacted. A deterministic transformation by AgentPROV specified by the profile, independent of the producing code."
+premises = ["/runs/*/turns/*/toolCalls/*/output"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-604, D-605", "docs/reports/precheck/credleak-p15b.md PC-01", "regen-batch item 138"]
+tests = ["tests/adapters/credleak/test_redact.py::test_a_tool_output_path_is_redacted_and_a_model_command_is_not"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- reserved
+# Detector names of artefact-catalogue entries (artefacts.toml) whose case no AER field read by the safety net carries:
+# it is handled at sealing or by the semantics profile. They are never cited in an AER (a `reserved` rule is not
+# citable), so the catalogue entries that name them claim no safety-net finding of another case (as in dtap).
+
+[[rule]]
+id = "credleak.planted_credential"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: a cell or run whose bytes hold a planted credential (the study's tag or a key shape) is withheld at sealing by the profile's [withhold] policy (D-234, D-235, D-265); the mapper copies content verbatim and never detects it, so no AER record cites this rule."
+premises = ["raw object bytes", "derived file bytes"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §7"]
+tests = ["tests/adapters/credleak/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "credleak.malformed_tool_name"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: a tool name the model emitted malformed (channel tokens, case variant, typo) is kept verbatim; the semantics profile gives it the role unknown and no AER field marks it (only an empty or placeholder name is declared ambiguous), so no AER record cites this rule."
+premises = ["/runs/*/turns/*/toolCalls/*/tool"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10k/census.md §2"]
+tests = ["tests/adapters/credleak/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"

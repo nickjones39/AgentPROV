@@ -1,0 +1,71 @@
+"""Repro: qwencode salvage fires on any strict-loader rejection, not only a 64 KiB capture cut.
+
+Maps derived (in-memory) variants of the committed 'python' fixture run through the same path the tests use
+(qwencode_support.map_files -> map_artefact_total) and prints only structure (sizes, codes, statuses), no content.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "qwencode"))
+import qwencode_support as s  # noqa: E402
+
+from agentprov.adapters.qwencode.dialect import parse_output  # noqa: E402
+from agentprov.errors import IngestError  # noqa: E402
+from agentprov.ingest.limits import IngestLimits  # noqa: E402
+from agentprov.ingest.loaders import strict_json_loads  # noqa: E402
+
+label = s.by_criterion("python")
+runs_files, supp_files = dict(s.tree()[0]), dict(s.tree()[1])
+orig = runs_files[label]
+msgs = json.loads(orig)
+canon = json.dumps(msgs, ensure_ascii=True).encode("ascii")
+n = len(msgs)
+last_type = msgs[-1].get("type")
+print(f"fixture: {n} messages, last type={last_type!r}, size={len(canon)}")
+
+# variant builders (bytes)
+variants: dict[str, bytes] = {}
+variants["control (unchanged)"] = canon
+variants["trailing garbage '\\nXYZ'"] = canon + b"\nXYZ"
+# invalid UTF-8 byte inside message index 2 (third message): insert 0xff into its 'type' string value
+parts = [json.dumps(m, ensure_ascii=True).encode("ascii") for m in msgs]
+bad = parts[2].replace(b'"type": "', b'"type": "\xff', 1)
+assert bad != parts[2]
+variants["invalid UTF-8 in message 3"] = b"[" + b", ".join(parts[:2] + [bad] + parts[3:]) + b"]"
+# duplicate key in the last (result) message
+dup = parts[-1][:-1] + b', "type": "result"}'
+variants["duplicate key in last message"] = b"[" + b", ".join(parts[:-1] + [dup]) + b"]"
+# NaN in the last message
+nan = parts[-1][:-1] + b', "x": NaN}'
+variants["NaN in last message"] = b"[" + b", ".join(parts[:-1] + [nan]) + b"]"
+
+limits = IngestLimits()
+for name, data in variants.items():
+    try:
+        strict_json_loads(data, limits)
+        strict = "ok"
+    except IngestError as e:
+        strict = f"IngestError({getattr(e, 'code', type(e).__name__)})"
+    try:
+        p = parse_output(data, limits)
+        po = f"messages={len(p.messages)} cut={p.cut} dropped={p.dropped}"
+    except Exception as e:  # noqa: BLE001
+        po = f"raises {type(e).__name__}"
+    rf = dict(runs_files)
+    rf[label] = data
+    m = s.map_files(label, rf, supp_files)
+    run = next((r for r in m.records if r.get("k") == "run"), None)
+    status = run.get("status") if run else None
+    codes = sorted(set(m.codes()))
+    salvage = m.header.get("ext", {}).get("qwencode", {}).get("salvage")
+    degenerate = "unparseable_artefact" in codes
+    print(f"\n== {name}: size={len(data)} (== 65536? {len(data) == 65536})")
+    print(f"   strict loader: {strict}")
+    print(f"   parse_output: {po}")
+    print(f"   degenerate(unparseable_artefact)={degenerate} run.status={status!r}")
+    print(f"   salvage ext={salvage}")
+    print(f"   capture-cut codes: {[c for c in codes if c in ('qwencode.truncated_capture', 'qwencode.no_result_message', 'incomplete_run', 'unparseable_artefact')]}")

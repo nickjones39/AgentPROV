@@ -1,0 +1,25 @@
+"""P2-1: D-410 says a RuleCatalogue is immutable and the cache is a pure function of (source, sha256)."""
+from agentprov.aer.rules import RuleRegistry, load_catalogue
+
+
+def test_loaded_catalogue_rules_are_immutable_or_reload_is_whole():
+    first = load_catalogue("aer")
+    n = len(first.rules)
+    rid = next(iter(first.rules))
+    entry = first.rules[rid]
+    mutated = False
+    try:
+        first.rules.pop(rid)  # type: ignore[attr-defined]
+        mutated = True
+    except (TypeError, AttributeError):
+        pass  # immutable mapping: the documented behaviour
+    try:
+        again = load_catalogue("aer")
+        fresh = RuleRegistry.default().get("aer", first.version)
+        print("mutated:", mutated, "same object:", again is first, "reload:", len(again.rules), "of", n,
+              "registry has rule:", fresh.get(rid) is not None)
+        assert rid in again.rules, f"cached catalogue poisoned: {rid} missing after another caller's pop"
+        assert fresh.get(rid) is not None
+    finally:
+        if mutated:
+            first.rules[rid] = entry  # type: ignore[index]

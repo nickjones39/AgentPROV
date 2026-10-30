@@ -1,0 +1,27 @@
+import json, sys, zlib
+sys.path.insert(0, "tests/adapters/qwencode")
+import qwencode_support as s
+from agentprov.adapters.runner import map_artefact_total, NotOfDialect, aer_bytes
+from agentprov.raw.origins import Origin
+
+label = "results/Qwen/m/S2/python/trajectory/qwen_9_26_S2.json"
+def run(name, data):
+    o = Origin.member("0" * 64, label, 8, zlib.crc32(data), len(data))
+    try:
+        out, unit = map_artefact_total(data, o, profile_id="redcode-exec-qwencode")
+        import re; b=aer_bytes(out)[0]; print(f"{name}: degenerate={out.degenerate} seal_codes={sorted(set(re.findall(rb'\"code\":\"([a-z_.]+)\"', b.splitlines()[-1])))}")
+    except NotOfDialect as e:
+        print(f"{name}: NotOfDialect detail={e.detail!r} msg={str(e)!r}")
+
+run("v0.22 init+result", json.dumps([{"type": "system", "subtype": "init", "qwen_code_version": "0.22.0"}, {"type": "result", "subtype": "success"}]).encode())
+run("no init [assistant,result]", json.dumps([{"type": "assistant", "message": {}}, {"type": "result"}]).encode())
+run("bare object", json.dumps({"type": "system", "subtype": "init", "qwen_code_version": "0.21.0"}).encode())
+run("array of strings", b'["a"]')
+run("invalid json (control)", b"[{\"type\": ")
+# real fixture: control and version-flipped variant
+runs, supp = s.tree()
+real = runs[s.by_criterion("python")]
+run("real fixture 0.21 (control)", real)
+flipped = real.replace(b'"qwen_code_version":"0.21.0"', b'"qwen_code_version":"0.22.0"').replace(b'"qwen_code_version": "0.21.0"', b'"qwen_code_version": "0.22.0"')
+print("flipped differs:", flipped != real)
+run("real fixture version->0.22.0", flipped)

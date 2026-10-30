@@ -1,0 +1,33 @@
+{
+ "check": "post-check",
+ "corpus_id": "ast-survey-agentharm",
+ "findings": [
+  {
+   "agents_md_12": false,
+   "artefact_proposal": null,
+   "check": "PC10",
+   "cls": "source-defect",
+   "evidence": "Ordinal #20 (8 characters; neither a generic cloud or CI account nor on the release scan's allowlist): 6 matches, one in the `header.json` member of each of the 6 `.eval` logs (member objects 9b6feb8ee59d, 5ac78e51ddfc, 2040b443f665, 754609adf039, 655ac59e381f, 8e86d3ce28fc), under JSON key `location`, the path continuing into a dot-directory (a dataset cache); each `.eval` container holds the same header compressed (of the 85 archive-member findings inside the 6 containers, at most 6 are header copies; the rest are sample members with ordinals #1-#19). It is the same account as PC-ast-survey-agentdojo-13: the survey author's workstation account (the verifier's comparison, names held in memory only). The bare name occurs 0 times in aer/, sem/, prov/, validation/, the index, the register, corpus.json and the raw origin and member rows: the Inspect mapper never copies `eval.dataset` (D-235). Raw only, so CC-11 (S2), not CC-12(a) S0. kexin's `dataset-location-home` pattern matches all 6 headers; no statement covers them (`agentharm-raw-withheld-account-paths` names fragfuse and kexin only). The pre-check missed it (L1-10 screened 0 non-JSON files; the JSON screen did not open the `.eval` header).",
+   "hypothesis_ref": null,
+   "id": "POST-ast-survey-agentharm-01",
+   "part": "all",
+   "recommendation": "User decision (sent to the orchestrator 2026-10-24; one decision can cover both survey parts, as D-771 did for PC-13): (a) a D-604 object-scope withhold in survey-agentharm (@1 \u2192 @2), anchored on the header key `location` as kexin's `dataset-location-home`, withholding the 6 headers and their containers, then a re-import (1,056 executions); or (b) `pinned-account` plus a datasheet disclosure (D-604 item 7). Recommended: (a). Done: the user chose (a), D-811 (survey-agentharm@2), re-imported as `ast-survey-agentharm-rg2`; its post-check finds residue 0 (see that dossier).",
+   "reproduction": "see the dossier's section 9",
+   "security": true,
+   "severity": "S2",
+   "title": "Raw `.eval` headers name a third-party account's home directory in `eval.dataset.location`",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "cls": "source-defect",
+     "lens": "reproduction",
+     "reasoning": "re-measured from the committed data files",
+     "severity": "S2",
+     "verdict": "confirmed"
+    }
+   ]
+  }
+ ],
+ "format": "agentprov-precheck-findings/0.1",
+ "refuted": []
+}

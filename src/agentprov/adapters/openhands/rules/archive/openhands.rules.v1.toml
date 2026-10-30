@@ -1,0 +1,877 @@
+# Rule catalogue `openhands` (docs/architecture D.17.9; D.5.1-D.5.2; C.6.4). OpenHands event streams, phase 10g.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.openhands`. Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+#
+# Citation policy (D-24, D-172 and its addendum): the D rules that rest on OpenHands behaviour cite the code they were
+# read from at two commits: the OpenAgentSafety fork adityasoni9998/OpenHands@5a13eacf (files fetched with the user's
+# approval, 2026-10-12) and OpenHands/OpenHands@a77b0550 (tag 1.5.0; the vendored copy in Zenodo 23168099 matches its blob
+# ids for every cited file). A profile cites such a rule at D only when its `verified_code` names one of these commits;
+# otherwise the mapper cites the `_unverified` twin at class I (agentprov.adapters.code_verification). D rules without
+# code are deterministic functions of observed fields and are listed as independent (adapters/openhands/citation.py).
+# I rules rest on asserted assumptions. Documentary evidence (READMEs, the paper) never makes a rule D.
+
+[catalogue]
+id = "openhands"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["filtered_events", "content_not_inlined", "not_executed_notice", "harness_error", "call_not_in_response", "unmapped_event", "task_text_not_seen", "join_after_rewrite", "join_unverified", "summary_entry_missing", "state_missing", "eval_missing", "served_model_varies", "unexpected_cause_target", "lone_observation"]
+subtypes = ["openhands.finish_call"]
+types = ["openhands:recall", "openhands:workspace_context", "openhands:recall_result", "openhands:controller_notice", "openhands:notice_text", "openhands:harness_error", "openhands:error_text", "openhands:unmapped_event", "openhands:event_payload"]
+
+[[assumption]]
+id = "openhands:ContextIsLoggedPrefix"
+statement = "A model call's input contains every earlier logged message of the run (the agent's condenser may have dropped or masked some, so the list is an upper bound)."
+
+[[assumption]]
+id = "openhands:LoggedToolsOffered"
+statement = "The tool list logged once per run by the system action was offered on every model call of the run."
+
+[[assumption]]
+id = "openhands:TextMessageIsModelOutput"
+statement = "An agent message action without tool-call metadata records the text of one response of the agent model."
+
+[[assumption]]
+id = "openhands:FirstMessageFromHarness"
+statement = "The first user message of a run is written by the evaluation harness from the task (a pointer to the task file, or the benchmark's request), on behalf of a simulated user."
+
+[[assumption]]
+id = "openhands:LaterUserMessagesSimulated"
+statement = "A later user message is the harness's simulated-user reply to the agent (an LLM-backed fake user, or a fixed text)."
+
+[[assumption]]
+id = "openhands:NpcRepliesSimulated"
+statement = "A chat tool reply is written by the simulated colleague the call names (an environment LLM through Sotopia)."
+
+[[assumption]]
+id = "openhands:RecallIsHarness"
+statement = "A recall action and its observation are the harness memory's retrieval step, not a model tool call."
+
+[[assumption]]
+id = "openhands:LockedVersionRan"
+statement = "The OpenHands version locked in the benchmark repository at the pin is the one that produced the runs."
+
+[[assumption]]
+id = "openhands:CheckerRecorded"
+statement = "A recorded evaluation value was produced by the benchmark's evaluator for this run."
+
+[[assumption]]
+id = "openhands:ScoreOneAmbiguous"
+statement = "The deposit scorer writes score 1 both for a failed execution and as a default when the trajectory or a container is missing or the rubric returns PROBLEM."
+
+[[assumption]]
+id = "openhands:TaskFileAtPinIsRunTask"
+statement = "The task file at the pinned commit is the task text the run's agent was given."
+
+[[assumption]]
+id = "openhands:UncausedErrorIsHarness"
+statement = "An error observation without a cause is written by the agent controller (a response that could not be turned into an action), not by a tool."
+
+[[assumption]]
+id = "openhands:AgentActsForUser"
+statement = "The agent acts on behalf of the run's simulated user."
+
+[[assumption]]
+id = "openhands:StateBelongsToRun"
+statement = "The state file of a task records the final controller state of the run whose trajectory has the same task name."
+
+[[assumption]]
+id = "openhands:DocumentedScoreMeaning"
+statement = "The score codes mean what the deposit README states (3 Execution, 0 Refusal, 1 Failure)."
+
+[[assumption]]
+id = "openhands:CheckpointMeansUnsafe"
+statement = "An OpenAgentSafety checkpoint result of 1 records that the evaluator detected the task's unsafe behaviour (workspaces README: checkpoints document the expected malicious behaviour)."
+
+[[assumption]]
+id = "openhands:ToolRoleTable"
+statement = "A tool behaves as the reviewed table of the profile states (its function, arguments and the logged outputs)."
+
+# ---------------------------------------------------------------------------------------------- D rules read from OpenHands code
+[[rule]]
+id = "openhands.cause_link"
+version = 1
+class = "D"
+status = "active"
+statement = "An observation's cause is the id of the action whose execution produced it: the runtime sets the observation's cause and copies the action's tool-call metadata onto it before adding it to the event stream. The tool result therefore answers the tool call of that action, and the tool message is generated by its execution."
+premises = ["/*/cause", "/*/tool_call_metadata/tool_call_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/runtime/base.py", lines = "241-261", note = "on_event: run_action, then observation._cause = event.id and the metadata copy" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/runtime/base.py", lines = "450-473", note = "on_event: observation._cause = event.id and the metadata copy" },
+]
+evidence = ["docs/reports/phase10g/README.md §3.3", "40,298 of 40,298 causes resolve to an earlier action of the same file"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.observation_is_execution"
+version = 1
+class = "D"
+status = "active"
+statement = "An observation caused by a runnable tool action records one execution of that action by the runtime (run_action returns it; a think action returns the fixed think observation), and the runtime acts for the agent."
+premises = ["/*/cause", "/*/observation"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/runtime/base.py", lines = "382-389", note = "run_action: a non-runnable think action returns AgentThinkObservation" },
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/runtime/base.py", lines = "241-261", note = "on_event: the observation of run_action, with its cause" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/runtime/base.py", lines = "1036-1041", note = "run_action: AgentThinkObservation for a think action" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/runtime/base.py", lines = "450-473", note = "on_event: the observation of run_action, with its cause" },
+]
+evidence = ["docs/reports/phase10g/README.md §3.2, §3.3"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.action_from_tool_call"
+version = 1
+class = "D"
+status = "active"
+statement = "Each action that carries tool-call metadata was built by the agent from the tool call of its model response whose id the metadata names; the response is the agent model's output."
+premises = ["/*/tool_call_metadata/tool_call_id", "/*/tool_call_metadata/model_response/choices/0/message/tool_calls"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/agenthub/codeact_agent/function_calling.py", lines = "210-226", note = "one action per tool call, with ToolCallMetadata(tool_call_id, function_name, model_response)" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/agenthub/codeact_agent/function_calling.py", lines = "318-327", note = "one action per tool call, with ToolCallMetadata" },
+]
+evidence = ["docs/reports/phase10g/README.md §3.3", "every action's tool_call_id occurs in its response (38,296 of 38,296)"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.recall_cause"
+version = 1
+class = "D"
+status = "active"
+statement = "A recall observation's cause is the recall action it answers: the memory sets it when it adds the workspace context or the recalled knowledge."
+premises = ["/*/cause"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/memory/memory.py", lines = "90-112", note = "workspace_obs._cause and microagent_obs._cause = event.id" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/memory/memory.py", lines = "105-131", note = "workspace_obs._cause and microagent_obs._cause = event.id" },
+]
+evidence = ["docs/reports/phase10g/README.md §3.3"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.not_executed_notice"
+version = 1
+class = "D"
+status = "active"
+statement = "An error observation whose text is the controller's not-executed notice was added by the controller when it reset with the action still pending: the action was never executed."
+premises = ["/*/observation", "/*/content", "/*/cause"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/controller/agent_controller.py", lines = "470-495", note = "_reset: ErrorObservation('The action has not been executed.') with the pending action's cause" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/controller/agent_controller.py", lines = "104-109", note = "the two not-executed notice texts" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/controller/agent_controller.py", lines = "640-668", note = "the notice with the pending action's cause" },
+]
+evidence = ["docs/reports/phase10g/README.md §4 item 3"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.event_order"
+version = 1
+class = "D"
+status = "active"
+statement = "Event ids are assigned by the event stream in the order events are added, so a later id was added later."
+premises = ["/*/id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/events/stream.py", lines = "265-274", note = "add_event: event._id = self._cur_id; self._cur_id += 1" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/events/stream.py", lines = "160-175", note = "add_event: event._id = self.cur_id; self.cur_id += 1" },
+]
+evidence = ["docs/reports/phase10g/README.md §3.7", "ids strictly increase in array order in 7,020 of 7,020 files"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.event_time_naive_local"
+version = 1
+class = "D"
+status = "active"
+statement = "An event's timestamp is datetime.now().isoformat() taken when the event was added to the stream: a naive local wall-clock time of the event's creation, timezone unknown."
+premises = ["/*/timestamp"]
+assumptions = []
+code = [
+  { repo = "https://github.com/adityasoni9998/OpenHands", commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8", path = "openhands/events/stream.py", lines = "274", note = "event._timestamp = datetime.now().isoformat()" },
+  { repo = "https://github.com/OpenHands/OpenHands", commit = "a77b05509ec010d44d1e274b0f8daace0f89ea8f", path = "openhands/events/stream.py", lines = "168", note = "event._timestamp = datetime.now().isoformat()" },
+]
+evidence = ["docs/reports/phase10g/README.md §3.7", "C.8.5"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- their _unverified twins (D.5.4)
+[[rule]]
+id = "openhands.cause_link_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.cause_link@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): An observation's cause is the id of the action whose execution produced it: the runtime sets the observation's cause and copies the action's tool-call metadata onto it before adding it to the event stream. The tool result therefore answers the tool call of that action, and the tool message is generated by its execution."
+premises = ["/*/cause", "/*/tool_call_metadata/tool_call_id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.3", "40,298 of 40,298 causes resolve to an earlier action of the same file", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.observation_is_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.observation_is_execution@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): An observation caused by a runnable tool action records one execution of that action by the runtime (run_action returns it; a think action returns the fixed think observation), and the runtime acts for the agent."
+premises = ["/*/cause", "/*/observation"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.2, §3.3", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.action_from_tool_call_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.action_from_tool_call@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Each action that carries tool-call metadata was built by the agent from the tool call of its model response whose id the metadata names; the response is the agent model's output."
+premises = ["/*/tool_call_metadata/tool_call_id", "/*/tool_call_metadata/model_response/choices/0/message/tool_calls"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.3", "every action's tool_call_id occurs in its response (38,296 of 38,296)", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.recall_cause_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.recall_cause@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): A recall observation's cause is the recall action it answers: the memory sets it when it adds the workspace context or the recalled knowledge."
+premises = ["/*/cause"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.3", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.not_executed_notice_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.not_executed_notice@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): An error observation whose text is the controller's not-executed notice was added by the controller when it reset with the action still pending: the action was never executed."
+premises = ["/*/observation", "/*/content", "/*/cause"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §4 item 3", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.event_order_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.event_order@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Event ids are assigned by the event stream in the order events are added, so a later id was added later."
+premises = ["/*/id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.7", "ids strictly increase in array order in 7,020 of 7,020 files", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.event_time_naive_local_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of openhands.event_time_naive_local@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): An event's timestamp is datetime.now().isoformat() taken when the event was added to the stream: a naive local wall-clock time of the event's creation, timezone unknown."
+premises = ["/*/timestamp"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.7", "C.8.5", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- D rules over observed fields (independent of code)
+[[rule]]
+id = "openhands.response_message"
+version = 1
+class = "D"
+status = "active"
+statement = "The assistant message is the content of the recorded model response (choices[0].message: reasoning, text and every tool call), so it is generated by the model call of that response."
+premises = ["/*/tool_call_metadata/model_response"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.4"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.response_kept"
+version = 1
+class = "D"
+status = "active"
+statement = "A recorded model response from which logged actions were built was accepted by the harness (status kept)."
+premises = ["/*/tool_call_metadata/model_response/id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.4"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.usage_fields"
+version = 1
+class = "D"
+status = "active"
+statement = "Per-call usage is the provider usage renamed: prompt_tokens to input_tokens, completion_tokens to output_tokens, total_tokens, completion_tokens_details.reasoning_tokens, and the provider's cache-read and cache-write counts; the provider object is kept verbatim in ext."
+premises = ["/*/tool_call_metadata/model_response/usage"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.4"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.arguments_decoded"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool call's args are its function arguments string decoded by the strict JSON loader; args_raw keeps the string, and an undecodable string leaves args ambiguous."
+premises = ["/*/tool_call_metadata/model_response/choices/0/message/tool_calls/*/function/arguments"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.4"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.served_model"
+version = 1
+class = "D"
+status = "active"
+statement = "The agent actor's served model is the model_response.model value of the run's calls when they all agree; each call keeps its own value."
+premises = ["/*/tool_call_metadata/model_response/model"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.4"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.finish_control_call"
+version = 1
+class = "D"
+status = "active"
+statement = "A finish tool call ends the agent's loop and is not dispatched to a tool runtime (no observation is ever logged for it): it is kept verbatim as an openhands.finish_call part, not as a tool call."
+premises = ["/*/action", "/*/tool_call_metadata/function_name"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.2", "finish actions with an observation: 0 of 5,018"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.filtered_events"
+version = 1
+class = "D"
+status = "active"
+statement = "Event ids missing between the first and the last id of the file name events the saved trajectory does not hold; only their number is recorded."
+premises = ["/*/id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.7"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.fixed_reply_digest"
+version = 1
+class = "D"
+status = "active"
+statement = "A later user message whose SHA-256 equals a fixed reply text the profile lists is that fixed text."
+premises = ["/*/args/content"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.5"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string over 1 MiB, or a base64 image of a browser observation, is not inlined (C.2.1 item 6; no import-side blob surface): its SHA-256 and size are recorded and the locator names it in the raw artefact."
+premises = ["/*/extras/set_of_marks", "/*/content"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.9", "D.9.5 deviation 1"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.oas_eval_path_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The evaluation file of an OpenAgentSafety run is evaluation/<model>/eval_<task>.json beside its trajectory (same directory and task name)."
+premises = ["origin /path"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.8"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.oas_summary_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The LLM-judge entry of an OpenAgentSafety run is the task's key in the *_safety_eval_results.json of its model directory."
+premises = ["origin /path"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.8"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.oas_task_dir_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The task directory of an OpenAgentSafety run is workspaces/tasks/<task>/ of the same tree."
+premises = ["origin /path"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.task_text_seen"
+version = 1
+class = "D"
+status = "active"
+statement = "The task file's text, whitespace-normalised, occurs in a logged observation of the run (the agent read it)."
+premises = ["/*/content", "task.md"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.5"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.state_repr_fields"
+version = 1
+class = "D"
+status = "active"
+statement = "agent_state and max_iterations are read from the state file's repr string by a declared regular expression; the string is never evaluated."
+premises = ["state_<task>.json"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.8"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.redcode_score_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The score record of a RedCode run is the entry with index <scenario>_<payload> of results/OH/<model>/<target>/<language>/conversation_log/index<scenario>.json."
+premises = ["origin /label"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.8"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.redcode_prompt_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The request of a RedCode run (the dataset code for S1, the generated prompt for S2 and S3, joined by key) occurs in the run's first user message: exactly, contained after whitespace normalisation, or contained after the harness's declared rewrite of /sys/kernel to /app/sys/kernel."
+premises = ["origin /label", "/*/args/content"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.5", "5,460 of 5,460 verify"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.redcode_request_type"
+version = 1
+class = "D"
+status = "active"
+statement = "The target S1, S2 or S3 of a RedCode run is the request type C1 (direct), C2 (justified) or C3 (pressured), as the deposit README's table names them."
+premises = ["origin /label"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §3.5"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- I rules (mapper)
+[[rule]]
+id = "openhands.context_is_logged_prefix_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input is every earlier logged message of the run."
+premises = ["/*"]
+assumptions = ["openhands:ContextIsLoggedPrefix"]
+verification = [{ assumption = "openhands:ContextIsLoggedPrefix", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.logged_tools_offered_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The tool list of the system action was offered on every model call of the run."
+premises = ["/0/args/tools"]
+assumptions = ["openhands:LoggedToolsOffered"]
+verification = [{ assumption = "openhands:LoggedToolsOffered", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.text_message_is_model_output_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "An agent message action without tool-call metadata is the text of one response of the agent model; the call exists, its response object is not recorded."
+premises = ["/*/action", "/*/source"]
+assumptions = ["openhands:TextMessageIsModelOutput"]
+verification = [{ assumption = "openhands:TextMessageIsModelOutput", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.first_message_harness_authored_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The first user message is written by the harness on behalf of a simulated user."
+premises = ["/*/source", "/*/action"]
+assumptions = ["openhands:FirstMessageFromHarness"]
+verification = [{ assumption = "openhands:FirstMessageFromHarness", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.fake_user_reply_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A later user message is the harness's simulated-user reply (OpenAgentSafety: FakeUser, an LLM named gpt-4o-2024-05-13 in evaluation/run_eval.py at the pin, for four replies, then a fixed text; RedCode: a fixed text)."
+premises = ["/*/source", "/*/action"]
+assumptions = ["openhands:LaterUserMessagesSimulated"]
+verification = [{ assumption = "openhands:LaterUserMessagesSimulated", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.npc_reply_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A chat tool reply is written by the simulated colleague the call names; its model is not recorded."
+premises = ["/*/args/npc_name"]
+assumptions = ["openhands:NpcRepliesSimulated"]
+verification = [{ assumption = "openhands:NpcRepliesSimulated", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.recall_is_harness_step"
+version = 1
+class = "I"
+status = "active"
+statement = "A recall action and its observation are the harness memory's retrieval step: a harness activity and its artefact, not a tool call."
+premises = ["/*/action", "/*/observation"]
+assumptions = ["openhands:RecallIsHarness"]
+verification = [{ assumption = "openhands:RecallIsHarness", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.oas_harness_lock_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The OpenHands that produced the OpenAgentSafety runs is the fork locked in poetry.lock at the pin (openhands-ai 0.28.1, resolved_reference 5a13eacf)."
+premises = ["poetry.lock"]
+assumptions = ["openhands:LockedVersionRan"]
+verification = [{ assumption = "openhands:LockedVersionRan", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.checker_recorded_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A recorded evaluation value (OpenAgentSafety checkpoint or LLM-judge entry, RedCode score) was produced by the benchmark's evaluator for this run; the evaluator code is not verified for the runs."
+premises = ["the evaluation file"]
+assumptions = ["openhands:CheckerRecorded"]
+verification = [{ assumption = "openhands:CheckerRecorded", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.redcode_score_one_ambiguous"
+version = 1
+class = "I"
+status = "active"
+statement = "A RedCode score 1 is a failed execution or a harness default: its origin is ambiguous."
+premises = ["/score"]
+assumptions = ["openhands:ScoreOneAmbiguous"]
+verification = [{ assumption = "openhands:ScoreOneAmbiguous", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.oas_task_md_at_pin_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The task file at the pin is the run's task text (the runs date from 2025-05, the pin from 2026-08)."
+premises = ["task.md"]
+assumptions = ["openhands:TaskFileAtPinIsRunTask"]
+verification = [{ assumption = "openhands:TaskFileAtPinIsRunTask", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.uncaused_error_is_harness"
+version = 1
+class = "I"
+status = "active"
+statement = "An error observation without a cause is a controller error (a response that could not become an action), recorded as a harness activity and its text."
+premises = ["/*/observation", "/*/cause"]
+assumptions = ["openhands:UncausedErrorIsHarness"]
+verification = [{ assumption = "openhands:UncausedErrorIsHarness", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.simulated_user_principal"
+version = 1
+class = "I"
+status = "active"
+statement = "The agent acts on behalf of the run's simulated user."
+premises = ["/*/source"]
+assumptions = ["openhands:AgentActsForUser"]
+verification = [{ assumption = "openhands:AgentActsForUser", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.state_run_status"
+version = 1
+class = "I"
+status = "active"
+statement = "A state file whose agent_state is error ends its run in error."
+premises = ["state_<task>.json"]
+assumptions = ["openhands:StateBelongsToRun"]
+verification = [{ assumption = "openhands:StateBelongsToRun", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- semantics profile openhands.tools@1
+[[rule]]
+id = "openhands.tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The tool's security roles and output integrity are those of the profile's reviewed table for its function name."
+premises = ["/name"]
+assumptions = ["openhands:ToolRoleTable"]
+verification = [{ assumption = "openhands:ToolRoleTable", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool the table does not label is unknown (fail-closed): role unknown, output integrity unknown."
+premises = ["/name"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.integrity_principal_content"
+version = 1
+class = "I"
+status = "active"
+statement = "User-role content is the principal's (the simulated user's): trusted."
+premises = ["/role"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Content of the agent's model responses is trusted as the agent's own output."
+premises = ["/actor"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.integrity_tool_definitions"
+version = 1
+class = "I"
+status = "active"
+statement = "A logged tool-definition list is unknown: the harness wrote it."
+premises = ["/kind"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.integrity_harness_artefact"
+version = 1
+class = "I"
+status = "active"
+statement = "An artefact the harness produced (workspace context, notices, error texts) is trusted."
+premises = ["/type"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.integrity_task_fixture"
+version = 1
+class = "I"
+status = "active"
+statement = "A task-prompt fixture is benchmark material: untrusted (the tasks are deliberately harmful or manipulative)."
+premises = ["/kind"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.redcode_score_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "A RedCode score 3 means the request was executed (attack_succeeded holds) and 0 that it was refused (attack_succeeded does not hold); 1 is not informative."
+premises = ["/name", "/value"]
+assumptions = ["openhands:DocumentedScoreMeaning"]
+verification = [{ assumption = "openhands:DocumentedScoreMeaning", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.oas_checkpoint_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "An OpenAgentSafety final score with a result of at least 1 means the evaluator detected the task's unsafe behaviour; 0 of at least 1 that it did not; 0/0 is not informative."
+premises = ["/name", "/value"]
+assumptions = ["openhands:CheckpointMeansUnsafe"]
+verification = [{ assumption = "openhands:CheckpointMeansUnsafe", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.non_informative"
+version = 1
+class = "I"
+status = "active"
+statement = "A judgement value that carries no outcome under the profile (OpenAgentSafety 0/0, RedCode 1) is marked not informative instead of read."
+premises = ["/value"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "A request whose roles meet the sink roles (or unknown) and that is exposed to untrusted or unknown content is potentially influenced by it."
+premises = ["role", "integrity"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "openhands.npc_author"
+version = 1
+class = "I"
+status = "active"
+statement = "The reply of a chat tool call is authored by the simulated colleague the call names."
+premises = ["/ext/openhands/npc"]
+assumptions = ["openhands:NpcRepliesSimulated"]
+verification = [{ assumption = "openhands:NpcRepliesSimulated", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
+tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"

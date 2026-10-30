@@ -1,0 +1,175 @@
+# Artefact catalogue `autogen` (docs/architecture D.19.11, D.15.2; DECISIONS D-300..D-306). Data, not code.
+#
+# Every source-data problem of the AutoGen guard-placement deposit found by the phase-10n census and the in-memory
+# mapping of all 1,080 run rows, with the rule that detects it, how it is recorded and its handling class (D.15.1).
+# `expected` counts are for the pinned deposit (Zenodo 23025259 v1.0) and stay `unverified` until a full import confirms
+# them (D.15.6): a regression expectation, never a gate.
+#
+# Claims are specific: an entry claims a safety-net finding only through a rule, `claims` item or issue code of its own
+# case. Cases no AER field shows (the non-run rows, the errored runs the harness set aside) name a `reserved` detector
+# rule, so they claim nothing. The version stays 1: nothing is released.
+
+version = 1
+family = "autogen"
+namespaces = ["autogen"]
+
+[[artefact]]
+id = "autogen.art.non_run_rows"
+title = "Rows that are not runs"
+description = "190 of the deposit's 1,270 runs.jsonl rows are not agent runs: phase 7 (150) is the bench's guardrail rail on a probe, with no agent (select.not_execution_artefact); phases 8 and 9 (20 each) rebuild the team in LangGraph and CrewAI and log tool calls without results (select.out_of_scope, partial trajectories). Registered by file with their row counts, never dropped."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "benchmark"
+detector = { rule = "autogen.non_run_rows@1", class = "D" }
+handling = { class = "FO", rule = "autogen.non_run_rows@1" }
+expected = [{ snapshot = "autogen-guard-placement:v1.0", count = 190, basis = "phase-10n census", unit = "rows", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-300", "docs/reports/phase10n/README.md §2.1"]
+
+[[artefact]]
+id = "autogen.art.errored_runs_set_aside"
+title = "Errored runs set aside before release"
+description = "The harness moved the rows of runs that errored aside and ran them again (set_aside_errors), so every published row is a successful attempt (error null in 1,080 of 1,080): a selection effect of the deposit."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.errored_runs_set_aside@1", class = "D" }
+handling = { class = "NR" }
+manuscript = true
+refs = ["docs/reports/phase10n/README.md §2.3"]
+
+[[artefact]]
+id = "autogen.art.aborted_attempt_events"
+title = "Event rows of aborted first attempts"
+description = "Three phase-2 runs were re-run under the same run_id: their event log holds an aborted first attempt (46 rows, three requests without a response) before the attempt the row belongs to. The last attempt is mapped (chosen by call ids and response texts); the aborted rows are counted, never mapped."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.event_attempt@1", class = "D" }
+recorded_as = { issues = ["autogen.aborted_attempt_events"] }
+handling = { class = "FO", rule = "autogen.event_attempt@1" }
+expected = [{ snapshot = "autogen-guard-placement:v1.0", count = 3, basis = "phase-10n census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-302"]
+
+[[artefact]]
+id = "autogen.art.keyword_stop_before_agents"
+title = "Team stopped before any agent spoke"
+description = "In 40 phase-10 runs (entries user and agent) the document carries the termination keyword in the task or the ingest turn, so the text-mention termination stops the team before any model call: an outcome_only unit, no step invented."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "benchmark"
+detector = { rule = "autogen.no_model_call@1", class = "D" }
+recorded_as = { issues = ["no_execution_observed"] }
+claims = ["artefact.generic.empty_execution#outcome_only"]
+handling = { class = "CR", rule = "autogen.no_model_call@1" }
+expected = [{ snapshot = "autogen-guard-placement:v1.0", count = 40, basis = "phase-10n in-memory mapping", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10n/README.md §2.2"]
+
+[[artefact]]
+id = "autogen.art.guard_text_unjoined"
+title = "Guard verdicts whose text is not one recorded record"
+description = "A guard row identifies its text only by a 16-hex SHA-256 prefix. Where no recorded text has that digest (the memory system message, joined multi-result texts) or several do (identical texts such as repeated 'Note saved.' results or a writer echoing the researcher), the verdict's subject is the run and the digest and candidate count stay in ext; the hash is never treated as text."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.guard_text_digest@1", class = "D" }
+recorded_as = { issues = ["autogen.guard_text_unjoined"] }
+handling = { class = "FO", rule = "autogen.guard_text_digest@1" }
+expected = [{ snapshot = "autogen-guard-placement:v1.0", count = 3169, basis = "phase-10n in-memory mapping: judgements with subject run, of 38,183", unit = "judgements", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-304"]
+
+[[artefact]]
+id = "autogen.art.block_effect_in_request_log"
+title = "Block whose replaced copy is only in the request log"
+description = "A model-placement block, or a bus block of an agent's response, replaced the text the next model call read; the run row keeps the original. The guard decision is recorded about the original message; the replaced copy is visible only in the logged llm_request (cited by locator), not as a record of its own."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.block_replaces_text_unverified@1", class = "I" }
+recorded_as = { issues = ["autogen.block_effect_in_request_log"] }
+handling = { class = "FO", rule = "autogen.block_replaces_text_unverified@1" }
+manuscript = true
+refs = ["DECISIONS D-304"]
+
+[[artefact]]
+id = "autogen.art.block_subject_not_recorded"
+title = "Block of a text that is not a recorded message"
+description = "A block of the team's start message (withheld, or with the keyword stripped), of a system prompt, of the memory content or of an unjoined text cannot be a decision (C.3.7 allows a message, call part, execution or model call as subject): the block is disclosed, the guard's verdict stays a judgement, and a changed start message names the guard as its author (I) with no generator invented."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.block_without_decision@1", class = "I" }
+recorded_as = { issues = ["autogen.block_subject_not_recorded"] }
+handling = { class = "FO", rule = "autogen.block_without_decision@1" }
+manuscript = true
+refs = ["DECISIONS D-304"]
+
+[[artefact]]
+id = "autogen.art.tool_error_result"
+title = "Tool call rejected before its body"
+description = "Four InjecAgent stub calls returned is_error with no harness tool_call event: AutoGen rejected the arguments before the tool body ran (status invalid, class I)."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "provider"
+detector = { rule = "autogen.tool_body_not_entered_unverified@1", class = "I" }
+recorded_as = { issues = ["autogen.tool_error_result"] }
+handling = { class = "CR", rule = "autogen.tool_body_not_entered_unverified@1" }
+expected = [{ snapshot = "autogen-guard-placement:v1.0", count = 4, basis = "phase-10n census", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10n/README.md §2.3"]
+
+[[artefact]]
+id = "autogen.art.times_in_ext"
+title = "Wall-clock values kept in ext"
+description = "Message created_at and event t are construction and logging instants on one host, not activity times: they stay verbatim in ext, typed times are ambiguous or not recorded, and no time edge is written."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.wall_clock_times@1", class = "I" }
+claims = ["artefact.generic.sentinel_time#unknown_ambiguous", "artefact.generic.sentinel_time#unknown_not_recorded"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-305"]
+
+[[artefact]]
+id = "autogen.art.function_calls_finish"
+title = "finish_reason function_calls"
+description = "AutoGen's OpenAI client reports finish_reason function_calls for a response that requests tools: the normal end of a tool-calling turn, kept verbatim."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.request_seq@1", class = "D" }
+claims = ["artefact.generic.abnormal_finish#function_calls"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["docs/reports/phase10n/README.md §2.3"]
+
+[[artefact]]
+id = "autogen.art.payload_outside_tool_results"
+title = "Injection delivered outside tool results"
+description = "The probe document enters by four routes: a tool result (entry tool), the task message (user), the ingest agent's turn (agent) or the memory content (memory). Injection markers apply to tool results only, so attack runs of the other entries carry no marker; the payload fixture and the document are recorded, and the task, ingest and memory content are labelled unknown or untrusted. A guard block can also remove the payload from a tool result."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "benchmark"
+detector = { rule = "autogen.payload_marker@1", class = "D" }
+claims = ["artefact.generic.payload_not_reaching_agent#absent", "artefact.generic.payload_not_reaching_agent#no_marker"]
+handling = { class = "NR" }
+manuscript = true
+refs = ["DECISIONS D-306"]
+
+[[artefact]]
+id = "autogen.art.text_encoded_call"
+title = "Call-like text in agent output"
+description = "Some agent texts contain call-shaped markup (the local model writing a tool call into its text). Kept verbatim as text; never turned into a call."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "provider"
+detector = { rule = "autogen.response_text_equal@1", class = "D" }
+claims = ["artefact.generic.text_encoded_call"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["docs/reports/phase10n/README.md §4"]
+
+[[artefact]]
+id = "autogen.art.join_and_link_checks"
+title = "Join and link checks with no case in the deposit"
+description = "Checks the mapper applies that found no case in the pinned deposit: an unmatched or ambiguous model response, a probe id outside the probe sets, a task template that does not reproduce the recorded task, a passage missing from its document, call arguments that are not JSON."
+scope = { sources = ["autogen-guard-placement"], profiles = ["autogen-guard-placement"], parts = ["v1.0"] }
+cause = "upstream_harness"
+detector = { rule = "autogen.probe_join@1", class = "D" }
+recorded_as = { issues = ["autogen.response_unmatched", "autogen.probe_join_missing", "autogen.task_template_mismatch", "autogen.passage_not_in_document", "autogen.arguments_not_json"] }
+handling = { class = "FO", rule = "autogen.probe_join@1" }
+expected = [{ snapshot = "autogen-guard-placement:v1.0", count = 0, basis = "phase-10n in-memory mapping", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10n/README.md §4"]

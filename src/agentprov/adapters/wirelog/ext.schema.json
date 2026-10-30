@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/wirelog/ext-0.1.json",
+  "title": "ext.wirelog of AER records written by the wirelog.run_dir mapper (C.10; D.20.3; closed member list)",
+  "description": "Verbatim wire-log and harness fields without a core slot, and the mapper's recorded checks. Values copied from the source are untrusted, open JSON; the member names are closed. Not a published corpus schema in v0.1 (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "label_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs_dir", "run_dir", "model", "arm", "number"],
+      "properties": {
+        "runs_dir": {"type": "string"}, "run_dir": {"type": "string"}, "model": {"type": "string"},
+        "arm": {"type": "string"}, "number": {"type": "integer", "minimum": 0}
+      },
+      "description": "execution: the run directory's name facets (D.20.1)"
+    },
+    "meta": {"description": "execution: meta.json verbatim"},
+    "results_row": {"description": "execution: the run's results.csv row verbatim (strings)"},
+    "same_bytes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^a[0-9]+$"}, "description": "execution: auxiliary roles whose bytes equal an artefact already listed, and that artefact's id"},
+    "task_prompt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "execution: the digest of an unlisted task prompt"},
+    "synthetic": {"type": "boolean", "description": "env actor: the runtime is the harness's synthetic dispatcher (D-284)"},
+    "payload_key": {"type": "string", "description": "injection_payload fixture: the attacks.json retargeted_payloads key"},
+    "found_in": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "request", "pointer", "offset"],
+      "properties": {
+        "channel": {"enum": ["tool_definitions", "tool_result"]}, "request": {"type": "integer", "minimum": 0},
+        "pointer": {"type": "string"}, "offset": {"type": "integer", "minimum": 0}
+      },
+      "description": "injection_payload fixture: where the request log (the request auxiliary) first carries the payload: request index, JSON pointer into the request log, character offset (wirelog.payload_located@1)"
+    },
+    "wire_field": {"const": "system", "description": "system message: the request member it came from"},
+    "wire_message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request", "index", "blocks"],
+      "properties": {
+        "request": {"type": "integer", "minimum": 0}, "index": {"type": "integer", "minimum": 0},
+        "block": {"type": "integer", "minimum": 0}, "blocks": {"type": "integer", "minimum": 1}
+      },
+      "description": "message split from a multi-block wire message: its request, message index, block and block count (wirelog.result_block_message@1)"
+    },
+    "block_extra": {"type": "object", "description": "message: members of a block without an AER slot, by part index (Anthropic citations, caller; a toolResult status)"},
+    "string_content": {"const": true, "description": "message: the wire content was a string, not blocks (Anthropic)"},
+    "latency_ms": {"description": "model call: metrics.latencyMs verbatim (wirelog.latency_no_clock@1)"},
+    "usage_extra": {"type": "object", "description": "model call: usage members without an AER Usage slot, verbatim"},
+    "response_extra": {"type": "object", "description": "model call: other response members, verbatim"},
+    "request_extra": {"type": "object", "description": "model call: other request members, verbatim"}
+  }
+}

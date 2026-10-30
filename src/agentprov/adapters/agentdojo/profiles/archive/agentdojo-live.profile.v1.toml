@@ -1,0 +1,187 @@
+# Source profile `agentdojo-live`: AgentDojo cells run live through the backend project backends/agentdojo (stock
+# agentdojo 0.1.35 wheel) and recorded as capture/0.1 sessions plus the native TraceLogger JSON (docs/architecture
+# D.4.4, D.10, D.10.4, D.10.4a; I.1.1 row agentdojo · live).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The `[family.agentdojo]` part is checked against the
+# closed schema `family.schema.json` of this family (D.4.1); its `[family.agentdojo.live]` table is the live part
+# (D.4.2): the backend, the pinned benchmark identity T0 checks before spawn (D.10.6), the guarded qualified names, the
+# refusals and the instrumentation ids the capture mapper accepts (D.10.7).
+#
+# The import tables serve the capture mapper `agentdojo.capture`; `[import] native` names the TraceLogger mapping of the
+# native log that the live-versus-native check runs under this same profile (D.10.4). The quirks below are declared for
+# that native mapping (the stock 0.1.35 harness behaves as the upstream profile's code range does); they carry no
+# `observed` counts, because no live campaign has been run yet.
+
+[profile]
+id = "agentdojo-live"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "agentdojo"
+family = "agentdojo"
+parts = ["live"]
+title = "AgentDojo live capture (backends/agentdojo, agentdojo==0.1.35, capture/0.1 + native TraceLogger JSON)"
+evidence = ["audit/capture.md", "verify/mandate-agentdojo-eval.md", "D.10", "C.13"]
+
+[source]
+canonical_repo = "https://github.com/ethz-spylab/agentdojo"
+paper = "arXiv:2406.13352"
+package = { name = "agentdojo", pypi_latest = "0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "release_tag_v0_1_35"
+part = "live"
+kind = "git"
+commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b"
+date = "2025-10-27"
+note = "the code of the PyPI 0.1.35 wheel the backend installs; the wheel digest is the live pin below"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti", "Jie Zhang", "Mislav Balunovic", "Luca Beurer-Kellner", "Marc Fischer", "Florian Tramèr"]
+policy = "include"
+basis = "the user's own runs of the MIT-licensed benchmark; the licence of the captured data is the user's decision (U-03)"
+attribution = ["LICENSE (MIT, (c) 2024 Debenedetti et al.)", "CITATION.bib: arXiv:2406.13352"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+content_dedup = "never"
+
+[import]
+dialect = "agentprov.capture"
+mapper = "agentdojo.capture"
+variants = ["0.1"]
+rules = { aer = 1, agentdojo = 2, cap = 1 }
+include = ["raw/capture/*.capture.jsonl"]
+native = { dialect = "agentdojo.tracelogger", variants = ["v1.k14", "v1.k14.incomplete"], mapper = "agentdojo.tracelogger" }
+
+[family.agentdojo.identity]
+model_from = "capture"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = []
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", travel = "agentdojo", banking = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+
+[family.agentdojo.harness]
+code_identity = "pinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "yaml"
+# D.5.4 "Citation of D rules" (D-24): the harness is the pinned 0.1.35 wheel, whose sources are a75aba76. The capture
+# mapper's rules rest on the capture; this list governs the TraceLogger mapping of the native log (live-versus-native).
+verified_code = [
+  { commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", note = "the pinned wheel's sources (agentdojo 0.1.35)" },
+]
+system_prompt_variants = []
+
+[family.agentdojo.live]
+backend = "agentdojo"
+project = "backends/agentdojo"
+llm_element_default = "native"
+pins = { distribution = "agentdojo", version = "0.1.35", wheel_sha256 = "364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd" }
+# D.10.6: the qualified names whose inspect.getsource() digests the worker reports and T0 cross-checks.
+guarded_sources = [
+  "agentdojo.agent_pipeline.tool_execution.ToolsExecutor.query",
+  "agentdojo.task_suite.task_suite.TaskSuite.run_task_with_pipeline",
+  "agentdojo.task_suite.task_suite.model_output_from_messages",
+  "agentdojo.logging.TraceLogger.log",
+  "agentdojo.logging.TraceLogger.save",
+  "agentdojo.agent_pipeline.llms.openai_llm._function_to_openai",
+  "agentdojo.agent_pipeline.llms.openai_llm._message_to_openai",
+  "agentdojo.agent_pipeline.llms.openai_llm._openai_to_assistant_message",
+  "agentdojo.agent_pipeline.llms.openai_llm.chat_completion_request",
+]
+refuse = ["defense!=null", "tool_output_format not in [null, 'yaml']"]
+# D.10.7: the instrumentation items a session of this backend may declare; any other id is reported by the capture
+# mapper (agentdojo.instrumentation_unrecognised), never dropped.
+instrumentation_accepted = [
+  "agentdojo.pass_recorder_wrap@1",
+  "agentdojo.executor_mirror@1",
+  "agentdojo.recording_runtime_class@1",
+  "agentdojo.recording_transport@1",
+  "agentdojo.llm_span_brackets@1",
+  "agentdojo.role_rewrite_developer_to_system@1",
+  "agentdojo.temperature_not_transmitted@1",
+  "agentdojo.retry_malformed_tool_json@1",
+  "agentdojo.retry_upstream_failure@1",
+  "agentdojo.http_backoff@1",
+  "agentdojo.reasoning_passback@1",
+  "agentdojo.attack_model_display_name@1",
+  "agentdojo.env_dump_per_pass@1",
+  "agentdojo.transport_scripted@1",
+  "agentdojo.scheduler_parallel_workers@1",
+  "agentdojo.scheduler_start_stagger@1",
+]
+instrumentation_extra = []
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.dos_security_not_utility"
+applies = { attack_dir = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"] }
+rules = ["agentdojo.dos_security_rule@1", "agentdojo.dos_placeholder_injection_task@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["agentdojo.run_error_imposed_outcome@1"]
+params = { utility = false, security = true }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = {}
+rules = ["agentdojo.incomplete_run@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1", "agentdojo.positional_match@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.run_error_imposed_outcome@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

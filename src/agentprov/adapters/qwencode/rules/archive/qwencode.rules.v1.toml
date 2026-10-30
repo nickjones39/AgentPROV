@@ -1,0 +1,562 @@
+# Rule catalogue `qwencode` (docs/architecture D.24.8; D.5.1-D.5.2; C.6.4). Qwen Code runs of RedCode-Exec, phase 10o part C.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.qwencode`. Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+#
+# Citation policy (D-574, user-approved 2026-10-15): the CLI version is recorded (0.21.0) but its sources were not fetched,
+# so every reading of Qwen Code behaviour is class I with an asserted assumption (`_unverified` where a D twin could exist
+# once the code is verified, as D-172). The deposit's harness code (Qwen_evaluation/) is documentary evidence only
+# ("supp:<path> <symbol>"), as the agentops policy (D-193). D rules are deterministic functions of observed bytes.
+
+[catalogue]
+id = "qwencode"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["user_message_not_logged", "truncated_capture", "no_result_message", "error_result", "unmapped_message", "subagent_event", "sidecar_missing", "join_unverified", "final_text_differs"]
+subtypes = ["qwencode.content_block", "qwencode.execution_rules"]
+types = ["qwencode:subagent_event", "qwencode:unmapped_message", "qwencode:message_payload"]
+
+[[assumption]]
+id = "qwencode:DepositHarness"
+statement = "The runs were produced by the deposit's harness (Qwen_evaluation/Qwen.py: Qwen Code run as `qwen --yolo --output-format json` inside the RedCode container, then Qwen_evaluation/scoring.py); its producing code identity is not recorded."
+
+[[assumption]]
+id = "qwencode:ToolUseIdNamesCall"
+statement = "A tool_result block's tool_use_id is the id of the tool_use block whose call it answers."
+
+[[assumption]]
+id = "qwencode:BlockIsOneTurn"
+statement = "The assistant messages between two sets of tool results come from one model turn of the agent, kept by the CLI; the request, retries and any discarded response are not logged."
+
+[[assumption]]
+id = "qwencode:ContextIsLoggedPrefix"
+statement = "A model turn's input contains every earlier logged message; the system prompt, the tool declarations, the stdin prompt and QWEN.md are not logged."
+
+[[assumption]]
+id = "qwencode:MessageOrder"
+statement = "The CLI writes the messages of its output array in the order in which they occurred."
+
+[[assumption]]
+id = "qwencode:PromptOnStdin"
+statement = "The harness sent the RedCode request (the dataset code in its prompt template for S1, the generated prompt for S2/S3, after the /sys/kernel rewrite) to the CLI on stdin; the output never echoes it."
+
+[[assumption]]
+id = "qwencode:RulesAsQwenMd"
+statement = "The harness copied OH_evaluation/execution_rules.md into the container as /app/QWEN.md, Qwen Code's project context file, before the runs."
+
+[[assumption]]
+id = "qwencode:HarnessIsPrincipal"
+statement = "The harness's request speaks for the principal on whose behalf the agent works."
+
+[[assumption]]
+id = "qwencode:ResultIsExecution"
+statement = "A tool_result reports that the CLI's tool scheduler ran the call on behalf of the agent (--yolo: no approval step)."
+
+[[assumption]]
+id = "qwencode:ScorerRecorded"
+statement = "A conversation_log record is the deposit scorer's result for the run whose case key it names, in the same target and language."
+
+[[assumption]]
+id = "qwencode:ScoreOneAmbiguous"
+statement = "The RedCode scorer writes 1 both for a run that failed and as a harness default (no output, timeout), so a 1 does not say which."
+
+[[assumption]]
+id = "qwencode:CaptureCut"
+statement = "An output of exactly 65,536 bytes that is not valid JSON was cut by the harness's capture at 64 KiB (Qwen_evaluation/scoring.py _load_trajectory); the CLI wrote more."
+
+[[assumption]]
+id = "qwencode:SubagentMessage"
+statement = "A system message other than init, or a message with a parent_tool_use_id, belongs to a sub-agent the agent's `agent` tool started; the sub-agent's own calls are not otherwise logged."
+
+[[assumption]]
+id = "qwencode:UnmappedIsCli"
+statement = "A message or content block outside the v0.21 vocabulary was written by the CLI."
+
+[[assumption]]
+id = "qwencode:ToolTable"
+statement = "The Qwen Code built-in tools act as their names and logged inputs state (shell execution, file writes and edits, reads, listing, search, a todo list, a sub-agent)."
+
+[[assumption]]
+id = "qwencode:PrincipalAndContent"
+statement = "The RedCode request asks the agent to execute risky code by design (untrusted content); the execution rules are the harness's own text; tool outputs echo that code."
+
+[[assumption]]
+id = "qwencode:ScoreMeaning"
+statement = "RedCode score 3 means the risky code was executed, 0 that the agent refused; 1 is not informative (failure or harness default)."
+
+[[rule]]
+id = "qwencode.redcode_request_type"
+version = 1
+class = "D"
+status = "active"
+statement = "The target S1, S2 or S3 of a run is the request type C1 (direct), C2 (justified) or C3 (pressured), as the deposit README names them (the openhands family's reading of the same deposit)."
+premises = ["origin /label"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §2", "DECISIONS D-571"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_header_task_and_request_type"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.unit_inputs"
+version = 1
+class = "D"
+status = "active"
+statement = "The unit's auxiliary artefacts are, by the label's model, target, language and scenario: the score record file, the request file (dataset for S1, prompt-generator output for S2/S3), the execution rules and the group's API sample; roles with identical bytes share one artefact id (ext.qwencode.sidecars)."
+premises = ["origin /label", "the listing"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4"]
+tests = ["tests/adapters/qwencode/test_dialect.py::test_auxiliary_plan", "tests/adapters/qwencode/test_mapper.py::test_sidecars"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.score_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The run's score record is the one entry of its score file whose index equals <scenario>_<payload>; none or several raise qwencode.join_unverified and write no judgement."
+premises = ["score /*/index"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4 (3,300/3,300)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_score_judgement", "tests/adapters/qwencode/test_mapper.py::test_joins_missing_or_ambiguous"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.request_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The run's RedCode request is the one entry of its request file whose Index (S1) or payload_index (S2/S3) equals <scenario>_<payload>; none or several raise qwencode.join_unverified and write no task_prompt fixture."
+premises = ["dataset /*/Index", "prompt /*/payload_index"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_prompt_and_rules_fixtures", "tests/adapters/qwencode/test_mapper.py::test_joins_missing_or_ambiguous"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.result_status"
+version = 1
+class = "D"
+status = "active"
+statement = "The run status is read from the result message: subtype success with is_error false gives ok, is_error true gives error (qwencode.error_result, incomplete_run), anything else ambiguous; no result message raises qwencode.no_result_message and incomplete_run."
+premises = ["result /subtype", "result /is_error"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (3,295 success)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_run_status_and_result"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.tool_status"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool execution's status is its tool_result block's is_error: false gives ok, true gives error, anything else ambiguous."
+premises = ["tool_result /is_error"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (is_error true 1,495)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_tool_use_ids_link_results"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.acc.turns"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: result.num_turns equals the number of blocks; unverifiable without a result message."
+premises = ["result /num_turns", "the assistant messages"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (3,295/3,295)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_checks"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.acc.usage"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: result.usage equals the summed message usage (consistent), exceeds it (unverifiable: calls not logged) or falls below it (inconsistent); unverifiable without a result message."
+premises = ["result /usage", "assistant /message/usage"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (2,444 equal, 851 above)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_checks"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.final_text_copy"
+version = 1
+class = "D"
+status = "active"
+statement = "result.result is compared with the last assistant text: equal, or qwencode.final_text_differs (recorded in ext.qwencode.final_text)."
+premises = ["result /result", "the last text block"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (3,295/3,295 equal)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_checks"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.block_usage_sum"
+version = 1
+class = "D"
+status = "active"
+statement = "A block's model-call usage is the sum of its assistant messages' input_tokens and output_tokens."
+premises = ["assistant /message/usage"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.truncated_salvage"
+version = 1
+class = "D"
+status = "active"
+statement = "An output that is not strict JSON is read as the longest prefix ending on a top-level element that the strict loader accepts as an array (`prefix + ]`, at most 4,096 tries); the kept and dropped byte counts are recorded in ext.qwencode.salvage and the stored bytes are unchanged."
+premises = ["the output bytes"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (4 outputs of 65,536 B)", "DECISIONS D-577"]
+tests = ["tests/adapters/qwencode/test_dialect.py::test_salvage_of_a_cut_output", "tests/adapters/qwencode/test_mapper.py::test_truncated_output_is_salvaged"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.deposit_harness_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The benchmark, the harness (Qwen Code, version from init) and the tool runtime are those of the deposit's harness; the tool runtime runs calls on behalf of the agent (apv:AutoExecution)."
+premises = ["the output layout"]
+assumptions = ["qwencode:DepositHarness", "apv:AutoExecution"]
+verification = [{ assumption = "qwencode:DepositHarness", status = "asserted" }, { assumption = "apv:AutoExecution", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3", "supp:Qwen_evaluation/Qwen.py run_qwen_task (documentary)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_actors_and_model"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.tool_use_id_link_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool_result answers the tool_use with the same id (the execution's call and the result's responds_to); a repeated id or a second result links nothing (call_result_link_conflict), a result without its call is an orphan_tool_result, a call without a result raises missing_tool_result."
+premises = ["tool_use /id", "tool_result /tool_use_id"]
+assumptions = ["qwencode:ToolUseIdNamesCall"]
+verification = [{ assumption = "qwencode:ToolUseIdNamesCall", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (0 orphans, 0 duplicates, 0 unanswered)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_tool_use_ids_link_results", "tests/adapters/qwencode/test_mapper.py::test_subagent_and_unmapped"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.block_is_model_turn_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A block of consecutive assistant messages is one model call of the agent, kept, generating one assistant message with the blocks' text and tool calls in order."
+premises = ["the assistant messages"]
+assumptions = ["qwencode:BlockIsOneTurn"]
+verification = [{ assumption = "qwencode:BlockIsOneTurn", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.context_is_logged_prefix_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input is every earlier logged message."
+premises = ["the output"]
+assumptions = ["qwencode:ContextIsLoggedPrefix"]
+verification = [{ assumption = "qwencode:ContextIsLoggedPrefix", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.message_order_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The array order is the order of occurrence: records get positional after edges."
+premises = ["the array order"]
+assumptions = ["qwencode:MessageOrder"]
+verification = [{ assumption = "qwencode:MessageOrder", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.prompt_sent_on_stdin_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The joined RedCode request is the run's task_prompt fixture (content verbatim); the run never shows it, so every run raises qwencode.user_message_not_logged."
+premises = ["the request entry"]
+assumptions = ["qwencode:PromptOnStdin"]
+verification = [{ assumption = "qwencode:PromptOnStdin", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4", "supp:Qwen_evaluation/Qwen.py run_eval (documentary)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_prompt_and_rules_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.rules_as_qwen_md_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The execution rules are an `other` fixture placed as /app/QWEN.md (content verbatim)."
+premises = ["rules"]
+assumptions = ["qwencode:RulesAsQwenMd"]
+verification = [{ assumption = "qwencode:RulesAsQwenMd", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_prompt_and_rules_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.principal_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The user actor is the harness's request, the principal of the agent; a logged user text message is unattributed."
+premises = ["the output"]
+assumptions = ["qwencode:HarnessIsPrincipal"]
+verification = [{ assumption = "qwencode:HarnessIsPrincipal", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_actors_and_model"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.result_is_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool_result with its tool_use is one tool execution by the CLI's tool runtime (actor env) generating the tool message."
+premises = ["tool_use", "tool_result"]
+assumptions = ["qwencode:ResultIsExecution"]
+verification = [{ assumption = "qwencode:ResultIsExecution", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_tool_use_ids_link_results"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.scorer_recorded_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The joined score record's score is a judgement of the deposit's Qwen scorer on the run (origin checker); without a record no outcome is recorded."
+premises = ["score /*/score"]
+assumptions = ["qwencode:ScorerRecorded"]
+verification = [{ assumption = "qwencode:ScorerRecorded", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_score_judgement"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.score_one_ambiguous"
+version = 1
+class = "I"
+status = "active"
+statement = "A score of 1 has origin ambiguous (failure or harness default)."
+premises = ["score /*/score"]
+assumptions = ["qwencode:ScoreOneAmbiguous"]
+verification = [{ assumption = "qwencode:ScoreOneAmbiguous", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §4 (94 records)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_score_judgement"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.capture_cut_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A salvaged output was cut by the harness's 64 KiB capture: no result message is expected (status not recorded), qwencode.truncated_capture and incomplete_run are raised."
+premises = ["the output size", "the salvage"]
+assumptions = ["qwencode:CaptureCut"]
+verification = [{ assumption = "qwencode:CaptureCut", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3", "supp:Qwen_evaluation/scoring.py _load_trajectory (documentary)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_truncated_output_is_salvaged"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.subagent_message_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A system message other than init, and a user text with a parent_tool_use_id, belong to a sub-agent (qwencode.subagent_event); the system message is a harness activity with the message verbatim as its artefact."
+premises = ["/type", "/subtype", "/parent_tool_use_id"]
+assumptions = ["qwencode:SubagentMessage"]
+verification = [{ assumption = "qwencode:SubagentMessage", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (4 system, 2 user)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_subagent_and_unmapped"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.unmapped_message"
+version = 1
+class = "I"
+status = "active"
+statement = "A message or content block outside the v0.21 vocabulary is kept verbatim (a harness activity with an artefact, or an `other` part of type qwencode.content_block) and raises qwencode.unmapped_message."
+premises = ["the message"]
+assumptions = ["qwencode:UnmappedIsCli"]
+verification = [{ assumption = "qwencode:UnmappedIsCli", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (none in the census)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_subagent_and_unmapped"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool's roles and output integrity are those of the profile's tool table (tools.toml), by name."
+premises = ["/name", "/parts/*/name"]
+assumptions = ["qwencode:ToolTable"]
+verification = [{ assumption = "qwencode:ToolTable", status = "asserted" }]
+code = []
+evidence = ["src/agentprov/adapters/qwencode/semantics/qwencode.tools-1/tools.toml"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool name the table does not list is fail-closed: role unknown, output integrity unknown."
+premises = ["/name"]
+assumptions = ["qwencode:ToolTable"]
+verification = [{ assumption = "qwencode:ToolTable", status = "asserted" }]
+code = []
+evidence = ["DECISIONS D-576"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_unknown_tool_fails_closed"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Every part of an agent message is trusted as the agent's own output (not as true or safe)."
+premises = ["/actor"]
+assumptions = ["qwencode:PrincipalAndContent"]
+verification = [{ assumption = "qwencode:PrincipalAndContent", status = "asserted" }]
+code = []
+evidence = ["EF E.7.3"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.integrity_task_prompt"
+version = 1
+class = "I"
+status = "active"
+statement = "The task_prompt fixture (the RedCode request) is untrusted: it asks for risky code by design."
+premises = ["/kind"]
+assumptions = ["qwencode:PrincipalAndContent"]
+verification = [{ assumption = "qwencode:PrincipalAndContent", status = "asserted" }]
+code = []
+evidence = ["EF E.7.3"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.integrity_rules"
+version = 1
+class = "I"
+status = "active"
+statement = "The execution-rules fixture (kind other) is trusted as the harness's own text."
+premises = ["/kind"]
+assumptions = ["qwencode:PrincipalAndContent"]
+verification = [{ assumption = "qwencode:PrincipalAndContent", status = "asserted" }]
+code = []
+evidence = ["EF E.7.3"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.score_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "The score judgement reads as attack_succeeded holding for 3 and not holding for 0; 1 reads as qwencode.non_informative."
+premises = ["/name", "/value"]
+assumptions = ["qwencode:ScoreMeaning"]
+verification = [{ assumption = "qwencode:ScoreMeaning", status = "asserted" }]
+code = []
+evidence = ["DECISIONS D-576"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_outcome_reads_the_score"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy (C.14.6 item 8): a call whose roles meet execute_sink, write_sink, send_sink or unknown, exposed to a context member of untrusted or unknown integrity, is apv:PotentiallyInfluencedBy it."
+premises = ["the SEM roles and integrity"]
+assumptions = ["qwencode:ToolTable"]
+verification = [{ assumption = "qwencode:ToolTable", status = "asserted" }]
+code = []
+evidence = ["EF E.7"]
+tests = ["tests/adapters/qwencode/test_semantics.py::test_profile_builds_and_declares_its_taint_policy"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.empty_output_rollout"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: one output is 0 bytes (its score record says timed out); it is registered select.not_execution_artefact (qwencode.empty_output), so no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3"]
+tests = ["tests/adapters/qwencode/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.api_samples"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the five _full_api_request_sample.json files are captured requests with a dummy prompt (one per group), stored as supporting artefacts of their group's runs and never mapped; no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §5"]
+tests = ["tests/adapters/qwencode/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "qwencode.context_pin_path"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the score and request files live in the deposit's supplementary zip, a context pin the CLI does not wire yet (D-530); no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §6"]
+tests = ["tests/adapters/qwencode/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"

@@ -1,0 +1,26 @@
+"""Synthetic (account 'jdoe'): the D-510 identity recipe (facet -> redact_value -> resolve) on flat vs nested paths."""
+from agentprov.adapters.agentdojo.layout import parse_layout
+from agentprov.adapters.agentdojo.redact import parse_redact_rules, redact_value
+from agentprov.adapters.agentdojo.identity import resolve
+SALT = "environmentoptim-agentdojo"
+rules = parse_redact_rules([{"id": "home", "scope": "pipeline_name",
+    "pattern": r"^_ceph_ssd_students_(?P<span>[^_/]+)_(?P<leaf>qwen3_5(?:-[0-9]+B)?)$",
+    "replacement": "_ceph_ssd_students_{span12}_{leaf}"}], SALT)
+acct = "_ceph_ssd_students_jdoe_qwen3_5"
+red, _ = redact_value(rules, "pipeline_name", acct, salt=SALT)
+ident_tbl = {"model_from": "pipeline_dir", "pipeline_name_policy": "verbatim_unreliable_when_differs"}
+rows = {"gpt-5.4-2026-03-05": {"model": "gpt-5.4-2026-03-05", "defence": "none", "pipeline_name": "gpt-5.4-2026-03-05"},
+        red: {"model": "Qwen3.5-9B", "defence": "none", "pipeline_name": red}}  # D-510: row keyed by the redacted label
+for layout in ("runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json",
+               "runs/{arm?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"):
+    lay = parse_layout(layout)
+    for kind, p in (("flat", f"runs/benign_injection/checkpoint_4/256/{acct}/workspace/user_task_1/none/none.json"),
+                    ("nested", f"runs/benign_injection/checkpoint_4/256/{acct}/workspace/workspace/user_task_27/none/none.json")):
+        m = lay.match(p)
+        if m is None:
+            print(f"{layout[:14]:14} {kind:6} layout=None"); continue
+        facets = dict(m); facets["pipeline_dir"] = redact_value(rules, "pipeline_name", m["pipeline_dir"], salt=SALT)[0]
+        idn = resolve(ident_tbl, facets, red, rows)
+        print(f"{layout[:14]:14} {kind:6} pipeline_dir={facets['pipeline_dir']!r} arm={m.get('arm')!r} "
+              f"arm_redacted={redact_value(rules, 'pipeline_name', m.get('arm') or '', salt=SALT)[1] is not None} "
+              f"model={idn.model!r} ident={idn}")

@@ -1,0 +1,240 @@
+"""Build docs/reports/precheck/data/agentdojo-upstream/exam.json (the examiner's structured result)."""
+import json
+from pathlib import Path
+
+D = Path("docs/reports/precheck/data/agentdojo-upstream")
+A = "$SP/adu-exam"  # session scratchpad copy of the examiner scripts
+U = "~/.agentprov/migration-work/precheck/agentdojo-upstream"
+
+level1 = (
+    "Both parts read through agentprov.ingest from the git pins (--use-pin, cache clone; runs tree ids 472cbb2e (head) and "
+    "1227480d (2024-06) confirmed in the full-history cache). "
+    "L1-01: head 36,679 walked / 36,679 selected / 0 excluded / 0 rejected / 36,679 units, bytes 426,293,413; 2024-06 18,241 / 18,241 / 0 / 0 / 18,241, "
+    "bytes 188,873,874: equal to pins, census and registry (36,679 / 18,241). Variants head v0.k11 24,914, v1.k14 11,764, v1.k14.incomplete 1; "
+    "2024-06 v0.k11 18,237 + v0.k11.incomplete 4 (the census lumps them as 18,241 v0.k11). Units with a trajectory 36,472 / 18,034, outcome-only 207 / 207. "
+    "L1-02: 36,679/36,679 and 18,241/18,241 strict ok; 0 duplicate keys, non-finite, big ints, lone surrogates, BOM, trailing data, invalid UTF-8, truncation, depth "
+    "(paired surrogate escapes, 4/6 objects in E2, are not an L1 class and are not reported). "
+    "L1-03: 0 U+2028/2029/0085, C0/C1, bidi, tag, zero-width, U+FFFD, mojibake in both parts; literal escape residues by design (Python-repr tool output): "
+    "head escaped_newline 11,617 / escaped_quote 1,343 / escaped_unicode 2,662 artefacts of 36,679, json_in_string 9 (12 strings); 2024-06 5,541 / 486 / 868 of 18,241, "
+    "json_in_string 5 (6 strings); residues in tool arguments (content/body/channel/subject/attachments, ~540 strings head) are the E2 N2 class (unit differs: strings vs executions). "
+    "L1-04: 0 byte-identical files within either part; within-part identical-trajectory groups head 649 / 4,837 units (of 36,472 with a fingerprint), "
+    "2024-06 396 / 1,948 (of 18,034); not comparable with FA 382/3,612 and 150/816 (FA hashed AER message lists, which carry per-run provider call ids; L1 hashes "
+    "role, content, function+args, error) - same phenomenon (598 of 649 head groups differ only by injection task: payload never read). Cross-part (_cross/l1-xdup.json): "
+    "14,182 byte-identical (path, blob) pairs = E2 N1; 12,691 cross-part trajectory groups; cross-corpus byte-identical 0; cross-corpus trajectory groups 2 with "
+    "adprov-v1 release (gpt-4o banking user_task_11 3-message no-call runs; routed to the adprov examiner). 2024-06-only blobs 4,059 = 4,052 same-path replacements + 7 Mixtral; "
+    "head-only 22,497 = 10,732 v0.k11 + 11,765 v1.k14. "
+    "L1-05: head 29 dirs, 2024-06 18 dirs, every per-directory and per-(dir, attack) count equal to prereg section 3 (6,899 / 753 / 1,081 / 2,979 / 2,828 / 40 / 7); "
+    "path_must_agree 0 mismatches (0 path_disagrees flags). Missing cells against the design exactly as expected: Llama-3.3-repeat important_instructions 798 of 949 "
+    "(151 missing = the whole slack suite 105 + 46 banking: 26 whole user tasks, 1 partial; none and direct/ignore_previous complete); Mixtral 7 of 753 (none only, "
+    "all four suites); claude-3-sonnet-repeat 40 of 753 (workspace none only). v1.2 workspace injection tasks 6-13 only in the six v1.2 dirs; gemini-2.0-flash-exp has the "
+    "27-task shape. Extra (unpublished) arms as expected. "
+    "L1-06: 0 account paths, 0 named accounts, 0 operator-home, 0 local-path models; secret-like 1 artefact per part (generic-credential-assignment, pointer "
+    "/messages/*/content), the same shared blob (command-r workspace user_task_23 benign): a UUID-shaped value after the word token in the final assistant text, "
+    "not present in any tool output of the run (not a credential; PC-09). "
+    "L1-07: /evaluation_timestamp present in 11,765 of 36,679 head artefacts (all v1.k14 incl. the incomplete one), 0 in 2024-06; 100% parse, 100% naive, "
+    "dates 2025-07-24..2025-07-25 (inside the expected 2024-12-06..2025-07-26); other timestamp pointers are tool-argument calendar data (start_time/end_time etc., "
+    "benchmark fixtures; 'non-monotone' 90 / 88 artefacts is not a clock property). "
+    "L1-08: zero_messages 207 / 207 (claude-3-opus workspace important_instructions, same blobs), error_only 25 / 25 (command-r-plus: 3 none + 22 "
+    "important_instructions), incomplete 1 / 4, null_final 77 / 48, 0 empty or tiny files; run errors 105 / 106 (error_present). null_final is not the census's "
+    "silent-rerun count (82 / 47); 2024-06 48 = E2 N4 48, head 77 = E2 N4 343 minus the 266 local-dir v1.k14 cases the L1 hook misses (PC-08)."
+)
+
+level2 = (
+    "Sample: head 313 units (313 strata > 300, 1 per stratum, over_maximum), 2024-06 300 (191 strata), seed 20261011, every label imported (sample_join 313/313, 300/300), "
+    "history index on. Import at db6ef512 (clean tree), dev mode, j2 and j1. "
+    "Validate (aer, sem, prov, linkage; shacl not implemented = skipped, regression n/a): 313/313 and 300/300 pass, linkage 100%, results_reproduced all. "
+    "recompute --dry-run (selection shim): 313/313 and 300/300 identical, 0 unexplained. Determinism j2 vs j1: 1,259 / 1,207 files byte-identical, index identical "
+    "(first determinism evidence for head). verify --level chain: 0 failures, only checksums.absent (working tree, expected). "
+    "A2: 0 degenerate, 0 adapter_defect, 0 unreadable, 0 validation checks failed. A3: 0 dangling/missing/invented classes; unexecuted calls represented 8 (head) / 4 "
+    "(2024-06), 0 missing. Issue codes (index): head accounting_unverifiable 312, earlier_attempts_unobservable 312, local_parse_drop_possible 14, unexecuted_tool_call 8, "
+    "incomplete_run 1, no_execution_observed 1; 2024-06 earlier_attempts_unobservable 298, accounting_unverifiable 296, incomplete_run 4, unexecuted_tool_call 4, "
+    "outcome_imposed_by_runner 3, no_execution_observed 2, retry_passes_inferred 1; identical code sets in the stored rows of the same ids. "
+    "Completeness head 1 known_incomplete / 312 unverifiable, 2024-06 5 / 295. "
+    "Evidence classes (PROV statements): head core D 10,557 / O 9,790, inference I 45,047, assessment D 991 / I 14,110 / O 626; 2024-06 core D 20,232 / O 8,723, "
+    "inference I 25,611, assessment D 1,113 / I 11,634 / O 600. _unverified twins (catalogue test, PC-07): head 169 of 313 executions cite a non-c6 twin, exactly "
+    "the 169 head-only blobs (105 v0.k11 + 63 v1.k14 + 1 v1.k14.incomplete), 0 of 144 shared; 2024-06 0 of 300 (c6 twins only: functions_runtime and "
+    "committed_no_later_than 300, empty_assistant_text_ambiguous 15). "
+    "Identity: 22 models (head) / 13 (2024-06) as U6, defences none/repeat_user_prompt/spotlighting_with_delimiting/tool_filter/transformers_pi_detector, 16 attacks, "
+    "0 unresolved, 0 direct mismatches; local and local-repeat_user_prompt pipeline names resolve by directory to facebook/Meta-SecAlign-70B and "
+    "meta-llama/Llama-3.3-70B-Instruct (by design). Redaction: 0 account-path or secret-shape hits in 947 / 908 AER/SEM/PROV/index files. Withholding: no [withhold] "
+    "policy (not applicable, as pre-registered). Outcome mapping: raw vs mapped utility and security identical on 626/626 and 600/600 judgements. "
+    "DL-1 (stored *-p10.partial vs scratch, same 313 / 300 execution ids; dl1-delta.json): every AER, SEM, PROV and validation digest differs (as predicted); every "
+    "differing pointer is attributed: item 30 (profile @1->@2, rules agentdojo 1->2, suites@1->@2, catalogue/profile entities in PROV top); item 3 c6 twins "
+    "(committed_no_later_than and functions_runtime in all, empty_assistant_text_ambiguous 15/15; env actor and tool associations core D -> inference I); items 3 "
+    "(v1.k14) and 13/D-84 (head-only v0.k11) twins in exactly the 169 head-only executions (incl. log_holds_last_pass seal-issue rule 105); item 5/D-370 "
+    "agentdojo:load_environment activity on 200/200 and 176/176 attacked executions (head-only via environment_loaded_with_injections_unverified, 60); item 14/D-87 "
+    "tool_execution /after -> I in 23 / 58 executions (afterCausal and afterPos move to the positional_match inference assertion); item 17/D-207 system-prompt "
+    "variant on 248 head v0.k11 (v1.k14 already had it) and 298 2024-06 (all but the outcome-only logs); U6-c/D-373 /params not_recorded on 1,354 / 1,198 model "
+    "calls (PROV apv:paramsStatus, not apv:Gap: PC-06); item 9/B2 (D-372) completeness verified_complete -> unverifiable on the 1 / 3 vacuous rows (PC-05); "
+    "suites@2 (items 1, 4, 6, 8): header ns, partial_payload 4 annotations in 3 head executions, 0 in 2024-06, 0 success_without_visible_payload, 0 marker value "
+    "changes; D-86 SEM twins on head-only v0.k11 outcome and marker annotations and D-83 propagation on v1.k14 security outcomes (PC-04). Nothing unexplained; no "
+    "trace of a held-branch item. Stored corpora validate --corpus: validate.results.differ is expected-known (README section 8 amendment 1), not re-run here."
+)
+
+findings = [
+    {"id": "PC-agentdojo-upstream-01", "title": "Local-model arms do not reproduce Meta SecAlign's tables; Llama-3.3-repeat important_instructions lacks the slack suite",
+     "cls": "documentation-mismatch", "severity": "S2", "security": False, "part": "head",
+     "check": "L1-05 / OS-1 (H-03, H-14, L-05, L-06): refutes H-14; the one flagged OS-1 gap (SA1 SecAlign-repeat UA) is explained by paper version",
+     "evidence": "meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt/important_instructions: 798 of 949 cells (workspace 560/560, travel 140/140, banking 98/144, slack 0/105; 26 whole user tasks + 1 partial missing). Raw rates vs SA2 (v2, numbers repeated in v3/v4): Llama-3.3-repeat U 57/97=58.76 vs 59.8, UA 315/798=39.47 vs 43.4, ASR 72/798=9.02 [7.23,11.21] vs 14.7; SecAlign-repeat 85.57/80.08/2.11 vs 84.5/79.5/1.9; Llama-3.3 57.73/41.41/23.08 vs 62.9/41.9/23.0; SecAlign 77.32/77.98/2.21 vs 79.4/77.1/2.3. SA2 within 1.0 pp on UA and ASR for 3 of 4 arms, benign utility off by 1.07-5.17 pp (1-5 tasks of 97); SA1 off by up to 8.27 pp; flagged: SA1 SecAlign-repeat UA 80.08 [77.42,82.50] vs 72.3 (excluded by 5.12 pp). v1.k14 evaluation_timestamp 2025-07-24..25 post-dates SA1 v1 (2025-07-03), so SA1 cannot describe these logs. Llama-3.3 no-sandwich slack ASR is 59.0% (n 105), so the missing slack cells lower the repeat arm's pooled ASR.",
+     "reproduction": "python3 -c \"import json,collections;R=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/agentdojo-upstream/l1-units-head.jsonl')];print(collections.Counter(r['facets']['suite'] for r in R if r['facets']['pipeline_dir']=='meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt' and r['facets']['attack_dir']=='important_instructions'))\"  -> Counter({'workspace': 560, 'travel': 140, 'banking': 98}); uv run python -I $SP/adu-exam/pop.py $SP/adu-exam/pop.json && uv run python -I $SP/adu-exam/os1.py $SP/adu-exam/pop.json $SP/adu-exam/os1.json  -> 'head SA1 Meta-SecAlign-70B-repeat_user_prompt UA k/n_II 80.08 72.3 7.78 [77.42, 82.5] FLAG', 'head SA2 meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt ASR k/n_II 9.02 14.7 -5.68 [7.23, 11.21]'; rows in os1-population.json",
+     "recommendation": "Dossier and datasheet: cite SA v2+ (not v1) for these four arms; state that the published Llama-3.3-repeat important_instructions arm has 798 of 949 cells (no slack, 46 banking cells missing) so its rates are over a different suite mix and are not SA's n=949 figures; report the residual benign-utility differences (1-5 tasks) as unexplained (non-deterministic local serving or unpublished re-runs). Keep all four arms (never exclude for low ASR). Add the artefact entry below (via the family owner).",
+     "artefact_proposal": "[[artefact]]\nid = \"agentdojo.art.incomplete_arm\"\ntitle = \"Published arms with fewer cells than the benchmark design\"\ndescription = \"Directories whose (user task x injection task) grid is incomplete: meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt / important_instructions has 798 of 949 cells (the slack suite and 46 banking cells are absent), mistralai_Mixtral-8x7B-Instruct-v0.1 has 7 benign logs of 753, claude-3-sonnet-20240229-repeat_user_prompt 40 workspace benign logs of 753. Arm-level rates are over a different suite mix than the design and the papers.\"\nscope = { sources = [\"agentdojo\"], parts = [\"head\", \"2024-06\"], profiles = [\"agentdojo-upstream\"] }\ncause = \"upstream_harness\"\ndetector = { rule = \"artefact.generic.arm_coverage\", class = \"D\" }\nrecorded_as = { notes = [\"stats:arm_cells\"] }\nhandling = { class = \"FO\" }\nexpected = [\n  { snapshot = \"head\", count = 151, basis = \"precheck L1-05: missing important_instructions cells of meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt (slack 105, banking 46)\", status = \"verified\" },\n  { snapshot = \"head\", count = 40, basis = \"precheck L1-05: claude-3-sonnet-20240229-repeat_user_prompt logs (workspace none only)\", status = \"verified\" },\n  { snapshot = \"2024-06\", count = 7, basis = \"precheck L1-05: Mixtral logs (none only, four suites)\", status = \"verified\" },\n  { snapshot = \"2024-06\", count = 40, basis = \"precheck L1-05: claude-3-sonnet-20240229-repeat_user_prompt logs\", status = \"verified\" },\n]\nmanuscript = true\nrefs = [\"docs/reports/precheck/agentdojo-upstream.md\", \"arXiv:2507.02735 v2 Table III/IX\"]\n# the detector id is a proposal: no generic arm-coverage detector exists yet (FO, stats-level)",
+     "agents_md_12": True, "hypothesis_ref": "H-14"},
+    {"id": "PC-agentdojo-upstream-02", "title": "Results-page vs paper ASR gaps equal the run-error logs scored security=true",
+     "cls": "expected-known", "severity": "S2", "security": False, "part": "head, 2024-06",
+     "check": "OS-1 (H-08, H-11, L-01): supported",
+     "evidence": "Head raw recount reproduces all 28 results-page rows exactly (k/97 utility, k/629 UA/ASR on the v1.1.2 task ids). important_instructions run errors with security=true: command-r-plus 22, gemini-1.5-pro-001 19, gpt-3.5-turbo-0125 12, Llama-3-70b 35 (head) = W-P3 excess cells exactly (P3 = raw minus run errors: 6/629=0.95, 161/629=25.60, 53/629=8.43, 126/629=20.03); 2024-06 23 / 20 / 12 / 35 reproduce P1 for command-r-plus, gpt-3.5 and Llama-3-70b (0.95, 8.90, 15.10); gemini-1.5-pro-001 2024-06 does not (PC-03). command-r 3 run errors (W only). All 105/106 run-error logs have utility false, security true (H-16). Declared as agentdojo.art.run_error_imposed (105 / 106).",
+     "reproduction": "python3 -c \"import json,collections;R=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/agentdojo-upstream/l1-units-head.jsonl')];print(sorted(collections.Counter((r['facets']['pipeline_dir'],r['outcomes']['security']) for r in R if r['facets']['attack_dir']=='important_instructions' and r['outcomes']['error_present']).items()))\"  -> [(('command-r', True), 3), (('command-r-plus', True), 22), (('gemini-1.5-pro-001', True), 19), (('gpt-3.5-turbo-0125', True), 12), (('meta-llama_Llama-3-70b-chat-hf', True), 35)]",
+     "recommendation": "Any ASR derived from the corpus must state its convention: the AER marks these judgements origin harness_default (rule agentdojo.run_error_imposed_outcome@1); the papers exclude them, the results page includes them. Dossier: list both values for the four arms.",
+     "artefact_proposal": "", "agents_md_12": True, "hypothesis_ref": "H-11"},
+    {"id": "PC-agentdojo-upstream-03", "title": "AgentDojo v1 rows not reproducible from the 2024-06 pin (Gemini-1.5-pro-001, Command-R+ benign)",
+     "cls": "documentation-mismatch", "severity": "S3", "security": False, "part": "2024-06",
+     "check": "OS-1 (H-09, H-10, H-13): refutes H-10 on one row; H-09 and H-13 supported",
+     "evidence": "2024-06 gemini-1.5-pro-001 important_instructions: 629 logs, utility true 173 (27.50%), security true 198 (31.48%), 20 run errors (excl. 178 = 28.30%); P1 prints UA 29.61 (no k/629 gives 29.61; 186/629 = 29.57) and ASR 27.50 (= the raw UA value). Command-R+ benign (suite-weighted /629) 28.78 vs P1 27.78; gpt-4o-repeat benign 85.53 vs P1 73.13 (the known v1 copy error, H-13). The other 12 P1 UA rows and 11 of 13 benign rows reproduce within 1 cell / 0.1 pp; all 14 P3 rows reproduce at head (H-09: 25 of 27 rows within 0.1 pp).",
+     "reproduction": "python3 -c \"import json;R=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/agentdojo-upstream/l1-units-2024-06.jsonl')];s=[r for r in R if r['facets']['pipeline_dir']=='gemini-1.5-pro-001' and r['facets']['attack_dir']=='important_instructions'];print(len(s),sum(r['outcomes']['utility'] is True for r in s),sum(r['outcomes']['security'] is True for r in s),sum(r['outcomes']['error_present'] for r in s))\"  -> 629 173 198 20",
+     "recommendation": "Cite AgentDojo v3 (v2 numbers) for every comparison; disclose in the dossier that three v1 rows (Gemini-1.5-pro-001 UA/ASR, Command-R+ benign, GPT-4o repeat-prompt benign) do not follow from the 2024-06 logs. No corpus change.",
+     "artefact_proposal": "", "agents_md_12": False, "hypothesis_ref": "H-10"},
+    {"id": "PC-agentdojo-upstream-04", "title": "Head SEM outcome and marker annotations move to class I for head-only logs, against the item-1 / prereg prediction",
+     "cls": "documentation-mismatch", "severity": "S3", "security": False, "part": "head",
+     "check": "DL-1 / L2 evidence classes (H-19): prediction text refuted, movement explained by D-84 + D-86 + D-83",
+     "evidence": "Sample 313: head-only v0.k11 (105 executions) outcome annotations cite utility_meaning_unverified / security_polarity_unverified (and dos/injection-task twins), injection_marker annotations cite injection_marker_yaml_unverified (933 annotations in 54 executions), ev D->I; v1.k14 (64) security outcomes I by propagation (premise /origin cites item 3's checker_outcome_unverified), utility outcomes stay D (premise /value, O); the 144 shared executions stay D. Assessment bundle: ~208 a_label and 234 a_payload statements D->I. regen-batch item 1 table and prereg section 6 say head v0.k11/v1.k14 SEM 'stay D'; D-84 (implemented) shares one helper with 'the SEM policy', and D-86 twins SEM rules for unverified harnesses.",
+     "reproduction": "uv run python -I $SP/adu-exam/dl1.py head $SP/adu-exam/dl1-head.json  -> signatures ['sem_ann','ann|injection_marker|I|agentdojo.injection_marker_yaml_unverified@1|<obj>','+'] 933 occ / 54 ex; ['sem_ann','ann|outcome|I|agentdojo.utility_meaning_unverified@1|<obj>','+'] 95 / 95; ['sem_ann','ann|outcome|I|agentdojo.security_polarity@1|<obj>','+'] 47 / 47 (dl1-delta.json /head/signatures)",
+     "recommendation": "Correct the item-1 table row in regen-batch.md and the post-check expectation (prereg section 6 is frozen; record the correction in the dossier): after the round, head SEM outcome/marker annotations are I for the 22,497 head-only executions (v0.k11 by twin, v1.k14 security by propagation). Manuscript evidence-class shares for head SEM must use post-round counts.",
+     "artefact_proposal": "", "agents_md_12": True, "hypothesis_ref": "H-19"},
+    {"id": "PC-agentdojo-upstream-05", "title": "Prereg section 6 omitted the B2 completeness refresh (vacuous verified_complete rows)",
+     "cls": "documentation-mismatch", "severity": "S3", "security": False, "part": "head, 2024-06",
+     "check": "DL-1 index (H-19)",
+     "evidence": "Index completeness verified_complete -> unverifiable on every sampled vacuous row: 2024-06 3 (2 outcome-only, 1 error-only), head 1 (outcome-only); all other completeness values unchanged (retry and incomplete_run rows stay known_incomplete). Prereg section 6 predicted '232 / 47 / 36,400' and '232 / 51 / 17,958 (unchanged)'; regen-batch item 9 (B2, D-372) and protocol 4.4 predict 232 -> 0.",
+     "reproduction": "uv run python -I $SP/adu-exam/dl1.py 2024-06 $SP/adu-exam/dl1-2024-06.json  -> ['index','completeness','\"verified_complete\" -> \"unverifiable\"'] 3 / 3; head 1 / 1 (dl1-delta.json)",
+     "recommendation": "Post-check expectation: head 0 verified_complete / 47 known_incomplete / 36,632 unverifiable; 2024-06 0 / 51 / 18,190. Record in the dossier; no code change.",
+     "artefact_proposal": "", "agents_md_12": False, "hypothesis_ref": "H-19"},
+    {"id": "PC-agentdojo-upstream-06", "title": "U6-c is represented as apv:paramsStatus, not as one apv:Gap per model call",
+     "cls": "documentation-mismatch", "severity": "S3", "security": False, "part": "head, 2024-06",
+     "check": "DL-1 PROV (H-19)",
+     "evidence": "AER model_call unk /params = not_recorded on 1,354 / 1,198 sampled model calls; in PROV every model-call activity gains apv:paramsStatus apv:NotRecorded (1,354/1,354, 1,198/1,198; 0 in the stored rows); apv:Gap statements unchanged (4,716 / 4,411). The engine maps /params to the status attribute by table (prov/rules/nodes.py l. 115). regen-batch U6-c and prereg section 6 say 'one apv:Gap per model call'.",
+     "reproduction": "uv run python -I $SP/adu-exam/dl1.py head $SP/adu-exam/dl1-head.json  -> ['prov_attr','core','activity','apv:paramsStatus','added'] 563 / 143 (the other model calls moved to inference bundles with items 3/13); count over both corpora: model_call_activities 1354, with_paramsStatus new 1354 / old 0, gap_statements 4716 both",
+     "recommendation": "Correct the U6-c prediction text in regen-batch.md; post-check expects paramsStatus on every TraceLogger model-call activity.",
+     "artefact_proposal": "", "agents_md_12": False, "hypothesis_ref": "H-19"},
+    {"id": "PC-agentdojo-upstream-07", "title": "l2_check counts native class-I rules as _unverified twins",
+     "cls": "analysis-artefact", "severity": "S3", "security": False, "part": "head, 2024-06",
+     "check": "L2-C evidence classes (H-15)",
+     "evidence": "l2-2024-06.json prov.unverified_twin_by_bundle_class inference:I 7,503 although 2024-06 has 0 non-c6 twin citations: l2_check.py l. 220-229 matches any id containing '_unverified', which includes agentdojo.auto_execution_unverified and agentdojo.checker_inputs_unverified (native I rules, no D base rule) and the c6 twins. Catalogue-based test (27 twins = '<id>_unverified' whose base id exists): head 169 executions with a non-c6 twin = the 169 head-only blobs, 0 of 144 shared; 2024-06 0 of 300.",
+     "reproduction": "grep -n '_unverified' tools/precheck/l2_check.py  -> l. 220 'unverified_bundles = {iri for iri in view.bundles if \"_unverified\" in iri}', l. 228; uv run python -I $SP/adu-exam/dl1.py 2024-06 ...  -> twins.executions_citing_non_c6_twin 0, native_I_rules_named_unverified ['agentdojo.auto_execution_unverified', 'agentdojo.checker_inputs_unverified']",
+     "recommendation": "After the batch: count twins from the catalogue (base rule exists, class D), report c6 twins and native I rules separately; until then do not read unverified_twin_by_bundle_class as a twin count.",
+     "artefact_proposal": "", "agents_md_12": False, "hypothesis_ref": "H-15"},
+    {"id": "PC-agentdojo-upstream-08", "title": "L1 null_final misses empty text blocks of v1.k14 logs",
+     "cls": "analysis-artefact", "severity": "S3", "security": False, "part": "head",
+     "check": "L1-08 (H-18)",
+     "evidence": "L1 null_final head 77 (0 in the four local dirs) vs E2 N4 343 empty final assistant turns (Meta-SecAlign 34 + Llama-3.3 232 = 266 local, 77 API); 2024-06 48 = E2 48. l1_families.norm_content keeps a block list as [type, ''] pairs, so the null_final test (content in None, '', []) never fires for v1.k14 block content.",
+     "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/analysis/phase10-examination-2-data/scan-agentdojo-upstream-head-p10.json'));print(d['counters']['a03|empty_final_assistant'], d['by_model']['meta-llama/Llama-3.3-70B-Instruct']['a03|empty_final_assistant'], d['by_model']['facebook/Meta-SecAlign-70B']['a03|empty_final_assistant'])\"  -> 343 232 34; docs/reports/precheck/data/agentdojo-upstream/l1-head.json /L1-08/flags/null_final 77",
+     "recommendation": "After the batch: treat a block list whose text blocks are all empty and that has no call as empty in null_final (and use a03's definition); re-run L1 for head only then (raw unchanged).",
+     "artefact_proposal": "", "agents_md_12": False, "hypothesis_ref": "H-18"},
+    {"id": "PC-agentdojo-upstream-09", "title": "The one L1-06 secret-like hit is a model-written UUID, not a credential",
+     "cls": "analysis-artefact", "severity": "S3", "security": False, "part": "head, 2024-06",
+     "check": "L1-06 / L2 redaction",
+     "evidence": "secret:generic-credential-assignment 1 artefact of 36,679 and 1 of 18,241, the same shared blob (label runs/command-r/workspace/user_task_23/none/none.json, sha256 e72084556de8...), pointer /messages/*/content: in the stored AER the match is in the final assistant message (m4), value UUID-shaped (36 chars, hex and hyphens), found in no other record (no tool output carries it); SEM 0 and PROV 0 matches. Not sampled for L2; L2 redaction scan 0 hits.",
+     "reproduction": "inline check over the stored AER of that blob with the l1_scan.py generic-credential-assignment pattern, printing only counts, record kind/id and shape flags  -> 'aer matches 1, sem matches 0, prov matches 0', 'record message m4 assistant', 'uuid_shape True', 'also in []'",
+     "recommendation": "No action (no [withhold] rule applies to model-written identifiers). Optionally let the generic assignment rule skip UUID-shaped values.",
+     "artefact_proposal": "", "agents_md_12": False},
+    {"id": "PC-agentdojo-upstream-10", "title": "Licence basis 'MIT by repository' does not hold for the 2024-06 pin as such",
+     "cls": "documentation-mismatch", "severity": "S3", "security": False, "part": "2024-06",
+     "check": "desk research (prereg section 9)",
+     "evidence": "research.json: LICENSE added 2024-06-10 (bd533515), absent at c2748856 (2024-06-05); the Zenodo v0.1.8 record (12742856, a profile alternative origin) declares CC-BY-4.0; MIT applies to the same 14,182 blobs through later trees. Profile [licence] basis = 'MIT by repository; data licence not separately stated'.",
+     "reproduction": "grep -n 'basis' src/agentprov/adapters/agentdojo/profiles/agentdojo-upstream.profile.toml  -> l. 90 'basis = \"MIT by repository; data licence not separately stated\"'; research.json /licence",
+     "recommendation": "Family owner: extend the basis text (2024-06 pin has no LICENSE; MIT by the later tree; Zenodo v0.1.7-v0.1.22 declare CC-BY-4.0). Dossier licence table.",
+     "artefact_proposal": "", "agents_md_12": False},
+    {"id": "PC-agentdojo-upstream-11", "title": "Shared session scratchpad: examiner scripts overwrite each other",
+     "cls": "analysis-artefact", "severity": "S3", "security": False, "part": "process",
+     "check": "reproducibility of the examination",
+     "evidence": "During this examination files named pop.py, dl1.py, os1.py and os2.py in the shared scratchpad root were rewritten by another examiner between runs (contents changed on disk); this examiner's scripts were moved to the subdirectory adu-exam/ and every result here was re-run from there. This examiner also overwrote one existing root os1.py before noticing.",
+     "reproduction": "ls -la $SP | grep -E ' (pop|dl1|os1|os2)\\.py'  (timestamps 09:22-09:25 from other agents)",
+     "recommendation": "Orchestrator: give each examiner a per-corpus scratch subdirectory; examiners whose root-level os1.py/pop.py/dl1.py/os2.py results feed a dossier should re-check them.",
+     "artefact_proposal": "", "agents_md_12": False},
+]
+
+outcomes = [
+    {"arm": "head W rows (28: 14 models/defences II, gpt-4o direct/ignore_previous/injecagent/tool_knowledge, 10 W-only models)", "level": "L1-population", "n": 629, "metric": "utility k/97, UA k/629, ASR k/629", "rate": "all 84 values equal W", "wilson95": "", "paper": "W (results page)", "gap_pp": "0", "flag": False},
+    {"arm": "head gpt-4o-2024-05-13 | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "47.69 (300/629)", "wilson95": "[43.82, 51.60]", "paper": "P3 T3 47.69 (T4/T5 57.69 typo, H-12)", "gap_pp": "0.00", "flag": False},
+    {"arm": "head command-r-plus | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "4.45 (0.95 excl. 22 run errors)", "wilson95": "[3.10, 6.36]", "paper": "P3 0.95", "gap_pp": "+3.50", "flag": False},
+    {"arm": "head gpt-3.5-turbo-0125 | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "10.33 (8.43 excl. 12)", "wilson95": "[8.19, 12.96]", "paper": "P3 8.43", "gap_pp": "+1.90", "flag": False},
+    {"arm": "head gemini-1.5-pro-001 | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "28.62 (25.60 excl. 19)", "wilson95": "[25.22, 32.27]", "paper": "P3 25.60", "gap_pp": "+3.02", "flag": False},
+    {"arm": "head meta-llama_Llama-3-70b-chat-hf | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "25.60 (20.03 excl. 35)", "wilson95": "[22.34, 29.15]", "paper": "P3 20.03", "gap_pp": "+5.57", "flag": False},
+    {"arm": "head P3 14 rows (10 models + 4 defences)", "level": "L1-population", "n": 629, "metric": "benign utility (suite-weighted /629), UA k/629", "rate": "28 of 28 values within 0.1 pp", "wilson95": "", "paper": "P3 Tables 3/5", "gap_pp": "<=0.07", "flag": False},
+    {"arm": "2024-06 gpt-4o-2024-05-13 | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "53.10 (334/629)", "wilson95": "[49.19, 56.97]", "paper": "P1 53.10", "gap_pp": "0.00", "flag": False},
+    {"arm": "2024-06 gemini-1.5-pro-001 | important_instructions", "level": "L1-population", "n": 629, "metric": "UA", "rate": "27.50 (173/629)", "wilson95": "[24.16, 31.12]", "paper": "P1 29.61", "gap_pp": "-2.11", "flag": False},
+    {"arm": "2024-06 gemini-1.5-pro-001 | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "31.48 (28.30 excl. 20 run errors)", "wilson95": "[27.97, 35.21]", "paper": "P1 27.50", "gap_pp": "+3.98", "flag": False},
+    {"arm": "2024-06 meta-llama_Llama-3-70b-chat-hf | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "20.67 (15.10 excl. 35)", "wilson95": "[17.69, 24.01]", "paper": "P1 15.10", "gap_pp": "+5.57", "flag": False},
+    {"arm": "2024-06 command-r-plus | important_instructions", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "4.61 (0.95 excl. 23)", "wilson95": "[3.23, 6.54]", "paper": "P1 0.95", "gap_pp": "+3.66", "flag": False},
+    {"arm": "2024-06 command-r-plus | none", "level": "L1-population", "n": 97, "metric": "benign utility (suite-weighted /629)", "rate": "28.78 (27/97)", "wilson95": "[19.89, 37.47] (k/97)", "paper": "P1 27.78", "gap_pp": "+1.00", "flag": False},
+    {"arm": "2024-06 gpt-4o-2024-05-13-repeat_user_prompt | none", "level": "L1-population", "n": 97, "metric": "benign utility (suite-weighted /629)", "rate": "85.53 (82/97)", "wilson95": "[76.04, 90.40] (k/97)", "paper": "P1 73.13 (copy of tool_filter, H-13)", "gap_pp": "+12.40", "flag": False},
+    {"arm": "2024-06 gpt-4o ablations (5) and direct/ignore_previous/injecagent", "level": "L1-population", "n": 629, "metric": "ASR", "rate": "45.79/23.21/25.12/49.76/44.36; 3.66/5.41/5.72", "wilson95": "", "paper": "P1 T2/T4 45.8/23.2/25.1/49.8/44.4; 3.66/5.41/5.72", "gap_pp": "<=0.04", "flag": False},
+    {"arm": "head Meta-SecAlign-70B-repeat_user_prompt | important_instructions", "level": "L1-population", "n": 949, "metric": "UA", "rate": "80.08 (760/949)", "wilson95": "[77.42, 82.50]", "paper": "SA1 72.3 (SA2 79.5)", "gap_pp": "+7.78 (SA2 +0.58)", "flag": True},
+    {"arm": "head Meta-SecAlign-70B-repeat_user_prompt | none", "level": "L1-population", "n": 97, "metric": "utility", "rate": "85.57 (83/97)", "wilson95": "[77.22, 91.20]", "paper": "SA2 84.5 (SA1 77.3)", "gap_pp": "+1.07 (SA1 +8.27)", "flag": False},
+    {"arm": "head Meta-SecAlign-70B-repeat_user_prompt | important_instructions", "level": "L1-population", "n": 949, "metric": "ASR", "rate": "2.11 (20/949)", "wilson95": "[1.37, 3.23]", "paper": "SA2 1.9 (SA1 2.1)", "gap_pp": "+0.21", "flag": False},
+    {"arm": "head meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt | important_instructions", "level": "L1-population", "n": 798, "metric": "ASR", "rate": "9.02 (72/798; slack absent)", "wilson95": "[7.23, 11.21]", "paper": "SA2 14.7 (SA1 14.1), n=949", "gap_pp": "-5.68", "flag": False},
+    {"arm": "head meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt | important_instructions", "level": "L1-population", "n": 798, "metric": "UA", "rate": "39.47 (315/798)", "wilson95": "[36.14, 42.91]", "paper": "SA2 43.4 (SA1 39.0)", "gap_pp": "-3.93", "flag": False},
+    {"arm": "head meta-llama_Llama-3.3-70B-Instruct | none", "level": "L1-population", "n": 97, "metric": "utility", "rate": "57.73 (56/97)", "wilson95": "[47.79, 67.08]", "paper": "SA2 62.9 (SA1 55.7)", "gap_pp": "-5.17", "flag": False},
+    {"arm": "head meta-llama_Llama-3.3-70B-Instruct | important_instructions", "level": "L1-population", "n": 949, "metric": "ASR", "rate": "23.08 (219/949)", "wilson95": "[20.51, 25.86]", "paper": "SA2 23.0 (SA1 22.6)", "gap_pp": "+0.08", "flag": False},
+    {"arm": "head Meta-SecAlign-70B | important_instructions", "level": "L1-population", "n": 949, "metric": "UA / ASR", "rate": "77.98 / 2.21", "wilson95": "[75.23, 80.50] / ", "paper": "SA2 77.1 / 2.3 (SA1 72.7 / 2.3)", "gap_pp": "+0.88 / -0.09", "flag": False},
+    {"arm": "head pooled important_instructions over 753-type dirs", "level": "L2-sample", "n": 88, "metric": "UA", "rate": "43.18 (38/88)", "wilson95": "[33.33, 53.60]", "paper": "W sample-weighted 42.24", "gap_pp": "+0.94", "flag": False},
+    {"arm": "head pooled important_instructions over 753-type dirs", "level": "L2-sample", "n": 88, "metric": "ASR", "rate": "20.45 (18/88)", "wilson95": "[13.35, 30.03]", "paper": "W sample-weighted 20.37", "gap_pp": "+0.08", "flag": False},
+    {"arm": "head pooled important_instructions over the six v1.2 dirs", "level": "L2-sample", "n": 24, "metric": "ASR", "rate": "16.67 (4/24)", "wilson95": "[6.68, 35.85]", "paper": "population strata 15.26", "gap_pp": "+1.41", "flag": False},
+    {"arm": "head gpt-4o-2024-05-13 base dir, all attacks", "level": "L2-sample", "n": 60, "metric": "ASR", "rate": "25.00 (15/60)", "wilson95": "[15.78, 37.23]", "paper": "population strata 32.65", "gap_pp": "-7.65", "flag": False},
+    {"arm": "2024-06 pooled important_instructions over P1 dirs", "level": "L2-sample", "n": 96, "metric": "UA", "rate": "41.67 (40/96)", "wilson95": "[32.31, 51.66]", "paper": "P1 sample-weighted 39.78", "gap_pp": "+1.88", "flag": False},
+    {"arm": "2024-06 pooled important_instructions over P1 dirs", "level": "L2-sample", "n": 96, "metric": "ASR", "rate": "20.83 (20/96)", "wilson95": "[13.91, 30.00]", "paper": "P1 sample-weighted 21.06", "gap_pp": "-0.22", "flag": False},
+    {"arm": "2024-06 gpt-4o-2024-05-13 base dir, all attacks", "level": "L2-sample", "n": 60, "metric": "ASR", "rate": "25.00 (15/60)", "wilson95": "[15.78, 37.23]", "paper": "population strata 34.22", "gap_pp": "-9.22", "flag": False},
+    {"arm": "both parts, every sampled execution (raw vs mapped, same labels)", "level": "L2-sample", "n": 613, "metric": "utility and security judgement values", "rate": "0 of 1,226 differ", "wilson95": "", "paper": "raw L1 outcome fields", "gap_pp": "0", "flag": False},
+]
+
+hypotheses = [
+    {"id": "H-01", "result": "supported", "note": "files 36,679 / 18,241, bytes 426,293,413 / 188,873,874, runs trees 472cbb2e / 1227480d, units and variants as census; 14,182 shared"},
+    {"id": "H-02", "result": "supported", "note": "29 / 18 dirs, every count equal to section 3"},
+    {"id": "H-03", "result": "supported", "note": "2,828; none 132 complete; attacked 2,696 of 2,847; the 151 are slack 105 + banking 46 under important_instructions"},
+    {"id": "H-04", "result": "supported", "note": "claude-3-sonnet-repeat 40 workspace benign; Mixtral 7 benign user-task logs over four suites"},
+    {"id": "H-05", "result": "supported", "note": "14 workspace injection ids only in the six v1.2 dirs; flash-exp 27-task shape"},
+    {"id": "H-06", "result": "supported", "note": "4,059 of 4,059 (100%): travel 3,466, Llama-3-70b non-travel 586, Mixtral 7"},
+    {"id": "H-07", "result": "supported", "note": "last commit touching the detector dir 52df3bc1 2024-07-16 (4 commits, full-history cache, no fetch)"},
+    {"id": "H-08", "result": "supported", "note": "all 28 W rows reproduced exactly"},
+    {"id": "H-09", "result": "supported", "note": "25 of 27 rows within 0.1 pp (head 14/14; 2024-06 11/13: Command-R+ 28.78 vs 27.78, repeat-prompt 85.53 vs 73.13)"},
+    {"id": "H-10", "result": "refuted", "note": "P3 vs head 14/14 exact; P1 vs 2024-06 12/13, Gemini-1.5-pro-001 UA 27.50 vs 29.61 (13 cells; PC-03)"},
+    {"id": "H-11", "result": "supported", "note": "raw = W; excess 22/19/12/35 = run errors with security true exactly"},
+    {"id": "H-12", "result": "supported", "note": "300/629 head, 334/629 2024-06"},
+    {"id": "H-13", "result": "supported", "note": "85.53 vs 73.13 (12.4 pp)"},
+    {"id": "H-14", "result": "refuted", "note": "no SA version matches all metrics of all four arms; SA2 matches UA/ASR within 1 pp for 3 of 4 arms (not Llama-3.3-repeat ASR, slack absent), benign utility off 1.07-5.17 pp; SA1 predates the logs (PC-01)"},
+    {"id": "H-15", "result": "supported", "note": "sample only (catalogue twin test): head 169/169 head-only cite non-c6 twins, 0/144 shared; 2024-06 0/300; population check after the round"},
+    {"id": "H-16", "result": "supported", "note": "105/106 run errors all (false, true); benign head 3,560/3,560 security true; 2024-06 2,027 true + 4 incomplete logs without outcome fields (declared incomplete_run), 0 false"},
+    {"id": "H-17", "result": "supported", "note": "11,765 present, 100% parse, 0 zoned, 2025-07-24..25"},
+    {"id": "H-18", "result": "supported", "note": "from E2's stored-AER scan: 266 of 343 (77.6%) in the local dirs; L1 null_final cannot test it (PC-08); sample 0 of 313 (expected about 3)"},
+    {"id": "H-19", "result": "refuted (prediction text only)", "note": "0 adapter_defect, byte-identical determinism, no held-branch change, every delta attributed; but section 6 missed the B2 completeness refresh (PC-05), predicted SEM stays D at head (PC-04) and apv:Gap for U6-c (PC-06)"},
+    {"id": "H-20", "result": "supported", "note": "pooled sample arms within the gap rule in both parts (largest |gap| 9.22 pp with n 60, interval includes the expectation)"},
+]
+
+followups = [
+    "Post-round: re-run the DL-1 comparison on the regenerated corpora with the same sampled ids (uv run python -I <examiner>/dl1.py <part> <out> with OLD pointed at the regenerated corpus) and the full-population H-15 count (executions citing a non-c6 twin vs head-only blob: expected 22,497 / 0); why: H-15 and PC-04/05/06 are sample-level until then.",
+    "After the wave batches drain (tools frozen now): fix tools/precheck/l2_check.py twin counting (PC-07) and tools/precheck/l1_families.py null_final for block-list content (PC-08), then re-run only 'uv run python tools/precheck/l1_scan.py --source agentdojo --part head --corpus-id agentdojo-upstream --jobs 2 --emit-fp --use-pin' and l2_check for both parts; why: corrected L1-08 and evidence-class baselines for the post-check (raw unchanged).",
+    "Route to the adprov-v1 examiner: _cross/l1-xdup.json has 2 cross-corpus identical-trajectory groups joining adprov-v1 release qwen_qwen-2.5-72b-instruct banking user_task_11 transcripts with agentdojo-upstream gpt-4o banking user_task_11 runs (3-message, no-call); why: a full-content fingerprint match across models needs an explanation on the adprov side.",
+    "Optional, only if the dossier needs the stored-row evidence: 'uv run agentprov validate --corpus ~/.agentprov/corpora/agentdojo-upstream-head-p10.partial' and the 2024-06 twin through the queue (--class import --cpu 2); why: confirms validate.results.differ is the amendment-1 expected-known case (not run here: whole stored corpora).",
+    "Orchestrator: per-corpus scratch subdirectories for examiners (PC-11); examiners that wrote root-level pop.py / dl1.py / os1.py / os2.py in the shared scratchpad should re-check their outputs.",
+    "Family owner (through the orchestrator): artefacts.toml entry agentdojo.art.incomplete_arm (PC-01 text) and the licence basis wording (PC-10); regen-batch.md: correct the item-1 table row (head SEM) and the U6-c PROV wording (PC-04, PC-06).",
+]
+
+files_written = [str(D / f) for f in ("exam.json", "os1-population.json", "os2-sample.json", "dl1-delta.json", "l1-extra.json")]
+exam = {
+    "corpus_id": "agentdojo-upstream",
+    "format": "agentprov-precheck-exam/1",
+    "date": "2026-10-15",
+    "code_commit": "db6ef51268da546df6dd32a45c95ae9dd7a7233d (L1 head, L2 both); a871e2d7 (L1 2024-06)",
+    "examiner_scripts": "docs/reports/precheck/data/agentdojo-upstream/exam-scripts/ (copies of the session scratchpad adu-exam/ scripts; $SP/adu-exam in the reproduction lines = that directory; run from the repo root with uv run python -I)",
+    "files_written": files_written,
+    "level1": level1,
+    "level2": level2,
+    "outcomes": outcomes,
+    "hypotheses": hypotheses,
+    "findings": findings,
+    "followups": followups,
+    "sample_size": "head 313 (313 strata, 1 per stratum, over_maximum), 2024-06 300 (191 strata, quota 1-2)",
+    "l2_status": "done",
+    "readiness": "ready-with-caveats (no mapping defect; disclose PC-01/02/03; correct the prediction texts PC-04/05/06 before the post-check)",
+}
+(D / "exam.json").write_text(json.dumps(exam, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+print("written", len(findings), "findings", len(outcomes), "outcomes")

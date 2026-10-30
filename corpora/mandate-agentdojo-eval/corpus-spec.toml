@@ -1,0 +1,35 @@
+# Corpus spec of `mandate-agentdojo-eval` (HL H.1.6; D-44): the data-free build input. `agentprov package` copies this file, CARD.md
+# and CHANGES.toml into the sealed corpus's rules/ (a record, AD-14). Identity and selection come from here and from the
+# in-package source profile `mandate-agentdojo-eval@2` ([import] include/exclude, used because this spec names none); counts are
+# computed at sealing, never written here (H.2.1(3)). The origin is the pin the import recorded (D-33).
+
+corpus_id = "mandate-agentdojo-eval"
+corpus_version = "0.1.0"
+title = "Mandate-AgentDojo-Eval banking logs of an action-gating defence (jwilliamsc/mandate-agentdojo-eval)"
+mode = "import"
+
+[[sources]]
+source_id = "mandate-agentdojo-eval"
+profile = "mandate-agentdojo-eval@2"  # D-31: version 1 is archived (profiles/archive/)
+parts = ["head"]
+
+[[sources.snapshots]]
+snapshot_id = "head"
+origin = { kind = "git", repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval", commit = "fa62a977584962f7b4b24a40772a83345fd920d4", subtree = "" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["agentdojo.suites@2"]  # D-31 and item 1
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+# LICENSE is stored by the import as a context artefact (raw object at the pinned commit); package copies it.
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE"]
+
+[layout]
+shard_depth = 1

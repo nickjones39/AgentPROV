@@ -1,0 +1,32 @@
+"""C1-1: an Inspect tool named 'none'/'-' must not collapse the sample to a degenerate adapter_defect AER."""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+WT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(WT / "tests/adapters/inspect"))
+import inspect_support as s  # noqa: E402
+from agentprov.aer.reader import load_aer_bytes  # noqa: E402
+
+
+def _run(name, tmp_path):
+    sample = json.loads(json.dumps(s.basic_sample()).replace('"get_x"', json.dumps(name)))
+    data = s.build_eval(s.synthetic_header(), {"s1_epoch_1.json": sample})
+    imp = s.import_log(data, tmp_path)
+    (u,) = imp.units
+    doc = load_aer_bytes(u.data)
+    kinds = [r["k"] for r in doc.records]
+    codes = [i["code"] for i in doc.seal.get("issues", [])]
+    return u, kinds, codes
+
+
+@pytest.mark.parametrize("name", ["get_x", "none", "None", "-", "unknown"])
+def test_tool_name_sentinel_keeps_sample(name, tmp_path):
+    u, kinds, codes = _run(name, tmp_path)
+    print(name, "degenerate", u.outcome.degenerate, "records", len(kinds),
+          "tool_exec", kinds.count("tool_execution"), "issues", [c for c in codes if "defect" in c])
+    assert not u.outcome.degenerate, f"tool name {name!r}: sample collapsed to degenerate AER; issues={codes}"
+    assert kinds.count("tool_execution") == 1
+    assert "adapter_defect" not in codes

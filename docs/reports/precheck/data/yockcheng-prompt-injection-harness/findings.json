@@ -1,0 +1,316 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "yockcheng-prompt-injection-harness",
+ "findings": [
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-01",
+   "title": "[CC-09] reference: artefacts.toml scopes omit this source although six AgentDojo entries apply to its logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "R2 entry check (artefacts.toml) for the profile quirks; L1-05/L1-07/L1-08 counts",
+   "evidence": "grep -c yockcheng src/agentprov/adapters/agentdojo/artefacts.toml -> 0. Raw counts (census.py, L1): benign none-logs 25 (22 with security true as the runner constant, 3 incomplete null) = agentdojo.art.benign_security_constant; pre-passes 23 = agentdojo.art.injection_task_as_user; incomplete 3 = agentdojo.art.incomplete_run; naive /evaluation_timestamp 280/280 = agentdojo.art.naive_timestamp; earlier passes unobservable 280 (32/32 sampled, trial 280) and null-final 0 = agentdojo.art.silent_rerun; attacked runs with no visible payload: raw screen 16 of 255 (SEM-marker count pending) = agentdojo.art.payload_not_reaching_agent. agentdojo.art.validity_defects: vacuous utility (utility true with 0 tool calls) 0 here (the 4 zero-call user_task_27 runs have utility false); CC-07 banking/#161 items do not apply (workspace only). The profile quirks carry the counts, so these are expected-known; only the catalogue scope is wrong. Verifier: the gap affects the safety-net scan (catalogue.py:153 scope.profiles restricts entries), and is shared by the other phase-10d/10e AgentDojo-format profiles (proposed cross-cutting item). Raw check (dossier writer): the 3 incomplete logs lack the utility/security keys (absent, not null), so the profile's null_outcome_files = 0 is consistent.",
+   "reproduction": "grep -c yockcheng src/agentprov/adapters/agentdojo/artefacts.toml -> 0; python3 -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/hyp.py ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/census.json -> H1.none_security {'None': 3, 'True': 22}, cells prepass 6+1+1+14+1 = 23, H2 incomplete 3; L1 l1-head.json /L1-07/pointers//evaluation_timestamp forms naive 280",
+   "hypothesis_ref": "",
+   "recommendation": "Route to the AgentDojo family owner: extend the six entries' scope (sources += yockcheng-prompt-injection-harness, parts += head, profiles += yockcheng-prompt-injection-harness) and add the expected rows below; measure payload_not_reaching_agent with the safety-net detector on the round's full import before adding its row. No corpus bytes change. The family-wide gap is CC-09 (recorded once in cross-cutting.md).",
+   "artefact_proposal": "# extend existing [[artefact]] entries; for each: scope.sources += [\"yockcheng-prompt-injection-harness\"], scope.parts += [\"head\"], scope.profiles += [\"yockcheng-prompt-injection-harness\"]\n# agentdojo.art.benign_security_constant\nexpected += [{ snapshot = \"yockcheng-prompt-injection-harness:head\", count = 25, basis = \"pre-check L1 raw census: benign (attack none) logs incl. 23 pre-passes and 3 incomplete\", status = \"proposed\" }, { snapshot = \"yockcheng-prompt-injection-harness:head\", count = 22, unit = \"judgements\", basis = \"pre-check: non-null benign security judgements (profile origin_rule_applied 22)\", status = \"proposed\" }]\n# agentdojo.art.injection_task_as_user\nexpected += [{ snapshot = \"yockcheng-prompt-injection-harness:head\", count = 23, basis = \"pre-check L1: solvability pre-passes (6 + 1 + 1 native, 14 + 1 runs/)\", status = \"proposed\" }]\n# agentdojo.art.incomplete_run\nexpected += [{ snapshot = \"yockcheng-prompt-injection-harness:head\", count = 3, basis = \"pre-check L1-08: v1.k14.incomplete logs of the two retired models (system + user only)\", status = \"proposed\" }]\n# agentdojo.art.naive_timestamp\nexpected += [{ snapshot = \"yockcheng-prompt-injection-harness:head\", count = 280, basis = \"pre-check L1-07: naive /evaluation_timestamp in every v1.k14 log\", status = \"proposed\" }]\n# agentdojo.art.silent_rerun\nexpected += [{ snapshot = \"yockcheng-prompt-injection-harness:head\", count = 0, unit = \"null_final_logs\", basis = \"pre-check L1-08: null-final logs\", status = \"proposed\" }, { snapshot = \"yockcheng-prompt-injection-harness:head\", count = 280, unit = \"logs\", basis = \"rule log_holds_last_pass applies to every log; phase-10d trial and pre-check L2 32/32\", status = \"proposed\" }]\n# agentdojo.art.payload_not_reaching_agent: scope only now; expected row after the safety-net detector runs on the full import (raw screen gives 16 of 255)",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Refutation failed. artefacts.toml has no catch-all scope; all six entries list explicit sources/profiles without this source, and catalogue.py:153 restricts an entry to its scope.profiles, so the safety-net scan would leave the detector hits unclassified (a real effect). Profile quirks give the same counts (benign 25 / origin_rule_applied 22; pre-pass 23; incomplete 3; null_final 0). R2 makes a wrong-scope entry documentation-mismatch S3. Corrections: not specific to yockcheng (melon, interbolt, geryon, glitch, mohameduk, dca, environmentoptim, ipi-defenses, hilarytorn are also absent; interbolt has the same finding): promote to one cross-cutting item; give the two silent_rerun rows distinct units (null_final_logs 0, logs 280) and say 280 is the rule applied to the population, backed by 32/32 sampled; check the profile's incomplete_run null_outcome_files = 0 against the 3 None outcomes."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, wave-2 follow-up, 2026-10-21)",
+     "verdict": "unchanged",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Instance of CC-09: documentation-mismatch S3, a reference, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-02",
+   "title": "Profile licence note says the LICENSE has no copyright line; line 188 carries one naming Anthropic PBC",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "R4 profile vs source (prereg section 8 lead; desk research)",
+   "evidence": "Profile yockcheng-prompt-injection-harness.profile.toml l. 40 holders: 'the LICENSE carries no copyright line'. LICENSE at the pin (blob present in the partial clone): line 188 is the Apache appendix copyright line naming Anthropic PBC (2026), inherited from the upstream harness anthropics/defending-code-reference-harness (research.json). The data licence ('none') and the include policy are unaffected.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git -C ~/.agentprov/staging/10c/yockcheng/prompt-injection-harness.git show 5f9137ff352c5e843a94cbe20a7f31aa6e2c8fc6:LICENSE | grep -n 'Copyright 20'  -> '188:   Copyright 2026 Anthropic PBC'; grep -n 'copyright line' src/agentprov/adapters/agentdojo/profiles/yockcheng-prompt-injection-harness.profile.toml -> l. 40",
+   "hypothesis_ref": "",
+   "recommendation": "Profile owner: correct the holders note (the LICENSE names Anthropic PBC as copyright holder of the inherited harness text; yockcheng is the repository owner) and add the line to the attribution list used by the datasheet. Metadata only; profile digest changes at the next profile bump (no corpus is stored yet: import_status planned). Also add the Anthropic PBC Apache-2.0 copyright to the attribution list and a lineage note for anthropics/defending-code-reference-harness.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Refutation failed. LICENSE at pin 5f9137ff (200 lines): line 188 is a filled-in Apache appendix copyright line naming Anthropic PBC (2026), not the '[yyyy] [name of copyright owner]' placeholder. Profile l. 40 is therefore false; nothing else in the profile, cross-cutting.md, AGENTS.md or DECISIONS.md records it. research.json traces it to the upstream harness. Metadata only, S3. Correction: also add the Anthropic PBC copyright to the attribution list and a lineage note for the upstream harness."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-03",
+   "title": "Profile pin note 'customize-skill holds the same 257 runs' miscounts: both branches hold 280 logs (257 = 280 minus 23 pre-passes)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "R4 profile note vs data (L1-01; prereg section 8 lead)",
+   "evidence": "Profile l. 36 note says 257 runs. ls-tree in the staged clone: refs/heads/customize-skill 280 runs/**/*.json, refs/heads/prompt-injection-harness 280, main 0; the runs/ tree is identical on both (prereg fact-check). 257 = 255 attacked + 2 benign user-task logs, i.e. the logs without the 23 pre-passes. 257 is the systematic-search S1 agentdojo_shaped_files path-pattern count (leaves out the 23 pre-pass files); the branch blob lists are identical (digest 61f951502c14).",
+   "reproduction": "for r in refs/heads/customize-skill refs/heads/prompt-injection-harness refs/heads/main; do GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git -C ~/.agentprov/staging/10c/yockcheng/prompt-injection-harness.git ls-tree -r --name-only $r -- runs | grep -c '\\.json$'; done  -> 280, 280, 0",
+   "hypothesis_ref": "",
+   "recommendation": "Profile owner: say '280 logs (257 user-task logs + 23 pre-passes)' in the pin note. No data change. Same fix in docs/reports/precheck/family-raw-layouts.md l. 68: '280 logs (257 user-task logs + 23 pre-passes), blob-identical on both branches'.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Refutation failed. ls-tree (no lazy fetch): customize-skill 280, prompt-injection-harness 280, main 0; sorted blob-id lists hash identically (61f951502c14). L1 census and research.json give 255 + 2 + 23 = 280. The 257 comes from the systematic-search S1 'agentdojo_shaped_files' path-pattern count, which leaves out the 23 pre-pass files: a heuristic figure, not a run count. Correction: the same wording is in docs/reports/precheck/family-raw-layouts.md l. 68; fix both to '280 logs (257 user-task logs + 23 pre-passes), blob-identical on both branches'."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-04",
+   "title": "[CC-08] l2_check 'unverified_twin' counter mixes catalogue twins with native class-I _unverified rules",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L2 evidence classes",
+   "evidence": "l2-head.json prov.unverified_twin_by_bundle_class: inference I 2,863, assessment I 465, inference none 273. Recount by the catalogue (twins.py: X_unverified is a twin when X is a rule): method references to twins 6,946, to native class-I rules 531 (auto_execution_unverified 202, checker_inputs_unverified 329). Same tool property as PC-agentdojo-upstream-07. Units (verifier): 6,946 / 531 are method references; 2,863 / 465 / 273 are statements. Fixed tool (6b76c15e), prov tier on the same scratch corpus: 3,601 statements = 2,400 twins (assessment I 465, inference I 1,935) + 1,201 native class-I (inference I 928, inference none 273).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/evclass.py ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l2-head-j2.partial ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/evclass.json && uv run python -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/twins.py $PWD ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/evclass.json ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/twins.json  -> by_rule native_I auto_execution 202, checker_inputs 329",
+   "hypothesis_ref": "",
+   "recommendation": "Resolved by recheck12 (bundle-id decoding of 5efa3575; l2-head.json committed 4a3e40c1): of 3,601 statements twin 3,186 (inference I 2,448, none 273, assessment I 465), mixed inference I 415, native-only 0. The first fix's 2,400 twins + 1,201 native are superseded. Not a corpus property.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Refutation failed. The committed l2-head.json was made by the pre-fix counter (no native_unverified key; fix landed in 6b76c15e). Fixed l2_check re-run (prov tier only, scratch output exam/l2-head-recheck-prov.json): total 3,601 statements = 2,400 twins (assessment I 465, inference I 1,935) + 1,201 native class-I (inference I 928, inference none 273). Correction: the examiner's 6,946 / 531 are method references, 2,863 / 465 / 273 are statements; the tool fix has landed, so only the l2_check re-run is left."
+    },
+    {
+     "lens": "recheck12 (CC-08, 2026-10-21)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "recheck12 split twin 3,186, mixed 415, native 0; the native count of the first fix came from the bundle-id defect (refuted PC-glitch-agentdojo-04)."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-05",
+   "title": "Zero targeted attack success in all 255 attacked logs although the payload reaches the agent: a real source property (disclose; never exclude)",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "OS-1 / OS-2 / L1-05 (H1 supported); flagged-gap investigation rule applied although no paper target exists",
+   "evidence": "Raw: security true 0/255 attacked (Wilson95 [0.00, 1.48]; CP upper 1.17%), haiku-4-5 0/240 [0.00, 1.58], sonnet-4-5 0/15. Checks against the usual explanations: run errors 0 (error null 280/280); arm identity pipeline_name = pipeline_dir 280/280 and path ids = raw ids 280/280; metric mapping: mapped security = raw security on 32/32 sampled labels, 0 mismatches of 64 judgements, security polarity rule cited (security_polarity_unverified 15 refs); payload reach (raw screen reach.py, escape-tolerant substring of a logged injection value in the tool results): present 218, prefix-only 21, absent 16 of 255 (absent: haiku user_task_22 x6, user_task_27 x4 with 0 tool calls, user_task_34 x6); SEM injection_marker present in 15/15 sampled attacked executions. Utility under attack 206/255 (80.78%). DECISIONS D-279 and the manifest already record yockcheng as a zero-success source. Corrections (verifier): 239 is a lower bound on payload reach (prefix-only = 60-character prefix match; absent may include substring-screen misses). No attacked log has a tool call naming the attacker identity, and the 22 security-true pre-pass labels show the checker can score success: no scorer artefact.",
+   "reproduction": "uv run python docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/census.py $PWD ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/census.json && python3 -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/hyp.py ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/census.json  -> H1 attacked 255, attacked_security_true 0; uv run python docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/reach.py $PWD ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/reach.json -> status absent 16, partial 21, present 218; uv run python -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/os1.py $PWD ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/census.json ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/os1.json -> 'ALL|*|attacked' ASR k 0 n 255 wilson95 [0.0, 1.48] cp_upper_zero 1.17; python3 -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/os2.py ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/l2-head-j2.partial ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/os2.json -> raw_vs_mapped_mismatches {}",
+   "hypothesis_ref": "H1",
+   "recommendation": "Keep every log (user rule: never exclude for zero attack success; D-279). Disclose in the datasheet and in any pooled ASR that this source contributes 255 attacked runs with 0 successes (Claude haiku-4-5 / sonnet-4-5, workspace, important_instructions, no defence) and that the payload is visible to the agent in at least 239 of them; report the arm with its zero-event bound, never as a rate without n.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Refutation failed. hyp/os1/os2 outputs agree (attacked security true 0/255; Wilson95 [0.00, 1.48]; OS-2 0 mismatches of 64 judgements). Independent counts-only scan of all 255 attacked logs: 0 tool calls name the workspace attacker identity; the 22 security-true pre-pass labels show the checker can score success, so no scorer artefact. Reach: present 218 / partial 21 / absent 16 (absent = user_task_22 x6, user_task_27 x4, user_task_34 x6). R2: D-279 and the manifest record yockcheng as a zero-success source. Corrections: 'prefix-only' (21) is a 60-character prefix match that may be truncation or a matcher escaping miss, so 239 is a lower bound on reach; 'absent' may include substring-screen misses; add the attacker-identity and pre-pass lines."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-06",
+   "title": "Logs show the stock AgentDojo v1 inbox, not the repository target's patched inbox.yaml: the repository harness is not the code that produced the logs",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H6 / L2 identity (code identity)",
+   "evidence": "Needle counts over all 280 logs (census.py, class labels only): patched senders of the repo's inbox.yaml 0 occurrences; stock injection-email senders in tool output of 30 distinct native v1 logs (24 fb-sender + 12 hiking-sender, overlapping) and 4 distinct v1.2.2 logs. The repo's Docker target overwrites inbox.yaml from 606606e0 (prereg fact-check), and the logs predate the repository (created 2026-07-15; logs 2026-06-22..07-01). Covered by the profile: verified_code = [] (every D rule via its _unverified twin, confirmed in PROV/SEM) and quirk agentdojo.package_version_not_code_identity (0.1.35 in 280/280, code not verified). Log dates (2026-06-22, 2026-07-01) predate the first commit of fixtures/inbox.yaml (606606e, 2026-07-10).",
+   "reproduction": "python3 -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/hyp.py ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/census.json -> H6.logs v1 {'tool:stock_sender_fb': 24, 'tool:stock_sender_hiking': 12, 'assistant:stock_sender_fb': 7}, v1.2.2 {'tool:stock_sender_fb': 4, 'tool:stock_sender_hiking': 1}, no patched_sender key",
+   "hypothesis_ref": "H6",
+   "recommendation": "Datasheet: state that the environment visible in the logs is stock AgentDojo 0.1.35 workspace (v1 / v1.2.2) and that the repository's target code (patched models.py, inbox.yaml) is not evidence for how these logs were produced; keep verified_code = [].",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Refutation failed. The pin fixture inbox.yaml has the patched needles (1 each) and no stock needles; the Dockerfile copies it over the package's workspace inbox.yaml. The logs show stock senders in tool output, and every log (2026-06-22 / 2026-07-01) predates the fixture's first commit 606606e (2026-07-10). verified_code = [] (profile l. 94) and quirk package_version_not_code_identity (l. 132) cover it. Correction: distinct logs are 30 native v1 (the 24 + 12 overlap) and 4 v1.2.2, not 36 and 5."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-07",
+   "title": "Arm design: haiku-4-5 has no benign user-task runs, sonnet-4-5 is a user_task_0 smoke test over two benchmark versions, the retired models have only incomplete logs",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 arm coverage (prereg section 3)",
+   "evidence": "Cells equal prereg section 2: haiku-4-5 v1 attacked 240 / benign 0 / pre-pass 6; sonnet-4-5 v1 attacked 1 + pre-pass 1 and v1.2.2 attacked 14 + benign 1 + pre-pass 14; 3-7-sonnet and 3-haiku 3 logs, all incomplete. Utility under attack (haiku 79.58%) has no same-model benign baseline in this source, and the sonnet-4-5 arm mixes v1 and v1.2.2 suites.",
+   "reproduction": "python3 -I docs/reports/precheck/data/yockcheng-prompt-injection-harness/exam-scripts/hyp.py ~/.agentprov/migration-work/precheck/yockcheng-prompt-injection-harness/exam/census.json -> cells {... 'agentdojo-native|claude-haiku-4-5-20251001|v1|attacked': 240, 'agentdojo-native|claude-haiku-4-5-20251001|v1|prepass': 6, ...} (no haiku benign cell)",
+   "hypothesis_ref": "H7, H8",
+   "recommendation": "Datasheet and any per-model table: report the haiku arm as attacked-only (no utility drop computable), split sonnet-4-5 by benchmark_version, and list the 3 retired-model logs as incomplete (no outcomes, none invented). Keep all logs.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Refutation failed. Independent census check: 280 labels; every non-pre-pass sonnet-4-5 log is user_task_0. Profile declares parts = ['head'] only, so no other part holds haiku benign runs. Prereg sections 2/3 list the same cells and pre-register the property. Haiku attacked utility 191/240 = 79.58%. Expected-known S3. Wording only: the incomplete 3-7-sonnet user_task_0 log is an incomplete benign log (hyp.py 'cells' says benign, 'arms' says user)."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-08",
+   "title": "[CC-01] Identical trajectories are trivial: one zero-call group within the part, incomplete-log groups within and across corpora",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-04 (H9), CC-01",
+   "evidence": "Within the part 2 groups / 5 units of 280: haiku user_task_27 x injection_task_0/1/3 (one assistant turn, 0 tool calls, utility false; the payload is never fetched) and the two incomplete pre-pass logs of different retired models (system + user only). Cross-corpus: 2 groups shared with shreeyavarma-llm-safety, both formed by incomplete logs (identical default system prompt + task prompt, no agent turn). 0 byte-identical files anywhere. profile content_dedup = never. user_task_27 x injection_task_4 is also zero-call but has its own fingerprint (different assistant text).",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/_cross/l1-xdup.json'));print(d['trajectory_identical']['cross_corpus']['pairs'].get('shreeyavarma-llm-safety|yockcheng-prompt-injection-harness'), d['byte_identical']['cross_corpus']['groups'])\"  -> 2 0; l1-head.json /L1-04/trajectory_identical groups 2 units_in_groups 5",
+   "hypothesis_ref": "H9",
+   "recommendation": "No action on the data; a cross-corpus de-duplication must not treat prompt-only incomplete logs as repeated executions. The ceferisbarov lead (H9) was answered from the _fp files on 2026-10-21: 1 group = 2 yockcheng incomplete IT0 pre-passes + 1 ceferisbarov IT0 pre-pass, 0 byte-identical.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Refutation failed. Reproduction prints 2 0; independent regroup from the fingerprint files gives the same 2 within-part groups and 2 shared fingerprints with shreeyavarma (both containing only incomplete yockcheng logs). Raw check (6 logs, roles and digests only): the 3 user_task_27 logs have one assistant turn and 0 tool calls; the incomplete logs are system + user only. CC-01 cannot matter (no call ids). Wording only: user_task_27 x injection_task_4 is also zero-call but has its own fingerprint."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, wave-2 follow-up, 2026-10-21)",
+     "verdict": "reclassified",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "CC-01 is analysis-artefact S3 (R5) for trajectory-identical groups within or across corpora (as geryon PC-10, melon PC-08, mohameduk PC-11). Severity unchanged, no readiness effect."
+    }
+   ]
+  },
+  {
+   "id": "PC-yockcheng-prompt-injection-harness-09",
+   "title": "l2_check's outcome arm key (model|defence|attack) pools the two benchmark versions of claude-sonnet-4-5",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "OS-2 / L1-04 tooling",
+   "evidence": "l2-head.json outcomes.arms 'claude-sonnet-4-5|none|important_instructions' n 8 combines 7 runs/ v1.2.2 logs and 1 native v1 log; the L1 stratum key (tree) keeps them apart. l1-xdup.json inputs: 19 parts, no ceferisbarov (a phase-10c fingerprint lead in manifest.json known_artefacts). In this sample both versions give security k 0 and utility 8/8, so pooling changes no number. The missing ceferisbarov input is a scheduling gap (not yet L1-scanned), not a tool defect.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/yockcheng-prompt-injection-harness/l2-head.json'));print(d['outcomes']['arm_key'], d['outcomes']['arms']['claude-sonnet-4-5|none|important_instructions']['security'])\" -> model|defence|attack {'k': 0, 'n': 8, ...}; python3 -c \"import json;print([i['corpus_id'] for i in json.load(open('docs/reports/precheck/data/_cross/l1-xdup.json'))['inputs'] if 'ceferis' in i['corpus_id']])\" -> []",
+   "hypothesis_ref": "H9",
+   "recommendation": "Dossier: report sample outcomes per tree (as in os1-population.json, which keys arms by model x benchmark_version). Tool owner: optionally add benchmark_version to the AgentDojo outcome arm key. Re-run l1_xdup when ceferisbarov is scanned.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Part 1 reproduced: arm_key model|defence|attack; the sonnet-4-5 arm n 8 = 7 runs/ v1.2.2 + 1 native v1, while os1-population keys arms by model x benchmark_version. Not documented in the outcomes note. Both versions give k 0 and utility 8/8 here, so no number changes. Part 2 (l1_xdup lacks ceferisbarov) is a scheduling gap: ceferisbarov-agentdojo has not been L1-scanned yet (data folder holds only research.json). It is a follow-up, not evidence for the class."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

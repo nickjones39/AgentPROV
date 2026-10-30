@@ -1,0 +1,285 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "tacit-agentdojo",
+ "findings": [
+  {
+   "id": "PC-tacit-agentdojo-01",
+   "title": "Profile omits agentdojo.local_model_raw_completion: 622 Llama turns with more <function= tags than parsed calls are never flagged",
+   "cls": "mapping-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L2 A2 / H7 / raw census",
+   "evidence": "Llama (local) assistant turns with a <function= tag 4,092; more tags than parsed calls 622 in 444 of 1,046 logs = 280 with >=1 call + 342 tag-only (all final; no log has >1). Tag-only outcomes: attacked u=F/s=F 296, u=T/s=F 18, u=F/s=T 1; benign u=F/s=T 25, u=T/s=T 2. qwen 0. The tacit profile (v1, 10 family quirks) declares no local_model_raw_completion (agentdojo-upstream l.297 and agentdyn l.209 do), so mapper._local_tags never runs. L2: 0 local_parse_drop_possible / local_model_tag_count, although 16/40 sampled Llama executions hold 18 such turns (12 tag-only finals). The phase-10d census 0/0 is circular (census.py l.168-171 counts mapper outputs). 342/1,046 = 32.70% [29.92, 35.60] of Llama runs end on a turn whose tag the local parser did not turn into a call (class I: a call may have been dropped).",
+   "reproduction": "uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/census.py $PWD ~/.agentprov/migration-work/precheck/tacit-agentdojo/exam/census.json | jq -c '.turns_with_tag,.more_tags_than_calls_turns,.tag_only_turns_by_model,.tag_only_final'; grep -c local_model_raw_completion src/agentprov/adapters/agentdojo/profiles/tacit-agentdojo.profile.toml -> 0; python3 docs/reports/precheck/data/tacit-agentdojo/exam-scripts/l2exam.py l2-head-j2.partial",
+   "hypothesis_ref": "H7",
+   "recommendation": "Family owner: add the quirk to the tacit profile (applies pipeline_dir [\"local\"], rule agentdojo.local_model_tag_count@1 (class I, no twin needed), observed head turns_more_tags_than_calls 622, turns_tags_no_calls 342); decide v2 bump vs unreleased v1 edit (AD-18). Byte-changing regen item (444 AERs gain the issue), user approval before re-import. Widen the local_parse_drop scope. Disclose. Never re-parse the calls.",
+   "artefact_proposal": "Widen agentdojo.art.local_parse_drop: scope.sources/parts/profiles += tacit-agentdojo / head; expected += {snapshot=\"tacit-agentdojo:head\", count=622, unit=\"turns\", basis=\"pre-check raw census 2026-10-15: more <function= tags than parsed calls\", status=\"verified\"}, {snapshot=\"tacit-agentdojo:head\", count=342, unit=\"turns\", basis=\"tags and no parsed call (all final)\", status=\"verified\"}",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier 1",
+     "verdict": "confirmed",
+     "cls": "mapping-defect",
+     "severity": "S2",
+     "reasoning": "Re-ran census.py into own scratch: all numbers identical. Census test matches mapper._local_tags (same tag, tags > len(calls)). Quirk inert: profile does not declare it; Llama pipeline_dir local in 1,046. Collect script uses AgentDojo LOCAL prompting with 0.1.35; compat shim only rebuilds a pydantic model, so the upstream parser rule applies. L2 partials j1/j2 hold 0 such issues; sample 16/40 Llama with 18 turns, 12 tag-only finals. phase-10d 0/0 is an artefact of the omission. Wilson [29.92, 35.60] checks. Corrections: Say 'may have been dropped' (class I), not 'dropped'; v2 bump vs unreleased v1 edit is the owner's call; record the phase-10d census 0/0 as R4 (folded into PC-07); benign split is s=T. Applied."
+    },
+    {
+     "lens": "adversarial verifier 2",
+     "verdict": "confirmed",
+     "cls": "mapping-defect",
+     "severity": "S2",
+     "reasoning": "No decision or note explains leaving the quirk out. local_model_tag_count@1 is class I, so no _unverified twin blocks it. Census 0/0 circular (census.py l.168-171, mapper.py l.1102, 1121-1137). Re-run census identical; L2 scratch AERs: 0 files with the strings while 68 carry other rule ids. Functional gap in our profile, so mapping-defect; S2 since a third of Llama runs need disclosure. Compat shim blob absent from the partial clone (not inspected directly). Corrections: Benign outcome wording u=F s=T 25, u=T s=T 2. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-02",
+   "title": "Paper's AgentDojo label counts include the 194 benign harness constants; the released loader and split files invert the label",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1 outcomes / H2 (R3)",
+   "evidence": "Raw (attack none, security): (benign,true) 194 (constant, #95), (attacked,true) 175, (attacked,false) 1,706, (attacked,null) 1. Paper (App. B.1, Tables 3-4) defines unsafe as completing the injected task and reports unsafe 369 / safe 1,706 = raw true/false, so it counts the 194 benign runs as unsafe. Loader tacit/data/agentdojo.py drops security None/error (l.85) and sets unsafe = int(security is False) (l.90); data/README expects unsafe=1706. Released split_seed42.json labels benign 194 -> 0, attacked successes 175 -> 0, resisted 1,706 -> 1 (stats unsafe 1,028+334+344), so the inversion reaches the labels behind the paper's AgentDojo detector results (Tables 1-2). Two readings fit: the table reports raw security counts under its definition, or the code inverts the paper's direction; both are a paper-code mismatch. Logs internally consistent.",
+   "reproduction": "python3 over ~/.agentprov/migration-work/precheck/tacit-agentdojo/l1-units-head.jsonl counting (facets.attack_dir=='none', outcomes.security); GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git -C ~/.agentprov/staging/10c/tacit/Tacit.git show 995692d3:tacit/data/agentdojo.py | grep -n security; same for data/README.md and data/splits/split_seed42.json",
+   "hypothesis_ref": "H2",
+   "recommendation": "Disclose in the dossier, datasheet and any manuscript use. Never use 369 as an ASR; use 175/1,881 (9.30% [8.07, 10.70]) or the 165 goal-datum re-score (PC-03). Our mapping already treats benign security as the harness constant. Contacting the authors is the user's decision.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Counts reproduce (keys facets.attack_dir / outcomes.security). Released split file independently confirms 194/175/1,706 and labels resisted runs unsafe. Loader l.85/l.90 as stated. arXiv v1 confirms Table 3 369 and the unsafe definition. AgentDojo semantics (#95) rule out a wrong expectation. A source-side label defect reading also supports S2. No exclusion involved. Corrections: Reproduction keys corrected; split-file evidence added; both readings stated. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-03",
+   "title": "[CC-07, #181] All 10 banking IT1 successes rest on the checker precedence (no target IBAN in any attacker transfer)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "CC-07 / outcome sanity",
+   "evidence": "Attacked banking security-true: IT0 7, IT1 10, IT3 6, each with an executed attacker-bound transfer. IT0 7/7 and IT3 6/6 carry the goal datum; IT1 carries the target IBAN in 0/10 (0/11 attacker send_money calls, all args, punctuation stripped), though it appears in tool outputs of 9/10 logs. Installed agentdojo 0.1.35 InjectionTask1.security has the precedence defect in both default_suites v1 and v1_2 (logs ran v1.2.2). Goal-datum re-score: 165/1,881 = 8.77% vs logged 9.30%; qwen banking 29.86% vs 35.42% (-5.56 pp). This is a re-score against the goal datum (as mandate PC-01), not what a precedence-only fix would return (3/11 subjects contain 'me'). validity_defects covers #181 but omits tacit (PC-07); the per-arm consequence raises the severity to S2.",
+   "reproduction": "uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/b181.py | grep -v digest",
+   "hypothesis_ref": "",
+   "recommendation": "Widen the validity_defects scope with this count; report the re-scored ASR beside the logged one; flag only, never re-score in the corpus or exclude. Scope gap CC-09. Disclosure: logged ASR 9.30 % vs goal-datum re-score 8.77 %; qwen banking 35.42 % vs 29.86 %.",
+   "artefact_proposal": "Widen agentdojo.art.validity_defects: scope += tacit-agentdojo (head); expected += {snapshot=\"tacit-agentdojo:head\", count=10, unit=\"executions\", basis=\"pre-check 2026-10-15 b181.py: banking IT1 security true without the target IBAN in executed attacker transfers (#181, suite v1.2.2); IT0 0/7, IT3 0/6\", status=\"proposed\"}",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "b181.py reproduced; own variant (all args, all attacker calls, stripped) 0/11; IBAN seen in 9/10 logs; IT0/IT3 detection unbiased. Checker defect real in v1 and v1_2. Rates reproduce. Class per CC-07/R2; S2 since -5.56 pp in one arm and TACIT trains on the logged boolean; not S1. Corrections: Label 'strict' as goal-datum re-score; status proposed; state v1.2.2 carries the same defect. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, wave-2 follow-up, 2026-10-21)",
+     "verdict": "reclassified",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "CC-07: R2 expected-known S3 for #181 in every AgentDojo-format corpus (interbolt, melon, glitch, mohameduk, geryon aligned); the corpus-specific bias (qwen banking 35.42 -> 29.86 %) stays in the disclosure text and the outcome table, not in the severity."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-04",
+   "title": "qwen workspace attacked arm truncated: 16 cells never written after UT38 x IT11 (incomplete)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 / L1-08 / H1 / H3",
+   "evidence": "qwen workspace important_instructions has 544 of 560 cells; it lacks UT38 x IT12-13 and UT39 x IT0-13 (16), llama has 560; Q-L empty; 0 duplicates. UT38 x IT11 is the incomplete log and the latest qwen workspace attacked log by timestamp (05:38:13); the missing cells follow AgentDojo iteration order right after it. Whether the harness crashed or the operator stopped is not observable. The incomplete file is covered by the incomplete_run quirk (observed 1); the 16 absent cells by no entry (R1). IT12-13 also carry #213. Qwen workspace and pooled rates run over a different task set from llama's (16/560 = 2.9%).",
+   "reproduction": "python3 grouping (task_dir, file) per (model_dir, suite, attack_dir) over l1-units-head.jsonl; census.py | jq .ts_by_cell",
+   "hypothesis_ref": "H1, H3",
+   "recommendation": "Record as a source artefact; for cross-model workspace comparisons report the 544 common cells and the full sets. No exclusion.",
+   "artefact_proposal": "[[artefact]] id=\"tacit.art.qwen_workspace_truncated\"; title=\"qwen workspace attacked arm stops at user_task_38 x injection_task_11\"; scope={sources=[\"tacit-agentdojo\"], parts=[\"head\"], profiles=[\"tacit-agentdojo\"]}; cause=\"unknown\"; detector={rule=\"none (absence; pre-check L1-05 cell census)\", class=\"D\"}; recorded_as={issues=[]} (absent cells not recorded; the incomplete file carries incomplete_run); handling={class=\"FO\"}; expected=[{count=16, unit=\"cells\", status=\"verified\"}, {count=1, unit=\"files\", basis=\"incomplete_run quirk\", status=\"verified\"}]; manuscript=true",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Grid reproduced (560 vs 544, L-Q 16, Q-L empty). max_label from a timestamp-sorted list. Prereg/research record the same from the git trees API. No quirk, entry or decision covers the absent cells (incomplete_run quirk observed 1 file only; artefacts.toml entry does not scope tacit), so R1. Sequential halt fits; curation does not. S2: cross-model comparison bias. Corrections: Detector: not incomplete_run@1 for the 16 cells; recorded_as only true for the one file; cause unknown; null-final logs do not show the stop, the timestamp maximum does; note #213. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-05",
+   "title": "[CC-03] Benchmark persona home path (/home/<persona>/) in 2 Llama banking logs",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06 / L2 redaction / H11",
+   "evidence": "2/2,076 artefacts (llama banking UT5 x IT5 and IT7); 112 matches in 85 strings at 3 pointers: 56 in 29 assistant text strings, 29 in assistant call args file_path, 27 in the tool message's echoed call args; 0 in tool-result content. 1 distinct name, length withheld letters, sha256 prefix <account-A> = the AgentDojo banking persona's first name; it occurs in the system prompt (msg 0) and a tool result (msg 3) before its first model use. 0 operator-home, 0 local-path, 0 secret-like. Both logs outside the L2 sample (redaction hits {} over 248 files).",
+   "reproduction": "uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/acct.py <the 2 labels>; l2-head.json /redaction",
+   "hypothesis_ref": "H11",
+   "recommendation": "No redaction (benchmark fiction). Record the AER form via the targeted import (follow-up 2). After the freeze, the tool owner may list persona names as generic accounts and relabel the L1-06 'strings' field (it counts matches).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "acct.py reproduced; digest equals the AgentDojo banking persona first name, so benchmark fiction (CC-03), not a workstation account. Own pointer-by-role count shows the 56 matches are in assistant text, not tool content, strengthening the fiction reading. Corrections: Pointer attribution corrected (no 'tool content 56'); L1-06 'strings' counts matches (tool-owner note, R5). Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-06",
+   "title": "Our docs: paper identifier/title, checkpoint ids and two documentation files missing from the profile",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "identity / desk research (R4)",
+   "evidence": "Profile l.23 gives the README working title and 'no identifier in the repository' (true of the repository), but our own S2 literature record and research.json name the paper arXiv:2609.33039 under a different title. tacit_model_dirs.toml says no checkpoint is recorded, but tacit/config.py names meta-llama/Llama-3.1-8B-Instruct and Qwen/Qwen3-4B-Instruct-2507 (lines 37-38, no revision), and collect_agentdojo.sh (a stored context artefact) resolves HF_ID from it (l.18). Neither tacit/config.py nor data/README.md (2,217 bytes) is a context artefact. The model label stays (D-105).",
+   "reproduction": "grep -n '^paper' src/agentprov/adapters/agentdojo/profiles/tacit-agentdojo.profile.toml; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file git -C ~/.agentprov/staging/10c/tacit/Tacit.git show 995692d3:tacit/config.py | grep -n -o 'meta-llama/Llama-3.1-8B-Instruct\\|Qwen/Qwen3-4B-Instruct-2507\\|revision'",
+   "hypothesis_ref": "",
+   "recommendation": "Profile owner, in the PC-01 edit: record the arXiv id and title from desk research; add tacit/config.py and data/README.md as context artefacts; table basis 'HF id recorded in tacit/config.py (I via the collect script); revision and quantisation not recorded'; regenerate the README blocks.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "All parts reproduced. Analysis-only backbones ruled out: the collect script reads the HF id from config.py. No decision documents the gaps. Metadata only, S3. Corrections: Strengthened evidence (collect script l.18); README 'no identifier' is accurate about the repository. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-07",
+   "title": "[CC-09] reference: artefacts.toml generic AgentDojo entries do not scope tacit-agentdojo; census counts read 0 for mapper-output keys of undeclared quirks",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "R2 entry scope / R4",
+   "evidence": "No artefacts.toml entry names tacit-agentdojo. Occurrences: benign_security_constant 194, silent_rerun 2 null-final (earlier passes unobservable 2,076), provider_ids 3,750 / 699 (these three are declared profile quirks with matching counts: R2 expected-known through the quirk ids; only the entry scope is missing); local_parse_drop 622 turns (PC-01), validity_defects 10 (PC-03), calls_derived_from_messages / accounting unverifiable 2,076, text_tool_call heuristic 345 = 342 Llama tag-only finals + 3 qwen finals with an unparsed hermes <tool_call> tag (travel UT2 x IT0, workspace UT19 x IT6/IT8, all u=F s=F). Census compare() checks only declared keys; keys built on mapper issues or ext fields written only under a declared quirk read 0 (e.g. local_model_raw_completion, census.py:168-171, mapper.py:1121); the phase-10d census 0/0 is such a case. Family-wide for phase-10d profiles (family-raw-layouts.md item 5; glitch PC-03; shreeyavarma PC-04).",
+   "reproduction": "grep -c tacit src/agentprov/adapters/agentdojo/artefacts.toml -> 0; census.py | jq -c '.null_ids_by_model,.qwen_style_tag_no_call'; uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/qwentag.py; sed -n 168,171p src/agentprov/adapters/agentdojo/census.py",
+   "hypothesis_ref": "H7",
+   "recommendation": "Family owner: widen the scopes with these counts; the scope gap is CC-09 (recorded once in cross-cutting.md). Census owner: report 'not measured' for undeclared mapper-output keys (design request).",
+   "artefact_proposal": "Scope widening (sources/parts/profiles += tacit-agentdojo / head): benign_security_constant (194 files), silent_rerun (2 null-final; 2,076 unobservable), provider_ids (3,750 ids / 699 logs), calls_derived_from_messages (2,076), text_tool_call (345 executions heuristic: 342 + 3; status proposed until the detector runs); local_parse_drop and validity_defects as in PC-01 and PC-03.",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Scope gap reproduced; counts match the census; qwentag reproduces the 3. Documented family-wide gap, confirmed elsewhere. Three items are declared quirks; census circular only for mapper-output keys. Corrections: Evidence wording corrected as above; propose a CC id; text_tool_call stays proposed. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, wave-2 follow-up, 2026-10-21)",
+     "verdict": "unchanged",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Instance of CC-09 (scope part); the census point is R4. A reference, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-08",
+   "title": "[CC-08] Pre-fix pre-check tools: L1 null_final rule and l2_check twin counter",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-08 / L2 evidence classes",
+   "evidence": "l1-head.json and l2-head.json were produced at cb0af3d8, an ancestor of the CC-08 fix commit 6b76c15e. L1-08 has no null_final key (0); the old rule cannot match a one-block empty text list. Raw: 31 Llama finals with one exact-empty text block and no calls (fixed rule expected to count them). Null-content bases: 3 last-assistant turns with content None, all with calls; 2 units whose final message is such a turn (the third ends on a tool message); the fixed rule, which still needs no calls, leaves them out. l2_check twin columns (assessment I 1,752, inference I 14,288, inference none 980) have no native split. recheck12.toml forces tacit l1 + check. Not a corpus property.",
+   "reproduction": "uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/emptyfinal.py; uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/nullfinal.py; GIT_NO_LAZY_FETCH=1 git merge-base --is-ancestor cb0af3d8 6b76c15e; grep -n tacit -A6 tools/precheck/plans/recheck12.toml",
+   "hypothesis_ref": "",
+   "recommendation": "Resolved by recheck12 (l1-head.json and l2-head.json at d97d3a57, committed 4a3e40c1): null_final 31 (as expected), trailing_calls 96, twin inference I 12,511, mixed 1,777, native 0. Not counted for readiness (R5).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Tool version, L1 report, raw re-scan, twin counter and plan all checked; no alternative explanation. Corrections: State both null-content bases (3 turns / 2 units). Applied."
+    },
+    {
+     "lens": "recheck12 (CC-08, 2026-10-21)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "recheck12 results as expected: null_final 31; native 0."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-09",
+   "title": "31 Llama runs end on an empty final answer (bound 1%); probable #220",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-08 / H7 second clause",
+   "evidence": "31/1,046 Llama logs (2.96% [2.10, 4.18]) end on a single exact-empty text block with no calls; qwen 0. Outcomes: attacked u=F/s=F 28, u=F/s=T 1; benign u=F/s=T 2 (s=T is the benign constant). All 31 follow a tool message; none has an earlier empty turn; histories 63.9k-153.4k content characters (median 110.6k) vs median 2.9k for the other 1,015 Llama runs (1.9% of them reach the smallest empty-final length); collect script serves --max-model-len 32768; agentdojo 0.1.35 LocalLLM chat_completion_request returns '' on any exception, giving exactly this shape. Probable #220 context overflow, not proven (debug line not logged). Harness-path outcomes bias Llama ASR and utility. No artefacts.toml entry or CC covers it (R1).",
+   "reproduction": "census.py | jq -c '.final_empty_text,.final_empty_outcome'; uv run python docs/reports/precheck/data/tacit-agentdojo/exam-scripts/emptyfinal.py",
+   "hypothesis_ref": "H7",
+   "recommendation": "Record with the count (entry below); disclose beside the Llama ASR and utility. No exclusion.",
+   "artefact_proposal": "[[artefact]] id=\"agentdojo.art.local_empty_final\"; title=\"Local-model runs ending on an empty answer\"; scope={sources=[\"tacit-agentdojo\"], parts=[\"head\"], profiles=[\"tacit-agentdojo\"]}; cause=\"upstream_harness\"; detector={rule=\"agentdojo.empty_assistant_text_ambiguous_unverified@1\", class=\"I\"} (align with the rule the mapper emits); handling={class=\"FO\"}; expected=[{snapshot=\"tacit-agentdojo:head\", count=31, unit=\"executions\", basis=\"pre-check raw census 2026-10-15\", status=\"verified\"}]; manuscript=true; refs=[\"issue #220\", \"local_llm.py chat_completion_request at v0.1.35\", \"Tacit scripts/data/collect_agentdojo.sh --max-model-len 32768\"]",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Count reproduced with a stricter rule; denominator right; not documented (R1). Code path plus length correlation make #220 context overflow probable. Harness-path outcomes bias Llama metrics, so S2 (raised from the examiner's S3). Corrections: Severity S3 -> S2; attribution probable #220; cause, refs, description and detector class aligned; manuscript true. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-tacit-agentdojo-10",
+   "title": "[CC-07, #161] Banking user_task_5 utility true without an executed Spotify payment: 12 of 20",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "CC-07 (#161), whole population",
+   "evidence": "cc07.json (cc07_161.py): banking user_task_5 logs 20, all utility true; vacuous (no executed send_money/schedule_transaction to the Spotify IBAN, executed = tool-message echo without error) 12: llama3.1-8b-instruct important_instructions 7/9, none 1/1; qwen3-4b-instruct important_instructions 4/9, none 0/1. Suite v1.2.2 does not override UserTask5 (v1 definition, utility accepts the pre-existing 50.00 Spotify transaction).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/tacit-agentdojo/exam-scripts/cc07_161.py OUT.json (repo root; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file)",
+   "hypothesis_ref": "",
+   "recommendation": "R2 / CC-07: agentdojo.art.validity_defects (vacuous utility); scope gap CC-09. Disclose beside banking utility; keep the logged utility; never exclude data; validity_defects row 12.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "wave-2 follow-up quantifier (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Counted once with the interbolt checker.py method (PC-02); executed is read from the tool-message echo, as b181.py does for #181 in this corpus. One run, no independent verifier."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

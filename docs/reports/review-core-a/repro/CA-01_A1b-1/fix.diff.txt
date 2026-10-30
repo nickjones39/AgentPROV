@@ -1,0 +1,21 @@
+--- a/src/agentprov/aer/validate.py
++++ b/src/agentprov/aer/validate.py
+@@ -742,7 +742,11 @@ class AerValidator:
+             elif isinstance(value, list):
+                 stack.extend((v, f"{at}/{i}") for i, v in enumerate(value))
+             elif isinstance(value, dict):
+-                if "$blob" in value and isinstance(value["$blob"], str):
++                if set(value) == {"$lit"} and isinstance(value["$lit"], dict):
++                    # C.11.3: the body's first-level member names are literal source keys, never reserved forms
++                    body = value["$lit"]
++                    stack.extend((v, f"{at}/$lit/{str(k).replace('~', '~0').replace('/', '~1')}") for k, v in body.items())
++                elif "$blob" in value and isinstance(value["$blob"], str):
+                     self._blob(index, at, value)
+                 elif set(value) == {"$int"} and isinstance(value["$int"], str):
+                     try:
+--- a/tests/unit/aer/aer_support.py
++++ b/tests/unit/aer/aer_support.py
+@@ def _walk_blobs(value: Any) -> list[dict[str, Any]]:
+-    (same blind spot: recurse into the $lit body's member VALUES, never treat the body itself as a $blob ref)
++    if isinstance(value, dict) and set(value) == {"$lit"} and isinstance(value["$lit"], dict):
++        return [b for v in value["$lit"].values() for b in _walk_blobs(v)]

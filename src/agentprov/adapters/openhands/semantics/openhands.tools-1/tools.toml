@@ -1,0 +1,67 @@
+# Reviewed tool table of openhands.tools@1 (D.17.10): one entry per tool function name the two sources log
+# (phase-10g census: tcm_function). Roles are the E.7.1 vocabulary; integrity is the integrity of the tool's output.
+# Evidence: `description` (the logged tool definitions of the oh-1.5 system action), `observed` (the logged arguments and
+# outputs), `code` (the OpenHands source at a verified commit). A tool not listed is unknown (fail-closed).
+
+[[tool]]
+name = "execute_bash"
+roles = ["execute_sink"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "runs a shell command in the sandbox; the output is whatever the command and the files it reads print"
+
+[[tool]]
+name = "execute_ipython_cell"
+roles = ["execute_sink"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "runs Python code in the sandbox's IPython kernel; the output is the code's"
+
+[[tool]]
+name = "str_replace_editor"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "views, creates and edits files (commands view, create, str_replace, insert); viewed files bring their content"
+
+[[tool]]
+name = "browser"
+roles = ["egress_read", "send_sink"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "drives a browser over the environment's web services (navigation, clicks, form fills); pages are third-party content"
+
+[[tool]]
+name = "web_read"
+roles = ["egress_read"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "fetches a page by URL and returns its text"
+
+[[tool]]
+name = "fetch"
+roles = ["egress_read"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "the MCP fetch tool of the oh-1.5 system action: retrieves a URL"
+
+[[tool]]
+name = "chat"
+roles = ["send_sink"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "sends a message to a simulated colleague (OpenAgentSafety's Sotopia NPC); the reply is the NPC's text"
+
+[[tool]]
+name = "think"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed", "code"]
+reason = "logs a thought; the runtime answers with a fixed text (runtime/base.py)"
+
+[[tool]]
+name = "task_tracker"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "keeps the agent's task list"

@@ -1,0 +1,111 @@
+"""verify-E-10i-4: --context duplicate role (last wins) and a PATH that yields zero vouched files (silent, all unjoined)."""
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import sys
+import tarfile
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+WT = Path.cwd()
+sys.path.insert(0, str(WT / "tests" / "unit" / "raw"))
+sys.path.insert(0, str(WT / "tests" / "adapters" / "agentops"))
+import agentops_support  # noqa: E402
+from fetch_support import git  # noqa: E402
+
+from agentprov.adapters.profiles import load_profile  # noqa: E402
+from agentprov.adapters.runner.importer import ArchiveTree, ContextTree, import_source  # noqa: E402
+from agentprov.cli.common import CommandResult, Context  # noqa: E402
+from agentprov.cli.import_ import _per_unit_inputs  # noqa: E402
+from agentprov.corpus.writer import CorpusWriter  # noqa: E402
+from agentprov.raw.fetch import Fetcher, Recipe  # noqa: E402
+
+REPO = "https://github.com/kunwarshivam/agentops-bench"
+
+
+def _args(cache: Path, **kw: Any) -> argparse.Namespace:
+    base = {"cache_dir": str(cache), "allow_network": False, "dry_run": False, "i_consent_to_large_download": False,
+            "context": [], "no_context": [], "allow_hardlinks": False}
+    return argparse.Namespace(**{**base, **kw})
+
+
+@pytest.fixture
+def setup(tmp_path: Path) -> dict[str, Any]:
+    up = tmp_path / "upstream"
+    for path, data in agentops_support.tasks_files().items():
+        (up / path).parent.mkdir(parents=True, exist_ok=True)
+        (up / path).write_bytes(data)
+    git(up, "init", "-q", "-b", "main"); git(up, "add", "-A"); git(up, "commit", "-q", "-m", "t")
+    commit = git(up, "rev-parse", "HEAD")
+    cache = tmp_path / "cache"
+    Fetcher(cache, allow_network=True, remote_urls={REPO: f"file://{up}"}, file_protocol=True).fetch(
+        Recipe(kind="git", repo=REPO, commit=commit, paths=("tasks/",)))
+    real = load_profile("agentops-bench-pilot")
+    pins = [dict(p) for p in real.data["source"]["pins"]]
+    for p in pins:
+        if p.get("role") == "tasks":
+            p["commit"] = commit
+            p.pop("tree_sha1", None)
+            p["expected_files"] = len(agentops_support.tasks_files())
+    from types import SimpleNamespace
+    profile = SimpleNamespace(id=real.id, data={**real.data, "source": {**real.data["source"], "pins": pins}})
+    return {"up": up, "cache": cache, "profile": profile, "tmp": tmp_path}
+
+
+def test_duplicate_role_last_wins_silently(setup):
+    a = setup["tmp"] / "other"; a.mkdir()
+    args = _args(setup["cache"], context=[f"tasks={a}", f"tasks={setup['up']}"])
+    result = CommandResult(dry_run=False)
+    contexts, _o, local = _per_unit_inputs(args, Context(args), setup["profile"], None, iter([]) and None or
+                                           type("T", (), {"walk": lambda self: iter(())})(), None, result)
+    print("DUP local inputs:", [p.name for p in local], "tree root:", Path(str(contexts[0].tree.root)).name)
+    print("DUP notices:", result.notices)
+    assert local == [setup["up"]]  # only the last; the first is ignored without a word
+
+
+def test_tasks_subdir_path_gives_zero_context_and_exit_0(setup):
+    args = _args(setup["cache"], context=[f"tasks={setup['up'] / 'tasks'}"])
+    result = CommandResult(dry_run=False)
+    contexts, _o, _l = _per_unit_inputs(args, Context(args), setup["profile"], None,
+                                        type("T", (), {"walk": lambda self: iter(())})(), None, result)
+    (ctx,) = contexts
+    print("SUBDIR accepted:", type(ctx.tree).__name__, ctx.pin_check.kind, "notices:", result.notices)
+    # runner with one real run that has a task context
+    tmp = setup["tmp"]
+    label = agentops_support.F["task_with_context"]
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz", format=tarfile.USTAR_FORMAT) as tar:
+        data = agentops_support.run_bytes(label)
+        info = tarfile.TarInfo(label); info.size, info.mtime = len(data), 0
+        tar.addfile(info, io.BytesIO(data))
+    import hashlib
+    raw = buf.getvalue(); (tmp / "traces.tar.gz").write_bytes(raw)
+    runs_pin = dict(next(p for p in load_profile("agentops-bench-pilot").data["source"]["pins"] if p["role"] == "runs"))
+    runs = {**runs_pin, "file": "traces.tar.gz", "sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw),
+            "md5": hashlib.md5(raw, usedforsecurity=False).hexdigest()}
+    tree = ArchiveTree(tmp / "traces.tar.gz", pin=runs, sha256=runs["sha256"], size=runs["bytes"])
+    with CorpusWriter(tmp / "c") as writer:
+        report = import_source("agentops-bench", tree, corpus=writer, profile_id="agentops-bench-pilot",
+                               part="pilot-v1-seeded", pin=runs, in_process=True, until="aer",
+                               context_trees=[ContextTree("tasks", ctx.tree, ctx.pin_check, pin=ctx.pin)])
+    partial = tmp / "c.partial"
+    (row,) = [json.loads(x) for x in (partial / "executions.jsonl").read_text().splitlines()]
+    header = json.loads((partial / row["paths"]["aer"]).read_bytes().split(b"\n", 1)[0])
+    snap = json.loads((partial / "corpus.json").read_text())["sources"][0]["snapshots"][0]
+    reg = (partial / "register.jsonl").read_text() if (partial / "register.jsonl").exists() else ""
+    print("SUBDIR exit:", report.exit_code, "mapped:", report.counters.get("mapped"),
+          "join:", header["ext"]["agentops"]["join"]["status"],
+          "context stored:", [c.get("stored") for c in snap.get("context", [])],
+          "register lines mentioning tasks:", sum(1 for l in reg.splitlines() if ":tasks" in l))
+    assert report.exit_code == 0 and header["ext"]["agentops"]["join"]["status"] == "missing"
+
+
+def test_control_root_path_joins(setup):
+    args = _args(setup["cache"], context=[f"tasks={setup['up']}"])
+    contexts, _o, _l = _per_unit_inputs(args, Context(args), setup["profile"], None,
+                                        type("T", (), {"walk": lambda self: iter(())})(), None, CommandResult(dry_run=False))
+    print("CONTROL ok", type(contexts[0].tree).__name__)

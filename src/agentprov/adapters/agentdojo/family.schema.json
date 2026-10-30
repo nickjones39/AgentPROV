@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/agentdojo/family-0.1.json",
+  "title": "[family.agentdojo] of an AgentDojo-family source profile (docs/architecture D.4.2, D.4.3, D.4.4, D.6.12; closed)",
+  "description": "Closed schema of the family part of agentdojo profiles. Checked by agentprov.adapters.agentdojo.profile (a stdlib subset of JSON Schema: type, properties, additionalProperties, required, items, enum, pattern, minimum) and differentially by jsonschema in the tests. Selector keys (applies) are facet names, checked against the profile layout by agentprov.adapters.agentdojo.profile. Not a published corpus schema (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [],
+  "$defs": {
+    "rule": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]*$"},
+    "selector": {
+      "description": "facet -> fnmatch globs; keys are ANDed, the globs of one key ORed (D.4.1). Facets: the named components of [import] layout, and variant.",
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "properties": {
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_from"],
+      "properties": {
+        "model_from": {
+          "description": "Where the model comes from (D.4.2, D.6.12 item 4): a layout facet (pipeline_dir, model_dir), the logged pipeline_name minus the defence suffix matched by defence_suffix_regex, a results-directory slug mapped by slug_to_model, the live capture, or (results containers, D-470) the container table keyed by container path and served name",
+          "type": "string",
+          "enum": ["pipeline_dir", "model_dir", "pipeline_name_minus_suffix", "results_dir_slug", "capture", "container_table"]
+        },
+        "pipeline_name_policy": {"type": "string", "enum": ["verbatim_unreliable_when_differs", "config_tag_never_model", "constant_not_model"]},
+        "model_dir_fallback": {"description": "model_from = model_dir only: a log whose optional experiment-path component is empty is keyed by this facet (regeneration-batch item 106, D-254 addendum)", "enum": ["pipeline_dir"]},
+        "rule": {"$ref": "#/$defs/rule", "description": "The identity rule (class I) the resolved model is asserted under; default agentdojo.pipeline_dir_is_model_identity@1"},
+        "defence_suffixes": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}},
+        "defence_suffix_regex": {"type": "string", "description": "A Python regex searched at the end of pipeline_name (model_from = pipeline_name_minus_suffix); group 1, or the match without its leading '-', is the defence id"},
+        "on_dir_name_mismatch": {"type": "string", "pattern": "^issue:[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"},
+        "container_table": {
+          "description": "A results-container identity table (D-474): rows {glob, served, model, basis, conflict?, attack?, attack_basis?, defence?, defence_basis?, note?}, shipped with the family and pinned by its sha256 so that the profile digest covers it",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": {"type": "string", "pattern": "^tables/[a-z0-9_.-]+\\.toml$"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "part_tables": {
+          "description": "Per-part identity tables (regeneration-batch item 95, R-10j-2): for a part with its own git pin, the table its files resolve against (a file is the part's when its git origin commit is that pin's)",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256"],
+            "properties": {
+              "path": {"type": "string", "pattern": "^tables/[a-z0-9_.-]+\\.toml$"},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        },
+        "table": {
+          "description": "An identity table shipped with the family (D.4.5), pinned by its sha256 so that the profile digest covers it",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": {"type": "string", "pattern": "^tables/[a-z0-9_.-]+\\.toml$"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
+        "dir": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pipeline_dir", "model", "rule", "basis"],
+            "properties": {
+              "pipeline_dir": {"type": "string"},
+              "pipeline_name": {"type": "array", "items": {"type": "string"}},
+              "model": {"type": "string"},
+              "provider": {"type": "string"},
+              "rule": {"$ref": "#/$defs/rule"},
+              "basis": {"type": "string"}
+            }
+          }
+        },
+        "slug_to_model": {"type": "object", "additionalProperties": {"type": "string"}},
+        "attack_dir_alias": {"type": "object", "additionalProperties": {"type": "string"}},
+        "id_style_corroboration": {"type": "object", "additionalProperties": {"type": "string"}},
+        "collision_note": {"type": "string"}
+      }
+    },
+    "benchmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["benchmark", "suites", "dos_attacks"],
+      "properties": {
+        "benchmark": {"type": "string"},
+        "suites": {"type": "object", "additionalProperties": {"type": "string"}},
+        "version_field": {"type": "string"},
+        "version_label_semantics": {
+          "type": "string",
+          "enum": ["suite_version", "suite_version_for_agentdojo_suites_only", "label_not_suite_version", "cli_default_not_suite_version"]
+        },
+        "version_when_absent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule"],
+          "properties": {"rule": {"type": "string"}}
+        },
+        "history": {
+          "description": "The history table (D.6.16) serving agentdojo.committed_no_later_than@1 and agentdojo.benchmark_era_from_commit@1 for git origins of `repo`: pinned by its sha256 so that the profile digest covers it",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repo", "table"],
+          "properties": {
+            "repo": {"type": "string", "pattern": "^https://[a-z0-9.-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"},
+            "table": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "sha256"],
+              "properties": {
+                "path": {"type": "string", "pattern": "^tables/[a-z0-9_.-]+\\.toml$"},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+              }
+            }
+          }
+        },
+        "dos_attacks": {"type": "array", "items": {"type": "string"}},
+        "semantics_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version"],
+          "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}
+        }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code_identity", "verified_code"],
+      "properties": {
+        "code_identity": {"type": "string", "enum": ["pinned", "range", "unpinned"]},
+        "retry_semantics": {"type": "string", "enum": ["agentdojo.final_content_none_max3", "agentdyn.last_assistant_content_none_max3", "agentdojo.single_pass"]},
+        "tool_output_format": {"type": "string"},
+        "verified_code": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["commit"],
+            "properties": {
+              "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+              "applies": {"$ref": "#/$defs/selector"},
+              "note": {"type": "string"}
+            }
+          }
+        },
+        "system_prompt_variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "source": {"type": "string"},
+              "key": {"type": "string"},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "note": {"type": "string"},
+              "applies": {"$ref": "#/$defs/selector"}
+            }
+          }
+        }
+      }
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "applies", "rules"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^agentdojo\\.[a-z][a-z0-9_]*$"},
+          "applies": {"$ref": "#/$defs/selector"},
+          "rules": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+          "params": {"type": "object"},
+          "observed": {
+            "type": "object",
+            "additionalProperties": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+          },
+          "evidence": {"type": "string"},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "outcomes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["judgements", "origin_rules"],
+      "properties": {
+        "judgements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "field"],
+            "properties": {"name": {"type": "string"}, "field": {"type": "string"}}
+          }
+        },
+        "origin_rules": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "attack_provenance": {
+      "description": "autodojo-via-rope (D.4.4): the payload-cache provenance the ROPE mapping consults for cells of this attack",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attack", "cache_repo", "cache_commit", "link_rule"],
+      "properties": {
+        "attack": {"type": "string"},
+        "cache_repo": {"type": "string"},
+        "cache_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "rope_caches": {"type": "string"},
+        "link_rule": {"$ref": "#/$defs/rule"},
+        "table": {
+          "description": "The variant-0 digest table of the caches (D.6.13), package data pinned by its sha256 so that the profile digest covers it",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": {"type": "string", "pattern": "^tables/[a-z0-9_.-]+\\.json$"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      }
+    },
+    "redact": {
+      "description": "Redaction of workstation account paths in the AER copies of logged strings (D-476, the D-182 design): rules {id, scope, pattern, replacement, leaf?, note?}, checked further by agentprov.adapters.agentdojo.redact.parse_redact_rules",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "pattern", "replacement"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "scope": {"type": "string", "enum": ["model_id", "pipeline_name"]},
+          "pattern": {"type": "string"},
+          "replacement": {"type": "string"},
+          "leaf": {"type": "string"},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "live": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "project", "llm_element_default", "pins", "instrumentation_accepted"],
+      "properties": {
+        "backend": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "project": {"type": "string"},
+        "llm_element_default": {"type": "string", "enum": ["native", "gateway_compat"]},
+        "pins": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "distribution": {"type": "string"},
+            "version": {"type": "string"},
+            "wheel_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "repo": {"type": "string"},
+            "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+            "subdirectory": {"type": "string"}
+          }
+        },
+        "guarded_sources": {"type": "array", "items": {"type": "string"}},
+        "asserts": {"type": "array", "items": {"type": "string"}},
+        "refuse": {"type": "array", "items": {"type": "string"}},
+        "defences": {
+          "description": "D-670: the live defence registry ids (backends/shared/src/agentprov_backend/defences.toml) a defended live run may use; absent means none",
+          "type": "array",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+        },
+        "instrumentation_accepted": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+        "instrumentation_extra": {"type": "array", "items": {"$ref": "#/$defs/rule"}},
+        "attack_cache": {
+          "description": "An attack that replays a cache file staged by T0 (D.11.3 rule 5, D.11.9): the cell's attack_params members naming its sha256 and variant, the staging label and the media type of the supporting raw artefact",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attack", "sha256_param", "variant_param", "label", "media"],
+          "properties": {
+            "attack": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "sha256_param": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "variant_param": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+            "label": {"type": "string", "pattern": "^raw/[a-z0-9_-]+(/[a-z0-9_.-]+)+$"},
+            "media": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+"""D-560 rows vs the seal-time exclusion matcher (corpus.manifest.is_exclusion / snapshot_counts)."""
+import hashlib, io, json, sys, tarfile, tempfile
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "agentops"))
+import agentops_support
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner.importer import ArchiveTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+from agentprov.corpus.register import RegisterEntry
+from agentprov.corpus.manifest import is_exclusion, snapshot_counts
+
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+label = agentops_support.F["task_with_context"]
+oos = ["pilot_v1_seeded/gpt55/openai_gpt-5.5/clean/code_001_run1.json", "pilot_v1_seeded/gpt55/openai_gpt-5.5/noisy/research_011_run2.json"]
+roll = ["pilot_v1_seeded/gpt55/gpt55_report.json"]
+buf = io.BytesIO()
+with tarfile.open(fileobj=buf, mode="w:gz", format=tarfile.USTAR_FORMAT) as tar:
+    for name, data in [(label, agentops_support.run_bytes(label)), *((n, b"{}") for n in oos + roll)]:
+        info = tarfile.TarInfo(name); info.size, info.mtime = len(data), 0; tar.addfile(info, io.BytesIO(data))
+(tmp / "traces.tar.gz").write_bytes(buf.getvalue())
+prof = load_profile("agentops-bench-pilot")
+runs = dict(next(p for p in prof.data["source"]["pins"] if p["role"] == "runs"))
+pin = {**runs, "file": "traces.tar.gz", "sha256": hashlib.sha256(buf.getvalue()).hexdigest(), "bytes": len(buf.getvalue()),
+       "md5": hashlib.md5(buf.getvalue(), usedforsecurity=False).hexdigest()}
+tree = ArchiveTree(tmp / "traces.tar.gz", pin=pin, sha256=pin["sha256"], size=pin["bytes"])
+with CorpusWriter(tmp / "c") as w:
+    rep = import_source("agentops-bench", tree, corpus=w, profile_id="agentops-bench-pilot", part="pilot-v1-seeded", pin=pin, in_process=True, until="aer")
+part = tmp / "c.partial"
+reg = [RegisterEntry.from_json(json.loads(l)) for l in (part / "register.jsonl").read_text().splitlines()]
+snap = json.loads((part / "corpus.json").read_text())["sources"][0]["snapshots"][0]
+print("working counts:", snap["counts"])
+exclude = prof.data["import"]["exclude"]
+sel = [e for e in reg if e.stage == "select"]
+print("select rows:", [(e.subject["path"], e.code) for e in sel])
+sid = snap["snapshot_id"]
+print("snapshot_id:", sid, "row snapshot ids:", sorted({e.subject.get("snapshot_id") for e in sel}))
+from agentprov.corpus.spec import selection_of
+from agentprov.corpus.reader import CorpusReader
+print("exclude globs:", [(e["glob"], e.get("code")) for e in exclude])
+print("is_exclusion:", [is_exclusion(e, sid, exclude) for e in sel])
+from agentprov.corpus.manifest import glob_match
+print("glob vs member label:", [any(glob_match(e.subject["path"].rsplit("!/",1)[1], x["glob"]) for x in exclude) for e in sel])
+rows = []  # index rows only add executions; omitted
+print("seal-time snapshot_counts:", snapshot_counts(rows, reg, sid, exclude, all_snapshots=[sid]))

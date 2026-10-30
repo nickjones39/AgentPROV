@@ -1,0 +1,33 @@
+"""A container plan job that fails once (transient worker limit), then the import is resumed and succeeds."""
+import hashlib, io, json, sys, tempfile, zipfile
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "tests/adapters/inspect"))
+import inspect_support as insp
+import agentprov.adapters.runner as runner_pkg
+from agentprov.adapters.runner.importer import ArchiveTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+from agentprov.io.workers import WorkerLimitError
+
+h = insp.synthetic_header(); s = insp.basic_sample("s0")
+ev = insp.build_eval(h, {"s0_epoch_1.json": s})
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w") as z:
+    i = zipfile.ZipInfo("agentharm/results/m/a.eval", (2026, 6, 10, 0, 0, 0)); i.compress_type = zipfile.ZIP_STORED; z.writestr(i, ev)
+data = buf.getvalue()
+tmp = Path(tempfile.mkdtemp(dir="repro/D2-5"))
+(tmp / "logs.zip").write_bytes(data); sha = hashlib.sha256(data).hexdigest()
+pin = {"role": "fixture", "kind": "zenodo", "doi": "10.5281/zenodo.7", "record": 7, "file": "logs.zip", "sha256": sha, "bytes": len(data)}
+original = runner_pkg._job_map_container
+def flaky(ctx, limits):
+    raise WorkerLimitError("wall")
+for attempt, fn in ((1, flaky), (2, original)):
+    runner_pkg._job_map_container = fn
+    tree = ArchiveTree(tmp / "logs.zip", pin=pin, sha256=sha, size=len(data))
+    with CorpusWriter(tmp / "corpus") as w:
+        rep = import_source("agent-security-tools-survey", tree, corpus=w, profile_id="survey-agentharm", part="agentharm",
+                            pin=pin, in_process=True, until="aer")
+    print("run", attempt, "exit", rep.exit_code, {k: v for k, v in rep.counters.items() if v})
+p = Path(rep.corpus_root)
+print("index rows:", [(r["ex"][:10], r["status"]) for r in map(json.loads, (p / "executions.jsonl").read_text().splitlines())])
+for r in map(json.loads, (p / "register.jsonl").read_text().splitlines()):
+    print("register:", r["code"], r["disposition"], r["subject"], r["detail"])

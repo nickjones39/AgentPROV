@@ -1,0 +1,80 @@
+"""P3-1: an AGENTS.md conflict before gen_docs migration is 'resolved' by checkout --ours, losing branch B's edit."""
+from __future__ import annotations
+
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(REPO / "tools"))
+import merge_train as mt  # noqa: E402
+
+
+def git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def write(repo: Path, rel: str, text: str) -> None:
+    p = repo / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(text, encoding="utf-8")
+
+
+def commit(repo: Path, msg: str) -> str:
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", msg)
+    return git(repo, "rev-parse", "HEAD")
+
+
+@pytest.fixture(autouse=True)
+def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    home = tmp_path / "home"
+    empty = tmp_path / "empty.gitconfig"
+    empty.write_text("")
+    monkeypatch.setenv("AGENTPROV_HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", "T")
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", "t@example.invalid")
+    return home
+
+
+def test_unmigrated_agents_md_conflict_is_not_silently_resolved(tmp_path: Path, env: Path,
+                                                                monkeypatch: pytest.MonkeyPatch) -> None:
+    origin = tmp_path / "origin.git"
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
+    work = tmp_path / "work"
+    git(tmp_path, "clone", "-q", str(origin), str(work))
+    # Real generator (unmigrated: no fragment dirs), as on main today.
+    for t in ("gen_docs.py", "_workflow.py"):
+        write(work, f"tools/{t}", (REPO / "tools" / t).read_text())
+    write(work, "AGENTS.md", "# AGENTS\n\n## 12. Open issues\n\n- base issue\n")
+    commit(work, "base")
+    git(work, "push", "-q", "origin", "HEAD:refs/heads/main")
+    git(work, "fetch", "-q", "origin")
+    shas = {}
+    for name, line in (("A", "- issue A\n"), ("B", "- issue B\n")):
+        git(work, "switch", "-q", "-c", name, "origin/main")
+        write(work, "AGENTS.md", "# AGENTS\n\n## 12. Open issues\n\n- base issue\n" + line)
+        shas[name] = commit(work, name)
+        git(work, "switch", "-q", "--detach", "origin/main")
+    # Real resolver patterns; command uses this interpreter instead of `uv run python` (same script).
+    real = next(r for r in mt.RESOLVERS if r.name == "generated docs")
+    patched = mt.Resolver(real.name, real.tool, real.patterns, (sys.executable, "tools/gen_docs.py", "--write"))
+    monkeypatch.setattr(mt, "RESOLVERS", (patched,))
+    rc = mt.main(["-C", str(work), "plan", "A", "B", "--allow-unverified", "--sessions-dir", str(tmp_path / "s")])
+    rep = json.loads(max((env / "merge-train").glob("*/report.json")).read_text())
+    entries = rep.get("merged", []) + rep.get("attempted", [])
+    print("rc", rc, "outcomes", [(e["branch"], e.get("outcome")) for e in entries])
+    for e in entries:
+        for r in e.get("resolved_by", []):
+            print("resolver output:", r["output"].strip().replace("\n", " | "), "exit", r["exit"])
+    merged = (Path(rep["worktree"]) / "AGENTS.md").read_text()
+    print("merged AGENTS.md:", repr(merged))
+    # Expected: either the train stops on the conflict, or B's line survives.
+    assert rc != 0 or "- issue B" in merged, "B's AGENTS.md edit silently dropped; outcome 'resolved'"

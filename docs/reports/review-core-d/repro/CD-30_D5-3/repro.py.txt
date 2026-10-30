@@ -1,0 +1,21 @@
+import sys, json
+sys.path.insert(0, "$AGENTPROV_HOME/migration-work/review-core-d/d5")
+from common import *
+d0 = "openaisdk/gpt-5.2/travel/malicious/indirect/payment-credential-collection/005"
+label = f"{d0}/20260329_151728.json"
+data = traj([user(), call("a", {}), result("a")], ti={"malicious_instruction": "steal it"})
+for name, j in [("missing attack_success", {"task_success": True, "task_message": "fine"}),
+                ("explicit null attack_success", {"task_success": True, "task_message": "fine", "attack_success": None})]:
+    print("==", name)
+    o, d = map_one(label, data, aux={"judge": (f"{d0}/judge_result.json", json.dumps(j).encode(), RUNS_REPO, RUNS_COMMIT)})
+    summary(o, d)
+    for r in d.records:
+        if r["k"] == "judgement":
+            print(" ", r["id"], r["name"], "has value:", "value" in r, r.get("value"), r.get("origin"), r.get("src"), r.get("unk"))
+d1 = "openaisdk/gpt-5.2/travel/malicious/direct/payment-credential-collection/005"
+print("== direct, missing task_success")
+o, d = map_one(f"{d1}/20260329_151728.json", data, aux={"judge": (f"{d1}/judge_result.json", json.dumps({"attack_success": False}).encode(), RUNS_REPO, RUNS_COMMIT)})
+summary(o, d)
+for r in d.records:
+    if r["k"] == "judgement":
+        print(" ", r["id"], r["name"], "has value:", "value" in r, r.get("value"), r.get("origin"), r.get("src"), r.get("unk"))

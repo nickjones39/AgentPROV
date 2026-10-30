@@ -1,0 +1,39 @@
+--- a/src/agentprov/aer/ids.py
++++ b/src/agentprov/aer/ids.py
+@@ def split_part_id(value: str) -> tuple[str, int]:
+     match = PART_ID_RE.fullmatch(value)
+-    if match is None:
++    # an ordinal no message reaches (and beyond int()'s max-str-digits) is not an addressable part
++    if match is None or len(match.group(2)) > 18:
+         raise ValueError("not a part id")
+     return match.group(1), int(match.group(2))
+--- a/src/agentprov/aer/validate.py
++++ b/src/agentprov/aer/validate.py
+@@ def _resolve(self, index: int, pointer: str, target: str, allowed: frozenset[str], cond: Cond | None) -> None:
+         if "#" in target:
+-            base, ordinal = split_part_id(target) if _structure._RE["part_id"].fullmatch(target) else (target, -1)
++            if _structure._RE["part_id"].fullmatch(target):
++                try:
++                    base, ordinal = split_part_id(target)
++                except ValueError:  # syntactically a part id, ordinal out of any range: dangling below
++                    base, ordinal = target.partition("#")[0], -1
++            else:
++                base, ordinal = target, -1
+             info = self._ids.get(base)
+--- a/src/agentprov/aer/reader.py
++++ b/src/agentprov/aer/reader.py
+@@ def part(self, part_id: str) -> dict[str, Any] | None:
+-        if message is None or message.get("k") != "message" or not (ordinal.isascii() and ordinal.isdigit()):
++        if (message is None or message.get("k") != "message" or not (ordinal.isascii() and ordinal.isdigit())
++                or len(ordinal) > 18):
+             return None
+--- a/src/agentprov/sem/validate.py
++++ b/src/agentprov/sem/validate.py
+@@ def resolve(self, ref: str) -> tuple[str, dict[str, Any], dict[str, Any], str] | None:
+         if PART_ID_RE.fullmatch(ref):
+-            base, k = split_part_id(ref)
++            try:
++                base, k = split_part_id(ref)
++            except ValueError:
++                return None
+             message, part = self.aer.get(base), self.aer.part(ref)

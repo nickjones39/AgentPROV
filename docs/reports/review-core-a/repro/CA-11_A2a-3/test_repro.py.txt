@@ -1,0 +1,49 @@
+"""SEM-V09: JSON booleans must not satisfy numeric enum members (true != 1 in JSON Schema)."""
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(".")
+sys.path.insert(0, str(REPO / "tests/unit/sem"))
+
+from agentprov.io.jsonschema_subset import check_against_schema  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    ("value", "schema"),
+    [
+        (True, {"enum": [1]}),
+        (False, {"enum": [0]}),
+        (1, {"enum": [True]}),
+        ({"n": True}, {"type": "object", "properties": {"n": {"enum": [1]}}}),
+        ([True], {"type": "array", "items": {"enum": [0, 1]}}),
+    ],
+)
+def test_bool_is_not_a_number_in_enum(value, schema):
+    assert check_against_schema(value, schema) != []
+
+
+@pytest.mark.parametrize(("value", "schema"), [(1.0, {"enum": [1]}), (1, {"enum": [1.0]}), (True, {"enum": [True]})])
+def test_numeric_equality_kept(value, schema):
+    assert check_against_schema(value, schema) == []
+
+
+def test_sem_validator_reports_bool_against_numeric_enum():
+    from sem_support import StubProfile, ann, example_registry, synthetic_aer
+
+    from agentprov.sem.engine import annotate
+    from agentprov.sem.validate import validate_sem_document
+
+    aer = synthetic_aer()
+    reg = example_registry()
+    ns = {"tst.flag": {"enum": [0, 1]}, "tst.lvl": {"type": "object", "properties": {"n": {"enum": [1]}}}}
+    prof = StubProfile(
+        (ann("te0", "tst.flag", True), ann("te0", "tst.lvl", {"n": True})),
+        id="tst.syn", rules={"tst": 1}, ns=ns,
+    )
+    doc = annotate(aer, prof)
+    for profile in (prof, None):
+        rep = validate_sem_document(doc, aer, catalogues=reg, profile=profile)
+        codes = [f.code for f in rep.findings]
+        assert codes.count("sem.value.schema") == 2, (profile, codes)

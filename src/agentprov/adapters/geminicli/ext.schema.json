@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/geminicli/ext-0.1.json",
+  "title": "ext.geminicli of AER records written by the geminicli.stream_json mapper (C.10; D.23.3; closed member list)",
+  "description": "Verbatim gemini-cli and harness fields without a core slot, and the mapper's recorded checks (sidecars, manifest). Values copied from the source are untrusted, open JSON; the member names are closed. Not a published corpus schema in v0.1 (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "label_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cell", "scaffold", "model", "mutation", "skeleton", "variant", "file"],
+      "properties": {
+        "cell": {"type": "string"}, "scaffold": {"type": "string"}, "model": {"type": "string"},
+        "mutation": {"type": "string"}, "skeleton": {"type": "string", "pattern": "^SK-[A-Z0-9]+$"},
+        "variant": {"type": "string", "pattern": "^m[0-9]{2}$"}, "file": {"type": "string"}
+      },
+      "description": "execution: the member label's facets (D.23.1), the logical identity of the rollout"
+    },
+    "session_id": {"description": "execution: the init event's session_id verbatim"},
+    "cli_model": {"description": "execution: the init event's model verbatim, the CLI's configured name (D-333)"},
+    "verdict": {"description": "execution: verdict.json verbatim (D-335: exit_code, timed_out and elapsed_sec are never corrected)"},
+    "meta": {"description": "execution: gemini_meta.json verbatim (exit_code, elapsed_sec)"},
+    "result": {"description": "execution: the result event's status, stats and error verbatim"},
+    "sidecars": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "pattern": "^a[0-9]+$"},
+      "description": "execution: auxiliary role -> header artefact id (geminicli.sibling_join@1); roles with identical bytes share one id"
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["agrees", "differs", "not_listed", "missing", "unparseable"]},
+        "fields": {"type": "array", "items": {"enum": ["elicited", "timed_out", "n_misaligned", "exit_code"]}}
+      },
+      "description": "execution: the manifest cross-check (geminicli.manifest_agrees@1)"
+    },
+    "chunks": {
+      "type": "array",
+      "items": {"type": "array", "minItems": 4, "maxItems": 4},
+      "description": "assistant message: one [line, characters, delta flag, timestamp] per streamed delta, in order"
+    },
+    "calls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["part", "tool_id", "line", "timestamp"],
+        "properties": {"part": {"type": "integer", "minimum": 0}, "tool_id": {}, "line": {"type": "integer", "minimum": 0}, "timestamp": {}}
+      },
+      "description": "assistant message: the tool_use event of each call part (the CLI's tool_id, its line and time)"
+    },
+    "tool_id": {"description": "tool_execution and tool message: the CLI's tool_id verbatim"},
+    "error": {"description": "tool_execution: the tool_result's error object verbatim"},
+    "timestamp": {"description": "message or activity: the event's timestamp verbatim (emission time, geminicli.event_time_is_emission_unverified@1)"},
+    "severity": {"description": "activity (CLI notice): the error event's severity verbatim"}
+  }
+}

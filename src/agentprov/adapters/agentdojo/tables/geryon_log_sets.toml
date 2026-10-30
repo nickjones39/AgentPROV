@@ -1,0 +1,285 @@
+# Identity table `geryon_log_sets` (docs/architecture D.4.5): one row per run-set/log-set directory of
+# luiacuaniello/geryon at the pinned commit 905aae02c4185454ffbdb64a8bae6a042f6d7047 (28 directories, 3,179 v0.k11 logs under
+# results/<run set>/<log set>/<pipeline dir>/).
+#
+# Keyed by the two directories above the pipeline directory because the defence is a property of the log set, not of the
+# model: docs/running-progent.md at the pin defines condition A (no defence, SECAGENT_SUITE unset) and condition B (Progent
+# switched on by SECAGENT_SUITE=<suite>, the same code otherwise), and each log set is named logs-<suite>-<A|B>-r<repeat>
+# (phase-10d check: Progent's 'The tool ... is not allowed' denials occur in B log sets only). Every value is asserted
+# under `agentdojo.pipeline_dir_is_model_identity@1` (class I). `model` is the Amazon Bedrock model id of the single pipeline
+# directory under the log set, which equals the logged pipeline_name (compared by the mapper through `pipeline_name`).
+# No condition-C log set is released.
+#
+# `defence_model` (D-588, regeneration-batch item 112): the model Progent's policy generation ran on, read from the log set's
+# run record results/<run set>/<suite>-B-r<n>.json (`provenance.policy_model`) and asserted under the same rule (class I).
+# The qwen3-235b policy arms (runs-strong-policy before the prompt patch, runs-strong-policy-fixed after it) and the
+# gpt-oss-120b ones then differ in the defence actor, not only in the origin path. runs-claude-policy has no run record, so
+# its row has no `defence_model` (the defence's model stays not recorded). The prompt patch itself is not an identity
+# field; the run set in the origin path separates the two qwen3-policy arms. Nothing is excluded: results/README.md
+# declares runs-strong-policy and runs-claude-policy unusable, and both are kept.
+
+[[dir]]
+name = "runs-claude-policy/logs-banking-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-B-r1: condition B of docs/running-progent.md (Progent on); 1 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set-strong-agent/logs-banking-A-r1"
+model = "qwen.qwen3-235b-a22b-2507"
+defence = "none"
+pipeline_name = "qwen.qwen3-235b-a22b-2507"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r1: condition A of docs/running-progent.md (no defence); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set-strong-agent/logs-banking-B-r1"
+model = "qwen.qwen3-235b-a22b-2507"
+defence = "progent"
+pipeline_name = "qwen.qwen3-235b-a22b-2507"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r1: condition B of docs/running-progent.md (Progent on); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set-strong-agent/banking-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-banking-A-r1"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r1: condition A of docs/running-progent.md (no defence); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set/logs-banking-A-r2"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r2: condition A of docs/running-progent.md (no defence); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set/logs-banking-A-r3"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r3: condition A of docs/running-progent.md (no defence); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set/logs-banking-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r1: condition B of docs/running-progent.md (Progent on); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/banking-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-banking-B-r2"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r2: condition B of docs/running-progent.md (Progent on); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/banking-B-r2.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-banking-B-r3"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r3: condition B of docs/running-progent.md (Progent on); 153 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/banking-B-r3.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-slack-A-r1"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-slack-A-r1: condition A of docs/running-progent.md (no defence); 110 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set/logs-slack-A-r2"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-slack-A-r2: condition A of docs/running-progent.md (no defence); 110 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set/logs-slack-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-slack-B-r1: condition B of docs/running-progent.md (Progent on); 110 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/slack-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-slack-B-r2"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-slack-B-r2: condition B of docs/running-progent.md (Progent on); 110 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/slack-B-r2.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-slack-B-r3"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-slack-B-r3: condition B of docs/running-progent.md (Progent on); 110 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/slack-B-r3.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-travel-A-r1"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-travel-A-r1: condition A of docs/running-progent.md (no defence); 105 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-full-set/logs-travel-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-travel-B-r1: condition B of docs/running-progent.md (Progent on); 105 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/travel-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs-full-set/logs-travel-B-r2"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-travel-B-r2: condition B of docs/running-progent.md (Progent on); 105 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-full-set/travel-B-r2.json (D-588)"
+
+[[dir]]
+name = "runs-strong-agent/logs-banking-A-r1"
+model = "qwen.qwen3-235b-a22b-2507"
+defence = "none"
+pipeline_name = "qwen.qwen3-235b-a22b-2507"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r1: condition A of docs/running-progent.md (no defence); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-strong-agent/logs-banking-A-r2"
+model = "qwen.qwen3-235b-a22b-2507"
+defence = "none"
+pipeline_name = "qwen.qwen3-235b-a22b-2507"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r2: condition A of docs/running-progent.md (no defence); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-strong-agent/logs-banking-A-r3"
+model = "qwen.qwen3-235b-a22b-2507"
+defence = "none"
+pipeline_name = "qwen.qwen3-235b-a22b-2507"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r3: condition A of docs/running-progent.md (no defence); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs-strong-policy-fixed/logs-banking-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "qwen.qwen3-235b-a22b-2507"
+basis = "log set logs-banking-B-r1: condition B of docs/running-progent.md (Progent on); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-strong-policy-fixed/banking-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs-strong-policy/logs-banking-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "qwen.qwen3-235b-a22b-2507"
+basis = "log set logs-banking-B-r1: condition B of docs/running-progent.md (Progent on); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs-strong-policy/banking-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs/logs-banking-A-r1"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r1: condition A of docs/running-progent.md (no defence); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs/logs-banking-A-r2"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r2: condition A of docs/running-progent.md (no defence); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs/logs-banking-A-r3"
+model = "openai.gpt-oss-120b"
+defence = "none"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+basis = "log set logs-banking-A-r3: condition A of docs/running-progent.md (no defence); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock)"
+
+[[dir]]
+name = "runs/logs-banking-B-r1"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r1: condition B of docs/running-progent.md (Progent on); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs/banking-B-r1.json (D-588)"
+
+[[dir]]
+name = "runs/logs-banking-B-r2"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r2: condition B of docs/running-progent.md (Progent on); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs/banking-B-r2.json (D-588)"
+
+[[dir]]
+name = "runs/logs-banking-B-r3"
+model = "openai.gpt-oss-120b"
+defence = "progent"
+pipeline_name = "openai.gpt-oss-120b"
+provider = "bedrock"
+provider_evidence = "I"
+defence_model = "openai.gpt-oss-120b"
+basis = "log set logs-banking-B-r3: condition B of docs/running-progent.md (Progent on); 99 logs; model = the pipeline directory under it (a Bedrock model id; the README and docs/running-progent.md run AgentDojo through Amazon Bedrock); defence_model = the policy_model of the run record results/runs/banking-B-r3.json (D-588)"

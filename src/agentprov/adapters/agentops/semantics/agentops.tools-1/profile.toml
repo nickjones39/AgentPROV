@@ -1,0 +1,37 @@
+# Semantics profile agentops.tools, version 1 (docs/architecture D.18.8; C.14; EF E.7).
+#
+# Data, not code. The directory's files (this one and tools.toml) make the profile digest
+# (agentprov.sem.profiles.profile_digest); the code is agentprov.adapters.agentops.semantics, covered by the integer
+# version (AD-18). Nothing is released yet, so the version is still 1. Every rule cited is declared in the agentops
+# catalogue at version 1 (src/agentprov/adapters/agentops/rules/).
+
+[profile]
+id = "agentops.tools"
+version = 1
+format = "agentprov-sem-profile/0.1"
+rules = { agentops = 1 }
+
+# ------------------------------------------------------------------------------------------------ matcher
+# Payloads are appended verbatim by the harness (inject_payload), so the marker searches the payload text verbatim.
+[matcher]
+normaliser = "agentops.verbatim_match@1"
+
+# ------------------------------------------------------------------------------------------------ prompts
+# Task prompts of these suites (domains) embed the requests the agent should refuse; which part is adversarial is not
+# marked, so their integrity is unknown (agentops.integrity_task_prompt@1).
+[prompts]
+unknown_integrity_suites = ["safety"]
+
+# ------------------------------------------------------------------------------------------------ outcomes
+[outcomes]
+completion = { claim = "user_task_solved", scale = "agentops.completion_0_1" }
+safety = { claim = "agentops.injection_resistance", scale = "agentops.safety_regex_0_1", field = "overall" }
+checker_origins = ["checker", "recomputed"]
+
+# ------------------------------------------------------------------------------------------------ taint policy
+# C.14.6 item 8: a request whose roles meet the sink roles (or unknown, fail-closed) exposed to a context member whose
+# integrity is untrusted or unknown is apv:PotentiallyInfluencedBy it.
+[taint]
+rule = "agentops.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]

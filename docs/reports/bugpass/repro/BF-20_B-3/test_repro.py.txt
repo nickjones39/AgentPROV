@@ -1,0 +1,48 @@
+"""B-3: recompute/derive/rederive on a sealed corpus with object-level withholding refuse with raw.object.missing.
+Spec HL H.4.5(6): such a re-derive 'reports those outputs unverified', it should not refuse the whole corpus."""
+import json
+import sys
+from pathlib import Path
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+T = REPO / "tests"
+for p in (T / "unit" / "aer", T / "adapters", T / "adapters" / "agentdojo", T / "unit" / "raw", T / "security",
+          T / "corpus", T / "unit" / "corpus", T / "unit" / "release", T / "adapters" / "inspect"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+
+import corpus_harness as harness  # noqa: E402
+from test_sec25_withhold_issue import HEAD, ISSUE_RULE, _inject, _package, corpus, working_template  # noqa: E402,F401
+
+cli = harness.cli
+
+
+def _sealed(cli, corpus, monkeypatch, policy):
+    if policy:
+        _inject(monkeypatch, HEAD + ISSUE_RULE)
+    run = _package(cli, corpus)
+    assert run.code == 0, run.err
+    return corpus["root"]
+
+
+def test_control_no_policy(cli, corpus, monkeypatch):
+    root = _sealed(cli, corpus, monkeypatch, policy=False)
+    assert not (root / "WITHHELD.json").exists()
+    r = cli("recompute", "--corpus", str(root), "--dry-run")
+    print("control recompute exit", r.code, r.out.strip()[-200:], file=sys.__stderr__)
+    assert r.code == 0, r.err
+
+
+def test_recompute_after_withhold(cli, corpus, monkeypatch):
+    root = _sealed(cli, corpus, monkeypatch, policy=True)
+    doc = json.loads((root / "WITHHELD.json").read_text())
+    print("withheld bases:", sorted(e["basis"] for e in doc["entries"]),
+          "released rows:", len((root / "executions.jsonl").read_text().splitlines()), file=sys.__stderr__)
+    assert cli("verify", "--corpus", str(root), "--level", "chain").code == 0
+    results = {}
+    for name, argv in (("recompute", ("recompute", "--corpus", str(root), "--dry-run")),
+                       ("rederive", ("verify", "--corpus", str(root), "--level", "rederive"))):
+        r = cli(*argv)
+        results[name] = (r.code, "raw.object.missing" in (r.err + r.out))
+        print(name, "exit", r.code, "err:", r.err.strip()[-250:], file=sys.__stderr__)
+    assert all(code == 0 and not missing for code, missing in results.values()), results

@@ -1,0 +1,246 @@
+{
+ "corpus_id": "linyxus-agentdojo",
+ "parts": [
+  "head"
+ ],
+ "wave": 3,
+ "written": "2026-10-14",
+ "code_commit": "065b0d36",
+ "status": "desk research for the pre-registration; no data check of this corpus has run. Counts marked 'git tree' come from the GitHub trees API listing of the pin and of earlier commits (paths, blob ids and sizes only, no blob content); counts marked 'census' are our own phase-10c/10d reports (summaries only). Outcome rates were NOT tallied from the per-file census.",
+ "papers": [
+  {
+   "title": "Tracking Capabilities for Safer Agents (Odersky, Zhao, Xu, Bracevac, Pham; EPFL). Introduces TACIT (Tracked Agent Capabilities In Types), a Scala 3 capture-checking safety harness exposed as an MCP server",
+   "url": "https://arxiv.org/abs/2603.00991v2",
+   "id": "arXiv:2603.00991; DOI 10.48550/arXiv.2603.00991; related DOI 10.1145/3786335.3813127 (ACM CAIS 2026, as 'Securing Agents With Tracked Capabilities', https://caisconf.org/program/2026/papers/securing-agents-with-tracked-capabilities/)",
+   "versions": "v1 2026-03-01 (4,774 KB): NO stock-AgentDojo evaluation (only a custom Scala-project benchmark, Tables 1-2, Claude Sonnet 4.6 / MiniMax M2.5; https://arxiv.org/html/2603.00991v1). v2 2026-05-07 (4,781 KB, current): adds the 'Stock AgentDojo domains' paragraph in Sec. 4.1 and Appendix E.2 Table 4 (gemini-2.5-pro and o4-mini-high, tacit vs CaMeL, banking/workspace/slack/travel). v2 postdates the tacit-exp head 4bd1de08 (2026-04-24) and predates every lacuna-runs commit. Licence CC BY 4.0 (paper text).",
+   "relation": "the TACIT paper: its v2 Table 4 is the published result of the runs-* run sets (o4-mini-high and gemini-2.5-pro tacit arms). Code link in the paper is github.com/lampepfl/tacit (Apache-2.0); it does not link Linyxus/agentdojo or the logs. Yichen Xu (fork author, commit author name) is a co-author."
+  },
+  {
+   "title": "LACUNA: Safe Agents as Recursive Program Holes (Zhao, Xu, Bracevac, Pham, Wu, Odersky)",
+   "url": "https://arxiv.org/abs/2605.28617v1",
+   "id": "arXiv:2605.28617",
+   "versions": "v1 only, 2026-05-27 (arXiv API, checked 2026-10-14)",
+   "relation": "Sec. 7.4 'Capability Safety Under Prompt Injection', Table 3: the LACUNA rows are the published result of the lacuna-runs-0/-1 run sets (the fork's util_scripts/render_lacuna_results.py renders exactly these directories); TACIT rows are copied from arXiv:2603.00991 and CaMeL rows from Debenedetti et al. 2025. Related code: github.com/noti0na1/lacuna (Apache-2.0, created 2026-05-03), not linked to the logs."
+  },
+  {
+   "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+   "url": "https://arxiv.org/abs/2406.13352",
+   "id": "arXiv:2406.13352",
+   "relation": "benchmark and harness that the fork vendors (CITATION.bib at the pin is upstream's)"
+  },
+  {
+   "title": "Defeating Prompt Injections by Design (CaMeL; Debenedetti et al. 2025)",
+   "url": "https://arxiv.org/abs/2503.18813",
+   "id": "arXiv:2503.18813",
+   "relation": "source of the CaMeL comparison rows in both tables; no CaMeL logs are in this corpus"
+  }
+ ],
+ "repo": "https://github.com/Linyxus/agentdojo (fork of ethz-spylab/agentdojo; MIT; created 2026-02-12; issues disabled; 0 stars; pushed 2026-05-24T13:32:20Z; https://api.github.com/repos/Linyxus/agentdojo). Branches on 2026-10-14: main 18b501a6 (= upstream merge base, 2026-03-30, no runs), tacit-exp 4bd1de08 (2026-04-24, 7,367 logs), lacuna-exp 698d7ff29cac4bb5dccb5ed2d06f5e8364547a97 (our pin = branch HEAD, unchanged since 2026-05-24T13:32:16Z 'Add a script'; 81 commits ahead / 1 behind upstream main). All 7,367 tacit-exp logs are present at the pin with identical blob ids (4,433 at the same path, 2,934 moved runs/ -> runs-4 by commits 5bd12ee5 etc. 2026-05-20 'rename'); 0 changed (git tree). Timeline (commit list https://api.github.com/repos/Linyxus/agentdojo/commits?sha=lacuna-exp): 2026-04-09..13 LiteLLM, --use-tacit flag, MCP wrapper, 'Capture tool calls implied by Scala execution' (02205e01, backend_tool_traces); 2026-04-14 'Repair datetime serialisation' (306a24d7), 'Append secure output to agent output' (10095f3c); 2026-04-15 b9aeff2b adds runs-0 (gemini native + tacit); 04-15/16 travel/slack/workspace runs into runs/, then 2a3ac71e/7bd76a0a rename runs -> runs-2; 04-16/17 several system-prompt changes (cef77055, a4d7d1e1, f7c076ee, 30e82615, 72e87e13, f0406cc0, e8bdd481, 'Correct facade signatures' 973d0bfe, 'One caveat for travel domain' 10123246, 'Hints for data extraction' 55f348f5), then 'latest results' commits e124aac6/32d9ff74/aaa71a91 and 4b38d5a8 'rename' (2026-04-17) [CORRECTED by fact-check: 32d9ff74 (full file list, 281 < 300) adds 130 files and MODIFIES 151 files = 91 logs + 60 secure-channel txt, whose earlier log versions are not at the pin (genuine overwrites); 4b38d5a8 (16:59) ADDS files under runs-3 and aaa71a91 (17:02) REMOVES >=297 files from runs/ (list capped at 300): all 149 removed .json in the listing are blobs present unchanged under runs-3 at the pin, so these removals are the second half of the runs -> runs-3 move, not lost reruns]; 2026-04-24 4bd1de08 adds claude-sonnet-4 runs (tacit-exp head). 2026-05-19..22 'Configure subagent model', 'Thread model name through benchmark' (f0d8e146, adds the top-level 'model' key), 'Prepare for lacuna' (abd4b5d8); 2026-05-22T19:56 71c8b9d5 'Add Lacuna round 1 run data' (lacuna-runs-0); then 'Pass system prompt as a flag' (abf19135) and script updates; 2026-05-24T10:56 52117da1 'New data' (lacuna-runs/), 12:55 'Retry when agent message is empty' (dfdaca9d, harness change AFTER all runs), 12:55 82454993 renames lacuna-runs -> lacuna-runs-1; 13:32 698d7ff2 adds util_scripts/render_lacuna_results.py. Result scripts at the pin: util_scripts/render_run_results.py (one run root, counts only attacked logs that validate as TaskResults: utility under attack and security=True successes) and util_scripts/render_lacuna_results.py (all lacuna-runs* roots, dedup per model x domain by (attack, user task, injection task), latest evaluation_timestamp wins). Run scripts at the pin: `uv run bench -s <suite> --attack important_instructions --model openrouter/<vendor>/<model> --use-tacit` (run_*.sh; *_native.sh omit --use-tacit); build_tacit.sh copies TACIT.jar from $HOME/Workspace/tacit (local build, no version pin). The repository also holds an agent-instruction file (CLAUDE.md) that was not read as instructions and is never stored (profile). Fork issues are disabled; no upstream issue or PR by Linyxus (gh search).",
+ "data_record": "None. Zenodo exact-phrase queries for 'Linyxus/agentdojo', the TACIT paper title and the LACUNA paper title: 0 hits; Hugging Face datasets search 'tacit' and author Linyxus: 0 hits (2026-10-14). Neither paper links the logs. The Git repository is the only release; pin = lacuna-exp HEAD. Git tree at the pin: 17,656 blobs, 196,887,263 bytes (= profile expected_files / expected_bytes); 9,068 logs matching the include globs (191,704,610 bytes); 8,383 '*.secure-channel.txt' (one beside every log except the 685 runs-0 logs: 306 native + 379 early-tacit); 205 code/doc blobs. Integrity: git blob SHA-1 per path (trees API); no published checksums.",
+ "harness": "Vendored AgentDojo fork: logs carry agentdojo_package_version 0.1.35 and benchmark_version v1.2.2 in all 9,068 (census), but the fork changed the harness during and after the runs (19+ code commits between first runs and the pin, incl. TACIT plumbing, system-prompt plumbing, datetime serialisation, secure-output appending, and dfdaca9d empty-message retry after the last run): code_identity 'range', verified_code [] (profile, D-24). Merge base with upstream 18b501a6 (2026-03-30), i.e. upstream post-v0.1.35 main. TACIT runtime: a locally built TACIT.jar (lampepfl/tacit, Scala 3 capture checking, https://github.com/lampepfl/tacit), version not recorded. Under --use-tacit the agent sees essentially one tool, eval_scala (21,030 of 21,627 logged calls, census), and the AgentDojo environment calls it triggers are recorded only in the extra key backend_tool_traces (tool_trace_source 'backend_runtime' in 8,747 logs; 'assistant_messages' in the 306 native logs); Classified output goes to a secure channel (key tacit_secure_output, 8,372 logs; also the .secure-channel.txt file). Provider: OpenRouter via LiteLLM (model ids are OpenRouter routes). Attack: important_instructions only. Known upstream defects relevant to v1.2.2/0.1.35 (from our upstream research): benign security constant True (#95, https://github.com/ethz-spylab/agentdojo/issues/95), workspace IT6-13 empty ground truth (#213, https://github.com/ethz-spylab/agentdojo/issues/213), banking IT0/1/3 dead subject check (#181, https://github.com/ethz-spylab/agentdojo/issues/181), slack IT5 scored from attempted calls (#168, https://github.com/ethz-spylab/agentdojo/issues/168), non-ASCII tool results as \\uXXXX (#214, https://github.com/ethz-spylab/agentdojo/issues/214). Under TACIT the tool-call-based checkers (#168) see the backend traces, not the eval_scala calls; how the fork feeds them is in its code, not verified here.",
+ "models": [
+  "openai/o4-mini-high via OpenRouter (dirs openrouter_openai_o4-mini-high[-tacit]); 4,548 logs (tacit 4,395, native 153); reported in both papers",
+  "google/gemini-2.5-pro via OpenRouter (dirs openrouter_google_gemini-2.5-pro[-tacit]); 3,215 logs (tacit 3,062, native 153); reported in both papers",
+  "openai/gpt-5.4-nano via OpenRouter (-tacit only); 775 logs; not reported in either paper",
+  "anthropic/claude-sonnet-4 via OpenRouter (-tacit only); 528 logs; not reported",
+  "openai/gpt-5.4 via OpenRouter (-tacit); 1 pre-pass log; not reported",
+  "deepseek/deepseek-v4-flash via OpenRouter (-tacit); 1 pre-pass log (runs-4, May; run.sh); not reported",
+  "No provider-side snapshot/version is recorded beyond the OpenRouter route; the logged 'model' key (1,701 logs) repeats the route (census, linyxus_pipeline_dirs.toml)"
+ ],
+ "reported_results": [
+  {
+   "arm": "gemini-2.5-pro + TACIT, banking",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "56.94% (82/144) / 0/144",
+   "n": "144",
+   "where": "arXiv:2603.00991v2 App. E.2 Table 4 (https://arxiv.org/html/2603.00991v2); repeated in arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + TACIT, workspace",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "50.54% (283/560) / 0/574 as printed (0/560 in LACUNA Table 3)",
+   "n": "560 (printed 574)",
+   "where": "arXiv:2603.00991v2 Table 4; arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + TACIT, slack",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "40.00% (42/105) / 0/105",
+   "n": "105",
+   "where": "arXiv:2603.00991v2 Table 4",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + TACIT, travel",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "64.29% (90/140) / 0/140",
+   "n": "140",
+   "where": "arXiv:2603.00991v2 Table 4",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + TACIT, banking",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "59.03% (85/144) / 0/144",
+   "n": "144",
+   "where": "arXiv:2603.00991v2 Table 4",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + TACIT, workspace",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "52.86% (296/560) / 0/574 as printed (0/560 in LACUNA Table 3)",
+   "n": "560 (printed 574)",
+   "where": "arXiv:2603.00991v2 Table 4; arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + TACIT, slack",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "47.62% (50/105) / 0/105",
+   "n": "105",
+   "where": "arXiv:2603.00991v2 Table 4",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + TACIT, travel",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "68.57% (96/140) / 1/140 (the one success: hotel-review string match, argued benign by the authors)",
+   "n": "140",
+   "where": "arXiv:2603.00991v2 Table 4 and Sec. 4.1",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + LACUNA, banking",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "63.19% (91/144) / 0/144",
+   "n": "144",
+   "where": "arXiv:2605.28617v1 Sec. 7.4 Table 3 (https://arxiv.org/html/2605.28617v1)",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + LACUNA, workspace",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "56.25% (315/560) / 4/560",
+   "n": "560",
+   "where": "arXiv:2605.28617v1 Table 3 (NO logs in the release)",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + LACUNA, slack",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "42.86% (45/105) / 2/105",
+   "n": "105",
+   "where": "arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "gemini-2.5-pro + LACUNA, travel",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "63.57% (89/140) / 1/140",
+   "n": "140",
+   "where": "arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + LACUNA, banking",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "65.97% (95/144) / 0/144",
+   "n": "144",
+   "where": "arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + LACUNA, workspace",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "55.54% (311/560) / 0/560",
+   "n": "560",
+   "where": "arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + LACUNA, slack",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "49.52% (52/105) / 1/105",
+   "n": "105",
+   "where": "arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "o4-mini-high + LACUNA, travel",
+   "metric": "utility under attack / attacks succeeded",
+   "value": "71.43% (100/140) / 0/140",
+   "n": "140",
+   "where": "arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  },
+  {
+   "arm": "CaMeL rows (gemini-2.5-pro: 52.8/53.8/48.6/01.4 %; o4-mini-high: 62.5/81.4/68.6/74.3 %; attacks 0 except o4 banking 1/144)",
+   "metric": "utility / attacks (cited from Debenedetti et al. 2025)",
+   "value": "context only; no CaMeL logs in this corpus",
+   "where": "arXiv:2603.00991v2 Table 4; arXiv:2605.28617v1 Table 3",
+   "note_fact_check": "Both papers print utility as a percentage only; the k/n in 'value' is back-computed from the percentage and the attacked denominator (unique fit), not printed. Attack k/n is printed."
+  }
+ ],
+ "expected_counts": "part head: tree 17,656 blobs / 196,887,263 bytes (profile expected_files/bytes; git tree); selected 9,068 logs (registry readme_corpora.toml count 9068 'census', pointer /files of docs/reports/phase10d/linyxus-agentdojo.census.json; phase-10c census json_blobs 9,069 incl. .devcontainer/devcontainer.json; git tree); excluded 8,383 *.secure-channel.txt as select.not_execution_artefact (trial counters.excluded 8,383); units agent_execution 9,065 + outcome_only 3 = 9,068 executions (phase-10d census); variants v1.k14 9,053 / v1.k14.incomplete 15; run roots runs-0 685, runs-1 155, runs-2 1,970, runs-3 1,623, runs-4 2,935, lacuna-runs-0 880, lacuna-runs-1 820; suites workspace 3,885, banking 2,675, travel 1,420, slack 1,088; attacked (important_instructions) 8,654, injection-task pre-pass (attack none) 414; outcomes utility T 4,855 / F 4,198 / None 15, security T 557 / F 8,496 / None 15 (phase-10c census). Papers: TACIT table n per cell 144/560(574)/105/140 for 2 models; LACUNA same for 2 models. Trial (phase 10d) imported subsets only: 4,540 (every 2nd) and 920 (every 10th), all stages ok, byte-identical.",
+ "expected_arms": "Facets: run family (runs-* = TACIT era, April; lacuna-runs-* = LACUNA era, May) x pipeline dir (model, defence tacit|none) x suite x attack (important_instructions | none = injection-task pre-pass). 52 non-empty strata (git tree). Full cells per run: banking 144+9, slack 105+5, travel 140+7, workspace 560+14 (v1.2.2). TACIT-era repetitions: o4-mini-high-tacit banking x5 (runs-0..4), other suites x3 (runs-2..4); gemini-2.5-pro-tacit banking x4 (runs-0,2,3,4), slack/travel x3, workspace 560+215+298 (runs-2 full, runs-3/4 partial); native (no defence) gemini and o4 banking x1 (runs-0). LACUNA era: gemini banking x2 (lacuna-runs-0,-1), slack/travel x1; o4 banking x2, workspace x1 (lacuna-runs-0), slack/travel x1. Missing vs papers: gemini-2.5-pro LACUNA workspace (paper 315/560, 4/560) has 0 logs. Extra vs papers: native gemini/o4 banking (306), gpt-5.4-nano-tacit (775; banking runs-0 partial 63/144), claude-sonnet-4-tacit (528; slack 93/105, travel 88/140, workspace 168/560 partial), gpt-5.4-tacit (1), deepseek-v4-flash-tacit (1), all repeated run sets beyond the one each paper used, runs-0 tacit logs with an early 3,158-char prompt (379), 4 stray pre-pass-only logs in runs-1/runs-2 (runs-1 gemini banking 1, runs-1 nano workspace 1, runs-2 nano travel 2). No benign (no-attack) user-task runs at all.",
+ "licence": "MIT: LICENSE at the pin is upstream AgentDojo's text, (c) 2024 Debenedetti, Zhang, Balunovic, Beurer-Kellner, Fischer, Tramer; the fork adds no copyright line and no data licence (https://github.com/Linyxus/agentdojo/blob/698d7ff29cac4bb5dccb5ed2d06f5e8364547a97/LICENSE; GitHub API spdx MIT). No use restriction clause. Papers: arXiv:2603.00991 CC BY 4.0 (paper text only). Related code: lampepfl/tacit Apache-2.0, noti0na1/lacuna Apache-2.0 (not part of the corpus). Unassessed: OpenRouter / OpenAI / Google / Anthropic / DeepSeek terms on redistributing model outputs (profile `unassessed`). Policy include (profile/registry).",
+ "discrepancy_leads": [
+  "DEFENCE IDENTITY: the 1,700 lacuna-runs-* logs sit in '-tacit' pipeline dirs, so linyxus_pipeline_dirs.toml maps them to defence 'tacit'; the LACUNA paper reports them as a different system (LACUNA rows vs TACIT rows in Table 3), and the commit history shows a different harness configuration ('Prepare for lacuna', subagent model, system prompt passed as a flag). Expect a documentation/identity mismatch in our table and profile (profile never mentions LACUNA).",
+  "PAPER IDENTIFIER: profile [source].paper says 'none found (phase 10c)'; two papers report these runs: arXiv:2603.00991v2 App. E.2 Table 4 (TACIT; added in v2 2026-05-07, absent from v1) and arXiv:2605.28617v1 Sec. 7.4 Table 3 (LACUNA).",
+  "MISSING ARM: LACUNA Table 3 reports gemini-2.5-pro workspace 56.25% / 4 of 560 attacks; the release has no gemini-2.5-pro workspace log in lacuna-runs-0/-1 (git tree).",
+  "DENOMINATOR: TACIT v2 Table 4 prints workspace attacks as 0/574 while its utility percentages fit 560 (283/560 = 50.54%, 296/560 = 52.86%; 574 gives 50.52%/52.79%); 574 = 560 attacked + 14 injection-task pre-pass logs per workspace run is a HYPOTHESIS only [fact-check: TACIT Table 4 prints 0/574 for the CaMeL workspace rows as well, which are cited from Debenedetti et al. 2025, so the 574 is not specific to the TACIT runs]; LACUNA Table 3 prints 0/560 for all workspace rows incl. CaMeL and TACIT.",
+  "WHICH RUN SET: the TACIT paper does not say which of the repeated run sets (runs-2, runs-3, runs-4; banking also runs-0/runs-1) produced Table 4; gemini workspace is complete only in runs-2 (runs-3 215, runs-4 298 of 560). The fork's render_run_results.py reads one root; a latest-wins merge (as render_lacuna_results.py does for LACUNA) is the alternative. Unreported repetitions are extra data, not errors.",
+  "RERUNS OVERWRITTEN IN GIT: [CORRECTED by fact-check] 'latest results' commit 32d9ff74 (2026-04-17) modified 91 logs (+60 secure-channel txt; full list) under runs/ before they moved to runs-3; the 91 earlier log versions exist in git history but not at the pin. The >=297 removals in aaa71a91 are the runs -> runs-3 move (removed blobs identical to runs-3 at the pin), not superseded data. Other overwrites in other commits were not searched.",
+  "HARNESS DRIFT: system prompts changed repeatedly between run sets (24 distinct prompt digests, census; runs-0 tacit logs share one 3,158-char prompt), the TACIT runtime is a local jar build without version, and 'Retry when agent message is empty' (dfdaca9d) landed after the last run; logs say agentdojo 0.1.35 for all.",
+  "EVIDENCE OUTSIDE THE TRACE: under TACIT the agent calls eval_scala; the environment tool calls that decide utility/security are only in the extra key backend_tool_traces (kept verbatim in ext.agentdojo.extra, not mapped), and the classified answer is in tacit_secure_output / *.secure-channel.txt (not mapped). PROV graphs will show eval_scala activities only; outcome evidence linkage is therefore weaker than for stock AgentDojo logs.",
+  "SECURE-CHANNEL COUNT: 8,383 .secure-channel.txt files vs 8,372 logs with the tacit_secure_output key (census): 11 logs with a txt but no key (expected: the incomplete/empty logs).",
+  "UTILITY WITHOUT BENIGN BASELINE: both papers' 'Utility' is utility under attack (n = attacked trials) while the CaMeL comparison rows are cited from another paper; no benign user-task runs were released, so a benign utility cannot be checked.",
+  "ACCOUNT PATHS RISK: TACIT compiles agent Scala code on the author's machine (build_tacit.sh copies jars from $HOME/Workspace/tacit); compiler diagnostics or stack traces in eval_scala tool results may carry absolute home paths.",
+  "ARTEFACTS SCOPE: no artefacts.toml entry scopes linyxus-agentdojo although the profile declares benign_security_constant, injection_task_as_user, silent_rerun, unexecuted_trailing_calls, incomplete_run and empty-message quirks."
+ ],
+ "files_written": [
+  "docs/reports/precheck/data/linyxus-agentdojo/research.json",
+  "docs/reports/precheck/prereg/linyxus-agentdojo.md"
+ ],
+ "checks_not_applicable": [
+  "Delta since E2: linyxus-agentdojo was not examined in FA or E2 (first examination, wave 3)",
+  "Within-unit timestamp monotonicity (L1-07): one evaluation_timestamp per log, no per-message times",
+  "Benign utility comparison: no benign user-task runs in the release and no benign utility in either paper",
+  "Outcome comparison for gemini-2.5-pro LACUNA workspace: no logs",
+  "Outcome comparison for gpt-5.4-nano, claude-sonnet-4, gpt-5.4, deepseek-v4-flash and the native (undefended) arms: no paper number (Wilson intervals only)",
+  "Withholding (L2): conditional; MIT, policy include, no copyleft or use rule; applies only if L1-06 finds a secret or account path"
+ ],
+ "open_questions": [
+  "Which run set (or merge) produced TACIT Table 4? Not stated in the paper; the L1 tally per run set can identify it.",
+  "Was gemini-2.5-pro LACUNA workspace run but not committed, or taken from elsewhere?",
+  "Are the lacuna-runs '-tacit' dirs LACUNA-on-top-of-TACIT (so 'tacit' is not wrong but incomplete) or a different defence? The papers present them as separate systems.",
+  "Does the fork's checker read backend_tool_traces for tool-call-based injection checks (slack IT5, #168)? Needs the code at the commits that wrote the runs (not fetched).",
+  "Why do runs-0 tacit logs (379) lack secure-channel files: written before 'Append secure output' (2026-04-14) or removed?"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-checker (desk only, no raw data read)",
+  "confirmed": [
+   "TACIT v2 App. E.2 Table 4 percentages and attack counts for gemini-2.5-pro and o4-mini-high (https://arxiv.org/html/2603.00991v2); v1 (2026-03-01) has no stock-AgentDojo results (https://arxiv.org/html/2603.00991v1); v2 dated 2026-05-07; CC BY 4.0; related DOI 10.1145/3786335.3813127 (https://arxiv.org/abs/2603.00991v2)",
+   "LACUNA v1 Sec. 7.4 Table 3 values, TACIT rows attributed to Odersky et al. 2026 (https://arxiv.org/html/2605.28617v1); only v1, 2026-05-27",
+   "pin 698d7ff2 = lacuna-exp HEAD, 2026-05-24T13:32:16Z 'Add a script'; tree 17,656 blobs / 196,887,263 bytes; 9,068 logs / 191,704,610 bytes; 8,383 secure-channel txt, each with its log; 379 logs without txt are all runs-0 (306 tacit o4/gemini + 72 nano + 1 gpt-5.4 = 379) [GitHub trees API]",
+   "every per-root/per-cell count of prereg section 3, per-model totals, attacked 8,654 / pre-pass 414, 52 strata, sum min(5,n) = 252 (git tree listing)",
+   "tacit-exp 4bd1de08: 7,367 logs, all blob ids present at the pin, 2,934 runs/ -> runs-4 unchanged",
+   "LICENSE at pin is MIT, blob 006aed0b identical to upstream ethz-spylab/agentdojo LICENSE",
+   "Zenodo 0 hits for repo and both titles; HF 0; no PRs on the fork; 0 upstream issues by Linyxus",
+   "upstream issues #95/#213/#181/#168/#214 exist with the cited topics",
+   "render_lacuna_results.py dedups by (attack_type, user_task_id, injection_task_id), latest evaluation_timestamp wins, skips pre-pass; render_run_results.py reads one root"
+  ],
+  "corrected": [
+   "2026-04-17 history: modified >=151 logs -> 91 logs + 60 txt (32d9ff74, full list); deleted >=297 logs -> removals in aaa71a91 are the runs -> runs-3 move, not lost reruns",
+   "paper utility k values are back-computed, not printed",
+   "574 explanation downgraded to hypothesis (CaMeL row also printed 0/574)"
+  ],
+  "unverifiable": [
+   "outcome tallies (utility T 4,855 etc.), 8,372 tacit_secure_output, 21,030 eval_scala, 24 prompt digests: phase-10c census summaries not re-opened here"
+  ]
+ }
+}

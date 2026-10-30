@@ -1,0 +1,298 @@
+# Source profile `agentdyn`: SaFo-Lab/AgentDyn run logs (docs/architecture D.4.4, D.4.5; D.6; D.6.14; I.1.1 card 5).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since the D-31 bumps
+# (2026-10-13); version 1 (the bytes the stored corpora recorded) ships under profiles/archive/agentdyn.profile.v1.toml.
+# The `[family.agentdojo]` part is checked against the
+# closed schema `family.schema.json` of this family (D.4.1).
+#
+# Parts follow the structural variants of the logs (D.6.2): a = v1.k14 (AgentDojo 0.1.35 TraceLogger, 38,281 logs),
+# b = v0.k11 (Progent's vendored AgentDojo 0.1.29, 5,184), c = drift.k18.messages (re-keyed DRIFT outputs, 4,258),
+# d = drift.k18.conversations (949 byte copies under src/, owned by the `drift` source). All of a, b and c are the files of
+# the one pin `head`; `variant_labels` assigns each file to its part, and the importer of part X selects only X's files
+# (the others are `select.dialect_planned`). Only `a` is mapped for import in this build; `b` and `c` are registered
+# `planned` (stretch, AD-10 row 21). The `history` part (16,795 superseded blobs, git history) is an opt-in part, planned.
+#
+# The quirks' `observed` counts of part `a` are measured over the full pinned snapshot (D.6.10 item 3;
+# tools/agentdojo/profile_census.py, tests/full_corpus/test_profile_census.py; docs/reports/agentdyn/). The counts of D.4.4
+# are reproduced as stated (the 12 incomplete logs under `files`, see the note on the quirk); every other declared count was
+# measured by that census and is new data of this build, not an investigation figure (`progent_denial` has no variant A
+# denial: 0).
+
+[profile]
+id = "agentdyn"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "agentdyn"
+family = "agentdojo"
+parts = ["a", "b", "c"]
+title = "AgentDyn (SaFo-Lab/AgentDyn) run logs"
+evidence = ["sources/agentdyn.md", "verify/agentdyn.md", "I.1.1 card 5", "I.2.2 E09-E12"]
+
+[source]
+canonical_repo = "https://github.com/SaFo-Lab/AgentDyn"
+paper = "arXiv:2602.03117"
+aliases = ["https://github.com/leolee99/AgentDyn"]
+package = { name = "agentdojo", version = "0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "head"
+part = "a"
+primary = true
+kind = "git"
+commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3"
+date = "2026-05-19"
+tree = "runs/"
+tree_sha1 = "90d6d50d31e14f65b83a59478ceaa9a09badfbd8"
+expected_files = 47723
+expected_bytes = 598326615
+note = "no tags or releases; the one pin serves parts a, b and c (select them with variant_labels); parts b and c take it with --pin head"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti", "Jie Zhang", "Mislav Balunovic", "Luca Beurer-Kellner", "Marc Fischer", "Florian Tramèr"]
+data_licence = "none"
+policy = "include"
+basis = "MIT as declared; not legally settled"
+attribution = [
+  "arXiv:2602.03117",
+  "LICENSE (MIT; the only copyright line is the AgentDojo authors' (c) 2024; AgentDyn adds none of its own)",
+]
+unassessed = [
+  "the AgentDyn authors' own contributions (run logs, new suites) carry no separate licence statement",
+  "model-provider terms on redistributing model outputs",
+]
+
+[lineage]
+built_on = ["agentdojo v0.1.35 (a75aba7/5cea589)"]
+vendored = ["camel-prompt-injection (Apache-2.0)", "progent with AgentDojo 0.1.29 (MIT)", "DRIFT (MIT)"]
+# variant C = re-keyed copies of AgentDyn's own history blobs runs/DRIFT/** (E11, owner agentdyn; R-62)
+duplicates = [
+  { of = "drift", path = "src/agentdojo/defenses/drift/runs/**", relation = "byte_identical", owner = "drift" },
+]
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete", "v0.k11", "drift.k18.messages"]
+rules = { aer = 1, agentdojo = 2, agentdyn = 2, drift = 1 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "src/agentdojo/defenses/drift/runs/**", code = "select.owned_elsewhere", owner = "drift", note = "949 DRIFT runs vendored under src/, byte-identical to drift head (edge E09)" },
+]
+layout = "runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+opt_in_parts = [
+  { part = "history", note = "16,795 superseded blobs incl. Claude Haiku/Sonnet 4.5; 16,175 distinct executions (fingerprint deduplication deferred, AD-10 row 7)" },
+]
+variant_labels = { "v1.k14" = "a", "v0.k11" = "b", "drift.k18.messages" = "c", "drift.k18.conversations" = "d" }
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+rule = "agentdyn.pipeline_dir_registry@1"
+table = { path = "tables/agentdyn_pipeline_dirs.toml", sha256 = "2d79cadf3f5ff68b4f72ca03ecf8013d83d01bf0109c6248995b47130410fc7f" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdyn"
+suites = { shopping = "agentdyn", github = "agentdyn", dailylife = "agentdyn", travel = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "label_not_suite_version"  # AgentDyn registers its suites under every version key v1 .. v1.2.2
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 3 }  # reviewed AgentDyn tables (regeneration-batch item 27 (b))
+
+[family.agentdojo.harness]
+code_identity = "unpinned"  # the January runs predate the repository (2026-01-29); the producing code is unknown
+retry_semantics = "agentdyn.last_assistant_content_none_max3"
+# D.5.4 "Citation of D rules" (D-24): the harness code is not verified (the January runs predate the pinned repository),
+# so every D rule of the family catalogues, the AgentDyn pin's included, is cited through its `_unverified` twin (class I).
+verified_code = []
+# Digests are SHA-256 of the system text, read from the logs and checked against the pinned yaml (safe loader, the `default`
+# key): 32,063 variant A logs carry the AgentDyn default (543 characters), 5,184 carry it with the spotlighting sentence
+# appended (716 characters; every -spotlighting_with_delimiting log), and all 5,184 variant B logs carry the unmodified
+# AgentDojo 0.1.29 default (469 characters, equal to the 089ed468 default of agentdojo-upstream). The CaMeL and
+# integrated-DRIFT logs have no system message.
+system_prompt_variants = [
+  { label = "auto_complete_line", source = "SaFo-Lab/AgentDyn@5353cf7615b135cace8d07c8f12dac53a16b6db3:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "21a1c00db164a6d5d9d456be30eea3ed23bc11e6a89af0f56b8098d1f9ee3e36", note = "AgentDojo default plus 'Complete all tasks automatically without requesting user confirmation.'", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+  { label = "auto_complete_line_spotlighting", source = "SaFo-Lab/AgentDyn@5353cf7615b135cace8d07c8f12dac53a16b6db3:src/agentdojo/agent_pipeline/agent_pipeline.py", sha256 = "1f396c99b6274fdf040a9065f676550004a6d166e7d23fca4e5d02971c1658d3", note = "the default of auto_complete_line plus the spotlighting sentence (agent_pipeline.py l. 647-653)", applies = { variant = ["v1.k14", "v1.k14.incomplete"], pipeline_dir = ["*-spotlighting_with_delimiting"] } },
+  { label = "agentdojo_default", source = "SaFo-Lab/AgentDyn@5353cf7615b135cace8d07c8f12dac53a16b6db3:src/agentdojo/defenses/progent/agentdojo/src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", note = "variant b (Progent's vendored AgentDojo 0.1.29): no auto-complete line", applies = { variant = ["v0.k11"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { a = { files = 5190, origin_rule_applied = 5176 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdyn.last_assistant_content_none_max3@1"]
+params = { trigger = "last_assistant_content_is_null_anywhere", max_passes = 3 }
+observed = { a = { null_final_logs = 826 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { a = { files = 1647 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["agentdyn.json_decode_error_imposed@1"]
+params = { utility = false, security = true }
+observed = { a = { files = 5 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = {}
+rules = ["agentdojo.incomplete_run@1"]
+note = "D.4.4 states 'null-outcome files 12'. The 12 logs lack the outcome keys (11 without utility and security, 1 without those and duration); none carries a JSON null [verify/agentdyn.md §9 item 2]. The count is therefore keyed `files`; `null_outcome_files` counts judgements with a null value and is 0."
+observed = { a = { files = 12, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1", "agentdojo.positional_match@1"]
+params = { null = ["google_gemini-2.5-flash-piguard_detector", "google_gemini-2.5-flash-prompt_guard_2_detector", "google_gemini-2.5-flash-transformers_pi_detector", "meta_secalign-*", "*-camel"] }
+observed = { a = { null_ids = 15306 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete", "drift.k18.messages"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { a = { files = 32273 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+note = "agentdojo_package_version is '0.1.35' in every variant A log: the AgentDyn fork's package metadata (same distribution name and version string as PyPI agentdojo 0.1.35), so it does not identify upstream AgentDojo or the fork's code"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { a = { calls = 1800, logs = 1683 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.pi_detector_redaction"
+applies = { pipeline_dir = ["*-transformers_pi_detector", "*-piguard_detector", "*-prompt_guard_2_detector"] }
+rules = ["agentdojo.pi_detector_sentinel@1"]
+params = { sentinel = "<Data omitted because a prompt injection was detected>", defences = ["transformers_pi_detector", "piguard_detector", "prompt_guard_2_detector"] }
+observed = { a = { redacted_tool_messages = 29317 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.tool_filter_aux_llm"
+applies = { pipeline_dir = ["*-tool_filter"] }
+rules = ["agentdojo.tool_filter_aux_message@1"]
+observed = { a = { logs = 4542, logs_with_filter_messages = 4536 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.repeat_user_prompt_reinsertion"
+applies = { pipeline_dir = ["*-repeat_user_prompt"] }
+rules = ["agentdojo.repeat_user_prompt_copy@1"]
+observed = { a = { logs = 5184, logs_with_copies = 4528 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { pipeline_dir = ["*-spotlighting_with_delimiting"] }
+rules = ["agentdojo.spotlighting_content@1"]
+observed = { a = { logs = 5184, logs_with_tool_results = 4553 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.local_model_raw_completion"
+applies = { pipeline_dir = ["meta_secalign-*"] }
+rules = ["agentdojo.local_model_tag_count@1"]
+observed = { a = { turns_more_tags_than_calls = 1465, turns_tags_no_calls = 179 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { a = { present = 210127, present_and_null = 210127 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.progent_denial"
+applies = { pipeline_dir = ["*-progent"] }
+rules = ["agentdyn.progent_denial_pattern@1"]
+params = { regex = "^ValidationError: The tool '[^']*' is not allowed\\.\\." }
+observed = { a = { denials = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_integrated_user_error_key"
+# narrowed to variant A (regeneration-batch item 22, RT-2): its 434 messages are all there; a variant C log under
+# *-drift would otherwise raise drift.quirk_hook_not_applied (the DRIFT build runs no user_message hook)
+applies = { pipeline_dir = ["*-drift"], variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdyn.drift_user_error_key@1"]
+observed = { a = { user_messages = 434 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.camel_orphan_tool_results"
+applies = { pipeline_dir = ["*-camel"] }
+rules = ["agentdyn.camel_orphan_tool_result@1"]
+observed = { a = { tool_messages = 2635, assistant_calls = 658, orphan_executions = 1977 } }
+
+# Regeneration-batch item 2 (B3, D-376): CaMeL's interpreter error feedback is written by the camel defence, and the
+# privileged planner's input (its own list, never tool results) is not logged (privileged_llm.py at 5353cf76).
+[[family.agentdojo.quirk]]
+id = "agentdojo.camel_interpreter_feedback"
+applies = { pipeline_dir = ["*-camel"] }
+rules = ["agentdyn.camel_interpreter_feedback@1", "agentdyn.camel_planner_input_not_logged@1"]
+params = { prefix = "Running the code gave the following error:" }
+observed = { a = { feedback_messages = 1674, planner_calls = 2342 } }
+
+# part c, drift.k18.messages (D-279; regeneration-batch item 22, RT-2): counts from the phase-10l census
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_tool_output_post_isolation"
+applies = { variant = ["drift.k18.messages"] }
+rules = ["drift.tool_output_post_isolation@1"]
+observed = { c = { isolation_decisions = 18140, tool_messages = 19997 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_assistant_reserialised"
+applies = { variant = ["drift.k18.messages"] }
+rules = ["drift.assistant_reserialised@1"]
+observed = { c = { reserialised = 23995, raw = 2197 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_call_error_as_user"
+applies = { variant = ["drift.k18.messages"] }
+rules = ["drift.call_error_user_is_validator@1", "drift.call_error_check@1"]
+observed = { c = { messages = 3792, files = 1663, trajectory = 379, checklist = 3413 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_calls_in_text_not_executed"
+applies = { variant = ["drift.k18.messages"] }
+rules = ["drift.calls_in_text_not_executed@1"]
+observed = { c = { final_turns = 2004, reserialised = 1498, raw = 506 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_no_system_no_injections"
+applies = { variant = ["drift.k18.messages"] }
+rules = ["drift.no_system_message@1", "drift.no_injection_map@1"]
+observed = { c = { system_messages = 0, fixtures = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_plan_fields_by_commit"
+applies = { variant = ["drift.k18.messages"] }
+rules = ["drift.plan_fields_semantics@1"]
+params = { semantics = "final_plan_state" }
+observed = { c = { initial_plan = 0, final_plan_state = 4258, contradicted = 0 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdyn.json_decode_error_imposed@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

@@ -1,0 +1,27 @@
+"""Count /home/<name> occurrences in the qwencode runs zip and the supp zip (in memory, names hashed)."""
+import hashlib, re, sys, collections
+sys.path.insert(0, "tools/qwencode")
+from map_census import read_zip
+
+RX = re.compile(rb"/home/+([A-Za-z0-9._-]+)")
+SAFE = {b"user", b"node", b"openhands", b"username", b"root"}
+
+def h(n): return n.decode() if n in SAFE else "sha:" + hashlib.sha256(n).hexdigest()[:10] + f"(len{len(n)})"
+
+runs_sha, runs = read_zip(sys.argv[1], lambda l: "/trajectory/" in l)
+print("runs members", len(runs), runs_sha[:12])
+cnt = collections.Counter(); files = collections.defaultdict(set)
+for label, (b, _m) in runs.items():
+    for m in RX.finditer(b):
+        cnt[m.group(1)] += 1; files[m.group(1)].add(label)
+for n, c in cnt.most_common():
+    print("RUNS", h(n), c, "members", len(files[n]))
+supp_names = set(cnt)
+_, supp = read_zip(sys.argv[2], lambda l: True)
+sc = collections.Counter(); sf = collections.defaultdict(set)
+for label, (b, _m) in supp.items():
+    for n in supp_names:
+        if n in SAFE: continue
+        k = b.count(n)
+        if k: sc[n] += k; sf[n].add(label.split("/")[0] + "/" + (label.split("/")[1] if "/" in label else ""))
+for n in sc: print("SUPP", h(n), sc[n], sorted(sf[n])[:6])

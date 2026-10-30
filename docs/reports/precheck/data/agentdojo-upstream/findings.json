@@ -1,0 +1,426 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "agentdojo-upstream",
+ "findings": [
+  {
+   "id": "PC-agentdojo-upstream-01",
+   "title": "Local-model arms do not reproduce Meta SecAlign's tables; Llama-3.3-repeat important_instructions lacks the slack suite",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 / OS-1 (H-03, H-14). Refutes H-14. The one flagged OS-1 gap (SA1 SecAlign-repeat UA +7.78 pp, interval excludes it by 5.12) comes from the paper version: SA2 is within 0.58 pp.",
+   "evidence": "Llama-3.3-repeat important_instructions: 798 of 949 cells (slack 0/105, banking 98/144: user_task_0..9 x9, user_task_10 x8); direct and ignore_previous 949 each; none 132. Raw vs SA2 (benign/UA/ASR): Llama-3.3-repeat 58.76/39.47/9.02 vs 59.8/43.4/14.7; SecAlign-repeat 85.57/80.08/2.11 vs 84.5/79.5/1.9; Llama-3.3 57.73/41.41/23.08 vs 62.9/41.9/23.0; SecAlign 77.32/77.98/2.21 vs 79.4/77.1/2.3. SA2 is within 1 pp on UA and ASR for 3 of 4 arms; benign utility is off by 1-5 tasks of 97. The v1.k14 logs were evaluated 2025-07-24..25, after SA1 v1 (2025-07-03). Llama-3.3 no-sandwich slack ASR is 62/105 (59.0 %), so the missing slack cells pull the repeat arm's pooled ASR down. The shortfall was pre-declared (prereg L-05, L-06, H-03); the new point is the mismatch between the paper's reported n=949 and the published logs.",
+   "reproduction": "python3 -c \"import json,collections;R=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/agentdojo-upstream/l1-units-head.jsonl')];print(collections.Counter(r['facets']['suite'] for r in R if r['facets']['pipeline_dir']=='meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt' and r['facets']['attack_dir']=='important_instructions'))\" -> Counter({'workspace': 560, 'travel': 140, 'banking': 98}); uv run python -I docs/reports/precheck/data/agentdojo-upstream/exam-scripts/os1.py <pop.json> <out> -> 'head SA1 Meta-SecAlign-70B-repeat_user_prompt UA k/n_II 80.08 72.3 7.78 [77.42, 82.5] FLAG'",
+   "hypothesis_ref": "H-14",
+   "recommendation": "Cite SA v2 or later for these arms. Disclose that this arm has 798 of 949 cells (no slack, 46 banking cells missing), so its rates are not SA's n=949 figures. Report the residual benign-utility differences as unexplained. Keep all four arms. Add the artefact entry (denominators as corrected).",
+   "artefact_proposal": "[[artefact]]\nid = \"agentdojo.art.incomplete_arm\"\ntitle = \"Published arms with fewer cells than the benchmark design\"\ndescription = \"meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt / important_instructions has 798 of 949 cells (slack 0/105; banking 98/144, user_task_10 partial and 26 whole user tasks absent); direct and ignore_previous are complete. claude-3-sonnet-20240229-repeat_user_prompt is benign-only and workspace-only (40 logs = all 40 workspace benign tasks; a complete dir holds 124 benign logs). mistralai_Mixtral-8x7B-Instruct-v0.1 (2024-06 only) is 7 benign logs over four suites. Rates over these arms cover a different suite mix than the papers' n.\"\nscope = { sources = [\"agentdojo\"], parts = [\"head\", \"2024-06\"], profiles = [\"agentdojo-upstream\"] }\ncause = \"upstream_harness\"\ndetector = { rule = \"artefact.generic.arm_coverage (proposed)\", class = \"D\" }\nclaims = []\nrecorded_as = { notes = [\"stats:arm_cells\"] }\nhandling = { class = \"FO\" }\nexpected = [{ snapshot = \"head\", count = 151, unit = \"missing cells\", basis = \"precheck L1-05 2026-10-14\", status = \"verified\" }, { snapshot = \"head\", count = 40, unit = \"executions\", basis = \"precheck L1-05 (claude-3-sonnet-repeat)\", status = \"verified\" }, { snapshot = \"2024-06\", count = 40, unit = \"executions\", basis = \"precheck L1-05 (claude-3-sonnet-repeat)\", status = \"verified\" }, { snapshot = \"2024-06\", count = 7, unit = \"executions\", basis = \"precheck L1-05 (Mixtral)\", status = \"verified\" }]\nmanuscript = true\nrefs = [\"docs/reports/precheck/prereg/agentdojo-upstream.md (L-05, L-06, L-08, H-03, H-04)\", \"arXiv:2507.02735 v2 Tables III/IX\"]",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Three refutation attempts failed. (1) Tool artefact: L1-01/02 select and parse all 36,679; git ls-tree at 089ed468 (no blob reads, GIT_NO_LAZY_FETCH=1) shows the same per-suite counts, so the gap is upstream. (2) Paper mapping: os1-population maps SA1 and SA2 separately; all quoted gaps reproduce; neither version matches all metrics of all arms within 1.0 pp, so H-14 is refuted. (3) Slack pooling: Llama-3.3 important_instructions per-suite security sums to 219 with slack 59.0 %, the highest suite, so the bias direction is right. Class and S2 fit: the incomplete arm is expected (L-05), the paper-vs-logs mismatch is new and affects citations. Corrections: Artefact wording: 'of 753 benign logs' is the wrong denominator; a complete dir holds 124 benign logs (132 for v1.2 dirs). The 40 claude-3-sonnet-repeat logs are all 40 workspace benign user tasks (benign-only, workspace-only, H-04). Cite prereg L-05/L-06 and H-03."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-02",
+   "title": "Results-page vs paper ASR gaps equal the run-error logs scored security=true",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "part": "head, 2024-06",
+   "check": "OS-1 (H-08, H-11): supported",
+   "evidence": "Run-error logs with security=true under important_instructions: head command-r-plus 22, gemini-1.5-pro-001 19, gpt-3.5 12, Llama-3-70b 35 (+ command-r 3). These equal the W minus P3 excess cells exactly; P3 = raw minus run errors. 2024-06: 23/20/12/35 against P1, which reproduces after exclusion for 3 of the 4 (gemini-1.5-pro-001 does not: PC-03). All run errors are (utility false, security true): head 105 = important_instructions 91 + none 14; 2024-06 106 = 93 + 13. Declared as agentdojo.art.run_error_imposed (head 105, 2024-06 106, verified).",
+   "reproduction": "python3 -c \"import json,collections;R=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/agentdojo-upstream/l1-units-head.jsonl')];print(sorted(collections.Counter((r['facets']['pipeline_dir'],r['outcomes']['security']) for r in R if r['facets']['attack_dir']=='important_instructions' and r['outcomes']['error_present']).items()))\" -> [(('command-r', True), 3), (('command-r-plus', True), 22), (('gemini-1.5-pro-001', True), 19), (('gpt-3.5-turbo-0125', True), 12), (('meta-llama_Llama-3-70b-chat-hf', True), 35)]",
+   "hypothesis_ref": "H-11",
+   "recommendation": "Corpus ASR statistics must say whether they include harness_default judgements (rule agentdojo.run_error_imposed_outcome@1): the papers exclude them, the results page includes them. List both values for these arms.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Reproduced on both parts. (1) Tool artefact ruled out: error_present comes from the raw 'error' field and security from the raw value (l1_families.py:301). (2) Arithmetic: raw k minus run errors equals P3 for all four head arms and P1 for 3 of 4 at 2024-06; W values equal the raw rates; gaps are exact integer cell counts. (3) Class: artefacts.toml declares agentdojo.art.run_error_imposed with matching verified counts, so expected-known; S2 (must be disclosed) fits. Corrections: None needed. Wording: the 2024-06 comparison is against P1, not P3."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "R2: covered by agentdojo.art.run_error_imposed (artefacts.toml l.48); expected-known with the entry's disclosure (S2), as classified by the verifier."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-03",
+   "title": "AgentDojo v1 rows not reproducible from the 2024-06 pin (Gemini-1.5-pro-001, Command-R+ benign)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "2024-06",
+   "check": "OS-1 (H-09, H-10, H-13): refutes H-10 on one row",
+   "evidence": "gemini-1.5-pro-001 important_instructions: 629 logs, utility 173 (27.50 %), security 198 (31.48 %), 20 run errors (all security true). P1 prints UA 29.61, which no k/629 produces (629 x 0.2961 = 186.25), and ASR 27.50, which equals the raw UA; excluding run errors gives 28.30, not 27.50. Command-R+ benign: 28.78 vs P1 27.78 (gap exactly 1.00 pp; no single-task flip gives 27.78: likely a digit typo). Repeat-prompt benign: 85.53 vs 73.13 (known copy error). P1 also prints GPT-4o no-defence benign 69.07 (Table 5) vs 69.00 (Table 3). All P3 rows reproduce at head.",
+   "reproduction": "python3 -c \"import json;R=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/agentdojo-upstream/l1-units-2024-06.jsonl')];s=[r for r in R if r['facets']['pipeline_dir']=='gemini-1.5-pro-001' and r['facets']['attack_dir']=='important_instructions'];print(len(s),sum(r['outcomes']['utility'] is True for r in s),sum(r['outcomes']['security'] is True for r in s),sum(r['outcomes']['error_present'] for r in s))\" -> 629 173 198 20",
+   "hypothesis_ref": "H-10",
+   "recommendation": "Cite AgentDojo v3 (= v2 numbers) only, and disclose the three v1 rows that do not follow from the logs.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Paper values re-checked on arXiv 2406.13352v1 (Table 3, Table 5). Refutation attempts: suite weighting (reproduces every other P1 benign value), run-error convention (28.30, not 27.50), denominator search (no k/629), pin drift (no runs/ commit between c2748856 and v1), single-task flips for Command-R+ (27.82/27.66). Head P3 gaps are all explained by the error convention. documentation-mismatch S3; no data excluded. Corrections: Optional additions applied: Command-R+ gap exactly 1.00 pp (likely typo); gemini-pro ASR not explained by the error convention; v1 69.07 vs 69.00 internal inconsistency."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-04",
+   "title": "Head SEM outcome and marker annotations move to class I for head-only logs, against the item-1 / prereg prediction",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "DL-1 / L2 evidence classes (H-19). The predicted text is wrong; the movement follows from D-84 + D-86 + D-83.",
+   "evidence": "Head-only v0.k11 executions cite the SEM twins at class I: injection_marker_yaml_unverified@1 933 annotations in 54 executions; utility_meaning_unverified@1 95 (+ injection_task_as_user_task_unverified 10); security_polarity_unverified@1 57 (+ dos_security_rule_unverified 3). v1.k14 security outcomes (47) become I by D-83 propagation (premise judgement /origin is I via item 3's checker_outcome_unverified) while still citing security_polarity@1; v1.k14 utility (59+4) and markers (433 in 42 executions) stay D. Shared v0.k11 annotations stay D (501 markers in 89 executions). Assessment: Derived a_label 511 -> 303 (Inferred +212, the extra 4 probably from partial_payload, not checked); a_payload 578 -> 344 Derived, +234 Inferred. regen-batch.md l. 165 (item-1 table) and prereg section 6 row 'Item 1 / D-86' say head SEM stays D.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentdojo-upstream/exam-scripts/dl1.py head <out> -> sem_ann 'injection_marker|I|agentdojo.injection_marker_yaml_unverified@1' + 933 occurrences / 54 executions; 'outcome|I|agentdojo.utility_meaning_unverified@1' + 95/95; 'outcome|I|agentdojo.security_polarity@1' + 47/47 (dl1-delta.json /head/signatures)",
+   "hypothesis_ref": "H-19",
+   "recommendation": "Correct the item-1 table row in regen-batch.md (l. 165) and prereg section 6 row 'Item 1 / D-86', and the post-check expectation. Manuscript evidence-class shares for head SEM must use post-round counts.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Independent tally over the scratch corpus l2-head-j2.partial (variant x type x ev x rule) matches dl1-delta exactly, so not a tool artefact. The design explains it (D-84, D-86, D-83), so not a mapping defect. Both documents predict D, so documentation-mismatch S3. Corrections: Wording: v1.k14 security outcomes keep citing the D rule security_polarity@1 (no twin); 'shared executions stay D' covers shared v0.k11, and v1.k14 markers and utility also stay D; a_label: 208 leave Derived, Inferred gains 212."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-05",
+   "title": "Prereg section 6 omitted the B2 completeness refresh (vacuous verified_complete rows)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head, 2024-06",
+   "check": "DL-1 index (H-19)",
+   "evidence": "verified_complete -> unverifiable on every sampled vacuous row: 2024-06 3/3 (2 outcome_only with map.no_execution_observed, 1 agent_execution with map.outcome_imposed_by_runner, a run error with no agent turn), head 1/1 (outcome_only). No other completeness value changed; the 2024-06 retry row and the incomplete rows are unchanged. The prereg predicted 232 unchanged; regen-batch item 9 (B2, D-372) and protocol section 4.4 predict 232 -> 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentdojo-upstream/exam-scripts/dl1.py 2024-06 <out> -> ['index','completeness','\"verified_complete\" -> \"unverifiable\"'] 3/3; head 1/1",
+   "hypothesis_ref": "H-19",
+   "recommendation": "Post-check expectation: 2024-06 0 / 51 / 18,190; head 0 / 47 / 36,632, where 47 assumes the 36 retry rows move as prereg section 6 predicts (the head sample has no retry row: confirm on the population).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Direct comparison of stored and scratch index rows on the same ids reproduces the transition, so not a tool artefact. The code behaves as D-372 decides (importer.index_completeness), so not a mapping defect; only the prereg is wrong. documentation-mismatch S3 (index rows only). Corrections: Qualifier on the head expectation (47 needs the population check); the 2024-06 agent_execution row is a runner-imposed outcome."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-06",
+   "title": "[CC-04] U6-c is represented as apv:paramsStatus, not as one apv:Gap per model call",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head, 2024-06",
+   "check": "DL-1 PROV (H-19)",
+   "evidence": "apv:paramsStatus apv:NotRecorded is on 1,354/1,354 (head) and 1,198/1,198 (2024-06) model-call activities in the scratch corpora, 0 in the stored ones. apv:Gap counts are unchanged (4,716 / 4,411; same apv:property breakdown, none /params). Spec EF_provenance.md E.4.5 (l. 906) maps /params to apv:paramsStatus, and prov/rules/nodes.py STATUS_PROPS implements it. regen-batch U6-c and the prereg (l. 175) predicted an apv:Gap. The dl1 signature 'core activity apv:paramsStatus added' (563/143 at head) undercounts because some activity changes fall under other signatures.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/agentdojo-upstream/exam-scripts/dl1.py head <out> -> ['prov_attr','core','activity','apv:paramsStatus','added'] 563/143; direct count over the sample: model calls 1354, with paramsStatus new 1354 / old 0, apv:Gap 4716 in both",
+   "hypothesis_ref": "H-19",
+   "recommendation": "Reference to CC-04 (cross-cutting.md): recorded once there and not counted as a separate corpus finding; this entry keeps the corpus counts. Correct the U6-c PROV line in docs/reports/analysis/regen-batch.md (apv:paramsStatus apv:NotRecorded per E.4.5, no new apv:Gap). The same wrong expectation is in the preregs of rope (l. 162), ast-survey-agentdojo (l. 174) and mandate-agentdojo-eval (l. 153); those checks should apply the same reading rather than report separate findings.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Own counter over every PROV document of the sampled ids (stored vs scratch) gives the same numbers. The engine follows the normative spec (aprov.status@1 vs aprov.n_gap@1), so the error is in regen-batch U6-c. Nothing lost or invented: S3, no security impact. Corrections: Cite the direct per-activity count, not the 563/143 signature; extend the correction to the other three preregs."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "reference",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Instance of CC-04 (regen-batch U6-c predicted one apv:Gap per model call; the engine records apv:paramsStatus apv:NotRecorded). Canonical class documentation-mismatch S3 (R4), equal to the verifier's. The regen-batch.md correction is routed once under CC-04 for agentdojo-upstream, ast-survey-agentdojo, rope and mandate-agentdojo-eval."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-07",
+   "title": "[CC-08] l2_check counts native class-I rules as _unverified twins",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head, 2024-06",
+   "check": "L2-C evidence classes (H-15)",
+   "evidence": "l2-2024-06.json reports 7,503 'twin' statements in inference, yet there are 0 non-c6 twins. tools/precheck/l2_check.py l. 220-229 matches any bundle IRI or apv:basisRule containing '_unverified'. Recount over the 300 PROV documents: 4,993 of 7,503 rest only on the native I rules auto_execution_unverified and checker_inputs_unverified (agentdojo.rules.toml l. 1317, 1334); 2,510 involve the real c6 twin functions_runtime_unverified.\n\nRecheck12 (CC-08, 2026-10-15): resolved. 2024-06 twin inference:I 7,503 -> 1,405, native 6,098, mixed 0; head 35,884 -> 28,888, mixed 4,193, native 2,803 (sums equal the old counts). data/_cross/recheck12.json.",
+   "reproduction": "grep -n '_unverified' tools/precheck/l2_check.py -> l. 220, 228; dl1.py 2024-06 -> executions_citing_non_c6_twin 0",
+   "hypothesis_ref": "H-15",
+   "recommendation": "After the batch: count twins from the catalogue's twin list (rules that restate a D rule, D.5.4) and report native-I and twin-backed statements in separate counters. Cross-cutting item CC-08: fix after the chain drains, then re-run l2_check for both parts (dossier section 10).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Product ProvView recount reproduces the 7,503 total and splits it by bundle method; the native I rules are not twins. The PROV is correct; only the tool label is wrong: analysis-artefact S3. Corrections: Counting the c6 twin as a twin is correct; the over-count is only the native I rules."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Instance of CC-08 (l2_check twin counting; this finding is the reference case). Canonical analysis-artefact S3 (R5); not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-08",
+   "title": "[CC-08] L1 null_final misses empty text blocks of v1.k14 logs",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-08 (H-18)",
+   "evidence": "L1 null_final finds 77 at head, all v0.k11, 0 in the four local dirs; per-model counts equal E2's by_model for the 10 API models. E2 N4 counts 343 empty final turns, 266 of them local (Meta-SecAlign-70B 11, -repeat_user_prompt 23, Llama-3.3-70B-Instruct 48, -repeat_user_prompt 184). Raw pinned blobs read through agentprov.ingest: every local final assistant content is a list of text blocks; 266 have all text blocks empty and no tool_calls; 77 + 266 = 343. norm_content (l1_families.py l. 102) keeps block lists as [type, text] pairs, so the null_final test never matches [['text', '']].\n\nRecheck12 (CC-08, 2026-10-15): resolved. head null_final 77 -> 343 (= 77 + 266, as predicted); trailing_calls 800; 2024-06 null_final unchanged, trailing_calls 145.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/analysis/phase10-examination-2-data/scan-agentdojo-upstream-head-p10.json'));print(d['counters']['a03|empty_final_assistant'],d['by_model']['meta-llama/Llama-3.3-70B-Instruct']['a03|empty_final_assistant'],d['by_model']['facebook/Meta-SecAlign-70B']['a03|empty_final_assistant'])\" -> 343 232 34",
+   "hypothesis_ref": "H-18",
+   "recommendation": "After the batch: treat a final assistant message whose text blocks are all empty AND that has no tool_calls as empty (E2 a03 definition), then re-run the head L1 (expected null_final 343). Cross-cutting item CC-08: the same rule gap affects agentdyn (PC-agentdyn-06), ast-survey-agentdojo (PC-ast-survey-agentdojo-08) and the v1.k14 parts of rope and mandate-agentdojo-eval; re-run their L1-08 after the fix.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "E2 command and L1 per-unit flags reproduced; raw blob check confirms 266 = 232 + 34; code confirms the cause. Tool coverage gap, not a source or mapper defect: analysis-artefact S3. Corrections: Name the four local dirs (split 11/23/48/184) and add the no-tool_calls condition."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Instance of CC-08 (L1 null_final rule, v1.k14 empty text blocks without tool calls; this finding is the reference case). Canonical analysis-artefact S3 (R5); not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-09",
+   "title": "The one L1-06 secret-like hit is a model-written UUID, not a credential",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head, 2024-06",
+   "check": "L1-06 / L2 redaction",
+   "evidence": "One artefact per part, the same shared blob (label runs/command-r/workspace/user_task_23/none/none.json, sha256 e7208455...). The match (keyword 'token', 36-character UUID-shaped value) is in the final assistant message (index 4 of 5); the only tool call is get_day_calendar_events and no tool output contains a UUID or the word 'token'. Stored corpus for that execution: aer 1, sem 0, prov 0. L2 redaction: 0 hits (947 / 908 files).",
+   "reproduction": "Inline check over the stored AER with the l1_scan generic-credential-assignment pattern, printing counts and shape flags only -> aer 1, sem 0, prov 0; record message m4 assistant; uuid_shape True; also in []",
+   "hypothesis_ref": "",
+   "recommendation": "No action. Optionally let the generic rule skip UUID-shaped values (tool change after the freeze; recorded as a follow-up).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Same label and digest in both parts; raw re-check via strict_json_loads finds exactly one match, in model-written text with no tool source; not in SEM or PROV. The over-broad generic rule of the pre-check caused it: analysis-artefact S3, not security-relevant. Corrections: None to class or severity; the optional rule fix is a follow-up, not applied now."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5: property of the L1-06 generic rule (a pre-check tool), not of the corpus; analysis-artefact S3, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-10",
+   "title": "Licence basis 'MIT by repository' does not hold for the 2024-06 pin as such",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "2024-06",
+   "check": "desk research (prereg section 9)",
+   "evidence": "LICENSE was added in bd533515 (2024-06-10) and is absent at c2748856 (root tree has no LICENSE; pyproject function-calling-pi 0.1.0 has no licence field). The Zenodo v0.1.8 record 12742856 (the profile's zenodo_2024_06 alternative origin) declares CC-BY-4.0. Between c2748856 and bd533515 (13 commits) no runs/ file changes, so the whole 2024-06 runs/ tree, Mixtral included, sits under MIT at bd533515. The profile basis (agentdojo-upstream.profile.toml l. 90) does not say this; no spec or AGENTS.md text notes it.",
+   "reproduction": "grep -n 'basis' src/agentprov/adapters/agentdojo/profiles/agentdojo-upstream.profile.toml -> l. 90",
+   "hypothesis_ref": "",
+   "recommendation": "Family owner to extend the basis text, e.g.: 'MIT by repository: the 2024-06 pin c2748856 predates LICENSE (added bd533515, 2024-06-10); its runs/ tree is unchanged at bd533515 and so is covered by MIT there; the Zenodo v0.1.7-v0.1.22 deposits, including the zenodo_2024_06 origin 12742856, declare CC-BY-4.0 (likely the Zenodo GitHub-integration default); data licence not separately stated.'",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Checked against GitHub and Zenodo directly: LICENSE 404 at c2748856, 200 at 089ed468; commit history of LICENSE; Zenodo licence cc-by-4.0; compare shows 0 runs/ files changed. Not documented elsewhere, so not expected-known. Wording only: documentation-mismatch S3. Corrections: Softened: MIT holds in substance through the later tree; the defect is that the basis text does not say so. Proposed wording applied to the recommendation."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-11",
+   "title": "Shared session scratchpad: examiner scripts overwrite each other",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "process",
+   "check": "reproducibility",
+   "evidence": "Parallel examiners share one session scratchpad. Root-level pop.py equals ast-survey-agentdojo's copy, dl1.py and os2.py equal agentdyn's, os1.py equals agentdojo-upstream's (this examiner overwrote another examiner's root os1.py once). The agentdojo-upstream scripts were moved to a private sub-directory and every result was re-run from there (outputs dated after the move); the committed exam-scripts/ copies match byte for byte, except pop.py, whose work-dir line is path-cleaned (Path.home()). The agentdyn and adprov-v1 committed os1.py digests differ from the overwritten root copy.",
+   "reproduction": "ls -la <scratchpad> | grep -E ' (pop|dl1|os1|os2)\\.py'",
+   "hypothesis_ref": "",
+   "recommendation": "Give each examiner a per-corpus scratch directory. Each examiner should re-check that its committed outputs came from its committed exam-scripts/ copy.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Digest matching of root and per-corpus copies supports the claim; not a tools/precheck defect and no corpus data affected: analysis-artefact S3. Corrections: Optional evidence additions applied (which corpus each root copy belongs to; other corpora's committed os1.py unaffected)."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5: process property of the pre-check (shared scratchpad), not of the corpus; analysis-artefact S3, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-agentdojo-upstream-12",
+   "title": "[CC-05] Stored corpus agentdojo-upstream-{head,2024-06}-p10.partial gives validate.results.differ (validation rows predate regen item 10's pv.constraints.* checks)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head, 2024-06",
+   "check": "stored validate --corpus (README section 8 amendment 1)",
+   "evidence": "README section 8 amendment 1 (orchestrator note from the PROV cache session's proofs, 2026-10-15): on the 8 stored wave-1 corpora, agentprov validate --corpus exits 1 with validate.results.differ, cache on or off; the stored rows predate the four pv.constraints.* checks of regeneration-batch item 10 (cycles, derivation_parts, ordering, unique_start) and every row still passes them. Not re-run here (stored corpora are read-only for validate; optional follow-up). The scratch L2 imports at db6ef512 validate fresh (313/313, 300/300).",
+   "reproduction": "uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adu-validate -- uv run agentprov validate --corpus ~/.agentprov/corpora/agentdojo-upstream-head-p10.partial   # and the 2024-06 twin; not run in this pre-check",
+   "hypothesis_ref": "",
+   "recommendation": "None before the round. The round re-validates; the post-check compares a re-validated stored or regenerated corpus with a fresh import, like with like (amendment 1).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Numbered finding added under CC-05 (one per stored corpus); the dossier carried this as a text note only. The observation is the amendment-1 proof, not a re-run by this pre-check."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

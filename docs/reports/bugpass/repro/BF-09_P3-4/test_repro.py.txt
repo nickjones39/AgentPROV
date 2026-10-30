@@ -1,0 +1,44 @@
+"""P3-4: `suite --result green` records HEAD at record time, not the head suite-start ran on."""
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+TOOL = REPO / "tools" / "session_status.py"
+
+
+def _git(cwd, *args):
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"}
+    return subprocess.run(["git", *args], cwd=cwd, env=env, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _tool(cwd, sdir, *args):
+    env = {**os.environ, "AGENTPROV_SESSIONS_DIR": str(sdir), "GIT_CONFIG_GLOBAL": "/dev/null"}
+    env.pop("AGENTPROV_SESSION_NAME", None)
+    return subprocess.run([sys.executable, str(TOOL), "--name", "s", "-C", str(cwd), *args], cwd=cwd, env=env,
+                          capture_output=True, text=True)
+
+
+def test_green_recorded_for_commit_suite_did_not_run_on(tmp_path):
+    repo, sdir = tmp_path / "r", tmp_path / "sessions"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "work")
+    (repo / "f").write_text("a\n")
+    _git(repo, "add", "f"); _git(repo, "commit", "-qm", "a")
+    head_a = _git(repo, "rev-parse", "HEAD")
+    r = _tool(repo, sdir, "suite-start"); assert r.returncode == 0, r.stderr
+    # suite runs on A ... meanwhile the session commits B
+    (repo / "f").write_text("b\n")
+    _git(repo, "commit", "-qam", "b")
+    head_b = _git(repo, "rev-parse", "HEAD")
+    r = _tool(repo, sdir, "suite", "--result", "green", "--passed", "1", "--failed", "0")
+    doc = json.loads((sdir / "s.json").read_text())
+    print("rc", r.returncode, "A", head_a[:10], "B", head_b[:10], "last_suite.commit", doc["last_suite"]["commit"][:10],
+          "state", doc["state"], "started_at", doc["last_suite"]["started_at"], "suite_started_at",
+          doc.get("suite_started_at"))
+    # Expected: refused (non-zero) or attributed to A. merge_train.admit checks last_suite.commit == branch head.
+    assert r.returncode != 0 or doc["last_suite"]["commit"] == head_a, (
+        f"green recorded for {head_b[:10]} (never tested); suite-start was on {head_a[:10]}")

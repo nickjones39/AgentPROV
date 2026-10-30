@@ -1,0 +1,165 @@
+# Source profile `code-agent-misalignment-geminicli`: the gemini_cli part of the code-agent agentic-misalignment rollout
+# bundle (Zenodo 20404563; docs/architecture D.23; DECISIONS D-330..D-337; docs/reports/phase10o/).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The [family.geminicli] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10o census of the pinned archive,
+# read in memory (docs/reports/phase10o/README.md).
+#
+# Scope (D-143, D-331): the corpus counts the 2,182 non-empty gemini_cli streams of 10,000 rollouts. The claude_code,
+# codex_cli and openhands cells (7,500 rollouts) are not readable faithfully: each rollout is registered
+# `select.out_of_scope` through its verdict.json. The 175 empty streams and the 143 gemini_cli rollouts without a stream
+# are registered `select.not_execution_artefact` (details geminicli.empty_stream, geminicli.no_stream). Nothing is
+# excluded for its outcome.
+#
+# Input: the rollouts are members of a top-level zstd tar, read as an archive input (D-200, D-240; RI-3). The profile's
+# `include` selects every gemini_cli member (the streams and their siblings), the other cells' verdicts and the
+# deposit's top-level files, so the `expand` stage stores exactly what the reader and the register need.
+
+[profile]
+id = "code-agent-misalignment-geminicli"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "code-agent-misalignment-geminicli"
+family = "geminicli"
+parts = ["results-raw"]
+title = "Code-agent agentic misalignment, gemini_cli streams: 5 models x 500 mutations (Zenodo 20404563), structured part"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.13", "docs/reports/phase10o/README.md"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.20404563"
+paper = "RESULTS_raw: Raw rollout bundle for code-agent agentic misalignment benchmark (10,000 rollouts, 20 cells), Zenodo 10.5281/zenodo.20404563 (concept 10.5281/zenodo.20404562); supplement to github.com/warmjademe/code_agent_agentic_misalignment"
+package = { name = "gemini-cli", requirement = "not recorded in the deposit (D-334)", version_identifies_code = false }
+
+# 63,384 regular members under RESULTS_build/: 20 cells x 500 rollout directories, plus README.md, cell_summary.csv and
+# manifest.csv. The md5 equals the record's checksum; the sha256 equals the record's RESULTS_raw.tar.zst.sha256.
+[[source.pins]]
+role = "runs"
+part = "results-raw"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.20404563"
+file = "RESULTS_raw.tar.zst"
+sha256 = "f7186010db235cbff10f40c3c2d98208328c6836792973621382b981d0acc3cf"
+md5 = "c8f46f1eae55897fe55955f368d5da77"
+size = 207950011
+date = "2026-05-27"
+note = "fetched 2026-10-12 (phase 10e, the user's yes); read in place by phase 10o (no new retrieval)"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["the record's creators (Zenodo 20404563)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "CC-BY-4.0 on the Zenodo record; the code repository it supplements is MIT (not imported)"
+attribution = [
+  "RESULTS_raw, Zenodo 10.5281/zenodo.20404563 (CC-BY-4.0)",
+  "github.com/warmjademe/code_agent_agentic_misalignment @ 1dec4f17 (MIT; cited, not imported)",
+]
+unassessed = ["model-provider terms on redistributing model outputs", "web search results replayed inside tool outputs"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "geminicli.stream_json"
+mapper = "geminicli.stream_json"
+variants = ["v1"]
+rules = { aer = 1, geminicli = 1 }
+include = [
+  "RESULTS_build/cells/gemini_cli__*/*/*",
+  "RESULTS_build/cells/claude_code__*/*/verdict.json",
+  "RESULTS_build/cells/codex_cli__*/*/verdict.json",
+  "RESULTS_build/cells/openhands__*/*/verdict.json",
+  "RESULTS_build/manifest.csv",
+  "RESULTS_build/README.md",
+  "RESULTS_build/cell_summary.csv",
+]
+exclude = [
+  { glob = "RESULTS_build/cells/claude_code__*/*/verdict.json", code = "select.out_of_scope", note = "D-143: claude_code transcripts not readable faithfully (EX-FMT); one row per rollout" },
+  { glob = "RESULTS_build/cells/codex_cli__*/*/verdict.json", code = "select.out_of_scope", note = "D-143: codex_cli plain-text streams not readable faithfully (EX-FMT); one row per rollout" },
+  { glob = "RESULTS_build/cells/openhands__*/*/verdict.json", code = "select.out_of_scope", note = "D-143: openhands transcript tails not readable faithfully (EX-FMT); one row per rollout" },
+  { glob = "RESULTS_build/README.md", code = "select.not_execution_artefact", note = "the deposit's README" },
+  { glob = "RESULTS_build/cell_summary.csv", code = "select.not_execution_artefact", note = "per-cell rates of the detector" },
+]
+auxiliary = ["verdict.json", "gemini_meta.json", "fs_before.json", "fs_after.json", "final_diff.patch", "events.jsonl", "gemini_stderr.log", "runner_stdout.log", "runner_stderr.log", "atoms.flat", "RESULTS_build/manifest.csv"]
+layout = "RESULTS_build/cells/{scaffold}__{model}/{skeleton}__{variant}/{file}"
+
+# D-336 (user-approved 2026-10-13): one tool output holds a value of the Google API key shape, also found in three
+# claude_code files and in no task workspace: most likely a harness credential the agent printed. The rule withholds every
+# stored object and derived file that holds such a value, and the executions citing it (1 in the census).
+[withhold]
+reason = "secret"
+public_note = "a credential-shaped value printed by an agent in a tool output; value never recorded"
+scan_rules = ["gcp-api-key"]
+
+[[withhold.rules]]
+id = "google-api-key-shape"
+pattern = "AIza[0-9A-Za-z_\\-]{35}"
+scope = "executions"
+
+[family.geminicli]
+layout = "{root}/cells/{scaffold}__{model}/{skeleton}__{variant}/{file}"
+scaffold = "gemini_cli"
+models = ["MiniMax-M2", "claude-sonnet-4-6", "gemini-2.5-pro", "glm-4.7-probe", "gpt-5.3-codex"]
+excluded_scaffolds = ["claude_code", "codex_cli", "openhands"]
+tools = ["codebase_investigator", "glob", "google_web_search", "list_directory", "read_file", "read_many_files", "replace", "run_shell_command", "search_file_content", "write_file"]
+pairing = "geminicli.tool_id_link_unverified@1"
+semantics_profile = { id = "geminicli.tools", version = 1 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.empty_stream"
+rules = []
+note = "0-byte gemini_stream.jsonl; registered select.not_execution_artefact"
+observed = { rollouts = 175 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.no_stream"
+rules = []
+note = "rollout without gemini_stream.jsonl (141 hold harness atoms with calls but no results); registered through verdict.json"
+observed = { rollouts = 143, elicited = 19 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.no_result_event"
+rules = ["geminicli.exit_143_terminated_unverified@1"]
+observed = { streams = 719 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.cli_error_result"
+rules = ["geminicli.result_status@1"]
+observed = { streams = 495 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.unanswered_last_call"
+rules = ["geminicli.tool_id_link_unverified@1"]
+observed = { calls = 73 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.cli_model_alias"
+rules = ["geminicli.cli_model_compare@1"]
+observed = { streams = 1762 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.verdict_meta_disagree"
+rules = ["geminicli.verdict_meta_compare@1"]
+observed = { streams = 1214 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.subagent_internals_unobserved"
+rules = ["geminicli.subagent_tool_unverified@1"]
+observed = { calls = 76, counter_differs = 20 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.cli_notice"
+rules = ["geminicli.cli_notice_is_harness_unverified@1"]
+observed = { events = 68 }
+
+[[family.geminicli.quirk]]
+id = "geminicli.leaked_credential"
+rules = []
+note = "one Google-API-key-shaped value in one tool output; withheld by [withhold] (D-336)"
+observed = { streams = 1 }

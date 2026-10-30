@@ -1,0 +1,51 @@
+# Corpus spec of `adprov-v1-release` (HL H.1.6; D-44): the data-free build input. `agentprov package` copies this file, CARD.md
+# and CHANGES.toml into the sealed corpus's rules/ (a record, AD-14). Identity and selection come from here and from the
+# in-package source profile `adprov-v1@2` ([import] include/exclude, used because this spec names none); counts are
+# computed at sealing, never written here (H.2.1(3)). The origin is the pin the import recorded (D-33).
+
+corpus_id = "adprov-v1-release"
+corpus_version = "0.1.0"
+title = "AgentDojo-PROV v2.3 released transcripts, re-imported as AgentPROV Execution Records"
+mode = "import"
+
+[[sources]]
+source_id = "adprov-v1"
+profile = "adprov-v1@2"  # D-31: version 1 is archived (profiles/archive/)
+parts = ["release"]
+
+[[sources.snapshots]]
+snapshot_id = "release"
+origin = { kind = "corpus", corpus = "AgentDojo-PROV", version = "2.3", producer_commit = "579a908354b93361efe0905ffb7623256aa96a06" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["agentdojo.suites@2"]  # D-31 and item 1
+prov_specs = ["agentprov-prov/0.1", "adprov-v2.3-compat"]
+views = []
+options = { context_encoding = "members" }
+
+# Licence files (user, 2026-10-11, D-44): LICENSE is the CC-BY-4.0 legal code (the data licence of the released
+# transcripts); AgentDojo-LICENSE is the AgentDojo MIT notice for the embedded benchmark text. The agentdojo-prov
+# repository LICENSE (MIT, code) is not shipped; the AgentDojo-PROV v2.3 release folder's own LICENSE is that MIT file,
+# so it is not the LICENSE to supply. Both files are supplied at sealing with --licence-file.
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus; LICENSE = CC-BY-4.0 legal code plus the AgentDojo MIT notice)"
+files = ["LICENSE", "AgentDojo-LICENSE"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only, never addresses; corpora/personas/). upstream-data:
+# addresses in the benchmark's own published data at its pinned commit (synthetic-benchmark). <corpus>.observed: by where an
+# address first appears in this corpus's executions: benchmark-input (synthetic-benchmark), model-generated (kept, its own
+# triage) and withhold (model output at a public mail provider: sealing withholds the executions that hold one).
+# file-name: strings with the shape of an address (a file name) that a person reviewed (false-positive). Observed and
+# file-name groups apply to this corpus only.
+[scan]
+personas = [
+  { path = "../personas/adprov-v1-release.file-names.personas.toml", sha256 = "sha256:fe032be1a7fd193684055986b2410b17268baf20f5bc9878a9e8dc05457e1f6d" },
+  { path = "../personas/agentdojo.personas.toml", sha256 = "sha256:6f11d2054854b6d280c7061829ee941c1fd7e1e58f456cbeeff3ff62606c289a" },
+  { path = "../personas/adprov-v1-release.observed.personas.toml", sha256 = "sha256:d1cc96fcfdb70554fa2d3a519a56617dd25c805234131a8ad019c0fcf40fbd56" },
+]

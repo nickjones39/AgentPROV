@@ -1,0 +1,142 @@
+# Source profile `redcode-exec-qwencode`: the Qwen Code runs of RedCode-Exec's replication package (Zenodo 23168099;
+# docs/architecture D.24; DECISIONS D-570..D-578; docs/reports/phase10o/part-c.md).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since regen items 120-127 (D-31, the twins owner's ruling of 2026-10-21, option A: the
+# catalogue qwencode@2 and the semantics profile qwencode.tools@2); version 1 (main's bytes at 93c02c6f, which the scratch
+# trial corpora recorded) ships under profiles/archive/redcode-exec-qwencode.profile.v1.toml. The [family.qwencode]
+# table is checked against ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10o part-C census of the pinned
+# archives, read in memory.
+#
+# Input: the 3,300 run outputs are members of one zip (an archive input, D-200). Their score records, RedCode requests and
+# the execution rules are members of the deposit's supplementary zip, the `supp` context pin; the CLI does not wire a
+# profile's context pins yet and a context tree cannot be an archive (both routed: D-530, phase-10i-context), so the
+# product import of this part waits for D-530. Scratch trials use tools/qwencode/trial_import.py (trial only).
+
+[profile]
+id = "redcode-exec-qwencode"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "redcode-exec-qwencode"
+family = "qwencode"
+parts = ["qwen3coder"]
+title = "RedCode-Exec agent runs of 'Which Orders Count?', Qwen Code part: qwen3-coder-30b-a3b-instruct, S1-S3 (Zenodo 23168099)"
+evidence = ["docs/reports/phase10o/part-c.md", "docs/reports/systematic-search/candidates/phase10e-candidates.md §3.9"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.23168099"
+paper = "Which Orders Count? A Behavioral Study of Execution Decisions in Autonomous Coding Agents (replication package, Zenodo 10.5281/zenodo.23168099)"
+package = { name = "qwen-code", requirement = "0.21.0 recorded in every run's init message; sources not fetched (D-574)", version_identifies_code = false }
+
+# 3,305 members: 3,300 run outputs under results/Qwen/qwen3-coder-30b-a3b-instruct/<S>/<lang>/trajectory/ and one
+# _full_api_request_sample.json per group (5).
+[[source.pins]]
+role = "runs"
+part = "qwen3coder"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.23168099"
+file = "trajectories_Qwen-qwen3coder.zip"
+sha256 = "2fd0cada13db9064d31b12224602478f75df7193d359b23344612b35c9b347dc"
+md5 = "e34b601415700c8109ea8d5e7d33b7f0"
+size = 9402535
+date = "2026-10-05"
+note = "fetched 2026-10-12 (phase 10e, the user's yes); read in place by phase 10o part C (no new retrieval); md5 equals the record's"
+
+[[source.pins]]
+role = "supp"
+part = "qwen3coder"
+primary = false
+kind = "zenodo"
+doi = "10.5281/zenodo.23168099"
+file = "agent-execution-decisions-supp.zip"
+sha256 = "96e328facb240c14da16c394290372ddbb7221d97498cea16a64bd720192ae69"
+md5 = "8dfc720e8d328bffa50336ccf02b8b8f"
+size = 10130955
+date = "2026-10-05"
+note = "context: results/Qwen conversation_log score records, prompt_generator records, RedCode-Exec dataset code, OH_evaluation/execution_rules.md; Qwen_evaluation/ is documentary code evidence only (never run)"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["the record's creators (Zenodo 23168099)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "CC-BY-4.0 on the Zenodo record"
+attribution = [
+  "Which Orders Count? replication package, Zenodo 10.5281/zenodo.23168099 (CC-BY-4.0)",
+  "RedCode-Exec dataset (as redistributed in the package)",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "qwencode.json"
+mapper = "qwencode.json"
+variants = ["v0.21"]
+rules = { aer = 1, qwencode = 2 }
+include = [
+  "results/Qwen/*/S*/*/trajectory/qwen_*.json",
+  "results/Qwen/*/S*/*/trajectory/_full_api_request_sample.json",
+]
+exclude = []
+auxiliary = ["_full_api_request_sample.json", "supp:results/Qwen/*/S*/*/conversation_log/index*.json", "supp:dataset/RedCode-Exec/*_dataset_json/index*.json", "supp:prompt_generator/output/*/S*/index*.json", "supp:OH_evaluation/execution_rules.md"]
+context_artefacts = ["supp:results/Qwen/*/S*/*/conversation_log/index*.json", "supp:dataset/RedCode-Exec/*_dataset_json/index*.json", "supp:prompt_generator/output/*/S*/index*.json", "supp:OH_evaluation/execution_rules.md"]
+layout = "results/Qwen/{model}/{target}/{language}/trajectory/qwen_{scenario}_{payload}[_py|_sh]_{target}.json"
+
+# D-578 amendment (2026-10-21; the bug pass's D-602): the supplementary zip (the `supp` pin) holds a real-format access
+# token in an unselected member (environment/<seg>/.bash_history; value never recorded). The rule is D-602's, at object
+# scope: the decoded scan withholds the zip container, and no execution, once the zip is stored (archive context, D-530).
+[withhold]
+reason = "secret"
+public_note = "a real-format access token in an unselected member of the deposit's supplementary archive; the archive is withheld, the value is never recorded"
+scan_rules = ["huggingface-access-token"]
+
+[[withhold.rules]]
+id = "hf-token-shape"
+pattern = "hf_[A-Za-z0-9]{34}"
+scope = "object"
+
+[family.qwencode]
+layout = "{prefix}results/Qwen/{model}/{target}/{language}/trajectory/qwen_{scenario}_{payload}[_{suffix}]_{target}.json"
+targets = ["S1", "S2", "S3"]
+languages = ["python", "bash"]
+tools = ["agent", "edit", "glob", "grep_search", "list_directory", "read_file", "run_shell_command", "todo_write", "write_file"]
+pairing = "qwencode.tool_use_id_link_unverified@1"
+semantics_profile = { id = "qwencode.tools", version = 2 }
+
+[[family.qwencode.quirk]]
+id = "qwencode.truncated_capture"
+rules = ["qwencode.truncated_salvage@1", "qwencode.capture_cut_unverified@1"]
+observed = { outputs = 4, bytes_each = 65536 }
+
+[[family.qwencode.quirk]]
+id = "qwencode.empty_output"
+rules = []
+note = "0-byte output whose score record says timed_out; registered select.not_execution_artefact"
+observed = { outputs = 1 }
+
+[[family.qwencode.quirk]]
+id = "qwencode.usage_above_logged"
+rules = ["qwencode.acc.usage@1"]
+observed = { runs = 851 }
+
+[[family.qwencode.quirk]]
+id = "qwencode.tool_error_results"
+rules = ["qwencode.tool_status@1"]
+observed = { results = 1495 }
+
+[[family.qwencode.quirk]]
+id = "qwencode.subagent_event"
+rules = ["qwencode.subagent_message_unverified@1"]
+observed = { system_messages = 4, user_messages = 2 }
+
+[[family.qwencode.quirk]]
+id = "qwencode.score_one"
+rules = ["qwencode.score_one_ambiguous@1"]
+observed = { records = 94 }

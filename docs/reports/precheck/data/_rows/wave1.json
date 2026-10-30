@@ -1,0 +1,487 @@
+{
+ "critic": {
+  "fixed": [
+   "agentdyn.md header: l2-c.json records code commit 260385bf, not c4ee3dd1. This is a plan-only commit (tools/precheck/plans/wave4*.toml) that landed while the part-c import ran, with no src/ or tool change. The header now says so.",
+   "agentdyn.md L1-03: 'CR 3' corrected to 'CR 2 artefacts (3 strings)', matching l1-a.json.",
+   "agentdyn.md L1-04: the prereg expected about 390 identical-message groups (INV/VER definition) and L1 found 889; the row said only 'the rest as expected'. It now says the two definitions are not comparable and cross-references PC-rope-05, PC-adprov-v1-04 and PC-ast-survey-agentdojo-09.",
+   "agentdojo-upstream.md L1-07: added the counts the row left out: artefacts with any timestamp pointer (14,933 / 2,303) and 90 / 88 'non-monotone' units. These come from tool-argument calendar data and are content, not a clock property; exam.json already said so.",
+   "agentdojo-upstream.md and rope.md 'Verify chain': both preregs pre-registered a sealed-copy run. Added the reason it was not run: README section 4 asks for it only where withholding applies, and neither profile has a [withhold] table.",
+   "ast-survey-agentdojo.md L1-07: added that the 5 'non-monotone' units in l1-agentdojo-runs.json come only from scenario-date pointers. The fact was in exam.json but not in the dossier.",
+   "mandate-agentdojo-eval.md section 5 DL-1: prereg section 7 expected '+1,621 apv:Gap' for U6-c, and the dossier never addressed it. I recounted on the same 40 ids (read-only, scratch l2-head-j2 vs stored p10). apv:paramsStatus apv:NotRecorded is on all 148 ModelInvocations (carriers go from 40 to 188 counting the agent systems). apv:Gap is 547 in both stored and scratch, so no new Gap. This is the same wrong reading as PC-agentdojo-upstream-06 and PC-ast-survey-agentdojo-05. Section 3 (H10) now notes it.",
+   "mandate-agentdojo-eval.md readiness: '13/13 arms' corrected to '13/13 values over the 8 arms'.",
+   "ast-survey-agentharm.md L2 Redaction: added the l2_check account-path hit counts the row left out (3,176 files; AER 1,626 pointer hits in 95 executions; PROV 221 in 71; account-path class only). The H-15 result that all hits are content is unchanged."
+  ],
+  "issues": [
+   {
+    "corpus_id": "mandate-agentdojo-eval / ast-survey-agentdojo (cross-corpus)",
+    "issue": "Same artefact, different class. AgentDojo #181 banking precedence: PC-mandate-agentdojo-eval-01 is source-defect S2, but PC-ast-survey-agentdojo-04 was reclassified by its verifier to expected-known S3 because agentdojo.art.validity_defects already covers it. Both recommend the same thing: extend validity_defects with an expected row. PC-mandate-agentdojo-eval-02 (#161, vacuous user_task_5 utility) is also source-defect S2, although validity_defects already covers vacuous utility for agentdojo-upstream (prereg known quirks 182/81). The orchestrator should pick one class and severity for 'covered by validity_defects, new source scope' and apply it to all three findings in findings.json and the dossiers."
+   },
+   {
+    "corpus_id": "ast-survey-agentharm / agentdyn / mandate-agentdojo-eval (cross-corpus)",
+    "issue": "Upstream harness or checker defects that are visible in the data are classed three ways. PC-ast-survey-agentharm-01 (inspect_evals #2439, broken file tools) is documentation-mismatch S2. PC-agentdyn-05 (AgentDyn #6 pre-fix checker) and PC-mandate-agentdojo-eval-01/02 are source-defect S2. PC-ast-survey-agentdojo-04 is expected-known S3. Under README section 5 ('source-defect = the data itself'), #2439 reads as source-defect. Needs one reconciliation decision; no re-run."
+   },
+   {
+    "corpus_id": "rope / adprov-v1 / ast-survey-agentdojo / agentdojo-upstream / agentdyn (cross-corpus)",
+    "issue": "One tool property gets five different treatments. The L1 trajectory fingerprint omits provider call ids, so its group counts differ from FA, E2 and the census in every AgentDojo-family corpus. PC-rope-05 is documentation-mismatch S2, PC-adprov-v1-04 documentation-mismatch S3, PC-ast-survey-agentdojo-09 analysis-artefact S3. agentdojo-upstream has a note only (649/4,837 vs FA 382/3,612). agentdyn had no note until this pass (889 vs about 390). Unify the class and severity and make one decision for manuscript artefact row 7, which PC-rope-05 says covers the head and AgentDyn entries too."
+   },
+   {
+    "corpus_id": "agentdyn / rope (cross-corpus)",
+    "issue": "Same benchmark fixture, different severity and recommendation. The AgentDyn dailylife private-key header reaches AER and PROV verbatim in both corpora (agentdyn: 1 sampled execution; rope: 1 slice execution; L1: rope 79 logs, agentdyn a 86 / b 21 / c 4 files). PC-agentdyn-13 is expected-known S2 and recommends widening RT-10 and deciding [withhold] before release. PC-rope-07 is expected-known S3 and recommends 'no withholding'. If RT-10 is widened, ROPE's 79 logs belong in its scope. Reconcile both findings with one decision."
+   },
+   {
+    "corpus_id": "agentdojo-upstream / ast-survey-agentdojo / rope / mandate-agentdojo-eval (cross-corpus)",
+    "issue": "The U6-c prediction ('one apv:Gap per model call'; the engine records apv:paramsStatus NotRecorded instead) is handled unevenly. It is a separate documentation-mismatch finding in agentdojo-upstream (PC-06) and ast-survey-agentdojo (PC-05), folded into expected-known PC-rope-02, and absent from mandate-agentdojo-eval (now recounted in the dossier text, but with no finding id). Route one regen-batch.md U6-c correction for all four and decide whether mandate gets a finding id."
+   },
+   {
+    "corpus_id": "adprov-v1 / ast-survey-agentharm (findings.json format)",
+    "issue": "Analysis-artefact: findings.json does not follow one schema across the wave. adprov-v1 uses format 'agentprov-precheck-findings/1' (the others use /0.1), a `verdicts` list instead of `verdict`, and has no `counts`, `reproduction`, `part` or `hypothesis_ref`. ast-survey-agentharm keeps its refuted PC-06 inside `findings` (with counts.findings 5), while the others put refuted items in a top-level `refuted`. Only agentdojo-upstream and agentdyn carry `cls_examiner`. A summary.json builder that assumes one shape will miscount. Normalise before the summary is built; no re-run."
+   },
+   {
+    "corpus_id": "adprov-v1",
+    "issue": "H8 (text-call detector count <= 150; paper 470 vs E2 135) is 'not tested', and unlike H6/H7/H9/H10/H11 (meta census follow-up) and H13 (optional DL-9 import) it has no follow-up. A counts-only exam script over the stored AER or the raw transcripts is needed before the A/M figure 470 is relied on. H6, H7, H9, H10 and H11 are still open until the meta census runs.",
+    "rerun": "uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adprov-v1 -- uv run python -I docs/reports/precheck/data/adprov-v1/exam-scripts/meta_census.py src ~/Desktop/PhD/Labs/AgentDojo-PROV-framework/corpus/corpus-prov ~/.agentprov/migration-work/precheck/adprov-v1/meta-census-release.json   (H8 needs a new detector script; none exists)"
+   },
+   {
+    "corpus_id": "rope",
+    "issue": "Two prereg check-map expectations are not accounted for. (1) L1-03 expected about 3,824 wholly escaped YAML AutoDojo payloads, but L1-03 has no YAML-escape class, so the dossier's 'as expected' is not backed by a count. (2) L1-08 expected 675 unexecuted-tail logs and a minimum file size of 1,751 B; neither is reported as an L1 result (675 appears only as the population rate in the L2 row). Either state 'not tested by L1' with a reason or add the counts (light: an exam script over W/l1-units-head.jsonl). The targeted 43-label import for H-12 and H-13 is still pending.",
+    "rerun": "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-rope -- uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/rope/l2-targeted-head.json --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2 --source rope --part head --jobs 2"
+   },
+   {
+    "corpus_id": "mandate-agentdojo-eval",
+    "issue": "PC-09 is still open in the data. The `aer` block of dl1-delta.json is still the copy from ast-survey-agentdojo (executions 120), and raw-census.json still holds the unrecorded `within_arm_timeline` block. The dossier points readers to aerdiff-j2.json, but the committed JSON is wrong until the exam owner regenerates it (light, read-only).",
+    "rerun": "python3 -I docs/reports/precheck/data/mandate-agentdojo-eval/exam-scripts/aerdiff.py ~/.agentprov/corpora/mandate-agentdojo-eval-p10.partial ~/.agentprov/migration-work/precheck/mandate-agentdojo-eval/l2-head-j2.partial <out>  then replace the `aer` block of dl1-delta.json and drop `within_arm_timeline` from raw-census.json"
+   },
+   {
+    "corpus_id": "agentdyn",
+    "issue": "exam.json is stale against the verifier corrections that findings.json and the dossier carry. It has account-path files a 137 / c 30 and '22 distinct named accounts'; the corrected figures are 133 / 19 / 28 and 16 names. Regenerate exam.json with exam-scripts/build_exam.py or annotate it, so the post-check does not read the old numbers. Also, H-01 is listed as supported while its message, tool-call and tool-error totals were not emitted. H-13, the rest of H-15, and H-16 (day histogram) wait on exam_l1_extra.py, and part b L2 waits on followup1.toml.",
+    "rerun": "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-followup1 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/followup1.toml ; uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-agentdyn-extra -- uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/exam_l1_extra.py --root ~/Desktop/PhD/Labs/AgentPROV-upstream/agentdyn --units-dir ~/.agentprov/migration-work/precheck/agentdyn --out docs/reports/precheck/data/agentdyn/l1-extra.json"
+   },
+   {
+    "corpus_id": "_cross (all wave-1 corpora)",
+    "issue": "Risk for summary.json. The within-part trajectory group counts in data/_cross/l1-xdup.json are lower than the per-part L1 counts (agentdojo head 323 vs 649, 2024-06 73 vs 396, agentdyn a 887 vs 889, rope 233 vs 235, adprov 168 vs 169), because groups that span parts or corpora move to cross_part or cross_corpus. The dossiers use the L1 figures. The summary must state which basis it uses, or the post-check comparison (protocol 8.3 item 1) will report false differences."
+   },
+   {
+    "corpus_id": "agentdojo-upstream",
+    "issue": "Still open: the tool fixes for PC-07 (l2_check twin counting) and PC-08 (null_final misses v1.k14 empty text blocks; expect 343). After the freeze, re-run head L1 and l2_check for both parts. H-15 is supported on the sample only; the population count (22,497 head-only executions citing twins, 0 shared) needs the regenerated corpus. The same null_final tool gap affects agentdyn (PC-06) and ast-survey-agentdojo (PC-08), so their L1-08 flags need a re-run after the fix as well.",
+    "rerun": "uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adu-l1-head -- uv run python tools/precheck/l1_scan.py --source agentdojo --part head --corpus-id agentdojo-upstream --jobs 2 --emit-fp --use-pin"
+   },
+   {
+    "corpus_id": "ast-survey-agentdojo",
+    "issue": "The sample drew none of the 11 run-error logs, so survey.internal_server_error_patch@1 and the 10 imposed security values have not been exercised at current main. The follow-up needs a hand-written sample file, which no tool produces yet.",
+    "rerun": "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentdojo -- uv run python tools/precheck/l2_import.py --sample <sample of the 11 error_present + 4 capped labels> --corpus ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors-j2 --source agent-security-tools-survey --part agentdojo-runs --jobs 2"
+   },
+   {
+    "corpus_id": "ast-survey-agentharm",
+    "issue": "H-17 is supported only within the part and across wave-1 parts. The cross-corpus duplicate check against kexin-xu-01-agentharm and fragfuse-agentharm waits for wave 4. The refuted PC-06 confirmed this is timing, not a tool gap.",
+    "rerun": "uv run python tools/precheck/l1_xdup.py   (after wave 4 L1)"
+   },
+   {
+    "corpus_id": "agentdojo-upstream / agentdyn / ast-survey-agentharm (cosmetic)",
+    "issue": "The stored-corpus validate.results.differ (amendment 1) is a numbered expected-known finding in rope (PC-03), adprov-v1 (PC-09), ast-survey-agentdojo (PC-11) and mandate (inside PC-08), but only a text note in agentdojo-upstream, agentdyn and ast-survey-agentharm. The class is the same everywhere; only the presentation differs. Optional: align for the summary."
+   }
+  ]
+ },
+ "followups": [
+  "agentdojo-upstream: After the round: re-run exam-scripts/dl1.py on the regenerated corpora with the same ids, and count H-15 over the whole population (expect 22,497 head-only executions citing twins, 0 shared). Why: H-15 and PC-04/05/06 are only confirmed on the sample.",
+  "agentdojo-upstream: After the batches drain: fix l2_check twin counting (PC-07) and l1_families null_final (PC-08). Then re-run 'uv run python tools/precheck/l1_scan.py --source agentdojo --part head --corpus-id agentdojo-upstream --jobs 2 --emit-fp --use-pin' and l2_check for both parts. Why: corrected baselines for the post-check.",
+  "agentdojo-upstream: Route to the adprov-v1 examiner: 2 cross-corpus identical-trajectory groups (adprov qwen banking user_task_11 = agentdojo gpt-4o banking user_task_11 runs). Why: a full-content match across two models needs an explanation.",
+  "agentdojo-upstream: Optional: uv run agentprov validate --corpus ~/.agentprov/corpora/agentdojo-upstream-head-p10.partial (and the 2024-06 corpus) through the queue. Why: shows the amendment-1 results.differ directly.",
+  "agentdojo-upstream: Give examiners per-corpus scratch directories (PC-11).",
+  "agentdojo-upstream: Family owner: add artefacts.toml agentdojo.art.incomplete_arm and fix the licence basis text. regen-batch.md: correct the item-1 table row and the U6-c wording.",
+  "agentdyn: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-followup1 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/followup1.toml   # agentdyn b L2: first mapping, scratch only; b's L2 is pending in this exam",
+  "agentdyn: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-agentdyn-extra -- uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/exam_l1_extra.py --root ~/Desktop/PhD/Labs/AgentPROV-upstream/agentdyn --units-dir ~/.agentprov/migration-work/precheck/agentdyn --out docs/reports/precheck/data/agentdyn/l1-extra.json   # whole-population raw re-read (~600 MB), tested with --limit 300. Covers: section-2 message/tool-call/tool-error/no-call counts (H-01); last-message shapes (H-13, PC-agentdyn-06); day histogram (H-16); b system digest (H-15)",
+  "agentdyn: Tool owner, after the batch freeze: split null_final into null_content(+calls) and empty_text_blocks in l1_families, and add an A2 table to l2_check (PC-agentdyn-06, -08)",
+  "agentdyn: Optional: compare the Qwen3 none and Gemini none rows with the out-of-scope history part before writing the datasheet note (PC-agentdyn-01, -03)",
+  "agentdyn: Process: the session scratchpad is shared by parallel examiners. This examiner's dl1.py and os2.py overwrote same-named files there around 09:22-09:25, and its os1.py was overwritten in turn. All agentdyn outputs were regenerated from ~/.agentprov/migration-work/precheck/agentdyn/exam/. Any examiner who reused scratchpad dl1.py or os2.py after 09:22 should re-check its output; examiners should use per-corpus directories.",
+  "rope: Targeted scratch import for H-12 and H-13/C1, 43 labels in docs/reports/precheck/data/rope/l2-targeted-head.json. Expected: the 2 empty LH logs become known_incomplete via agentdojo.incomplete_run@1 (stored verified_complete); the 5 ablation II runs get success_without_visible_payload; the 36 AutoDojo stored-no-visible runs get 0 flags. Commands:\n1. uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-rope -- uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/rope/l2-targeted-head.json --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2 --source rope --part head --jobs 2\n2. uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2.partial --out ~/.agentprov/migration-work/precheck/rope/l2-targeted.json --sample docs/reports/precheck/data/rope/l2-targeted-head.json --l1-units ~/.agentprov/migration-work/precheck/rope/l1-units-head.jsonl --jobs 2\n3. uv run python docs/reports/precheck/data/rope/exam-scripts/sample.py ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2.partial /tmp/rope-targeted.json",
+  "rope: Optional: add the 6 L1 home-dir labels (gemini github ut0 none, gemini github ut1 autodojo it8, gpt-4o-mini github ut13 autodojo it4, qwen banking ut14 II it6/it7, qwen banking ut5 II it0) to the targeted import. This records how the redaction screen classifies persona home paths in AER/PROV.",
+  "rope: Tool fixes after the batch (tools/precheck is frozen now):\n- PC-rope-04: attack alias in the L1 hook and l2_check identity.\n- PC-rope-06: .git excluded from local walks, context artefacts pin-checked, L1-07 monotonicity on run/step pointers only, ext.rope.arm in the arm key.\nRaw counts do not change.",
+  "rope: Route PC-rope-01 (stale artefacts.toml ROPE entries, manuscript = true) to the agentdojo family owner. After the round, recount: present-marker AutoDojo executions (prereg 2,528/2,847), success_without_visible_payload (5), partial_payload share, and AER records (515,376).",
+  "rope: Post-round: re-run exam-scripts/delta.py (regenerated stored corpus vs l2-head-j2.partial) and stored_corr.py (must give 32->0 / 39->22 / 5->0 / 88->71).",
+  "adprov-v1: Raw meta census for H6, H7, H9, H10, H11 (one strict agentprov.ingest read of the 17,664 transcripts, about 20 s, counts and model ids only). Run from the worktree: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adprov-v1 -- uv run python -I docs/reports/precheck/data/adprov-v1/exam-scripts/meta_census.py src ~/Desktop/PhD/Labs/AgentDojo-PROV-framework/corpus/corpus-prov ~/.agentprov/migration-work/precheck/adprov-v1/meta-census-release.json. Why: the L1 hook does not extract model_config or the meta keys behind these hypotheses.",
+  "adprov-v1: Optional, only if DL-9 must be settled: a one-label CLI import with the listing pin into ~/.agentprov/migration-work/precheck/adprov-v1/dl9 through the queue (agentprov import adprov-v1 --input <staged tree> --verify-against-pin with an include of one label; check agentprov import --help for the flag). Why: H13 is untested because l2_import prepares the listing over all candidates.",
+  "adprov-v1: Tool follow-up after the batch (tools are frozen now): l2_check identity should equate benign with none for AgentDojo-family attack facets, and a3 pass classes should count executions (PC-11).",
+  "adprov-v1: No rerun needed for adprov-v1 release: every batch step rc 0; determinism, validation and recompute clean.",
+  "ast-survey-agentharm: After the waves holding kexin-xu-01-agentharm and fragfuse-agentharm: uv run python tools/precheck/l1_xdup.py (why: H-17 cross-corpus is untested, PC-06)",
+  "ast-survey-agentharm: Optional, only if it does not write into the stored corpus: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentharm -- uv run agentprov validate --corpus ~/.agentprov/corpora/ast-survey-agentharm-p10.partial --jobs 2 (why: confirms amendment 1's expected validate.results.differ)",
+  "ast-survey-agentharm: After the batch: extend tools/precheck/l2_check.py with Inspect numeric outcomes and an A2 section, then re-run it on ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial (why: PC-05)",
+  "ast-survey-agentharm: No wave-1 rerun needed: l1, sample, import_j2, import_j1 and check all rc 0",
+  "ast-survey-agentdojo: Optional targeted L2 import of the 11 run-error logs (L1 rows with outcomes.error_present true) plus 4 capped logs (stored index map.unexecuted_tool_call). Write a sample file in l2-sample format with those labels, then run: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentdojo -- uv run python tools/precheck/l2_import.py --sample <that file> --corpus ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors-j2 --source agent-security-tools-survey --part agentdojo-runs --jobs 2; then tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors-j2.partial --out ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors.json --sample <that file> --l1-units ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l1-units-agentdojo-runs.jsonl. Why: the sample drew 0 of the 11 run errors, so survey.internal_server_error_patch@1 / outcome_imposed_by_runner were not exercised at current main.",
+  "ast-survey-agentdojo: Route PC-01 (D citation of agentdojo.unexecuted_trailing_calls@1 on unverified harnesses; mapper.py:1511/1513, drift_mapper.py:864/866) to the agentdojo family owner / regen-batch session before the round. It touches every capped log under the 24 verified_code = [] profiles.",
+  "ast-survey-agentdojo: Verifier for PC-04: check the agentdojo@089ed468 banking injection_task_0/1/3 security functions and target strings (ethz-spylab/agentdojo issue 181 and source), then recount it0/it1/it3 with the exact strings.",
+  "ast-survey-agentdojo: After the batch (tools unfrozen): fix the l1_families.py null_final check for block-list content (PC-08) and re-run L1 for the AgentDojo-family parts in the post-check.",
+  "ast-survey-agentdojo: Post-round: uv run agentprov validate --corpus <regenerated ast-survey-agentdojo> and compare with l2-agentdojo-runs.json (amendment 1).",
+  "ast-survey-agentdojo: Note for the orchestrator: parallel examiners share one scratchpad directory. This session's first outcomes.py/os2.json were overwritten by another examiner's files of the same name; this was caught and everything was recomputed in a private subdirectory. Ask examiners to use per-corpus subdirectories.",
+  "mandate-agentdojo-eval: After the round: run exam-scripts/aerdiff.py, semdiff.py and provdiff.py with the old corpus = mandate-agentdojo-eval-p10.partial and the new = the regenerated full corpus (all 396 ids). Expected: load_environment 369, /params unk 1,621, security outcome D->I 369, markers 361/935 unchanged. The run is light but needs the regenerated corpus.",
+  "mandate-agentdojo-eval: Optional, to show amendment 1 for Mandate now: copy the stored corpus with `cp -cR ~/.agentprov/corpora/mandate-agentdojo-eval-p10.partial ~/.agentprov/migration-work/precheck/mandate-agentdojo-eval/stored-copy.partial`, then run `uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-mandate-agentdojo-eval -- uv run agentprov validate --corpus ~/.agentprov/migration-work/precheck/mandate-agentdojo-eval/stored-copy.partial --jobs 2`. Expect exit 1 with validate.results.differ and 0 failed checks. Never run it on the stored corpus itself.",
+  "mandate-agentdojo-eval: Route to the family owner (no rerun): PC-01/PC-02, extend agentdojo.art.validity_defects to Mandate; PC-05, intent benign pre-pass row; PC-06, artefact-layer coverage of the note/decision entries; PC-04, wording of the regen-batch prediction.",
+  "mandate-agentdojo-eval: Tool owner, once the batch is unfrozen: PC-03, LaTeX precision of the _RESIDUES regex in tools/precheck/l1_scan.py. No Mandate rerun is needed."
+ ],
+ "rows": [
+  {
+   "agents_md_12": [
+    "PC-01: the head local-model arms back Meta SecAlign v2, not v1. Llama-3.3-70B-Instruct-repeat_user_prompt/important_instructions has 798 of 949 cells (slack and 46 banking cells are absent). agentdojo.art.incomplete_arm is pending with the family owner, and all arms are kept.",
+    "PC-02: corpus ASR for command-r-plus, gemini-1.5-pro-001, gpt-3.5-turbo-0125 and Llama-3-70b matches the results page only when the harness_default run-error judgements (agentdojo.run_error_imposed_outcome@1) are included. The papers exclude them, so statistics must state which convention they use.",
+    "PC-04: after the round, head SEM outcome and marker annotations of head-only logs are class I (D-84/D-86 twins, plus D-83 propagation for 47 v1.k14 security outcomes). The item-1 table's 'head stays D' is wrong."
+   ],
+   "artefact_proposals": 1,
+   "corpus_id": "agentdojo-upstream",
+   "dossier": "docs/reports/precheck/agentdojo-upstream.md (data: docs/reports/precheck/data/agentdojo-upstream/findings.json, 11 findings, all confirmed, 0 refuted)",
+   "findings_by_class": {
+    "analysis-artefact": 4,
+    "documentation-mismatch": 6,
+    "expected-known": 1
+   },
+   "findings_by_severity": {
+    "S2": 2,
+    "S3": 9
+   },
+   "followups": [
+    "After the round: re-run docs/reports/precheck/data/agentdojo-upstream/exam-scripts/dl1.py <part> <out> on the regenerated corpora with the same ids. Also count H-15 over the population: expect 22,497 head-only executions citing twins and 0 shared ones. Confirm head completeness 0/47/36,632 and 2024-06 0/51/18,190.",
+    "After the batch drains and the tool owner fixes l2_check twin counting (PC-07) and l1 null_final (PC-08; the rule should be all text blocks empty AND no tool_calls): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adu-l1-head -- uv run python tools/precheck/l1_scan.py --source agentdojo --part head --corpus-id agentdojo-upstream --jobs 2 --emit-fp --use-pin (expect null_final 343). Then re-run l2_check for both parts.",
+    "Route to the adprov-v1 examiner: 2 cross-corpus identical-trajectory groups. The adprov qwen banking user_task_11 runs match the agentdojo gpt-4o banking user_task_11 runs, and a full-content match across two models needs an explanation.",
+    "Optional: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adu-validate -- uv run agentprov validate --corpus ~/.agentprov/corpora/agentdojo-upstream-head-p10.partial (and the 2024-06 corpus) to show the amendment-1 results.differ directly.",
+    "Family owner: add the agentdojo.art.incomplete_arm entry to artefacts.toml (verifier-corrected denominators, text in the dossier section 7) and extend the agentdojo-upstream profile licence basis text at l. 90 (PC-10; proposed wording in findings.json).",
+    "regen-batch owner: correct the docs/reports/analysis/regen-batch.md item-1 table at l. 165 (PC-04) and the U6-c PROV wording to apv:paramsStatus apv:NotRecorded with no new apv:Gap (PC-06). Apply the same U6-c reading to the rope, ast-survey-agentdojo and mandate-agentdojo-eval preregs.",
+    "Process: give examiners per-corpus scratch directories (PC-11). Optional tool follow-up: let the generic-credential rule skip UUID-shaped values (PC-09)."
+   ],
+   "outcome_gap_flags": [
+    "head Meta-SecAlign-70B-repeat_user_prompt important_instructions UA 80.08 (760/949) [77.42, 82.50] vs Meta SecAlign v1 72.3: +7.78 pp, flagged; v2 79.5 is within 0.58 pp (PC-01)"
+   ],
+   "parts": [
+    {
+     "executions": "36,679 stored (agentdojo-upstream-head-p10.partial); 313 scratch",
+     "l1_units": "36,679 (walked 36,679, rejected 0; v0.k11 24,914, v1.k14 11,764, v1.k14.incomplete 1)",
+     "l2_status": "done: validation 313/313, recompute 0 unexplained, j1/j2 byte-identical, DL-1 0 unexplained",
+     "part": "head",
+     "registry": "supported",
+     "sample_n": "313 (313 strata, 1 each, over_maximum)",
+     "source": "agentdojo"
+    },
+    {
+     "executions": "18,241 stored (agentdojo-upstream-2024-06-p10.partial); 300 scratch",
+     "l1_units": "18,241 (walked 18,241, rejected 0; v0.k11 18,237, v0.k11.incomplete 4)",
+     "l2_status": "done: validation 300/300, recompute 0 unexplained, j1/j2 byte-identical, DL-1 0 unexplained",
+     "part": "2024-06",
+     "registry": "supported",
+     "sample_n": "300 (191 strata)",
+     "source": "agentdojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "Both parts import correctly and deterministically. Validation passed 313/313 and 300/300, recompute shows 0 unexplained, the j1 and j2 imports are byte-identical, DL-1 has 0 unexplained pointers, and raw and mapped judgements agree on all 1,226 of 1,226. All 28 results-page rows reproduce. Every remaining paper gap is either explained (run-error convention, Meta SecAlign version) or traced to the papers themselves. Caveats, all owned and routed: the S2 disclosures PC-01 (incomplete Llama-3.3-repeat arm, Meta SecAlign v2) and PC-02 (run-error ASR convention), plus the agentdojo.art.incomplete_arm entry, go to the family owner. The regen-batch and post-check corrections PC-04, PC-05 and PC-06 go to the regen-batch owner. The tool fixes PC-07 and PC-08 wait for the batch freeze. H-15 needs a population count after the round. The stored-corpus results.differ is expected-known under amendment 1.",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined-delta",
+   "wave": 1
+  },
+  {
+   "agents_md_12": [
+    "PC-agentdyn-01/02: the AgentDyn v3 rows qwen3-235b none and the gpt-4o-mini PromptGuard2 github cells do not reproduce from runs/ at 5353cf76. The corpus records the logs. agentdyn.art.paper_row_not_in_logs is pending with the family owner.",
+    "PC-agentdyn-03: D-27 c1 covers only the gemini-2.5-flash undefended row. A datasheet item for gemini-2.5-pro (issue #7, UA 47.43 vs 56.95) is still to be proposed and needs user approval.",
+    "PC-agentdyn-05: github IT1 attack success in the released logs is inflated by the pre-fix checker (issue #6): repository transfers scored as success in a 31, b 2, c 4 runs. agentdyn.art.github_it1_checker_prefix is pending. Logged values are kept."
+   ],
+   "artefact_proposals": 2,
+   "corpus_id": "agentdyn",
+   "dossier": "docs/reports/precheck/agentdyn.md",
+   "findings_by_class": {
+    "analysis-artefact": 3,
+    "documentation-mismatch": 5,
+    "expected-known": 4,
+    "source-defect": 1
+   },
+   "findings_by_severity": {
+    "S2": 5,
+    "S3": 8
+   },
+   "followups": [
+    "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-followup1 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/followup1.toml   # agentdyn b L2, scratch-only first mapping",
+    "uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-agentdyn-extra -- uv run python -I docs/reports/precheck/data/agentdyn/exam-scripts/exam_l1_extra.py --root ~/Desktop/PhD/Labs/AgentPROV-upstream/agentdyn --units-dir ~/.agentprov/migration-work/precheck/agentdyn --out docs/reports/precheck/data/agentdyn/l1-extra.json   # H-01 message counts, H-13, H-15 digest, H-16 histogram",
+    "Family owner: two artefacts.toml entries (paper_row_not_in_logs; github_it1_checker_prefix with the corrected counts 31/5-plausible/2/4) and an artefact decision on issue #8 (unwinnable github tasks)",
+    "Datasheet: new datasheet-items row for gemini-2.5-pro (issue #7), needs user approval; notes for PC-01/02/04/05/12/13",
+    "RT-10: widen it to parts a/b/c (86/21/4 key-block files) and decide [withhold] before release",
+    "Tool owner, after the freeze: split null_final, add an A2 record-status table to l2_check, align the stratum key with the preregs (PC-06/07/08); exam-script notes on h03_all.py and acct_err2.py",
+    "Optional: compare the Qwen3 none and Gemini none rows with the out-of-scope history part (PC-01, PC-03)"
+   ],
+   "outcome_gap_flags": [
+    "a: gemini-2.5-flash none BU 5.00 vs 30.00 (-25.00 pp), UA 7.61 vs 24.29, ASR 13.61 vs 37.61 (PC-agentdyn-03, expected-known)",
+    "a: gemini-2.5-pro none UA 47.43 vs 56.95 (-9.52 pp; issue #7; PC-agentdyn-03)",
+    "a: qwen3-235b none BU 6.67 vs 23.33 (-16.66 pp); UA/ASR >5 pp off but within the rule (PC-agentdyn-01, new)",
+    "a: gpt-4o-mini PromptGuard2 github cells in the paper equal the PIGuard cells; overall BU +15.00 pp, within the rule (PC-agentdyn-02)"
+   ],
+   "parts": [
+    {
+     "executions": "360 mapped (sealed_clean 333 / with_issues 27)",
+     "l1_units": "38,281 (v1.k14 38,269 + incomplete 12)",
+     "l2_status": "done: validate 360/360, recompute 0 unexplained, j1=j2, DL-1 0 unexplained, OS-2 720/720",
+     "part": "a",
+     "registry": "imported",
+     "sample_n": "360 of 38,281 (360 strata x 1, over_maximum)",
+     "source": "agentdyn"
+    },
+    {
+     "executions": "0 (L2 not run in wave 1)",
+     "l1_units": "5,184 (v0.k11)",
+     "l2_status": "blocked in wave1 (l2_blocked); scratch first mapping queued as plans/followup1.toml (amendment 3)",
+     "part": "b",
+     "registry": "planned",
+     "sample_n": "pending (followup1)",
+     "source": "agentdyn"
+    },
+    {
+     "executions": "210 mapped (124 / 86)",
+     "l1_units": "4,258 (drift.k18.messages)",
+     "l2_status": "done: validate 210/210, recompute 0 unexplained, j1=j2, OS-2 420/420",
+     "part": "c",
+     "registry": "partial",
+     "sample_n": "210 of 4,258 (42 strata x 5)",
+     "source": "agentdyn"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "Parts a and c import correctly and deterministically: validation 360/360 and 210/210, recompute 0 unexplained, j1/j2 byte-identical, DL-1 fully attributed, raw = mapped outcomes. The population recount reproduces the paper in 201/222 values, including all of b and c. Every caveat is owned and routed: part b L2 runs in followup1.toml (amendment 3); the S2 disclosures PC-01/02/03/05 and two artefact entries go to the agentdojo family owner; the RT-10 widening and the [withhold] decision cover PC-13; the stored validate.results.differ is expected-known under amendment 1.",
+   "refuted": 0,
+   "security_flags": [
+    "PC-agentdyn-13 (S2, not a real secret): private-key-shaped benchmark strings in a 86 / b 21 / c 4 files; 1 sampled a execution carries it in AER and PROV apv:args; no [withhold] table, so RT-10 should be widened to all parts",
+    "PC-agentdyn-12 (S3): account-path shapes are benchmark or model content; 0 in AER/SEM/PROV/index, but the L2 screen saw 0 flagged labels (vacuous)"
+   ],
+   "status": "examined",
+   "wave": 1
+  },
+  {
+   "agents_md_12": [
+    "PC-rope-01: three ROPE catalogue entries with manuscript = true (autodojo_payload_escaped, security_without_exposure, pipeline_tag_not_identity) describe suites@1 behaviour and the wrong tag. They are stale until the agentdojo family owner updates them, and they must be recounted on the regenerated corpus.",
+    "PC-rope-05: the ROPE duplicate count 53/396 includes provider call ids and groups only null-id providers. The id-free count is 235/1,042, with 0 byte-identical files. Manuscript artefact row 7 needs the id-free count with its definition, and the other entries in that row need the same check."
+   ],
+   "artefact_proposals": 4,
+   "corpus_id": "rope",
+   "dossier": "docs/reports/precheck/rope.md",
+   "findings_by_class": {
+    "analysis-artefact": 2,
+    "documentation-mismatch": 2,
+    "expected-known": 3
+   },
+   "findings_by_severity": {
+    "S2": 2,
+    "S3": 5
+   },
+   "followups": [
+    "Targeted 43-label scratch import for H-12/H-13: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-rope -- uv run python tools/precheck/l2_import.py --sample docs/reports/precheck/data/rope/l2-targeted-head.json --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2 --source rope --part head --jobs 2; then uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2.partial --out ~/.agentprov/migration-work/precheck/rope/l2-targeted.json --sample docs/reports/precheck/data/rope/l2-targeted-head.json --l1-units ~/.agentprov/migration-work/precheck/rope/l1-units-head.jsonl --jobs 2; then uv run python docs/reports/precheck/data/rope/exam-scripts/sample.py ~/.agentprov/migration-work/precheck/rope/l2-targeted-j2.partial <scratch>/rope-targeted.json",
+    "Optional: add the 6 L1 home-dir labels to the targeted import, to record how the redaction screen classifies persona home paths",
+    "Route PC-rope-01 (three artefacts.toml entries) and the optional PC-rope-07 entry agentdojo.art.fixture_secret_shapes to the agentdojo family owner",
+    "Manuscript owner: change artefact row 7 for ROPE to the id-free count 235/1,042 with its definition, define I_matrix section I.2.4/C27, and check the head and AgentDyn entries of row 7 (PC-rope-05)",
+    "Tool owner after the batches: apply the attack_dir_alias in the l1_families agentdojo_unit hook and in l2_check identity (PC-rope-04); exclude .git from walks, pin-check context artefacts, limit L1-07 monotonicity to run/step pointers, and add ext.rope.arm to the l2_check arm key (PC-rope-06)",
+    "Post-round: re-run exam-scripts/delta.py (regenerated stored corpus vs l2-head-j2.partial) and stored_corr.py (expect 32->0 / 39->22 / 5->0 / 88->71); compare validation like with like: same mode, sem profile normalised (PC-rope-03)"
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "10,791",
+     "l1_units": "10,791 (v1.k14 10,789 + incomplete 2); 24,909 files = pin",
+     "l2_status": "done: 300/300 mapped, validate pass, recompute 0 unexplained, j1=j2, DL-1 0 unexplained",
+     "part": "head",
+     "registry": "10,791 executions (rope·head)",
+     "sample_n": "300 (103 strata)",
+     "source": "rope"
+    },
+    {
+     "executions": "2,847",
+     "l1_units": "2,847 (subset of head)",
+     "l2_status": "done: 90/90 mapped, validate pass, recompute 0 unexplained, j1=j2",
+     "part": "rope-slice",
+     "registry": "2,847 (counted under rope)",
+     "sample_n": "90 (18 strata x 5)",
+     "source": "autodojo"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "Both parts import correctly and deterministically. The sample of 390 maps fully, validates, recomputes with 0 unexplained differences, and gives identical output with 1 and 2 jobs. DL-1 is fully attributed. Judgements equal the raw values on 390/390, and every population arm reproduces both papers with 0 flags. The caveats are owned and routed:\n- PC-rope-01: three stale artefacts.toml ROPE entries that are flagged for the manuscript (agentdojo family owner).\n- PC-rope-05: the duplicate-count definition and the manuscript row 7 label (manuscript owner).\n- H-12/H-13 are untested on the sample (targeted import, followup 1).\n- The stored rows give validate.results.differ, expected-known under amendment 1.\n- PC-rope-04/06 are tool notes.",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined-delta",
+   "wave": 1
+  },
+  {
+   "agents_md_12": [],
+   "artefact_proposals": 0,
+   "corpus_id": "adprov-v1",
+   "dossier": "docs/reports/precheck/adprov-v1.md (findings: docs/reports/precheck/data/adprov-v1/findings.json)",
+   "findings_by_class": {
+    "analysis-artefact": 2,
+    "documentation-mismatch": 3,
+    "expected-known": 6
+   },
+   "findings_by_severity": {
+    "S3": 11
+   },
+   "followups": [
+    "Raw meta census for H6, H7, H9, H10, H11: uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-adprov-v1 -- uv run python -I docs/reports/precheck/data/adprov-v1/exam-scripts/meta_census.py src ~/Desktop/PhD/Labs/AgentDojo-PROV-framework/corpus/corpus-prov ~/.agentprov/migration-work/precheck/adprov-v1/meta-census-release.json",
+    "Optional, only if DL-9 must be settled: a one-label CLI import with the listing pin (agentprov import adprov-v1 --input <tree> --verify-against-pin, including one label) into ~/.agentprov/migration-work/precheck/adprov-v1/dl9, run through the queue",
+    "Tool owner, after the batch: in l2_check, treat benign as equal to none for the attack identity (keyed on adprov.v1_benign_label@1), and count executions for the A3 pass classes (PC-11)",
+    "Exam owner: note in delta-e2-release.json that the positional SEM sections were replaced by the multiset comparison (PC-10); change the research.json n text for the II utility row to say 97 (suite, user_task) cells over 949 traces (PC-02)",
+    "Prereg/research corrections: II utility is task-weighted (PC-02); the 112/431 basis includes provider call ids (PC-04); E2 U14 already attributes the persona paths to benchmark content (PC-03); the item-14 prediction should name the 2,291 message entities and the placement on apv:Assessment (PC-10)",
+    "Post-check method: apply the sample gap rule to post-stratified estimates with a stratified variance (PC-01)",
+    "Dossier writer correction to the exam: the paper does report per-attack ASR (macros AdpAsrDirect/Important/Injecagent: 3.3/16.1/3.4, k 184/907/193); population 184/912/193 of 5,694, so 0 flags",
+    "No rerun needed for adprov-v1 release"
+   ],
+   "outcome_gap_flags": [
+    "L2 qwen-2.5-72b ASR: 14/36, 38.9% [24.8, 55.1], 29.6% post-stratified vs paper 14.6% (+15.0 pp). Explained as sampling variance (PC-01): raw == AER 300/300, population 14.51% = paper, P = 0.008 over 20,000 redraws of the same allocation. L1 population: 0 flags in 29 rows."
+   ],
+   "parts": [
+    {
+     "executions": "17,664",
+     "l1_units": "17,664 (walked 35,346 = Zenodo v2.3 entries; 8 .DS_Store skipped by the walk)",
+     "l2_status": "done",
+     "part": "release",
+     "registry": "supported, 17,664 executions",
+     "sample_n": "300 (96 strata)",
+     "source": "adprov-v1"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically. Results: 300/300 mapped; validation 300/300 passed; recompute 0 unexplained; j1 and j2 byte-identical; DL-1 delta 0 unexplained; judgements equal raw on 300/300; redaction 0 hits; L1 population equals the paper in 29/29 rows. All 11 findings are S3. Caveats: (1) H6-H11 wait on the queued meta census (follow-up 1). (2) H13/DL-9 is untested, because l2_import prepares the listing pin over all candidates (PC-08); CD-8 is held on review-core-d-regen. (3) The stored validate.results.differ is expected-known under amendment 1 until the round re-validates the stored corpora. (4) PC-01 and PC-11 are tool artefacts with no effect on the corpus.",
+   "refuted": 0,
+   "security_flags": [],
+   "status": "examined-delta",
+   "wave": 1
+  },
+  {
+   "agents_md_12": [
+    "PC-ast-survey-agentharm-01: the survey's AgentHarm scores (2-B semantics) partly rest on a broken bundled-file tool environment. 63/1,056 samples are affected (benign 40, harmful 23). read_file failed on 84/84 allowlisted calls and convert_pdf_to_text on 62/63 calls (inspect_evals #2439, both benign_tools and harmful_tools; fix PR #2455 open). Disclose in the datasheet and manuscript. Keep all data. The inspect.art.bundled_file_not_found entry is pending with the inspect family owner."
+   ],
+   "artefact_proposals": 2,
+   "corpus_id": "ast-survey-agentharm",
+   "dossier": "docs/reports/precheck/ast-survey-agentharm.md",
+   "findings_by_class": {
+    "analysis-artefact": 1,
+    "documentation-mismatch": 2,
+    "expected-known": 2
+   },
+   "findings_by_severity": {
+    "S2": 1,
+    "S3": 4
+   },
+   "followups": [
+    "After wave 4 (kexin-xu-01-agentharm, fragfuse-agentharm): uv run python tools/precheck/l1_xdup.py (cross-corpus duplicates; the refuted PC-06 was a timing issue)",
+    "After the batches: extend tools/precheck/l2_check.py with Inspect numeric judgements (score/refusal means and full-score share), add the suite/task to the arm key, and add an A2 section for every corpus. A2 is missing in all wave-1 L2 reports (PC-05). Then re-run the check step on ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial",
+    "Route to the inspect family owner: the new artefact inspect.art.bundled_file_not_found with detector inspect.file_tool_not_found@1 (PC-01), plus the E2 section 10.2 entries inspect.art.abnormal_finish_max_tokens (23) and inspect.art.text_tool_call (12 samples / 13 messages) (PC-02)",
+    "Docs: correct verify/agent-security-tools-survey.md section 2.3 to per-log member counts 229/247/272/286/317/340 (PC-03). Reword the sample_limit and tool_result_lost_at_limit descriptions: the harness leaves out the whole parallel batch (PC-04)",
+    "Optional, read-only: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentharm -- uv run agentprov validate --corpus ~/.agentprov/corpora/ast-survey-agentharm-p10.partial --jobs 2 (confirms amendment 1)"
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "1056",
+     "l1_units": "1056 (6 .eval logs x 176; 1,691 archive members)",
+     "l2_status": "done",
+     "part": "agentharm",
+     "registry": "1056",
+     "sample_n": "6 of 6 containers = 1,056 of 1,056 executions (imported whole)",
+     "source": "agent-security-tools-survey"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The whole part imports cleanly and deterministically. Validation passes 1,056/1,056. recompute --dry-run reports 0 unexplained. The j1 and j2 imports are byte-identical. DL-1 shows 0 unexplained differences. Redaction is clean. Outcomes equal the survey README in 6/6 arms (gaps of 0.05 pp or less). The caveats are owned and routed. PC-01 (S2): file tools broke in 63/1,056 samples (inspect_evals #2439); it needs a datasheet disclosure and a new artefacts.toml entry from the inspect family owner. PC-02: the E2-b5 catalogue entries are still missing; family owner. The stored corpus shows validate.results.differ, which is expected-known under amendment 1.",
+   "refuted": 1,
+   "security_flags": [],
+   "status": "examined-delta",
+   "wave": 1
+  },
+  {
+   "agents_md_12": [
+    "PC-04: survey banking injection_task_0/1/3 ASR counts any transfer to the attacker IBAN (agentdojo#181); at least 13 of 57 it0/it3 successes lack the datum. Disclose this. All data is kept. The survey expected row under agentdojo.art.validity_defects is pending with the family owner; no per-trace detector exists.",
+    "Open design question (refuted PC-01): should D-80(d) treat unexecuted_tool_call/missing_tool_result as reporting a statement's reading, now that item 24 makes the issue a PROV premise? This needs an owner and user decision. If yes: a twin, self.cite at mapper.py:1511/1513 and drift_mapper.py:864/866, and a D-31 bump, which moves the digests of capped executions under 24 verified_code=[] profiles."
+   ],
+   "artefact_proposals": 3,
+   "corpus_id": "ast-survey-agentdojo",
+   "dossier": "docs/reports/precheck/ast-survey-agentdojo.md",
+   "findings_by_class": {
+    "analysis-artefact": 4,
+    "documentation-mismatch": 3,
+    "expected-known": 3
+   },
+   "findings_by_severity": {
+    "S3": 10
+   },
+   "followups": [
+    "Targeted L2 of the 11 run-error logs (outcomes.error_present in ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l1-units-agentdojo-runs.jsonl) plus 4 capped logs. Write a sample file in l2-sample format, then run: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentdojo -- uv run python tools/precheck/l2_import.py --sample <file> --corpus ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors-j2 --source agent-security-tools-survey --part agentdojo-runs --jobs 2; then tools/precheck/l2_check.py --corpus .../l2-errors-j2.partial --out .../l2-errors.json --sample <file> --l1-units .../l1-units-agentdojo-runs.jsonl",
+    "Route PC-04 to the agentdojo family owner: add a survey expected row (13, lower bound) under agentdojo.art.validity_defects plus the #181 ref; recount it1 (match subjects against the pizza companion's IBAN).",
+    "Put the D-80(d) design question from refuted PC-01 to the agentdojo family owner, as a decision and not a defect. Correct prereg/ast-survey-agentdojo.md rows l.143/l.179 to 'seal pointer only when the issue rule is class I'.",
+    "Correct the U6-c prediction in docs/reports/analysis/regen-batch.md to 'apv:paramsStatus apv:NotRecorded on every ModelInvocation' (PC-05; cite EF_provenance.md l.906).",
+    "Record a dated README section 8 amendment before dossiers apply the sample gap rule to stratum-weighted estimates (PC-10); keep the gap and interval rules on the same footing.",
+    "After the batches: widen l1_families.py null_final to block lists with all-empty text (PC-08), then re-run L1 for the AgentDojo-family parts in the post-check.",
+    "Re-validate a copy (never in place) of ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial under ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/stored-copy via tools/suite_queue.py --class import: uv run agentprov validate --corpus <copy> --tiers aer,sem,prov,linkage,shacl,regression --jobs 2; expect results_differ 0.",
+    "Examiners should use per-corpus scratch subdirectories: one examiner's outcomes.py/os2.json were overwritten by another's (caught and recomputed)."
+   ],
+   "outcome_gap_flags": [
+    "L1 population: 0.0 pp gap on all 12 arms (45 README suite cells + 3 solvability) - no flag",
+    "L2 gpt-oss:120b attack ASR: raw 11/20 = .550 (Wilson [.342,.742]) vs README .270 (+28.0 pp); stratum-weighted .386 [.157,.615] contains it - equal-allocation design artefact (PC-10)",
+    "L2 qwen3:14b attack ASR: raw 8/20 = .400 vs .176 (+22.4 pp > 15); weighted .210 (+3.4) - same design cause (PC-10)"
+   ],
+   "parts": [
+    {
+     "executions": "3,243 population (stored); L2 mapped 120/120",
+     "l1_units": "3,243 selected = registry 3,243 (1,081 per model); strict parse 3,243/3,243",
+     "l2_status": "done (wave1 all steps rc 0; validate 120/120, recompute 0 unexplained, j1=j2 byte-identical, DL-1 0 unexplained)",
+     "part": "agentdojo-runs",
+     "registry": "3,243",
+     "sample_n": "120 (24 strata x 5; prereg 36/180 superseded by amendment 2.4)",
+     "source": "agent-security-tools-survey"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The sample imports cleanly and deterministically: 120/120 validated, recompute 0 unexplained, j1/j2 byte-identical, DL-1 0 unexplained, redaction clean, and mapped outcomes equal raw on 120/120. The population reproduces every README outcome cell exactly. The caveats are all owned and routed: (1) none of the 11 run errors was sampled, so a targeted import is a followup; (2) PC-04, a banking-precedence survey expected row, goes to the agentdojo family owner; (3) an optional D-80(d) design question comes out of the refuted PC-01; (4) the stored validate.results.differ is expected-known under amendment 1.",
+   "refuted": 1,
+   "security_flags": [],
+   "status": "examined-delta",
+   "wave": 1
+  },
+  {
+   "agents_md_12": [
+    "PC-mandate-agentdojo-eval-01: Mandate baseline II ASR 75.0% (108/144) includes 3 InjectionTask1 successes that leak no target datum (AgentDojo #181); a GOAL-datum re-score gives 72.9% (105/144); Mandate-arm ASRs unaffected. Disclose, keep logged booleans; validity_defects extension pending with the agentdojo family owner.",
+    "PC-mandate-agentdojo-eval-02: Mandate user_task_5 utility is always true at v1.2.1 (#161): 18 cells in baseline II and intent II, 4 without the requested payment. Disclose in datasheet and manuscript."
+   ],
+   "artefact_proposals": 2,
+   "corpus_id": "mandate-agentdojo-eval",
+   "dossier": "docs/reports/precheck/mandate-agentdojo-eval.md",
+   "findings_by_class": {
+    "analysis-artefact": 2,
+    "documentation-mismatch": 2,
+    "expected-known": 1,
+    "source-defect": 2
+   },
+   "findings_by_severity": {
+    "S2": 2,
+    "S3": 5
+   },
+   "followups": [
+    "After the round: run exam-scripts/aerdiff.py, semdiff.py and provdiff.py with old = ~/.agentprov/corpora/mandate-agentdojo-eval-p10.partial and new = the regenerated full corpus (all 396 ids). Expected: load_environment 369, /params not_recorded 1,621, security outcome ev D->I 369, markers 361/935 unchanged.",
+    "Optional amendment-1 demonstration (never on the stored corpus itself): cp -cR ~/.agentprov/corpora/mandate-agentdojo-eval-p10.partial ~/.agentprov/migration-work/precheck/mandate-agentdojo-eval/stored-copy.partial && uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-mandate-agentdojo-eval -- uv run agentprov validate --corpus ~/.agentprov/migration-work/precheck/mandate-agentdojo-eval/stored-copy.partial --jobs 2 (expect exit 1, validate.results.differ, 0 failed checks).",
+    "Route to the agentdojo family owner: extend agentdojo.art.validity_defects to Mandate (PC-01 count 3, PC-02 count 4); defence_benign_intervention intent row (count 1), a detector able to see gate declines (mandate.decline_prefix@1), and reconcile phase10-corpus-analysis.md line 546 'Mandate 9' vs 8 (PC-05).",
+    "Regen-batch owner: add security outcome ev D->I (369) to the item-1/item-3 Mandate prediction; check head v1.k14 as well (PC-04).",
+    "Tool owner after the batches: L1-03 escaped_newline LaTeX precision in tools/precheck/l1_scan.py (exclude LaTeX command names; do not use (?![A-Za-z])) (PC-03).",
+    "Exam owner: regenerate the 'aer' block of docs/reports/precheck/data/mandate-agentdojo-eval/dl1-delta.json from aerdiff.py (it is a copy of ast-survey-agentdojo's, executions 120; correct values now saved in aerdiff-j2.json) and drop or recompute raw-census.json within_arm_timeline (PC-09). Check other wave-1 dl1-delta files for the same cross-corpus copy.",
+    "Optional spec wording (D.15.2/D.15.4): the stats/dry-run artefact table lists only entries claiming a generic-detector finding; note/decision entries are checked from AER/raw (refuted PC-06)."
+   ],
+   "outcome_gap_flags": [],
+   "parts": [
+    {
+     "executions": "40 mapped of 40 sampled (population 396)",
+     "l1_units": "396 (401 walked = 396 selected + 4 context + 1 not selected; corpus_digest a8f4a9d7 recomputed equal)",
+     "l2_status": "done",
+     "part": "head",
+     "registry": "396 (full import)",
+     "sample_n": "40 of 396 (8 strata x 5; l2-sample-head.json sha256 84f2b89a)",
+     "source": "mandate-agentdojo-eval"
+    }
+   ],
+   "readiness": "ready-with-caveats",
+   "readiness_why": "The part imports correctly and deterministically: 40/40 mapped, validation 40/40, recompute 0 unexplained, j1/j2 byte-identical (171/171), DL-1 0 unexplained, redaction clean, judgements equal raw 40/40, and L1 outcomes equal the reference in 13/13 arm-metrics. Caveats, all owned and routed: PC-01 (#181, 3 InjectionTask1 successes without the datum) and PC-02 (#161, vacuous user_task_5 utility) are S2 disclosures plus an agentdojo.art.validity_defects extension for the family owner. PC-04 and PC-05 are documentation fixes (regen-batch prediction; defence_benign_intervention row and detector). PC-03 and PC-09 are tool/exam artefacts with no corpus effect. Stored validate.results.differ is expected-known under amendment 1.",
+   "refuted": 2,
+   "security_flags": [],
+   "status": "examined-delta",
+   "wave": 1
+  }
+ ],
+ "wave": 1
+}

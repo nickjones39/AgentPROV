@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/dtap/ext-0.1.json",
+  "title": "ext.dtap of AER records written by the dtap.trajectory mapper (C.10; D.16.3; closed member list)",
+  "description": "Verbatim DTap fields without a core slot, and the mapper's recorded checks (join, re-run group, judge link). Values copied from the source are untrusted, open JSON; the member names are closed. Not a published corpus schema in v0.1 (AD-10 row 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "path_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["framework", "model", "domain", "split", "threat", "risk_category", "subcategory", "task_dir", "file"],
+      "properties": {
+        "framework": {"type": "string"}, "model": {"type": "string"}, "domain": {"type": "string"},
+        "split": {"enum": ["benign", "malicious"]},
+        "threat": {"type": ["string", "null"]}, "risk_category": {"type": ["string", "null"]},
+        "subcategory": {"type": ["string", "null"]}, "task_dir": {"type": "string"}, "file": {"type": "string"}
+      },
+      "description": "execution: the path facets (D.16.1), the logical identity of the run"
+    },
+    "file_stem": {"type": "string", "description": "execution: the file name without .json; local time of the generating machine, never a time (D.16.4)"},
+    "task_info_task_id": {"description": "execution: task_info.task_id verbatim (never identity; 78 keys are shared)"},
+    "trace_id": {"description": "execution: traj_info.metadata.trace_id verbatim (never identity; 517 values are shared)"},
+    "framework_field": {"description": "execution: OpenClaw traj_info.metadata.framework verbatim"},
+    "traj_info_success": {"description": "execution: traj_info.success verbatim (null; its meaning is unknown, never interpreted)"},
+    "final_response": {"description": "execution: traj_info.agent_final_response verbatim"},
+    "rerun": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["group_size", "stems"],
+      "properties": {"group_size": {"type": "integer", "minimum": 2}, "stems": {"type": "array", "items": {"type": "string"}}},
+      "description": "execution: the re-run group of the task directory (dtap.rerun_group@1, D)"
+    },
+    "join": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_path", "status"],
+      "properties": {
+        "config_path": {"type": "string"},
+        "status": {"enum": ["joined", "missing", "unparseable"]},
+        "tier": {"enum": ["A", "B", "C"]},
+        "instruction": {"enum": ["exact", "whitespace", "prefix_500", "run_prefix", "config_prefix", "differs", "absent", "not_applicable"]},
+        "goal": {"enum": ["exact", "whitespace", "prefix", "goal_plus_information", "run_prefix", "differs", "absent"]},
+        "task_id": {"enum": ["equal", "offset_medical", "reformatted", "differs", "absent"]},
+        "yaml_scalars_as_text": {"type": "integer", "minimum": 1}
+      },
+      "description": "execution: the configuration join (D.16.5; dtap.config_path_join@1, dtap.config_join_tier@1)"
+    },
+    "judge_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["judge_sha256", "method", "group_size", "resolved"],
+      "properties": {
+        "judge_sha256": {"type": "string"},
+        "method": {"enum": ["content", "colocation", "unresolved"]},
+        "group_size": {"type": "integer", "minimum": 1},
+        "resolved": {"type": "boolean"},
+        "resolved_to": {"type": "string"}
+      },
+      "description": "execution: the judge-to-attempt link (D.16.8)"
+    },
+    "duration": {"description": "run scope: traj_info.duration verbatim (seconds, no clock; D.16.4)"},
+    "timestamp_zone": {"enum": ["utc", "none", "unparsed"], "description": "run scope: whether t.raw.end (traj_info.timestamp verbatim) carries a UTC offset, none (googleadk naive) or does not parse"},
+    "duration_s": {"description": "tool_execution: the result step's metadata.duration_s verbatim (seconds, no clock)"},
+    "action": {"description": "agent message: the step's action display string verbatim"},
+    "server": {"description": "agent and tool messages: metadata.server verbatim (never a typed field)"},
+    "synthetic": {"description": "agent message: metadata.synthetic verbatim (never reached: synthetic files are not executions)"},
+    "result_tool_name": {"description": "tool message: a result tool_name that cannot be a typed name (the claudesdk literal unknown)"},
+    "state_form": {"enum": ["python_repr", "brace_text"], "description": "tool message: a string state that looks like a Python repr or other brace text (never evaluated)"},
+    "logged_at": {"enum": ["/debug/tool_descriptions", "/traj_info/metadata/mcp_tools"], "description": "tool_definitions fixture: where the run logged it"},
+    "goal_text_updated": {"description": "attack goal at eval fixture: task_info.goal_text_updated verbatim (a date label, never a time)"},
+    "config_pointer": {"type": "string", "description": "payload fixture: the JSON Pointer of the attack step inside the configuration (YAML)"},
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turn", "index"],
+      "properties": {
+        "turn": {"type": "integer", "minimum": 0}, "index": {"type": "integer", "minimum": 0},
+        "type": {"type": "string"}, "mode": {"type": "string"}, "injected_tool": {"type": "string"},
+        "injection_mcp_tool": {"type": "string"}, "skill_name": {"type": "string"}
+      },
+      "description": "payload fixture: the configured attack step's coordinates and string attributes"
+    },
+    "judge": {"type": "object", "description": "judgement: the judge's messages, metadata and error verbatim (untrusted text)"},
+    "audit": {"type": "object", "description": "corrected judgement: audit_correction.patch_id and patch_reason verbatim"},
+    "redacted": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["p", "rule"],
+        "properties": {"p": {"type": "string"}, "rule": {"type": "string", "pattern": "^dtap-bench@[1-9][0-9]*#[a-z][a-z0-9_]*$"}}
+      },
+      "description": "any record: the pointers a profile redaction rule rewrote (D-607; dtap.value_redacted@1, D) and the rule (<profile>@<version>#<rule id>)"
+    }
+  }
+}

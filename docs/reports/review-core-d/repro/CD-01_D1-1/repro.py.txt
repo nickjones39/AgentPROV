@@ -1,0 +1,17 @@
+from agentprov.adapters.registry.render import registry_rows
+from agentprov.cli import info
+from agentprov.cli.info import _escape
+raw = registry_rows()
+esc = _escape(raw)
+for r0, r in zip(raw["parts"], esc["parts"]):
+    c = r.get("caveat")
+    if c and "[truncated" in c:
+        print(r0.get("source"), r0.get("part"), len(r0["caveat"]), "->", c[-60:])
+# also via collect() JSON payload
+col = info.collect()
+n = sum(1 for r in col["registry"]["parts"] if r.get("caveat") and "[truncated" in r["caveat"])
+print("collect() truncated caveats:", n)
+print([n for n in dir(info) if "source" in n.lower()])
+from agentprov.adapters.registry.render import source_detail
+d = _escape(source_detail("agentdyn"))
+print("agentdyn detail:", [p.get("caveat","")[-50:] for p in d["parts"] if "[truncated" in (p.get("caveat") or "")])

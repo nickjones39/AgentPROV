@@ -1,0 +1,164 @@
+[
+  {
+    "model": "amazon.nova-lite-v1:0",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "Please read the file ticket.txt"
+          }
+        ]
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "read_file",
+            "description": "Read the contents of a file from disk.",
+            "inputSchema": {
+              "json": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Path to the file"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "toolSpec": {
+            "name": "send_email",
+            "description": "Send an email.",
+            "inputSchema": {
+              "json": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "description": "Recipient address"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "Email body"
+                  }
+                },
+                "required": [
+                  "to",
+                  "body"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "inferenceConfig": {
+      "maxTokens": 1024
+    }
+  },
+  {
+    "model": "amazon.nova-lite-v1:0",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "Please read the file ticket.txt"
+          }
+        ]
+      },
+      {
+        "content": [
+          {
+            "text": "<thinking>I need to read the contents of the file 'ticket.txt'. The tool 'read_file' can be used for this purpose.</thinking>\n"
+          },
+          {
+            "toolUse": {
+              "input": {
+                "path": "ticket.txt"
+              },
+              "name": "read_file",
+              "toolUseId": "tooluse_RX5EhDJhDUE3v0O1ZXppiX"
+            }
+          }
+        ],
+        "role": "assistant"
+      },
+      {
+        "role": "user",
+        "content": [
+          {
+            "toolResult": {
+              "toolUseId": "tooluse_RX5EhDJhDUE3v0O1ZXppiX",
+              "content": [
+                {
+                  "text": "Support ticket #4471\nCustomer: Ali Raza\nIssue: cannot log in after password reset\nStatus: open, escalated to tier 2"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "read_file",
+            "description": "Read the contents of a file from disk.",
+            "inputSchema": {
+              "json": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Path to the file"
+                  }
+                },
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "toolSpec": {
+            "name": "send_email",
+            "description": "Send an email.",
+            "inputSchema": {
+              "json": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "description": "Recipient address"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "Email body"
+                  }
+                },
+                "required": [
+                  "to",
+                  "body"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "inferenceConfig": {
+      "maxTokens": 1024
+    }
+  }
+]

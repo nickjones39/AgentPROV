@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/dtap/family-0.1.json",
+  "title": "[family.dtap] table of a dtap source profile (D.4.1, D.16.16; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["layout", "threats", "frameworks", "pairing", "matcher", "semantics_profile"],
+  "properties": {
+    "layout": {"type": "string", "minLength": 1},
+    "threats": {"type": "array", "minItems": 1, "items": {"enum": ["direct", "indirect", "direct_prompt", "direct_no_attack"]}},
+    "frameworks": {"type": "array", "minItems": 1, "items": {"enum": ["openaisdk", "claudesdk", "googleadk", "openclaw"]}},
+    "pairing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["openaisdk", "openclaw", "googleadk", "claudesdk"],
+      "properties": {
+        "openaisdk": {"type": "string", "pattern": "^dtap\\.pair_[a-z_]+@[1-9][0-9]*$"},
+        "openclaw": {"type": "string", "pattern": "^dtap\\.pair_[a-z_]+@[1-9][0-9]*$"},
+        "googleadk": {"type": "string", "pattern": "^dtap\\.pair_[a-z_]+@[1-9][0-9]*$"},
+        "claudesdk": {"type": "string", "pattern": "^dtap\\.pair_[a-z_]+@[1-9][0-9]*$"}
+      }
+    },
+    "matcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normaliser", "min_needle", "window", "judge_link_min"],
+      "properties": {
+        "normaliser": {"type": "string", "pattern": "^dtap\\.[a-z_]+@[1-9][0-9]*$"},
+        "min_needle": {"type": "integer", "minimum": 1},
+        "window": {"type": "integer", "minimum": 1},
+        "judge_link_min": {"type": "integer", "minimum": 1}
+      }
+    },
+    "semantics_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}
+    },
+    "redact": {
+      "description": "D-607: listed account paths redacted over every AER string (agentprov.adapters.dtap.redact)",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "pattern", "replacement", "labels"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "scope": {"enum": ["all_strings"]},
+          "pattern": {"type": "string", "minLength": 1},
+          "replacement": {"type": "string", "minLength": 1},
+          "labels": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{12}$"}},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observed"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^dtap\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^dtap\\.[a-z][a-z0-9_.]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

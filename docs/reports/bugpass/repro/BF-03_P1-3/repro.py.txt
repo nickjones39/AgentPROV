@@ -1,0 +1,42 @@
+"""P1-3: the D-402 write guard checks the lexical path only, so a write through a symlink inside basetemp lands
+outside the allowed roots without being refused. Uses the real _WriteGuard from tests/conftest.py; everything it
+writes stays in this scratch directory ("outside" is outside the guard's configured roots, not outside scratch)."""
+import importlib.util, os, shutil, sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve()  # placeholder; real repo below
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+here = Path(__file__).resolve().parent
+work = here / "work"
+shutil.rmtree(work, ignore_errors=True)
+basetemp, outside = work / "basetemp", work / "outside"
+basetemp.mkdir(parents=True); outside.mkdir(parents=True)
+
+spec = importlib.util.spec_from_file_location("ap_conftest", REPO / "tests" / "conftest.py")
+mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+guard = mod._WriteGuard()
+guard.configure(basetemp, None)
+os.symlink(outside, basetemp / "link", target_is_directory=True)  # made before the guard is active
+sys.addaudithook(guard.hook)
+guard.active = "repro"
+
+results = {}
+try:
+    open(outside / "a.txt", "w").write("x"); results["direct"] = "ALLOWED"
+except PermissionError:
+    results["direct"] = "refused"
+try:
+    open(basetemp / "link" / "b.txt", "w").write("x"); results["via_link"] = "ALLOWED"
+except PermissionError:
+    results["via_link"] = "refused"
+guard.active = None
+landed = sorted(p.name for p in outside.iterdir())
+print("direct write outside:", results["direct"])
+print("write through link in basetemp:", results["via_link"])
+print("realpath of written file:", os.path.realpath(basetemp / "link" / "b.txt"))
+print("files in outside/:", landed)
+print("violations recorded:", len(guard.violations))
+ok = results["direct"] == "refused" and results["via_link"] == "refused"
+print("EXPECTED (both refused):", "PASS" if ok else "FAIL -- guard bypassed via symlink")
+shutil.rmtree(work, ignore_errors=True)
+sys.exit(0 if ok else 1)

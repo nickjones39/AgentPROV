@@ -1,0 +1,48 @@
+# Corpus spec of `agentdojo-upstream-head` (HL H.1.6; D-44): the data-free build input. `agentprov package` copies this file, CARD.md
+# and CHANGES.toml into the sealed corpus's rules/ (a record, AD-14). Identity and selection come from here and from the
+# in-package source profile `agentdojo-upstream@2` ([import] include/exclude, used because this spec names none); counts are
+# computed at sealing, never written here (H.2.1(3)). The origin is the pin the import recorded (D-33).
+
+corpus_id = "agentdojo-upstream-head"
+corpus_version = "0.1.0"
+title = "AgentDojo upstream TraceLogger run logs, head snapshot (ethz-spylab/agentdojo runs/ at 089ed468)"
+mode = "import"
+
+[[sources]]
+source_id = "agentdojo"
+profile = "agentdojo-upstream@2"  # D-31: version 1 is archived (profiles/archive/)
+parts = ["head"]
+
+[[sources.snapshots]]
+snapshot_id = "head"
+origin = { kind = "git", repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", subtree = "runs", subtree_sha1 = "472cbb2e5f7b6411bc349b192fb781180b76437c" }
+alt_origins = []
+raw_policy = "include"
+
+[derive]
+sem_profiles = ["agentdojo.suites@2"]  # D-31 and item 1
+prov_specs = ["agentprov-prov/0.1"]
+views = []
+options = { context_encoding = "members" }
+
+# LICENSE and CITATION.bib are AgentDojo's at the pinned commit (H.4.2); not in the raw store (runs/ only), supplied
+# at sealing with --licence-file. Alternative origins: the profile's Zenodo pins name no file, so none is recorded.
+[licence]
+derived = "inherit"
+decided_by = "user, 2026-10-11 (D-44: derived licence inherit for every corpus)"
+files = ["LICENSE", "CITATION.bib"]
+
+[layout]
+shard_depth = 1
+
+# D-810: persona files this corpus's release scan reads (digests only, never addresses; corpora/personas/). upstream-data:
+# addresses in the benchmark's own published data at its pinned commit (synthetic-benchmark). <corpus>.observed: by where an
+# address first appears in this corpus's executions: benchmark-input (synthetic-benchmark), model-generated (kept, its own
+# triage) and withhold (model output at a public mail provider: sealing withholds the executions that hold one).
+# file-name: strings with the shape of an address (a file name) that a person reviewed (false-positive). Observed and
+# file-name groups apply to this corpus only.
+[scan]
+personas = [
+  { path = "../personas/agentdojo.personas.toml", sha256 = "sha256:6f11d2054854b6d280c7061829ee941c1fd7e1e58f456cbeeff3ff62606c289a" },
+  { path = "../personas/agentdojo-upstream-head.observed.personas.toml", sha256 = "sha256:e07ecaa9636ec00078f92c44c3f04dada4df437e6e909160eafe764f186fc921" },
+]

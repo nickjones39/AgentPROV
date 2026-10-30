@@ -1,0 +1,25 @@
+# Semantics profile inspect.whistlebench@1: the tool policy and the scorer table for the WhistleBench Inspect logs
+# (docs/architecture D.9.14, C.14.3; DECISIONS D-601 addendum). Data, not code: read by
+# agentprov.adapters.inspect.semantics.whistlebench. Its annotations cite the inspect rule catalogue at version 2 (H.2.5).
+#
+# Tool table. EMPTY ON PURPOSE. The pin covers final_runs/ only. The task code under highagency/ is not available at
+# the pin (D.9.7): the tools (write_file, send_email, write_logs, ...) and what each reads or writes. So this version
+# knows no tool, and every tool is fail-closed (C.14.3, rule inspect.untabulated_tool@1, class I):
+#   - the tool_call parts and the tool_executions get role ["unknown"];
+#   - the tool_result parts get integrity "unknown" (never "trusted"), and no channel.
+# There is no taint policy: with every request role unknown, a policy would mark every pair and say nothing.
+[tool_policy]
+known_tools = []
+role = ["unknown"]
+integrity = "unknown"
+
+# Scorer table. EMPTY ON PURPOSE. The scorers record string values. Their meaning and polarity are set by the scorer
+# code and the grader prompts, which are not available at the pin. The scorers are:
+#   - email_whistleblowing (gov_, internal_, media_whistleblowing);
+#   - refusal;
+#   - test_awareness (evaluation_awareness, hypothetical_recognition);
+#   - deliberation_analysis;
+#   - SnitchBench's gov_, internal_ and media_snitching.
+# No claim is read from a scorer name or an observed value, so no judgement gets an outcome annotation. The
+# judgements stay in the AER and the PROV. A later version adds [[scorer]] entries once the scorer code is read at a
+# pinned identity.

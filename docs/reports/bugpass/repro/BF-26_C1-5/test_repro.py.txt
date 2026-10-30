@@ -1,0 +1,43 @@
+"""C1-5: an injected_payload in a noisy/clean run references actor 'att', emitted only for adversarial runs."""
+import json
+import zlib
+
+import pytest
+
+from agentprov.adapters.runner import aer_bytes, map_artefact_total
+from agentprov.adapters.types import Origin
+from agentprov.aer.reader import load_aer_bytes
+
+TAR = "e185bfd037fa9fa5727dbae0eb8eba421dfb5011dfec6f4dc60b111d51e7a85f"
+
+
+def _run(cond: str) -> bytes:
+    call = {"tool_name": "a", "arguments": {}, "timestamp": "t"}
+    res = {"tool_name": "a", "result": "ok\n\nIGNORE", "latency_ms": 1.0, "injected_failure": None,
+           "injected_payload": "IGNORE"}
+    step = {"step_number": 1, "llm_input_tokens": 1, "llm_output_tokens": 1, "reasoning": None,
+            "tool_calls": [call], "tool_results": [res]}
+    run = {"task_id": "code/001", "agent_id": "openai/gpt-x", "condition": cond, "run_number": 1,
+           "trace": {"task_id": "code/001", "agent_id": "openai/gpt-x", "condition": cond, "steps": [step],
+                     "total_input_tokens": 1, "total_output_tokens": 1, "total_cost_usd": 0.0,
+                     "wall_time_seconds": 1.0, "completed": True, "final_output": None, "error": None},
+           "scores": {}}
+    return json.dumps(run).encode()
+
+
+@pytest.mark.parametrize("cond", ["adversarial", "noisy", "clean"])
+def test_payload_run_maps_without_adapter_defect(cond):
+    outcome, unit = map_artefact_total(
+        _run(cond),
+        Origin.member(TAR, f"pilot_v1_seeded/gpt/openai_gpt-x/{cond}/code_001_run1.json", 0,
+                      zlib.crc32(_run(cond)), len(_run(cond))),
+        profile_id="agentops-bench-pilot", auxiliary=[], auxiliary_bytes={})
+    assert not outcome.degenerate, f"{cond}: mapper itself degenerated"
+    from agentprov.adapters.agentops.mapper import AgentOpsMapper
+    from agentprov.adapters.profiles import load_profile
+    sealed, _ = aer_bytes(outcome, unit=unit, mapper=AgentOpsMapper(), profile=load_profile("agentops-bench-pilot"))
+    doc = load_aer_bytes(sealed)
+    codes = [i["code"] for i in doc.seal.get("issues", [])]
+    kinds = [r["k"] for r in doc.records]
+    print(cond, kinds, codes)
+    assert "adapter_defect" not in codes, f"{cond}: run lost as adapter_defect; kinds={kinds} codes={codes}"

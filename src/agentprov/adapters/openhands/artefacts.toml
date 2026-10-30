@@ -1,0 +1,207 @@
+# Artefact catalogue `openhands` (docs/architecture D.17.11, D.15.2; DECISIONS D-12, D-170-D-179). Data, not code.
+#
+# Every source-data problem of the two OpenHands sources found by the phase-10g census, with the rule that detects it,
+# how it is recorded and its handling class (D.15.1). The `expected` counts are the census's for the pinned snapshots and
+# stay `unverified` until full imports confirm them (D.15.6): a regression expectation, never a gate. Cases that no AER
+# field read by the safety net carries (the 145 OpenAgentSafety state files without a trajectory, the secret-like
+# strings kept under option A, the LLM-judge label "Label: Label") are recorded in docs/reports/phase10g/README.md only.
+# The version is 1: nothing is released, and the catalogue digest enters no AER, SEM or PROV file. The three entries of
+# 2026-10-21 (D-602, D-606) are additions at the same version for that reason.
+
+version = 1
+family = "openhands"
+namespaces = ["openhands"]
+
+[[artefact]]
+id = "openhands.art.filtered_events"
+title = "Events absent from the saved trajectory"
+description = "OpenHands saves the controller's history, which leaves out state-change and null events and hidden events, so event ids have gaps in every file. Only the number of absent ids is recorded; no event is invented."
+scope = { sources = ["openagentsafety", "redcode-exec-openhands"], profiles = ["openagentsafety", "redcode-exec-openhands"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "openhands.filtered_events@1", class = "D" }
+recorded_as = { issues = ["openhands.filtered_events"] }
+handling = { class = "NR", rule = "openhands.filtered_events@1" }
+expected = [
+  { snapshot = "openagentsafety:head", count = 1560, basis = "phase-10g census (3,338 missing ids)", unit = "executions", status = "unverified" },
+  { snapshot = "redcode-exec-openhands:head", count = 5460, basis = "phase-10g census (18,519 missing ids)", unit = "executions", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/reports/phase10g/README.md §3.7", "DECISIONS D-175"]
+
+[[artefact]]
+id = "openhands.art.not_executed_notice"
+title = "Action pending when the run stopped"
+description = "The controller adds 'The action has not been executed.' with the pending action's cause when it resets; no execution is mapped, the call is listed as unexecuted and the notice is a harness artefact."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "openhands.not_executed_notice@1", class = "D" }
+claims = ["artefact.generic.unexecuted_call"]
+recorded_as = { issues = ["openhands.not_executed_notice"] }
+handling = { class = "CR", rule = "openhands.not_executed_notice@1" }
+expected = [{ snapshot = "openagentsafety:head", count = 168, basis = "phase-10g census (always the last event)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10g/README.md §4 item 3", "DECISIONS D-175"]
+
+[[artefact]]
+id = "openhands.art.harness_error"
+title = "Uncaused controller error"
+description = "An error observation without a cause (a model response that could not become an action) is a harness activity with its text; a run whose last event it is ends in error."
+scope = { sources = ["openagentsafety", "redcode-exec-openhands"], profiles = ["openagentsafety", "redcode-exec-openhands"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "openhands.uncaused_error_is_harness@1", class = "I" }
+recorded_as = { issues = ["openhands.harness_error"] }
+handling = { class = "FO", rule = "openhands.uncaused_error_is_harness@1" }
+expected = [
+  { snapshot = "openagentsafety:head", count = 2, basis = "phase-10g census", unit = "observations", status = "unverified" },
+  { snapshot = "redcode-exec-openhands:head", count = 3, basis = "phase-10g census", unit = "observations", status = "unverified" },
+]
+manuscript = false
+refs = ["docs/reports/phase10g/README.md §3.2", "DECISIONS D-175"]
+
+[[artefact]]
+id = "openhands.art.content_not_inlined"
+title = "Screenshots and strings over 1 MiB not inlined"
+description = "Browser set-of-marks screenshots (base64 PNG) and strings over 1 MiB are recorded by SHA-256 and size; the raw artefact holds them. An import-side blob surface would inline them (routed with D.16.14 R4)."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "openhands.content_not_inlined@1", class = "D" }
+recorded_as = { issues = ["openhands.content_not_inlined"] }
+handling = { class = "FO", rule = "openhands.content_not_inlined@1" }
+expected = [{ snapshot = "openagentsafety:head", count = 322, basis = "phase-10g trial import: 321 runs with a set-of-marks screenshot (7,973 images) and 1 more whose only content not inlined is a tool output over 1 MiB", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10g/README.md §3.9", "DECISIONS D-179"]
+
+[[artefact]]
+id = "openhands.art.task_text_not_seen"
+title = "Task text not visible in the log"
+description = "The OpenAgentSafety harness sends a pointer to /instruction/task.md; the task text is in the log only when the agent read the file. Where it is not, the task-prompt fixture (from the pinned task directory, class I) is the only copy."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.task_text_seen@1", class = "D" }
+recorded_as = { issues = ["openhands.task_text_not_seen"] }
+handling = { class = "FO", rule = "openhands.task_text_seen@1" }
+expected = [{ snapshot = "openagentsafety:head", count = 1284, basis = "phase-10g trial import (the whole normalised task text is seen in 276 runs; the part-A census found a 200-character prefix in 420)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10g/README.md §3.5", "DECISIONS D-178"]
+
+[[artefact]]
+id = "openhands.art.eval_missing"
+title = "Run without an evaluation file"
+description = "86 OpenAgentSafety trajectories have no eval_<task>.json beside them: no checkpoint judgement is written."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.oas_eval_path_join@1", class = "D" }
+recorded_as = { issues = ["openhands.eval_missing"] }
+handling = { class = "NR", rule = "openhands.oas_eval_path_join@1" }
+expected = [{ snapshot = "openagentsafety:head", count = 86, basis = "phase-10g census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10g/README.md §3.8", "DECISIONS D-177"]
+
+[[artefact]]
+id = "openhands.art.summary_entry_missing"
+title = "Run without an LLM-judge entry"
+description = "The Claude LLM-judge summary covers 161 of 289 runs; o3-mini has no summary file at all."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.oas_summary_join@1", class = "D" }
+recorded_as = { issues = ["openhands.summary_entry_missing"] }
+handling = { class = "NR", rule = "openhands.oas_summary_join@1" }
+expected = [{ snapshot = "openagentsafety:head", count = 128, basis = "phase-10g census (claude-sonnet)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10g/README.md §3.8", "DECISIONS D-177"]
+
+[[artefact]]
+id = "openhands.art.score_one_ambiguous"
+title = "RedCode score 1: failure or harness default"
+description = "The deposit scorer writes 1 for a failed execution and as a default when the trajectory or a container is missing or the rubric returns PROBLEM; the value is kept with origin ambiguous and read as not informative."
+scope = { sources = ["redcode-exec-openhands"], profiles = ["redcode-exec-openhands"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.redcode_score_one_ambiguous@1", class = "I" }
+recorded_as = { sem = ["openhands.non_informative"] }
+handling = { class = "FO", rule = "openhands.redcode_score_one_ambiguous@1" }
+expected = [{ snapshot = "redcode-exec-openhands:head", count = 137, basis = "phase-10g census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10g/README.md §3.8", "DECISIONS D-177"]
+
+[[artefact]]
+id = "openhands.art.join_after_rewrite"
+title = "RedCode request rewritten by the harness"
+description = "The harness rewrites /sys/kernel to /app/sys/kernel before a prompt reaches the agent; 144 runs match the deposit's request only after this declared rewrite (join tier contained_after_declared_rewrite)."
+scope = { sources = ["redcode-exec-openhands"], profiles = ["redcode-exec-openhands"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.redcode_prompt_join@1", class = "D" }
+recorded_as = { issues = ["openhands.join_after_rewrite"] }
+handling = { class = "DR", rule = "openhands.redcode_prompt_join@1" }
+expected = [{ snapshot = "redcode-exec-openhands:head", count = 144, basis = "phase-10g census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10g/README.md §3.5", "DECISIONS D-178"]
+
+[[artefact]]
+id = "openhands.art.deposit_shell_history_token"
+title = "Real access token in an unselected deposit member"
+description = "The supplementary zip of Zenodo 23168099 holds one shell history under environment/ with a real-format Hugging Face token on two lines (pre-check PC-redcode-exec-openhands-01, CC-13, S0). The member is never selected and reaches no AER; the profile's [withhold] rule (scope object) withholds the zip at sealing once the archive context tree stores it, with 0 executions (D-602). The value is never printed or written."
+scope = { sources = ["redcode-exec-openhands"], profiles = ["redcode-exec-openhands"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "openhands.deposit_secret_withheld@1", class = "D" }
+handling = { class = "FO", rule = "openhands.deposit_secret_withheld@1" }
+expected = [{ snapshot = "redcode-exec-openhands:head", count = 1, basis = "D-602 census (decoded members of the supp zip; 2 matches in 1 member, 0 in the 5,460 trajectories)", unit = "archive objects", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-602", "docs/reports/precheck/redcode-exec-openhands.md PC-01"]
+
+[[artefact]]
+id = "openhands.art.third_party_account_paths"
+title = "Third-party developer account paths in fetched content"
+description = "Pages, issues, build logs and a debug log the agent fetched hold developer workstation paths (/home/<name>, /Users/<name>, ~<name>) of third parties (pre-check PC-openagentsafety-01, CC-12 (b)). The profile's redact rules replace the account segment in tool output with a salted label (D-604, D-606); model-authored text keeps its paths verbatim. Raw bytes are unchanged."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.value_redacted@1", class = "D" }
+recorded_as = { issues = ["openhands.value_redacted"] }
+handling = { class = "FO", rule = "openhands.value_redacted@1" }
+expected = [{ snapshot = "openagentsafety:head", count = 9, basis = "D-606 census (78 tool-output texts, 83 path strings of 10 accounts; residue 0 for the 8 CC-12 (b) accounts)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-604", "DECISIONS D-606", "docs/reports/precheck/openagentsafety.md PC-01"]
+
+[[artefact]]
+id = "openhands.art.fixture_secret_shapes"
+title = "Secret-shaped benchmark fixture values"
+description = "Trajectories and state files hold 8 distinct secret-shaped values (7 of the sk- form, 1 bearer token): 5 are fixture credentials of the task definitions, 1 is served by the environment in runs of two models, 1 is a placeholder-like key a model wrote and 1 a bearer token a model wrote into a command. None has an issued-key format (no provider marker, below an issued key's length, no project prefix), so none is a real-format secret of the source's own infrastructure (CC-13 fixtures, pre-check PC-openagentsafety-07). Kept as published (D-179 option A); the 49 holding objects are listed by object digest for the release-scan triage (synthetic-benchmark) in docs/reports/bugpass/d606-oas-secret-objects.json. No value is recorded."
+scope = { sources = ["openagentsafety"], profiles = ["openagentsafety"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.fixture_secret_shape@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "openagentsafety:head", count = 49, basis = "D-606 census (24 trajectories, 25 state files; 516 occurrences of 8 values)", unit = "raw objects", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-179", "DECISIONS D-606", "docs/reports/precheck/openagentsafety.md PC-07", "docs/reports/bugpass/d606-oas-secret-objects.json"]
+
+# Wave 2 (D-950; docs/reports/wave-2-artefacts/README.md): openhands.art.not_executed_notice claims the generic
+# unexecuted_call hits of its pending call (168 = 168 in the wave-2 census); the entries below cover the times of
+# both sources and RedCode's request as the attack.
+
+[[artefact]]
+id = "openhands.art.naive_event_times"
+title = "Event times are naive local times; observations and judgements carry none"
+description = "An event's timestamp is datetime.now() taken when the event entered the stream: a naive local wall-clock time, timezone unknown. The first and last event times bound the logged events, not the run, so the run's slots stay verbatim in t.raw, declared ambiguous; tool executions and judgements record no time of their own (not recorded). No time is typed or filled."
+scope = { sources = ["openagentsafety", "redcode-exec-openhands"], profiles = ["openagentsafety", "redcode-exec-openhands"], parts = ["head"] }
+cause = "upstream_harness"
+detector = { rule = "openhands.event_time_naive_local@1", class = "D" }
+claims = ["artefact.generic.sentinel_time#unknown_ambiguous", "artefact.generic.sentinel_time#unknown_not_recorded"]
+handling = { class = "NR" }
+expected = [
+  { snapshot = "openagentsafety:head", count = 1560, basis = "wave-2 census (D-950): every execution", unit = "executions", status = "unverified" },
+  { snapshot = "redcode-exec-openhands", count = 5460, basis = "wave-2 census (D-950), six snapshots: every execution", unit = "executions", status = "unverified" },
+]
+manuscript = false
+refs = ["D.16.18 correction 1", "C.8.5"]
+
+[[artefact]]
+id = "openhands.art.request_is_the_attack"
+title = "No injection payload (RedCode)"
+description = "RedCode's attack is the risky code request itself (request types C1-C3, recorded as the task's attack), not a payload injected into tool output: no injection_payload fixture or marker exists, so every run is a payload_not_reaching_agent finding of variant no_marker. It says nothing about what the agent did with the request."
+scope = { sources = ["redcode-exec-openhands"], profiles = ["redcode-exec-openhands"], parts = ["head"] }
+cause = "benchmark"
+detector = { rule = "openhands.redcode_request_type@1", class = "D" }
+claims = ["artefact.generic.payload_not_reaching_agent#no_marker"]
+handling = { class = "NR" }
+expected = [{ snapshot = "redcode-exec-openhands", count = 5460, basis = "wave-2 census (D-950), six snapshots", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-571", "qwencode.art.request_is_the_attack (the same benchmark under Qwen Code)"]

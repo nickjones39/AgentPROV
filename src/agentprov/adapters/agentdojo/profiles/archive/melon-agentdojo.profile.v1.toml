@@ -1,0 +1,205 @@
+# Source profile `melon-agentdojo`: xwsdid/MELON, an AgentDojo fork with MELON defence variants (melon, MELON-AT, MELON-SATM
+# `melon_sm`, MELON-R `melon_r`/`melon_rp`) on gpt-4o-2024-05-13 and gpt-4o-mini-2024-07-18, almost only banking: 1,911 new
+# TraceLogger logs (phase 10d; shortlist row 13; sources/agentdojo-format-candidates.md §3.14).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/melon@71d99dfff5ef.*).
+#
+# The fork carries upstream AgentDojo's runs/ byte-identically (36,679 files in 29 pipeline directories, phase-10c overlap):
+# they are registered select.owned_elsewhere with owner agentdojo and never mapped here. The MELON detectors replace a
+# flagged tool output by the AgentDojo PI-detector sentinel (D.6.6 row, class I). Not mapped (routing.md R3): MELON-R's
+# sanitising replacement text and its routing decisions, which are not logged as such.
+
+[profile]
+id = "melon-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "melon-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "MELON variants on AgentDojo: AgentDojo 0.1.35 logs of masked re-execution defences (xwsdid/MELON)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/xwsdid/MELON"
+paper = "the README builds on the MELON paper (a masked re-execution defence); no paper for these variants was found"
+package = { name = "agentdojo", vendored = "src/agentdojo (fork of ethz-spylab/agentdojo)", version_identifies_code = false }
+
+# The pin covers the repository root (38,780 files): the runs, the vendored AgentDojo source with the MELON detectors, docs and
+# a report. The byte total is not stated: the three report binaries (two PDFs and a DOCX, outside runs/) were not fetched
+# in phase 10c; the other 38,777 files hold 437,174,189 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "71d99dfff5ef98ffb25bac451909f3e10af9e27f"
+date = "2026-06-17"
+expected_files = 38780
+note = "the default branch at 2026-10-11 (phase 10c); 1,911 new logs in 9 runs/ directories, 36,679 upstream copies"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr (the upstream LICENSE kept by the fork)", "xwsdid (fork owner; no own copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin (upstream text, (c) 2024 Debenedetti et al.); the fork adds no licence of its own"
+attribution = [
+  "xwsdid/MELON (MIT), commit 71d99dfff5ef98ffb25bac451909f3e10af9e27f",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs and the vendored code",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["ethz-spylab/agentdojo (vendored fork under src/agentdojo; agentdojo_package_version 0.1.35 in the logs)"]
+vendored = ["ethz-spylab/agentdojo runs/ (36,679 files, byte-identical to the upstream head pin)"]
+duplicates = [
+  { of = "agentdojo", part = "head", path = "runs/{the 29 upstream pipeline directories}/**", relation = "byte_identical", owner = "agentdojo" },
+]
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "runs/Meta-SecAlign-70B/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/Meta-SecAlign-70B-repeat_user_prompt/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-5-sonnet-20240620/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-5-sonnet-20241022/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-7-sonnet-20250219/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-haiku-20240307/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-opus-20240229/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-sonnet-20240229/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/claude-3-sonnet-20240229-repeat_user_prompt/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/command-r/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/command-r-plus/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gemini-1.5-flash-001/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gemini-1.5-flash-002/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gemini-1.5-pro-001/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gemini-1.5-pro-002/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gemini-2.0-flash-001/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gemini-2.0-flash-exp/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-3.5-turbo-0125/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4-0125-preview/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4-turbo-2024-04-09/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4o-2024-05-13/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4o-2024-05-13-repeat_user_prompt/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4o-2024-05-13-spotlighting_with_delimiting/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4o-2024-05-13-tool_filter/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4o-2024-05-13-transformers_pi_detector/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/gpt-4o-mini-2024-07-18/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/meta-llama_Llama-3-70b-chat-hf/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/meta-llama_Llama-3.3-70B-Instruct/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "runs/meta-llama_Llama-3.3-70B-Instruct-repeat_user_prompt/*", code = "select.owned_elsewhere", owner = "agentdojo" },
+]
+layout = "runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the MELON detectors, the run
+# statistics and the repository documents.
+context_artefacts = ["LICENSE", "README.md", "pyproject.toml", "src/agentdojo/agent_pipeline/pi_detector.py", "runs/detection_stats.json"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = ["melon", "melon_at", "melon_sm", "melon_r", "melon_rp"]
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", travel = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the fork vendors AgentDojo's source and committed the runs with the code (one later code commit, phase 10c
+# h01); the logs record only the distribution version string (package_version_not_code_identity)
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in 1,819 logs, recognised by its upstream digest. The 92-character prompt
+# of the 92 melon_r logs is MELON-R's own: its lines are in the fork's pi_detector.py (assembled in code), so it
+# is recognised by the digest of the logged text only.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+  { label = "melon_r_prompt", source = "xwsdid/MELON@71d99dfff5ef98ffb25bac451909f3e10af9e27f:src/agentdojo/agent_pipeline/pi_detector.py", sha256 = "82ce7af3a0fbff78e1479e6a93b5cd6f9c0dbce863d19280fca59d20ecbb18bd", note = "the lines of the logged text occur in pi_detector.py; recognised by digest", applies = { variant = ["v1.k14", "v1.k14.incomplete"], pipeline_dir = ["*-melon_r"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 88, origin_rule_applied = 87 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 88 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 1855 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 3397, present_and_null = 3397 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 6, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.pi_detector_redaction"
+applies = { pipeline_dir = ["*-melon", "*-melon_*"] }
+rules = ["agentdojo.pi_detector_sentinel@1"]
+params = { sentinel = "<Data omitted because a prompt injection was detected>", defences = ["melon", "melon_at", "melon_sm", "melon_r", "melon_rp"] }
+observed = { head = { logs = 910, redactions = 910 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

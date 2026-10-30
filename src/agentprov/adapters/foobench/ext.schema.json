@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schemas/foobench-ext-0.1.json",
+  "title": "ext.foobench (docs/architecture D.12.2, C.10)",
+  "description": "Closed schema of the `foobench` ext namespace. `events` keeps every event the adapter cannot map (a checkpoint_restore, an unknown type) verbatim, in the `ext` of the nearest preceding host record, and is never dropped. `verdict_raw` keeps a guard or approval string that is outside the profile's closed verdict table. Evidence for ext values is addressed through `evf` pointers /ext/foobench/... (C.10 item 6); PROV does not read it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "value", "src", "after"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1, "description": "The source event type, verbatim." },
+          "value": { "type": "object", "description": "The event's other members, verbatim (encoded as AER Json, C.11)." },
+          "src": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["line"],
+            "properties": {
+              "a": { "type": "string", "pattern": "^a(0|[1-9][0-9]*)$", "description": "Raw artefact id; absent for the primary file (a0)." },
+              "line": { "type": "integer", "minimum": 0, "description": "0-based line of the event." }
+            }
+          },
+          "after": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Immediate predecessors, in the form of the AER `after` edge: the host record the event followed in source order.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "b"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+                "b": { "enum": ["causal", "time", "pos", "proto"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "verdict_raw": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A guard verdict or approval decision outside the profile's closed table, verbatim; the decision's verdict is then declared unknown (ambiguous)."
+    }
+  }
+}

@@ -1,0 +1,48 @@
+"""C2-5: a non-numeric turn_log token counter crashes McpHuntMapper._checks -> adapter_defect."""
+import pytest
+from agentprov.adapters.mcphunt.mapper import McpHuntMapper
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner import aer_bytes, map_unit
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, LocatedItem, Locator, Origin
+from agentprov.aer.reader import load_aer_bytes
+
+
+def _trace(tl):
+    msgs = [{"role": "system", "content": "s"}, {"role": "user", "content": "do"},
+            {"role": "assistant", "content": "done", "tool_calls": []}]
+    return {"task_id": "T1", "task_prompt": "do", "model": "m", "messages": msgs, "events": [], "turn_log": tl,
+            "labeling": {"any_risk": False}, "measurement": {}, "env_snapshot": {}, "final_message": "done",
+            "env_type": "benign", "defense": "none"}
+
+
+def _run(t):
+    origin = Origin.from_json({"kind": "hf", "repo": "x/y", "revision": "c4c69322bf9ed7690f5265577365709dad5dd454",
+                               "path": "main/a.json"})
+    art = ArtefactRef(id="a0", sha256="0" * 64, bytes=1, media="application/json", origin=origin, role="primary",
+                      prov_primary="native")
+    item = LocatedItem(artefact=art, locator=Locator(a="a0", p="/traces/0"), dialect="mcphunt.traces",
+                       variant="v2.0.0", flags=frozenset(), value={"envelope": {}, "trace": t})
+    out = map_unit(ExecutionUnit(primary=item), McpHuntMapper(), load_profile("mcphunt"))
+    sealed, _ = aer_bytes(out)
+    return load_aer_bytes(sealed)
+
+
+def _codes(doc):
+    return [i["code"] for i in doc.seal.get("issues", [])]
+
+
+def test_control_int_tokens_map_fine():
+    tl = [{"turn": 1, "n_tool_calls": 0, "has_text": True, "finish_reason": "stop", "prompt_tokens": 5,
+           "completion_tokens": 3}]
+    doc = _run(_trace(tl))
+    assert "adapter_defect" not in _codes(doc)
+
+
+@pytest.mark.parametrize("bad", ["n/a", [1], {"a": 1}])
+def test_non_numeric_token_counter_is_not_an_adapter_defect(bad):
+    tl = [{"turn": 1, "n_tool_calls": 0, "has_text": True, "finish_reason": "stop", "prompt_tokens": bad,
+           "completion_tokens": 3}]
+    doc = _run(_trace(tl))
+    codes = _codes(doc)
+    print("records", len(doc.records), "issues", codes)
+    assert "adapter_defect" not in codes, f"data problem reported as code defect: {codes}, records={len(doc.records)}"

@@ -1,0 +1,33 @@
+"""A2b-6: a $int with an ext.lex.flt hint beyond float range must raise CanonError, not OverflowError."""
+import json
+from pathlib import Path
+
+import pytest
+
+from agentprov.aer.canon import CanonError, LexHints, decode_value
+from agentprov.errors import AgentProvError
+
+REPO = Path.cwd()
+VECTOR = REPO / "docs/architecture/examples/C/adprov_v1_llama_injecagent.aer.jsonl"
+HUGE = {"$int": "1" + "0" * 400}
+
+
+def test_decode_value_huge_int_with_flt_hint_raises_canon_error():
+    lex = LexHints.from_dict({"flt": ["/params/temperature"]})
+    with pytest.raises(CanonError):
+        decode_value(HUGE, at="/params/temperature", lex=lex)
+
+
+def test_transcript_view_fails_with_agentprov_error_not_overflow():
+    from agentprov.views.transcript_v1 import render
+
+    recs = [json.loads(line) for line in VECTOR.read_bytes().splitlines()][:-1]
+    agent = next(r for r in recs if r.get("id") == "agent")
+    assert "/params/temperature" in agent["ext"]["lex"]["flt"]
+    agent["params"]["temperature"] = HUGE
+    try:
+        render(recs)
+    except AgentProvError:
+        return  # what derive.py and cli inspect catch
+    except OverflowError as exc:
+        pytest.fail(f"render leaked OverflowError: {exc}")

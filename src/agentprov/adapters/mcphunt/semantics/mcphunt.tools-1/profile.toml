@@ -1,0 +1,23 @@
+# Semantics profile mcphunt.tools, version 1 (docs/architecture D.21.8; C.14; EF E.7).
+#
+# Data, not code. The directory's files (this one and tools.toml) make the profile digest; the code is
+# agentprov.adapters.mcphunt.semantics, covered by the integer version (AD-18). Every rule cited is declared in the
+# mcphunt catalogue at version 1.
+
+[profile]
+id = "mcphunt.tools"
+version = 1
+format = "agentprov-sem-profile/0.1"
+rules = { mcphunt = 1 }
+
+# ------------------------------------------------------------------------------------------------ outcomes
+[outcomes]
+unsafe_values = ["unsafe_success", "unsafe_failure"]
+safe_values = ["safe_success", "safe_failure"]
+checker_origins = ["checker"]
+
+# ------------------------------------------------------------------------------------------------ taint policy
+[taint]
+rule = "mcphunt.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]

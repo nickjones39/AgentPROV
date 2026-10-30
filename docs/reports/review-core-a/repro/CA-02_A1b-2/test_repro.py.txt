@@ -1,0 +1,39 @@
+"""A1b-2: dev-mode MAX_FINDINGS cap must never hide an error finding (ValidationReport.ok)."""
+import sys
+from pathlib import Path
+
+import pytest
+
+_REPO = Path(".")
+sys.path.insert(0, str(_REPO / "tests/unit/aer"))
+
+import aer_support as S  # noqa: E402
+
+from agentprov.aer.canon import dumps_line  # noqa: E402
+from agentprov.aer.reader import load_aer_bytes  # noqa: E402
+from agentprov.aer.validate import MAX_FINDINGS, AerValidator  # noqa: E402
+
+
+def _flooded_reader_valid_file() -> bytes:
+    recs = S.example_records()
+    m3 = recs[-1]
+    assert m3["id"] == "m3" and m3["role"] == "assistant"
+    # MAX_FINDINGS release-only aer.sentinel findings (warnings in dev mode)
+    m3["parts"] = [{"t": "text", "text": ""} for _ in range(MAX_FINDINGS)] + m3["parts"]
+    recs = S.edit(recs, "m2", generated_by="zzz")  # dangling reference: error in both modes
+    seal = S.seal_record(recs)
+    seal["accounting"]["status"] = "consistent"  # forged accounting status: error in both modes
+    data = b"".join(dumps_line(r) for r in [*recs, seal])
+    load_aer_bytes(data)  # count and digest are right: the reader accepts the file
+    return data
+
+
+@pytest.mark.parametrize("mode", ["dev", "release"])
+def test_error_after_finding_cap_is_not_dropped(mode: str) -> None:
+    data = _flooded_reader_valid_file()
+    v = AerValidator(store=S.example_store(), catalogues=S.make_registry(), mode=mode)
+    for line in data.splitlines(keepends=True):
+        v.feed(line)
+    report = v.finish()
+    assert report.truncated
+    assert not report.ok, f"{mode}: errors dropped by the findings cap, report.ok is True"

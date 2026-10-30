@@ -1,0 +1,2593 @@
+@prefix apv:     <https://w3id.org/agentprov/ns#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix vann:    <http://purl.org/vocab/vann/> .
+
+#################################################################
+# AgentPROV vocabulary (apv) 0.1.0
+#
+# Terms of the AgentPROV PROV profile agentprov-prov/0.1 (docs/architecture/EF_provenance.md, E.4).
+# Classes, properties and closed individual lists only; instances never live in this namespace.
+# PROV-O terms are referenced, not imported. The Flowcept / PROV-AGENT ontology is not imported either:
+# apv:ModelInvocation and apv:ToolExecution are aligned with PROV-AGENT AIModelInvocation and AgentTool in
+# their rdfs:comment text only.
+#
+# Source of truth: src/agentprov/vocab/apv-0.1.ttl. docs/ns/apv-0.1.ttl is a byte copy (tools/sync_ns.py)
+# and src/agentprov/prov/vocab.py holds the term constants (tools/gen_vocab_py.py).
+#################################################################
+
+<https://w3id.org/agentprov/ns>
+    a owl:Ontology ;
+    owl:versionIRI <https://w3id.org/agentprov/ns/0.1.0> ;
+    owl:versionInfo "0.1.0" ;
+    rdfs:label "AgentPROV vocabulary"@en ;
+    dcterms:title "AgentPROV vocabulary (apv)"@en ;
+    rdfs:comment "Terms for evidence-qualified W3C PROV bundles of LLM-agent executions: evidence classes, epistemic statuses, assumptions, message and activity classes, and assessment terms."@en ;
+    dcterms:creator <https://github.com/nickjones39> ;
+    dcterms:created "2026-10-08"^^xsd:date ;
+    dcterms:license <https://creativecommons.org/licenses/by/4.0/> ;
+    vann:preferredNamespacePrefix "apv" ;
+    vann:preferredNamespaceUri "https://w3id.org/agentprov/ns#" ;
+    skos:note "Namespace registration is pending: the w3id.org/agentprov namespace is not yet registered (perma-id/w3id.org pull request 6836). Until it is merged these IRIs are placeholders and corpora using them must not be deposited."@en .
+
+
+## Closed-list classes (enumeration types)
+
+apv:EvidenceClass
+    a owl:Class ;
+    rdfs:label "Evidence class"@en ;
+    rdfs:comment "Evidence class of a node, statement or attribute (AER ev values O, D and I)."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AttestingParty
+    a owl:Class ;
+    rdfs:label "Attesting party"@en ;
+    rdfs:comment "Party that recorded an OBSERVED fact (AER by value or the party of an evf value O:party)."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EpistemicStatus
+    a owl:Class ;
+    rdfs:label "Epistemic status"@en ;
+    rdfs:comment "Why a property value is absent: the seven AER unk reasons plus RecordedNull and NotObservable."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Assumption
+    a owl:Class ;
+    rdfs:label "Assumption"@en ;
+    rdfs:comment "A core assumption an adapter rule may declare. Adapter-declared terms with the same verification shape are also admitted."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SentTransform
+    a owl:Class ;
+    rdfs:label "Sent transform"@en ;
+    rdfs:comment "A transform applied to a message when the request was built (a defence is never a sent transform)."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CallStatus
+    a owl:Class ;
+    rdfs:label "Call status"@en ;
+    rdfs:comment "Status of a model call."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExecutionStatus
+    a owl:Class ;
+    rdfs:label "Execution status"@en ;
+    rdfs:comment "Status of a tool execution."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DispatchStatus
+    a owl:Class ;
+    rdfs:label "Dispatch status"@en ;
+    rdfs:comment "Why a tool-call request was never dispatched."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OutcomeOrigin
+    a owl:Class ;
+    rdfs:label "Outcome origin"@en ;
+    rdfs:comment "Origin of a judgement value."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DerivationType
+    a owl:Class ;
+    rdfs:label "Derivation type"@en ;
+    rdfs:comment "Type of a derivation made by a defence or by injection placement."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Verdict
+    a owl:Class ;
+    rdfs:label "Verdict"@en ;
+    rdfs:comment "Verdict of a decision."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:IntegrityValue
+    a owl:Class ;
+    rdfs:label "Integrity value"@en ;
+    rdfs:comment "Three-valued integrity label, fail-closed."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SecurityRole
+    a owl:Class ;
+    rdfs:label "Security role"@en ;
+    rdfs:comment "Security role of a tool call or execution (multi-valued)."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:MarkerStatus
+    a owl:Class ;
+    rdfs:label "Marker status"@en ;
+    rdfs:comment "Status of an injection marker when it differs from present; only Ambiguous is a stated status."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AssessmentClaim
+    a owl:Class ;
+    rdfs:label "Assessment claim"@en ;
+    rdfs:comment "Claim of an assessment entity."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ProfileStatus
+    a owl:Class ;
+    rdfs:label "Profile status"@en ;
+    rdfs:comment "Status of a profile or projection."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Capability
+    a owl:Class ;
+    rdfs:label "Capability"@en ;
+    rdfs:comment "A capability individual of a capture profile."@en ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+
+## Classes
+
+apv:ModelInvocation
+    a owl:Class ;
+    rdfs:label "Model invocation"@en ;
+    rdfs:comment "A model call: one request to a model service. Status kept, discarded or error (a cached call is a CacheRead). Aligned in meaning with PROV-AGENT AIModelInvocation."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CacheRead
+    a owl:Class ;
+    rdfs:label "Cache read"@en ;
+    rdfs:comment "A model call served from a cache without inference: no model use and no provider association."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolExecution
+    a owl:Class ;
+    rdfs:label "Tool execution"@en ;
+    rdfs:comment "The execution of a tool by a tool runtime. Aligned in meaning with PROV-AGENT AgentTool."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Decision
+    a owl:Class ;
+    rdfs:label "Decision"@en ;
+    rdfs:comment "A defence, approval or policy decision about a subject (allow, deny, modify, redact, escalate, terminate or other)."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Run
+    a owl:Class ;
+    rdfs:label "Run"@en ;
+    rdfs:comment "The run scope of an execution."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Pass
+    a owl:Class ;
+    rdfs:label "Pass"@en ;
+    rdfs:comment "One pass (attempt) of the agent pipeline within a run; a new pass starts from fresh messages."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AgentInvocation
+    a owl:Class ;
+    rdfs:label "Agent invocation"@en ;
+    rdfs:comment "An invocation of an agent within a run."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SubagentInvocation
+    a owl:Class ;
+    rdfs:label "Subagent invocation"@en ;
+    rdfs:comment "An invocation of a subagent, started by a spawning tool execution or model call."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Step
+    a owl:Class ;
+    rdfs:label "Step"@en ;
+    rdfs:comment "A scope of kind other, with its kind kept in apv:subtype."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckerRun
+    a owl:Class ;
+    rdfs:label "Checker run"@en ;
+    rdfs:comment "A synthetic checker run that generated a judgement when the source records no generating activity."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:HarnessRuleEvaluation
+    a owl:Class ;
+    rdfs:label "Harness rule evaluation"@en ;
+    rdfs:comment "The evaluation of a harness rule that generated a judgement from other judgements."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:GenericActivity
+    a owl:Class ;
+    rdfs:label "Generic activity"@en ;
+    rdfs:comment "An activity of a generic kind (AER activity record); its kind is in apv:activityType."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:PolicyEvaluation
+    a owl:Class ;
+    rdfs:label "Policy evaluation"@en ;
+    rdfs:comment "The activity that evaluates a taint or exposure policy and generates the assessments of an assessment bundle."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CaptureSession
+    a owl:Class ;
+    rdfs:label "Capture session"@en ;
+    rdfs:comment "A live capture session recorded by agentprov-capture."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Mapping
+    a owl:Class ;
+    rdfs:label "Mapping"@en ;
+    rdfs:comment "The adapter mapping of raw artefacts to an AgentPROV Execution Record (AER)."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Annotation
+    a owl:Class ;
+    rdfs:label "Annotation"@en ;
+    rdfs:comment "The semantic annotation of an AER, generating a SEM annotation set."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ProvDerivation
+    a owl:Class ;
+    rdfs:label "PROV derivation"@en ;
+    rdfs:comment "The derivation of PROV bundles from an AER and its annotations."@en ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExecutionDescription
+    a owl:Class ;
+    rdfs:label "Execution description"@en ;
+    rdfs:comment "The description of an execution: mode, unit, benchmark, task, attack and defence identity."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Message
+    a owl:Class ;
+    rdfs:label "Message"@en ;
+    rdfs:comment "A message of the conversation. A message with at least one tool-call request is additionally a prov:Collection."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SystemMessage
+    a owl:Class ;
+    rdfs:label "System message"@en ;
+    rdfs:comment "A message with the system role."@en ;
+    rdfs:subClassOf apv:Message ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:UserMessage
+    a owl:Class ;
+    rdfs:label "User message"@en ;
+    rdfs:comment "A message with the user role."@en ;
+    rdfs:subClassOf apv:Message ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AssistantMessage
+    a owl:Class ;
+    rdfs:label "Assistant message"@en ;
+    rdfs:comment "A message with the assistant role."@en ;
+    rdfs:subClassOf apv:Message ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolMessage
+    a owl:Class ;
+    rdfs:label "Tool message"@en ;
+    rdfs:comment "A message with the tool role."@en ;
+    rdfs:subClassOf apv:Message ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DeveloperMessage
+    a owl:Class ;
+    rdfs:label "Developer message"@en ;
+    rdfs:comment "A message with the developer role."@en ;
+    rdfs:subClassOf apv:Message ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OtherRoleMessage
+    a owl:Class ;
+    rdfs:label "Other role message"@en ;
+    rdfs:comment "A message with any other role; the role string is kept in apv:messageRole."@en ;
+    rdfs:subClassOf apv:Message ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:MessagePart
+    a owl:Class ;
+    rdfs:label "Message part"@en ;
+    rdfs:comment "A part of a message."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:TextPart
+    a owl:Class ;
+    rdfs:label "Text part"@en ;
+    rdfs:comment "A text part."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ReasoningPart
+    a owl:Class ;
+    rdfs:label "Reasoning part"@en ;
+    rdfs:comment "A reasoning part."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolCallRequest
+    a owl:Class ;
+    rdfs:label "Tool call request"@en ;
+    rdfs:comment "A tool-call request part (a tool_call part of an assistant message)."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolResult
+    a owl:Class ;
+    rdfs:label "Tool result"@en ;
+    rdfs:comment "A tool-result part."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:BlobPart
+    a owl:Class ;
+    rdfs:label "Blob part"@en ;
+    rdfs:comment "A part holding a blob."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:FilePart
+    a owl:Class ;
+    rdfs:label "File part"@en ;
+    rdfs:comment "A part holding a file reference."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:UriPart
+    a owl:Class ;
+    rdfs:label "URI part"@en ;
+    rdfs:comment "A part holding a URI."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RefusalPart
+    a owl:Class ;
+    rdfs:label "Refusal part"@en ;
+    rdfs:comment "A refusal part."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OtherPart
+    a owl:Class ;
+    rdfs:label "Other part"@en ;
+    rdfs:comment "A part of any other type; the type is kept in apv:subtype."@en ;
+    rdfs:subClassOf apv:MessagePart ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Model
+    a owl:Class ;
+    rdfs:label "Model"@en ;
+    rdfs:comment "A model identity: the requested or served model of an actor or a model call."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:State
+    a owl:Class ;
+    rdfs:label "State"@en ;
+    rdfs:comment "A state of an environment, store or sandbox, identified by a digest; a state of another target carries apv:subtype."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EnvironmentState
+    a owl:Class ;
+    rdfs:label "Environment state"@en ;
+    rdfs:comment "A state of the task environment."@en ;
+    rdfs:subClassOf apv:State ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:StoreState
+    a owl:Class ;
+    rdfs:label "Store state"@en ;
+    rdfs:comment "A state of an agent store."@en ;
+    rdfs:subClassOf apv:State ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SandboxState
+    a owl:Class ;
+    rdfs:label "Sandbox state"@en ;
+    rdfs:comment "A state of a sandbox."@en ;
+    rdfs:subClassOf apv:State ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Fixture
+    a owl:Class ;
+    rdfs:label "Fixture"@en ;
+    rdfs:comment "A fixture of an execution: configuration provenance recorded in the core bundle."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InjectionPayload
+    a owl:Class ;
+    rdfs:label "Injection payload"@en ;
+    rdfs:comment "An injection payload fixture."@en ;
+    rdfs:subClassOf apv:Fixture ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EnvironmentSeed
+    a owl:Class ;
+    rdfs:label "Environment seed"@en ;
+    rdfs:comment "An environment seed fixture."@en ;
+    rdfs:subClassOf apv:Fixture ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AttackPlan
+    a owl:Class ;
+    rdfs:label "Attack plan"@en ;
+    rdfs:comment "An attack plan fixture; also a prov:Plan."@en ;
+    rdfs:subClassOf apv:Fixture, prov:Plan ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:TaskPrompt
+    a owl:Class ;
+    rdfs:label "Task prompt"@en ;
+    rdfs:comment "A task prompt fixture."@en ;
+    rdfs:subClassOf apv:Fixture ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SystemPrompt
+    a owl:Class ;
+    rdfs:label "System prompt"@en ;
+    rdfs:comment "A system prompt fixture."@en ;
+    rdfs:subClassOf apv:Fixture ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolDefinitions
+    a owl:Class ;
+    rdfs:label "Tool definitions"@en ;
+    rdfs:comment "A fixture holding the tool definitions available to a model call."@en ;
+    rdfs:subClassOf apv:Fixture ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:GroundTruth
+    a owl:Class ;
+    rdfs:label "Ground truth"@en ;
+    rdfs:comment "A ground-truth fixture."@en ;
+    rdfs:subClassOf apv:Fixture ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Outcome
+    a owl:Class ;
+    rdfs:label "Outcome"@en ;
+    rdfs:comment "The judgement of an execution (an AER judgement); it carries no polarity or meaning, which are SEM annotations."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:GenericArtefact
+    a owl:Class ;
+    rdfs:label "Generic artefact"@en ;
+    rdfs:comment "An artefact of a generic kind (AER artefact record); its kind is in apv:artefactType."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ContextWindow
+    a owl:Class ;
+    rdfs:label "Context window"@en ;
+    rdfs:comment "A model call's context as a collection of messages. Reserved for the deferred collection context encoding."@en ;
+    rdfs:subClassOf prov:Dictionary ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Gap
+    a owl:Class ;
+    rdfs:label "Gap"@en ;
+    rdfs:comment "A recorded gap: an unknown AER pointer that has no fixed status property."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CaptureProfile
+    a owl:Class ;
+    rdfs:label "Capture profile"@en ;
+    rdfs:comment "The capture profile of a source: what it provides, does not provide and cannot observe."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Assessment
+    a owl:Class ;
+    rdfs:label "Assessment"@en ;
+    rdfs:comment "An assessment entity: a claim, label or policy result in an assessment bundle or inference bundle."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RawSourceArtefact
+    a owl:Class ;
+    rdfs:label "Raw source artefact"@en ;
+    rdfs:comment "A content-addressed raw source artefact."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExecutionRecord
+    a owl:Class ;
+    rdfs:label "Execution record"@en ;
+    rdfs:comment "An AgentPROV Execution Record (AER) of one execution."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SemanticAnnotationSet
+    a owl:Class ;
+    rdfs:label "Semantic annotation set"@en ;
+    rdfs:comment "A SEM annotation set."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExecutionProvenance
+    a owl:Class ;
+    rdfs:label "Execution provenance"@en ;
+    rdfs:comment "The version-independent provenance of an execution, of which each bundle is a specialisation."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:LegacyProjection
+    a owl:Class ;
+    rdfs:label "Legacy projection"@en ;
+    rdfs:comment "A projection in a legacy profile, such as the released or regenerated adprov-v2.3-compat graph."@en ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RuleCatalogue
+    a owl:Class ;
+    rdfs:label "Rule catalogue"@en ;
+    rdfs:comment "A rule catalogue, as a plan: the engine catalogue or an adapter catalogue."@en ;
+    rdfs:subClassOf prov:Plan ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SemanticsProfile
+    a owl:Class ;
+    rdfs:label "Semantics profile"@en ;
+    rdfs:comment "A SEM semantics profile, as a plan."@en ;
+    rdfs:subClassOf prov:Plan ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CoreBundle
+    a owl:Class ;
+    rdfs:label "Core bundle"@en ;
+    rdfs:comment "The core bundle: OBSERVED and DERIVED statements."@en ;
+    rdfs:subClassOf prov:Bundle ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InferenceBundle
+    a owl:Class ;
+    rdfs:label "Inference bundle"@en ;
+    rdfs:comment "An inference bundle: INFERRED statements, keyed by method set."@en ;
+    rdfs:subClassOf prov:Bundle ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AssessmentBundle
+    a owl:Class ;
+    rdfs:label "Assessment bundle"@en ;
+    rdfs:comment "An assessment bundle: labels, claims and policy results over the core, keyed by semantics profile."@en ;
+    rdfs:subClassOf prov:Bundle ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AgentSystem
+    a owl:Class ;
+    rdfs:label "Agent system"@en ;
+    rdfs:comment "An LLM agent system (AER actor kind llm_agent); instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ModelService
+    a owl:Class ;
+    rdfs:label "Model service"@en ;
+    rdfs:comment "A model service that served an invocation; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolRuntime
+    a owl:Class ;
+    rdfs:label "Tool runtime"@en ;
+    rdfs:comment "A tool runtime that executes tool calls; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EnvironmentActor
+    a owl:Class ;
+    rdfs:label "Environment actor"@en ;
+    rdfs:comment "An environment as an actor; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:User
+    a owl:Class ;
+    rdfs:label "User"@en ;
+    rdfs:comment "A user (AER actor kind user); instances are also prov:Person."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SimulatedUser
+    a owl:Class ;
+    rdfs:label "Simulated user"@en ;
+    rdfs:comment "A simulated user; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Attacker
+    a owl:Class ;
+    rdfs:label "Attacker"@en ;
+    rdfs:comment "An attacker; whether a person or an organisation is unknown, so there is no PROV subtype."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Judge
+    a owl:Class ;
+    rdfs:label "Judge"@en ;
+    rdfs:comment "A judge; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Defence
+    a owl:Class ;
+    rdfs:label "Defence"@en ;
+    rdfs:comment "A defence (AER actor kind defense); instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Harness
+    a owl:Class ;
+    rdfs:label "Harness"@en ;
+    rdfs:comment "A harness; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Benchmark
+    a owl:Class ;
+    rdfs:label "Benchmark"@en ;
+    rdfs:comment "A benchmark acting as an actor; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Adapter
+    a owl:Class ;
+    rdfs:label "Adapter"@en ;
+    rdfs:comment "An AgentPROV adapter software agent; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ProvEngine
+    a owl:Class ;
+    rdfs:label "PROV engine"@en ;
+    rdfs:comment "The AgentPROV provenance engine software agent; instances are also prov:SoftwareAgent."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Planner
+    a owl:Class ;
+    rdfs:label "Planner"@en ;
+    rdfs:comment "Role class added to an actor whose role is planner."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Generator
+    a owl:Class ;
+    rdfs:label "Generator"@en ;
+    rdfs:comment "Role class added to an actor whose role is generator."@en ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+
+## Properties
+
+apv:evidenceClass
+    a owl:ObjectProperty ;
+    rdfs:label "Evidence class"@en ;
+    rdfs:comment "Evidence class of a node, statement or attribute (exactly one per element)."@en ;
+    rdfs:range apv:EvidenceClass ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:rule
+    a owl:DatatypeProperty ;
+    rdfs:label "Rule"@en ;
+    rdfs:comment "Id of the engine rule that produced the element, without any pointer; an xsd:string equal to the rule id."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:basisRule
+    a owl:DatatypeProperty ;
+    rdfs:label "Basis rule"@en ;
+    rdfs:comment "Id of an AER or SEM rule behind the premise records, without any pointer; an xsd:string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:rulePointer
+    a owl:DatatypeProperty ;
+    rdfs:label "Rule pointer"@en ;
+    rdfs:comment "Scoped rule reference (rule id#pointer) behind apv:basisRule, when a citation is scoped."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:sourcePointer
+    a owl:DatatypeProperty ;
+    rdfs:label "Source pointer"@en ;
+    rdfs:comment "Source pointer of the form record id plus RFC 6901 pointer, for example mc2/input/3."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:attestedBy
+    a owl:ObjectProperty ;
+    rdfs:label "Attested by"@en ;
+    rdfs:comment "Party that recorded an OBSERVED premise field."@en ;
+    rdfs:range apv:AttestingParty ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:assumption
+    a owl:ObjectProperty ;
+    rdfs:label "Assumption"@en ;
+    rdfs:comment "An assumption individual cited by a rule: a core apv: term or an adapter-declared term."@en ;
+    rdfs:range apv:Assumption ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:premise
+    a owl:ObjectProperty ;
+    rdfs:label "Premise"@en ;
+    rdfs:comment "A premise statement of a communication or an assessment."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:viaEntity
+    a owl:ObjectProperty ;
+    rdfs:label "Via entity"@en ;
+    rdfs:comment "An entity that witnesses a communication between two activities."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:method
+    a owl:DatatypeProperty ;
+    rdfs:label "Method"@en ;
+    rdfs:comment "Id of the inference method (rule) of an INFERRED statement, or the marker rule and normaliser of a payload claim."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:confidence
+    a owl:DatatypeProperty ;
+    rdfs:label "Confidence"@en ;
+    rdfs:comment "Confidence output of an inference method."@en ;
+    rdfs:range xsd:double ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:threshold
+    a owl:DatatypeProperty ;
+    rdfs:label "Threshold"@en ;
+    rdfs:comment "Threshold output of an inference method."@en ;
+    rdfs:range xsd:double ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:derivedAttribute
+    a owl:ObjectProperty ;
+    rdfs:label "Derived attribute"@en ;
+    rdfs:comment "Property of an attribute whose class is DERIVED on an OBSERVED element."@en ;
+    rdfs:range rdf:Property ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:afterEvidenceClass
+    a owl:ObjectProperty ;
+    rdfs:label "After evidence class"@en ;
+    rdfs:comment "Weakest evidence class among the after edges kept on a node."@en ;
+    rdfs:range apv:EvidenceClass ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:startTimeStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Start time status"@en ;
+    rdfs:comment "Why the start time is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:endTimeStatus
+    a owl:ObjectProperty ;
+    rdfs:label "End time status"@en ;
+    rdfs:comment "Why the end time is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:contextStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Context status"@en ;
+    rdfs:comment "Why the model input (context) is unknown."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outputStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Output status"@en ;
+    rdfs:comment "Status of the output of a model call, for example Lost for a call known to have happened but not held."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:requestStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Request status"@en ;
+    rdfs:comment "Why the wire request is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:responseStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Response status"@en ;
+    rdfs:comment "Why the wire response is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:usageStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Usage status"@en ;
+    rdfs:comment "Why the usage is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:paramsStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Params status"@en ;
+    rdfs:comment "Why the parameters are absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:finishReasonStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Finish reason status"@en ;
+    rdfs:comment "Why the finish reason is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:requestedModelStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Requested model status"@en ;
+    rdfs:comment "Why the requested model is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:servedModelStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Served model status"@en ;
+    rdfs:comment "Why the served model is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:requestedArgsStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Requested args status"@en ;
+    rdfs:comment "Why the requested arguments of a tool execution are absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:effectiveArgsStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Effective args status"@en ;
+    rdfs:comment "Why the effective arguments of a tool execution are absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:contentStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Content status"@en ;
+    rdfs:comment "Why the content of a part or pre-decision entity is absent or null."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:providerCallIdStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Provider call id status"@en ;
+    rdfs:comment "Why the provider call id is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:argsRawStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Args raw status"@en ;
+    rdfs:comment "Why the raw arguments are absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:indexStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Index status"@en ;
+    rdfs:comment "Why the index is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:orderStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Order status"@en ;
+    rdfs:comment "Why the order (after edges) is absent."@en ;
+    rdfs:range apv:EpistemicStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:dispatchStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Dispatch status"@en ;
+    rdfs:comment "Whether a tool-call request was dispatched; set to Denied or NotDispatched on a request with no tool execution."@en ;
+    rdfs:range apv:DispatchStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:scopeStatus
+    a owl:DatatypeProperty ;
+    rdfs:label "Scope status"@en ;
+    rdfs:comment "How a scope ended, as recorded: ok, error, aborted or limit."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:activityStatus
+    a owl:DatatypeProperty ;
+    rdfs:label "Activity status"@en ;
+    rdfs:comment "Status of a generic activity, as recorded by the source."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:about
+    a owl:ObjectProperty ;
+    rdfs:label "About"@en ;
+    rdfs:comment "The node a gap is about."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:property
+    a owl:DatatypeProperty ;
+    rdfs:label "Property"@en ;
+    rdfs:comment "The AER pointer a gap is about."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:status
+    a owl:ObjectProperty ;
+    rdfs:label "Status"@en ;
+    rdfs:comment "The status of a gap (an apv:EpistemicStatus) or of a compat entity (an apv:ProfileStatus)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:reason
+    a owl:DatatypeProperty ;
+    rdfs:label "Reason"@en ;
+    rdfs:comment "Reason: the verdict reason of a decision, the discard or error reason of a model call, or the reason of a gap."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:partOf
+    a owl:ObjectProperty ;
+    rdfs:label "Part of"@en ;
+    rdfs:comment "The containing node: part to message, message to scope, activity to scope, scope to parent scope. Always an attribute, never a relation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:partIndex
+    a owl:DatatypeProperty ;
+    rdfs:label "Part index"@en ;
+    rdfs:comment "Zero-based index of a part within its message."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:partCount
+    a owl:DatatypeProperty ;
+    rdfs:label "Part count"@en ;
+    rdfs:comment "Number of parts of a message."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:thread
+    a owl:DatatypeProperty ;
+    rdfs:label "Thread"@en ;
+    rdfs:comment "Thread identifier of a message; thread scopes have no node."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:contextIndex
+    a owl:DatatypeProperty ;
+    rdfs:label "Context index"@en ;
+    rdfs:comment "Position of a message in the context of a model call."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:index
+    a owl:DatatypeProperty ;
+    rdfs:label "Index"@en ;
+    rdfs:comment "Index of a scope, for example the pass index."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:scored
+    a owl:DatatypeProperty ;
+    rdfs:label "Scored"@en ;
+    rdfs:comment "Whether an attempt scope is the scored attempt."@en ;
+    rdfs:range xsd:boolean ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:afterCausal
+    a owl:ObjectProperty ;
+    rdfs:label "After causal"@en ;
+    rdfs:comment "A node this one follows by causal order (AER after edge, basis causal)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:afterTime
+    a owl:ObjectProperty ;
+    rdfs:label "After time"@en ;
+    rdfs:comment "A node this one follows by time order (AER after edge, basis time)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:afterPos
+    a owl:ObjectProperty ;
+    rdfs:label "After pos"@en ;
+    rdfs:comment "A node this one follows by position (AER after edge, basis pos)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:afterProto
+    a owl:ObjectProperty ;
+    rdfs:label "After proto"@en ;
+    rdfs:comment "A node this one follows by protocol order (AER after edge, basis proto)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:durationSeconds
+    a owl:DatatypeProperty ;
+    rdfs:label "Duration seconds"@en ;
+    rdfs:comment "Duration in seconds, as recorded."@en ;
+    rdfs:range xsd:double ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:startTimeLexical
+    a owl:DatatypeProperty ;
+    rdfs:label "Start time lexical"@en ;
+    rdfs:comment "Start time kept as the recorded lexical form."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:endTimeLexical
+    a owl:DatatypeProperty ;
+    rdfs:label "End time lexical"@en ;
+    rdfs:comment "End time kept as the recorded lexical form."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:inputIndex
+    a owl:DatatypeProperty ;
+    rdfs:label "Input index"@en ;
+    rdfs:comment "Position of an input in the inputs of a generic activity."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:messageRole
+    a owl:DatatypeProperty ;
+    rdfs:label "Message role"@en ;
+    rdfs:comment "Role string of a message with a role outside the closed list."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:contentSha256
+    a owl:DatatypeProperty ;
+    rdfs:label "Content sha256"@en ;
+    rdfs:comment "SHA-256 of the content: of the JCS bytes of the parts for a message, or of the UTF-8 text for a part."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:contentLength
+    a owl:DatatypeProperty ;
+    rdfs:label "Content length"@en ;
+    rdfs:comment "Content length in Unicode scalar values."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:text
+    a owl:DatatypeProperty ;
+    rdfs:label "Text"@en ;
+    rdfs:comment "Text content, emitted only with emit_content."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:toolName
+    a owl:DatatypeProperty ;
+    rdfs:label "Tool name"@en ;
+    rdfs:comment "Name of the tool."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:args
+    a owl:DatatypeProperty ;
+    rdfs:label "Args"@en ;
+    rdfs:comment "Arguments of a tool call as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:argsEffective
+    a owl:DatatypeProperty ;
+    rdfs:label "Args effective"@en ;
+    rdfs:comment "Effective arguments of a tool execution as a JCS string, emitted only when they differ from the request."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:argsRawSha256
+    a owl:DatatypeProperty ;
+    rdfs:label "Args raw sha256"@en ;
+    rdfs:comment "SHA-256 of the raw arguments of a tool call."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:providerCallId
+    a owl:DatatypeProperty ;
+    rdfs:label "Provider call id"@en ;
+    rdfs:comment "Provider-assigned call id of a tool call."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:error
+    a owl:DatatypeProperty ;
+    rdfs:label "Error"@en ;
+    rdfs:comment "Error text of a tool result."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:exception
+    a owl:DatatypeProperty ;
+    rdfs:label "Exception"@en ;
+    rdfs:comment "Exception of a tool execution as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:execStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Exec status"@en ;
+    rdfs:comment "Status of a tool execution."@en ;
+    rdfs:range apv:ExecutionStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:callStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Call status"@en ;
+    rdfs:comment "Status of a model call."@en ;
+    rdfs:range apv:CallStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:callRole
+    a owl:DatatypeProperty ;
+    rdfs:label "Call role"@en ;
+    rdfs:comment "Role of a model call, as recorded."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:retryOf
+    a owl:ObjectProperty ;
+    rdfs:label "Retry of"@en ;
+    rdfs:comment "The earlier model call this one retries; retries are expressed only this way."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:finishReason
+    a owl:DatatypeProperty ;
+    rdfs:label "Finish reason"@en ;
+    rdfs:comment "Finish reason of a model call, verbatim from the provider."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:usage
+    a owl:DatatypeProperty ;
+    rdfs:label "Usage"@en ;
+    rdfs:comment "Usage of a model call as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:paramsConfigured
+    a owl:DatatypeProperty ;
+    rdfs:label "Params configured"@en ;
+    rdfs:comment "Configured parameters of a model call as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:paramsTransmitted
+    a owl:DatatypeProperty ;
+    rdfs:label "Params transmitted"@en ;
+    rdfs:comment "Transmitted parameters of a model call as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:requestBlob
+    a owl:DatatypeProperty ;
+    rdfs:label "Request blob"@en ;
+    rdfs:comment "Reference (sha256:...) to the blob holding the exact wire request."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:responseBlob
+    a owl:DatatypeProperty ;
+    rdfs:label "Response blob"@en ;
+    rdfs:comment "Reference (sha256:...) to the blob holding the exact wire response."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:responseId
+    a owl:DatatypeProperty ;
+    rdfs:label "Response id"@en ;
+    rdfs:comment "Provider response id of a model call."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:sentTransform
+    a owl:ObjectProperty ;
+    rdfs:label "Sent transform"@en ;
+    rdfs:comment "A transform applied when a message was sent as model input."@en ;
+    rdfs:range apv:SentTransform ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:asSentSha256
+    a owl:DatatypeProperty ;
+    rdfs:label "As sent sha256"@en ;
+    rdfs:comment "SHA-256 of the sent rendering of a message."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:verdict
+    a owl:ObjectProperty ;
+    rdfs:label "Verdict"@en ;
+    rdfs:comment "Verdict of a decision."@en ;
+    rdfs:range apv:Verdict ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:decisionSubject
+    a owl:ObjectProperty ;
+    rdfs:label "Decision subject"@en ;
+    rdfs:comment "Subject of a decision that is an activity with no output entity, stated as an attribute."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:stateSha256
+    a owl:DatatypeProperty ;
+    rdfs:label "State sha256"@en ;
+    rdfs:comment "Digest of a state."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:patchSha256
+    a owl:DatatypeProperty ;
+    rdfs:label "Patch sha256"@en ;
+    rdfs:comment "Digest of a state patch."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:truncated
+    a owl:DatatypeProperty ;
+    rdfs:label "Truncated"@en ;
+    rdfs:comment "Whether a recorded diff was truncated."@en ;
+    rdfs:range xsd:boolean ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:vector
+    a owl:DatatypeProperty ;
+    rdfs:label "Vector"@en ;
+    rdfs:comment "Injection vector of a fixture."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeName
+    a owl:DatatypeProperty ;
+    rdfs:label "Outcome name"@en ;
+    rdfs:comment "Name of an outcome."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeValue
+    a owl:DatatypeProperty ;
+    rdfs:label "Outcome value"@en ;
+    rdfs:comment "Value of an outcome, as a typed literal."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeOrigin
+    a owl:ObjectProperty ;
+    rdfs:label "Outcome origin"@en ;
+    rdfs:comment "Origin of an outcome value."@en ;
+    rdfs:range apv:OutcomeOrigin ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeClaim
+    a owl:DatatypeProperty ;
+    rdfs:label "Outcome claim"@en ;
+    rdfs:comment "Claim of an outcome in an assessment mention."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeHolds
+    a owl:DatatypeProperty ;
+    rdfs:label "Outcome holds"@en ;
+    rdfs:comment "Whether the outcome claim holds (explicit polarity), in an assessment mention."@en ;
+    rdfs:range xsd:boolean ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeScore
+    a owl:DatatypeProperty ;
+    rdfs:label "Outcome score"@en ;
+    rdfs:comment "Graded score of an outcome, in an assessment mention."@en ;
+    rdfs:range xsd:double ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:outcomeScale
+    a owl:DatatypeProperty ;
+    rdfs:label "Outcome scale"@en ;
+    rdfs:comment "Scale of an outcome score, in an assessment mention."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:activityType
+    a owl:DatatypeProperty ;
+    rdfs:label "Activity type"@en ;
+    rdfs:comment "Namespaced type (ns:name) of a generic activity."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:artefactType
+    a owl:DatatypeProperty ;
+    rdfs:label "Artefact type"@en ;
+    rdfs:comment "Namespaced type (ns:name) of a generic artefact."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:requestedModel
+    a owl:DatatypeProperty ;
+    rdfs:label "Requested model"@en ;
+    rdfs:comment "Requested model identifier."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:servedModel
+    a owl:DatatypeProperty ;
+    rdfs:label "Served model"@en ;
+    rdfs:comment "Served model identifier, as reported by the provider."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:provider
+    a owl:DatatypeProperty ;
+    rdfs:label "Provider"@en ;
+    rdfs:comment "Model provider."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:name
+    a owl:DatatypeProperty ;
+    rdfs:label "Name"@en ;
+    rdfs:comment "Name of an actor."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:actorRole
+    a owl:DatatypeProperty ;
+    rdfs:label "Actor role"@en ;
+    rdfs:comment "Role of an actor, as recorded."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:version
+    a owl:DatatypeProperty ;
+    rdfs:label "Version"@en ;
+    rdfs:comment "Version of an actor."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:subtype
+    a owl:DatatypeProperty ;
+    rdfs:label "Subtype"@en ;
+    rdfs:comment "The ns.name of an enumerated value recorded as other."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:executionId
+    a owl:DatatypeProperty ;
+    rdfs:label "Execution id"@en ;
+    rdfs:comment "Id of the execution."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:mode
+    a owl:DatatypeProperty ;
+    rdfs:label "Mode"@en ;
+    rdfs:comment "Mode of the execution: import or live (AER execution.mode)."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:executionUnit
+    a owl:DatatypeProperty ;
+    rdfs:label "Execution unit"@en ;
+    rdfs:comment "Unit of the execution: agent_execution, outcome_only or scenario."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:benchmark
+    a owl:DatatypeProperty ;
+    rdfs:label "Benchmark"@en ;
+    rdfs:comment "Benchmark of the task."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:environment
+    a owl:DatatypeProperty ;
+    rdfs:label "Environment"@en ;
+    rdfs:comment "Environment of the task."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:taskId
+    a owl:DatatypeProperty ;
+    rdfs:label "Task id"@en ;
+    rdfs:comment "Id of the task."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:attackId
+    a owl:DatatypeProperty ;
+    rdfs:label "Attack id"@en ;
+    rdfs:comment "Id of the attack."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:attackTargetId
+    a owl:DatatypeProperty ;
+    rdfs:label "Attack target id"@en ;
+    rdfs:comment "Id of the attack target."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:defenceId
+    a owl:DatatypeProperty ;
+    rdfs:label "Defence id"@en ;
+    rdfs:comment "Id of the defence (configuration provenance)."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:instrumentation
+    a owl:DatatypeProperty ;
+    rdfs:label "Instrumentation"@en ;
+    rdfs:comment "Id of an instrumentation active during the execution."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:sha256
+    a owl:DatatypeProperty ;
+    rdfs:label "Sha256"@en ;
+    rdfs:comment "SHA-256 of an artefact, an AER or a SEM document."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:bytes
+    a owl:DatatypeProperty ;
+    rdfs:label "Bytes"@en ;
+    rdfs:comment "Size of an artefact in bytes."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:mediaType
+    a owl:DatatypeProperty ;
+    rdfs:label "Media type"@en ;
+    rdfs:comment "Media type of an artefact."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:artefactRole
+    a owl:DatatypeProperty ;
+    rdfs:label "Artefact role"@en ;
+    rdfs:comment "Role of a raw artefact."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:provPrimary
+    a owl:DatatypeProperty ;
+    rdfs:label "Prov primary"@en ;
+    rdfs:comment "Whether the artefact is a primary source of the execution: native, byte_derived, secondary or unknown (hadPrimarySource only for native and byte_derived)."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originKind
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin kind"@en ;
+    rdfs:comment "Kind of the origin of a raw artefact."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originRepository
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin repository"@en ;
+    rdfs:comment "Repository of an origin: the git or hub repository, the Zenodo DOI or the corpus name."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originRevision
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin revision"@en ;
+    rdfs:comment "Revision of an origin: the git commit, hub revision or corpus version."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originPath
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin path"@en ;
+    rdfs:comment "Path of an origin: the path in the repository or corpus, the Zenodo file name or the URL."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originBlob
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin blob"@en ;
+    rdfs:comment "Git blob SHA-1 of a git origin."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originContainer
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin container"@en ;
+    rdfs:comment "Container of an archive-member origin."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:originLabel
+    a owl:DatatypeProperty ;
+    rdfs:label "Origin label"@en ;
+    rdfs:comment "Label of an archive-member origin."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:aerVersion
+    a owl:DatatypeProperty ;
+    rdfs:label "Aer version"@en ;
+    rdfs:comment "Version of the AER specification, for example aer/0.1."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:semVersion
+    a owl:DatatypeProperty ;
+    rdfs:label "Sem version"@en ;
+    rdfs:comment "Version of the SEM specification."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:sourceKey
+    a owl:DatatypeProperty ;
+    rdfs:label "Source key"@en ;
+    rdfs:comment "Source key of an execution: sha256:hex# followed by the JCS of its location."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:accounting
+    a owl:DatatypeProperty ;
+    rdfs:label "Accounting"@en ;
+    rdfs:comment "Accounting of the AER seal, carried on the AER entity."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:issue
+    a owl:DatatypeProperty ;
+    rdfs:label "Issue"@en ;
+    rdfs:comment "Issue code of the AER seal."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:catalogueId
+    a owl:DatatypeProperty ;
+    rdfs:label "Catalogue id"@en ;
+    rdfs:comment "Id of a rule catalogue."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:softwareName
+    a owl:DatatypeProperty ;
+    rdfs:label "Software name"@en ;
+    rdfs:comment "Name of a software agent."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:softwareVersion
+    a owl:DatatypeProperty ;
+    rdfs:label "Software version"@en ;
+    rdfs:comment "Version of a software agent."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:derivationKey
+    a owl:DatatypeProperty ;
+    rdfs:label "Derivation key"@en ;
+    rdfs:comment "Derivation key of a bundle."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:contextEncoding
+    a owl:DatatypeProperty ;
+    rdfs:label "Context encoding"@en ;
+    rdfs:comment "Context encoding used by a derivation."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:profileOptions
+    a owl:DatatypeProperty ;
+    rdfs:label "Profile options"@en ;
+    rdfs:comment "Profile options of a derivation as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:vocabularyVersion
+    a owl:DatatypeProperty ;
+    rdfs:label "Vocabulary version"@en ;
+    rdfs:comment "Version of this ontology used by a derivation."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:profile
+    a owl:DatatypeProperty ;
+    rdfs:label "Profile"@en ;
+    rdfs:comment "Profile of a bundle or projection, for example adprov-v2.3-compat."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:flattenedFrom
+    a owl:ObjectProperty ;
+    rdfs:label "Flattened from"@en ;
+    rdfs:comment "The core bundle a flattened core was built from (flattened core is deferred)."@en ;
+    rdfs:range prov:Bundle ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:corpusVersion
+    a owl:DatatypeProperty ;
+    rdfs:label "Corpus version"@en ;
+    rdfs:comment "Corpus version in which a bundle was released."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:provides
+    a owl:ObjectProperty ;
+    rdfs:label "Provides"@en ;
+    rdfs:comment "A capability the source provides."@en ;
+    rdfs:range apv:Capability ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:notProvided
+    a owl:ObjectProperty ;
+    rdfs:label "Not provided"@en ;
+    rdfs:comment "A capability the source does not provide."@en ;
+    rdfs:range apv:Capability ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:notObservable
+    a owl:ObjectProperty ;
+    rdfs:label "Not observable"@en ;
+    rdfs:comment "A capability that cannot be observed in principle."@en ;
+    rdfs:range apv:Capability ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:subject
+    a owl:ObjectProperty ;
+    rdfs:label "Subject"@en ;
+    rdfs:comment "The subject of an assessment: a node, or a statement IRI."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:object
+    a owl:ObjectProperty ;
+    rdfs:label "Object"@en ;
+    rdfs:comment "The object of an assessment, for example a context member or a payload fixture."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:claim
+    a owl:ObjectProperty ;
+    rdfs:label "Claim"@en ;
+    rdfs:comment "The claim of an assessment."@en ;
+    rdfs:range apv:AssessmentClaim ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:policy
+    a owl:DatatypeProperty ;
+    rdfs:label "Policy"@en ;
+    rdfs:comment "Id and version of the policy behind an assessment."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:integrity
+    a owl:ObjectProperty ;
+    rdfs:label "Integrity"@en ;
+    rdfs:comment "Integrity label, on assessment mentions."@en ;
+    rdfs:range apv:IntegrityValue ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:securityRole
+    a owl:ObjectProperty ;
+    rdfs:label "Security role"@en ;
+    rdfs:comment "Security role of a tool call or execution (multi-valued), on assessment mentions."@en ;
+    rdfs:range apv:SecurityRole ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:sourceChannel
+    a owl:DatatypeProperty ;
+    rdfs:label "Source channel"@en ;
+    rdfs:comment "Channel through which untrusted content arrived, on assessment mentions."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:declaredSender
+    a owl:DatatypeProperty ;
+    rdfs:label "Declared sender"@en ;
+    rdfs:comment "Sender declared in the content (a parse fact), on assessment mentions."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:annotationType
+    a owl:DatatypeProperty ;
+    rdfs:label "Annotation type"@en ;
+    rdfs:comment "Namespaced type of a SEM annotation outside the closed list."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:annotationValue
+    a owl:DatatypeProperty ;
+    rdfs:label "Annotation value"@en ;
+    rdfs:comment "Value of a SEM annotation outside the closed list, as a JCS string."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:markerStatus
+    a owl:ObjectProperty ;
+    rdfs:label "Marker status"@en ;
+    rdfs:comment "Status of an injection marker claim, for example Ambiguous."@en ;
+    rdfs:range apv:MarkerStatus ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:spanStart
+    a owl:DatatypeProperty ;
+    rdfs:label "Span start"@en ;
+    rdfs:comment "Start offset in Unicode scalar values into the text of the part."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:spanEnd
+    a owl:DatatypeProperty ;
+    rdfs:label "Span end"@en ;
+    rdfs:comment "End offset (half-open) in Unicode scalar values into the text of the part."@en ;
+    rdfs:range xsd:integer ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:matchedArg
+    a owl:DatatypeProperty ;
+    rdfs:label "Matched arg"@en ;
+    rdfs:comment "RFC 6901 pointer into the arguments of a call that matched."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:authorName
+    a owl:DatatypeProperty ;
+    rdfs:label "Author name"@en ;
+    rdfs:comment "Author name parsed from content."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:annotationId
+    a owl:DatatypeProperty ;
+    rdfs:label "Annotation id"@en ;
+    rdfs:comment "Id of the SEM annotation behind a mention."@en ;
+    rdfs:range xsd:string ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+
+## Individuals (closed lists, per ontology version)
+
+apv:Observed
+    a owl:NamedIndividual, apv:EvidenceClass ;
+    rdfs:label "Observed"@en ;
+    rdfs:comment "Recorded first-hand by a stated party (AER ev O)."@en ;
+    skos:notation "O" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Derived
+    a owl:NamedIndividual, apv:EvidenceClass ;
+    rdfs:label "Derived"@en ;
+    rdfs:comment "Follows deterministically from recorded facts and a verified assumption or constraint (AER ev D)."@en ;
+    skos:notation "D" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Inferred
+    a owl:NamedIndividual, apv:EvidenceClass ;
+    rdfs:label "Inferred"@en ;
+    rdfs:comment "Rests on a heuristic, policy, model or unverified assumption (AER ev I); never in the core bundle."@en ;
+    skos:notation "I" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ByCapture
+    a owl:NamedIndividual, apv:AttestingParty ;
+    rdfs:label "By capture"@en ;
+    rdfs:comment "Recorded by AgentPROV live capture (hash-chained capture/0.1 log, wire blobs, environment digests)."@en ;
+    skos:notation "capture" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:BySource
+    a owl:NamedIndividual, apv:AttestingParty ;
+    rdfs:label "By source"@en ;
+    rdfs:comment "Recorded by the original harness's own log."@en ;
+    skos:notation "source" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ByProvider
+    a owl:NamedIndividual, apv:AttestingParty ;
+    rdfs:label "By provider"@en ;
+    rdfs:comment "Self-reported by the model API (served model, usage, finish reason)."@en ;
+    skos:notation "provider" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ByBenchmark
+    a owl:NamedIndividual, apv:AttestingParty ;
+    rdfs:label "By benchmark"@en ;
+    rdfs:comment "Recorded by the benchmark: checker verdicts and benchmark-supplied ground truth such as injection payloads."@en ;
+    skos:notation "benchmark" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ByConfig
+    a owl:NamedIndividual, apv:AttestingParty ;
+    rdfs:label "By config"@en ;
+    rdfs:comment "Taken from the harness input configuration; configured is not effective."@en ;
+    skos:notation "config" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ByReplay
+    a owl:NamedIndividual, apv:AttestingParty ;
+    rdfs:label "By replay"@en ;
+    rdfs:comment "Recorded by a re-execution of recorded calls, an observation of the replay."@en ;
+    skos:notation "replay" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:NotRecorded
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Not recorded"@en ;
+    rdfs:comment "The source format or instrumentation has no slot for it."@en ;
+    skos:notation "not_recorded" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Lost
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Lost"@en ;
+    rdfs:comment "The source had it but discarded it."@en ;
+    skos:notation "lost" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Overwritten
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Overwritten"@en ;
+    rdfs:comment "Captured only after an in-place transformation destroyed the original."@en ;
+    skos:notation "overwritten" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Withheld
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Withheld"@en ;
+    rdfs:comment "Deliberately not exposed (provider-hidden reasoning; secrets redacted by capture)."@en ;
+    skos:notation "withheld" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Ambiguous
+    a owl:NamedIndividual, apv:EpistemicStatus, apv:MarkerStatus ;
+    rdfs:label "Ambiguous"@en ;
+    rdfs:comment "A value is present but unusable; also used as a marker status."@en ;
+    skos:notation "ambiguous" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:NotCaptured
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Not captured"@en ;
+    rdfs:comment "Live capture failed to record something it should have, or the context held content the record does not."@en ;
+    skos:notation "not_captured" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:NotApplicable
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Not applicable"@en ;
+    rdfs:comment "The property cannot exist for this record."@en ;
+    skos:notation "not_applicable" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RecordedNull
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Recorded null"@en ;
+    rdfs:comment "The source positively recorded null or empty, which keeps null distinct from an empty string."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:NotObservable
+    a owl:NamedIndividual, apv:EpistemicStatus ;
+    rdfs:label "Not observable"@en ;
+    rdfs:comment "Not observable by black-box capture in principle; only estimates are possible (capture profile only)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:FullContextResend
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Full context resend"@en ;
+    rdfs:comment "Every model call of an actor sends the whole current message list of its pass, in order, with no pruning, summarising or re-insertion."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OneCallPerAssistantMessage
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "One call per assistant message"@en ;
+    rdfs:comment "Each assistant message of an actor is the output of exactly one model call of that actor."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AutoExecution
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Auto execution"@en ;
+    rdfs:comment "Every dispatched tool call is dispatched by the runtime without confirmation, on behalf of the requester."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SequentialToolExecution
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Sequential tool execution"@en ;
+    rdfs:comment "The calls of one request execute in request order on a shared environment."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:FreshMessagesPerPass
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Fresh messages per pass"@en ;
+    rdfs:comment "A new pass starts from fresh messages; the environment carries over."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RerunOnEmptyReply
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Rerun on empty reply"@en ;
+    rdfs:comment "A pass whose final message content is null (an empty string or list does not count) triggers another pass."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:LastPassOnlyLogging
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Last pass only logging"@en ;
+    rdfs:comment "A log holds only the message list of the final pass of its cell."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckerUsesOutput
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Checker uses output"@en ;
+    rdfs:comment "The task's checker reads the final model output text."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckerUsesPreState
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Checker uses pre state"@en ;
+    rdfs:comment "The task's checker reads the pre-environment (deep copy taken before the first pass)."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckerUsesPostState
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Checker uses post state"@en ;
+    rdfs:comment "The task's checker reads the post-environment."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckerUsesCallTrace
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Checker uses call trace"@en ;
+    rdfs:comment "The task's checker reads the tool calls of the scored attempt only."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AgentActsForUser
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Agent acts for user"@en ;
+    rdfs:comment "The agent system acts on behalf of the (simulated) user."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ScriptedUser
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Scripted user"@en ;
+    rdfs:comment "User turns are produced by the benchmark, not by a person."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InjectionPlacement
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Injection placement"@en ;
+    rdfs:comment "The benchmark places each registered payload at its vector in the initial environment."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SingleModelPerActor
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Single model per actor"@en ;
+    rdfs:comment "All model calls of an actor are served by the actor's configured model."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EnvironmentCarriedOver
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Environment carried over"@en ;
+    rdfs:comment "The harness carries the same environment object into the next pass; verified per harness."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EnvironmentDigestCanonical
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Environment digest canonical"@en ;
+    rdfs:comment "Environment digests are over a canonical serialisation of the whole state, so equal digests mean equal states."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InstrumentationUntruncated
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Instrumentation untruncated"@en ;
+    rdfs:comment "An instrumentation that records model input neither filters nor truncates it."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ReplayFaithful
+    a owl:NamedIndividual, apv:Assumption ;
+    rdfs:label "Replay faithful"@en ;
+    rdfs:comment "Replaying recorded calls in a fresh environment reproduces the original environment's behaviour; assessment-only, never core."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ContextMessage
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Context message"@en ;
+    rdfs:comment "Role of a message used as model input by a model invocation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ModelInput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Model input"@en ;
+    rdfs:comment "Role of the model entity used by a model invocation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ToolDefinitionsInput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Tool definitions input"@en ;
+    rdfs:comment "Role of the tool-definitions fixture used by a model invocation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CallRequestInput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Call request input"@en ;
+    rdfs:comment "Role of the request part used by a tool execution."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:AgentSystemRole
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Agent system role"@en ;
+    rdfs:comment "Role of the agent system associated with a model invocation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InferenceProvider
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Inference provider"@en ;
+    rdfs:comment "Role of the model service associated with a model invocation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExecutingRuntime
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Executing runtime"@en ;
+    rdfs:comment "Role of the tool runtime associated with a tool execution."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DefenceRole
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Defence role"@en ;
+    rdfs:comment "Role of a defence associated with a decision."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DeciderRole
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Decider role"@en ;
+    rdfs:comment "Role of a non-defence decider associated with a decision."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DecisionSubject
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Decision subject"@en ;
+    rdfs:comment "Role of the entity a decision used as its subject."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InitialState
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Initial state"@en ;
+    rdfs:comment "Role of the state a scope used at its start."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckedOutput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Checked output"@en ;
+    rdfs:comment "Role of the output text a checker read."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckedPreState
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Checked pre state"@en ;
+    rdfs:comment "Role of the pre-state a checker read."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckedState
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Checked state"@en ;
+    rdfs:comment "Role of the post-state a checker read."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckedCallTrace
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Checked call trace"@en ;
+    rdfs:comment "Role of a request part of the scored attempt that a checker read."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckedInput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Checked input"@en ;
+    rdfs:comment "Role of an explicit input of a judge or scorer."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CheckerRole
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Checker role"@en ;
+    rdfs:comment "Role of the actor associated with a checker run."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RuleInput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Rule input"@en ;
+    rdfs:comment "Role of a judgement used by a harness rule evaluation."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ActivityInput
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Activity input"@en ;
+    rdfs:comment "Role of an input of a generic activity."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:PerformerRole
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Performer role"@en ;
+    rdfs:comment "Role of the actor associated with a generic activity."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:MethodProvider
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Method provider"@en ;
+    rdfs:comment "Role of the method agent responsible for an inference bundle."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ContextWindowRole
+    a owl:NamedIndividual, prov:Role ;
+    rdfs:label "Context window role"@en ;
+    rdfs:comment "Role in the deferred collection context encoding."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ErrorSubstitution
+    a owl:NamedIndividual, apv:SentTransform ;
+    rdfs:label "Error substitution"@en ;
+    rdfs:comment "The harness sent a failed tool call's error text instead of the recorded content."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RoleRewrite
+    a owl:NamedIndividual, apv:SentTransform ;
+    rdfs:label "Role rewrite"@en ;
+    rdfs:comment "The role was rewritten for the provider."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ReasoningPassback
+    a owl:NamedIndividual, apv:SentTransform ;
+    rdfs:label "Reasoning passback"@en ;
+    rdfs:comment "Reasoning blocks were sent back with the message."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Formatting
+    a owl:NamedIndividual, apv:SentTransform ;
+    rdfs:label "Formatting"@en ;
+    rdfs:comment "A deterministic re-rendering of the recorded content applied when the request was built."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Truncation
+    a owl:NamedIndividual, apv:SentTransform ;
+    rdfs:label "Truncation"@en ;
+    rdfs:comment "Truncation inside request construction only."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OtherTransform
+    a owl:NamedIndividual, apv:SentTransform ;
+    rdfs:label "Other transform"@en ;
+    rdfs:comment "Any other declared transform; the rule names it."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Kept
+    a owl:NamedIndividual, apv:CallStatus ;
+    rdfs:label "Kept"@en ;
+    rdfs:comment "The response was accepted by the harness."@en ;
+    skos:notation "kept" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Discarded
+    a owl:NamedIndividual, apv:CallStatus ;
+    rdfs:label "Discarded"@en ;
+    rdfs:comment "The response was received and rejected."@en ;
+    skos:notation "discarded" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Error
+    a owl:NamedIndividual, apv:CallStatus, apv:ExecutionStatus ;
+    rdfs:label "Error"@en ;
+    rdfs:comment "No usable response (a model call error, or a failed tool execution)."@en ;
+    skos:notation "error" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Cached
+    a owl:NamedIndividual, apv:CallStatus ;
+    rdfs:label "Cached"@en ;
+    rdfs:comment "Served from cache without inference."@en ;
+    skos:notation "cached" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Ok
+    a owl:NamedIndividual, apv:ExecutionStatus ;
+    rdfs:label "Ok"@en ;
+    rdfs:comment "The tool execution completed normally."@en ;
+    skos:notation "ok" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Invalid
+    a owl:NamedIndividual, apv:ExecutionStatus ;
+    rdfs:label "Invalid"@en ;
+    rdfs:comment "The tool call was invalid."@en ;
+    skos:notation "invalid" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:NotDispatched
+    a owl:NamedIndividual, apv:DispatchStatus ;
+    rdfs:label "Not dispatched"@en ;
+    rdfs:comment "The tool-call request was never dispatched."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Denied
+    a owl:NamedIndividual, apv:DispatchStatus ;
+    rdfs:label "Denied"@en ;
+    rdfs:comment "A decision denied the tool-call request."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OriginChecker
+    a owl:NamedIndividual, apv:OutcomeOrigin ;
+    rdfs:label "Origin checker"@en ;
+    rdfs:comment "The value was returned by the benchmark checker."@en ;
+    skos:notation "checker" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OriginHarnessDefault
+    a owl:NamedIndividual, apv:OutcomeOrigin ;
+    rdfs:label "Origin harness default"@en ;
+    rdfs:comment "The value is a harness default, not a verdict."@en ;
+    skos:notation "harness_default" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OriginHarnessRule
+    a owl:NamedIndividual, apv:OutcomeOrigin ;
+    rdfs:label "Origin harness rule"@en ;
+    rdfs:comment "The value follows from a harness rule over other judgements."@en ;
+    skos:notation "harness_rule" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OriginRecomputed
+    a owl:NamedIndividual, apv:OutcomeOrigin ;
+    rdfs:label "Origin recomputed"@en ;
+    rdfs:comment "The value revises an earlier judgement."@en ;
+    skos:notation "recomputed" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DefenceRedaction
+    a owl:NamedIndividual, apv:DerivationType ;
+    rdfs:label "Defence redaction"@en ;
+    rdfs:comment "A part generated by a decision that redacted its subject."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:DefenceModification
+    a owl:NamedIndividual, apv:DerivationType ;
+    rdfs:label "Defence modification"@en ;
+    rdfs:comment "A part generated by a decision that modified its subject."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:InjectionPlacementDerivation
+    a owl:NamedIndividual, apv:DerivationType ;
+    rdfs:label "Injection placement derivation"@en ;
+    rdfs:comment "A state derived from an injection payload fixture by its placement at the vector."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictAllow
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict allow"@en ;
+    rdfs:comment "The decision allowed its subject."@en ;
+    skos:notation "allow" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictDeny
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict deny"@en ;
+    rdfs:comment "The decision denied its subject."@en ;
+    skos:notation "deny" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictModify
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict modify"@en ;
+    rdfs:comment "The decision modified its subject."@en ;
+    skos:notation "modify" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictRedact
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict redact"@en ;
+    rdfs:comment "The decision redacted its subject."@en ;
+    skos:notation "redact" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictEscalate
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict escalate"@en ;
+    rdfs:comment "The decision escalated its subject."@en ;
+    skos:notation "escalate" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictTerminate
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict terminate"@en ;
+    rdfs:comment "The decision terminated the execution."@en ;
+    skos:notation "terminate" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:VerdictOther
+    a owl:NamedIndividual, apv:Verdict ;
+    rdfs:label "Verdict other"@en ;
+    rdfs:comment "Any other verdict; the value is kept in apv:subtype."@en ;
+    skos:notation "other" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Trusted
+    a owl:NamedIndividual, apv:IntegrityValue ;
+    rdfs:label "Trusted"@en ;
+    rdfs:comment "Integrity label: trusted."@en ;
+    skos:notation "trusted" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Untrusted
+    a owl:NamedIndividual, apv:IntegrityValue ;
+    rdfs:label "Untrusted"@en ;
+    rdfs:comment "Integrity label: untrusted."@en ;
+    skos:notation "untrusted" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:IntegrityUnknown
+    a owl:NamedIndividual, apv:IntegrityValue ;
+    rdfs:label "Integrity unknown"@en ;
+    rdfs:comment "Integrity label: unknown (fail-closed)."@en ;
+    skos:notation "unknown" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:WriteSink
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Write sink"@en ;
+    rdfs:comment "Security role write_sink (SEM role)."@en ;
+    skos:notation "write_sink" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SendSink
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Send sink"@en ;
+    rdfs:comment "Security role send_sink (SEM role)."@en ;
+    skos:notation "send_sink" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExecuteSink
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Execute sink"@en ;
+    rdfs:comment "Security role execute_sink (SEM role)."@en ;
+    skos:notation "execute_sink" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:EgressRead
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Egress read"@en ;
+    rdfs:comment "Security role egress_read (SEM role)."@en ;
+    skos:notation "egress_read" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ResponseSink
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Response sink"@en ;
+    rdfs:comment "Security role response_sink (SEM role)."@en ;
+    skos:notation "response_sink" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ContentSource
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Content source"@en ;
+    rdfs:comment "Security role content_source (SEM role)."@en ;
+    skos:notation "content_source" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Endorser
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Endorser"@en ;
+    rdfs:comment "Security role endorser (SEM role)."@en ;
+    skos:notation "endorser" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Neutral
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Neutral"@en ;
+    rdfs:comment "Security role neutral (SEM role)."@en ;
+    skos:notation "neutral" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RoleUnknown
+    a owl:NamedIndividual, apv:SecurityRole ;
+    rdfs:label "Role unknown"@en ;
+    rdfs:comment "Security role unknown (SEM role, fail-closed)."@en ;
+    skos:notation "unknown" ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ExposedTo
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Exposed to"@en ;
+    rdfs:comment "The subject request part was generated by an invocation whose context held the object member."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:PotentiallyInfluencedBy
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Potentially influenced by"@en ;
+    rdfs:comment "A policy-based, over-approximate claim that the object may have influenced the subject."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:ContainsPayload
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Contains payload"@en ;
+    rdfs:comment "The subject part contains the object payload fixture."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:QuotesAuthoredContent
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Quotes authored content"@en ;
+    rdfs:comment "The subject part quotes content with a declared author."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:SentTransformed
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Sent transformed"@en ;
+    rdfs:comment "A usage statement carried a sent transform whose class is weaker than the usage."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:Labelled
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Labelled"@en ;
+    rdfs:comment "A label on an activity, kept as an assessment because mentions apply only to entities."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:OrderedAfter
+    a owl:NamedIndividual, apv:AssessmentClaim ;
+    rdfs:label "Ordered after"@en ;
+    rdfs:comment "An INFERRED ordering of an activity after another."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:RegressionOracle
+    a owl:NamedIndividual, apv:ProfileStatus ;
+    rdfs:label "Regression oracle"@en ;
+    rdfs:comment "The output of the adprov-v2.3-compat profile, kept as a regression oracle."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapRequestPayload
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap request payload"@en ;
+    rdfs:comment "Capability: the request payload sent to the model."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapToolDefinitions
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap tool definitions"@en ;
+    rdfs:comment "Capability: the tool definitions available to a call."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapServedModel
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap served model"@en ;
+    rdfs:comment "Capability: the served model per call."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapParams
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap params"@en ;
+    rdfs:comment "Capability: the configured and transmitted parameters."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapUsage
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap usage"@en ;
+    rdfs:comment "Capability: per-call usage."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapModelCallTimes
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap model call times"@en ;
+    rdfs:comment "Capability: model call times."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapToolTimes
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap tool times"@en ;
+    rdfs:comment "Capability: tool execution times."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapReasoning
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap reasoning"@en ;
+    rdfs:comment "Capability: reasoning content."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapDiscardedReplies
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap discarded replies"@en ;
+    rdfs:comment "Capability: discarded model replies."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapEarlierPasses
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap earlier passes"@en ;
+    rdfs:comment "Capability: the messages of earlier passes."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapEnvironmentState
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap environment state"@en ;
+    rdfs:comment "Capability: environment state."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapPerCallState
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap per call state"@en ;
+    rdfs:comment "Capability: environment state per tool call."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapPreDefenceOutput
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap pre defence output"@en ;
+    rdfs:comment "Capability: the tool output before a defence acted."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapRequestedArgs
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap requested args"@en ;
+    rdfs:comment "Capability: the arguments as requested, before any change."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapOutcome
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap outcome"@en ;
+    rdfs:comment "Capability: the outcome of the execution."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapSystemPrompt
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap system prompt"@en ;
+    rdfs:comment "Capability: the system prompt."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapAgentIdentity
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap agent identity"@en ;
+    rdfs:comment "Capability: the identity of the agent and its model."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .
+
+apv:CapContextAttribution
+    a owl:NamedIndividual, apv:Capability ;
+    rdfs:label "Cap context attribution"@en ;
+    rdfs:comment "Capability: which context items caused an output; always not observable for black-box capture."@en ;
+    rdfs:isDefinedBy <https://w3id.org/agentprov/ns> .

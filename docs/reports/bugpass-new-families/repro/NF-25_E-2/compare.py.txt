@@ -1,0 +1,41 @@
+"""Mixed resume vs single run: per-unit AER digest comparison, both orders."""
+import hashlib, json, os, sys, tempfile
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "dtap"))
+import dtap_support as support
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner.importer import ContextTree, LocalTree, import_source, IdentityRefusedError
+from agentprov.corpus.writer import CorpusWriter
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+os.environ["AGENTPROV_HOME"] = str(tmp / "home")
+pins = load_profile(support.PROFILE).data["source"]["pins"]
+runs_pin = dict(next(p for p in pins if p["role"] == "runs")); tasks_pin = dict(next(p for p in pins if p["role"] == "tasks"))
+runs_root = support.write_tree(tmp / "runs", support.runs_files())
+tasks_root = support.write_tree(tmp / "tasks", support.tasks_files())
+def go(corpus, with_ctx, limit=None):
+    ctx = [ContextTree("tasks", LocalTree(tasks_root), support.vouch(tasks_root, support.TASKS_REPO, support.TASKS_COMMIT), pin=tasks_pin)] if with_ctx else []
+    with CorpusWriter(tmp / corpus) as w:
+        try:
+            r = import_source("dtap", LocalTree(runs_root), corpus=w, profile_id=support.PROFILE, pin_check=support.vouch(runs_root, support.RUNS_REPO, support.RUNS_COMMIT),
+                              context_trees=ctx, pin=runs_pin, in_process=True, until="aer", limit=limit)
+            return {k: r.counters.get(k) for k in ("mapped", "skipped_resume")}
+        except IdentityRefusedError as e:
+            return f"REFUSED {e}"
+def digests(corpus):
+    part = tmp / f"{corpus}.partial"
+    out = {}
+    for line in (part / "executions.jsonl").read_text().splitlines():
+        row = json.loads(line)
+        out[row["ex"]] = hashlib.sha256((part / row["paths"]["aer"]).read_bytes()).hexdigest()
+    snap = json.loads((part / "corpus.json").read_text())["sources"][0]["snapshots"][0]
+    return out, [c["role"] for c in snap.get("context") or []]
+print("single+ctx :", go("single_ctx", True));   S1, r1 = digests("single_ctx")
+print("single-ctx :", go("single_noctx", False)); S0, r0 = digests("single_noctx")
+print("mixA run1 no ctx limit5:", go("mixA", False, 5), " run2 ctx:", go("mixA", True)); A, ra = digests("mixA")
+print("mixB run1 ctx limit5:", go("mixB", True, 5), " run2 no ctx:", go("mixB", False)); B, rb = digests("mixB")
+def cmp(name, mixed, roles, ref, refroles):
+    diff = sorted(k for k in ref if mixed.get(k) != ref[k])
+    print(f"{name}: manifest roles {roles} == single-run roles {refroles}; units {len(mixed)} vs {len(ref)}; AER bytes differ for {len(diff)} unit(s)")
+cmp("mixA vs single+ctx", A, ra, S1, r1)
+cmp("mixB vs single-ctx", B, rb, S0, r0)

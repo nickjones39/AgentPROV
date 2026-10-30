@@ -1,0 +1,21 @@
+--- a/src/agentprov/aer/canon.py
++++ b/src/agentprov/aer/canon.py
+@@
++def _as_float(number: int) -> float:
++    try:
++        return float(number)
++    except OverflowError as exc:
++        raise CanonError("lex.flt names an integer outside the float range") from exc
++
++
+ def decode_value(value: Json, *, at: str, lex: LexHints | None) -> object:
+@@
+     if isinstance(value, int):
+-        return float(value) if lex is not None and at in lex.flt else value
++        return _as_float(value) if lex is not None and at in lex.flt else value
+@@
+         except ValueError as exc:
+             raise CanonError("$int must hold a decimal string") from exc
+-        return float(number) if lex is not None and at in lex.flt else number
++        return _as_float(number) if lex is not None and at in lex.flt else number
+(Optional, also class 1: in validate.py _check_lex, report lex_flt_not_number when the flt target is a $int with abs(int) >= 2**1024, or per C.16 item 9 >= 1e21.)

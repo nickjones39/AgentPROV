@@ -1,0 +1,174 @@
+{
+  "format": "agentprov-precheck-research/0.1",
+  "corpus_id": "ast-survey-agentharm",
+  "parts": [
+    "agent-security-tools-survey agentharm"
+  ],
+  "wave": 1,
+  "kind": "delta since E2 (docs/reports/analysis/phase10-examination-2.md)",
+  "code_commit": "065b0d36",
+  "date": "2026-10-14",
+  "method": "desk research only (GitHub API via gh, Zenodo REST API, HF Hub API, arXiv API/abs pages, inspect_evals and inspect_ai issue trackers, survey README and run script at the pin); no data payload downloaded; no raw corpus data read; web text treated as untrusted data and summarised",
+  "files_written": [
+    "docs/reports/precheck/data/ast-survey-agentharm/research.json",
+    "docs/reports/precheck/prereg/ast-survey-agentharm.md"
+  ],
+  "papers": [
+    {
+      "id": "none",
+      "title": "Evaluating Agentic LLM Security Benchmarks for Cybersecurity Education: A Reproducible Study (title of the Zenodo artefact; no paper found)",
+      "url": "https://doi.org/10.5281/zenodo.22140262",
+      "relation": "the survey's own study; only the Zenodo reproduction artefact and the repository README/report exist. arXiv API title search and a web search on 2026-10-14 found no paper (as in verify/agent-security-tools-survey.md 2.1 on 2026-10-07)",
+      "versions": "n/a"
+    },
+    {
+      "id": "arXiv:2410.09024",
+      "title": "AgentHarm: A Benchmark for Measuring Harmfulness of LLM Agents",
+      "url": "https://arxiv.org/abs/2410.09024v3",
+      "relation": "benchmark definition (tasks, harm score, refusal judge); reviewed by the Zenodo record. Its result tables (Fig. 3, Table 9 public test, Table 10 private test) evaluate 15 API/Llama models, none of the three Ollama models of this corpus, so no paper number is an L2 reference for this corpus Fact-check 2026-10-14: the paper's Table 1 gives a public test set of 264 behaviours (44 validation, 132 private, 440 total), while the released HF test_public split has 176 harmful, 176 harmless_benign and 44 chat rows (datasets-server size API, https://datasets-server.huggingface.co/size?dataset=ai-safety-institute/AgentHarm). The 176 per arm therefore comes from the released dataset, not from the paper's split sizes (lead L-15). Qwen3 (2025-04-29) and gpt-oss (2025-08) postdate v3 (2025-04-18), so they cannot be in any version's tables.",
+      "versions": "v1 2024-10-11 (489 KB), v2 2024-10-14 (489 KB), v3 2025-04-18 (518 KB, 'Accepted at ICLR 2025'); abstract counts (110 tasks, 440 augmented, 11 categories) identical in v1 and v3; table-level diff not done (models not in this corpus). https://arxiv.org/abs/2410.09024v1"
+    },
+    {
+      "id": "arXiv:2603.11088",
+      "title": "The Attack and Defense Landscape of Agentic AI: A Comprehensive Survey (Kim et al.)",
+      "url": "https://arxiv.org/abs/2603.11088",
+      "relation": "cited by the Zenodo record (taxonomy only); no execution data",
+      "versions": "not checked"
+    },
+    {
+      "id": "arXiv:2411.12990",
+      "title": "BetterBench",
+      "url": "https://arxiv.org/abs/2411.12990",
+      "relation": "cited by the Zenodo record (scoring methodology of the survey's criteria); no execution data",
+      "versions": "not checked"
+    }
+  ],
+  "repo": {
+    "url": "https://github.com/Forever-CodingNoob/agent-security-tools-survey",
+    "pinned_commit": "89c4db2c949797fbb38c5bfed85dc82780ddbfe3",
+    "pin_date": "2026-08-28T07:18:31Z ('update doi'); still HEAD of main on 2026-10-14 (pushed_at 2026-08-28T07:18:34Z)",
+    "evidence_url": "https://api.github.com/repos/Forever-CodingNoob/agent-security-tools-survey/commits?per_page=10",
+    "commits_touching_logs": "agentharm/results was added once, in 26692cd6ea42 (2026-08-23T03:47:46Z) and never touched again; later agentharm/ commits change README text only (702423d61955, 7e4510155a2c, b7cc0ac27eb6, 3c0f77ec15c8, 307f0532d700, 69b91ef80121 'fix incorrect attribution'), except 35f51954f224, which also edits a header comment of run_full_benchmark.sh [CORRECTED by fact-check 2026-10-14: was 'README/report text only'; the run_full_benchmark.sh change is comment-only]. 2a8bee89e200 (2026-08-19T23:29:44Z) set --max-connections 1 in agentharm/run_full.sh, the script in place at run time [CORRECTED: the file is run_full.sh, not run_full_benchmark.sh]; run_full_benchmark.sh first appears in 26692cd6ea42 (2026-08-23), after the run. https://api.github.com/repos/Forever-CodingNoob/agent-security-tools-survey/commits?path=agentharm/results",
+    "run_window": "event timestamps 2026-08-21T21:23:06.99Z to 2026-08-22T13:23:22.73Z (our verify report 2.3), i.e. before the results commit",
+    "issues": "0 issues, 0 PRs, 0 releases, 0 tags (gh api, 2026-10-14)",
+    "readme_claims": [
+      "agentharm/README.md: full run = both tasks x 3 models x test_public, 1,056 samples; one model at a time; ~16 h wall clock; --max-connections 1 with OLLAMA_NUM_PARALLEL=1 (per-sample times are wall-clock); judges ollama/qwen3:14b for refusal and semantic judge; 'inspect_ai v0.3.247'; one fix: uv pip install openai; eval hardcodes temperature 0, seed 0, message limit 20. https://github.com/Forever-CodingNoob/agent-security-tools-survey/blob/89c4db2c949797fbb38c5bfed85dc82780ddbfe3/agentharm/README.md",
+      "run_full_benchmark.sh @ 89c4db2c changes directory to $SCRIPT_DIR/agentharm, the inspect_evals submodule pinned at 2dd469ac (lines 7-8, 43-49). [CORRECTED/ADDED by fact-check: this script postdates the logs; the run-time script agentharm/run_full.sh @ 2a8bee89 has the same 'cd \"$SCRIPT_DIR/agentharm\"' (l.10-11) before 'uv run inspect eval' (l.46), and the submodule was 2dd469ac at 2a8bee89 too, so the L-07 premise holds.] https://github.com/Forever-CodingNoob/agent-security-tools-survey/blob/89c4db2c949797fbb38c5bfed85dc82780ddbfe3/agentharm/run_full_benchmark.sh ; https://github.com/Forever-CodingNoob/agent-security-tools-survey/blob/2a8bee89e200/agentharm/run_full.sh",
+      "Provider claim 'Ollama server version 0.23.1' on UCI OpenGPU node korn is in the ROOT README.md l.56-59 @ 89c4db2c, not in agentharm/README.md (fact-check 2026-10-14). https://github.com/Forever-CodingNoob/agent-security-tools-survey/blob/89c4db2c949797fbb38c5bfed85dc82780ddbfe3/README.md#L56-L59"
+    ]
+  },
+  "data_record": "Zenodo concept 10.5281/zenodo.22135956, two versions, unchanged since our 2026-10-07 check: v1.0.0 10.5281/zenodo.22135957 (2026-08-28, artifact.zip 243,606,319 B, md5 2cdcea49099b8e79a72263d7aeb47795) and v1.0.1 10.5281/zenodo.22140262 (2026-08-28, artifact.zip 243,606,321 B, md5 f623f7f776b8f24c19cdaeba1a20f654), licence cc-by-4.0, creator Jhih-Jhong Lin (ORCID 0009-0002-2673-286X) (https://zenodo.org/api/records/22140262/versions?allversions=true). Our pin is the git tree agentharm/results @ 89c4db2c (profile survey-agentharm, primary pin): 7 blobs, 11,911,647 B = 6 .eval logs 11,825,414 B (expected_files 6, expected_bytes 11,825,414) + timing_summary.csv 86,233 B (context artefact). All 6 logs matched size, sha256 and git blob id at import (docs/reports/inspect/import-cli-agentharm.json pinned_snapshot_check). The Zenodo zip holds the same agentharm/results files with identical sizes (central-directory read, verify report 2.2); the two Zenodo pins are alternative origins only. AgentHarm task data: HF ai-safety-institute/AgentHarm, sha e23b3fe60a0da9037314b88e5ee3a0c054970dad, lastModified 2024-12-19, still current on 2026-10-14 (https://huggingface.co/api/datasets/ai-safety-institute/AgentHarm); the revision is not in the log header (code-inferred from inspect_evals@2dd469a utils.py).",
+  "harness": "Producer inspect_ai 0.3.247.dev69+g53c1fa98b: commit 53c1fa98 (2026-07-13) is 69 commits after tag 0.3.246 (2026-07-10) and 132 commits before tag 0.3.247 (2026-07-16), i.e. a pre-release dev build, not the 0.3.247 release the survey README names (https://api.github.com/repos/UKGovernmentBEIS/inspect_ai/compare/0.3.246...53c1fa98baedd64cc37aa5f84057fc15c1e98015). No inspect_ai issue found that bears on these logs (issue search ollama / message limit, 2026-06..10); the one known producer defect is internal: a tool event's message_id names the first result message of its parallel batch (regen-batch item 16 (b), class D). Benchmark: inspect_evals @ 2dd469ac0dfa (2026-08-10), AgentHarm task version 2 / full_task_version 2-B (changelog 2-B 2026-06-29). Scoring fixes that postdate this version and are therefore NOT in these logs: 3-B (2026-08-16/20, chat-mode NaN; NaN breakdown exclusion), 4-B (avg_score_non_refusals nan), 5-B (refusal judge sees reasoning, issue #2107), 6-B 'recommended' (two vacuous harmful checks, #1913), 7-B (only executed tool calls credited, #2108), 8-B (benign hotel-location check, #2101), and the avg_full_score integer fix (#2146, fixed by PR #2154 merged 2026-10-01T08:56:35Z; not listed in the AgentHarm changelog on main, whose newest entry is 8-B). Changelog dates as published: 2-B 2026-06-29, 3-B 2026-08-16, 4-B 2026-08-20, 5-B and 6-B 2026-08-21, 7-B and 8-B 2026-08-11 (the upstream dates are not monotone); eval.yaml @ 2dd469ac declares version '2-B', confirming the logs' 2-B. Still open upstream: #2108 (design question), #2212 (judge API error read as 'did not refuse'), #2312 (substring verdict parsing), #2439 (benign file tools resolve content relative to the process working directory), #2290 (planned 9-B review). URLs: https://github.com/UKGovernmentBEIS/inspect_evals/blob/main/src/inspect_evals/agentharm/README.md#changelog, https://github.com/UKGovernmentBEIS/inspect_evals/issues/2107, /2108, /2146, /2212, /2312, /2101, /2439, /2290",
+  "models": [
+    "ollama/qwen3:14b (agent in qwen14_harmful, qwen14_benign; also refusal and semantic judge in all six logs)",
+    "ollama/qwen3-coder:30b (agent in coder_harmful, coder_benign)",
+    "ollama/gpt-oss:120b (agent in gptoss_harmful, gptoss_benign)",
+    "provider: Ollama 0.23.1 on a UCI GPU host (README claim, not in-record); model ids are in-record (ollama/<tag>); no weights digest"
+  ],
+  "reported_results": [
+    {
+      "arm": "gpt-oss:120b harmful",
+      "metric": "avg_score (harm score) / avg_full_score / avg_refusals / avg_score_non_refusals",
+      "value": "0.131 / 0.108 / 0.915 / 0.769",
+      "n": "176",
+      "where": "survey agentharm/README.md 'Our Results' table l.344 and 'Harmful split' l.374, https://github.com/Forever-CodingNoob/agent-security-tools-survey/blob/89c4db2c949797fbb38c5bfed85dc82780ddbfe3/agentharm/README.md#L342-L349"
+    },
+    {
+      "arm": "gpt-oss:120b benign",
+      "metric": "avg_score (benign success) / avg_full_score / avg_refusals / avg_score_non_refusals",
+      "value": "0.640 / 0.432 / 0.528 / 0.717",
+      "n": "176",
+      "where": "same table l.345 and 'Benign split' l.389"
+    },
+    {
+      "arm": "qwen3-coder:30b harmful",
+      "metric": "avg_score / avg_full_score / avg_refusals / avg_score_non_refusals",
+      "value": "0.394 / 0.205 / 0.619 / 0.727",
+      "n": "176",
+      "where": "same table l.346, l.375"
+    },
+    {
+      "arm": "qwen3-coder:30b benign",
+      "metric": "avg_score / avg_full_score / avg_refusals / avg_score_non_refusals",
+      "value": "0.791 / 0.540 / 0.199 / 0.808",
+      "n": "176",
+      "where": "same table l.347, l.390"
+    },
+    {
+      "arm": "qwen3:14b harmful",
+      "metric": "avg_score / avg_full_score / avg_refusals / avg_score_non_refusals",
+      "value": "0.495 / 0.199 / 0.290 / 0.586",
+      "n": "176",
+      "where": "same table l.348, l.376"
+    },
+    {
+      "arm": "qwen3:14b benign",
+      "metric": "avg_score / avg_full_score / avg_refusals / avg_score_non_refusals",
+      "value": "0.607 / 0.284 / 0.063 / 0.608",
+      "n": "176",
+      "where": "same table l.349, l.391 (our 2026-10-07 investigation read the header as 0.062; 11/176 = 0.0625, a rounding difference)"
+    },
+    {
+      "arm": "gpt-oss:120b harmful, by category",
+      "metric": "category refusal rate",
+      "value": "Harassment, Hate, Cybercrime, Sexual 100%; Disinformation 75%; Copyright 83%",
+      "where": "survey agentharm/README.md 'Refusal by category' l.396-399"
+    },
+    {
+      "arm": "qwen3:14b harmful, by category",
+      "metric": "category refusal rate",
+      "value": "Copyright 13%; Disinformation 15%",
+      "where": "same, l.399"
+    },
+    {
+      "arm": "all six logs",
+      "metric": "wall clock per task (min) harmful / benign",
+      "value": "gpt-oss 108 / 165; qwen3-coder 62 / 89; qwen3:14b 247 / 289; total ~16 h",
+      "where": "survey agentharm/README.md 'Execution Time' l.355-359"
+    },
+    {
+      "arm": "all six logs",
+      "metric": "refusal count (derived from the rates x 176)",
+      "value": "161 + 93 + 109 + 35 + 51 + 11 = 460 of 1,056 (equals E2's AER count, docs/reports/analysis/phase10-examination-2.md 10.1)",
+      "n": "1056",
+      "where": "derived; E2 10.1"
+    }
+  ],
+  "expected_counts": "Files: pinned tree agentharm/results 7 blobs / 11,911,647 B; 6 candidate .eval logs / 11,825,414 B (profile expected_files/expected_bytes; import report); timing_summary.csv context artefact. Archive members: 1,691 members.jsonl rows per stored corpus (1,062 selected = 6 header.json + 1,056 samples; 629 not selected) per import report and regen-batch (phase-12b bundle); our 2026-10-07 verify report says each log is a 286-member zip (6 x 286 = 1,716): reconcile at L1-01. Units / executions: 1,056 samples = 6 logs x 176 (registry tools/readme_corpora.toml count 1056, evidence import-cli-agentharm.json /executions; README 'Our Results'). Events (verify report 2.3): model events 5,261 (agent 3,660, judge 1,601), tool events 4,164, reasoning blocks 2,282, sample_limit events 54 (coder_benign 9, gptoss_benign 33, qwen14_benign 6, qwen14_harmful 6), tool events with a dangling message_id 16 in 4 samples (coder_benign 4, qwen14_benign 12). Stored-corpus statuses: ok 1,052 / ok_with_issues 4 / failed 0 / degenerate 0.",
+  "expected_arms": "No defence and no attack facet (profile family.inspect no_attack = true; AgentHarm has no injection attacker). Arm key = model (3) x task/split (agentharm harmful, agentharm_benign) = 6 cells, 176 samples each, all present; split test_public only (val, chat and test_private absent by design); epoch 1 only; number of harm categories in the public split not verified [CORRECTED by fact-check: the earlier '8 harm categories' had no source; the paper's Table 1 gives 11 categories overall]. Expected missing cells: none. Expected extra cells: none (no reruns, no partial logs; header status success x 6).",
+  "licence": "Repository LICENSE: CC-BY-4.0 full legal text (GitHub API spdx CC-BY-4.0, 18,658 B; https://github.com/Forever-CodingNoob/agent-security-tools-survey/blob/89c4db2c949797fbb38c5bfed85dc82780ddbfe3/LICENSE); Zenodo cc-by-4.0. Embedded AgentHarm task data: 'MIT License with an additional clause' (c) 2024 Gray Swan AI and UK AI Safety/Security Institute; the clause prohibits use other than improving the safety and security of AI systems (https://huggingface.co/datasets/ai-safety-institute/AgentHarm/blob/e23b3fe60a0da9037314b88e5ee3a0c054970dad/LICENSE; same text in inspect_evals@2dd469a src/inspect_evals/agentharm/LICENSE). The AgentHarm README also asks that examples not be used for training (canary GUID). Our handling: restricted-use corpus class (CC-BY-4.0 + the AgentHarm use clause), U-05, DECISIONS ruling on restricted-use classes; tools/readme_corpora.toml [use]. Unassessed: model-provider terms (Qwen, gpt-oss open weights).",
+  "discrepancy_leads": [
+    "L-01 Producer version: the header names inspect_ai 0.3.247.dev69+g53c1fa98b, a dev build 132 commits before the 0.3.247 release; the survey README says v0.3.247 (documentation-mismatch, cosmetic).",
+    "L-02 Scorer version 2-B: the six logs were scored by inspect_evals 2dd469a (AgentHarm 2-B); fixes 3-B..8-B and #2146 came later, so the README numbers are 2-B semantics and differ from what the upstream-recommended 6-B (or 8-B) would report on the same transcripts.",
+    "L-03 #2107: the 2-B refusal judge only reads assistant text, so reasoning-only assistant messages (qwen3:14b, gpt-oss) are never judged; the refusal rates of the reasoning models are measured on less text than qwen3-coder's.",
+    "L-04 #2108: 2-B graders credit tool calls that never executed or errored; samples with tool errors or with calls lost at the message limit can carry score > 0 for unexecuted actions.",
+    "L-05 #2101: the benign meeting-location grading check cannot pass at 2-B, so affected benign samples are capped below 1.0 and avg_full_score is depressed for every model.",
+    "L-06 #2146: at 2-B avg_full_score skips samples whose score is a JSON integer (from numerator and denominator); a recomputation over all samples can differ from the header value.",
+    "L-07 #2439: benign read_file, edit_txt and convert_pdf_to_text resolve bundled content relative to the working directory, and run_full_benchmark.sh runs from the inspect_evals checkout root; unless Inspect changes directory for package tasks, these benign tool calls returned file-not-found errors, depressing benign scores (direction undetermined before the data check).",
+    "L-08 #2212 / #2312: judge API errors and unparseable judge replies become 'not refused'; substring parsing can turn a 'No' verdict into a refusal. The self-judging qwen3:14b judge makes this harder to bound; only the error string in refusal_explanations is countable.",
+    "L-09 qwen3:14b benign refusal: README 0.063 vs header 0.062 (our investigation) for 11/176 = 0.0625: rounding only.",
+    "L-10 Member count: 6 x 286 members (verify report) = 1,716 vs 1,691 members.jsonl rows (import report): 25 unaccounted (directory entries or per-log journal differences).",
+    "L-11 E2-b5 catalogue entries (inspect max_tokens stops 23, text-encoded tool calls 12) are not in src/agentprov/adapters/inspect/artefacts.toml at 065b0d36 (9 ids, none of them): the safety net should still report them as unclassified.",
+    "L-12 The header records the AgentHarm dataset location as a path in the author's home directory (verify report 2.5): an account path in raw; it must not reach AER/SEM/PROV (no redact table in the profile; D-182 scan found none in harness fields).",
+    "L-13 Judge configuration differs from the agent's: judge model events carry no seed and no max_tokens (verify report 1 item 1); the README says the eval hardcodes temperature 0 and seed 0 for the agent only.",
+    "L-14 Zenodo v1.0.0 vs v1.0.1 artifact.zip differ by 2 bytes; agentharm/results sizes identical to git in v1.0.1 (v1.0.0 not compared).",
+    "L-15 Paper vs released data (context, not a defect of this corpus): AgentHarm paper Table 1 states a 264-behaviour public test set; the released HF test_public has 176 harmful + 176 benign rows. Our 176-per-arm expectation rests on the released split, the survey README and the registry, not on the paper. Added by fact-check 2026-10-14."
+  ],
+  "checks_not_applicable": [
+    "L1-05 attack/defence facets: no attack or defence in AgentHarm (profile no_attack = true); arm coverage is model x split only",
+    "L2 attack-success / injection exposure: no payload; payload_in_task_prompt by design (E2 10.1)",
+    "L2 withholding: the profile has no withhold table; check only that nothing is withheld",
+    "L2 outcome comparison against the AgentHarm paper: the paper evaluates none of these models; the survey README (= the log headers) is the only reference",
+    "L2 outcome verdicts: 6 strata x ~5 = 30 sampled executions, below the 20-per-arm threshold; Wilson intervals only"
+  ],
+  "open_questions": [
+    "Does Inspect change the working directory for registry (package) tasks such as inspect_evals/agentharm_benign at 0.3.247.dev69? Decides whether L-07 can fire; answered by the data (tool error counts) or by reading inspect_ai 53c1fa98 (already in the local full-blob store).",
+    "Should the datasheet state that the AgentHarm scores are inspect_evals 2-B semantics (pre-#2107/#2108/#2101/#2146) and not comparable with 6-B+ numbers?",
+    "Re-raise E2-b5: add the two proposed inspect artefact entries (abnormal_finish max_tokens, text_tool_call) to inspect/artefacts.toml (family owner)."
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "by": "adversarial fact-checker",
+    "summary": "Re-opened README @ 89c4db2c (table l.342-349, minutes l.355-359, categories l.399), Zenodo versions API, GitHub tree/commits API, HF API and LICENSE @ e23b3fe6, inspect_evals LICENSE/eval.yaml @ 2dd469ac, changelog on main, issues #2101/#2107/#2108/#2146/#2212/#2312/#2439/#2290/#1913, inspect_ai compare API, arXiv abs/HTML v3, our import report, inspect README, E2, artefacts.toml, verify/sources reports. All outcome numbers, pin, Zenodo checksums, licences and counts confirmed; corrections: run-time script name (run_full.sh), 35f51954 also touches run_full_benchmark.sh (comment only), Ollama 0.23.1 claim location (root README), '8 harm categories' unsourced, #2146 fix PR #2154, paper public-split size 264 vs released 176 (L-15)."
+  }
+}

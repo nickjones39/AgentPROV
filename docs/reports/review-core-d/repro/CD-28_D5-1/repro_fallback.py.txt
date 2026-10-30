@@ -1,0 +1,16 @@
+import sys; sys.path.insert(0, "repro/D5-1")
+from common_d5 import *
+from agentprov.adapters.runner import map_artefact_total, aer_bytes
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.registry import MAPPERS
+from agentprov.adapters.runner import resolve_factory
+label = "openaisdk/gpt-5.2/code/benign/math/57/20260220_133459.json"
+data = traj([user(), meta(), result("something_else")])
+outcome, unit = map_artefact_total(data, origin(RUNS_REPO, RUNS_COMMIT, label, data), profile_id="dtap-bench")
+prof = load_profile("dtap-bench")
+mapper = resolve_factory(MAPPERS["dtap.trajectory"])()
+sealed, info = aer_bytes(outcome, unit=unit, mapper=mapper, profile=prof)
+doc = load_aer_bytes(sealed)
+print("records:", [r["k"] for r in doc.records])
+for i in doc.seal.get("issues", []):
+    print("issue", i["code"], i.get("detail"))

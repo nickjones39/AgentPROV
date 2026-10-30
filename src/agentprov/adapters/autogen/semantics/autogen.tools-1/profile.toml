@@ -1,0 +1,32 @@
+# Semantics profile autogen.tools, version 1 (docs/architecture D.19.8; C.14; EF E.7; DECISIONS D-306).
+#
+# Data, not code. The directory's files (this one and tools.toml) make the profile digest
+# (agentprov.sem.profiles.profile_digest); the code is agentprov.adapters.autogen.semantics, covered by the integer
+# version (AD-18). Nothing is released yet, so the version is still 1. Every rule cited is declared in the autogen
+# catalogue at version 1 (src/agentprov/adapters/autogen/rules/).
+
+[profile]
+id = "autogen.tools"
+version = 1
+format = "agentprov-sem-profile/0.1"
+rules = { autogen = 1 }
+
+# ------------------------------------------------------------------------------------------------ matcher
+# The probe passage is inserted verbatim into the document, and the canary verbatim into the passage, so both are
+# searched verbatim.
+[matcher]
+normaliser = "autogen.verbatim_match@1"
+
+# ------------------------------------------------------------------------------------------------ prompts
+# Entry points whose task message carries the probe document itself: its integrity is unknown (the document is
+# third-party text, possibly with an injection).
+[prompts]
+document_in_task_entries = ["user"]
+
+# ------------------------------------------------------------------------------------------------ taint policy
+# C.14.6 item 8: a request whose roles meet the sink roles (or unknown, fail-closed) exposed to a context member whose
+# integrity is untrusted or unknown is apv:PotentiallyInfluencedBy it.
+[taint]
+rule = "autogen.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]

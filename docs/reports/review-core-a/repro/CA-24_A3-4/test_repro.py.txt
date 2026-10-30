@@ -1,0 +1,30 @@
+"""A3-4: the software version has two sources (importlib.metadata vs the versions.py literal)."""
+
+from __future__ import annotations
+
+import tomllib
+from importlib import metadata
+from pathlib import Path
+
+import agentprov
+from agentprov import versions
+from agentprov.ingest.limits import IngestLimits
+from agentprov.raw import members
+
+REPO = Path(agentprov.__file__).resolve().parents[2]
+
+
+def test_version_axis_single_source() -> None:
+    """L.1.1 row 1: pyproject [project].version is the single source; __version__ comes via importlib.metadata."""
+    project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    assert versions.__version__ == project == metadata.version("agentprov")
+
+
+def test_expand_engine_matches_other_stages_after_a_pyproject_bump(monkeypatch) -> None:
+    """A pyproject bump (installed dist 0.1.1) must not split one corpus into two engine versions."""
+    real = metadata.version
+    monkeypatch.setattr(members.metadata, "version", lambda n: "0.1.1" if n == "agentprov" else real(n))
+    sel = members.Selection(include=("*.json",))
+    expand_engine = members.expand_fn_definition(IngestLimits(), sel)["engine"]
+    prov_engine = f"agentprov@{versions.__version__}"  # what corpus/derive.py + importer.py write for sem/prov/views
+    assert expand_engine == prov_engine, (expand_engine, prov_engine)

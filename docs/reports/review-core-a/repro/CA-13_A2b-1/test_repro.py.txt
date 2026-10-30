@@ -1,0 +1,41 @@
+"""A2b-1: render_converted must raise ViewError (an AgentProvError), never TypeError/ValueError/UnicodeEncodeError,
+on a release-valid agentdojo.tracelogger AER whose agentdojo.unknown_message part holds hostile verbatim values."""
+import sys
+
+WORKTREE = "."
+if WORKTREE not in sys.path:
+    sys.path.insert(0, WORKTREE)
+
+import pytest
+
+from agentprov.errors import AgentProvError
+from agentprov.views.transcript_v1 import render_converted, serialise
+from tests.adapters.agentdojo.agentdojo_support import map_log, new_log
+
+
+def _content_int(log):
+    log["messages"][4]["content"] = 5  # final assistant reply: content neither str, list nor None
+
+
+def _args_str(log):
+    log["messages"][3]["tool_call"]["args"] = "xy"  # tool message echo: args not a mapping
+
+
+def _lone_surrogate(log):
+    log["messages"][3]["error"] = 5
+    log["messages"][3]["content"] = "a\udc00"  # stored as $utf16 by the importer
+
+
+@pytest.mark.parametrize("mutate", [_content_int, _args_str, _lone_surrogate], ids=["content-int", "args-str", "surrogate"])
+def test_render_converted_hostile_unknown_message_raises_view_error(mutate):
+    log = new_log()
+    mutate(log)
+    mapped = map_log(log)
+    assert mapped.validate().ok, "the AER is release-valid"
+    assert "agentdojo.unknown_message_shape" in mapped.codes
+    try:
+        serialise(render_converted(mapped.records))
+    except AgentProvError:
+        return  # a recorded, per-execution view failure (derive.py catches AgentProvError) is acceptable
+    except Exception as exc:  # noqa: BLE001
+        pytest.fail(f"render_converted leaked {type(exc).__name__}: {exc}"[:200])

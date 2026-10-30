@@ -1,0 +1,34 @@
+"""A2a-1: an annotation premise naming an earlier annotation whose ev is not O/D/I crashes the SEM validator."""
+from __future__ import annotations
+
+import hashlib
+import sys
+from pathlib import Path
+
+REPO = Path(".")
+sys.path.insert(0, str(REPO / "tests" / "unit" / "sem"))
+
+from sem_support import ann, example_registry, syn_sem, synthetic_aer  # noqa: E402
+
+from agentprov.aer.canon import dumps_line  # noqa: E402
+from agentprov.sem.reader import load_sem_bytes  # noqa: E402
+from agentprov.sem.validate import validate_sem_document  # noqa: E402
+
+
+def _sealed(*records):
+    body = b"".join(dumps_line(r) for r in records)
+    seal = {"k": "seal", "id": "seal", "n_records": len(records) + 1,
+            "records_sha256": hashlib.sha256(body).hexdigest()}
+    return body + dumps_line(seal)
+
+
+def test_premise_on_annotation_with_invalid_ev_is_a_finding_not_a_crash():
+    aer = synthetic_aer()
+    header = syn_sem(ann("te0", "role", ["neutral"])).header
+    a0 = {"k": "ann", "id": "a0", "target": "te0", "type": "role", "value": ["neutral"], "ev": "X",
+          "rule": ["tst.d@1"], "premises": [{"id": "te0", "p": ""}]}
+    a1 = {"k": "ann", "id": "a1", "target": "te0", "type": "tst.x", "value": 1, "ev": "D",
+          "rule": ["tst.d@1"], "premises": [{"id": "a0", "p": ""}]}
+    sem = load_sem_bytes(_sealed(header, a0, a1))  # the reader accepts it: ev is a validator concern
+    report = validate_sem_document(sem, aer, catalogues=example_registry())  # raises ValueError on current code
+    assert any(f.code == "sem.schema" and f.pointer == "/ev" for f in report.findings)

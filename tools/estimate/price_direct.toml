@@ -1,0 +1,64 @@
+# Direct-provider prices for the GUI's Run live estimate (D-650). USD per 1M tokens, standard tier.
+# Transcribed from the provider pages fetched on the date given (the user's one-time yes, 2026-10-22 local).
+# build_price_table.py merges these rows with a dated OpenRouter snapshot into src/agentprov/estimate/data/prices.json.
+# A row the provider page does not show is never added here: other ids fall back to OpenRouter's openai/* or
+# deepseek/* row, labelled as such in the estimate.
+
+[[openai]]
+source = "https://developers.openai.com/api/docs/pricing (Flagship models, Standard, short context)"
+as_of = "2026-10-21"
+rows = [
+  { model = "gpt-6-astra", input = "10.00", output = "50.00", cached_input = "1.00" },
+  { model = "gpt-6.1-sol", input = "2.00", output = "10.00", cached_input = "0.10" },
+  { model = "gpt-6-luna", input = "0.10", output = "0.50", cached_input = "0.01" },
+]
+
+[[openai]]
+source = "https://developers.openai.com/api/docs/pricing (Cyber models, short context)"
+as_of = "2026-10-21"
+rows = [
+  { model = "gpt-5.6-sol", input = "4.00", output = "20.00", cached_input = "0.40", note = "promotional pricing, at least through 2026-11-21 (page note)" },
+  { model = "gpt-5.6-cyber", input = "12.50", output = "75.00", cached_input = "1.25" },
+]
+
+[[openai]]
+source = "https://developers.openai.com/api/docs/pricing (Specialized models, Standard)"
+as_of = "2026-10-21"
+rows = [
+  { model = "chat-latest", input = "5.00", output = "30.00", cached_input = "0.50" },
+  { model = "gpt-5.3-codex", input = "1.75", output = "14.00", cached_input = "0.175" },
+]
+
+[[deepseek]]
+source = "https://api-docs.deepseek.com/quick_start/pricing (peak hours; off-peak is half)"
+as_of = "2026-10-21"
+rows = [
+  { model = "deepseek-flash", input = "0.3", output = "1.2", cached_input = "0.006", note = "peak price; off-peak (outside 01-04 and 06-10 UTC Mon-Fri) is half; served by DeepSeek-V4.1-Flash-1017" },
+  { model = "deepseek-v4-flash", input = "0.3", output = "1.2", cached_input = "0.006", note = "legacy name billed at the Flash price (page note (1)); peak price" },
+  { model = "deepseek-v4-flash-vision-exp", input = "0.3", output = "1.2", cached_input = "0.006", note = "legacy name billed at the Flash price (page note (1)); peak price" },
+  { model = "deepseek-v4-pro", input = "1.32", output = "3.96", cached_input = "0.044", note = "peak price; off-peak is half" },
+]
+
+# Anthropic (user request 2026-10-22). Base input, output, cache hits and 5-minute cache writes (cache_write); the
+# 1-hour write price is in the note. Model ids as the Claude API names them (no date suffix).
+[[anthropic]]
+source = "https://platform.claude.com/docs/en/about-claude/pricing (Model pricing)"
+as_of = "2026-10-21"
+rows = [
+  { model = "claude-fable-5-1", input = "10", output = "50", cached_input = "0.25", cache_write = "12.50", note = "5m cache writes $12.50, 1h $20 per MTok; cache hits 0.025x input" },
+  { model = "claude-mythos-5-1", input = "10", output = "50", cached_input = "0.25", cache_write = "12.50", note = "limited availability; 5m cache writes $12.50, 1h $20 per MTok" },
+  { model = "claude-fable-5", input = "10", output = "50", cached_input = "1", cache_write = "12.50", note = "5m cache writes $12.50, 1h $20 per MTok" },
+  { model = "claude-mythos-5", input = "10", output = "50", cached_input = "1", cache_write = "12.50", note = "limited availability; 5m cache writes $12.50, 1h $20 per MTok" },
+  { model = "claude-opus-5-5", input = "4", output = "20", cached_input = "0.20", cache_write = "5", note = "5m cache writes $5, 1h $8 per MTok; cache hits 0.05x input" },
+  { model = "claude-opus-5", input = "5", output = "25", cached_input = "0.50", cache_write = "6.25", note = "5m cache writes $6.25, 1h $10 per MTok" },
+  { model = "claude-opus-4-8", input = "5", output = "25", cached_input = "0.50", cache_write = "6.25", note = "5m cache writes $6.25, 1h $10 per MTok" },
+  { model = "claude-opus-4-7", input = "5", output = "25", cached_input = "0.50", cache_write = "6.25", note = "5m cache writes $6.25, 1h $10 per MTok" },
+  { model = "claude-opus-4-6", input = "5", output = "25", cached_input = "0.50", cache_write = "6.25", note = "5m cache writes $6.25, 1h $10 per MTok" },
+  { model = "claude-opus-4-5", input = "5", output = "25", cached_input = "0.50", cache_write = "6.25", note = "5m cache writes $6.25, 1h $10 per MTok" },
+  { model = "claude-sonnet-5-5", input = "2", output = "10", cached_input = "0.10", cache_write = "2.50", note = "5m cache writes $2.50, 1h $4 per MTok; cache hits 0.05x input" },
+  { model = "claude-sonnet-5", input = "2", output = "10", cached_input = "0.20", cache_write = "2.50", note = "5m cache writes $2.50, 1h $4 per MTok; $2/$10 is now the standard price (page note 3)" },
+  { model = "claude-sonnet-4-6", input = "3", output = "15", cached_input = "0.30", cache_write = "3.75", note = "5m cache writes $3.75, 1h $6 per MTok" },
+  { model = "claude-sonnet-4-5", input = "3", output = "15", cached_input = "0.30", cache_write = "3.75", note = "5m cache writes $3.75, 1h $6 per MTok" },
+  { model = "claude-haiku-5-5", input = "0.10", output = "0.50", cached_input = "0.01", cache_write = "0.125", note = "prompts up to 100,000 tokens; over 100,000: $0.50 in, $2.50 out, $0.05 cache hits per MTok" },
+  { model = "claude-haiku-4-5", input = "1", output = "5", cached_input = "0.10", cache_write = "1.25", note = "5m cache writes $1.25, 1h $2 per MTok" },
+]

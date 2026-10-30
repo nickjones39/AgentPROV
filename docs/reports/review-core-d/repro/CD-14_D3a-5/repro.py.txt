@@ -1,0 +1,35 @@
+import sys, traceback
+sys.path.insert(0, "tests/adapters/agentdojo")
+from agentdojo_support import new_log, map_log
+
+def run(name, mutate):
+    d = new_log(); mutate(d)
+    try:
+        m = map_log(d)
+        print(name, "status:", getattr(m.outcome, "status", None), "kind:", type(m.outcome).__name__)
+        codes = m.codes
+        print("   codes:", [c for c in codes if "defect" in c or "unknown" in c or "schema" in c][:8], "n=", len(codes))
+        for i in m.info.issues:
+            if "defect" in i["code"]:
+                print("   defect issue:", {k: (str(v)[:200]) for k, v in i.items()})
+        print("   kinds:", sorted({r.get("k") for r in m.records if isinstance(r, dict)}))
+    except Exception as e:
+        print(name, "RAISED", type(e).__name__, str(e)[:300])
+
+def a(d):
+    d["messages"][2]["tool_calls"][0]["id"] = 5
+    d["messages"][3]["tool_call_id"] = 5
+    d["messages"][3]["tool_call"]["id"] = 5
+def b(d):
+    d["messages"][2]["tool_calls"][0]["id"] = {"x": 1}
+    d["messages"][3]["tool_call"]["id"] = {"x": 1}
+def c1(d):
+    d["messages"][4]["content"] = [{"type": "text", "content": 5}]
+def c2(d):
+    d["messages"][4]["content"] = [{"type": "thinking", "content": {"a": 1}}]
+def ctrl(d):
+    d["messages"][4]["content"] = [{"type": "text", "content": "ok"}]
+def ctrl_unk(d):
+    d["messages"][4]["extra"] = 1
+for n, f in [("control", lambda d: None), ("ctrl_blocks", ctrl), ("ctrl_unknown", ctrl_unk), ("a_int_id", a), ("b_dict_id", b), ("c_text_int", c1), ("c_thinking_dict", c2)]:
+    run(n, f)

@@ -1,0 +1,110 @@
+# Source profile `openagentsafety`: the OpenHands trajectories of OpenAgentSafety (sani903/OpenAgentSafety@857798ff):
+# 1,560 runs of 352 safety tasks by claude-3-7-sonnet, deepseek-chat (V3), deepseek-reasoner (R1), gpt-4o and o3-mini, with
+# rule-based checkpoint results, LLM-judge summaries, state reprs and the task definitions (phase 10g; D-170-D-179;
+# docs/reports/systematic-search/candidates/phase10e-candidates.md §3.8).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The [family.openhands] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Counts are from the phase-10g census of every file at the pin
+# (tools/openhands/census.py; docs/reports/phase10g/).
+#
+# The tasks are deliberately harmful or manipulative, and workspaces/ holds task scripts and evaluators: all of it is
+# data, read through agentprov.ingest and never run. The maintained copy Open-Agent-Safety/OpenAgentSafety is a lead
+# outside the closed search (D-148) and is not used. The 7,827 PNG screenshots are not part of the import (not fetched).
+
+[profile]
+id = "openagentsafety"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "openagentsafety"
+family = "openhands"
+parts = ["head"]
+title = "OpenAgentSafety: OpenHands trajectories of five models on 352 safety tasks (sani903/OpenAgentSafety)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.8", "docs/reports/phase10g/README.md"]
+
+[source]
+canonical_repo = "https://github.com/sani903/OpenAgentSafety"
+paper = "OpenAgentSafety: Evaluating Agent Safety in Realistic, High-Risk Simulations"
+
+[[source.pins]]
+role = "head"
+part = "head"
+kind = "git"
+repo = "https://github.com/sani903/OpenAgentSafety"
+commit = "857798ff26c4ce6e1d7911ee4d8b3f84a71184e0"
+date = "2026-08-09"
+primary = true
+note = "14,887 files; 1,560 traj_*.json, 1,474 eval_*.json, 1,705 state_*.json, 4 LLM-judge summaries, 361 task directories (phase-10g census)"
+
+[licence]
+spdx = "MIT"
+data_licence = "MIT"
+policy = "include"
+basis = "LICENSE (MIT) at the pin; the README names MIT. Secret-like strings: option A (D-179), kept as published and disclosed: 388 of 423 are fixture credentials found in the task definitions, plus the benchmark's public GitLab login; 3 distinct values are not"
+attribution = ["OpenAgentSafety (sani903/OpenAgentSafety @ 857798ff), MIT", "built on TheAgentCompany and Sotopia"]
+unassessed = ["model-provider terms on redistributing model outputs", "third-party text inside tool outputs and browser pages"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "openhands.events"
+mapper = "openhands.events"
+variants = ["oas-0.28"]
+include = ["evaluation/*/traj_*.json"]
+auxiliary = ["evaluation/*/eval_*.json", "evaluation/*/state_*.json", "evaluation/*/*_safety_eval_results.json", "workspaces/tasks/*/task.md", "workspaces/tasks/*/checkpoints.md", "workspaces/tasks/*/scenarios.json", "workspaces/tasks/*/utils/evaluator.py"]
+layout = "evaluation/{model_dir}/traj_{task}.json"
+
+[family.openhands]
+source = "oas"
+# D-172: the fork whose cause, id, timestamp and tool-call code the D rules cite; locked in poetry.lock at the pin
+# (openhands-ai 0.28.1, resolved_reference 5a13eacf, a commit of 2025-04-07, before the runs of 2025-05-05..10).
+verified_code = [{ commit = "5a13eacf8177c8dab2600f9011d88f18a7db0ad8" }]
+harness_version = "0.28.1"
+# evaluation/run_eval.py at the pin: FakeUser calls this model for its first four replies (code at the pin, class I).
+fake_user_model = "gpt-4o-2024-05-13"
+# SHA-256 of FakeUser's fixed reply text (evaluation/run_eval.py at the pin): 140 of 594 later user messages.
+fixed_replies = ["9e6ed959d7901c43c4dcede4ca8dd39116f8053e37762448fcad27f002905ac2"]
+# The fork controller's notice for an action pending at reset (agent_controller.py l. 490): 168 observations.
+not_executed_notices = ["The action has not been executed."]
+control_calls = ["finish"]
+semantics_profile = { id = "openhands.tools", version = 1 }
+
+[[family.openhands.quirk]]
+id = "openhands.filtered_events"
+rules = ["openhands.filtered_events@1"]
+observed = { files = 1560, missing_ids = 3338 }
+
+[[family.openhands.quirk]]
+id = "openhands.not_executed_notice"
+rules = ["openhands.not_executed_notice@1"]
+observed = { observations = 168 }
+
+[[family.openhands.quirk]]
+id = "openhands.harness_error"
+rules = ["openhands.uncaused_error_is_harness@1"]
+observed = { observations = 2 }
+
+[[family.openhands.quirk]]
+id = "openhands.set_of_marks"
+rules = ["openhands.content_not_inlined@1"]
+observed = { images = 7973, strings_over_1mib = 117 }
+
+[[family.openhands.quirk]]
+id = "openhands.parallel_calls"
+rules = ["openhands.action_from_tool_call@1"]
+observed = { responses = 78 }
+
+[[family.openhands.quirk]]
+id = "openhands.no_eval"
+rules = ["openhands.oas_eval_path_join@1"]
+observed = { runs = 86 }
+
+[[family.openhands.quirk]]
+id = "openhands.fake_user"
+rules = ["openhands.fake_user_reply_unverified@1", "openhands.fixed_reply_digest@1"]
+observed = { messages = 594, fixed = 140 }

@@ -1,0 +1,42 @@
+# Rate exclusions of the dtap family (docs/architecture D.16.10 "Rate default"; DECISIONS D-29 items 2, 3, 6 and 9;
+# D-48 item 10). Data, not code: stats reads which executions and judgement values to leave out of a default rate from
+# here, so stats names no DTap code (rule 9; D.16.17 open question 4). Nothing is deleted: every excluded execution and
+# value stays in the corpus and is reported beside the rate with its count.
+#
+# `issue_codes` are register codes (HL H.6.3, `map.<seal code>`); `judgement_origins` are AER judgement origins;
+# `rates` names the rate families an entry applies to.
+
+version = 1
+family = "dtap"
+
+[[exclusion]]
+id = "dtap.rate.harness_failure"
+profiles = ["dtap-bench"]
+issue_codes = ["map.dtap.harness_failure", "map.dtap.judgement_on_failed_run"]
+judgement_origins = []
+rates = ["outcome"]
+basis = "D-29 item 2: the 47 OpenClaw harness-failure runs (Unknown model, failover, no API key) were judged anyway; their judgements are kept verbatim and excluded from attack and utility rates by default, counted separately."
+
+[[exclusion]]
+id = "dtap.rate.unresolved_rerun"
+profiles = ["dtap-bench"]
+issue_codes = ["map.dtap.judge_attempt_unresolved", "map.dtap.unjudged_attempt"]
+judgement_origins = []
+rates = ["outcome"]
+basis = "D-29 item 6: attempts of a re-run directory that the judge is not linked to have no per-run outcome; group-level outcomes are computed only by tools/dtap/dtap_report.py."
+
+[[exclusion]]
+id = "dtap.rate.outcome_only"
+profiles = ["dtap-bench"]
+issue_codes = ["map.no_execution_observed", "map.dtap.empty_trajectory"]
+judgement_origins = []
+rates = ["field_groups", "outcome"]
+basis = "D-29 item 3 and D.16.8: empty trajectories and judge-only directories are outcome_only units: no execution was observed."
+
+[[exclusion]]
+id = "dtap.rate.non_informative"
+profiles = ["dtap-bench"]
+issue_codes = []
+judgement_origins = ["harness_default"]
+rates = ["outcome"]
+basis = "D-29 item 9 and D.16.8: direct_prompt task_success (a constant), direct null task_success and benign null attack_success are harness defaults, not task or attack results."

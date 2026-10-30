@@ -1,0 +1,294 @@
+{
+ "format": "agentprov-precheck-research/0.1",
+ "corpus_id": "what-surrounds",
+ "parts": [
+  "runs-named"
+ ],
+ "wave": 6,
+ "kind": "first examination (not in FA or E2; registry import_status planned, no stored corpus)",
+ "code_commit": "065b0d36",
+ "date": "2026-10-14",
+ "status": "written before any pre-check data check of this corpus",
+ "method": "desk research: Zenodo REST API (record, versions, creator search) and the record's zip preview listing (file names and sizes only); arXiv API (title/author searches for a preprint: none; versions of the cited MCPTox and Same-Payload papers); GitHub search via gh (no public repository); the deposit's documentation members PAPER.md, README.md, LICENSE, LICENSE-DATA, CITATION.cff and verify_stats_output.txt read in memory from the already staged pinned zip through agentprov.ingest.archives (Zenodo's per-file container endpoint returned HTTP 500); no run directory, results.csv or attacks.json opened, nothing downloaded; our own reports (phase-10m part A census, map and trial; profile; registry; wirelog artefacts.toml; D-280..D-285 and the D-281 addendum). Web and deposit text treated as untrusted data and summarised.",
+ "papers": [
+  {
+   "id": "10.5281/zenodo.21944598 (PAPER.md)",
+   "title": "What surrounds an injection decides whether it works: context and channel effects in tool-metadata attacks on seven production LLM agents (Asif, 2026)",
+   "url": "https://doi.org/10.5281/zenodo.21944598",
+   "relation": "describes the corpus; the only paper; shipped inside the deposit as PAPER.md (59,523 B), marked a draft of August 2026",
+   "versions": "one version (Zenodo concept 21944597 has only v1.0.0, 2026-08-15); no arXiv, SSRN or other preprint found (arXiv title/author/abstract searches 2026-10-14: 0 hits); CITATION.cff date-released 2026-08-07"
+  },
+  {
+   "id": "arXiv:2508.14925 / DOI 10.1609/aaai.v40i42.40895",
+   "title": "MCPTox: A Benchmark for Tool Poisoning (Attack) on Real-World MCP Servers (Wang et al., AAAI-26)",
+   "url": "https://arxiv.org/abs/2508.14925",
+   "relation": "source of the P1/P2/P3 paradigms and the template wording (retargeted); Zenodo related identifier isDerivedFrom",
+   "versions": "v1 2025-08-19, v2 (updated 2026-09-29, after the deposit); the deposit quotes Table 1 of the published version"
+  },
+  {
+   "id": "arXiv:2606.00566",
+   "title": "Same Payload, Different Channel: Measuring Trust Asymmetry in Tool-Using Language Models (Syed, Yasaei)",
+   "url": "https://arxiv.org/abs/2606.00566",
+   "relation": "concurrent work cited by the paper (Zenodo related identifier cites); no shared data",
+   "versions": "v1 2026-05-30, v2 2026-08-21; accepted to EMNLP 2026"
+  }
+ ],
+ "repo": "No public code repository: GitHub repository and user searches (gh, 2026-10-14) find none for the study or the creator. The harness (run_channels.py, run_trials.py, six driver_*.py, score.py, reclassify.py, verify_stats.py, credentials.py) ships inside the zip without a commit, a version or a history; RM says the scripts are 'as they ran', but our census (phase-10m §A.3.5, D-282) shows they are not the verified producers of all runs (renamed/rewritten first-batch meta.json, 154 runs from an earlier run_trials.py, run 0001 in a request format no script sends). No issue tracker, no errata. Pinned commit: not applicable.",
+ "data_record": "Zenodo record 21944598 (https://zenodo.org/records/21944598; API https://zenodo.org/api/records/21944598), concept 21944597, version 1.0.0, Dataset, published 2026-08-15 (created 2026-08-15T10:16:55Z, updated 10:16:55Z, revision 3), 1 version in the concept; creator Asif, Shaban (Independent Researcher); licence cc-by-4.0; keywords (corrected, full list): prompt injection, indirect prompt injection, tool poisoning, large language model agents, Model Context Protocol, AI security, adversarial machine learning; related identifiers: isDerivedFrom 10.1609/aaai.v40i42.40895 (MCPTox), cites arXiv:2606.00566 and arXiv:2302.12173. One file prompt-injection-study.zip, 6,354,708 B, md5 a5ce4a134c610e493e95096abb69f8b3: equal to our profile pin (size, md5; sha256 08e60afd5ba0c0c044afd005c015cbc539428255240f1ea2a555feb800079454 computed locally at phase 10e). Zip preview listing (CORRECTED by fact-check): the preview is truncated at 1,000 entries and shows 19 top-level files (.env.example, .gitignore, CITATION.cff, LICENSE, LICENSE-DATA, PAPER.md, README.md, attacks.json, credentials.py, six driver_*.py, reclassify.py, results.csv, run_channels.py, run_trials.py); score.py, verify_stats.py and verify_stats_output.txt are not in the visible part. The 22 top-level files and 10,744 members are confirmed by the census and by the ingest-gate member listing of the staged pin, not by the preview. Visible run dirs: Haiku clean 0055-0064, imperative 0075-0084, mcptox_p2 0367-0374 then 0405-0428 (cut off), mcptox_p1 0465-0494, mcptox_p1_toolresult 0945-0974. Stats on 2026-10-14: 21 views, 6 downloads. No newer version, no erratum.",
+ "harness": "Own Python harness (no AgentDojo, no Inspect, no MCP server): AWS Bedrock Converse API with toolConfig (read_file, send_email), inferenceConfig maxTokens 1024, no system prompt except the context arms; synthetic tools (read_file returns a fixed harness document, send_email records its arguments and returns 'Email sent.'). Scoring: score.py (original), reclassify.py (re-derived; outcome_v2.txt), verify_stats.py (exact rational Fisher and Wilson, cross-checked against scipy; output committed). Harness version: none recorded; benchmark version = record version 1.0.0. Known harness/scoring bugs (PAPER.md §4.3, §5.1): (1) a refusal regex matched a phrase quoted from the ticket (inflated refusals); (2) disclosure judged on full text instead of user-facing text hid silent sends; (3) a prose-based classifier counted one Nova Lite soft run that sent to the customer's name as a success (cell 6/10 -> 5/10; fixed by address-exact matching); (4) an earlier version of the statistics used an absolute tolerance that changed four p-values (fixed, audited). Drivers are resumable and two DNS outages were recovered by re-running (README). Three implemented templates were never run; one (multi-turn) is described as mis-specified.",
+ "models": [
+  "us.anthropic.claude-sonnet-4-6 (Claude Sonnet 4.6, Bedrock cross-region inference profile; 420 runs)",
+  "us.anthropic.claude-haiku-4-5-20251001-v1:0 (Claude Haiku 4.5; 299 runs)",
+  "amazon.nova-micro-v1:0 (141 runs)",
+  "qwen.qwen3-32b-v1:0 (Qwen3 32B; 141 runs)",
+  "amazon.nova-lite-v1:0 (111 runs)",
+  "amazon.nova-pro-v1:0 (111 runs)",
+  "mistral.ministral-3-8b-instruct (Ministral 3 8B; 111 runs)",
+  "provider: AWS Bedrock (on-demand per-token inference; region not recorded); no served model in Converse responses (run 0001: served model in the Anthropic Messages response); probed and dropped before any trial: Llama 3 8B/70B (no tool use), Command R/R+ (legacy block), Gemma 3 (never emits a tool call)"
+ ],
+ "reported_results": [
+  {
+   "arm": "clean (first batch, tool_result) per model Sonnet 4.6, Haiku 4.5, Nova Micro, Nova Lite, Nova Pro, Ministral 3 8B, Qwen3 32B",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/10 / 0/10 / 0/10 / 0/10 / 0/10 / 0/10 / 0/10",
+   "n": "10 per cell, 11 in the 8 pilot-augmented cells",
+   "where": "PAPER.md §5.1 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "soft (first batch, tool_result) per model Sonnet 4.6, Haiku 4.5, Nova Micro, Nova Lite, Nova Pro, Ministral 3 8B, Qwen3 32B",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/11 / 0/10 / 0/10 / 5/10 / 3/10 / 0/10 / 0/10",
+   "n": "10 per cell, 11 in the 8 pilot-augmented cells",
+   "where": "PAPER.md §5.1 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "imperative (first batch, tool_result) per model Sonnet 4.6, Haiku 4.5, Nova Micro, Nova Lite, Nova Pro, Ministral 3 8B, Qwen3 32B",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/10 / 0/10 / 8/10 / 10/10 / 10/10 / 8/10 / 4/10",
+   "n": "10 per cell, 11 in the 8 pilot-augmented cells",
+   "where": "PAPER.md §5.1 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "urgent_authority (first batch, tool_result) per model Sonnet 4.6, Haiku 4.5, Nova Micro, Nova Lite, Nova Pro, Ministral 3 8B, Qwen3 32B",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/10 / 0/10 / 10/10 / 10/10 / 10/10 / 4/10 / 3/10",
+   "n": "10 per cell, 11 in the 8 pilot-augmented cells",
+   "where": "PAPER.md §5.1 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "operator_spoof (first batch, tool_result) per model Sonnet 4.6, Haiku 4.5, Nova Micro, Nova Lite, Nova Pro, Ministral 3 8B, Qwen3 32B",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/11 / 0/11 / 11/11 / 11/11 / 11/11 / 11/11 / 11/11",
+   "n": "10 per cell, 11 in the 8 pilot-augmented cells",
+   "where": "PAPER.md §5.1 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "first batch totals per model (Sonnet, Haiku, Nova Micro, Nova Lite, Nova Pro, Ministral, Qwen3)",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/52, 0/51, 29/51, 36/51, 34/51, 23/51, 18/51",
+   "n": "358",
+   "where": "PAPER.md §5.1 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p2 (tool_description, no context) per model Haiku, Sonnet, Nova Micro, Nova Lite, Nova Pro, Ministral, Qwen3",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "37/38, 4/38, 15/30, 27/30, 30/30, 30/30, 15/30",
+   "n": "226",
+   "where": "PAPER.md §5.2 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p2_toolresult (tool_result, no context) per model Haiku, Sonnet, Nova Micro, Nova Lite, Nova Pro, Ministral, Qwen3",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/30, 0/30, 29/30, 28/30, 30/30, 21/30, 29/30",
+   "n": "210",
+   "where": "PAPER.md §5.2 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p2 vs p2_toolresult Fisher p per model (Haiku, Sonnet, Nova Micro, Nova Lite, Nova Pro, Ministral, Qwen3)",
+   "metric": "two-tailed Fisher exact p",
+   "value": "1.7e-18, 0.12, 6.4e-05, 1.0, 1.0, 0.0019, 6.4e-05",
+   "n": "38/30 or 30/30",
+   "where": "PAPER.md §5.2; verify_stats_output.txt, https://doi.org/10.5281/zenodo.21944598 (verify_stats_output.txt in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p1 / mcptox_p1_toolresult / mcptox_p3, Haiku 4.5",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "25/30 / 0/30 / 19/30",
+   "n": "30 each",
+   "where": "PAPER.md §5.2, §6 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p1 / mcptox_p1_toolresult / mcptox_p3, Sonnet 4.6",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/30 / 0/30 / 0/30 (p3: 19 sends to the legitimate recipient, 11 no send)",
+   "n": "30 each",
+   "where": "PAPER.md §5.2, §5.5, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "exfiltration per cell (Haiku p1 desc, Haiku p2 desc, Sonnet p2 desc, Nova Micro/Lite/Pro/Ministral/Qwen3 p2 desc, Nova Micro/Lite/Pro/Ministral/Qwen3 p2 result, Haiku p3)",
+   "metric": "exfiltration (hijack whose body carries ticket content = results.csv exfiltration)",
+   "value": "15; 4; 0; 0/1/0/0/0; 27/26/30/15/24; 19",
+   "n": "30 or 38 per cell",
+   "where": "PAPER.md §5.3 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "no-context P1+P2 tool_description hijacks by call order",
+   "metric": "call_order x body",
+   "value": "send-before-read empty 161, data 0; read-before-send empty 2, data 20 (183 hijacks)",
+   "n": "183",
+   "where": "PAPER.md §5.3; verify_stats_output.txt, https://doi.org/10.5281/zenodo.21944598 (verify_stats_output.txt in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "aggregates: no-context metadata arms / all metadata arms / tool_result named arms",
+   "metric": "hijack / exfiltration",
+   "value": "202/39; 435/51; 137/122 (fact-check: verify_stats_output.txt labels the last pair 'tool_result, all arms', but 137/122 are the named tool_result arms only; the first batch adds 140 tool_result hijacks)",
+   "n": "-",
+   "where": "PAPER.md §5.3; verify_stats_output.txt, https://doi.org/10.5281/zenodo.21944598 (verify_stats_output.txt in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "silent among mcptox_p2 desc hijacks (Haiku, Nova Pro, Nova Lite, Nova Micro, Qwen3, Ministral)",
+   "metric": "silent (results.csv silent)",
+   "value": "29/37, 29/30, 26/27, 14/15, 15/15 (stated, PAPER.md §5.4); Ministral 17/30 DERIVED (corrected: §5.5 states 13 of 30 disclosed; 17 is not printed)",
+   "n": "hijacked runs",
+   "where": "PAPER.md §5.4, §5.5, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "silent among mcptox_p2_toolresult hijacks (Nova Pro, Qwen3)",
+   "metric": "silent",
+   "value": "6/30, 4/29 DERIVED (corrected: §5.4 states disclosure 24 of 30 and 25 of 29; the silent counts are not printed)",
+   "n": "hijacked runs",
+   "where": "PAPER.md §5.4, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "Sonnet 4.6 context arms: none (mcptox_p2), sys_generic, sys_generic_b, sys_generic_role, sys_generic_long, userprefix_long, sys_explicit",
+   "metric": "hijack / exfil / silent",
+   "value": "4/38,0,1; 29/30,3,18; 26/30,1,20; 29/30,1,22; 30/30,1,16; 29/30,0,27; 0/30,0,0",
+   "n": "30 (38 for none)",
+   "where": "PAPER.md §5.6 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "Haiku 4.5 context: none / generic (arm inferred mcptox_p2_sys_generic) / explicit",
+   "metric": "hijack (exfil)",
+   "value": "37/38 (4) / 30/30 (5) / 7/30 (1)",
+   "n": "38/30/30",
+   "where": "PAPER.md §5.6, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p2_toolresult_sysctx (Haiku, Sonnet)",
+   "metric": "hijack (address-exact attacker send_email in the dispatcher log = results.csv hijack)",
+   "value": "0/30, 0/30",
+   "n": "30 each",
+   "where": "PAPER.md §5.7 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "mcptox_p2_sys_generic_long (Nova Micro, Qwen3)",
+   "metric": "hijack (exfil)",
+   "value": "23/30 (0), 30/30 (0); all 53 send-before-read",
+   "n": "30 each",
+   "where": "PAPER.md §5.7 table, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "whole deposit",
+   "metric": "send_email calls; to attacker; to neither",
+   "value": "756; 712; 6 (3 malformed in runs without an attacker send)",
+   "n": "1,334",
+   "where": "PAPER.md §5.1; verify_stats_output.txt, https://doi.org/10.5281/zenodo.21944598 (verify_stats_output.txt in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "Sonnet trials / without context / exfil all / exfil without context; Claude data-channel trials / hijacks",
+   "metric": "counts",
+   "value": "420 / 210 / 6 / 0; 283 / 0",
+   "n": "-",
+   "where": "verify_stats_output.txt, https://doi.org/10.5281/zenodo.21944598 (verify_stats_output.txt in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "tokens over the 1,180 runs with metadata usage",
+   "metric": "input / output tokens",
+   "value": "1,838,264 / 274,519",
+   "n": "1,180",
+   "where": "PAPER.md Appendix B, https://doi.org/10.5281/zenodo.21944598 (PAPER.md in prompt-injection-study.zip)"
+  },
+  {
+   "arm": "Wilson 95% CIs quoted",
+   "metric": "proportion [CI]",
+   "value": "Haiku P2 desc 97.4 [86.5, 99.5]; Sonnet P2 desc 10.5 [4.2, 24.1]; Haiku P1 83.3 [66.4, 92.7]; Haiku P3 63.3 [45.5, 78.1]; Haiku explicit 23.3 [11.8, 40.9]; Nova Micro context 76.7 [59.1, 88.2]",
+   "n": "-",
+   "where": "verify_stats_output.txt, https://doi.org/10.5281/zenodo.21944598 (verify_stats_output.txt in prompt-injection-study.zip)"
+  }
+ ],
+ "expected_counts": "part runs-named: 1 deposit file (6,354,708 B); 10,744 zip members (22 top-level + 10,722 under runs_named/), 14,114,755 B uncompressed; selected by the profile 10,724 (runs_named/*/* + results.csv + attacks.json), not selected 20; units = run directories = executions = 1,334 (registry tools/readme_corpora.toml count 1334, basis census; paper and README: run ids 1..1,334 contiguous, no run discarded); per model 420/299/141/141/111/111/111 (paper §4.1 = census); file sets 976 x 8, 204 x 9 (+outcome_v2), 154 x 7; 3,191 model calls; 2,001 tool calls (1,245 read_file, 756 send_email); results.csv 1,334 rows; phase-10m map: 6,856 messages, 2,310 fixtures, 7,028 judgements; issues meta_rewritten 358, final_texts_not_logged 154, payload_not_delivered 1, accounting_unverifiable 154.",
+ "expected_arms": "Facets model_dir x arm (arm fixes channel, paradigm and context). 67 non-empty cells: first batch 5 variants (clean, soft, imperative, urgent_authority, operator_spoof) x 7 models = 35 cells of 10 (11 in the 8 pilot cells: operator_spoof x 7, soft x Sonnet); named attacks 32 cells: mcptox_p2 x 7 (38 for both Claude, 30 others), mcptox_p2_toolresult x 7 (30), mcptox_p1, mcptox_p1_toolresult, mcptox_p3, mcptox_p2_sys_explicit, mcptox_p2_sys_generic, mcptox_p2_toolresult_sysctx x {Sonnet, Haiku} (30), mcptox_p2_sys_generic_b, mcptox_p2_sys_generic_role, mcptox_p2_userprefix_long x Sonnet (30), mcptox_p2_sys_generic_long x {Sonnet, Nova Micro, Qwen3} (30). Channel totals tool_description 586, tool_result 688, param_description 60. Expected missing by design: P1/P3 and context arms on non-Claude models (except the two long-context cells), three unrun templates, dropped models. Expected extra relative to n=30: the 16-run Claude P2 confirmation batch (n=38) and the 8 pilots, both counted by the paper.",
+ "licence": "Record: cc-by-4.0 (Zenodo metadata). LICENSE-DATA (310 B) in the zip: run data (runs_named/), results.csv, attacks.json and PAPER.md under CC BY 4.0; code under MIT (LICENSE, 1,089 B, 'Copyright (c) 2026 Shaban Asif'). README: 'Code: MIT. Run data and paper: CC BY 4.0.' No use restriction, no non-commercial or no-training clause; the paper's ethics section says no optimised payload is released. Unassessed: model-provider terms on redistributing model outputs (Anthropic, Amazon, Mistral, Qwen via Bedrock). Profile policy include (D-144, D-285).",
+ "discrepancy_leads": [
+  "Paper §4.1 says every model was reached through Bedrock's unified tool interface with an identical request shape, and §5.1 that the pilot runs used an identical harness configuration; run 0001 (a Sonnet soft pilot) holds Anthropic Messages bodies that no shipped script sends (census; D-283). Test: exactly 1 non-Converse run.",
+  "Paper App. B and README say the harness never rewrites saved records; the census found 358 first-batch meta.json rewritten after the runs (source_dir key, renamed run_id). Expected-known (wirelog.art.meta_rewritten).",
+  "Paper §4.3 / App. B say every trial writes eight files including final_user_text/final_reasoning and that silence is judged on final_user_text.txt; 154 runs lack both files (so Nova Micro's 29 first-batch hijacks were judged for silence on another text), and 358 runs carry a ninth file outcome_v2.txt not in the README's file list.",
+  "The 16 short-shape meta.json runs are expected to be the Claude P2 confirmation batch (8 Sonnet + 8 Haiku mcptox_p2, run numbers about 359-374); if not, the n=38 cells are composed differently from the paper's description.",
+  "The 154 token-less runs are expected to be exactly runs 1-154 (Sonnet 52, Haiku 51, Nova Micro 51, paper App. B); the 8 pilots runs 1-4 and 155-158 (paper §5.1).",
+  "Whole-population hijack per cell should equal the paper's tables exactly (sum 712 = 'total send_email calls to attacker' in verify_stats_output.txt); any difference is a documentation-mismatch since the deposit claims every number recomputes from runs_named/.",
+  "The paper's third scoring fix (address-exact) changed one Nova Lite soft run; the harness label in outcome.txt may still count it as a forward: expected exactly 1 label/hijack disagreement of that kind.",
+  "The Haiku 'generic' context cell (30/30) is not named in the paper; the arm mcptox_p2_sys_generic is inferred from per-model totals and should carry the 'helpful assistant' system text.",
+  "Paper §4.2: drivers assert every P2 context arm is identical to mcptox_p2 in tool schema and documents: expect 4 distinct toolConfigs in all and one shared by the seven P2-metadata arms.",
+  "Appendix A: meta.source_quote stores the MCPTox path without the underscore; expected in the 916 P1/P2 named runs (the census's 916 /home/ hits).",
+  "verify_stats_output.txt loaded the runs from a Windows drive path and the JSON has CRLF line ends: the published runs passed through a Windows copy; check for cp1252/mojibake artefacts (expect 0).",
+  "Timestamps should all precede the record's creation (2026-08-15T10:16:55Z); the paper says its numbers describe August 2026 while CITATION.cff says released 2026-08-07. CORRECTED: no documented lower bound; PAPER.md §2 says arXiv:2606.00566 (posted 2026-05-30) appeared while the study was running, so runs may predate June 2026."
+ ],
+ "open_questions": [
+  "Which arm holds Haiku's 'generic' context cell, and which system text is it? (L1: system-text digest per arm.)",
+  "Which file was the silence judgement read from for the 154 runs without final_user_text.txt? (results.csv silent vs final_message.txt; not decidable from the paper.)",
+  "How was run 0001 produced (Anthropic API or Bedrock InvokeModel)? Not recorded; region not recorded for any run.",
+  "Does any hijacked run contain two attacker-addressed sends (then hijacked runs < 712 while calls = 712)?",
+  "Exfiltration counts for the first-batch variants are not reported in the paper; only results.csv can give them (no comparison target)."
+ ],
+ "checks_not_applicable": [
+  "Delta since E2: not applicable (not in FA or E2; first examination, wave 6). Baseline for drift is the phase-10m in-memory map and scratch trial; the wirelog adapter changed since only by 18205ac4 (degenerate header for crashed jobs).",
+  "Utility (benign task success, utility under attack): not applicable; the paper reports no utility metric. The clean arm (70) is the control (0 sends).",
+  "Defence facet: not applicable as a facet; the explicit-distrust system prompt is an arm (mcptox_p2_sys_explicit), not a defence pipeline.",
+  "L2 withholding: not applicable (no [withhold] policy, D-285, 0 secret-like strings in the census); becomes conditional if L1-06 finds a secret or account path.",
+  "Repository history, issues and errata around a pin: not applicable (no public repository; the code ships in the zip without a commit).",
+  "Harness/benchmark package bugs (AgentDojo, Inspect): not applicable (own harness); the paper's self-reported scoring bugs are listed under harness."
+ ],
+ "files_written": [
+  "docs/reports/precheck/data/what-surrounds/research.json",
+  "docs/reports/precheck/prereg/what-surrounds.md"
+ ],
+ "sources": [
+  "https://zenodo.org/records/21944598",
+  "https://zenodo.org/api/records/21944598",
+  "https://zenodo.org/api/records/21944598/versions?allversions=true",
+  "https://zenodo.org/api/records?q=creators.name:%22Asif,%20Shaban%22",
+  "https://zenodo.org/records/21944598/preview/prompt-injection-study.zip",
+  "https://doi.org/10.5281/zenodo.21944598",
+  "https://doi.org/10.5281/zenodo.21944597",
+  "https://export.arxiv.org/api/query?id_list=2508.14925,2606.00566",
+  "https://arxiv.org/abs/2508.14925",
+  "https://arxiv.org/abs/2606.00566",
+  "https://doi.org/10.1609/aaai.v40i42.40895",
+  "https://export.arxiv.org/api/query?search_query=ti:%22context%20and%20channel%20effects%22",
+  "https://api.github.com/search/repositories?q=prompt-injection-study",
+  "docs/reports/phase10m/README.md (part A)",
+  "docs/reports/phase10m/zenodo-21944598.census.json",
+  "src/agentprov/adapters/wirelog/profiles/what-surrounds.profile.toml",
+  "src/agentprov/adapters/wirelog/artefacts.toml",
+  "docs/architecture/DECISIONS.md (D-280..D-285, D-281 addendum)",
+  "tools/readme_corpora.toml (what-surrounds / runs-named)",
+  "https://doi.org/10.1609/aaai.v40i42.40895 (CSL metadata: AAAI 40(42) 35811-35819, title without 'Attack')"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "checked": "Zenodo API record/versions/creator search; DOI CSL metadata (Zenodo, AAAI); arXiv API (2508.14925, 2606.00566, preprint searches); gh search; Zenodo zip preview page (listing only); deposit PAPER.md, README.md, LICENSE, LICENSE-DATA, CITATION.cff, verify_stats_output.txt in memory via agentprov.ingest.archives; census JSON, phase-10m README, profile, artefacts.toml, registry, DECISIONS D-144, D-280..D-285. No run data opened or computed.",
+  "corrections": [
+   "Zenodo preview shows 19 of 22 top-level files (truncated); 22/10,744 rest on the census and the ingest listing",
+   "Silent counts Ministral P2 desc 17/30, Nova Pro P2 result 6/30, Qwen3 P2 result 4/29 are derived from stated disclosure counts",
+   "Not all 5 e-mail addresses are reserved: malicious.com (MCPTox P3 quote) is an ordinary .com name (prereg section 5)",
+   "H-16 lower bound 2026-06-01 removed (contradicts PAPER.md section 2)",
+   "verify_stats_output.txt 'tool_result, all arms' = named tool_result arms only",
+   "Zenodo keywords list completed"
+  ],
+  "unverifiable": [
+   "arm of Haiku's 'generic' context cell (inferred)",
+   "run numbers of the 16 short-shape runs",
+   "provider terms on model outputs"
+  ]
+ }
+}

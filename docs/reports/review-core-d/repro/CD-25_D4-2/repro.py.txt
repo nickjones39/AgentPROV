@@ -1,0 +1,28 @@
+import sys, tempfile
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
+sys.path.insert(0, "tests/adapters/inspect")
+from inspect_support import basic_sample, build_eval, synthetic_header, import_log
+from agentprov.adapters.profiles import load_profile
+W = "repro/D4-2"
+
+def shift(v):
+    return datetime.fromisoformat(v).astimezone(timezone(timedelta(hours=-7))).isoformat()
+
+def tz(s, sample):
+    for e in sample["events"]:
+        for k in ("timestamp", "completed"):
+            if isinstance(e.get(k), str): e[k] = shift(e[k])
+    for k in ("started_at", "completed_at"):
+        sample[k] = shift(sample[k])
+
+for name, tune in (("utc", None), ("-07:00", tz)):
+    smp = basic_sample(tune=tune)
+    print("== ", name, "sample event[0].timestamp =", smp["events"][0]["timestamp"])
+    data = build_eval(synthetic_header(), {"s1_epoch_1.json": smp})
+    with tempfile.TemporaryDirectory(dir=W) as d:
+        u = import_log(data, Path(d), profile=load_profile("survey-agentharm")).units[0]
+        for r in u.records:
+            if r["k"] in ("model_call", "tool_execution", "scope", "state_change"):
+                print(" ", r["k"], r["id"], "t=", r.get("t"), "unk=", {k: v for k, v in r.get("unk", {}).items() if k.startswith("/t")},
+                      "time-after=", [a["id"] for a in r.get("after", []) if a["b"] == "time"])

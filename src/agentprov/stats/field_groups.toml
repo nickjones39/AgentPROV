@@ -1,0 +1,278 @@
+# The fixed capability list of the information-loss table (R-57): the field groups of O.3.5, each mapped to AER JSON
+# Pointers. Group names and their order: docs/architecture/O_manuscript.md O.3.5 ("Field groups"), which owns the list;
+# selectors and pointers: docs/architecture/C_data_model.md C.3.16, which owns the pointers (SWEEP_r2 SW-C12). Record
+# fields: C.3.2-C.3.10. This file is package data, read-only, and read through agentprov.stats.fieldgroups and
+# agentprov.api.field_groups(); the paper never redefines it (claim c3-groups-agree).
+#
+# Schema (validated by agentprov.stats.fieldgroups.parse_field_groups; unknown keys are refused):
+#   [[group]]                 id (O.3.5 name), label, spec (citation)
+#   [[group.alternative]]     one per "or" branch of C.3.16; the group's status is the strongest alternative
+#   [[group.alternative.occurrence]]
+#     id        unique within the file; names the occurrence source in the unknowns table
+#     record    the AER record kind (`k`, C.2.2) that is selected
+#     where     equality filters on top-level string members of the record (e.g. role = "agent")
+#     absent    top-level members that must be absent (e.g. a judgement without `revises`)
+#     named_by  the record must be named by `pointer` of a record matching {record, where, absent}
+#     refers    the record's `pointer` must name a record matching {record, where, absent}
+#     parts     select message parts by their `t`; `pointer` is then relative to the part (`/parts/<k>` + pointer)
+#     pointer   the field (RFC 6901, relative to the record or part)
+#     array     the field is an array: one occurrence per item (`<pointer>/<i>`); an empty array is one occurrence
+#     fallback  a pointer used instead when `pointer` is absent and not declared unknown (C.3.6 `requested_by`)
+#
+# Evaluation (C.3.16): per execution with unit agent_execution and execution_observed, every selected record (or part)
+# contributes one occurrence per pointer. Its status is the effective tag at the pointer (C.6.3; O:<party> counts as
+# O) or unk:<reason> when the pointer, an enclosing pointer or a pointer below it is declared in `unk`; an absent pointer
+# without an `unk` entry is unk:not_recorded and counted as undeclared. An alternative takes the weakest occurrence
+# (O > D > I > unk; among reasons the first in C.7.1's order); the group takes the strongest alternative. A group with no
+# occurrence yields no cell.
+#
+# [message_roles] is the explicit cross-source grouping of verbatim message roles (C.3.4 keeps `role` verbatim; D.15.1
+# forbids relabelling it). A `where = { role = X }` filter on a `message` record matches every role listed under X. It
+# applies to message records only (model_call `role` is the gateway role of C.3.5, not a message role). DTap-Bench keeps
+# its role `agent` verbatim (D-28; D.16.17 item 3, decided 2026-10-11), and cross-source statistics group it with
+# `assistant` here.
+
+version = 1
+
+[message_roles]
+assistant = ["assistant", "agent"]
+
+[[group]]
+id = "ctx"
+label = "as-sent model input context"
+spec = "O.3.5; C.3.16 row ctx; C.3.5 input"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "ctx.model_call.input"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/input"
+array = true
+
+[[group]]
+id = "tooldefs"
+label = "tool definitions offered"
+spec = "O.3.5; C.3.16 row tooldefs; C.3.5 tools; C.3.9 tool_definitions"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "tooldefs.model_call.tools"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/tools"
+[[group.alternative.occurrence]]
+id = "tooldefs.fixture.content"
+record = "fixture"
+where = { kind = "tool_definitions" }
+named_by = { record = "model_call", where = { role = "agent" }, pointer = "/tools" }
+pointer = "/content"
+
+[[group]]
+id = "model_req"
+label = "requested model id"
+spec = "O.3.5; C.3.16 row model_req; C.3.2 model; C.3.12 Model"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "model_req.actor.model.requested"
+record = "actor"
+named_by = { record = "model_call", where = { role = "agent" }, pointer = "/actor" }
+pointer = "/model/requested"
+
+[[group]]
+id = "model_served"
+label = "provider-returned model id"
+spec = "O.3.5; C.3.16 row model_served; C.3.5 served_model; C.3.12 Model"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "model_served.model_call.served_model"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/served_model"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "model_served.actor.model.served"
+record = "actor"
+named_by = { record = "model_call", where = { role = "agent" }, pointer = "/actor" }
+pointer = "/model/served"
+
+[[group]]
+id = "sampling"
+label = "effective sampling parameters"
+spec = "O.3.5; C.3.16 row sampling; C.3.5 params"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "sampling.model_call.params.transmitted"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/params/transmitted"
+
+[[group]]
+id = "usage"
+label = "token usage"
+spec = "O.3.5; C.3.16 row usage; C.3.5 usage; C.3.3 usage (aggregate)"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "usage.model_call.usage"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/usage"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "usage.scope_run.usage"
+record = "scope"
+where = { kind = "run" }
+pointer = "/usage"
+
+[[group]]
+id = "finish"
+label = "finish reason"
+spec = "O.3.5; C.3.16 row finish; C.3.5 finish_reason"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "finish.model_call.finish_reason"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/finish_reason"
+
+[[group]]
+id = "reasoning"
+label = "model reasoning"
+spec = "O.3.5; C.3.16 row reasoning; C.3.4.1 reasoning parts"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "reasoning.message.parts.reasoning"
+record = "message"
+where = { role = "assistant" }
+refers = { pointer = "/generated_by", record = "model_call", where = { role = "agent" } }
+parts = "reasoning"
+pointer = ""
+
+[[group]]
+id = "sysprompt"
+label = "system prompt"
+spec = "O.3.5; C.3.16 row sysprompt; C.3.4 parts; C.3.9 system_prompt"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "sysprompt.message_system.parts"
+record = "message"
+where = { role = "system" }
+pointer = "/parts"
+array = true
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "sysprompt.fixture.content"
+record = "fixture"
+where = { kind = "system_prompt" }
+pointer = "/content"
+
+[[group]]
+id = "t_model"
+label = "model-call times"
+spec = "O.3.5; C.3.16 row t_model; C.3.5 t; C.8.3"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "t_model.model_call.t"
+record = "model_call"
+where = { role = "agent" }
+pointer = "/t"
+
+[[group]]
+id = "t_tool"
+label = "tool-execution times"
+spec = "O.3.5; C.3.16 row t_tool; C.3.6 t; C.8.3"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "t_tool.tool_execution.t"
+record = "tool_execution"
+pointer = "/t"
+
+[[group]]
+id = "passes"
+label = "all passes held"
+spec = "O.3.5; C.3.16 row passes; C.3.3 index"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "passes.scope_attempt.index"
+record = "scope"
+where = { kind = "attempt" }
+pointer = "/index"
+
+[[group]]
+id = "env"
+label = "environment state digests"
+spec = "O.3.5; C.3.16 row env; C.3.8 before_sha256, after_sha256"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "env.state_change.before_sha256"
+record = "state_change"
+where = { target = "environment" }
+pointer = "/before_sha256"
+[[group.alternative.occurrence]]
+id = "env.state_change.after_sha256"
+record = "state_change"
+where = { target = "environment" }
+pointer = "/after_sha256"
+
+[[group]]
+id = "callid"
+label = "provider tool-call id"
+spec = "O.3.5; C.3.16 row callid; C.3.4.1 tool_call provider_call_id"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "callid.message.parts.tool_call.provider_call_id"
+record = "message"
+parts = "tool_call"
+pointer = "/provider_call_id"
+
+[[group]]
+id = "link"
+label = "result-call link and how it was established"
+spec = "O.3.5; C.3.16 row link; C.3.4.1 tool_result responds_to; C.3.6 call, requested_by; C.5.4"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "link.message.parts.tool_result.responds_to"
+record = "message"
+parts = "tool_result"
+pointer = "/responds_to"
+[[group.alternative.occurrence]]
+id = "link.tool_execution.call"
+record = "tool_execution"
+pointer = "/call"
+fallback = "/requested_by"
+
+[[group]]
+id = "payload"
+label = "registered injection payload"
+spec = "O.3.5; C.3.16 row payload; C.3.9 injection_payload"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "payload.fixture.content"
+record = "fixture"
+where = { kind = "injection_payload" }
+pointer = "/content"
+
+[[group]]
+id = "outcome_logged"
+label = "logged outcome"
+spec = "O.3.5; C.3.16 row outcome_logged; C.3.10 value, revises"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "outcome_logged.judgement.value"
+record = "judgement"
+absent = ["revises"]
+pointer = "/value"
+
+[[group]]
+id = "checker"
+label = "checker identity and version"
+spec = "O.3.5; C.3.16 row checker; C.3.2 version, code; C.3.10 actor"
+[[group.alternative]]
+[[group.alternative.occurrence]]
+id = "checker.actor.version"
+record = "actor"
+named_by = { record = "judgement", absent = ["revises"], pointer = "/actor" }
+pointer = "/version"
+[[group.alternative.occurrence]]
+id = "checker.actor.code"
+record = "actor"
+named_by = { record = "judgement", absent = ["revises"], pointer = "/actor" }
+pointer = "/code"

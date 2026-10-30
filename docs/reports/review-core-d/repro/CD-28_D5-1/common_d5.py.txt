@@ -1,0 +1,58 @@
+import hashlib, json, sys
+from agentprov.adapters.runner import map_artefact_total, aer_bytes
+from agentprov.adapters.runner.importer import git_blob_sha1, aux_media
+from agentprov.adapters.types import Origin
+from agentprov.aer.reader import load_aer_bytes
+
+RUNS_REPO = "https://huggingface.co/datasets/AI-Secure/DTap-Bench-Agent-Trajectories"
+RUNS_COMMIT = "836caf2fdd78b888ddd14fb62dc038e932e17898"
+TASKS_REPO = "https://huggingface.co/datasets/AI-Secure/DecodingTrust-Agent-Platform"
+TASKS_COMMIT = "a3edc9b7c48cbf16c2ea9c18990fb94c7494dd04"
+
+def origin(repo, commit, path, data):
+    return Origin.git(repo, commit, path, git_blob_sha1(data))
+
+def traj(steps, ti=None, tj=None):
+    for i, s in enumerate(steps):
+        s["step_id"] = i
+    from collections import Counter
+    kinds = Counter(s["role"] for s in steps)
+    t = {"task_id": "x", "domain": "code", "original_instruction": "do the task", "malicious_instruction": ""}
+    t.update(ti or {})
+    j = {"timestamp": "2026-02-20T13:34:59Z", "step_count": len(steps), "actions_count": kinds["agent"],
+         "tool_count": kinds["tool"], "user_turn": kinds["user"], "metadata": {}}
+    j.update(tj or {})
+    return json.dumps({"task_info": t, "traj_info": j, "trajectory": steps}).encode()
+
+def call(name, params=None):
+    meta = {"tool_name": name, "server": "s"}
+    if params is not None:
+        meta["tool_params"] = params
+    return {"role": "agent", "action": f"{name}()", "metadata": meta}
+
+def meta():
+    return {"role": "agent", "action": "List MCP Tools", "metadata": {"tool_name": "List MCP Tools"}}
+
+def result(name, state="ok"):
+    return {"role": "tool", "state": state, "metadata": {"tool_name": name, "server": "s"}}
+
+def user(text="go"):
+    return {"role": "user", "state": text, "metadata": {}}
+
+def map_one(label, data, aux=None):
+    """aux: role -> (label, bytes, repo, commit)"""
+    rows, blobs = [], {}
+    for role, (lab, raw, repo, commit) in sorted((aux or {}).items()):
+        rows.append({"role": role, "label": lab, "media": aux_media(lab), "sha256": hashlib.sha256(raw).hexdigest(),
+                     "size": len(raw), "origin": origin(repo, commit, lab, raw).to_json()})
+        blobs[role] = raw
+    outcome, _unit = map_artefact_total(data, origin(RUNS_REPO, RUNS_COMMIT, label, data), profile_id="dtap-bench",
+                                        auxiliary=rows, auxiliary_bytes=blobs)
+    sealed, _ = aer_bytes(outcome)
+    return outcome, load_aer_bytes(sealed)
+
+def summary(outcome, doc):
+    print("outcome:", getattr(outcome, "kind", None) or type(outcome).__name__, getattr(outcome, "status", None))
+    print("unit:", doc.header.get("unit"))
+    for i in doc.seal.get("issues", []):
+        print("  issue", i["code"], i.get("ids"), i.get("detail", "")[:200] if isinstance(i.get("detail"), str) else i.get("detail"))

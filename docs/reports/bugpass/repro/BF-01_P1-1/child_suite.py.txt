@@ -1,0 +1,17 @@
+"""Stand-in for a hung pytest process: one test.sleep job in a real WorkerPool, then the process hangs."""
+import sys, threading, time
+from pathlib import Path
+from agentprov.host import Calibration
+from agentprov.io.workers import Job, WorkerPool
+
+out = Path(sys.argv[1])
+pool = WorkerPool(test_kinds=True, calibration=Calibration.skipped("repro"), _internal=True)
+threading.Thread(target=lambda: pool.run_one(Job("a", "test.sleep", params={"seconds": 12})), daemon=True).start()
+for _ in range(200):
+    with pool._active_lock:
+        procs = [w.proc.pid for w in pool._active if getattr(w, "proc", None)]
+    if procs:
+        out.write_text(str(procs[0]))
+        break
+    time.sleep(0.05)
+time.sleep(600)  # hung suite

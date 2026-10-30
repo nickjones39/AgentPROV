@@ -1,0 +1,32 @@
+import sys, json, os
+W="~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-new-families-aceed5"
+sys.path[:0]=[W+"/tests/adapters/agentdojo", W+"/tests"]
+import test_rescont as T
+r = T.row(suite="banking"); r["extra"] = 1
+doc = T.container([r]); del doc["suite"]; doc["mode"]="smoke"
+m = T.one(doc, "results/comprehensive_eval/smoke_x.json")
+h = m.header
+print("unit/degenerate issues:", [i for i in m.info.issues] if hasattr(m.info,'issues') else None)
+print("task:", h["task"], "ev:", h.get("ev"), "by:", h.get("by"))
+print("evf:", h.get("evf"), "rule:", h.get("rule"))
+print("src:", h.get("src"))
+print("validate:", [(f.code,f.pointer,f.severity) for f in m.validate().findings])
+# control: container has suite
+r = T.row(suite="banking"); r["extra"] = 1
+doc = T.container([r]); doc["mode"]="smoke"
+m2 = T.one(doc, "results/comprehensive_eval/smoke_x.json")
+print("control src:", m2.header.get("src"), m2.header["task"])
+# control: mapped path (no extra key) smoke without container suite
+r = T.row(suite="banking")
+doc = T.container([r]); del doc["suite"]; doc["mode"]="smoke"
+m3 = T.one(doc, "results/comprehensive_eval/smoke_x.json")
+print("mapped src:", m3.header.get("src"))
+print("m3 issues:", m3.info.issues, "kinds:", sorted({x.get('k') for x in getattr(m3,'records',[])}) if hasattr(m3,'records') else None)
+r = T.row(suite="banking")
+doc = T.container([r]); del doc["suite"]
+m4 = T.one(doc)
+print("m4 (non-smoke, no container suite) src:", m4.header.get("src"), m4.info.issues)
+r = T.row(suite="banking")
+doc = T.container([r])
+m5 = T.one(doc)
+print("m5 normal src:", m5.header.get("src"))

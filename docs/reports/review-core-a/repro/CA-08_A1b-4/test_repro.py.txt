@@ -1,0 +1,32 @@
+"""A1b-4: reported_counts must count kept calls only (C.20(1)); a cache read never reaches the provider."""
+from __future__ import annotations
+
+import sys
+
+sys.path.insert(
+    0,
+    "./tests/unit/aer",
+)
+
+from aer_support import edit, example_records  # noqa: E402
+
+from agentprov.aer.accounting import compute  # noqa: E402
+
+
+def test_cached_call_is_not_counted_against_the_provider_reported_call_count() -> None:
+    recs = edit(example_records(), "mc0", ev="O", by="capture", src=[{"a": "a0", "p": "/messages/0"}], rule=None)
+    recs = edit(recs, "mc1", ev="O", by="capture", src=[{"a": "a0", "p": "/messages/0"}], rule=None, status="cached")
+    recs = edit(recs, "run", usage={"calls": 1})  # the provider saw only the kept call mc0
+    acc = compute(recs[1:])
+    entry = next(c for c in acc.checks if c["id"] == "aer.acc.reported_counts@1" and c["scope"] == "run")
+    assert entry["verdict"] == "consistent", entry
+    assert entry["observed"]["assistant_messages"] == 1, entry
+    assert acc.status != "inconsistent", acc.to_json()
+
+
+def test_cached_call_still_inconsistent_if_provider_count_includes_it() -> None:
+    # the kept-only rule: reporting 2 provider calls for 1 kept + 1 cached is a mismatch
+    recs = edit(example_records(), "mc1", status="cached")
+    recs = edit(recs, "run", usage={"calls": 2})
+    entry = next(c for c in compute(recs[1:]).checks if c["id"] == "aer.acc.reported_counts@1")
+    assert entry["verdict"] == "inconsistent", entry

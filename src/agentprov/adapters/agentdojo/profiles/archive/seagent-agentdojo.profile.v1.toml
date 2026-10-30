@@ -1,0 +1,166 @@
+# Source profile `seagent-agentdojo`: the AgentDojo episode logs of the SEAgent artefact (ACSAC 2026), Zenodo record
+# 23218779: 5,342 AgentDojo 0.1.34 TraceLogger logs of deepseek-v3 under five arms (baseline, AgentSpec, PVAgent, SEAgent
+# with the initial and the refined policy), security runs with the important_instructions attack and benign performance
+# runs, on banking, slack, travel and workspace (phase 10f; docs/reports/systematic-search/candidates/phase10e-candidates.md
+# §3.1, D-144).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The `[family.agentdojo]` part is checked against the closed
+# schema `family.schema.json` of this family (D.4.1). The quirks' `observed` counts are the phase-10f census of every log in
+# the pinned zip (tools/agentdojo/phase10f_seagent.py census; docs/reports/phase10f/).
+#
+# Not mapped as decisions (routed, docs/reports/phase10f/README.md): in the seagent and seagent-RF arms, 960 guard warnings
+# ("[WARNING] Tool call to '<tool>' may violate the user intent...", 23 opening phrases) follow a tool result as extra
+# user-role messages in 863 logs; the mapper records them as unattributed additional user messages, never as the user's.
+# In the pvagent arm, 740 assistant messages have no tool_calls key, so the tool results after them (541 logs) are
+# orphan results (agentdojo.unknown_message_shape); they stay unlinked, no call is inferred.
+#
+# Input: the logs are members of a deposit zip. The runner does not yet import a deposit archive whose members are whole
+# run logs ("archive inputs" are deferred, D_adapters §D.6.15); until it does there is no trial import, and the census maps
+# each member through the same mapper with a member origin (phase-10f report; routing D-156).
+
+[profile]
+id = "seagent-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "seagent-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "SEAgent artefact: AgentDojo 0.1.34 logs of deepseek-v3 under SEAgent, PVAgent, AgentSpec and no defence (Zenodo 23218779)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.1", "docs/reports/phase10f/README.md"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.23218779"
+paper = "SEAgent: Securing Computer-Use Agents via Intent-Aware Static Access Control (ACSAC 2026; artefact record)"
+package = { name = "agentdojo", requirement = "agentdojo 0.1.34 vendored under artifact/agentdojo/ (EVALUATION.md)", version_identifies_code = false }
+
+# The pin is the deposit file. 26,033 zip members; the logs are the 5,342 *.json members under
+# seagent-ae/artifact/results/raw_data/agentdojo/. The record is the latest of four versions of its concept
+# (19236299, 22771109, 23209025, 23218779; phase 10e).
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.23218779"
+file = "seagent-acsac2026-ae-v2.zip"
+sha256 = "e15a8f0fc869151ad3c8fab23bbb37384315745669b0aab7a5a0760c825764bd"
+md5 = "37d4b444e908d7164db8bbc891d720d9"
+size = 237707785
+date = "2026-10-07"
+note = "fetched 2026-10-12 (phase 10f); the md5 equals the record's checksum"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["the SEAgent authors (artefact record 23218779)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "README and LICENSES.md of the deposit: SEAgent-authored data under CC-BY-4.0 and software under Apache-2.0; AgentDojo benchmark text and runtime code keep the MIT licence (artifact/agentdojo/LICENSE)"
+attribution = [
+  "SEAgent artefact, Zenodo 10.5281/zenodo.23218779 (CC-BY-4.0 data, Apache-2.0 code)",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo 0.1.34 vendored in the deposit with the SEAgent integration (not verified, D-24)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["seagent-ae/artifact/results/raw_data/agentdojo/*/*/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "{model_dir?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = [
+  "seagent-ae/README.md", "seagent-ae/LICENSES.md", "seagent-ae/EVALUATION.md",
+  "seagent-ae/artifact/results/raw_data/agentdojo/*/*/benchmark_results.csv",
+  "seagent-ae/artifact/results/raw_data/agentdojo/*/*/*.log",
+]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/seagent_run_dirs.toml", sha256 = "6e05ca8e8b84cf3c8d238b817d513ce90aad820630ae32430ef7f8e094018801" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+
+[family.agentdojo.harness]
+# agentdojo 0.1.34 is vendored in the deposit with SEAgent's integration; the code was not read or verified (D-24, D-103)
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 657, origin_rule_applied = 657 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 172 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 392, logs = 317 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 5135 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 15902, present_and_null = 15902 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

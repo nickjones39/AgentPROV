@@ -1,0 +1,34 @@
+--- a/src/agentprov/aer/validate.py
++++ b/src/agentprov/aer/validate.py
+@@ class ValidationReport:
+     mode: str
+     truncated: bool = False
+     ex: str | None = None
++    #: error findings not stored because MAX_FINDINGS was reached (never silently dropped)
++    dropped_errors: int = 0
+     _errors: tuple[Finding, ...] = field(default=(), repr=False)
+@@
+     @property
+     def ok(self) -> bool:
+-        """No error findings."""
+-        return not self.errors
++        """No error findings, stored or dropped by the findings cap."""
++        return not self.errors and not self.dropped_errors
+@@ def __init__(...)
+         self._findings: list[Finding] = []
+         self._truncated = False
++        self._dropped_errors = 0
+@@ def _add(...)
+         severity = "warning" if release_only and self._mode == "dev" else "error"
+         if len(self._findings) >= MAX_FINDINGS:
+             self._truncated = True
++            if severity == "error":
++                self._dropped_errors += 1
+             return
+         self._findings.append(Finding(code, invariant, line, pointer, severity, detail))
+@@ def finish(...)
+             truncated=self._truncated,
++            dropped_errors=self._dropped_errors,
+             ex=self._ex,
+         )
+(Callers that list error codes, e.g. corpus/validation.py out["aer"]["errors"], could add "aer.findings_truncated" when report.dropped_errors > 0 so the failure is visible.)

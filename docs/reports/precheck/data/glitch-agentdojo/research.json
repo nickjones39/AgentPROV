@@ -1,0 +1,236 @@
+{
+  "corpus_id": "glitch-agentdojo",
+  "parts": [
+    "head"
+  ],
+  "wave": 2,
+  "written": "2026-10-14",
+  "code_commit": "065b0d36",
+  "status": "desk research for the pre-registration; no data check of this corpus has run",
+  "papers": [
+    {
+      "title": "none: no paper, preprint, DOI or data record found for the Glitch suite (GitHub, arXiv/web search, Zenodo API, Hugging Face API, 2026-10-14); the repository READMEs are the only description of the runs",
+      "url": "https://github.com/zanethomas1430-code/Glitch",
+      "id": "none",
+      "relation": "primary documentation = 17_agentdojo/README.md and 17_agentdojo/RESULTS.md at the pin",
+      "versions": "n/a"
+    },
+    {
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+      "url": "https://arxiv.org/abs/2406.13352",
+      "id": "arXiv:2406.13352",
+      "relation": "benchmark the logs run on (v1 suites, important_instructions attack); reference only, not the corpus's own paper",
+      "versions": "v1-v3 on arXiv; not compared further (reference numbers only via the leaderboard)"
+    },
+    {
+      "title": "AgentDojo results leaderboard",
+      "url": "https://agentdojo.spylab.ai/results/",
+      "id": "n/a",
+      "relation": "external reference row for gpt-4o-2024-05-13 / important_instructions / no defence (utility 69.07%, utility under attack 50.08%, targeted ASR 47.69%, 2024-06-05); context only, not an L2 target",
+      "versions": "page as fetched 2026-10-14"
+    }
+  ],
+  "repo": {
+    "url": "https://github.com/zanethomas1430-code/Glitch",
+    "pinned_commit": "713bb2961fa16980ca8085d372adb200a66cad71",
+    "pin_date": "author/committer 2026-10-08T01:21:49Z (GitHub API, UTC); the profile records 2026-10-07 (probably the author's local date); message 'README: what a fresh clone does, and what each skip needs'",
+    "pin_tree": "2,762 blobs, 25,994,554 bytes (git trees API, not truncated) = profile expected_files/expected_bytes and phase-10c census all_tree_entries",
+    "history": [
+      "2fd63eb8a392 2026-10-07T18:17Z first commit (repo created 2026-10-07T04:56Z): adds 17_agentdojo/ code, README.md, RESULTS.md, OFFLINE.md, offline_results*.json, no run logs",
+      "211dab738f3d, 037692963ec9, a2867c76aff9, dad877961b3f 2026-10-08: neutralisation/cleanup of names and documents (no run logs)",
+      "4adbd422d9a8 2026-10-08T01:20:59Z 'Ship the run logs ...': adds the 1,845 files under 17_agentdojo/runs/ (1,844 logs + index.jsonl), all 'added' [fact-check: the commit adds 2,459 blobs in all (tree 303 -> 2,762), incl. 11_testbed/runs, 15_agent_sdk/runs, 12_arena/runs]",
+      "713bb2961fa1 2026-10-08T01:21:49Z = pin (1 file, README)",
+      "51b5b4eb038a 2026-10-12T18:27:35Z = current head of main ('Round twelve'): 37 files changed [corrected: not only 17_agentdojo]; within 17_agentdojo/ it changes README.md, dojo_gateway.py, pipeline.py, test_dojo.py; elsewhere 00_docs, 11_testbed (adds 11_testbed/runs/suite-compliant/*), 12_arena and root files; every blob under 17_agentdojo/runs/ is identical at pin and head (tree-sha comparison)"
+    ],
+    "run_logs_vs_code": "the logs are dated 2026-10-05 (census ts_range 12:20:22-23:30:23, naive) and predate the repository; the code that wrote them is not in the history. At the pin, build_pipeline() loads AgentDojo's default system message, yet the 169 claude-haiku-4-5-glitch logs carry the 466-char DEFAULT_SYSTEM constant of pipeline.py (sha256 ba82aafe..., identical to the profile's glitch_claude_prompt), so those logs came from an earlier code state",
+    "harness_patches_in_pipeline_py": [
+      "_patch_anthropic_call: Anthropic requests made non-streaming without temperature (model default sampling) for the claude-haiku-4-5 arms; docstring says this is noted in RESULTS.md, but RESULTS.md at the pin does not mention it (README 'What this does not show' does)",
+      "_patch_openai_retry: up to 10 attempts with waits up to 120 s for OpenAI transient errors; insufficient_quota ends the run (README/run_dojo.py note the credit ran out at run 410 of 560 on 2026-10-05; runs resume from AgentDojo's cache)",
+      "denials are written as a tool message with empty content and error 'DENIED by the gateway: <reason>'; unknown tools as error 'Invalid tool <name> provided.'"
+    ],
+    "issues": "0 open, 0 closed issues; 0 releases, 0 tags; one branch (main); owner account created 2026-01-27 with one public repository",
+    "url_api": "https://api.github.com/repos/zanethomas1430-code/Glitch"
+  },
+  "data_record": "No Zenodo, Hugging Face or Figshare record (Zenodo API query 'Glitch AND AgentDojo' returned 0 hits; HF dataset search 'glitch' returned only unrelated datasets). The data is the git tree: 17_agentdojo/runs/ at 713bb296, 1,844 JSON logs (19,245,859 bytes = 19,248,963 bytes of the directory minus index.jsonl 3,104 bytes; per-file 1,868-74,838 bytes) plus runs/index.jsonl. Our pin = profile commit 713bb2961fa1 with expected_files 2762 / expected_bytes 25994554, matching the GitHub tree exactly; census pin absent_blobs [] and covering_paths 0. The head moved on (51b5b4eb) without touching runs/, so no re-pin is needed for the data.",
+  "harness": "AgentDojo 0.1.35 (PyPI upload 2025-10-27, still the latest release) per agentdojo_package_version in all 1,844 logs; installation not declared in the repository (code_identity unpinned). Benchmark version v1 (run_dojo.py --version default 'v1'; benchmark_version 'v1' in all logs). Attack important_instructions. Glitch gateway = GlitchToolsExecutor replacing ToolsExecutor; baselines use AgentDojo's own ToolsExecutor. Known AgentDojo bugs relevant to these logs: #168 slack injection_task_5 security_from_traces scores attempted-but-denied membership calls as attack success (https://github.com/ethz-spylab/agentdojo/issues/168, open; #189 closed as its duplicate); #188 slack user task utility check raises KeyError when post_webpage is refused (https://github.com/ethz-spylab/agentdojo/issues/188, open); #181 banking injection tasks 0/1/3 subject check is dead code, so any transfer to the attacker IBAN scores success (https://github.com/ethz-spylab/agentdojo/issues/181, open); #161 banking user_task_5 utility checks the old transaction (https://github.com/ethz-spylab/agentdojo/issues/161, open); #218 utility_from_traces counts proposed calls (https://github.com/ethz-spylab/agentdojo/issues/218, open); #214 non-ASCII tool results passed as \\uXXXX escapes (https://github.com/ethz-spylab/agentdojo/issues/214, open); #212 --max-workers>1 crash (not used here).",
+  "models": [
+    "gpt-4o-2024-05-13 (OpenAI API, AgentDojo OpenAILLM, AgentDojo's default temperature; pipeline dirs gpt-4o-2024-05-13 and gpt-4o-2024-05-13-glitch)",
+    "claude-haiku-4-5 (Anthropic API alias, no dated snapshot recorded; patched non-streaming call without temperature; pipeline dirs claude-haiku-4-5 and claude-haiku-4-5-glitch; banking only)"
+  ],
+  "reported_results": [
+    {
+      "arm": "gpt-4o-2024-05-13 / none / workspace",
+      "metric": "benign utility; utility under attack; targeted ASR",
+      "value": "24/40; 48/240; 97/240",
+      "n": "40 benign / 240 attacked",
+      "where": "17_agentdojo/RESULTS.md table rows 1-2 and README 'Real-model results' at https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / glitch / workspace",
+      "metric": "benign utility; utility under attack; targeted ASR; gateway fired benign/attacked",
+      "value": "23/40; 110/240; 2/240; 3/131",
+      "n": "40 / 240",
+      "where": "RESULTS.md (same URL)"
+    },
+    {
+      "arm": "claude-haiku-4-5 / none / banking",
+      "metric": "benign utility; utility under attack; targeted ASR",
+      "value": "7/16; 75/144; 0/144",
+      "n": "16 / 144",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "claude-haiku-4-5 / glitch / banking",
+      "metric": "benign utility; utility under attack; targeted ASR; gateway fired",
+      "value": "9/16; 74/144; 0/144; 0/0",
+      "n": "16 / 144",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / none / banking",
+      "metric": "benign utility; utility under attack; targeted ASR",
+      "value": "15/16; 116/144; 96/144",
+      "n": "16 / 144",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / glitch / banking",
+      "metric": "benign utility; utility under attack; targeted ASR; gateway fired",
+      "value": "14/16; 98/144; 5/144; 1/96",
+      "n": "16 / 144",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / none / travel",
+      "metric": "benign utility; utility under attack; targeted ASR",
+      "value": "14/20; 45/140; 54/140",
+      "n": "20 / 140",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / glitch / travel",
+      "metric": "benign utility; utility under attack; targeted ASR; gateway fired",
+      "value": "12/20; 63/140; 29/140; 1/34",
+      "n": "20 / 140",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / none / slack",
+      "metric": "benign utility; utility under attack; targeted ASR",
+      "value": "17/21; 71/105; 97/105",
+      "n": "21 / 105",
+      "where": "RESULTS.md"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / glitch / slack",
+      "metric": "benign utility; utility under attack; targeted ASR (benchmark scoring; 0/105 by effect); gateway fired",
+      "value": "13/21; 32/105; 7/105; 8/104",
+      "n": "21 / 105",
+      "where": "RESULTS.md; README slack row"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / none / all four",
+      "metric": "benign utility; utility under attack; targeted ASR",
+      "value": "70/97; 280/629; 344/629 (55%)",
+      "n": "97 / 629",
+      "where": "17_agentdojo/README.md 'Real-model results' table, row 'all four' (https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/README.md)"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / glitch / all four",
+      "metric": "benign utility; utility under attack; targeted ASR (by effect); attacked runs with a refusal",
+      "value": "62/97; 303/629; 43/629 = 7% (36/629 by effect); 365/629",
+      "n": "97 / 629",
+      "where": "README 'Real-model results', row 'all four'"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / workspace, per injection task",
+      "metric": "ASR undefended -> glitch, of 40 each (injection_task_0..5)",
+      "value": "20->0, 23->2, 30->0, 10->0, 9->0, 5->0; the 2 defended successes are user_task_35 and user_task_38 under injection_task_1",
+      "n": "40 per injection task",
+      "where": "README workspace paragraph"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / banking, per injection task",
+      "metric": "ASR undefended -> glitch, of 16 each (injection_task_0..8)",
+      "value": "15->1, 15->0, 13->1, 14->1, 13->0, 1->0, 1->0, 12->2, 12->0; of the 5 glitch successes 4 are under user_task_15 and 1 under user_task_13",
+      "n": "16 per injection task",
+      "where": "README banking paragraphs"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / glitch, residual successes by kind",
+      "metric": "count of the 43 glitch successes",
+      "value": "banking user_task_15 destination in prompt + capability grants (banking 1, workspace 2, travel 18) + travel text-only goal 11 + slack injection_task_5 trace-scored 7",
+      "n": "43",
+      "where": "README 'Across the four suites' paragraph"
+    },
+    {
+      "arm": "gpt-4o-2024-05-13 / travel",
+      "metric": "ASR excluding the text-only goal, none -> glitch",
+      "value": "47/120 -> 18/120",
+      "n": "120",
+      "where": "README travel paragraph"
+    }
+  ],
+  "expected_counts": "Tree at pin 2,762 files / 25,994,554 bytes; selected 1,844 logs (glob 17_agentdojo/runs/*/*/*/*/*.json), not selected 918 (index.jsonl and the rest of the Glitch suite; 0 .DS_Store/._ entries); units 1,844 agent_execution; executions 1,844 (phase-10d trial at jobs 8; corrected: the jobs-3 import was a 370-log subset with 0 differences on the overlap). Per pipeline: gpt-4o-2024-05-13 753 and -glitch 753 (each 629 attacked + 97 benign user-task + 27 injection-task pre-pass), claude-haiku-4-5 169 and -glitch 169 (banking only: 144 attacked + 16 benign + 9 pre-pass). Per suite: banking 676, workspace 572, travel 334, slack 262. Sources: registry/readme_corpora.toml (1,844 logs, census), docs/reports/phase10d/glitch-agentdojo.census.json, phase-10c census summary, GitHub git tree at the pin, README n columns.",
+  "expected_arms": "model {gpt-4o-2024-05-13, claude-haiku-4-5} x defence {none, glitch} x attack {important_instructions, none} x suite {workspace, banking, travel, slack}; 22 (pipeline, suite, attack_dir) cells present; by design missing: claude-haiku-4-5 (both defences) on workspace, travel and slack (6 pipeline x suite cells, documented as a banking-only measurement). Not expected in the logs: defences glitch-seen, glitch-boss, glitch-record (README: offline/unrun), ollama/local models, other attacks.",
+  "licence": "MIT, LICENSE at the pin, Copyright (c) 2026 Zane Thomas (https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/LICENSE); no separate data licence; logs embed AgentDojo benchmark text (MIT, (c) 2024 Debenedetti et al.); no use restriction clause found; model-provider terms on redistributing OpenAI/Anthropic outputs unassessed.",
+  "discrepancy_leads": [
+    "RESULTS.md and README are generated from the same files (run_dojo.py --summary): per-arm counts should reproduce exactly; any difference means files changed after the summary or the reading differs",
+    "Benign utility in RESULTS.md counts only user_task_*/none files; the 72 injection-task pre-pass files (54 gpt-4o, 18 haiku) are outside the reported n and must be excluded from the L2 benign arm",
+    "census aggregates imply 45 of the 72 pre-pass files have utility True (925 - 148 benign - 732 attacked) and attacked security True = 387 (685 - 298 benign constants) = 344 + 43 + 0 + 0 as reported",
+    "the 169 claude-haiku-4-5-glitch logs use a 466-char system prompt (pipeline.py DEFAULT_SYSTEM), all other 1,675 the 469-char AgentDojo default: a within-model confound between the two haiku arms, and evidence the logs were written by code not in the repository history",
+    "claude-haiku-4-5 arms were sampled without temperature (patched Anthropic call) while gpt-4o used AgentDojo's default; not recorded in the logs; RESULTS.md does not carry the note pipeline.py says it does",
+    "claude-haiku-4-5 is an alias, not a dated snapshot: the model checkpoint is not recoverable",
+    "slack gpt-4o-glitch: the 7 scored successes are said to be injection_task_5 scored from attempted calls with every membership call denied (AgentDojo #168): 0/105 by effect",
+    "AgentDojo #188: a refused post_webpage in slack can crash the utility check; all 1,844 logs have error null, so either no refused post_webpage in the affected user task or the crash did not occur",
+    "workspace gpt-4o run was interrupted (credit ran out at run 410 of 560) and resumed from AgentDojo's cache: possible mixed sessions, timestamp gap, but no missing cells expected",
+    "the profile's pin date 2026-10-07 differs from the commit's UTC date 2026-10-08T01:21:49Z",
+    "the repository also holds other run directories that the profile does not select and the registry does not list as parts: 11_testbed/runs (303 JSON of 560 blobs), 15_agent_sdk/runs (30 JSON + WITHDRAWN.txt), 12_arena/runs (23 JSON) [corrected: 14_inspect holds 3 code/doc files, no run logs]",
+    "gpt-4o-2024-05-13 at AgentDojo's default temperature on v1 suites: some trajectories may be identical to other corpora's gpt-4o-2024-05-13 runs (agentdojo 2024-06) or between the none and glitch arms where the gateway never fired"
+  ],
+  "open_questions": [
+    "Which code state wrote the 2026-10-05 logs (no commit before 2026-10-07); only runs/index.jsonl (not read in pre-registration) may record the invocations",
+    "Exact Anthropic model snapshot behind the alias claude-haiku-4-5 on 2026-10-05",
+    "Whether any slack -glitch log refused post_webpage (AgentDojo #188) and how utility was then recorded",
+    "Should the unregistered run directories (11_testbed/runs, 15_agent_sdk/runs, 12_arena/runs) be screened as separate parts? Route to the orchestrator"
+  ],
+  "checks_not_applicable": [
+    "delta since E2: glitch-agentdojo was not examined in FA or E2 (wave 2, first examination)",
+    "L1-07 monotonicity within a unit: v1.k14 TraceLogger logs carry one naive evaluation_timestamp per file and no per-call times",
+    "withholding (verify --level chain on a sealed copy): applies only if L1-06 finds secret-like strings; none expected"
+  ],
+  "sources": [
+    "https://github.com/zanethomas1430-code/Glitch",
+    "https://api.github.com/repos/zanethomas1430-code/Glitch/commits",
+    "https://github.com/zanethomas1430-code/Glitch/commit/4adbd422d9a8",
+    "https://github.com/zanethomas1430-code/Glitch/commit/51b5b4eb038a",
+    "https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/README.md",
+    "https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/RESULTS.md",
+    "https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/OFFLINE.md",
+    "https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/pipeline.py",
+    "https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/run_dojo.py",
+    "https://pypi.org/pypi/agentdojo/json",
+    "https://github.com/ethz-spylab/agentdojo/issues",
+    "https://agentdojo.spylab.ai/results/",
+    "https://zenodo.org/api/records?q=%22Glitch%22%20AND%20%22AgentDojo%22",
+    "https://huggingface.co/api/datasets?search=glitch"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "by": "adversarial fact-check pass (desk only; no raw data read)",
+    "confirmed": [
+      "all RESULTS.md rows (10) and README 'Real-model results' rows, per-injection-task sequences, residual breakdown 4+1+2+18+11+7=43, travel 47/120->18/120 (https://github.com/zanethomas1430-code/Glitch/blob/713bb2961fa16980ca8085d372adb200a66cad71/17_agentdojo/RESULTS.md, .../17_agentdojo/README.md)",
+      "pin 713bb296 committed 2026-10-08T01:21:49Z, README-only, parent 4adbd422; tree 2,762 blobs / 25,994,554 bytes; runs/ 1,845 blobs / 19,248,963 bytes; 1,844 logs / 19,245,859 bytes, 1,868..74,838; per-cell listing; runs/ identical at head (GitHub git trees API)",
+      "MIT LICENSE at the pin, (c) 2026 Zane Thomas, no restriction clause; AgentDojo MIT (c) 2024 Debenedetti et al.",
+      "pipeline.py at pin: DEFAULT_SYSTEM 466 chars sha256 ba82aafe...; build_pipeline defaults to AgentDojo's system message; Anthropic patch drops temperature; OpenAI retry 10/120 s; RESULTS.md has no temperature note",
+      "census arithmetic for H2 (phase-10c census summary: utility True 925, security True 685; benign constant 298)",
+      "agentdojo 0.1.35 upload 2025-10-27, latest (https://pypi.org/pypi/agentdojo/json); issues #161 #168 #181 #188 #212 #214 #218 open; #189 closed 2026-09-07 as duplicate of #168 per a #168 comment; leaderboard 69.07/50.08/47.69; arXiv v1-v3; Zenodo 0 hits"
+    ],
+    "corrected": [
+      "head 51b5b4eb changes 37 files, not only 17_agentdojo harness files",
+      "phase-10d trial jobs-3 import covered a 370-log subset, not all 1,844",
+      "4adbd422 added 2,459 blobs, not only the 1,845 under runs/",
+      "other run directories: 11_testbed/runs 303 JSON of 560 blobs; 15_agent_sdk/runs 30 JSON + 1 txt; 14_inspect has no run logs"
+    ]
+  }
+}

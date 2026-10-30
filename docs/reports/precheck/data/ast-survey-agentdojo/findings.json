@@ -1,0 +1,465 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "ast-survey-agentdojo",
+ "findings": [
+  {
+   "id": "PC-ast-survey-agentdojo-02",
+   "title": "README 'Affected tasks' of the gpt-oss 500 errors do not match the released logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1 outcome rows (error_present) vs desk research; H2 refuted, H3 and H9 supported",
+   "evidence": "11/3,243 logs have a non-null error, all runs_gpt-oss_120b: 10 attack pairs (workspace ut1/it8, ut3/it8, ut9/it13, ut13/it13, ut15/it7, ut25/it1, ut29/it13, ut34/it13; slack ut11/it2; travel ut19/it0) and 1 solvability run (workspace injection_task_13). 1 of the 10 attacked errors is in the README tasks (workspace ut26, ut30; travel ut19); 34 of the 35 gpt-oss pairs on those tasks have no error; benign ut19/ut26/ut30 have error null. The released benign travel ut19 log is error-free, so the README's 'deterministic' claim is contradicted, not just unreflected.",
+   "reproduction": "python3 -I over W/l1-units-agentdojo-runs.jsonl: rows with outcomes.error_present -> 11 {'runs_gpt-oss_120b'}; l1-extra.json /H2_H3_run_errors",
+   "hypothesis_ref": "H2",
+   "recommendation": "Disclose in the dossier and manuscript artefact table: the README task list likely describes earlier, unreleased runs (aborted pre-patch run, partial run; cf. console_attack_restart/_v2). No mapping change; run_error_imposed (11) stays.",
+   "artefact_proposal": "[[artefact]]\nid = \"survey.art.readme_error_tasks_mismatch\"\ntitle = \"README names other tasks than the released run errors\"\ndescription = \"The survey README attributes the deterministic gpt-oss InternalServerError runs to workspace user_task_26/30 and travel user_task_19 (the latter aborting the utility phase); the released logs hold 11 errors, 1 of them in those tasks, and the benign travel user_task_19 log has no error. The README likely describes earlier, unreleased runs.\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentdojo-runs\"], profiles = [\"survey-runs\"] }\ncause = \"documentation\"\ndetector = { rule = \"survey.internal_server_error_patch@1\", class = \"I\" }\nclaims = []\nrecorded_as = { aer = [\"execution.ext.agentdojo.error\"] }\nhandling = { class = \"FO\" }\nexpected = [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 11, basis = \"precheck L1 error_present; 1 of 10 attacked errors in the README tasks; 34 of 35 pairs on those tasks error-free\" } ]\nmanuscript = true\nrefs = [\"docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json\", \"agentdojo/README.md @89c4db2c l.289-296 (Affected tasks)\"]",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Counts reproduced from l1-units (11, all gpt-oss; 10 listed pairs + 1 solvability). error_present reads the raw AgentDojo error field (l1_families.py:301); the total agrees with the prereg 11 and the stored index run_error_imposed 11, so not a tool artefact. README at the pin re-read as data: names ut26/ut30/ut19 and calls the 500 deterministic. Alternative (README describes unreleased earlier runs) supports the finding. Corrections: Cause wording: 'likely describes earlier, unreleased runs'; 'deterministic' claim contradicted (benign ut19 error-free); refs to README l.289-296. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-03",
+   "title": "README 'partial benchmark' table (105 pairs per model) is not reproducible from the released logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1-07 run timestamps + raw outcomes; H4 refuted",
+   "evidence": "The partial pair set at the pin (run_partial_benchmark.sh, incl. the gpt-oss ut20 substitution) is 105 pairs/model. Each model's 949 attack logs are one contiguous pass in task order (97 user-task blocks), so the partial pairs are ordinary full-run logs; the 14 of 105 that 'precede' the rest are workspace user_task_0, i.e. task order. Logs (utility/ASR) vs README: qwen3:14b 52/29 vs 53/36; qwen3-coder 37/38 vs 27/38; gpt-oss 43/53 vs 53/48. 1 of 6 combined cells equal; per-suite differences are integer counts, not rounding. Phase-1 and full-949 tables reproduce exactly (H1).",
+   "reproduction": "python3 -I D/exam-scripts/pop.py ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial pop_rows.json; python3 -I D/exam-scripts/hyp.py pop_rows.json; l1-extra.json /H4_partial",
+   "hypothesis_ref": "H4",
+   "recommendation": "Dossier/manuscript note: the partial run's logs are not in the release; only the Phase-1 and full-949 tables are backed by data.",
+   "artefact_proposal": "[[artefact]]\nid = \"survey.art.partial_table_unbacked\"\ntitle = \"Partial-benchmark table not backed by released logs\"\ndescription = \"The README's 105-pair partial table differs from the same pairs of the released full run in 5 of 6 combined cells; each model's 949 attack logs are one contiguous pass, so the partial run's logs were not released.\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentdojo-runs\"], profiles = [\"survey-runs\"] }\ncause = \"documentation\"\ndetector = { rule = \"<none: README table vs released logs; no per-trace detector>\", class = \"I\" }\nclaims = []\nrecorded_as = {}\nhandling = { class = \"FO\" }\nexpected = [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 315, basis = \"precheck: 105 pairs x 3 models (run_partial_benchmark.sh at 89c4db2c); 1 of 6 combined cells equal\" } ]\nmanuscript = true\nrefs = [\"docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json\"]",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Partial set re-derived from run_partial_benchmark.sh at the pin (local blob, no fetch) = hyp.py PART table. README per-suite percentages converted to integers differ from log counts (not rounding). Mapper defect implausible (H1 exact). Attack logs form 97 contiguous task blocks per model: no separate partial run in the release. Corrections: The '14 precede' is task order, not cache evidence; add the contiguous-pass proof; detector agentdojo.checker_outcome_unverified@1 is a loose fit. Applied (detector replaced by a 'none' note for the owner)."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-04",
+   "title": "[CC-07] Banking injection_task_0/3 successes without the targeted datum in the transfer subject (agentdojo#181): survey expected row missing under validity_defects",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "H10 (tool-call args via the stored AER; counts only)",
+   "evidence": "Banking security=True: it0 27, it1 25, it3 30, all with a transfer to the attacker IBAN. Subject holds the datum: it0 20/27 ('spotify'), it3 24/30 ('iphone'): 13 of 57 lack it (hand-checked; looser terms change none). it1 not tested. AgentDojo 0.1.35 v1/v1_2 banking/injection_tasks.py l.61/107/208 use `x or \"\" in subject`, so any attacker transfer counts. Already catalogued as the 'banking precedence' sub-category of agentdojo.art.validity_defects (scope includes survey-runs), but the survey expected row (count 4) covers vacuous utility only, and no per-trace detector is implemented.",
+   "reproduction": "python3 -I D/exam-scripts/pop.py ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial pop_rows.json, then send_money args of banking successes (counts only): it0 27 {to_attacker 27, subject_has_target 20}; it3 30 {to_attacker 30, subject_has_target 24}; l1-extra.json /H10_banking_subject",
+   "hypothesis_ref": "H10",
+   "recommendation": "Route to the agentdojo family owner: add a survey expected row for banking precedence under agentdojo.art.validity_defects (no new entry), add ref agentdojo#181, note the missing per-trace detector. Recount it1 (subject vs the pizza companion's IBAN). Disclose that banking it0/1/3 ASR counts any attacker transfer. Never exclude the runs. R2 / CC-07: the defect is covered by agentdojo.art.validity_defects (banking precedence); the entry's missing survey expected row is the documentation-mismatch PC-ast-survey-agentdojo-12.",
+   "artefact_proposal": "# addition to the existing entry agentdojo.art.validity_defects (no new [[artefact]])\nexpected += [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 13, basis = \"banking precedence (agentdojo#181), precheck H10: it0 7/27, it3 6/30 successes lack the datum in the subject; it1 untested; lower bound\" } ]\nrefs += [\"https://github.com/ethz-spylab/agentdojo/issues/181\"]",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "pop.py re-run on the stored corpus: counts exact; 13 non-matching subjects quoted (<40 chars) and none holds the datum. Benchmark code confirms the precedence bug (l.61/107/208); v1_2_1/v1_2_2 do not override. Already a named sub-category of agentdojo.art.validity_defects whose scope covers the survey; prereg H10 says expected-known if routed there. Missing: survey count and per-trace detector. Corrections: Reclassify source-defect S2 -> expected-known S3; no new entry (would duplicate validity_defects); add survey expected row (13, lower bound), ref #181, note detector absence; it1 recount as followup. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Instance of CC-07 / R2: covered by agentdojo.art.validity_defects (src/agentprov/adapters/agentdojo/artefacts.toml l.327-343; banking precedence sub-category, scope includes survey-runs). expected-known S3, as the verifier reclassified it. The entry's expected row gap is the separate documentation-mismatch S3 PC-ast-survey-agentdojo-12 (R2). Same class as PC-mandate-agentdojo-eval-01/02."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-05",
+   "title": "[CC-04] U6-c / D-373 predicted one apv:Gap per model call; the engine records apv:paramsStatus NotRecorded instead",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "DL-1 delta (PROV) / prereg section 8 row U6-c",
+   "evidence": "Scratch AER: unk /params on 525/525 model calls (stored 0). PROV Gap entities 1,619 = 1,619, 0 with property /params. apv:paramsStatus apv:NotRecorded on 525 ModelInvocation activities (inference). prov/rules/nodes.py _status_target maps /params* to that attribute; EF_provenance.md l.906 specifies it. The 120 paramsStatus on AgentSystem agents are unchanged.",
+   "reproduction": "grep -n -A1 'startswith(\"/params\")' src/agentprov/prov/rules/nodes.py; delta-p10-vs-l2.json /prov/gap_entities_total, /prov/added; direct walk of 120 scratch PROV files: Gap properties total 1,619, none /params",
+   "hypothesis_ref": "",
+   "recommendation": "Reference to CC-04 (cross-cutting.md): recorded once there and not counted as a separate corpus finding; this entry keeps the corpus counts. Correct the U6-c prediction in docs/reports/analysis/regen-batch.md (and any stats expectation) to 'apv:paramsStatus apv:NotRecorded on every ModelInvocation', citing EF_provenance.md l.906 and C.16/E.4.5. No code change.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Prediction text at regen-batch.md U6-c (~l.874) says one Gap per model call. Engine and spec agree on paramsStatus. Independent walk of the j1 PROV: Gap property counts sum to 1,619, none /params; paramsStatus NotRecorded on 525 ModelInvocation. Corrections: Cite EF l.906 and C.16/E.4.5 in the corrected text; the 120 AgentSystem paramsStatus are not part of the change. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "reference",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Instance of CC-04. Canonical class documentation-mismatch S3 (R4), equal to the verifier's; routed once to the regen-batch owner under CC-04."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-06",
+   "title": "Prereg expected AER evidence shares within 5 pp of FA; item 3 / D-80 moves D to I in the AER as well as in PROV",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L2 evidence classes vs prereg check map; DL-1",
+   "evidence": "Same 120 ids: stored evf O .208 / D .324 / I .468 (= FA full corpus .20/.32/.47), record ev D 600; fresh evf O .204 / D .022 / I .774, record ev D 0. Remaining D: agentdojo.system_prompt_variant_digest@1 (INDEPENDENT), 120. 13 rule renames to _unverified twins (the prereg's twin set); all evidence transitions D->I; 0 unexplained. The stored structural_rule_class = I (profile v1 l.127) changed PROV placement only.",
+   "reproduction": "python3 -I D/exam-scripts/evf.py <W>/l2-agentdojo-runs-j2.partial; python3 -I D/exam-scripts/evf.py ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial <W>/l2-agentdojo-runs-j2.partial/executions.jsonl; delta-p10-vs-l2.json /aer/rule_transitions",
+   "hypothesis_ref": "",
+   "recommendation": "Expected movement of item 3 / D-80 (AGENTS.md D-80: records weakened to their rules' class). The prereg rows (l.144 '+/-5 pp of FA', l.172 'already I') describe PROV placement only. Post-check baseline: the fresh distribution.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Both evf.py runs reproduced exactly; script counts over the same 120 ids; sample is representative of FA. 13 renames, all D->I, unexplained 0. Stored AER still cited D rules despite structural_rule_class = I. Corrections: Record that the prereg's evidence-class expectation and item-3 note describe PROV placement only. Applied."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-07",
+   "title": "Sample strata 24 (results_dir|attack_dir|suite) instead of the prereg's 36 (model x suite x kind)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L2-S",
+   "evidence": "l2-sample: 120 units, 24 strata x 5, none over_maximum. The survey-runs hook key (tools/precheck/l1_families.py:874) does not separate benign from solvability (both attack_dir=none): sample benign 13/14/13, solvability 7/6/7 per model. Amendment 2.4 fixes the key to the hook's; the prereg's 36/180 (l.74, l.141) is superseded.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('D/l2-sample-agentdojo-runs.json'));print(d['n'],len(d['strata']))\" -> 120 24",
+   "hypothesis_ref": "H12",
+   "recommendation": "Record in the dossier. No benign-only sample verdict at n >= 20; population OS-1 covers those arms exactly. The post-check reuses the committed sample.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Re-ran: 120/24, quota 5. Stratum sizes match the population. Sampler follows amendment 2.4; only the prereg expectation is wrong. Corrections: Optionally name l1_families.py:874 and prereg l.74/l.141. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5: property of the sample tool (stratum key); analysis-artefact S3, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-08",
+   "title": "[CC-08] L1-08 null_final misses empty final answers in block-list content (84 executions not flagged)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1-08",
+   "evidence": "tools/precheck/l1_families.py:294 tests the normalised content against (None, '', []); norm_content of an empty text block is [['text','']], never matched. Stored AER: 84/3,243 executions end with an assistant message with no call and only empty text (gpt-oss 68, qwen3:14b 16; 1 part each, no ext keys) = protocol A03 'survey 84'; L1-08 flags 0.\n\nRecheck12 (CC-08, 2026-10-15): resolved. null_final 0 -> 84; trailing_calls 48 (= the 48 capped executions).",
+   "reproduction": "sed -n 293,295p tools/precheck/l1_families.py; norm_content([{'type':'text','text':''}]) -> [['text','']]; count over the stored AER -> 84 {gpt-oss 68, qwen3:14b 16}",
+   "hypothesis_ref": "",
+   "recommendation": "After the batches (tools frozen now): treat a block list whose text parts are all empty and that has no calls as null_final; re-run L1 for AgentDojo-family parts in the post-check, recorded as a widened sub-check definition (null_final is a tool-added sub-check, not a pre-registered class). Cross-cutting item CC-08: re-run L1-08 after the fix (dossier section 10).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Function called directly: no match. 84 recounted over all 3,243 AER files and joined to results_dir: 68/16. CORPUS-CHECK-PROTOCOL.md:179 (A03) lists survey 84. Corrections: null_final is a tool-added sub-check; the tool-change note should say the definition was widened. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Instance of CC-08 (L1 null_final rule; block-list empty finals). Canonical analysis-artefact S3 (R5); not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-09",
+   "title": "[CC-01] L1-04 trajectory-identical groups 60/507 vs FA 32/299: fingerprint definitions differ (provider tool-call ids)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1-04",
+   "evidence": "L1 hook fingerprints role, content, function, args, error but not provider tool-call ids; FA 4.6 hashed AER parts incl. provider_call_id. On the stored AER: with provider_call_id 32 groups / 299 executions, without 60 / 507. All 60 groups: one model, one user task, different injection tasks; 0 utility differences; 0 security true among 494 attacked members; 0 cross-model, 0 cross-part.",
+   "reproduction": "l1-agentdojo-runs.json /L1-04/trajectory_identical (groups 60, units 507); stored AER [role, parts] hash with/without provider_call_id -> 32/299, 60/507",
+   "hypothesis_ref": "",
+   "recommendation": "CC-01: report both baselines (L1 id-free 60/507; FA with provider ids 32/299). Record both definitions in the post-check baseline (60/507 L1 hook; 32/299 with call ids). No corpus property changed (payload_not_reaching_agent).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Both fingerprint codes read; population equal (3,243). Re-grouping reproduces exactly 32/299 with call ids and 60/507 without; characterisation matches under both. Corrections: Note that the gap is exactly the provider tool-call ids. Applied. Cross-corpus sub-claim (l1-xdup.json) not re-checked by the verifier."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Instance of CC-01 (the L1 trajectory fingerprint excludes provider call ids). Canonical analysis-artefact S3 (R5); not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-10",
+   "title": "Gap-rule flag on the gpt-oss ASR sample arm is the equal-allocation design (l2_check arm rates are unweighted)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "OS-2 gap rule",
+   "evidence": "gpt-oss attack arm, population 256/949 = README; per suite workspace 61/560, travel 49/140, banking 88/144, slack 58/105. Sample 5 per suite: 1/3/3/4 = 11/20 = .55 (Wilson [.342, .742]); design expectation of the unweighted rate .406. Stratum-weighted .386 (normal 95 % [.157, .615]) contains .270. OS-2 raw = mapped 120/120. The examiner's flag came from the Wilson-excludes-by->5-pp rule on the unweighted k/n (gap_pp 11.6 was already weighted). Under the literal section-4 rule on unweighted rates, qwen3:14b ASR (.400 vs .176, 22.4 pp) and gpt-oss ASR (28.0 pp) exceed 15 pp; same cause.",
+   "reproduction": "python3 -I D/exam-scripts/outcomes.py <W>/l1-units-agentdojo-runs.jsonl <W>/l2-agentdojo-runs-j2.partial D/l2-sample-agentdojo-runs.json tools/analysis2 os2.json; tools/precheck/l2_check.py l.406-416 (unweighted k/n with Wilson)",
+   "hypothesis_ref": "H12",
+   "recommendation": "Record a dated amendment in README section 8 before the dossiers apply the gap rule to stratum-weighted estimates (prereg H12 asks for weighted rates; README section 4 / amendment 2.2 do not say so). Keep the gap and interval rules on the same footing. Treat l2_check's unweighted arm rates as descriptive. R6: the flags are explained by the sample design; the stratum-weighted rates and the L1 population rates are reported beside them in the dossier (section 6).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Population and per-suite counts from l1-units; sample per suite reproduced; equal allocation predicts a raw rate far above .270; weighted interval contains it; mapped = raw. Corrections: Section 4 does not yet call for weighting: a new dated amendment is needed; say which rule fired (unweighted Wilson rule); the script mixed a weighted gap with an unweighted interval. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R6 situation (stratified equal-allocation sample vs reference): not a corpus finding. Kept as analysis-artefact S3 under R5 because l2_check applies the gap rule to unweighted sample rates (a tool property); not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-11",
+   "title": "[CC-05] Stored corpus validate.results.differ (pre-item-10 validation rows)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "stored validate --corpus",
+   "evidence": "README section 8 amendment 1. Stored validation rows (3,243, all pass) carry 5 pv.constraints.* ids; the fresh scratch 9; exactly the four item-10 ids (cycles, derivation_parts, ordering, unique_start) are missing from the stored rows. Fresh scratch validates 120/120 (results_reproduced 120).",
+   "reproduction": "(orchestrator proof, amendment 1) uv run agentprov validate --corpus ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial -> exit 1, validate.results.differ; read-only id comparison of validation/*.json",
+   "hypothesis_ref": "",
+   "recommendation": "The post-check compares a re-validated copy of the stored corpus with a fresh scratch import (never the stored corpus in place).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Read-only comparison of stored vs scratch validation rows: only the four item-10 check ids differ; all stored rows pass; same row layout. 'Still passes the four new checks' needs a re-validation (followup). Corrections: Add the read-only id comparison to the evidence; re-validate a copy through the queue. Applied."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Instance of CC-05 (stored corpus validate.results.differ, rows predate regen item 10). Canonical expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-12",
+   "title": "[CC-07] agentdojo.art.validity_defects has no banking-precedence (#181) expected row for agent-security-tools-survey:agentdojo-runs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "R2 entry check (artefacts.toml) for PC-04",
+   "evidence": "src/agentprov/adapters/agentdojo/artefacts.toml l.327-343: the entry's scope includes agent-security-tools-survey / agentdojo-runs / survey-runs, but its only expected row for this snapshot is 'vacuous utility' count 4 (l.339); refs lack #181; no per-trace detector for banking precedence. PC-04 (verified): 13 of 57 banking it0/it3 successes lack the datum in the transfer subject (lower bound; it1 untested).",
+   "reproduction": "grep -n 'id = \"agentdojo.art.validity_defects\"' -A16 src/agentprov/adapters/agentdojo/artefacts.toml",
+   "hypothesis_ref": "H10",
+   "recommendation": "Route to the AgentDojo family owner: add the survey expected row and the #181 ref (proposal below, as in PC-04). No corpus bytes change.",
+   "artefact_proposal": "# addition to the existing entry agentdojo.art.validity_defects (no new [[artefact]])\nexpected += [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 13, basis = \"banking precedence (agentdojo#181), precheck H10: it0 7/27, it3 6/30 successes lack the datum in the subject; it1 untested; lower bound\" } ]\nrefs += [\"https://github.com/ethz-spylab/agentdojo/issues/181\"]",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "R2 second part: the existing entry's counts are incomplete for this source, so a documentation-mismatch S3 for the entry, beside the expected-known PC-04. Entry text re-read 2026-10-15; the count is PC-04's verified figure."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-13",
+   "title": "L1-10: named home-dir account paths in 5 non-JSON raw-store context files (58 matches, 1 distinct account, not the operator)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": true,
+   "part": "agentdojo-runs",
+   "check": "L1-10",
+   "evidence": "data/ast-survey-agentdojo/l1-10-agentdojo-runs.json (recheck12, tools 5efa3575): 10 context files screened, 5 with account:home-dir:named, 58 matches, 1 distinct account digest, operator_home_hits 0. L1-06 (JSON only) reported 0; AER/SEM/PROV redaction scan 0 hits, so only raw-store context files are affected. File labels not yet listed.",
+   "reproduction": "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml (l1_10 step, ast-survey-agentdojo/agentdojo-runs)",
+   "hypothesis_ref": null,
+   "recommendation": "CC-11 class: list the 5 file labels (labels and digests only), then the orchestrator / user decides withhold at seal (D-345 precedent, as interbolt PC-05).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "proposed (unverified; recheck12 annotation)",
+   "verdicts": []
+  }
+ ],
+ "refuted": [
+  {
+   "id": "PC-ast-survey-agentdojo-01",
+   "title": "Seal issues unexecuted_tool_call / missing_tool_result cite the D rule agentdojo.unexecuted_trailing_calls@1 as given under verified_code = []",
+   "cls": "mapping-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L2 A3 / evidence classes / prereg check-map row 'unexecuted calls -> apv:NotDispatched pointing at the seal issue (item 24)': not met",
+   "evidence": "src/agentprov/adapters/agentdojo/mapper.py:1511 and :1513 pass the literal 'agentdojo.unexecuted_trailing_calls@1' to issue() (docstring: pass self.cite.cite(rule)); lines 774 and 1553 resolve through self.cite. The rule is class D, code only at c2748856, no _unverified twin in agentdojo.rules.toml (0 matches), not in citation.INDEPENDENT. Fresh scratch (survey-runs@2, verified_code = []): the capped execution's seal cites it while its other issues use twins; PROV keeps apv:NotDispatched on the core ToolCallRequest part with no seal pointer (item 24 not exercised). Pre-existing in the stored corpus (index map.unexecuted_tool_call 48 executions / 49 calls). Same literal in drift_mapper.py:864/866; 24 AgentDojo profiles set verified_code = [].",
+   "reproduction": "grep -n 'unexecuted_trailing_calls' src/agentprov/adapters/agentdojo/mapper.py -> 104, 1510, 1511, 1513; grep -c 'unexecuted_trailing_calls_unverified' src/agentprov/adapters/agentdojo/rules/agentdojo.rules.toml -> 0; python3 -I -c \"import json,glob;f=glob.glob('$HOME/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-agentdojo-runs-j2.partial/aer/*/ex_6ev2rqvgqj6mboqh7rfmtqlyyi.aer.jsonl')[0];[print([(i['code'],i['rule']) for i in r['issues']]) for r in map(json.loads,open(f)) if r['k']=='seal']\" -> [('earlier_attempts_unobservable','agentdojo.log_holds_last_pass_unverified@1'), ('unexecuted_tool_call','agentdojo.unexecuted_trailing_calls@1'), ('accounting_unverifiable','aer.acc.agent_calls_vs_assistant@1')]",
+   "hypothesis_ref": "",
+   "recommendation": "Route to the agentdojo family owner as a regen-batch item: add class-I twin agentdojo.unexecuted_trailing_calls_unverified@1 and cite self.cite.cite(...) at mapper.py:1511/1513 and drift_mapper.py:864/866 (capture_mapper already uses self.R); agentdojo catalogue integer bump (D-31). Effects: seal-issue rule of the 48 survey executions and of every capped log under a verified_code = [] profile; PROV NotDispatched becomes an inference mention pointing at seal/issues/<i> (item 24 path); AER/SEM/PROV digests of those executions. If the owner rules seal-issue citations exempt from D.5.4, document that in D.5.4 and AGENTS.md instead.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "refuted",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "mapping-defect",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier 1",
+     "verdict": "refuted",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "All observations reproduce; behaviour is D-80 (d) / D.5.4 design; item-24 pointer is defined only for class-I issue rules; prereg expectation wrong. Spec tension remains for the owner. Corrections: Reclassify to expected-known with a prereg-expectation error; optional spec question to the owner; S3."
+    },
+    {
+     "lens": "verifier 2",
+     "verdict": "refuted",
+     "cls": "expected-known",
+     "severity": "S4",
+     "reasoning": "Same: D-80(d), D.5.4:1847, mapper.py:414; other seal issues in the same mapper also cite D rules as given; EF:1669-1673 and D-28 add. 2; agentdojo.art.max_iters_pending already documents the 48/49 survey count (D_adapters.md:2874). Corrections: Reclassify; prereg row should read 'pointing at the seal issue when the issue's rule is class I'; route as a design question, not a defect."
+    },
+    {
+     "lens": "verification summary",
+     "verdict": "refuted",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Observations reproduce (stored 48 executions / 49 calls; scratch 1/120 in j1 and j2; core NotDispatched, 0 seal pointers), but citing seal-issue rules as given is the documented decision DECISIONS D-80 (d) (rejected alternative: twins for issue-only rules) and spec D.5.4 (D_adapters.md:1847), implemented by the mapper.py:414 docstring; the item-24 pointer applies only to class-I issue rules (D-28 addendum 2, EF E.10 item 23). The prereg rows (prereg/ast-survey-agentdojo.md l.143, l.179) misread item 24. Residual design question for the agentdojo family owner, not a defect: should D-80 (d) count unexecuted_tool_call as reporting a statement's reading now that item 24 makes it a statement premise (EF row 325)? If yes: twin + self.cite at mapper.py:1511/1513 and drift_mapper.py:864/866 + D-31 bump, recorded under D-80 by user decision."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,38 @@
+import json
+import sys
+from pathlib import Path
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(REPO / "tests/adapters/agentops"))
+import agentops_support as s  # noqa: E402
+
+
+def call(name):
+    return {"tool_name": name, "arguments": {"q": 1}, "timestamp": "2026-01-01T00:00:00"}
+
+
+def res(name, failure=None):
+    return {"tool_name": name, "result": "ok", "latency_ms": 1.0, "injected_failure": failure, "injected_payload": None}
+
+
+def _map(step):
+    run = {"task_id": "code/001", "agent_id": "openai/gpt-x", "condition": "noisy", "run_number": 1,
+           "trace": {"task_id": "code/001", "agent_id": "openai/gpt-x", "condition": "noisy", "steps": [step],
+                     "total_input_tokens": 10, "total_output_tokens": 5, "total_cost_usd": 0.0,
+                     "wall_time_seconds": 1.0, "completed": True, "final_output": "think", "error": None},
+           "scores": {}}
+    return s.map_label("pilot_v1_seeded/gpt/openai_gpt-x/noisy/code_001_run1.json",
+                       data=json.dumps(run).encode(), tasks={})
+
+
+def test_unpaired_fault_subject_is_step_message():
+    step = {"step_number": 1, "llm_input_tokens": 10, "llm_output_tokens": 5, "reasoning": "think",
+            "tool_calls": [call("a"), call("b"), call("c")],
+            "tool_results": [res("a"), res("b", failure="timeout")]}
+    m = _map(step)
+    assistant = [r["id"] for r in m.records if r["k"] == "message" and r.get("role") == "assistant"]
+    decisions = [r for r in m.records if r["k"] == "decision"]
+    assert any(i["code"] == "call_result_link_conflict" for i in m.issues)
+    assert len(assistant) == 1 and len(decisions) == 1
+    print("assistant", assistant, "decision subject", decisions[0].get("subject"))
+    assert decisions[0]["subject"] == assistant[0]

@@ -1,0 +1,190 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "mcphunt",
+ "findings": [
+  {
+   "id": "PC-mcphunt-01",
+   "title": "532 mitigation-M0 records are verbatim copies of main records (identical messages, events, collection_timestamp; only model_label differs): gpt54_m0 238/384, deepseek_m0_rv1 147/147, minimax_m0_rv1 147/147; 6,786 records = 6,254 distinct executions",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "L1-04 / H19",
+   "evidence": "Identical-trajectory groups 549 (1,137 traces); 515 groups are pairs whose members share collection_timestamp and the full event-timestamp list: main/gpt_5_4 + gpt54_m0 233 (of 384 M0), main/deepseek_v4_flash + deepseek_m0_rv1 135 (of 147), main/MiniMax_M2_7 + minimax_m0_rv1 147 (of 147); all risky (v1 282, v2 117, v3 116). Paper and HF card count main 3,615 + mitigation 2,706 as 6,321 traces; the M0 (None) column therefore re-uses main executions. Profile lineage duplicates = [] and content_dedup = never. Labels agree within every copied pair. The other 34 groups are distinct runs with identical transcripts (2 with different labels). VERIFIER CORRECTION: 532 copies (gpt54_m0 238, deepseek_m0_rv1 147, minimax_m0_rv1 147), 6,254 distinct; see verify/v_pc01.json.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/dups.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/_fp/mcphunt.head.jsonl ~/.agentprov/migration-work/precheck/mcphunt/exam/dups.json (copied_units 1030, copied_by_docset as above)",
+   "hypothesis_ref": "H19",
+   "recommendation": "Keep every record (never exclude). Record the pairs as lineage links (duplicate_of, digest-level) in the profile or a quirk, report 6,271 distinct executions beside 6,786 records in the datasheet, and pool statistics on distinct executions only where pooling across main and mitigation. Route to the mcphunt family owner.",
+   "artefact_proposal": "[[artefact]] id = \"mcphunt.art.m0_copies_main\"; description = \"mitigation M0 (mitigation_level none) records that are byte-for-byte the same execution as a main record (same transcript, collection_timestamp and event timestamps)\"; expected = [{snapshot = \"mcphunt:head\", count = 532, unit = \"record pairs\", basis = \"pre-check PC-mcphunt-01: gpt54_m0 238, deepseek_m0_rv1 147, minimax_m0_rv1 147\", status = \"proposed\"}]",
+   "agents_md_12": "mcphunt PC-01: 532 mitigation-M0 records are verbatim copies of main records (only model_label differs), so 6,786 records = 6,254 distinct executions; the paper/card 6,321 includes them. Keep all, add lineage links, disclose",
+   "cross_cutting": "R1",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Independent recount (verify/v_pc01.py: key = collection_timestamp + event-timestamp list, then full equality of messages and events) finds 532 copies, not 515: gpt54_m0 238/384 (237 at the same index), deepseek_m0_rv1 147/147, minimax_m0_rv1 147/147; M1-M3 0; no main key collides with another main trace; the only differing top-level key is model_label. The examiner's 515 is most likely a dups.py classification artefact (not traced pair by pair): it only examined L1 fingerprint groups and classed a group as copied only if all members shared (ct, ets), so copy pairs that share a fingerprint group with a third, distinct-run trace fell into its 34 'distinct_runs'. Alternative explanation (documented design) checked: the HF README describes mitigation/ as 2,706 traces 'from the prompt-mitigation study (M0--M3)' and states per-trace pairing only for live_guard; the profile has lineage duplicates = [] and no artefacts.toml entry covers it, so R1 (uncatalogued) holds. S2 kept: the paper/card headline 6,321 counts 532 executions twice (5,789 distinct) and any pooled rate double-weights them. Not an outcome gap (M0 cells reproduce because they are the main cells)."
+    }
+   ]
+  },
+  {
+   "id": "PC-mcphunt-03",
+   "title": "L1-06 over-reports: 3 of 4 named-account classes are generic (appuser, build, Windows Public) and the 1 openai-key hit is two hyphenated lower-case path names",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06 (tool)",
+   "evidence": "appuser: 20 strings in 6 traces, first in model-authored tool-call arguments; build: 6 strings, 1 trace, model-authored; windows-users 'Public' (C:/Users/Public): 26 strings, 12 live_guard traces, tool output. openai-api-key shape: 3 strings (2 digests, len 24 and 34, only a-z and 2 hyphens each, path context) in the shell result of mitigation/minimax_m3_rv1 #/traces/106 (the RB-3 46.9 MB trace). GENERIC_ACCOUNTS lacks 'public', 'appuser', 'build'; the openai pattern matches 'sk-<word>-<word>' file names.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/acct.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/pop.json ~/.agentprov/migration-work/precheck/mcphunt/exam/acct.json; uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/shape.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/shape.json",
+   "hypothesis_ref": "H14, H15",
+   "recommendation": "Tool note for the post-check (tools frozen): read these classes through l1-06-classification.json; optionally add the three words to GENERIC_ACCOUNTS and require a digit or upper-case character in the openai rule in a later tool version. Not a corpus property.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "cross_cutting": "R5",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "shape.json: both openai-shaped strings are a-z plus 2 hyphens, 0 digits, 0 upper case, in path context: false positive. The generic classes are generic. Extension: the exam word list and GENERIC_ACCOUNTS also lack Linux-distribution default user names, which produced the PC-02 false alarm; add them in a later tool version."
+    }
+   ]
+  },
+  {
+   "id": "PC-mcphunt-04",
+   "title": "Our phase-10m census gives mitigation_level none 5,466 (sum 7,494); the recount is 4,758 (sum 6,786)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 / H6",
+   "evidence": "population tally mitigation_level none 4,758 / generic 675 / moderate 675 / detailed 678 = 6,786; docs/reports/phase10m/mcphunt.census.json line 12 says none 5,466. Difference 708 (cause not traced).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/pop.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/pop.json (tallies.ml)",
+   "hypothesis_ref": "H6",
+   "recommendation": "Correct the census figure (owner of phase10m reports); no code or corpus change.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "cross_cutting": "R4",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Independent recount (verify/v_misc.py): none 4,758, generic 675, moderate 675, detailed 678 = 6,786; arithmetic check main 3,615 + live_guard 387 + browser 78 + M0 678 = 4,758. Census line 12 says 5,466 (sum 7,494). R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-mcphunt-05",
+   "title": "Research lead refuted: the memory server worked in the paper traces (placeholder-package commit does not describe the collection)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "H13",
+   "evidence": "memory events main 1,185 success / 11 fail, mitigation 953 / 6, live_guard 337 / 3, browser 84 / 1; measurement.mcp_versions names mcp-server-memory in the 6,321 earlier traces.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/pop.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/pop.json (tallies.mem_events, mem_pkg)",
+   "hypothesis_ref": "H13",
+   "recommendation": "Correct research.json / prereg section 8 lead in the dossier only (prereg is frozen); no data property.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "cross_cutting": "R4",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "pop.json mem_events: main 1,185 ok / 11 fail, mitigation 953 / 6; mem_pkg mcp-server-memory in all 6,321 paper-time traces, @modelcontextprotocol/server-memory only in the 465 later ones. The lead is refuted; R4 S3 (our prereg/research note)."
+    }
+   ]
+  },
+  {
+   "id": "PC-mcphunt-06",
+   "title": "U+FFFD concentrates in the Windows-collected live_guard arm: 53/387 traces (13.7%) vs 9/6,321 earlier (0.14%)",
+   "cls": "source-defect",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-03 / H20",
+   "evidence": "traces with U+FFFD: main 7, mitigation 2, live_guard_defense 53, browser_replication 1; mojibake 0; pointers result_full 196, messages content 194, result_preview 191, error 185 strings. Decoding loss at collection (Windows shell output), not ours; no outcome bias shown.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/fffd.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/fffd.json",
+   "hypothesis_ref": "H20",
+   "recommendation": "Disclose as a source property of the post-paper arm; proposed quirk.",
+   "artefact_proposal": "[[artefact]] id = \"mcphunt.art.replacement_chars\"; expected = [{snapshot = \"mcphunt:head\", count = 63, unit = \"traces\", basis = \"pre-check PC-mcphunt-06 (live_guard 53, main 7, mitigation 2, browser 1)\", status = \"proposed\"}]",
+   "agents_md_12": "",
+   "cross_cutting": "R1",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S3",
+     "reasoning": "Recount: U+FFFD in main 7/3,615, mitigation 2/2,706, live_guard 53/387, browser 1/78 (63). Windows C:/Users paths appear in all 387 live_guard and all 78 browser traces and in none earlier, so the Windows-collection attribution holds (browser, also Windows, has 1/78, so the concentration is live_guard-specific). Uncatalogued; S3 (no outcome bias shown)."
+    }
+   ]
+  },
+  {
+   "id": "PC-mcphunt-07",
+   "title": "Catalogued quirks reproduce exactly at L1 (canary 4,595 traces / 15,953 events; run_not_ok 545; sanitized_args 245; oversized 4; non-trace 12; event_times_ambiguous 6,786)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-01/05/07/08",
+   "evidence": "canary_flagged 4,595 (unflagged 2,191); events canary_in_result 14,143, in_args 2,172, either 15,953; finish tool_calls 488 + length 10 + error 47 = 545; sanitized_args 245; turn_log = assistant + 1 in 6,105, equal 681; 4 elements > 16 MiB parsed at 64 MiB; 12 not selected; 129,175 epoch event times.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/pop.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/pop.json",
+   "hypothesis_ref": "H1, H17",
+   "recommendation": "None; the L2 counts (args_unparsed 2,392, result_truncated 669, result_differs 410, unknown_server 11) remain to be confirmed when L2 runs.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "cross_cutting": "R2",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Recount: canary-flagged traces 4,595, canary events 15,953, sanitized_args 245; finish error 47 + length 10 + tool_calls 488 = 545 = artefacts.toml run_not_ok 545 and canary_exposure 4,595 (both status 'unverified', basis census; now verified at L1)."
+    }
+   ]
+  }
+ ],
+ "refuted": [
+  {
+   "id": "PC-mcphunt-02",
+   "title": "Named length withheld home path (/home/<x>/.ssh) in a 12 MB shell result of 2 unflagged (releasable) traces; no sanitizer placeholder in that result; undetermined whether it is the collector's account",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06 / H14",
+   "evidence": "home-dir digest fc5669b5 (name length withheld, not in GENERIC_ACCOUNTS nor the exam word list): 4 strings, only at /traces/*/events/*/result_full of a shell execute_command event (result 11,944,623 chars, offset 5,927,141, beyond the 12,000-char message truncation, result_truncated true); next segment .ssh; 1 distinct home name in that result, 0 of the 6 sanitizer placeholders; not in task_prompt. Traces main/gpt_5_4 #/traces/370 and mitigation/gpt54_m0 #/traces/370 (a PC-01 copied pair), both canary_flagged false, so D-289 does not withhold their AER; the [withhold] shape rules are scope object (raw document only). Not yet in any AER (L2 blocked).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/acct2.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/acct2.json; uv run python -I docs/reports/precheck/data/mcphunt/exam-scripts/shape.py ~/.agentprov/staging/10m/hf_mcphunt ~/.agentprov/migration-work/precheck/mcphunt/exam/shape.json (home: next_is_dot_ssh true, placeholders_in_result [], canary_flagged false)",
+   "hypothesis_ref": "H14",
+   "recommendation": "Report to the orchestrator at once (CC-11 / CC-03). A verifier with owner sign-off resolves the name without printing it. If it is a workstation or collector account: CC-03 S0 trigger for the import (the mapped tool result would carry it into AER/SEM/PROV of a releasable execution); add an execution-level withhold or a D-182 redaction rule for this result before the round, and widen release_scan's third-party home-path detector (CC-11). If it is a benchmark/container user: downgrade to expected-known S3.",
+   "artefact_proposal": "[[artefact]] id = \"mcphunt.art.host_home_path\" (proposed, pending verifier); count = 2 traces (1 copied pair), unit = traces, basis = \"pre-check PC-mcphunt-02, L1-06 digest fc5669b5\"",
+   "agents_md_12": "mcphunt: 2 unflagged traces carry a named /home/<x>/.ssh path in a shell result; withholding (D-289) does not cover them",
+   "cross_cutting": "CC-11, CC-03",
+   "verdict": "refuted",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "refuted",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "The 4-char name (digest fc5669b5) is a Linux-distribution default account name (matched by digest against a generic list of distribution defaults; the examiner's word list lacked them), lower-case alphabetic. Its only line (1 of 220,250 lines in a grep result piped through 4 stages) sits inside a JSON string under a key beginning 'advis' (vulnerability-advisory text of a package database in the sandbox) together with 2 other non-generic /home names in the same advisory text; it names an authorized_keys file, holds no key material (no ssh key type, no '@'). It is third-party content read by the agent, not the collector's workstation account and not a host-path leak the sanitizer missed: the same trace carries the sanitizer placeholders elsewhere. Per CC-03 this is benchmark/third-party content: expected-known S3, no CC-11 withhold, no S0 path. The 3rd occurrence (bare name in mitigation/minimax_m3_rv1 #106) was not flagged by the examiner and is equally a generic word. Evidence: verify/v_pc02*.json (booleans/digests only)."
+    }
+   ]
+  }
+ ]
+}

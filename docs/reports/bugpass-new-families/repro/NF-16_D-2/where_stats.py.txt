@@ -1,0 +1,24 @@
+import sys, json
+sys.path.insert(0, "tests/adapters/qwencode")
+import qwencode_support as qs
+label = qs.runs()["refused_score_0"]
+m = qs.map_run(label)
+def walk(obj, path):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k == "stats": print("KEY at", path + "/" + k)
+            walk(v, path + "/" + str(k))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj): walk(v, f"{path}/{i}")
+    elif isinstance(obj, str) and '"stats"' in obj:
+        print("STRING contains stats at", path, len(obj))
+walk(m.header, "header")
+for r in m.records: walk(r, "rec:" + str(r.get("id")))
+walk(m.doc.seal, "seal")
+r = qs.messages(label)[-1]
+print("raw stats top keys:", sorted(r["stats"].keys()))
+mod = next(iter(r["stats"]["models"].values()))
+print("model keys:", sorted(mod.keys()), "bySource main keys:", sorted(mod["bySource"]["main"].keys()))
+print("tools keys:", sorted(r["stats"]["tools"].keys()))
+print("checks usage:", [c for c in m.doc.seal.get("checks", []) if "usage" in json.dumps(c)][:2])
+print("artefact claims:", [i for i in m.issues if "usage" in json.dumps(i) or "calls" in json.dumps(i)][:3])

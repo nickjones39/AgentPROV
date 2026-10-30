@@ -1,0 +1,271 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "whistlebench",
+ "findings": [
+  {
+   "id": "PC-whistlebench-01",
+   "title": "[CC-13] [security] GitHub-token-shaped credential in /eval/revision/origin of the 28 awareness_blackbox logs reaches AER (actor bench /code/repo and /ext/inspect/revision/origin) in every execution of them; also in raw-store context json",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "part": "final-runs",
+   "check": "L1-06, L2 redaction, context scan (CC-03/CC-11 escalation)",
+   "evidence": "L1-06 secret:github-token 28/184 artefacts, 56 strings at header.json and _journal /eval/revision/origin. Raw pass: 1 distinct token (digest8 <secret-A>) embedded as URL userinfo in the git remote origin of all 20 habench_summarization logs and all 8 snitchbench logs (0.3.134 and 0.3.130); 156 other logs have the same origin without userinfo. L2: all 28 logs sampled; AER actor bench /code/repo 1,400 + /ext/inspect/revision/origin 1,400 = 2,800 strings in 1,400 of 7,700 executions; PROV 0; SEM not produced. Context files: 18 occurrences in the 11 json context artefacts (logs.json / eval-set.json). whistlebench profile has no [redact] or [withhold] (0 matches). Phase-10f census reported 0 secret-like strings. Token validity not tested (must not be).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/raw.py <W>/exam/raw.json (token_digests {<secret-A>: 28}); uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/aer_pass.py <W>/l2-final-runs-j2.partial <W>/l1-units-final-runs.jsonl <W>/exam/aer.json (aer:gh-token 2800 strings / 1400 executions; no prov:gh-token); uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/ctx.py <out> (gh_token <secret-A> json 18)",
+   "hypothesis_ref": "H12",
+   "recommendation": "Report to the orchestrator at once. Before the round: a profile rule that strips URL userinfo from /eval/revision/origin (inspect redact table, D-182 route) or a [withhold] of the 28 logs' AER rows and the context json at seal (D-345 precedent); add a credential-in-URL detector to release_scan; the user decides whether the upstream owner is told (public repo). Never print or test the value.",
+   "artefact_proposal": "[[artefact]] id = \"inspect.art.credential_in_revision_origin\" (proposed) scope.sources = [\"whistlebench\"]; pointer /eval/revision/origin; count 28 logs / 1,400 samples + 11 context json; class secret; disposition withhold-or-redact",
+   "agents_md_12": "whistlebench: a GitHub token sits in /eval/revision/origin of 28 logs and reaches AER; redact/withhold before release",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "Independent recount with a different detector (any URL userinfo in /eval/revision/origin, not the gh[pousr]_ regex): exactly 28 logs (habench 20, snitchbench 8), one distinct value, digest8 <secret-A> equal to the examiner's; userinfo is the token alone (prefix ghp_, length withheld = classic personal-access-token format, long-lived; not an ephemeral ghs_ installation token). l2-final-runs.json redaction: actor /code/repo 1,400 + /ext/inspect/revision/origin 1,400; aer.json gh-token 2,800 strings / 1,400 executions, no prov entry. context-scan.json <secret-A> json 18. Profile has 0 redact/withhold lines. Alternatives checked: tool artefact (no, two detectors agree), benchmark fixture (no, it is the run's git remote, not task content). Validity not tested (must not be). S0 per CC-03/CC-11 escalation stands. uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/verify_recount.py docs/reports/precheck/data/whistlebench/exam-scripts <W>/exam/verify/v.json"
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "source-defect S0 security unchanged. CC-13 real-format secret of the source's own infrastructure (the classic ghp_ personal access token in the run's git remote origin), named in CC-13 as not a fixture."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-02",
+   "title": "[CC-12] [security] A real workstation account path (digest8 <account-F>) in Python tracebacks of samples/error_retries reaches AER scope /ext/inspect/error_retries/*/traceback(_ansi)",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "part": "final-runs",
+   "check": "L1-06, L2 redaction (CC-03 real-account clause, CC-11)",
+   "evidence": "Raw pass: 9 distinct named /Users/ accounts; digest <account-F> occurs only under samples/error_retries (21,660 strings, 36 logs, 260 samples, all 0.3.130 high_agency), every match followed by a site-packages/venv path = the run machine's Python install, not scenario text (0 in task input). L2: 15,360 strings in 184 of 7,700 sampled executions at AER scope /ext/inspect/error_retries/*/traceback and traceback_ansi (l2 redaction 7,680 + 7,680); PROV 0 (aer_pass prov:<account-F> absent). operator_home_hits 0 (L1-10, l2 redaction). No redact rule in the profile.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/raw.py (acct users-dir:<account-F> logs 36 samples 260 tb_suffix site-packages/venv 21660); uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/aer_pass.py (aer:<account-F> strings 15360 executions 184; no prov entry)",
+   "hypothesis_ref": "H12",
+   "recommendation": "Report at once. Profile redaction of account segments in error_retries tracebacks (D-182 table, inspect redact.py) or withhold of /ext/inspect/error_retries at seal; extend release_scan's third-party home-path detector (CC-11 build) to AER ext fields. Population projection for the round: 260 samples.",
+   "artefact_proposal": null,
+   "agents_md_12": "whistlebench: upstream author's home path in error_retries tracebacks reaches AER (260 samples)",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "Independent recount over all 9,200 samples: digest <account-F> occurs only under samples/error_retries, 21,660 strings, 260 samples, 36 logs (= samples with non-empty error_retries, 260/260; 0 have sample.error). Not the operator: the operator account's digest8 differs (<account-I>), operator_home_hits 0. Not scenario text: in_input 0, every match followed by a site-packages/venv path (the upstream run machine's Python install). AER: 7,680 + 7,680 at /ext/inspect/error_retries/*/traceback(_ansi) in l2 redaction, equal to aer.json 15,360 strings / 184 executions; PROV 0. CC-03 real-workstation clause applies: source-defect S0, security. uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/verify_recount.py docs/reports/precheck/data/whistlebench/exam-scripts <W>/exam/verify/v.json"
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "source-defect S0 security unchanged. CC-12 (a): the upstream run machine's account in Python tracebacks (samples/error_retries) reaching AER ext; the profile declares no redact rule, so source-defect, not mapping-defect."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-03",
+   "title": "Judge model: Fig 2/3 (all_models, 36 logs) and habench (20) are graded by openai/gpt-4.1, SnitchBench (8) by claude-sonnet-4; the paper (3.4) and our research note say GPT-5",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "final-runs",
+   "check": "L1-05 grader facet, L2 identity (judge actors)",
+   "evidence": "task_args.params.grader_model: gpt-5 108 logs (0_baseline, 1-5_*), gpt-4.1 68 (0_baseline_gpt_4.1_grader 12, all_models 36, habench 20), snitchbench task_args.grader_model claude-sonnet-4-20250514 8. AER judge actors (model events in scorer spans) agree in all 7,700 sampled executions: all_models 1,800 gpt-4.1, habench 1,000 gpt-4.1, snitchbench 400 claude-sonnet-4. The paper's headline Fig 2/3 counts reproduce exactly (54/54) from these GPT-4.1-judged logs, so the published bars rest on a GPT-4.1 judge.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/raw.py (params_by_experiment in raw-census.json); uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/aer_pass.py (judge_models_by_experiment)",
+   "hypothesis_ref": "H5 (refuted)",
+   "recommendation": "Disclose in the corpus datasheet: judge per experiment as recorded (gpt-5 / gpt-4.1 / claude-sonnet-4). Correct research.json/prereg judge line (R4, owner this pre-check). Identity: the engine already names the judge model per execution (no change).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Paper section 3.4 (arXiv v3) names GPT-5 as the LLM judge for the main results; the 36 all_models logs record grader_model openai/gpt-4.1 and the AER judge actors (from scorer-span model events) agree, 1,800/1,800; Fig 2/3 cells reproduce 54/54 from these logs, so the figure's logs are these. The pinned code default is openai/gpt-5 (whistlebench/types.py) and all_models.py does not set a grader, so the code also disagrees with the logs. SnitchBench logs judged by claude-sonnet-4 (paper names no judge for Fig 7). Headline figure method: S2 per R3. Side note (R4, not a new finding): the profile quirk note lists only gpt-4.1/gpt-5 judges, not claude-sonnet-4."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-04",
+   "title": "Grok 4 in all_models has mining twice and no medical_devices; Fig 2/3 Grok bars pool those 4 logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L1-05 arm coverage",
+   "evidence": "all_models storylines per model: 8 models 1 x 4 storylines; openrouter/x-ai/grok-4 mining 2, autonomous_vehicles 1, food_safety 1, medical_devices 0 (two distinct mining runs; L1-04 0 identical trajectories). Fig 2/3 Grok cells (gov 200, media 199, internal 18, ...) reproduce exactly from these 4 logs, so the paper's 'four storylines' design does not hold for that bar.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/raw.py (grok4_all_models_storylines in raw-census.json); uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/compare.py (Fig 2/3 Grok cells exact)",
+   "hypothesis_ref": "L1-05",
+   "recommendation": "Record as a source-design note in the datasheet; no exclusion; mention in the manuscript's data notes.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "exam/raw.json params: Grok 4 in all_models has autonomous_vehicles 1, food_safety 1, mining 2, medical_devices 0 (36 all_models logs; the 8 others 1 per storyline); L1-04 0 identical trajectories, so two distinct mining runs, not a duplicate file. The paper does not state the per-model storyline count explicitly, but n=200 = 4 storylines x 50; logs are internally consistent, so R3 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-05",
+   "title": "Scenario and model-written account-shaped paths reach AER and PROV (scenario user in 7,300 of 7,700 executions)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L1-06, L2 redaction (CC-03)",
+   "evidence": "users-dir <account-A> is the scenario user (in the task input of all 8,800 high_agency samples; 521,115 AER strings / 155,564 PROV strings in 7,300 executions; the Windows-style hit is the same name). 7 further names (1-3 samples each, 0 in tracebacks, first seen in model output/tool args) reach AER and PROV apv:args/apv:paramsTransmitted in 1-2 executions each; 1 /home/<named> in 1 sample. All benchmark or model content.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/raw.py (account_names_by_digest8); uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/aer_pass.py (account_digests_in_outputs)",
+   "hypothesis_ref": "H12",
+   "recommendation": "Keep as CC-03 expected-known; list the scenario user in the D-182 table as declared fiction so the release scan does not flag it.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "aer.json account_digests: scenario user <account-A> in 7,300 executions (AER and PROV); 7 other digests (<account-B>, <account-C>, <account-D>, <account-G>, <account-H>, <account-J>, <account-K>) in 1-2 executions each, none in error_retries; 0 operator hits. CC-03 benchmark/model content: expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-06",
+   "title": "Phase-10f census 'secret-like 0' is wrong (28 logs + 11 context json hold a token-shaped credential)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L1-06 vs census (R4)",
+   "evidence": "census docs/reports/phase10f/whistlebench.census.json and prereg section 6 say 0 secret-like; L1-06 counts 28 artefacts / 56 strings (github-token class), context scan 18 occurrences.",
+   "reproduction": "see PC-whistlebench-01",
+   "hypothesis_ref": "H12",
+   "recommendation": "Census owner (phase 10f) corrects the figure; the census secret scan should cover header /eval/revision.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "docs/reports/phase10f/whistlebench.census.json secret_like_hits 0, logs_with_secret_like []; prereg H12 '0 secret-like'; data has 28 logs with the token. R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-07",
+   "title": "error_retries present in about 260 samples (2.8%), above the pre-registered 1%; mapped as AER scope ext, no profile quirk",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L1-08 / H15 (R4)",
+   "evidence": "260 samples in 36 logs carry error_retries tracebacks (361 traceback_ansi strings, L1-03 ansi/esc 36 artefacts); all samples end with status success (retry_on_error=10). Not declared in the profile quirks.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/raw.py (users-dir:<account-F> samples 260); l1-final-runs.json L1-03 ansi",
+   "hypothesis_ref": "H15 (refuted)",
+   "recommendation": "Profile owner adds an inspect.error_retries quirk (count 260 samples) when PC-02's redaction lands.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Recount: 260 of 9,200 samples (2.83%) in 36 logs carry error_retries, all without sample.error; prereg H15 threshold 1%; whistlebench.profile.toml has no error_retries quirk (6 quirks, none for retries). R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-08",
+   "title": "CD-24 still holds: every score is mapped twice (score.<key> and <scorer>.<key>)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L2 A2 (CD-24, RD-2 held)",
+   "evidence": "Inspected AER execution: 12 judgements, 6 named score.<key> duplicating email_whistleblowing.*, test_awareness.*, refusal; mapped values equal the raw tallies for 154/154 sampled logs.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/aer_pass.py (judgement_vs_l1_raw_per_log equal 154)",
+   "hypothesis_ref": "section 5 CD-24",
+   "recommendation": "none beyond RD-2.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "11 AER executions spot-read (every 700th): 12 judgements of which 5 score.<key> plus a bare 'score' duplicate the named scorer judgements (10/3 in no-awareness executions); mapped values equal raw tallies 154/154 (aer.json). CD-24 (held, RD-2) per prereg section 5: R2 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-09",
+   "title": "Prereg L2 sample size 210 vs drawn 154: strata hold 4-12 logs, so 34 strata are taken whole",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L2 sample (R5/R6)",
+   "evidence": "l2-sample-final-runs.json n 154, 42 strata, quota 5; 34 strata of 4-5 logs taken whole, 8 strata (1_responsibility, 2_boldness) 5 of 8/12. Executions 7,700.",
+   "reproduction": "l2-sample-final-runs.json",
+   "hypothesis_ref": "H16",
+   "recommendation": "None (prereg arithmetic; the frozen sample is authoritative).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Prereg line 62 says 42 x 5 = 210, impossible for a 184-log population; l2-sample-final-runs.json n 154, 42 strata. Pre-check design property: R5 S3, not a corpus finding."
+    }
+   ]
+  },
+  {
+   "id": "PC-whistlebench-10",
+   "title": "L1-10 screened 0 of the 39 context files; the examiner's screen found the token in 18 places and no account path",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "final-runs",
+   "check": "L1-10 (R5)",
+   "evidence": "l1-10-final-runs.json files_screened 0 (input_mode git). exam-scripts/ctx.py over the 39 files (19 csv, 11 json, 9 .eval-set-id): gh token <secret-A> json 18; account names 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/whistlebench/exam-scripts/ctx.py docs/reports/precheck/data/whistlebench/context-scan.json",
+   "hypothesis_ref": "H12",
+   "recommendation": "Tool owner: l1_context should screen git-mode context artefacts; rerun at the post-check.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l1-10-final-runs.json files_screened 0, input_mode git, operator_home_hits 0 (vacuous). Examiner's ctx.py screen: 39 files, <secret-A> json 18, acct 0. Tool property: R5 S3."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

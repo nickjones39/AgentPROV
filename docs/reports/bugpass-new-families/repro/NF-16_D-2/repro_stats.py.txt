@@ -1,0 +1,36 @@
+import sys, json
+sys.path.insert(0, "tests/adapters/qwencode")
+import qwencode_support as qs
+
+def walk_has(obj, key):
+    if isinstance(obj, dict):
+        return key in obj or any(walk_has(v, key) for v in obj.values())
+    if isinstance(obj, list):
+        return any(walk_has(v, key) for v in obj)
+    return False
+
+for crit, label in sorted(qs.runs().items()):
+    try:
+        msgs = qs.messages(label)
+    except Exception as e:
+        print(crit, "unparseable (salvage case)", type(e).__name__); continue
+    res = [m for m in msgs if isinstance(m, dict) and m.get("type") == "result"]
+    if not res:
+        print(crit, "no result message"); continue
+    r = res[-1]
+    stats = r.get("stats")
+    m = qs.map_run(label)
+    ext_res = m.header.get("ext", {}).get("qwencode", {}).get("result", {})
+    blocks = len(m.of("model_call"))
+    summary = {}
+    if isinstance(stats, dict):
+        for model, mv in (stats.get("models") or {}).items():
+            api = mv.get("api", {})
+            bys = {k: v.get("api", {}).get("totalRequests") for k, v in (mv.get("bySource") or {}).items()}
+            summary["totalRequests"] = api.get("totalRequests")
+            summary["bySource"] = bys
+        summary["tools"] = sorted((stats.get("tools", {}).get("byName") or {}).keys())
+    usage_checks = [c for c in m.doc.seal.get("checks", [])] if hasattr(m.doc, "seal") else []
+    print(crit, "| result keys:", sorted(r.keys()), "| stats present:", stats is not None,
+          "| ext.result keys:", sorted(ext_res.keys()), "| 'stats' anywhere in AER bytes:", b'"stats"' in m.data,
+          "| model_calls:", blocks, "| num_turns:", r.get("num_turns"), "| stats:", json.dumps(summary, sort_keys=True))

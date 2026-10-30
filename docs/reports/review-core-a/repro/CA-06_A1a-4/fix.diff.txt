@@ -1,0 +1,47 @@
+--- a/src/agentprov/aer/canon.py
++++ b/src/agentprov/aer/canon.py
+@@ def encode_value(value: object, *, at: str, lex: LexHints) -> Json:
+-    if value is None or isinstance(value, bool):
++    try:
++        return _encode_value(value, at=at, lex=lex)
++    except RecursionError as exc:
++        raise CanonError("value nests too deeply or contains a reference cycle") from exc
++
++
++def _encode_value(value: object, *, at: str, lex: LexHints) -> Json:
++    if value is None or isinstance(value, bool):
+         return value
+@@
+     if isinstance(value, list):
+-        return [encode_value(item, at=f"{at}/{i}", lex=lex) for i, item in enumerate(value)]
++        return [_encode_value(item, at=f"{at}/{i}", lex=lex) for i, item in enumerate(value)]
+@@
+-        body: dict[str, Json] = {k: encode_value(value[k], at=f"{base}/{pointer_escape(k)}", lex=lex) for k in keys}
++        body: dict[str, Json] = {k: _encode_value(value[k], at=f"{base}/{pointer_escape(k)}", lex=lex) for k in keys}
+@@
+-def _check_json_types(value: object, depth: int = 0) -> None:
+-    """Reject anything that is not a plain JSON value (tuples, bytes, sets, non-string keys); iterative."""
+-    stack: list[object] = [value]
++_EXIT: Final = object()
++
++
++def _check_json_types(value: object) -> None:
++    """Reject anything that is not a plain JSON value (tuples, bytes, sets, non-string keys) or a reference
++    cycle; iterative. Shared acyclic sub-objects stay legal: only containers on the current path count."""
++    stack: list[object] = [value]
++    on_path: set[int] = set()
+     while stack:
+         item = stack.pop()
++        if item is _EXIT:
++            on_path.discard(id(stack.pop()))
++            continue
+         if item is None or isinstance(item, bool | int | float | str):
+             continue
++        if isinstance(item, list | dict):
++            if id(item) in on_path:
++                raise CanonError("value contains a reference cycle")
++            on_path.add(id(item))
++            stack.extend((item, _EXIT))
+         if isinstance(item, list):
+             stack.extend(item)
+         elif isinstance(item, dict):

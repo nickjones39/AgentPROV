@@ -1,0 +1,8 @@
+import sys; sys.path.insert(0, "repro/D5-1")
+import agentprov.adapters.dtap.mapper as M
+cls = [c for c in vars(M).values() if isinstance(c, type) and "_tool_target" in vars(c)][0]
+def _tool_target(self, i):
+    call = self.pairing.links.get(i)
+    return "meta" if call is not None and self.kinds[call] == "meta" else "tool"
+cls._tool_target = _tool_target
+exec(open("repro/D5-1/repro.py").read())

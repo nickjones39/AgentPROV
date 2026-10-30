@@ -1,0 +1,7 @@
+import sys, copy, json
+sys.path.insert(0, "docs/reports/review-core-a/repro/A2b-4")
+import test_repro as t
+for name in ("c_usage_not_object", "d_converted_temperature", "a_run_error_released"):
+    bf, mut = t.CASES[name]; b = bf(); bo, _ = t._map(json.dumps(b, indent=2).encode())
+    d = copy.deepcopy(b); mut(d); src = json.dumps(d, indent=2).encode(); o, v = t._map(src)
+    print(name, "same" if v == src else "DIFF", sorted(t._codes(o) - t._codes(bo)), [ (i.get("code"), i.get("detail")) for i in o.issues if i.get("code") not in t._codes(bo)])

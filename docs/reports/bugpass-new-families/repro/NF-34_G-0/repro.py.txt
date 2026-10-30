@@ -1,0 +1,52 @@
+import sys, os, json, hashlib, io, zipfile, shutil
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO/"tests/adapters")); sys.path.insert(0, str(REPO/"tests/adapters/credleak"))
+WORK = Path(sys.argv[1]); MODE = sys.argv[2] if len(sys.argv) > 2 else "bytes"
+if WORK.exists(): shutil.rmtree(WORK)
+WORK.mkdir(parents=True)
+os.environ["AGENTPROV_HOME"] = str(WORK/"home")
+import credleak_support as credleak
+from agentprov.adapters.runner.importer import ImportSample, ArchiveTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+
+CELLS = {
+    "p15b-run-data/01-injection-map/chan-a/model-x/run-1.json": credleak.synthetic_cell(runs=3, scenario="T1.1", technique="T1"),
+    "p15b-run-data/03-egress-axis/chan-b/model-y/run-2.json": credleak.synthetic_cell(runs=3, scenario="T1.2", technique="T1"),
+}
+if MODE == "resume":
+    CELLS["p15b-run-data/01-injection-map/aaa/model-z/bad.json"] = b'{"not": json'
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+    for label, data in CELLS.items():
+        zf.writestr(label, data)
+path = WORK/"deposit.zip"; path.write_bytes(buf.getvalue()); data = path.read_bytes()
+pin = {"role": "head", "kind": "zenodo", "doi": "10.5281/zenodo.1", "record": 1, "version": "v1",
+       "file": path.name, "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+
+def run(out, **kw):
+    tree = ArchiveTree(path, pin=pin, sha256=pin["sha256"], size=pin["bytes"])
+    kw.setdefault("workers", 1)
+    with CorpusWriter(WORK/out) as writer:
+        return import_source("credleak-p15b", tree, corpus=writer, profile_id="credleak-p15b", part="head", pin=pin,
+                             snapshot_id="head", until=kw.pop("until", "prov"), **kw)
+
+def files(p):
+    return {str(f.relative_to(p)): hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(p.rglob("*")) if f.is_file()}
+def keys(p):
+    return sorted((json.loads(l)["source_key"], json.loads(l)["status"]) for l in (p/"executions.jsonl").read_text().splitlines())
+
+if MODE == "bytes":
+    full = run("f"); s = run("s", sample=ImportSample(3, "random", "r"))
+    F, S = files(WORK/"f.partial"), files(WORK/"s.partial")
+    print("full", dict(full.counters)); print("samp", dict(s.counters))
+    print("differ:", [k for k in S if k in F and S[k] != F[k]]); print("absent:", [k for k in S if k not in F])
+    s2 = run("s2", sample=ImportSample(3, "random", "r"), workers=2, batch_size=1)
+    S2 = files(WORK/"s2.partial")
+    print("j2 vs j1 differ:", [k for k in S2 if S2.get(k) != S.get(k)], set(S) ^ set(S2))
+elif MODE == "resume":
+    a = run("a", sample=ImportSample(2, "first"), until="aer")
+    print("first run", dict(a.counters)); print(keys(WORK/"a.partial"))
+    b = run("a", sample=ImportSample(2, "first"), until="aer")
+    print("re-run", dict(b.counters)); print(keys(WORK/"a.partial"))
+    print(json.loads((WORK/"a.partial"/"corpus.json").read_text())["selection"]["sample"])

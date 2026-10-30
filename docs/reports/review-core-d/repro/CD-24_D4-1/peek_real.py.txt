@@ -1,0 +1,21 @@
+import sys, zipfile, json, collections
+for path in sys.argv[1:]:
+    z = zipfile.ZipFile(path)
+    names = [n for n in z.namelist() if n.startswith("samples/") and n.endswith(".json")]
+    hdr = json.loads(z.read("header.json")) if "header.json" in z.namelist() else {}
+    print(path.split("/")[-1][:60], "producer", (hdr.get("eval") or {}).get("packages"), "samples", len(names))
+    keys = collections.Counter(); n = 0; span_types = collections.Counter()
+    for nm in names[:5]:
+        info = z.getinfo(nm)
+        if info.file_size > 64 * 2**20: continue
+        s = json.loads(z.read(nm))
+        evs = s.get("events", [])
+        spans = {e.get("id"): e for e in evs if e.get("event") == "span_begin"}
+        for e in evs:
+            if e.get("event") == "score":
+                n += 1
+                keys["has_scorer" if "scorer" in e else "no_scorer"] += 1
+                sp = spans.get(e.get("span_id"))
+                span_types[(sp or {}).get("type"), (sp or {}).get("name") in (s.get("scores") or {})] += 1
+        print("  scores keys", list((s.get("scores") or {}).keys()))
+    print(" ", n, keys, span_types)

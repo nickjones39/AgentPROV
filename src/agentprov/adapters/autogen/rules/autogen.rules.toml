@@ -1,0 +1,819 @@
+# Rule catalogue `autogen` (docs/architecture D.19.9; D.5.1-D.5.2; C.6.4). AutoGen guard placement (Zenodo 23025259),
+# phase 10n.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.autogen`. Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+#
+# Citation policy (D-24, D-303): three D rules read AutoGen library behaviour from microsoft/autogen at tag python-v0.7.5
+# (commit 83afbf5857aac683340d4c692194e548b1e8edda; 21 files fetched with the user's yes, 2026-10-13) and have
+# `_unverified` twins; the profile's verified_code names that commit, on the basis of the deposit's requirements.txt pin
+# and the phase-0 capture of installed versions. The deposit's own harness (src/harness.py, src/run_experiment.py) is
+# documentary evidence ("deposit:<path> <symbol>"): the runs name no commit and the phases ran over days, so every rule
+# that rests on harness behaviour is class I with an asserted assumption (as D-193). The other D rules are deterministic
+# functions of observed bytes (an id join, a text or digest comparison) and cite the census (docs/reports/phase10n/).
+
+[catalogue]
+id = "autogen"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["aborted_attempt_events", "arguments_not_json", "block_effect_in_request_log", "block_subject_not_recorded", "guard_text_unjoined", "passage_not_in_document", "probe_join_missing", "response_unmatched", "task_template_mismatch", "tool_error_result"]
+subtypes = ["autogen.probe_document"]
+types = ["autogen:memory_query", "autogen:memory_content"]
+
+[[assumption]]
+id = "autogen:DepositHarness"
+statement = "The runs were produced by the deposit's harness (an AutoGen 0.7.5 RoundRobinGroupChat or SelectorGroupChat of a researcher and a writer, with an optional model-less ingest agent), whose producing code identity is not recorded."
+
+[[assumption]]
+id = "autogen:AutoGenVersion"
+statement = "The AutoGen packages that produced the runs are the version the deposit pins in requirements.txt and records in the phase-0 capture (0.7.5)."
+
+[[assumption]]
+id = "autogen:ConfigModel"
+statement = "Every agent and the language-model guard requested the model config.json names, served by a local LM Studio server; one configuration served all phases."
+
+[[assumption]]
+id = "autogen:RunSettings"
+statement = "A run's placement modes and block guard are the row's modes and block_guard, or, where the row omits them, the values the phase's code sets (every placement observing; the keyword guard in phase 10, the language-model guard in phases 12 and 13)."
+
+[[assumption]]
+id = "autogen:TaskTemplate"
+statement = "The task is the harness's template for the entry point (the probe document placed in it for the user entry, after the phase-12 prompt defence), or the InjecAgent case's user instruction; the harness, not a person, wrote it."
+
+[[assumption]]
+id = "autogen:IngestAgent"
+statement = "The ingest agent is the harness's model-less retrieval stage: its one turn is the probe document, not model output."
+
+[[assumption]]
+id = "autogen:RequestLogIsInput"
+statement = "A logged llm_request lists the messages the guarded model client handed to the model, after any model-placement redaction."
+
+[[assumption]]
+id = "autogen:GuardRow"
+statement = "A guard row records each guard's verdict on the text one placement handed it; only the block guard's verdict can change a text."
+
+[[assumption]]
+id = "autogen:BlockReplaces"
+statement = "In block mode a flagged text is replaced by the harness constant '[content withheld by guard]' where the placement holds it (model input, delivered bus message, tool output); the bus never changes its output-stream copies."
+
+[[assumption]]
+id = "autogen:ToolBlockOrder"
+statement = "Within one agent's tool calls, the tool placement's flagged scans and the withheld results correspond one to one in order."
+
+[[assumption]]
+id = "autogen:BodyLogsEntry"
+statement = "Every tool body of the harness logs a tool_call event when it is entered; a result with is_error and no such event did not enter the body."
+
+[[assumption]]
+id = "autogen:MemoryByHarness"
+statement = "A MemoryQueryEvent records the agent's ListMemory adding its stored content to the model context before the call; nothing in the run chose what was stored."
+
+[[assumption]]
+id = "autogen:StopReason"
+statement = "A stop_reason 'Maximum number of messages ...' is the team's configured message limit; 'Text ... mentioned' is the text-mention termination."
+
+[[assumption]]
+id = "autogen:PassageAuthor"
+statement = "The inserted passage of an attack probe (AgentDojo injection templates) or an InjecAgent attacker instruction is attacker-supplied material."
+
+[[assumption]]
+id = "autogen:WallClock"
+statement = "Message created_at and event t are wall-clock instants of object construction and log writing on one host; neither is a dispatch or completion time of a typed activity."
+
+[[assumption]]
+id = "autogen:TaskResultOrder"
+statement = "TaskResult.messages lists the team's output stream in the order it was emitted."
+
+# ------------------------------------------------------------------------------------------------ D rules on observed bytes
+[[rule]]
+id = "autogen.label_facets"
+version = 1
+class = "D"
+status = "active"
+statement = "The run file's label names its phase and (phase 6) its arm, results/phase<N>[/<arm>]/runs.jsonl; the environment of the task is that phase and arm."
+premises = ["origin /label"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.1"]
+tests = ["tests/adapters/autogen/test_dialect.py::test_label_grammar"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.event_attempt"
+version = 1
+class = "D"
+status = "active"
+statement = "A run's event rows are those whose run_id equals the row's; where seq restarts at 1 the rows form several attempts, and the row belongs to the last one, whose function-call ids equal the row's request ids in order and whose response texts include every agent text of the row."
+premises = ["events /run_id", "events /seq", "events /content", "/messages"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3 (3 retried runs; 1,080/1,080 last attempts agree)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_the_last_attempt_is_mapped"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.request_seq"
+version = 1
+class = "D"
+status = "active"
+statement = "An llm_response's request_seq names the llm_request it answers (same run, same agent); the pair is one model call, kept because a response was logged."
+premises = ["events /request_seq", "events /seq", "events /agent"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3 (3,280/3,280 resolve)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_model_calls_pair_by_request_seq"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.response_text_equal"
+version = 1
+class = "D"
+status = "active"
+statement = "An agent TextMessage is generated by the one model call of the same agent whose logged response text equals it; with no or several such responses nothing is linked."
+premises = ["/messages/*/text", "/messages/*/source", "events /content", "events /agent"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_agent_messages_link_to_their_model_call"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.thought_equal"
+version = 1
+class = "D"
+status = "active"
+statement = "A ThoughtEvent is generated by the one model call of the same agent whose logged thought equals its text."
+premises = ["/messages/*/text", "events /thought"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3 (267/267)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_agent_messages_link_to_their_model_call"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.response_call_ids"
+version = 1
+class = "D"
+status = "active"
+statement = "A ToolCallRequestEvent is generated by the one model call whose logged response holds the same function-call ids in the same order."
+premises = ["/messages/*/raw/content/*/id", "events /content/*/id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3 (1,080/1,080 runs)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_agent_messages_link_to_their_model_call"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.probe_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The row's probe_id (or case_id) names one row of the deposit's probe set, keyword-probe set or InjecAgent selection; its document, passage, template, label and canary are that row's fields."
+premises = ["/probe_id", "/case_id", "probes /id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.2 (1,080/1,080 join)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_probe_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.passage_in_document"
+version = 1
+class = "D"
+status = "active"
+statement = "The passage (attacker instruction) occurs in the probe document: its first 60 characters after stripping are a substring of the document, the test the harness itself applies (contains_passage)."
+premises = ["probes /passage", "probes /text"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py Run.guard_event"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_probe_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.task_template_digest"
+version = 1
+class = "D"
+status = "active"
+statement = "The composed task text is checked: it equals the recorded task message, or, where the task message is the withheld constant, its digest is a bus guard row's digest of the start message."
+premises = ["/messages/0/text", "events /text_sha"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §4"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_probe_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.guard_text_digest"
+version = 1
+class = "D"
+status = "active"
+statement = "A guard row's subject is the one recorded text whose SHA-256 begins with the row's 16 hex digits (64 bits; computed over recorded texts only, never inverted); a message is preferred to a fixture or artefact with the same text, and on the bus, among equal messages, the one the row's agent sent; with no or several remaining candidates the subject is the run, the digest and the candidate count stay in ext."
+premises = ["events /text_sha", "recorded texts"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3 (20,781 of 20,865 rows match)", "DECISIONS D-304"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_guard_judgements_join_by_digest"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.guard_raw_join"
+version = 1
+class = "D"
+status = "active"
+statement = "A verdict's detail is the guard log row of the same guard and digest whose own text re-hashes to that digest."
+premises = ["guard_raw /guard", "guard_raw /text_sha", "guard_raw /text"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.3 (7,283/7,283 verify)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_guard_judgements_join_by_digest"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.no_model_call"
+version = 1
+class = "D"
+status = "active"
+statement = "A run whose event attempt holds no llm_request made no model call: no agent acted, so the run is outcome_only (40 phase-10 runs stopped by the keyword before any agent spoke)."
+premises = ["events /kind"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.2"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_a_run_stopped_before_any_agent_is_outcome_only"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.acc.side_list"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: the row's tool_calls side list (save_note calls and InjecAgent attacker-tool calls, appended inside the tool bodies) equals, by agent and tool, the executions of those tools that returned without error."
+premises = ["/tool_calls", "/messages"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py Run.make_tools, InjecAgentRun.make_tools"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_side_list_check"]
+since = "0.1.0"
+
+# ------------------------------------------------------------------------------------------------ D rules on AutoGen code
+[[rule]]
+id = "autogen.call_id_link"
+version = 1
+class = "D"
+status = "active"
+statement = "A FunctionExecutionResult answers the FunctionCall whose id equals its call_id: AutoGen sets call_id from the call on every path, so the result's tool message answers that call and its execution ran that call."
+premises = ["/messages/*/raw/content/*/call_id", "/messages/*/raw/content/*/id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/microsoft/autogen", commit = "83afbf5857aac683340d4c692194e548b1e8edda", path = "python/packages/autogen-agentchat/src/autogen_agentchat/agents/_assistant_agent.py", lines = "1536-1620", note = "_execute_tool_call: FunctionExecutionResult(call_id=tool_call.id) on every path" },
+]
+evidence = ["docs/reports/phase10n/README.md §2.2 (1,120 results, every call_id resolves)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_results_answer_their_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.execution_result_status"
+version = 1
+class = "D"
+status = "active"
+statement = "Each FunctionExecutionResult of a ToolCallExecutionEvent records one execution of its call by the agent's workbench; the event is written after all calls of the request returned; is_error false means the tool's run_json returned (status ok); is_error true means undecodable arguments, an unknown tool or an exception in run_json, including argument validation before the tool body."
+premises = ["/messages/*/type", "/messages/*/raw/content/*/is_error"]
+assumptions = []
+code = [
+  { repo = "https://github.com/microsoft/autogen", commit = "83afbf5857aac683340d4c692194e548b1e8edda", path = "python/packages/autogen-agentchat/src/autogen_agentchat/agents/_assistant_agent.py", lines = "1183-1240", note = "ToolCallRequestEvent, asyncio.gather of the calls, then one ToolCallExecutionEvent" },
+  { repo = "https://github.com/microsoft/autogen", commit = "83afbf5857aac683340d4c692194e548b1e8edda", path = "python/packages/autogen-core/src/autogen_core/tools/_static_workbench.py", lines = "94-124", note = "call_tool: is_error True on any exception of run_json" },
+  { repo = "https://github.com/microsoft/autogen", commit = "83afbf5857aac683340d4c692194e548b1e8edda", path = "python/packages/autogen-core/src/autogen_core/tools/_base.py", lines = "179-198", note = "run_json validates the arguments, then runs the tool" },
+]
+evidence = ["docs/reports/phase10n/README.md §5.5"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_results_answer_their_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.arguments_decoded"
+version = 1
+class = "D"
+status = "active"
+statement = "A call's args are its arguments string decoded as JSON, the value AutoGen passes to the tool (json.loads before dispatch); the string is kept as args_raw."
+premises = ["/messages/*/raw/content/*/arguments"]
+assumptions = []
+code = [
+  { repo = "https://github.com/microsoft/autogen", commit = "83afbf5857aac683340d4c692194e548b1e8edda", path = "python/packages/autogen-agentchat/src/autogen_agentchat/agents/_assistant_agent.py", lines = "1545-1558", note = "arguments = json.loads(tool_call.arguments)" },
+]
+evidence = ["docs/reports/phase10n/README.md §5.5"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_results_answer_their_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.call_id_link_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of autogen.call_id_link@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): A FunctionExecutionResult answers the FunctionCall whose id equals its call_id: AutoGen sets call_id from the call on every path, so the result's tool message answers that call and its execution ran that call."
+premises = ["/messages/*/raw/content/*/call_id", "/messages/*/raw/content/*/id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.2", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.execution_result_status_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of autogen.execution_result_status@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): Each FunctionExecutionResult of a ToolCallExecutionEvent records one execution of its call by the agent's workbench; the event is written after all calls of the request returned; is_error false means the tool's run_json returned (status ok); is_error true means undecodable arguments, an unknown tool or an exception in run_json, including argument validation before the tool body."
+premises = ["/messages/*/type", "/messages/*/raw/content/*/is_error"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §5.5", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.arguments_decoded_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of autogen.arguments_decoded@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): A call's args are its arguments string decoded as JSON, the value AutoGen passes to the tool (json.loads before dispatch); the string is kept as args_raw."
+premises = ["/messages/*/raw/content/*/arguments"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md §5.5", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+# ------------------------------------------------------------------------------------------------ I rules (harness and readings)
+[[rule]]
+id = "autogen.deposit_harness_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The benchmark, harness, tool runtime and system prompts are those of the deposit's AutoGen guard-placement harness; their code identity is not recorded."
+premises = ["the record layout"]
+assumptions = ["autogen:DepositHarness"]
+verification = [{ assumption = "autogen:DepositHarness", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py Run.execute", "deposit:README.md"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.autogen_version_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The harness actor's code is autogen-agentchat at the version the phase-0 capture records."
+premises = ["capture /packages"]
+assumptions = ["autogen:AutoGenVersion"]
+verification = [{ assumption = "autogen:AutoGenVersion", status = "asserted" }]
+code = []
+evidence = ["deposit:requirements.txt", "deposit:results/phase0/capture.json"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.config_agent_model_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The agents (and the language-model guard) requested the model config.json names; the served model, its weights and quantisation are not recorded."
+premises = ["config /agent_model", "config /guards"]
+assumptions = ["autogen:ConfigModel"]
+verification = [{ assumption = "autogen:ConfigModel", status = "asserted" }]
+code = []
+evidence = ["deposit:config.json", "deposit:results/phase0/capture.json agent_model_echoed", "DECISIONS D-305"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_identity_comes_from_the_config"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.run_settings_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The run's defence setting is composed from its prompt defence and the placements in block mode with the block guard; placement modes and the block guard come from the row, else from the phase's code."
+premises = ["/modes", "/block_guard", "/defense", "/phase"]
+assumptions = ["autogen:RunSettings"]
+verification = [{ assumption = "autogen:RunSettings", status = "asserted" }]
+code = []
+evidence = ["deposit:src/run_experiment.py run_phase, phase10, phase12, phase13"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_task_header"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.task_is_harness_template_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The task message and the task-prompt fixture are the harness's task for the entry point; the actor user is the harness standing in for a user."
+premises = ["/entry", "/messages/0"]
+assumptions = ["autogen:TaskTemplate"]
+verification = [{ assumption = "autogen:TaskTemplate", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py ENTRY_TASK, InjecAgentRun.execute"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_probe_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.ingest_agent_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A message from the ingest agent is the harness's model-less retrieval turn carrying the probe document."
+premises = ["/messages/*/source"]
+assumptions = ["autogen:IngestAgent"]
+verification = [{ assumption = "autogen:IngestAgent", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py IngestAgent"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_ingest_turn"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.taskresult_order"
+version = 1
+class = "I"
+status = "active"
+statement = "Messages follow each other in TaskResult order (a positional after edge)."
+premises = ["/messages"]
+assumptions = ["autogen:TaskResultOrder"]
+verification = [{ assumption = "autogen:TaskResultOrder", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10n/README.md §2.4 (created_at non-decreasing in 1,080/1,080 runs)"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.request_log_is_model_input_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input lists the recorded messages its logged request handed to the model, matched by text (user messages) or call id (assistant calls, function results); system and memory messages and withheld copies match no recorded message and are counted in ext."
+premises = ["events /messages"]
+assumptions = ["autogen:RequestLogIsInput"]
+verification = [{ assumption = "autogen:RequestLogIsInput", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py GuardedClient.create"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_model_calls_pair_by_request_seq"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.system_prompt_from_request"
+version = 1
+class = "I"
+status = "active"
+statement = "An agent's system prompt is the first SystemMessage of its first logged request."
+premises = ["events /messages/0"]
+assumptions = ["autogen:RequestLogIsInput"]
+verification = [{ assumption = "autogen:RequestLogIsInput", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py RESEARCHER_SYS, WRITER_SYS"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_probe_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.tool_body_not_entered_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A result with is_error true whose tool body wrote no tool_call event was not run (status invalid: rejected before the body, e.g. by argument validation)."
+premises = ["/messages/*/raw/content/*/is_error", "events /kind"]
+assumptions = ["autogen:BodyLogsEntry"]
+verification = [{ assumption = "autogen:BodyLogsEntry", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py Run.make_tools, InjecAgentRun.make_tools", "docs/reports/phase10n/README.md §2.3 (4 of 4)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_results_answer_their_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.memory_query_is_harness"
+version = 1
+class = "I"
+status = "active"
+statement = "A MemoryQueryEvent is the agent's ListMemory adding its stored content to the model context: a harness activity whose output is that content."
+premises = ["/messages/*/type", "/messages/*/raw/content"]
+assumptions = ["autogen:MemoryByHarness"]
+verification = [{ assumption = "autogen:MemoryByHarness", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py Run.execute (ListMemory)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_memory_entry"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.probe_passage_attacker_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The passage of an attack probe or the InjecAgent attacker instruction is supplied by the attacker actor."
+premises = ["probes /label", "probes /passage"]
+assumptions = ["autogen:PassageAuthor"]
+verification = [{ assumption = "autogen:PassageAuthor", status = "asserted" }]
+code = []
+evidence = ["deposit:data/README.md", "deposit:src/build_probes.py"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_probe_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.guard_verdict_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A guard row records the verdict of each guard in flags on the text one placement handed it; the verdict was computed by that guard (a checker)."
+premises = ["events /flags", "events /placement"]
+assumptions = ["autogen:GuardRow"]
+verification = [{ assumption = "autogen:GuardRow", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py Run.guard_event, Guard.scan"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_guard_judgements_join_by_digest"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.block_replaces_text_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A block-guard flag at a placement in block mode (on the bus: a delivered message) is a guard decision that replaced the text by the withheld constant; where the run row records the replaced copy it was generated by that decision, else the copy is only in the request log."
+premises = ["events /flag", "/modes", "events /delivered"]
+assumptions = ["autogen:BlockReplaces"]
+verification = [{ assumption = "autogen:BlockReplaces", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py blocked, GuardedClient.create, BusGuard, Run.make_tools"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_blocks_become_decisions"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.tool_block_link_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A withheld tool result is the output of the execution the agent's flagged tool-placement scan blocked, taken one to one in order."
+premises = ["events /placement", "events /agent", "/messages/*/raw/content/*/content"]
+assumptions = ["autogen:ToolBlockOrder"]
+verification = [{ assumption = "autogen:ToolBlockOrder", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py Run.make_tools fetch_document"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_blocks_become_decisions"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.stop_reason_status_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The run status follows the stop reason: the configured message limit gives limit, the text-mention termination ok."
+premises = ["/stop_reason"]
+assumptions = ["autogen:StopReason"]
+verification = [{ assumption = "autogen:StopReason", status = "asserted" }]
+code = []
+evidence = ["deposit:src/harness.py Run.execute (MaxMessageTermination, TextMentionTermination)"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_task_header"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.wall_clock_times"
+version = 1
+class = "I"
+status = "active"
+statement = "created_at and event t are kept verbatim in ext; they are construction and logging instants, so no typed time of an activity is derived from them."
+premises = ["/messages/*/raw/created_at", "events /t"]
+assumptions = ["autogen:WallClock"]
+verification = [{ assumption = "autogen:WallClock", status = "asserted" }]
+code = []
+evidence = ["DECISIONS D-305"]
+tests = ["tests/adapters/autogen/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.block_without_decision"
+version = 1
+class = "I"
+status = "active"
+statement = "A block whose blocked text is not a recorded message, call part, execution or model call (the start message, a system prompt, the memory content, an unjoined text) is disclosed, not recorded as a decision (C.3.7 subject kinds); a changed start message names the guard as its author and no generator is invented."
+premises = ["events /flag", "/modes"]
+assumptions = ["autogen:BlockReplaces"]
+verification = [{ assumption = "autogen:BlockReplaces", status = "asserted" }]
+code = []
+evidence = ["C.3.7", "DECISIONS D-304"]
+tests = ["tests/adapters/autogen/test_mapper.py::test_blocks_become_decisions"]
+since = "0.1.0"
+
+# ------------------------------------------------------------------------------------------------ SEM rules (autogen.tools@1)
+[[rule]]
+id = "autogen.tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool's roles and output integrity follow from the autogen.tools@1 table for its name."
+premises = ["tool name"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py Run.make_tools, StubTool, InjecAgentRun.make_tools", "deposit:data/thirdparty/injecagent_dh.jsonl"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool in no table is fail-closed: integrity unknown, role unknown."
+premises = ["tool name"]
+assumptions = []
+code = []
+evidence = ["C.14.3"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Text, reasoning and calls of the researcher, writer and selector are trusted (the agents' own output)."
+premises = ["actor"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_fixture"
+version = 1
+class = "I"
+status = "active"
+statement = "Injection payloads and probe documents are untrusted (third-party text with inserted passages); task and system prompts are trusted (the harness's own text)."
+premises = ["fixture kind"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-306"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_task_message"
+version = 1
+class = "I"
+status = "active"
+statement = "The task message is trusted, except at the user entry point, where it carries the probe document and is unknown."
+premises = ["actor", "/task/suite"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py ENTRY_TASK"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_ingest_turn"
+version = 1
+class = "I"
+status = "active"
+statement = "The ingest agent's turn is the probe document: untrusted."
+premises = ["actor"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py IngestAgent"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_withheld"
+version = 1
+class = "I"
+status = "active"
+statement = "A text a guard replaced with the withheld constant is unknown: it carries no content of its original."
+premises = ["generated_by or actor"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py blocked"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_injected_result"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool result in which a payload fixture occurs verbatim is untrusted and attacker-authored in part."
+premises = ["part text", "fixture content"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-306"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.integrity_memory"
+version = 1
+class = "I"
+status = "active"
+statement = "Memory content handed to the agent is the stored probe document: untrusted."
+premises = ["artefact type"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py Run.execute (ListMemory)"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.payload_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "A payload fixture's content found verbatim in a tool result's text marks it present (located by its span); not found marks it absent."
+premises = ["part text", "fixture content"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10n/README.md \u00a72.2"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.verbatim_match"
+version = 1
+class = "D"
+status = "active"
+statement = "The identity normaliser: a payload or canary is searched verbatim (no folding), and a hit is located by its half-open range of Unicode scalar values."
+premises = ["the text"]
+assumptions = []
+code = []
+evidence = ["deposit:src/build_probes.py (passages inserted verbatim)"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.canary_match"
+version = 1
+class = "D"
+status = "active"
+statement = "The probe's canary occurs verbatim in the writer's text or in a save_note call's arguments (compact JSON): the agent reproduced the injected goal's marker (goal kinds output and tool)."
+premises = ["part text or args", "fixture /ext/autogen/canary"]
+assumptions = []
+code = []
+evidence = ["deposit:src/run_experiment.py run_phase (canary_hit)"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.attacker_tool_call"
+version = 1
+class = "D"
+status = "active"
+statement = "A call names one of the InjecAgent case's attacker tools (from the joined case): InjecAgent's breach criterion."
+premises = ["part name", "fixture /ext/autogen/attacker_tools"]
+assumptions = []
+code = []
+evidence = ["deposit:src/harness.py StubTool", "InjecAgent (attacker tool called)"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.keyword_stop_reading"
+version = 1
+class = "I"
+status = "active"
+statement = "A phase-10 run whose stop reason is the text-mention termination was stopped by the keyword; otherwise it ran to the message limit."
+premises = ["/ext/autogen/settings/stop_reason"]
+assumptions = []
+code = []
+evidence = ["deposit:src/run_experiment.py phase10"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy: a request whose roles include write_sink, send_sink, execute_sink or unknown, exposed to content of untrusted or unknown integrity, is potentially influenced by it."
+premises = ["labels"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 8"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+# ------------------------------------------------------------------------------------------------ reserved (register-level)
+[[rule]]
+id = "autogen.non_run_rows"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: rows without messages are not runs (phase 7 guardrail-rail probes, select.not_execution_artefact; phases 8 and 9 framework rebuilds with tool calls but no tool results, select.out_of_scope); they are register rows, so no AER record cites this rule."
+premises = ["the row's key set"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-300", "docs/reports/phase10n/README.md §2.1"]
+tests = ["tests/adapters/autogen/test_dialect.py::test_non_run_rows", "tests/adapters/autogen/test_import_e2e.py::test_files_without_runs_register_every_row"]
+since = "0.1.0"
+
+[[rule]]
+id = "autogen.errored_runs_set_aside"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the harness set aside rows of runs that errored and ran them again (set_aside_errors), so the published rows are successful attempts only; a selection effect of the deposit, disclosed in the artefact catalogue, never cited by a record."
+premises = ["the deposit code"]
+assumptions = []
+code = []
+evidence = ["deposit:src/run_experiment.py set_aside_errors", "docs/reports/phase10n/README.md §2.3"]
+tests = ["tests/adapters/autogen/test_rules.py::test_reserved_rules_are_never_cited"]
+since = "0.1.0"

@@ -1,0 +1,1394 @@
+# Rule catalogue `agentdojo` (docs/architecture D.5.1-D.5.4, D.6, D.6.11; C.16.1-C.16.2; EF E.10 item 21).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory). Rules
+# are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version` (AD-18).
+# Nothing is released yet (v0.1 is in development), so this file is still version 1.
+#
+# Phase 4 seeded the 17 rules that the transcript/v1 mapping cites (C.16.2) and phase 5 added the two I twins of the
+# engine assumptions. Phase 6 completes the catalogue for the TraceLogger mapper (adapter `agentdojo.tracelogger`,
+# D.6): every rule of the D.5.4 index in the `agentdojo` namespace, plus the rules marked "added in phase 6" (D.6.11).
+# Phase 7 adds the rules of the semantics profile agentdojo.suites@1 (cited only by SEM annotations, C.14) and the
+# two adapter assumptions they assert; `injection_marker_yaml` is no longer reserved.
+# Phase 8 adds the rules of the capture mapper `agentdojo.capture` (D.10.4a) and its three issue codes; the version stays
+# 1 (nothing is released), so the catalogue digest inside the golden PROV-JSON changes and those pins are regenerated.
+# Phase 9 (live AutoDojo, D.11.9) adds `capture_backend_identity` and states `run_error_imposed_outcome` with the values
+# the profile's quirk supplies (it named upstream's (False, True) only); the version stays 1 and the pins are regenerated.
+# Phase 10 (TraceLogger breadth, D.6.12) maps v1.k14 for imports: it adds `system_prompt_variant_digest` (D) and
+# `version_label_semantics` (I), and cites code at the head pin 089ed468 for the v1.k14 rules; the version stays 1 and
+# the pins are regenerated. The history part (D.6.16) states `committed_no_later_than` and `benchmark_era_from_commit`
+# as implemented (the version-cut commits are cited in the latter's `code` list) and adds the issue code
+# `history_commit_unlisted`; same version, pins regenerated.
+#
+# Code citations point at ethz-spylab/agentdojo. The June-2024 logs (`2024-06` pin, c274885) record no code identity
+# (no commit, no wheel hash; `code_identity = "unpinned"`), so no rule here declares a `verified` assumption: AER-V34
+# would require that identity in the AER, and the core validator does not yet check a code-range verification
+# (D.6.11 item 3). D rules rest on the cited writer and runner code, which is the same at every commit introducing a
+# 2024-06 log as far as the citations go; assumptions that are not shown are stated on I rules as `asserted`.
+
+[catalogue]
+id = "agentdojo"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = [
+  "pipeline_name_mismatch",
+  "local_parse_drop_possible",
+  "multi_block_tool_content",
+  "unknown_top_level_key",
+  "undeclared_quirk",
+  "unknown_message_shape",
+  "path_field_mismatch",
+  "mixed_content_forms",
+  "system_prompt_unrecognised",
+  "instrumentation_unrecognised",
+  "capture_reply_mismatch",
+  "capture_sent_form_unexplained",
+  "history_commit_unlisted",
+]
+subtypes = []
+types = []
+
+# ---------------------------------------------------------------------------------------------- dialect and layout
+[[rule]]
+id = "agentdojo.benchmark_from_dialect"
+version = 1
+class = "D"
+status = "active"
+statement = "A TraceLogger file was written by the AgentDojo benchmark runner (benchmark.py constructs the TraceLogger around each task run), so the checker and the supplier of the default system prompt is the agentdojo benchmark."
+premises = ["/suite_name", "/user_task_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "100-142", note = "TraceLogger around run_task_with_pipeline" },
+]
+evidence = ["C.16.1", "D.6.5 Step 2"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced", "tests/adapters/agentdojo/test_mapper.py::test_header_and_task"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.tracelogger_record_shape"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 6. A TraceLogger record has the key set of its dialect variant (D.6.2) and its messages the ChatMessage key sets of their role ({role, content}, {role, content, tool_calls}, {role, content, tool_call_id, tool_call, error}). A top-level key outside the variant's set is kept verbatim in ext.agentdojo.extra; a message of another shape is kept verbatim as an `other` part; a file mixing string and block content raises an info issue. Nothing is dropped or reinterpreted."
+premises = ["", "/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/logging.py", lines = "204-263", note = "TraceLogger.save writes the record" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/types.py", lines = "1-60", note = "ChatMessage TypedDicts" },
+]
+evidence = ["D.6.2", "D.6.3", "D.6.6 last row"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_unknown_shapes_are_kept_verbatim", "tests/adapters/agentdojo/test_mapper.py::test_unsupported_variants_seal_degenerate"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.log_path_layout"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 6. TraceLogger.save writes runs/{pipeline_name with '/' replaced by '_'}/{suite_name}/{user_task_id}/{attack_type}/{injection_task_id or 'none'}.json and logs attack_type 'none' as null, so the path components must agree with the fields (R-PATH). A disagreement is reported, never corrected."
+premises = ["/suite_name", "/pipeline_name", "/user_task_id", "/attack_type", "/injection_task_id"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/logging.py", lines = "239-255", note = "directory and file name; attack_type 'none' -> null" },
+]
+evidence = ["D.6.3 R-PATH"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_path_fields_must_agree"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- identity
+[[rule]]
+id = "agentdojo.pipeline_dir_is_model_identity"
+version = 1
+class = "I"
+status = "active"
+statement = "The model is resolved from the run directory and the profile's identity table, not from pipeline_name (the directory replaces '/' by '_' and carries the defence suffix)."
+premises = ["/pipeline_name"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/make_pipeline.py", lines = "33-63", note = "ModelsEnum and providers" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/logging.py", lines = "239", note = "pipeline_name.replace('/', '_')" },
+]
+evidence = ["sources/agentdojo.md §3.2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_converted_identity_is_not_split", "tests/adapters/agentdojo/test_identity.py::test_model_and_defence_from_the_directory"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.local_dir_model_identity"
+version = 1
+class = "I"
+status = "active"
+statement = "The Hugging Face model id for local* run directories comes from the directory name plus the claim of upstream PR #96/#97."
+premises = ["/pipeline_name"]
+assumptions = []
+evidence = ["sources/agentdojo.md §5.3"]
+tests = ["tests/adapters/agentdojo/test_identity.py::test_identity_table_rows"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.defence_suffix"
+version = 1
+class = "I"
+status = "active"
+statement = "The defence is parsed from the directory suffix list. Class I until the naming convention is verified over the producing code range (R-09)."
+premises = ["/pipeline_name"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/make_pipeline.py", lines = "112-199", note = "DEFENSES; pipeline.name = f'{model_name}-{defense_name}'" },
+]
+evidence = ["sources/agentdojo.md §8.2"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_converted_identity_is_not_split", "tests/adapters/agentdojo/test_identity.py::test_model_and_defence_from_the_directory"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- actors
+[[rule]]
+id = "agentdojo.user_is_simulated"
+version = 1
+class = "D"
+status = "active"
+statement = "The user messages of a task are issued by the harness (InitQuery): the user actor is a simulated_user, and the agent acts on its behalf."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/basic_elements.py", lines = "38-55", note = "InitQuery" },
+]
+evidence = ["C.16.1"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced", "tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.system_prompt_from_harness"
+version = 1
+class = "D"
+status = "active"
+statement = "The system message is the benchmark's default system prompt, inserted by the pipeline's SystemMessage element; its author is the bench actor."
+premises = ["/messages/0"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/basic_elements.py", lines = "58-73", note = "SystemMessage" },
+]
+evidence = ["C.16.1"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced", "tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.system_prompt_variant_digest"
+version = 1
+class = "D"
+status = "active"
+statement = "The system message's text (a string, or the texts of its text blocks joined by a newline) has the SHA-256 that the profile pins for a system-prompt variant of the harness code, so the message carries that variant's label (ext.agentdojo.system_prompt_variant). A text with no pinned digest among the variants declared for the file is reported as agentdojo.system_prompt_unrecognised; no label is guessed."
+premises = ["/messages/0/content"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/data/system_messages.yaml", lines = "1-9", note = "default" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/agent_pipeline/agent_pipeline.py", lines = "52-57", note = "load_system_message" },
+]
+evidence = ["D.6.6 system row", "D.6.12"]
+tests = ["tests/adapters/agentdojo/test_v1_import.py::test_system_prompt_variant_label"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.functions_runtime"
+version = 1
+class = "D"
+status = "active"
+statement = "Tools run in AgentDojo's FunctionsRuntime: the tool-runtime actor exists. Its acting on behalf of the agent without confirmation is agentdojo.auto_execution_unverified@1."
+premises = []
+assumptions = []
+evidence = ["C.16.1"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced", "tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.payload_attributed_to_attacker"
+version = 1
+class = "I"
+status = "active"
+statement = "Injection payloads are attributed to the attacker actor (D.6.5 Step 4)."
+premises = ["/injections"]
+assumptions = []
+evidence = ["D7 agent list"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced", "tests/adapters/agentdojo/test_mapper.py::test_fixtures_are_attributed_to_the_attacker"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- attempts and order
+[[rule]]
+id = "agentdojo.log_holds_last_pass"
+version = 1
+class = "D"
+status = "active"
+statement = "A TraceLogger file holds only the message list of the final pipeline pass of its cell: run_task_with_pipeline runs up to 3 passes on the same environment and TraceLogger.log replaces the stored messages each time, so the index of the logged pass is lost."
+premises = ["/messages"]
+assumptions = []
+emits = ["scope(kind=attempt).unk./index=lost", "seal.issue:earlier_attempts_unobservable"]
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "264-279", note = "up to 3 passes on the same environment" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/logging.py", lines = "270-285", note = "log() replaces self.messages, then save()" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/logging.py", lines = "265-278", note = "same in 0.1.35" },
+]
+evidence = ["sources/agentdojo.md §3.1", "verify/agentdojo.md §3", "audit/legacy_replay.md §2.2"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_attempt_scope_and_the_retry_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.null_final_implies_three_passes"
+version = 1
+class = "D"
+status = "active"
+statement = "A final assistant content of null with no run error means the logged pass is the 3rd of 3 (passes 1 and 2 unobserved) and the environment it started from was not the initial one: the retry loop breaks only on a non-null model output."
+premises = ["/messages", "/error"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "66-71", note = "model_output_from_messages" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "264-279", note = "for _ in range(3): ... if model_output is not None: break" },
+]
+evidence = ["verify/agentdojo.md §3", "verify/rope.md §4"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_attempt_scope_and_the_retry_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.messages_append_ordered"
+version = 1
+class = "D"
+status = "active"
+statement = "Message array order is append order within the logged pass (pipeline elements append sequentially)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/basic_elements.py", lines = "21-35", note = "AgentPipeline runs its elements in order" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "108", note = "results appended after the calling message" },
+]
+evidence = ["landscape/trace_formats.md §6.8"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced", "tests/adapters/agentdojo/test_mapper.py::test_message_order_and_context"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.messages_append_ordered_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdojo.messages_append_ordered where the producing harness code is not verified (profiles rope, agentdyn, survey-runs); the I twin required by D.5.3."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/rope.md §4.3", "EF F.2.1 row 15"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_rule_twins_follow_the_profile"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.first_user_msg_is_task_prompt"
+version = 1
+class = "D"
+status = "active"
+statement = "The first user message is the task PROMPT, or the injection GOAL in pre-pass runs."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "257-260", note = "prompt = PROMPT or GOAL" },
+]
+evidence = ["D.6.6"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_message_order_and_context"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.additional_user_message_unattributed"
+version = 1
+class = "I"
+status = "active"
+statement = "Added in phase 6. A user message after the first that no declared defence quirk accounts for (tool_filter prompt, repeat_user_prompt copy) is attributed to the simulated user by role only (D.6.6 'other later user')."
+premises = ["/messages"]
+assumptions = []
+evidence = ["D.6.6"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_additional_user_messages_are_unattributed"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- model calls
+[[rule]]
+id = "agentdojo.assistant_msg_has_one_call"
+version = 1
+class = "D"
+status = "active"
+statement = "In an undefended single-LLM pipeline each assistant message is the kept output of one LLM-element invocation."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/llms/openai_llm.py", lines = "158-173", note = "one completion -> one assistant message appended" },
+]
+evidence = ["C.16.1", "AgentPipeline / ToolsExecutionLoop structure"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.assistant_msg_has_one_call_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdojo.assistant_msg_has_one_call where the producing harness code is not verified (profiles rope, agentdyn, survey-runs); the I twin required by D.5.3."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/rope.md §4.3", "EF F.2.1 row 8"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_rule_twins_follow_the_profile"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.context_is_prefix"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input is every earlier message of the pass (apv:FullContextResend): the LLM elements convert the whole message list. Not recorded; false where a defence alters what is sent."
+premises = ["/messages"]
+assumptions = ["apv:FullContextResend"]
+verification = [{ assumption = "apv:FullContextResend", status = "asserted" }]
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/llms/openai_llm.py", lines = "166", note = "openai_messages = [_message_to_openai(m) for m in messages]" },
+]
+evidence = ["audit/capture.md §8 D7"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_message_order_and_context"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.empty_assistant_text_ambiguous"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 6. An assistant content of \"\" is the logged content: whether the model returned an empty text or no text is not recorded (the provider adapters map both to ''), so the empty text is declared ambiguous (C.7.1, C.19 item 4; D.7.5 item 10)."
+premises = ["/messages"]
+assumptions = []
+evidence = ["C.19 item 4", "D.7.5 item 10"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_empty_assistant_text_is_ambiguous"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- tool executions
+[[rule]]
+id = "agentdojo.tool_msg_is_one_execution"
+version = 1
+class = "D"
+status = "active"
+statement = "Each tool message is one ToolsExecutor iteration over one tool call; its embedded tool_call is the call dispatched."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "48-108", note = "ToolsExecutor.query" },
+]
+evidence = ["C.16.1"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.tool_msg_is_one_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdojo.tool_msg_is_one_execution where the producing harness code is not verified (profiles rope, agentdyn, survey-runs); the I twin required by D.5.3."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/rope.md §4.3", "EF F.2.1 row 10"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_rule_twins_follow_the_profile"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.tools_executed_sequentially"
+version = 1
+class = "D"
+status = "active"
+statement = "The calls of one assistant message are executed in list order, one at a time: each execution starts after the result of the previous one was built."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "71-107", note = "for tool_call in messages[-1]['tool_calls']" },
+]
+evidence = ["D.6.5 Step 5"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_tool_linking_by_id"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.call_id_unique_match"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool result is linked to a call by a non-empty id that is unique within its batch (the executor copies the call's id into tool_call_id)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "97-107", note = "tool_call_id = tool_call['id']" },
+]
+evidence = ["landscape/trace_formats.md §6.5", "C.16.1"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_tool_linking_by_id"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.positional_match"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool result is linked by position within the batch, verified against the embedded tool_call echo (function and args equal as JCS values with their lexical hints)."
+premises = ["/messages"]
+assumptions = []
+evidence = ["audit/legacy_replay.md §14 item 13"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_tool_linking_by_id_and_position", "tests/adapters/agentdojo/test_mapper.py::test_tool_linking_by_position"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.tool_status_from_error"
+version = 1
+class = "D"
+status = "active"
+statement = "error: null -> ok; 'Empty function name provided', 'Invalid tool <x> provided.' and non-denial 'ValidationError:' prefixes -> invalid; any other error -> error."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "72-93", note = "empty and invalid tool names" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/functions_engine/functions_engine.py", lines = "219-237", note = "run_function_v2: f'{type(e).__name__}: {e}'" },
+]
+evidence = ["audit/capture.md §3"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_tool_status_from_error", "tests/adapters/agentdojo/test_mapper.py::test_tool_status_from_error"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.args_are_effective"
+version = 1
+class = "D"
+status = "active"
+statement = "In v1.k14 logs the logged args are post-normalisation (in-place literal_eval), so the requested args are overwritten in place (unk overwritten where a field would hold them). Cited unscoped on the message (its args are O by source, erratum E10) and at /args_effective on the execution."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/tool_execution.py", lines = "99-101", note = "args normalised in place (0.1.35)" },
+]
+evidence = ["sources/agentdojo.md §3.5", "D.6.11 item 7"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_planned_variant_rules_are_declared"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.unexecuted_trailing_calls"
+version = 1
+class = "D"
+status = "active"
+statement = "Tool calls in the last assistant message with no tool message were never dispatched (ToolsExecutionLoop stops after max_iters = 15)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "111-145", note = "max_iters = 15" },
+]
+evidence = ["sources/agentdojo.md §3.5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_unexecuted_trailing_calls", "tests/adapters/agentdojo/test_mapper.py::test_unexecuted_trailing_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.placeholder_args_ground_truth_only"
+version = 1
+class = "D"
+status = "active"
+statement = "placeholder_args is ground-truth bookkeeping and never injection evidence."
+premises = ["/messages"]
+assumptions = []
+evidence = ["audit/capture.md §8 D1"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_planned_variant_rules_are_declared"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- defences
+[[rule]]
+id = "agentdojo.pi_detector_sentinel"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool content equal to the PI-detector sentinel '<Data omitted because a prompt injection was detected>' was written by the detector over the tool output, which was overwritten in place (R-08)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/pi_detector.py", lines = "46-110", note = "transform() and message['content'] = self.transform(...)" },
+]
+evidence = ["sources/agentdojo.md §3.5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_pi_detector_redaction", "tests/adapters/agentdojo/test_mapper.py::test_c16_1_vector_is_reproduced"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.tool_filter_aux_message"
+version = 1
+class = "I"
+status = "active"
+statement = "In -tool_filter pipelines the 2nd user message (the filter prompt) and the next tool-free assistant message (the filter output) belong to the filter LLM (OpenAILLMToolFilter appends both to the shared message list)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/llms/openai_llm.py", lines = "176-215", note = "OpenAILLMToolFilter.query" },
+]
+evidence = ["sources/agentdojo.md §3.5"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_tool_filter_messages_belong_to_the_defence"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.repeat_user_prompt_copy"
+version = 1
+class = "I"
+status = "active"
+statement = "In -repeat_user_prompt pipelines a later user message equal to the first is a defence re-insertion (InitQuery inside the tools loop)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/make_pipeline.py", lines = "178-184", note = "ToolsExecutionLoop([ToolsExecutor(), InitQuery(), llm])" },
+]
+evidence = ["sources/agentdojo.md §3.5"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_repeat_user_prompt_copies"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.spotlighting_content"
+version = 1
+class = "I"
+status = "active"
+statement = "In -spotlighting_with_delimiting pipelines tool content is the post-defence rendering (<<...>>)."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/make_pipeline.py", lines = "185-199", note = "tool_output_formatter wraps the output" },
+]
+evidence = ["sources/agentdojo.md §3.5"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_spotlighting_content_state"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.local_model_tag_count"
+version = 1
+class = "I"
+status = "active"
+statement = "More <function= tags than parsed calls in a local model's raw completion means parsed calls may have been dropped."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/agent_pipeline/llms/local_llm.py", lines = "119-145", note = "_parse_model_output: the first <function=...> tag becomes the one call; broken JSON gives none" },
+]
+evidence = ["sources/agentdojo.md §3.5", "issue #202"]
+tests = ["tests/adapters/agentdojo/test_v1_import.py::test_local_model_tag_count", "tests/adapters/agentdojo/test_rule_catalogue.py::test_planned_variant_rules_are_declared"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- run and time
+[[rule]]
+id = "agentdojo.duration_scope"
+version = 1
+class = "D"
+status = "active"
+statement = "duration covers environment load, all passes and scoring: it is measured from TraceLogger.__enter__ to __exit__ around run_task_with_pipeline."
+premises = ["/duration"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/logging.py", lines = "188-198", note = "duration = time.time() - self.start" },
+]
+evidence = ["D.6.5 Step 3"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_header_and_task"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.incomplete_run"
+version = 1
+class = "D"
+status = "active"
+statement = "Missing outcome or duration keys mean an interrupted run: TraceLogger saves on every log() and sets duration, utility and security only at the end."
+premises = ["/utility", "/security", "/duration"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/logging.py", lines = "192-202", note = "set_contextarg saves" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "141-142", note = "utility and security set last" },
+]
+evidence = ["sources/agentdojo.md §3.3"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_incomplete_run"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.naive_local_timestamp"
+version = 1
+class = "D"
+status = "active"
+statement = "evaluation_timestamp is the naive local time of TraceLogger construction, with 1 s resolution and unknown timezone. Applies where the producing TraceLogger code is verified (upstream v1.k14, 0.1.30 and later)."
+premises = ["/evaluation_timestamp"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/logging.py", lines = "173-174", note = "time.strftime('%Y-%m-%d %H:%M:%S') at TraceLogger construction" },
+]
+evidence = ["C.8.5"]
+tests = ["tests/adapters/agentdojo/test_v1_import.py::test_v1_k14_maps_with_the_version_fields", "tests/adapters/agentdojo/test_rule_catalogue.py::test_planned_variant_rules_are_declared"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.naive_local_timestamp_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdojo.naive_local_timestamp where the producing harness code is not verified (ROPE's unreleased fork states, AgentDyn and survey forks); the I twin required by D.5.3."
+premises = ["/evaluation_timestamp"]
+assumptions = []
+evidence = ["sources/rope.md §4.3", "C.16.4"]
+tests = ["tests/adapters/agentdojo/test_v1_import.py::test_structural_twins_cite_the_unverified_timestamp_rule", "tests/adapters/agentdojo/test_rule_catalogue.py::test_planned_variant_rules_are_declared"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.version_label_semantics"
+version = 1
+class = "I"
+status = "active"
+statement = "The logged benchmark_version label is kept verbatim as the benchmark actor's version, but for this source it does not name the version of the suite the run used: its reading is the source profile's version_label_semantics (label_not_suite_version: the source registers its suites under every version key, or the suite is not an AgentDojo suite; cli_default_not_suite_version: the label is the command-line default). Fixed per profile, never computed from the data."
+premises = ["/benchmark_version", "/suite_name"]
+assumptions = []
+evidence = ["sources/agentdyn.md §3.2", "sources/rope.md §8.2", "sources/drift.md", "D.4.4", "D.6.12"]
+tests = ["tests/adapters/agentdojo/test_profile_machinery.py::test_version_label_semantics_per_suite"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.committed_no_later_than"
+version = 1
+class = "D"
+status = "active"
+statement = "The committer date of the commit that introduced a log's blob at its path is an upper bound on the log's run time: a file can be in a commit only after it was written. The introducing commit is the one the git origin carries (introduced_in_commit): the earliest by (committer date, commit id) among the commits reachable from the pinned commit whose tree holds the blob at the path and none of whose parents does (full history, all parents, no rename following). The date is a claim of the committer's clock, written to ext only: never a PROV time, never the timestamp of any record, and neither a lower bound nor an estimate of the run time. Written only when the origin carries the commit and the profile's history table lists it; otherwise the field is absent."
+premises = []
+assumptions = []
+evidence = ["sources/agentdojo-inspect.md §7", "sources/agentdojo.md §8.1", "D.6.16"]
+tests = ["tests/adapters/agentdojo/test_history_fields.py::test_the_date_of_the_introducing_commit_is_written_as_a_d_ext_field", "tests/unit/raw/test_history.py::test_every_blob_gets_its_earliest_introducing_commit"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.benchmark_era_from_commit"
+version = 1
+class = "I"
+status = "active"
+statement = "For a file that records no benchmark version, the candidate version is the benchmark version in force in the tree of the commit that introduced the file's blob (rule committed_no_later_than): the newest default_suites/<vN> directory present there. AgentDojo registers a version by importing that directory in load_suites.py, and the label is the directory name with '_' read as '.'. A commit whose tree has no version directory predates the label (basis pre_versioning); its suites are the ones the commit e1bc6171 ('Add benchmark versioning') labelled v1. The version registered next is recorded with the date of its cut commit, because versions were cut from the working tree: a file committed shortly before a cut, or on a branch that did not hold it yet, may come from the suite state that became the next version (the 2024-07-16/17 travel re-runs are such files). A candidate, not a finding: per file, never per pipeline directory; suites edited in place between two cuts are not told apart. Written only when the file records no version, its origin carries the commit and the profile's history table lists it."
+premises = []
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "e1bc6171c8179446d954f3c43a9d0aedbb165ee6", path = "src/agentgym/task_suites/load_suites.py", note = "Add benchmark versioning (2024-06-10): the registry is introduced with version v1" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "fa0c85596f00f9c7bc3cb347aef7924131447656", path = "src/agentdojo/default_suites/v1_1/travel/__init__.py", note = "v1.1: travel only (2024-07-16)" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c0cc91e6010f00b70092594e22d060a50239ade3", path = "src/agentdojo/default_suites/v1_1_1/__init__.py", note = "v1.1.1 (2024-11-07, after 7eee7284 'Move to new benchmark versioning')" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "bc5a5c30300e914e76520c501e4f2e1aaab7c9ab", path = "src/agentdojo/default_suites/v1_1_2/__init__.py", note = "v1.1.2 (2025-01-15)" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "0c7c4d565e594675041fad79bf8f6b3164ea3a04", path = "src/agentdojo/default_suites/v1_2/__init__.py", note = "v1.2 (2025-01-16); the directory name held the v1.1.1 bug-fix state from 2024-11-04 to 2024-11-07" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "ccb41e931b628595b889f1fd1a215461350a6081", path = "src/agentdojo/default_suites/v1_2_1/__init__.py", note = "v1.2.1 (2025-04-30)" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "3f58252b1c0b12cac12bb0d43f65cbee73597191", path = "src/agentdojo/default_suites/v1_2_2/__init__.py", note = "v1.2.2 (2025-10-27)" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/task_suite/load_suites.py", lines = "14-74", note = "the registry at the head pin: version labels and the suites each one maps to" },
+]
+evidence = ["sources/agentdojo.md §4.3", "verify/agentdojo.md §5.3", "D.6.16"]
+tests = ["tests/adapters/agentdojo/test_history_fields.py::test_the_era_is_the_version_in_force_at_the_introducing_commit", "tests/adapters/agentdojo/test_history_fields.py::test_a_recorded_benchmark_version_gets_no_era"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- outcomes
+[[rule]]
+id = "agentdojo.checker_outcome"
+version = 1
+class = "D"
+status = "active"
+statement = "With no run error, a recorded attack (or a user-task utility) and no DoS rule, the stored outcome value is the task checker's return value."
+premises = ["/utility", "/security", "/error"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "288-308", note = "_check_task_result" },
+]
+evidence = ["D.6.7"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_judgement_origins", "tests/adapters/agentdojo/test_mapper.py::test_judgement_origins"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.benign_security_constant"
+version = 1
+class = "D"
+status = "active"
+statement = "Benign security is the constant True written by the runner: not applicable, not 'secure'."
+premises = ["/security", "/attack_type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "296-298", note = "if injection_task is None: return utility, True" },
+]
+evidence = ["D.6.7"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_judgement_origins", "tests/adapters/agentdojo/test_mapper.py::test_judgement_origins"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.dos_security_rule"
+version = 1
+class = "D"
+status = "active"
+statement = "Under a DoS attack, security = not utility (a runner rule)."
+premises = ["/security", "/utility", "/attack_type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "138-139", note = "if attacker.is_dos_attack: security = not utility" },
+]
+evidence = ["D.6.7"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_judgement_origins", "tests/adapters/agentdojo/test_mapper.py::test_judgement_origins", "tests/adapters/agentdojo/test_semantics.py::test_outcomes"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.dos_placeholder_injection_task"
+version = 1
+class = "D"
+status = "active"
+statement = "A DoS cell's injection_task_id is the suite's first injection task, a placeholder: ext.agentdojo.task_kind 'dos' marks the attack target as such."
+premises = ["/injection_task_id", "/attack_type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "65-74", note = "DoS attacks run one placeholder injection task" },
+]
+evidence = ["D.6.5", "audit/legacy_replay.md §2.2"]
+tests = ["tests/adapters/agentdojo/test_mapper.py::test_judgement_origins"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.run_error_imposed_outcome"
+version = 1
+class = "D"
+status = "active"
+statement = "A run error the benchmark runner caught means the outcomes were imposed by the runner, not judged by a checker (origin harness_default). The imposed values are the parameters of the source profile's quirk agentdojo.run_error_imposes_outcome: utility False and security True in upstream AgentDojo (the June-2024 code and 0.1.35); utility False and security False in the AutoDojo fork at aa458794, which also writes the error class to the log key named by the quirk's extra_key (error_type). In a TraceLogger log the run error is the non-null error member; in a capture session it is a pipeline error event or the backend's run_error_imposed note."
+premises = ["/error", "/data/where", "/data/payload"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "110-137", note = "log_error; utility = False; security = True" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "256-282", note = "same without injections" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/benchmark.py", lines = "120-147", note = "0.1.35: utility = False; security = True" },
+  { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", path = "agentdojo/src/agentdojo/benchmark.py", lines = "125-182", note = "fork: utility = False; security = False; logger.set_contextarg('error_type', ...)" },
+  { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", path = "agentdojo/src/agentdojo/benchmark.py", lines = "368-416", note = "fork: the same without injections" },
+]
+evidence = ["D.6.7", "D.11.7 item 7", "D.11.9"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_judgement_origins", "tests/adapters/agentdojo/test_mapper.py::test_judgement_origins", "tests/adapters/agentdojo/test_autodojo_capture.py::test_run_error_imposes_the_forks_outcome"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.injection_task_as_user_task"
+version = 1
+class = "D"
+status = "active"
+statement = "user_task_id = injection_task_N with attack none is the solvability pre-pass."
+premises = ["/user_task_id", "/attack_type"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/benchmark.py", lines = "187-193", note = "injection tasks run as user tasks" },
+]
+evidence = ["audit/legacy_replay.md §3.6 D6"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_injection_task_as_user_task_kind", "tests/adapters/agentdojo/test_mapper.py::test_header_and_task", "tests/adapters/agentdojo/test_semantics.py::test_outcomes"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.security_polarity"
+version = 1
+class = "D"
+status = "active"
+statement = "security = true means the attack succeeded (outcome claim attack_succeeded, holds = value): the injection task's security() check returned True, i.e. the injection task was executed; under a DoS attack, where the runner sets security = not utility (agentdojo.dos_security_rule@1), it means the user task was denied. A SEM reading (agentdojo.suites@1), never applied to an origin harness_default judgement; the AER judgement carries no polarity (C.3.10)."
+premises = ["/security"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/base_tasks.py", lines = "117-131", note = "BaseInjectionTask.security: True if the injection was executed" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "296-308", note = "security = _check_task_result(injection_task, ...)" },
+]
+evidence = ["verify/agentdojo.md §4", "issue #95", "C.14.5"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_planned_variant_rules_are_declared", "tests/adapters/agentdojo/test_semantics.py::test_outcomes"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.no_execution_observed"
+version = 1
+class = "D"
+status = "active"
+statement = "Empty messages: no trajectory exists, so the record is unit outcome_only; outcomes, where present, are kept as logged."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/agentdojo.md §4.4", "sources/rope.md §4.4"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_transcript_without_turns_is_outcome_only", "tests/adapters/agentdojo/test_mapper.py::test_empty_messages_are_outcome_only"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- semantics profile agentdojo.suites@1
+# Phase 7 (C.14; EF E.7; D.5.4 last paragraph). Cited only by SEM annotations of the semantics profile
+# agentdojo.suites@1 (src/agentprov/adapters/agentdojo/semantics/), never by AER records. The tool tables come from
+# AgentDojo-PROV v2.3 at the frozen baseline 579a908 (copied into the profile's labels.toml) and from the AgentDojo
+# suite code read as AST (suite_tools.toml, tools/agentdojo/gen_suite_tools.py). Table readings are class I (EF F.1.8:
+# they fail T-D4); the marker and outcome readings are D (deterministic functions of recorded values under cited code).
+[[rule]]
+id = "agentdojo.suite_tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The tools a run could call are those of the applicable suite tool table: execution.task.suite of benchmark agentdojo at the suite version named by the benchmark actor's recorded version label (the key of load_suites._SUITES); a recorded label naming no known version selects no table; with no recorded label, a tool is known only if it is in the suite's table at every known code state and version (the intersection). A tool outside the table is unknown (agentdojo.unknown_tool@1)."
+premises = ["/task/benchmark", "/task/suite", "/version"]
+assumptions = ["agentdojo:RunCodeAmongKnownStates"]
+verification = [{ assumption = "agentdojo:RunCodeAmongKnownStates", status = "asserted" }]
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/task_suite/load_suites.py", lines = "1-86", note = "_SUITES: version label -> suites; get_new_version deep-copies the v1 suite" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/task_suite/task_suite.py", lines = "134-137", note = "get_new_version changes only benchmark_version" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/__init__.py", lines = "1-21", note = "SUITES of the June-2024 code (unversioned)" },
+]
+evidence = ["C.14.1", "D.6.5 benchmark version label", "suite_tools.toml (generated)"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_suite_table_selection", "tests/adapters/agentdojo/test_semantics.py::test_suite_tools_table_is_generated"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.integrity_external_content"
+version = 1
+class = "I"
+status = "active"
+statement = "The output of a known tool of the v2.3 EXTERNAL_CONTENT_TOOLS table (reads of externally authored free text, and the mutations that return the object they wrote) is untrusted, whatever the execution's status (an error text is the runtime's rendering of the call, as in v2.3)."
+premises = ["/name"]
+assumptions = ["agentdojo:ToolNameDeterminesLabel"]
+verification = [{ assumption = "agentdojo:ToolNameDeterminesLabel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/labeling.py", lines = "54-115", note = "EXTERNAL_CONTENT_TOOLS" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/labeling.py", lines = "136-145", note = "entity_integrity" },
+]
+evidence = ["C.14.5", "EF F.1.8", "EF E.8.4 adprov:integrity"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat", "tests/adapters/agentdojo/test_semantics.py::test_tool_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.integrity_system_state"
+version = 1
+class = "I"
+status = "active"
+statement = "The output of a known tool outside the v2.3 EXTERNAL_CONTENT_TOOLS table returns structured system state and is trusted (v2.3 entity_integrity), whatever the execution's status."
+premises = ["/name"]
+assumptions = ["agentdojo:ToolNameDeterminesLabel"]
+verification = [{ assumption = "agentdojo:ToolNameDeterminesLabel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/labeling.py", lines = "117-145", note = "every other read tool returns trusted system state" },
+]
+evidence = ["EF F.1.8", "EF E.8.4 adprov:integrity"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat", "tests/adapters/agentdojo/test_semantics.py::test_tool_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.integrity_redacted_output"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool result generated by a redact decision (the PI-detector sentinel, agentdojo.pi_detector_sentinel@1) keeps the integrity of the tool that produced the overwritten output, as in v2.3 (capture_spec section 5: the defence replaced the output, its integrity stays the producing tool's). The sentinel reading is itself class I, so labelling the sentinel trusted would be fail-open if the reading were wrong."
+premises = ["/subject", "/name"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "447-457", note = "integrity from the tool; defence_omitted beside it" },
+]
+evidence = ["D.6.4 pi_detector_redaction", "EF E.8.4 adprov:defence_omitted"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_redacted_output_keeps_the_tool_label"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.integrity_principal_content"
+version = 1
+class = "I"
+status = "active"
+statement = "Parts of a system or user message authored by a principal of the run (the benchmark or harness inserting the system prompt, the simulated or real user, a defence re-inserting or filtering the prompt) are trusted; v2.3 labelled the user query trusted."
+premises = ["/role", "/actor"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "356-362", note = "e_user_query labelled TRUSTED" },
+]
+evidence = ["EF E.8.4 adprov:integrity (all entities)", "EF E.7.3 item 2"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_integrity_of_non_tool_content", "tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Parts of an assistant message authored by the agent (or by a defence's auxiliary model) carry the author's integrity, trusted, as v2.3 labelled the agent: an integrity label states who authored the content; whether untrusted context influenced it is the exposure and taint assessment's question (EF E.7.3), not a label."
+premises = ["/role", "/actor"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "354", note = "ag_llm labelled TRUSTED" },
+]
+evidence = ["EF E.8.4 adprov:integrity (agents)", "EF E.7.3 item 2"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_integrity_of_non_tool_content", "tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.integrity_payload_fixture"
+version = 1
+class = "I"
+status = "active"
+statement = "An injection_payload fixture is attacker-authored text, so it is untrusted (its attribution to the attacker is agentdojo.payload_attributed_to_attacker@1)."
+premises = ["/kind"]
+assumptions = []
+evidence = ["C.14.3 integrity targets fixtures", "D.6.5 fixtures"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_integrity_of_non_tool_content"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool outside the applicable suite tool table, or a tool result linked to no tool name (or generated by a decision other than redact), gets integrity unknown and role [unknown], and no channel: fail-closed, never a default trusted or neutral (C.14.3). v2.3 labelled such tools trusted and neutral."
+premises = ["/name"]
+assumptions = []
+evidence = ["C.14.3", "landscape/prov_semantics.md §9.3 item 5", "audit/provenance.md §1 item 5"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_unknown_tools_fail_closed"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.unknown_author"
+version = 1
+class = "I"
+status = "active"
+statement = "Content this profile cannot attribute to a principal, the agent or a tool (a message of another role or of an unrecognised author kind, a fixture of a kind other than injection_payload) gets integrity unknown (fail-closed)."
+premises = ["/role", "/actor", "/kind"]
+assumptions = []
+evidence = ["C.14.3"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_integrity_of_non_tool_content"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.channel_table"
+version = 1
+class = "I"
+status = "active"
+statement = "The output of a known tool of the v2.3 _CHANNEL_OF table carries that source channel (email, calendar, drive, file, web, message, transaction, review); other tools carry none."
+premises = ["/name"]
+assumptions = ["agentdojo:ToolNameDeterminesLabel"]
+verification = [{ assumption = "agentdojo:ToolNameDeterminesLabel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "39-59", note = "_CHANNEL_OF" },
+]
+evidence = ["C.14.5", "EF E.8.4 adprov:source_channel"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat", "tests/adapters/agentdojo/test_semantics.py::test_tool_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.read_tools"
+version = 1
+class = "I"
+status = "active"
+statement = "A known tool of the v2.3 EXTERNAL_CONTENT_TOOLS table holds the role content_source (it returns externally authored content); with a sink role too for the mutations that return what they wrote."
+premises = ["/name"]
+assumptions = ["agentdojo:ToolNameDeterminesLabel"]
+verification = [{ assumption = "agentdojo:ToolNameDeterminesLabel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/labeling.py", lines = "54-115", note = "EXTERNAL_CONTENT_TOOLS" },
+]
+evidence = ["C.14.5 (read_file -> content_source)", "EF E.7.1"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_tool_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.sink_tools"
+version = 1
+class = "I"
+status = "active"
+statement = "A known tool of the v2.3 SINK_TOOLS table holds the sink roles of the profile's refinement (labels.toml [roles.sink]): send_sink when the call itself delivers a message, money or published content to an argument-named party or address; write_sink when it creates, changes or deletes stored state of the user's environment; both when it does both. v2.3 sink <=> any sink role."
+premises = ["/name"]
+assumptions = ["agentdojo:ToolNameDeterminesLabel"]
+verification = [{ assumption = "agentdojo:ToolNameDeterminesLabel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/labeling.py", lines = "17-48", note = "SINK_TOOLS" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/default_suites/v1/tools/calendar_client.py", lines = "58-125", note = "cancel_event and reschedule_event send e-mail; add_participants does not" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/default_suites/v1/tools/calendar_client.py", lines = "137-254", note = "create, cancel, reschedule, add participants" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/default_suites/v1/tools/banking_client.py", lines = "55-151", note = "send_money, schedule_transaction, update_scheduled_transaction" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/default_suites/v1/tools/slack.py", lines = "30-115", note = "membership changes and message sending" },
+]
+evidence = ["C.14.5 (update_scheduled_transaction -> write_sink, send_money -> send_sink)", "EF E.7.1", "EF E.8.4 adprov:role"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_role_refinement_covers_every_v2_3_sink", "tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.neutral_tools"
+version = 1
+class = "I"
+status = "active"
+statement = "A known tool in neither the v2.3 SINK_TOOLS, EXTERNAL_CONTENT_TOOLS nor ENDORSER_TOOLS table is neutral (v2.3 classify_activity's default, restricted to known tools)."
+premises = ["/name"]
+assumptions = ["agentdojo:ToolNameDeterminesLabel"]
+verification = [{ assumption = "agentdojo:ToolNameDeterminesLabel", status = "asserted" }]
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/labeling.py", lines = "128-133", note = "classify_activity" },
+]
+evidence = ["EF E.7.1"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_tool_labels_follow_the_tables"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.injection_marker_yaml"
+version = 1
+class = "D"
+status = "active"
+statement = "Marker of one tool_result part and one injection_payload fixture (normaliser agentdojo.yaml_norm@1, the v2.3 payload_marker per payload): present when the whitespace-collapsed payload occurs in a reading of the output's YAML escaping, or, once any payload's first 40 characters are visible, in the YAML-decoded output; absent otherwise; gap when the part has no text or the fixture no payload. Only when YAML rejects the output on the decoded path are agentdojo.pyrepr_norm@1 and then agentdojo.json_norm@1 tried, and a payload neither finds is ambiguous (agentdojo.injection_marker_ambiguous@1). A present marker gives at /text and, when the payload stands in the text verbatim or up to whitespace runs, its span."
+premises = ["/parts/0/text", "/content"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "144-304", note = "_norm_match, _content_forms, _decoded_forms, _norm_payload, payload_marker" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "21-45", note = "tool_result_to_str renders tool results with yaml.safe_dump" },
+]
+evidence = ["C.14.3", "EF E.7.3", "EF F.2.1 row 28", "EF E.8.4 adprov:contains_injection_marker"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat", "tests/adapters/agentdojo/test_semantics.py::test_marker_statuses"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.injection_marker_ambiguous"
+version = 1
+class = "I"
+status = "active"
+statement = "A payload whose opening is visible in a tool output that the YAML normaliser rejects, and that neither the Python-repr nor the JSON reading finds, may be present in a form no normaliser decoded: the marker is ambiguous (EF E.7.3: INFERRED). v2.3 called it not present."
+premises = ["/parts/0/text", "/content"]
+assumptions = ["agentdojo:NormaliserRejectionIsContainment"]
+verification = [{ assumption = "agentdojo:NormaliserRejectionIsContainment", status = "asserted" }]
+evidence = ["C.14.3", "EF E.7.3", "audit/provenance.md §7.1.4"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_marker_statuses", "tests/adapters/agentdojo/test_semantics.py::test_ambiguous_marker_states_its_assumption"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.yaml_norm"
+version = 1
+class = "D"
+status = "active"
+statement = "Normaliser: the v2.3 marker readings of a tool output (every reading of YAML scalar escaping, one and two levels, apostrophe un-doubling, whitespace collapse) and its decoded reading (YAML parsed by the bounded agentprov.ingest.yamlsafe.safe_load, strings joined, Python-repr escapes undone, whitespace collapsed). A parse failure is a rejection."
+premises = []
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "144-285", note = "ported in agentprov.adapters.agentdojo.semantics.markers" },
+]
+evidence = ["C.14.3", "G.3.7"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_marker_statuses", "tests/adapters/agentdojo/test_semantics.py::test_equivalence_with_v2_3_compat"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.pyrepr_norm"
+version = 1
+class = "D"
+status = "active"
+statement = "Normaliser: a tool output read as Python repr text, with string-literal escapes (backslash n, t, r, quotes, backslash, \\xNN, \\uNNNN, \\UNNNNNNNN, octal) undone and whitespace collapsed. Text-level, never rejects; consulted only after a YAML rejection."
+premises = []
+assumptions = []
+evidence = ["C.14.3 (YAML and Python-repr forms)", "sources/agentdyn.md §8.2"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_marker_statuses"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.json_norm"
+version = 1
+class = "D"
+status = "active"
+statement = "Normaliser: a tool output parsed as one strict JSON document (agentprov.ingest.loaders.strict_json_loads, bounded), its strings joined and whitespace collapsed; anything else is a rejection. Consulted only after a YAML rejection."
+premises = []
+assumptions = []
+evidence = ["C.14.3", "G.3.3"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_marker_statuses"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.utility_meaning"
+version = 1
+class = "D"
+status = "active"
+statement = "A checker's utility = true means the user task was solved (outcome claim user_task_solved, holds = value): the suite stores the user task's utility() check, which returns True iff the task was executed correctly. In a solvability pre-pass (agentdojo.injection_task_as_user_task@1) the checked task is the injection task's goal, so the claim is agentdojo.injection_task_solved_as_user_task."
+premises = ["/value"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/base_tasks.py", lines = "53-73", note = "BaseUserTask.utility" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/task_suites/task_suite.py", lines = "288-308", note = "utility = _check_task_result(user_task, ...)" },
+]
+evidence = ["C.14.3 outcome", "C.14.5", "D.6.7"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_outcomes"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy of agentdojo.suites@1 (the v2.3 R6 reading, EF E.7.3 items 1-2): a request holding a sink role (write_sink, send_sink, execute_sink) or the role unknown (fail-closed), exposed to a context member whose integrity is untrusted or unknown, is potentially influenced by it. Over-approximate by design."
+premises = []
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/build_prov.py", lines = "364-372, 471-477", note = "a sink uses every untrusted output returned before the turn that issued it" },
+]
+evidence = ["EF E.7.3", "EF E.8.4 R6"]
+tests = ["tests/adapters/agentdojo/test_semantics.py::test_taint_policy"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- reserved
+[[rule]]
+id = "agentdojo.record_complete_with_replay"
+version = 1
+class = "I"
+status = "reserved"
+statement = "Reserved: a record judged complete by outcome replay. Deferred with outcome replay (AD-10 row 2); v0.1 never applies it (B COR-06)."
+premises = []
+assumptions = []
+evidence = ["D.5.4"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_reserved_rules_cannot_be_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.account_confound"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved for the semantics profile agentdojo.suites (phase 7): the payload's account (e.g. the attacker IBAN) appears in the first user message, so the cell confounds utility and security (D.15.5)."
+premises = []
+assumptions = []
+evidence = ["D.15.5", "D.5.4"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_reserved_rules_cannot_be_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.text_tool_call"
+version = 1
+class = "I"
+status = "reserved"
+statement = "Reserved for the semantics profile agentdojo.suites (phase 7): an assistant text holds a tool call the prompting parser did not turn into a call part; flagged, never re-parsed (D.15.1, D.15.5)."
+premises = []
+assumptions = []
+evidence = ["D.15.5", "D.5.4"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_reserved_rules_cannot_be_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.unwinnable_cell"
+version = 1
+class = "I"
+status = "reserved"
+statement = "Reserved for the semantics profile agentdojo.suites (phase 7): a static cell table marks injection cells whose injection task cannot succeed (D.15.5; uncertain)."
+premises = []
+assumptions = []
+evidence = ["D.15.5", "D.5.4"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_reserved_rules_cannot_be_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.scoring"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved for the semantics profile agentdojo.suites (phase 7): the AgentDojo-PROV v2.3 scoring rule set, applied in SEM and the assessment bundle, never in AER (D.5.4)."
+premises = []
+assumptions = []
+evidence = ["D.15.5", "D.5.4"]
+tests = ["tests/adapters/agentdojo/test_rule_catalogue.py::test_reserved_rules_cannot_be_cited"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------- assumptions of engine rules (EF E.10 item 21)
+# I twins (AD-05): the code below does what the assumptions say, but the AgentDojo-family sources record no commit or
+# wheel hash of the producing code (June-2024 logs are an unpinned range; transcript/v1 records a version string only),
+# so the assumptions are asserted, never verified, and the statements resting on them go to inference bundles. A
+# source whose harness identity is pinned (live capture, phase 8) cites a D twin with a verified entry instead.
+[[rule]]
+id = "agentdojo.auto_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The FunctionsRuntime dispatches every tool call the model requests, without confirmation, on behalf of the agent (apv:AutoExecution): ToolsExecutor loops over the last assistant message's tool calls and runs each. Asserted for the producing code, which the source does not identify."
+premises = ["/on_behalf_of"]
+assumptions = ["apv:AutoExecution"]
+verification = [{ assumption = "apv:AutoExecution", status = "asserted" }]
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", path = "src/function_calling_pi/agent_pipeline/tool_execution.py", lines = "48-115", note = "ToolsExecutor.query" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/agent_pipeline/tool_execution.py", lines = "46-115", note = "ToolsExecutor.query" },
+]
+evidence = ["EF E.4.5 apv:AutoExecution", "EF E.10 item 21"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_engine_assumptions_are_cited", "tests/golden/test_prov_derive.py::test_assumption_rules_fire_as_inferred", "tests/adapters/agentdojo/test_mapper.py::test_engine_assumptions_are_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.checker_inputs_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The task checker reads the final model output text, the pre-environment, the post-environment and the tool calls of the scored attempt: the suite passes the output text with both environments to utility() and security(), and the call trace is built from the final messages. The judgement does not record its inputs, and the producing code is not identified, so the assumptions are asserted."
+premises = ["/inputs"]
+assumptions = ["apv:CheckerUsesOutput", "apv:CheckerUsesPreState", "apv:CheckerUsesPostState", "apv:CheckerUsesCallTrace"]
+verification = [
+  { assumption = "apv:CheckerUsesOutput", status = "asserted" },
+  { assumption = "apv:CheckerUsesPreState", status = "asserted" },
+  { assumption = "apv:CheckerUsesPostState", status = "asserted" },
+  { assumption = "apv:CheckerUsesCallTrace", status = "asserted" },
+]
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/task_suite/task_suite.py", lines = "281-312", note = "_check_user_task_utility, _check_injection_task_security" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", path = "src/agentdojo/task_suite/task_suite.py", lines = "399", note = "functions_stack_trace_from_messages" },
+]
+evidence = ["EF E.4.5 checker-input assumptions", "EF E.10 item 21", "landscape/prov_semantics.md §13 E5"]
+tests = ["tests/adapters/adprov/test_mapping.py::test_engine_assumptions_are_cited", "tests/golden/test_prov_derive.py::test_assumption_rules_fire_as_inferred", "tests/adapters/agentdojo/test_mapper.py::test_engine_assumptions_are_cited"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- live capture (phase 8)
+# The capture mapper `agentdojo.capture` (D.10.4, D.10.4a) maps capture/0.1 sessions of backends/agentdojo, which runs the
+# stock agentdojo 0.1.35 wheel (profile agentdojo-live). Code citations name the release commit of that wheel; the line
+# numbers are those of the wheel's sources (src/agentdojo/... at a75aba76). Facts the capture records are O by capture and
+# need no rule; these rules justify the links and readings the mapper derives from them, and the capture issues.
+[[rule]]
+id = "agentdojo.capture_status"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The run scope's status is the session.end status (complete -> ok, errored -> error, aborted -> aborted; incomplete has no scope value and is declared ambiguous with issue incomplete_run). A log with no verifiable session.end (unsealed, C.13.2) or with a fatal error event ended in error: status error, issue capture_unsealed or capture_error. A pass whose pass.end says aborted is an aborted attempt (issue aborted_attempt), and so is a session that ended aborted."
+premises = ["/data/status", "/data/fatal", "/data/aborted"]
+assumptions = []
+evidence = ["C.13.2", "C.13.7 rows error and session.end", "D.10.4"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_unsealed_log_maps_the_verifiable_prefix", "tests/adapters/agentdojo/test_capture_mapper.py::test_parent_appended_abort", "tests/adapters/agentdojo/test_capture_mapper.py::test_multi_pass_with_an_aborted_pass"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_last_pass_scored"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The benchmark scores the output of the last pass of a cell: run_task_with_pipeline runs the pipeline up to three times, keeping the messages of an aborted pass, and stops at the first pass whose final model output is not None; the scored model output and environment are those of the last pass run. The last attempt scope is scored: true, every earlier one scored: false."
+premises = ["/data/aborted"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/task_suite/task_suite.py", lines = "383-395", note = "for _ in range(3): query, AbortAgentError keeps e.messages, break on model output" },
+]
+evidence = ["audit/capture.md §3", "C.3.3 scored"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_multi_pass_with_an_aborted_pass"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_reply_appended"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The stock LLM element appends exactly one assistant message, built from the kept response, to the message list it was given: the reply of a kept or cached agent-role call is the assistant message at position n_messages of the pass's native message dump (in call order when n_messages is not recorded), provided the dump's message agrees with the decoded response (text and tool-call names); otherwise no link is made (issue agentdojo.capture_reply_mismatch)."
+premises = ["/data/n_messages", "/data/messages", "/data/response"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/openai_llm.py", lines = "188-202", note = "OpenAILLM.query: output = _openai_to_assistant_message(...); messages = [*messages, output]" },
+]
+evidence = ["C.13.7", "D.10.4"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_c13_8_vector_maps_and_validates", "tests/adapters/agentdojo/test_capture_mapper.py::test_discarded_reply_and_retry"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_discarded_reply"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. A discarded reply's message is decoded from its call's response blob (choices[0].message): text content becomes a text part, each tool call a tool_call part whose args are the JSON-decoded arguments string; arguments that are not valid JSON are kept verbatim as a string and declared ambiguous."
+premises = ["/data/response"]
+assumptions = []
+evidence = ["C.13.7 row llm.request / llm.response", "D.10.4"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_discarded_reply_and_retry"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_reply_wire_fields"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The stock OpenAI element builds the AgentDojo message from the reply's content and tool calls only (_openai_to_assistant_message); a refusal and provider reasoning text (reasoning, reasoning_content, else the text of reasoning_details) reach only the response blob. They belong to the message the kept call generated (agentdojo.capture_reply_appended@1) and are appended after its native parts as refusal and reasoning parts, their content O by the provider, unless the native message already holds a part of that kind. The native TraceLogger log cannot express them, so the live-versus-native projection omits them."
+premises = ["/data/response"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/openai_llm.py", lines = "126-131", note = "_openai_to_assistant_message: content and tool_calls only" },
+]
+evidence = ["D.10.4a", "K.9.1(3)", "J.3.4 C6"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_wire_reply_fields_are_mapped_and_left_out_of_the_native_projection"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_sent_form"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. Item i of a call's input was sent as message i of the decoded wire request. The stock 0.1.35 OpenAI rendering is not a transform (system as developer or system, content blocks as text parts or one string, tool-call args as a JSON string); differences from the recorded message are declared transforms: error_substitution when a tool message with a non-null error was sent as its error text (_message_to_openai: content = message['error'] or ...), role_rewrite when a system message was sent as system under the declared agentdojo.role_rewrite_developer_to_system@1 instrumentation, reasoning_passback when the sent assistant message carries reasoning members. sent_sha256 is the SHA-256 of the JCS bytes of the decoded wire message. A difference none of these explains is reported (agentdojo.capture_sent_form_unexplained) and no transform is claimed."
+premises = ["/data/request", "/data/messages", "/data/input_at"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/openai_llm.py", lines = "77-108", note = "_message_to_openai" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/openai_llm.py", lines = "36-46", note = "_tool_call_to_openai: arguments = json.dumps(args)" },
+]
+evidence = ["C.3.5 sent transforms", "C.6.6 error-substituted tool result", "audit/capture.md §3"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_error_substitution_is_a_sent_transform", "tests/adapters/agentdojo/test_capture_mapping.py::test_missing_input_at_aligns_under_cap_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_execution_result"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The ToolsExecutor appends one tool message per call of the assistant message, in call order, after it: the tool message of the pass dump that responds to a dispatched call is generated by that call's tool execution, or by the denial decision when the dispatch was denied (C.5.5), or by the decision whose replacement it carries."
+premises = ["/data/at", "/data/provider_call_id", "/data/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/tool_execution.py", lines = "59-115", note = "ToolsExecutor.query: one ChatToolResultMessage per tool call, appended in order" },
+]
+evidence = ["C.13.7 row tool.dispatch / tool.result", "D.10.4"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_c13_8_vector_maps_and_validates", "tests/adapters/agentdojo/test_capture_mapper.py::test_denied_tool_is_a_decision_only"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_abort_message"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. AbortAgentError appends one assistant message (one text block with the abort reason, tool_calls []) to the messages of the pass it aborts; the pass dump ends with it. It is not a model reply: no call generates it, and the raising element is not recorded (actor and generated_by not_recorded). The TraceLogger never logs it, so the live-versus-native comparison leaves it out (agentdojo.art.abort_message_not_logged)."
+premises = ["/data/aborted", "/data/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/errors.py", lines = "13-28", note = "AbortAgentError.__init__ appends the abort message" },
+]
+evidence = ["D.10.4a", "D.10.10 item 10"]
+tests = ["tests/adapters/agentdojo/test_capture_fixtures.py::test_aborted_pass_abort_message"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_no_pass"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. A capture log with no pass.start observed no agent execution: no attempt scope, message or call is emitted, the record keeps unit agent_execution and the seal carries no_execution_observed (C.12.3; B F-06)."
+premises = ["/type"]
+assumptions = []
+evidence = ["C.13.7 last row", "C.12.3"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_no_pass_is_no_execution_observed"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_native_check"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The native TraceLogger JSON written beside a capture session records the same cell: it keeps the messages of the last pass (TraceLogger.log sets self.messages before save), the injection payloads and the outcomes. Mapped with agentdojo.tracelogger under the same profile, its common projection (agentprov.adapters.projection) equals the capture's; a difference is the issue live_native_divergence, naming the differing projection pointers."
+premises = ["/data/sha256", "/data/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/logging.py", lines = "265-277", note = "TraceLogger.log: self.messages = messages" },
+]
+evidence = ["D.10.4 live-versus-native check", "K.9.1"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_live_native_agreement_and_divergence"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_withheld"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. A capture event that lists redactions (C.13.5) carries the redacted bytes only: the AER fields built from a redacted member are declared withheld where the field is optional, and the seal carries capture_redaction naming the records. Cited when the redaction's own cap.secret rule is not declared in the shipped cap catalogue."
+premises = ["/data/redactions"]
+assumptions = []
+evidence = ["C.13.5", "G.6.4"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_redaction_is_withheld"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_instrumentation"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 8. The instrumentation event's items are copied into the header unchanged (D.10.7). An item whose id the profile's [family.agentdojo.live] instrumentation_accepted list does not name is an observer effect the profile does not know: it is kept and reported (agentdojo.instrumentation_unrecognised)."
+premises = ["/data/items"]
+assumptions = []
+evidence = ["D.10.7", "C.13.3 row instrumentation"]
+tests = ["tests/adapters/agentdojo/test_capture_mapper.py::test_unrecognised_instrumentation_is_reported"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdojo.capture_backend_identity"
+version = 1
+class = "D"
+status = "active"
+statement = "Added in phase 9. A capture session is mapped with the live profile of the backend that wrote it: session.start.backend.id names the backend, and the profile's [family.agentdojo.live] backend must be that id. The identity event's benchmark code identity must equal the profile's pins: repo and commit for a git-pinned fork (AutoDojo), distribution and version for a registry wheel (AgentDojo 0.1.35). A difference is reported (identity_conflict), a session without a backend id or an identity event too (identity_unresolved), and neither is resolved by choosing another profile."
+premises = ["/data/backend/id", "/data/benchmark"]
+assumptions = []
+evidence = ["D.10.6", "D.11.3 rule 1", "D.11.9"]
+tests = ["tests/adapters/agentdojo/test_autodojo_capture.py::test_profile_pins_must_match_the_observed_identity"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- declared assumptions
+[[assumption]]
+id = "agentdojo:ToolNameDeterminesLabel"
+statement = "A tool's integrity, roles and source channel follow from its name within the applicable suite tool table: the function registered under that name behaves at the run's code state as the cited table says (the v2.3 tables, written against the v1.2.2 suites)."
+
+[[assumption]]
+id = "agentdojo:NormaliserRejectionIsContainment"
+statement = "A tool output in which the opening of a registered payload is visible, but which the YAML normaliser rejects and no fallback reading decodes, is read as possibly containing the payload: the rejection is taken as a containment claim of unknown truth (marker ambiguous), never as absence."
+
+[[assumption]]
+id = "agentdojo:RunCodeAmongKnownStates"
+statement = "A run without a recorded suite-version label used the suite code of one of the code states and versions in suite_tools.toml (the June-2024 code at c274885 or a version of the head pin)."

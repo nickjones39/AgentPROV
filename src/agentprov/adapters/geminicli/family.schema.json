@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/geminicli/family-0.1.json",
+  "title": "[family.geminicli] table of a geminicli source profile (D.4.1, D.23.10; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["layout", "scaffold", "models", "excluded_scaffolds", "tools", "pairing", "semantics_profile"],
+  "properties": {
+    "layout": {"type": "string", "minLength": 1},
+    "scaffold": {"const": "gemini_cli"},
+    "models": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"}},
+    "excluded_scaffolds": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z][a-z_]*$"},
+      "description": "the D-143 scope as data (documentation of the exclude globs, checked by a test)"
+    },
+    "tools": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}},
+    "pairing": {"type": "string", "pattern": "^geminicli\\.[a-z_]+@[1-9][0-9]*$"},
+    "semantics_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observed"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^geminicli\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^geminicli\\.[a-z][a-z0-9_.]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

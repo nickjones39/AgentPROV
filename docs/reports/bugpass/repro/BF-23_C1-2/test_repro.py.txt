@@ -1,0 +1,92 @@
+"""C1-2 repro: family deny-lists miss validator C.7.3 sentinels ('-', '0', and agentops checks none)."""
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+ROOT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+for fam in ("credleak", "agentops", "openhands"):
+    sys.path.insert(0, str(ROOT / "tests/adapters" / fam))
+
+import agentops_support as ao  # noqa: E402
+import credleak_support as cs  # noqa: E402
+import openhands_support as oh  # noqa: E402
+from agentprov.adapters.credleak.dialect import CredleakCellReader  # noqa: E402
+from agentprov.adapters.credleak.mapper import CredleakMapper  # noqa: E402
+from agentprov.adapters.runner import aer_bytes, map_unit  # noqa: E402
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit  # noqa: E402
+from agentprov.ingest.limits import IngestLimits  # noqa: E402
+from agentprov.adapters.profiles import load_profile  # noqa: E402
+
+
+def _credleak_cell(tool):
+    turn = {"turnNumber": 0, "userMessage": "u", "assistantResponse": "done",
+            "toolCalls": [{"tool": tool, "input": {}, "output": "x"}]}
+    return cs.synthetic_cell(turns=[turn])
+
+
+@pytest.mark.parametrize("tool", ["-", "0"])
+def test_credleak_placeholder_tool_name_seals(tool):
+    cs.map_cell("p15b-run-data/01-injection-map/ch/test-model/run__x.json", _credleak_cell(tool), sem=False, prov=False)
+
+
+@pytest.mark.parametrize("tool", ["-"])
+def test_credleak_importer_fallback_not_degenerate(tool):
+    data = _credleak_cell(tool)
+    label = "p15b-run-data/01-injection-map/ch/test-model/run__x.json"
+    profile = load_profile(cs.PROFILE)
+    reader, mapper = CredleakCellReader(), CredleakMapper()
+    art = ArtefactRef(id="a0", sha256=hashlib.sha256(data).hexdigest(), bytes=len(data), media="application/json",
+                      origin=cs.member_origin(label, data), role="primary", prov_primary="native")
+    item = next(iter(reader.parse(data, art, limits=IngestLimits())))
+    unit = ExecutionUnit(primary=item)
+    outcome = map_unit(unit, mapper, profile)
+    sealed, _ = aer_bytes(outcome, unit=unit, mapper=mapper, profile=profile)
+    header = json.loads(sealed.splitlines()[0])
+    text = sealed.decode()
+    assert "adapter_defect" not in text, "whole run replaced by degenerate adapter_defect AER"
+
+
+def _agentops_run(name):
+    call = {"tool_name": name, "arguments": {}, "timestamp": "t"}
+    res = {"tool_name": name, "result": "ok", "latency_ms": 1.0, "injected_failure": None, "injected_payload": None}
+    step = {"step_number": 1, "llm_input_tokens": 1, "llm_output_tokens": 1, "reasoning": None,
+            "tool_calls": [call], "tool_results": [res]}
+    trace = {"task_id": "code/001", "agent_id": "openai/gpt-x", "condition": "clean", "steps": [step],
+             "total_input_tokens": 1, "total_output_tokens": 1, "total_cost_usd": 0.0, "wall_time_seconds": 1.0,
+             "completed": True, "final_output": None, "error": None}
+    return json.dumps({"task_id": "code/001", "agent_id": "openai/gpt-x", "condition": "clean", "run_number": 1,
+                       "trace": trace, "scores": {}}).encode()
+
+
+@pytest.mark.parametrize("name", ["-", "none", "unknown"])
+def test_agentops_placeholder_tool_name_seals(name):
+    ao.map_label("pilot_v1_seeded/gpt/openai_gpt-x/clean/code_001_run1.json", data=_agentops_run(name), tasks={})
+
+
+def _oh_events(tool, model):
+    def resp(rid, calls):
+        return {"id": rid, "model": model, "choices": [{"finish_reason": "tool_calls", "message": {
+            "content": "", "tool_calls": [{"id": c, "function": {"name": n, "arguments": "{}"}} for c, n in calls]}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+    return [
+        {"id": 0, "timestamp": "2025-01-01T00:00:00", "source": "user", "action": "message", "args": {"content": "do"}},
+        {"id": 1, "timestamp": "2025-01-01T00:00:01", "source": "agent", "action": "run", "args": {"command": "ls"},
+         "tool_call_metadata": {"function_name": tool, "tool_call_id": "c1", "model_response": resp("r1", [("c1", tool)])}},
+        {"id": 2, "timestamp": "2025-01-01T00:00:02", "source": "agent", "observation": "run", "content": "o", "cause": 1,
+         "tool_call_metadata": {"function_name": tool}},
+    ]
+
+
+@pytest.mark.parametrize("tool,model", [("-", "m-1"), ("run", "unknown")])
+def test_openhands_placeholder_seals(tool, model):
+    label = "evaluation/m/traj_t1.json"
+    data = json.dumps(_oh_events(tool, model)).encode()
+    oh.map_label(label, {label: data}, source="oas", data=data)
+
+
+@pytest.mark.parametrize("tool", ["nan"])
+def test_control_credleak_own_list_flags(tool):
+    cs.map_cell("p15b-run-data/01-injection-map/ch/test-model/run__x.json", _credleak_cell(tool), sem=False, prov=False)

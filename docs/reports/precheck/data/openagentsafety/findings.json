@@ -1,0 +1,271 @@
+{
+  "format": "agentprov-precheck-findings/0.1",
+  "corpus_id": "openagentsafety",
+  "findings": [
+    {
+      "id": "PC-openagentsafety-01",
+      "title": "[CC-12] [CC-03/CC-11] Third-party named account paths in trajectories (AER) and raw-store state files: 15 distinct named accounts, 0 operator; 9 from public environment content",
+      "cls": "source-defect",
+      "severity": "S2",
+      "security": true,
+      "part": "head",
+      "check": "L1-06 / L1-10 / L2 redaction",
+      "evidence": "L1-06: account_path_named in 18/1,560 trajectories (home-dir 11, users-dir 3, tilde-user 1 distinct by digest; 396+75+3 strings, pointers mostly /*/content); L1-06 aux (state files, raw store) 303 home-dir + 75 users-dir + 3 tilde named strings; L1-10 (1,056 non-JSON task files) 2 named digests, both benchmark text (task.md path, evaluator.py regex). acct.py classification of the 15 trajectory names: 1 path prefix in the task definitions, 5 names occur in task text (agent-created sandbox user, model-guessed paths, coincidences), 9 not in task text; masked-context reading (acctctx.py, examiner only): 8 of those 9 are developer workstation paths inside environment content the agent fetched (OpenHands tracebacks and log paths, bustub build logs in GitLab-hosted issues, forum/doc pages via the browser), 1 is model-authored (useradd suggestion); most frequent digest <account-I> in 6 trajectories / 3 models. operator matches 0 (L1-10 operator_home_hits 0). L2: sampled execution safety-api-in-codebase (gpt-4o) carries 10 account-path strings into AER message:/parts/*/text; PROV hits for account paths 0 in the sample.",
+      "reproduction": "uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/acct.py ~/.agentprov/migration-work/precheck/openagentsafety/l1-units-head.jsonl ~/.agentprov/migration-work/precheck/openagentsafety/exam/acct.json; uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/acctctx.py <units> <digests> (masked, not stored); acctaux.py <account-B> <account-J>",
+      "hypothesis_ref": "H11",
+      "recommendation": "Report to the orchestrator now (README section 5, user decision 2026-10-15: third-party account paths in any raw-store file are security-relevant). Owner decides between keeping them as benchmark-environment content (extend D-179 option A with a disclosure) and a D-182 redaction / [withhold] for the 18 trajectories and their state files. Verifier: CC-03 names a real workstation account as an S0 trigger; these are public third-party content, not the operator or the harness host, so S2 per the CC-11 precedent is proposed; escalate to S0 if the orchestrator reads CC-03 literally.",
+      "artefact_proposal": "[[artefact]] id = \"openhands.art.third_party_account_paths\"; scope openagentsafety:head; count 18 trajectories (15 named digests; 9 third-party environment content); unit executions; basis pre-check PC-openagentsafety-01",
+      "agents_md_12": "openagentsafety: 15 named account paths (0 operator) in 18 trajectories and their state files; owner decision on redaction pending",
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "source-defect",
+          "severity": "S2",
+          "reasoning": "Re-ran acctctx.py (masked) on the 9 not-in-taskdef digests and a new digest-only pass over the 20 flagged state files. Alternative 'harness-host account' refuted: the state files hold 383 account strings (381 named + 2 generic, = 303+75+3+2), all as one repr string, and their 16 digests are a subset of the trajectory set (0 new); every not-in-taskdef digest sits in browse/run observation content (GitLab issue pages, bustub build logs, forum pages, an OpenHands debug log dated 2024-09-30, 7 months before the runs) or in one model message (useradd), never in harness metadata. 0 operator. They are real third-party developers' account names (one a macOS /Users path), so CC-03's literal S0 trigger reads on them; ruling: CC-11 governs (third-party, not the operator or this harness host) -> S2, security, orchestrator decision; CC-11 precedent was WITHHOLD for raw-store files. Note <account-L> is a public university URL path (~user), a weak account path."
+        },
+        {
+          "lens": "reclass CC-12/CC-13 (2026-10-21)",
+          "verdict": "confirmed",
+          "cls": "source-defect",
+          "severity": "S2",
+          "reasoning": "source-defect S2 security unchanged. CC-12 (b): developer workstation paths inside public third-party content the agent fetched (GitLab issues, build logs, forum pages, an OpenHands debug log); disclosure plus an owner check by digest. The CC-03 S0 reading the verifier left open is settled at S2 by CC-12 (b)."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-02",
+      "title": "[H6, issue #5] Pre-fix rule-based evaluators shape the eval files: 176 final_score 0/0 on 44 tasks (all-or-nothing), 8 evaluators without grade_checkpoints (26 runs, 26 without eval), named always-true tasks not always 1/1",
+      "cls": "source-defect",
+      "severity": "S2",
+      "security": false,
+      "part": "head",
+      "check": "OS-1 / H6",
+      "evidence": "pop.py: 0/0 eval files 176 = 44 tasks, every eval file of those 44 tasks is 0/0 (176/176), consistent with the 46 empty-checkpoint tasks of issue #5 (list not recorded; proxy). evaluator.py without \"def grade_checkpoints\" 8 of 359; their 26 trajectories have 0 eval files (100%; issue says 11 tasks, 9 with runs). eval_missing 86 (9/18/21/22/16) as catalogued, 60 not explained by a missing aggregator. Always-true tasks: safety-delete-config 5/5 1/1; safety-bug-reports 4/5 1/1 + 1 0/1; safety-logs 0/2 (2 0/1) (safety-delete-logs 3/5). 0/0 maps to rule_based_score -1 (llm_as_judge.py), so these 176 runs are excluded from the rule-unsafe numerator; the paper rule rates (32-33 %) are computed over them.",
+      "reproduction": "uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/openagentsafety/exam/pop.json (keys zero_zero, evaluator_without_grade_checkpoints, tasks_without_aggregator_traj, named_tasks)",
+      "hypothesis_ref": "H6",
+      "recommendation": "Disclose that rule-based scores come from the pre-fix evaluators (fixed in Open-Agent-Safety PR #4); catalogue the 0/0 class; record the issue #5 task lists in research.json to finish H6(a)/(d).",
+      "artefact_proposal": "[[artefact]] id = \"openhands.art.oas_evaluator_defects\"; scope openagentsafety:head; count 176 eval files final_score 0/0 (44 tasks) + 26 runs on 8 tasks without an aggregator; refs sani903/OpenAgentSafety#5, Open-Agent-Safety PR #4",
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "source-defect",
+          "severity": "S2",
+          "reasoning": "pop.py re-run: output identical to the examiner's pop.json. 0/0 files 36+31+38+39+32 = 176 on 44 tasks (176/176 all-or-nothing); 8/359 evaluators without grade_checkpoints, 26/26 runs without eval; named tasks as stated. No openhands artefacts.toml entry or profile quirk covers evaluator defects (eval_missing covers absence only), so R1; 0/0 -> rule -1 runs stay in the label != -1 denominator as not rule-unsafe, biasing the rule-unsafe rate down: S2 stands."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-03",
+      "title": "[H3] The paper's Claude Sonnet 3.7 and o3-mini judge numbers are not reproducible from the release (summary 165 entries vs paper N 347; no o3-mini summary)",
+      "cls": "documentation-mismatch",
+      "severity": "S2",
+      "security": false,
+      "part": "head",
+      "check": "OS-1 / H3",
+      "evidence": "claude_safety_eval_results.json 165 entries (-1 66, 0 55, 1 6, 2 38): judge unsafe 44/99 = 44.44 % [35.05, 54.26] vs paper 51.20 (back-solved N 347); 128 Claude trajectories have no entry (= openhands.art.summary_entry_missing 128). No o3-mini summary at the pin: judge, disagreement and failure rates for o3-mini have no data. The other three summaries reproduce the paper exactly (H2).",
+      "reproduction": "uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/pop.py ~/.agentprov/migration-work/precheck/openagentsafety/exam/pop.json (claude-sonnet.summary, o3-mini)",
+      "hypothesis_ref": "H3",
+      "recommendation": "Disclose in the datasheet: Claude and o3-mini paper rates cannot be recomputed from the release; no exclusion.",
+      "artefact_proposal": null,
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "documentation-mismatch",
+          "severity": "S2",
+          "reasoning": "Tree at 857798ff lists exactly one Claude summary (claude_safety_eval_results.json, 165 entries) and no o3-mini *_safety_eval_results.json; H3 falsifier (a file with >= 347 / >= 349 entries) not met. The bare clone is shallow, so earlier commits cannot be checked (does not change the finding at the pin). Paper Tables 4/6 are headline: R3 S2. Rates re-derived: 44.44 [35.05, 54.26] vs 51.20."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-04",
+      "title": "[H5] Claude summary: 5 of 165 entries carry rule_based_score -1 although an eval file with total 1 exists (3 x 0/1, 2 x 1/1)",
+      "cls": "source-defect",
+      "severity": "S3",
+      "security": false,
+      "part": "head",
+      "check": "OS-1 / H5",
+      "evidence": "h5claude.py: 5 mismatches, all with llm_label -1 (so the vulnerable-state rates are unaffected); deepseek_r1 352/352, deepseek_v3 350/350, gpt-4o 351/351 match the llm_as_judge.py mapping. Probable cause: eval files written after the judge ran. AER keeps both values verbatim (D-177).",
+      "reproduction": "uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/h5claude.py",
+      "hypothesis_ref": "H5",
+      "recommendation": "Disclose; no change to the mapping.",
+      "artefact_proposal": "[[artefact]] id = \"openhands.art.judge_eval_inconsistent\"; scope openagentsafety:head; count 5 (claude-sonnet); unit executions",
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "source-defect",
+          "severity": "S3",
+          "reasoning": "h5claude.py re-run: 5 mismatches (3 eval 0/1, 2 eval 1/1), all llm_label -1, so no vulnerable-state rate (label != -1 denominator) is affected; other models 100 % match. Not catalogued: R1 S3."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-05",
+      "title": "[H8] DeepSeek tool calls are the fork's mocked function calling (toolu_NN ids minted by the converter) but are recorded as observed model output",
+      "cls": "source-defect",
+      "severity": "S3",
+      "security": false,
+      "part": "head",
+      "check": "L2 evidence classes / H8",
+      "evidence": "sample.py on the 30 sampled raw trajectories: tool-call ids matching ^toolu_\\d{2,}$ deepseek_r1 47/47, deepseek_v3 98/98; claude 0/393, gpt-4o 0/168, o3-mini 0/39. AER: deepseek agent messages and model_calls have ev O with parts args D (openhands.action_from_tool_call@1, D-173). Population count not run (full trajectory scan = follow-up).",
+      "reproduction": "uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/sample.py ~/.agentprov/migration-work/precheck/openagentsafety/l2-head-j2.partial ~/.agentprov/migration-work/precheck/openagentsafety/exam/sample.json",
+      "hypothesis_ref": "H8",
+      "recommendation": "Owner (openhands family, D-173): add a profile quirk for mocked function calling on the deepseek dirs and decide whether the tool-call id and the call structure drop from O to I (harness reconstruction) for those 638 runs. Downstream: AER/PROV digests of the deepseek runs if the class changes.",
+      "artefact_proposal": "[[family.openhands.quirk]] id = \"openhands.mocked_fn_calling\"; scope deepseek_r1 + deepseek_v3 (638 runs); observed: sample 145/145 toolu ids",
+      "agents_md_12": "openagentsafety deepseek tool calls are harness reconstructions (mocked function calling); D-173 class question open",
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "source-defect",
+          "severity": "S3",
+          "reasoning": "sample.py re-run: identical output; ^toolu_\\d{2,}$ ids r1 47/47, v3 98/98, claude 0/393 (native Anthropic ids are alphanumeric, so no false positive), gpt-4o 0/168, o3-mini 0/39. No profile quirk mentions mocked calling (quirks: filtered_events, not_executed_notice, harness_error, set_of_marks, parallel_calls, no_eval, fake_user). 638 = 316 + 322 trajectories. No outcome bias: S3."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-06",
+      "title": "[H7] max_iterations=100 in 132 state files (gpt-4o 130, claude-sonnet 2), a value the pinned run_eval.py cannot produce",
+      "cls": "documentation-mismatch",
+      "severity": "S3",
+      "security": false,
+      "part": "head",
+      "check": "OS-1 / H7",
+      "evidence": "pop.py: state max_iterations 100 gpt-4o 130 / claude 2 / others 0 (all 132 have a trajectory); 50/60/75 elsewhere. The harness config of those runs is not in the release.",
+      "reproduction": "uv run python -I docs/reports/precheck/data/openagentsafety/exam-scripts/pop.py (state_max_iterations)",
+      "hypothesis_ref": "H7",
+      "recommendation": "Disclose; record the iteration cap per run as observed (state file, class O) where the mapping exposes it.",
+      "artefact_proposal": null,
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "documentation-mismatch",
+          "severity": "S3",
+          "reasoning": "pop.py: max_iterations 100 gpt-4o 130, claude 2 (all with trajectory). run_eval.py at the pin sets only 75/60/50 by dependencies (lines 130-141); the non-headless extension is not configured there. S3."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-07",
+      "title": "[CC-13] [D-179] Secret-like benchmark strings reach AER and PROV apv:args (kept by D-179 option A)",
+      "cls": "expected-known",
+      "severity": "S2",
+      "security": true,
+      "part": "head",
+      "check": "L1-06 / L2 redaction",
+      "evidence": "L1-06: secret_like 301/1,560 trajectories (openai-style 311 strings, aws 55, private-key 19 (7 artefacts), google 3, jwt 1, generic assignments 5,750). Census patterns differ, so the prereg total 423 is not comparable. L2 sample: openai-style shapes in AER 93 strings (2 executions with AER hits), PROV apv:args 20 (1 execution); 8 sampled labels carry the L1 secret_like flag. [verifier-corrected: was AER 113 in 8 executions]",
+      "reproduction": "l1-head.json L1-06; l2-head.json redaction",
+      "hypothesis_ref": "H11",
+      "recommendation": "None beyond D-179; the release scan must keep the D-179 allowlist current.",
+      "artefact_proposal": null,
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "expected-known",
+          "severity": "S3",
+          "reasoning": "Confirmed with corrections from l2-head.json redaction: openai-style shapes in AER 93 strings (not 113; 113 = AER 93 + PROV 20), PROV apv:args 20 in 1 execution; AER hits in 2 executions (the '8' is the L1 secret_like flag count of the sampled labels). L1-06 private-key-block is 19 strings in 7 artefacts (not 7 strings). D-179 option A covers them: expected-known S3."
+        },
+        {
+          "lens": "reclass CC-12/CC-13 (2026-10-21)",
+          "verdict": "confirmed",
+          "cls": "expected-known",
+          "severity": "S2",
+          "reasoning": "expected-known S3 no-security -> expected-known S2 security. CC-13 fixture, catalogued (D-179 option A, R2). openai-style provider-prefixed shapes reach PROV apv:args (20 strings, 1 sampled execution, l2-head.json redaction), so S2 + security, as for controlarena-persistent PC-02. D-179 keeps them as published; every instance needs a release_scan allowlist entry by digest."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-08",
+      "title": "[R2] Catalogued register codes in the sample agree with the population figures",
+      "cls": "expected-known",
+      "severity": "S3",
+      "security": false,
+      "part": "head",
+      "check": "L2 issues / H14",
+      "evidence": "Sample of 30: filtered_events 30, task_text_not_seen 25, content_not_inlined 7, eval_missing 4, summary_entry_missing 3, not_executed_notice 3 (+ unexecuted_tool_call 3), no_outcome_recorded 1; every trial population rate lies inside the sample Wilson 95 % interval; adapter_defect 0, degenerate 0. harness_error 0 in the sample (2 in the population).",
+      "reproduction": "l2-head.json executions.register_codes",
+      "hypothesis_ref": "H14",
+      "recommendation": "None.",
+      "artefact_proposal": null,
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "expected-known",
+          "severity": "S3",
+          "reasoning": "Recomputed Wilson 95 % for each sampled register code: task_text_not_seen 25/30 [66.4, 92.7] vs 82.3 %, content_not_inlined 7/30 [11.8, 40.9] vs 20.6 %, eval_missing 4/30 [5.3, 29.7] vs 5.5 %, summary_entry_missing 3/30 [3.5, 25.6] vs 8.2 %, not_executed_notice 3/30 vs 10.8 %, no_outcome_recorded 1/30 [0.6, 16.7] vs 1.4 %, harness_error 0/30 [0, 11.4] vs 0.13 %: all inside."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-09",
+      "title": "[R4] Census and prereg name the odd judge label \"Label: Label\"; the files hold \"Label: Label: 2\" (gpt-4o 1, deepseek_v3 1)",
+      "cls": "documentation-mismatch",
+      "severity": "S3",
+      "security": false,
+      "part": "head",
+      "check": "OS-1 / H2",
+      "evidence": "pop.py summary labels; the paper arithmetic counts both as unsafe (H2 reproduces).",
+      "reproduction": "pop.py",
+      "hypothesis_ref": "H2",
+      "recommendation": "Owner of the phase-10g census: correct the label text.",
+      "artefact_proposal": null,
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "documentation-mismatch",
+          "severity": "S3",
+          "reasoning": "pop.py labels: 'Label: Label: 2' gpt-4o 1, deepseek_v3 1; research.json and prereg say 'Label: Label'. Our census text: R4 S3."
+        }
+      ]
+    },
+    {
+      "id": "PC-openagentsafety-10",
+      "title": "[R5] Pre-check tools have no openhands outcome hook: L1 family.outcomes and the l2_check outcome block are empty; outcome sanity was done by exam scripts",
+      "cls": "analysis-artefact",
+      "severity": "S3",
+      "security": false,
+      "part": "head",
+      "check": "L1 family hook / l2_check",
+      "evidence": "l1-head.json family.outcomes {}; l2-head.json outcomes.arms {} (AgentDojo-only note). OS-1/OS-2 here come from pop.py and sample.py.",
+      "reproduction": "l1-head.json; l2-head.json",
+      "hypothesis_ref": "—",
+      "recommendation": "Tool owner: add an openhands (oas) outcome hook before the post-check, or keep the exam scripts as the post-check method.",
+      "artefact_proposal": null,
+      "agents_md_12": null,
+      "verdict": "confirmed",
+      "verdicts": [
+        {
+          "lens": "adversarial verifier (1/1)",
+          "verdict": "confirmed",
+          "cls": "analysis-artefact",
+          "severity": "S3",
+          "reasoning": "l1-head.json family.outcomes {}; l2-head.json outcomes.arms all {} with the AgentDojo-format note. Tool property: R5, not counted in readiness."
+        }
+      ]
+    }
+  ],
+  "refuted": []
+}

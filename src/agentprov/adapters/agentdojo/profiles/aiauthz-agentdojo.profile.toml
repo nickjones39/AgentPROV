@@ -1,0 +1,178 @@
+# Source profile `aiauthz-agentdojo`: the AgentDojo experiment of Sports-Vision-Inc/aiAuthZ, 174 TraceLogger banking logs
+# of anthropic/claude-fable-5 and google/gemini-3-flash-preview (OpenRouter) under the aiAuthZ defence,
+# AgentDojo's spotlighting and no defence, attacked and clean (phase 10d; shortlist row 23;
+# sources/agentdojo-format-candidates.md §3.26). AGPL-3.0: its own corpus (D-94).
+#
+# The logged pipeline_name is a registry tag chosen for the attack prose (run_benchmark.py _MODEL_TAGS), never the
+# model: the identity table is keyed by <model dir>/<arm> (D-104, D-106). aiAuthZ's denials ('Blocked by aiAuthZ
+# policy:') are defence decisions (quirk agentdojo.defence_denial_message, routing R1, D-113).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/aiauthz@6eaac86ae5bf.*).
+
+[profile]
+id = "aiauthz-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "aiauthz-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "aiAuthZ on AgentDojo: AgentDojo 0.1.35 banking logs of an authorization defence via OpenRouter (Sports-Vision-Inc/aiAuthZ)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/Sports-Vision-Inc/aiAuthZ"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", requirement = "not declared for the experiment", version_identifies_code = false }
+
+# The pin covers the repository root (288 files): the runs and results of the experiments, the aiAuthZ package and the
+# documents. The byte total is not stated: nine images were not fetched in phase 10c; the other 279 files hold
+# 1,422,548 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "6eaac86ae5bfd8bf7b8a65786a5c77a7c0bce673"
+date = "2026-07-06"
+expected_files = 288
+note = "the default branch at 2026-10-11 (phase 10c); 174 logs under experiments/agentdojo/runs/<model dir>/<arm>/"
+
+[licence]
+spdx = "AGPL-3.0-only"
+holders = ["SportsVision AI"]
+data_licence = "none"
+policy = "include"
+basis = "NOTICE: Copyright (c) 2026 SportsVision AI, licensed under the GNU AGPL v3.0; LICENSE the AGPL v3 text; no 'or later' statement, so the stated version is recorded (-only); the commercial licence offered beside it does not restrict the AGPL grant; the logs embed AgentDojo benchmark text (MIT)"
+restrictions = ["AGPL-3.0: a corpus holding these logs is conveyed under the AGPL-3.0 (corresponding source, the same licence for derived works); kept in its own corpus (D-94)"]
+attribution = [
+  "Sports-Vision-Inc/aiAuthZ (AGPL-3.0, (c) 2026 SportsVision AI), commit 6eaac86ae5bfd8bf7b8a65786a5c77a7c0bce673",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; installation not declared)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["experiments/agentdojo/runs/*/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "experiments/agentdojo/runs/{model_dir?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the runner with its model-tag
+# table, the aiAuthZ defence of the experiment, the results and the documents.
+context_artefacts = ["LICENSE", "NOTICE", "README.md", "COMMERCIAL-LICENSE.md", "experiments/agentdojo/RESULTS.md", "experiments/agentdojo/run_benchmark.py", "experiments/agentdojo/aiauthz_defense.py", "experiments/agentdojo/results_*.json"]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "config_tag_never_model"
+table = { path = "tables/aiauthz_run_dirs.toml", sha256 = "054735589a0abbd85f7aeeff46ba5b8b9c0d82dca6c62b915b5f6f5a1bfd79be" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no AgentDojo installation is declared for the experiment; the logs record only the distribution version
+# string (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in 116 logs, and in the 58 spotlighting logs the default followed by
+# AgentDojo's spotlighting sentence (agent_pipeline.py l. 267-273 at the upstream head pin: the 642-character
+# text has exactly this digest).
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+  { label = "agentdojo_default_spotlighting", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/agent_pipeline/agent_pipeline.py", sha256 = "2954962b7689663e8083fd5872aa5b1368437f16cc16cec7c0121d603a13eb03", note = "the default of system_messages.yaml plus the spotlighting_with_delimiting sentence (l. 267-273)", applies = { variant = ["v1.k14"], model_dir = ["*/spotlighting*"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 54, origin_rule_applied = 54 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 24 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 70 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 154 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 239, present_and_null = 239 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { model_dir = ["*/spotlighting*"] }
+rules = ["agentdojo.spotlighting_content@1"]
+observed = { head = { logs = 58, logs_with_tool_results = 51 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# Routing R1 (D-113): aiAuthZ's policy denials.
+params = { denials = [
+  { defences = ["aiauthz"], error_prefix = ["Blocked by aiAuthZ policy: "] },
+] }
+observed = { head = { denials = 9 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

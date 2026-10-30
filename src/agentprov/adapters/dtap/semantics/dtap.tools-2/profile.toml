@@ -1,0 +1,38 @@
+# Semantics profile dtap.tools, version 2 (docs/architecture D.16.9, D.16.6; C.14; EF E.7).
+#
+# Data, not code. The directory's files (this one, labels.toml, builtins.toml and the generated servers.toml and
+# domains.toml) make the profile digest (agentprov.sem.profiles.profile_digest); the code is
+# agentprov.adapters.dtap.semantics, covered by the integer version (AD-18). Version 2 (D-607; the D-31 addendum's
+# option B): version 1's tables unchanged, on the dtap rule catalogue version 2 (one catalogue version per corpus, H.2.5).
+# Version 1 stays for the corpora that record it. Every rule cited is declared in the dtap catalogue at version 2.
+
+[profile]
+id = "dtap.tools"
+version = 2
+format = "agentprov-sem-profile/0.1"
+rules = { dtap = 2 }
+
+# ------------------------------------------------------------------------------------------------ matcher (D.16.6)
+# dtap.alnum_norm@1 with the census parameters (sources/dtap.md §7): needles of at least 24 normalised characters,
+# 40-character windows. A full needle match is `present`, a window-only match `ambiguous`, no match `absent`; a payload
+# without a needle is `gap`.
+[matcher]
+normaliser = "dtap.alnum_norm@1"
+min_needle = 24
+window = 40
+
+# ------------------------------------------------------------------------------------------------ outcomes (D.16.9)
+[outcomes]
+task_success = "user_task_solved"
+attack_success = "attack_succeeded"
+control_threat = "direct_no_attack"
+control_claim = "dtap.attack_judge_on_control"
+checker_origins = ["checker", "recomputed"]
+
+# ------------------------------------------------------------------------------------------------ taint policy
+# C.14.6 item 8: a request whose roles meet the sink roles (or unknown, fail-closed) exposed to a context member whose
+# integrity is untrusted or unknown is apv:PotentiallyInfluencedBy it.
+[taint]
+rule = "dtap.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]

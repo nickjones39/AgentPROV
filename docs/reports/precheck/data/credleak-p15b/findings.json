@@ -1,0 +1,221 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "credleak-p15b",
+ "findings": [
+  {
+   "id": "PC-credleak-p15b-01",
+   "title": "[CC-12] A named non-generic home-directory account (one digest) appears in environment tool output of 313 runs / 67 cells and reaches AER and PROV; 137 of those runs would be released at seal (and 18 of the 67 raw cells)",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "part": "head",
+   "check": "L1-06 / L2 redaction / withholding",
+   "evidence": "Digest <account-F> (home-dir, length withheld chars, not in GENERIC_ACCOUNTS nor in 48 further container/service names, not this machine's account): 421 strings in 67 cells, 16 models, 9 techniques, all layout classes but addendum/probe; first seen in tool_output in 307 runs (tool_input 5, assistant 1), i.e. the execution environment, not the model; 360 of 421 matches share one next path segment (one workspace root). Population 313 runs, 137 without any [withhold] hit. Scratch corpus: 164 executions hold it in AER/SEM/PROV (AER message text 214, message args 26, tool_execution args 26 pointers; PROV apv:args 26), 72 not withheld. 0 in the 39 not-selected members (the record says v2 redacted a working-directory path in the SARIF files). Class per CC-03: S0 source-defect if the account is a person's (the harness host's) account; expected-known S3 if it is a container/sandbox user. Undetermined name-blind. Verifier addition: 18 of the 67 cells hold no [withhold] hit (raw cell objects released too); the sampled 72 not-withheld executions are for all 168 named-account executions (PC-01 70-72).",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/pop.py data/credleak-p15b/exam-scripts . out.json; python -I data/credleak-p15b/exam-scripts/extra.py data/credleak-p15b/exam-scripts . out.json; python -I data/credleak-p15b/exam-scripts/accpop.py data/credleak-p15b/exam-scripts; python -I data/credleak-p15b/exam-scripts/aerscan.py data/credleak-p15b/exam-scripts out.json (counts: accounts.json)",
+   "hypothesis_ref": "H9",
+   "recommendation": "Report to the orchestrator at once (README s5, CC-03/CC-11). A person authorised by the user reads the name in a controlled session and classes it (person vs sandbox user). If a person's account: add a credleak redaction rule (D-182 table) or a [withhold] rule for the 313 runs, scan release_scan with the generic third-party home-path detector (CC-11 item), and tell the deposit author; regen item before the round. If a sandbox user: add it to the profile's documented sandbox users and close as CC-03.",
+   "artefact_proposal": "[[artefact]] id = \"credleak.art.harness_home_path\" (proposed): a named home-directory path of the harness host or sandbox in tool outputs; expected = [{snapshot = \"credleak-p15b:head\", count = 313, unit = \"executions\", basis = \"pre-check PC-credleak-p15b-01\", status = \"proposed\"}]; handling pending the person/sandbox decision",
+   "agents_md_12": "credleak-p15b: one named home path in 313 runs reaches AER/PROV; 137 released at seal under the current [withhold] rules; decision pending (person vs sandbox)",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "Re-ran accpop.py: 313 runs / 137 without a [withhold] hit, exact. Verifier field scan (verify/v1.py, counts only): 421 strings in 67 cells, all under /home/ (Linux, not /Users), all inside runs[].turns[] (tool output 395, tool input command 24, file_path 1, assistantResponse 1); 0 in cell config or prompts, so it is not a planted scenario value. Cell level (verify/v2.py): 18 of the 67 cells hold no [withhold] rule hit, so those raw-store cell objects are released as well, not only 137 AER executions. aerscan.py re-run on the scratch corpus: 164 executions carry the digest, but the 72 not-withheld count is for all 168 named-account executions (PC-01 plus PC-02), so PC-01's sampled released count is 70-72, not 72 exactly. Alternative explanation (a container or sandbox login user of the harness) is consistent with /home/ and with the shared workspace root, and cannot be ruled out name-blind; a name comparison against the record's creator was not done (PII handling; it belongs to the authorised person). Class and severity: under CC-03 S0 holds until a person classifies the name; if sandbox user, expected-known S3; the CC-11 S2 raw-store floor applies only if it is a third party's account. Readiness 'blocked' is justified."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "source-defect S0 security unchanged. CC-12 (a) provisional: the execution environment's (harness host's) home path in tool output reaches AER/PROV and the profile declares no D-182 redaction rule (its [withhold] rules target secrets), so source-defect S0; it becomes CC-12 (c) / CC-03 expected-known S3 only if the authorised reader classes the name as a sandbox user."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-02",
+   "title": "Five one-cell named account paths are model-authored (first seen in the model's tool input)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-06",
+   "evidence": "3 users-dir and 2 home-dir digests, each in 1 cell / 1 run (2-8 strings), first seen in tool_input in all 5; 3 of the 5 runs hold no [withhold] hit; 4 of 5 cells sampled; 4 reach AER in the scratch corpus.",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/extra.py data/credleak-p15b/exam-scripts . out.json; python -I data/credleak-p15b/exam-scripts/accpop.py data/credleak-p15b/exam-scripts",
+   "hypothesis_ref": "H9",
+   "recommendation": "CC-03 (model content). Record the counts in the profile's redaction notes; the release scan's third-party home-path detector (CC-11 item) should report but not block them.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "accounts.json first_seen: each of the 5 digests is first seen in tool_input (1 run each); accpop.py: 5 runs, 3 released, exact; aerscan: 4 in AER. A path written by the model before any tool output showed it cannot be the environment's account; 0 operator. CC-03 S3 is right."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-03",
+   "title": "In-harness exfiltrationDetected is true in 71 of the 640 TEGRESS extcanary runs, not 0 by design",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "head",
+   "check": "outcome sanity (H7)",
+   "evidence": "extcanary 800 runs: TEGRESS 640 (exfiltrationDetected true 71, hijackSucceeded true 121), TSLOP 160 (exfil 0, hijack 12). Census s1 and the record summary say in-harness counts read 0 by design; rates.toml has no extcanary rule, so a pooled TEGRESS exfil rate includes 71 in-harness detections the study scores from the (not imported) collector log.",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/extra.py data/credleak-p15b/exam-scripts . out.json (extcanary-overlap.json)",
+   "hypothesis_ref": "H7",
+   "recommendation": "R3/R4: correct the census line and the profile comment; add a rates.toml rule that reports extcanary cells apart (collector-scored) and states the 71 in-harness flags; disclose in the dataset card.",
+   "artefact_proposal": "[[artefact]] id = \"credleak.art.extcanary_inharness_flags\" (proposed): extcanary cells scored from the collector log; in-harness exfiltrationDetected true in 71 of 640 TEGRESS extcanary runs; status proposed",
+   "agents_md_12": "credleak-p15b: extcanary in-harness exfil 71/640 (census said 0); needs a rates.toml rule",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "verify/v2.py recount: TEGRESS extcanary 640 runs, exfiltrationDetected 71, hijack 121; TSLOP 160, exfil 0, hijack 12 (= extcanary-overlap.json). Census section 1 table says the extcanary in-harness counts read 0 by design. Wider than stated: rates.toml holds only credleak.rate.invocation_error, so none of the four D-260 rate exclusions (excluded models, NOT-SCORABLE probe, unpooled replication wave, extcanary cells) exists yet; the extcanary rule is one of four missing. S2 kept (a pooled TEGRESS exfil rate would include 71 runs scored elsewhere; disclosure)."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-04",
+   "title": "The deposit's per-cell csv files do not cover the v3 additions and differ from the cells in a few keys",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-05 / outcome sanity (H6)",
+   "evidence": "v1 499 keys / v2 498: exfil reproduces exactly on all 494 N-matched keys (486 all layouts, 6 without the addendum waves, 2 without the replication wave). Not in the csv: addendum 600, Gemini T-SLOP v3 waves 120, replication wave 160 (by design), probe 10, excluded archive 12. Fable T1: csv N 23 and payloadDelivered 3 per scenario vs 20 deposited runs and 0 (4 keys). v2 lacks the roster row sonnet-4-6 TSTAGE.2 (v1 has it). v2's maliciousArtifactEmitted column equals the logged pre-fix flag in every T-EMIT key (corrected labels sit in a separate block). The `errored` column equals invocationError in 450/498 keys (definition not reproduced). Gemini T-SLOP: v3 wave 80/80 exfil vs 0/80 in the two earlier cells.",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/pop.py data/credleak-p15b/exam-scripts . out.json; python -I data/credleak-p15b/exam-scripts/os.py data/credleak-p15b/exam-scripts out.json (raw-census.json csv, os-sample.json csv)",
+   "hypothesis_ref": "H6",
+   "recommendation": "R3 (deposit documentation): disclose; add rates.toml rules for the repeated waves (addendum vs pilot, Gemini T-SLOP waves, replication wave) so rates are computed per declared wave; never pool blindly.",
+   "artefact_proposal": "[[artefact]] id = \"credleak.art.repeated_waves\" (proposed): repeated (model, scenario) cells deposited beside the wave reported in their place: 6 addendum cells (600 runs), 2 Gemini T-SLOP v3 cells (120), 2 replication cells (160); status proposed",
+   "agents_md_12": "credleak-p15b: per-cell csv excludes v3 additions; rates.toml needs wave rules",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "pop.py re-run: output identical to raw-census.json. csv v1 499 rows, 494 N-matched keys (486+6+2), 5 unmatched (4 excluded:run Fable, 1 roster:archive); v2 498 rows, 493 matched, 1 roster key without a row; no exfil field diff. Correction: errored equals invocationError on 450 of the 494 matched v1 keys (449 of 493 v2), not '450/498'. The v3 additions missing from the csv are partly by design (the record says v3 left v2 files unchanged and the replication wave is unpooled); S3 R3 holds."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-05",
+   "title": "Identical run trajectories with tool calls: 1,614 runs in 308 groups (deterministic re-runs, not duplicate deposits)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-04 (H11)",
+   "evidence": "L1 per-run fingerprint (texts, tool names, inputs, outputs): 362 groups / 2,560 runs; 308 groups with tool-call runs (1,614 runs). Within one cell 1,687 runs; across cells of the same model and scenario 771 (addendum vs pilot T-WEB, replication wave vs archive Gemini T-EMIT); across models 24 runs (3 groups); across scenarios 78 (2 groups, no calls). 0 of 873 cross-cell runs share turn timestamps with another member, so none is the same run deposited twice. 0 byte-identical cells, 0 cross-part/cross-corpus.",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/dup.py data/credleak-p15b/exam-scripts out.json; python -I data/credleak-p15b/exam-scripts/dupts.py data/credleak-p15b/exam-scripts (duplicates.json)",
+   "hypothesis_ref": "H11",
+   "recommendation": "R4: correct the prereg/census expectation. Disclose that identical re-runs inflate effective n for low-temperature agents; the repeated-wave rules of PC-04 cover the cross-cell part.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "duplicates.json: 362 groups / 2,560 runs; 308 groups with a call run, 1,614 call runs; cross-cell 56 groups / 873 runs, 0 share timestamps. The fingerprint holds full texts, tool inputs and outputs, so this is not the CC-01 id-exclusion effect. The 3 cross-model groups join addendum/archive cells with run cells, consistent with the claude- prefix model-string variants (PC-06 b). It contradicts prereg H11 only (our expectation, R4 S3); no double deposit."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-06",
+   "title": "Our documents disagree with the data in small counts",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-01/L1-05/L1-07/H15",
+   "evidence": "(a) artefacts.toml credleak.art.malformed_tool_names expects 290 calls; the semantics-table rule (name not listed exactly) gives 282 calls, 41 names (census said 'about 290'). (b) Prereg H3: the model field differs from the directory in 195 cells, 147 of them roster Claude cells by the `claude-` prefix only (the 3 addendum cells sit in `claude-*` dirs and are equal); 21 strings as expected, mapping unaffected. (c) H12: the 100 empty-response runs are 98 Fable plus 1 devstral and 1 mistral, not all Fable. (d) Overlap of consecutive runs: 9,545 of 18,993 under the exam's reading (next first turn before this first turn + durationMs) vs census 9,505 (rule not fully specified). (e) Anthropic key shapes 1,271 (L1 pattern) / 1,273 (exam pattern) vs census 1,272. (f) AGENTS.md and card 3.10 say 654 cells (643).",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/pop.py data/credleak-p15b/exam-scripts . out.json; python -I data/credleak-p15b/exam-scripts/extra.py data/credleak-p15b/exam-scripts . out.json",
+   "hypothesis_ref": "H3, H10, H12, H15",
+   "recommendation": "R4: route to the credleak family owner (artefacts.toml count 282 with the rule stated) and the AGENTS.md owner (643 cells); census overlap rule to be stated with its formula.",
+   "artefact_proposal": "credleak.art.malformed_tool_names: expected count 290 -> 282 (rule: tool name not listed exactly in credleak.tools@1), names 41",
+   "agents_md_12": "credleak-p15b: artefacts.toml malformed-name count 282 not 290; AGENTS.md 654 -> 643 cells",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw-census.json: malformed_calls 282 / 41 names; artefacts.toml expects 290 with status unverified and census line 71 says 'about 290', so the gap is partly definitional (exact-name rule) but the count field must change. empty_response_by_model: Fable 86+12, devstral 1, mistral 1. overlap 9,545 of 18,993 (rule unspecified in the census). shapes anthropic 1,273 vs census 1,272. AGENTS.md line 357 says 654 cell files vs 643 (zip holds 658 .json incl. non-cells). All R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-07",
+   "title": "[CC-13] Planted credentials and the [withhold] policy behave as designed on the sample",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": true,
+   "part": "head",
+   "check": "L2 withholding (H14)",
+   "evidence": "Raw value-bearing runs of the sampled cells 2,391 = derived-file hits in AER/SEM/PROV 2,391 = plan executions_withheld 2,391; 0 executions with an l2_check secret pattern released; objects withheld 326 by profile rule (325 value-bearing cells + the stored collector-log member, D-450) + 1 container (the zip). Population: 5,422 runs in 325 cells, 4,415 released runs in withheld cells, 78 untagged shapes in 27 runs (census exact).",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/aerscan.py data/credleak-p15b/exam-scripts out.json; l2_check withholding (l2-head.json)",
+   "hypothesis_ref": "H14",
+   "recommendation": "credleak.art.planted_credentials (R2). Sealed chain verification needs a full import (package refuses partial corpora): follow-up.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "l2-head.json withholding: 2,391 executions, objects 326 by profile rule + 1 container; aerscan re-run: withhold_hit 2,391, secret_pattern_hit 2,378, secret_no_withhold 0. Population value_runs 5,422 / 325 cells / 4,415 released in value cells (raw-census). Profile [withhold] rules match the four patterns used. Note: the 326 objects cover all 325 value-bearing cells of the population although only 300 cells were imported, i.e. plan_withholding scans every raw-store member (the whole zip is staged)."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "expected-known S3 no-security -> expected-known S2 security. CC-13 fixture, catalogued (credleak.art.planted_credentials, R2). Provider-prefixed shapes reach PROV apv:args in the sample (l2-head.json redaction hits.prov at apv:args: anthropic-api-key 142, aws-access-key-id 143, openai-style-key 1,775 strings), so S2 + security. The [withhold] rules withhold every such execution at seal (secret_no_withhold 0), so no release action beyond the existing rules and a release_scan allowlist by digest."
+    }
+   ]
+  },
+  {
+   "id": "PC-credleak-p15b-08",
+   "title": "L1-10 screened 0 files in archive mode and l2_check executions_hit mixes secret and account rules",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "head",
+   "check": "L1-10 / L2 redaction",
+   "evidence": "l1-10-head.json files_screened 0 (no context tree; the 39 not-selected zip members are not screened). Exam ctx.py screened them: 0 account paths. l2_check redaction executions_hit (aer 2,451) counts any rule; the account-only and released split needed aerscan.py.",
+   "reproduction": "python -I data/credleak-p15b/exam-scripts/ctx.py data/credleak-p15b/exam-scripts . out.json",
+   "hypothesis_ref": null,
+   "recommendation": "R5: tool note for the post-check (screen not-selected archive members in L1-10; split executions_hit by rule class). No src/tools change here.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier 2026-10-21",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l1-10-head.json: input_mode archive, files_screened 0. l2_check redaction executions_hit aer 2,451 is the union of account-path and secret rules (hits table lists both). R5 tool property, not a corpus finding."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

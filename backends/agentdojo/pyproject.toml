@@ -1,0 +1,149 @@
+[project]
+name = "agentprov-backend-agentdojo"
+version = "0.1.0"
+description = "AgentPROV live backend environment: stock AgentDojo 0.1.35"
+requires-python = "==3.12.*"
+dependencies = [
+    "agentprov-capture",            # path source below
+    "agentprov-backend",            # path source below
+    "agentdojo==0.1.35",            # deliberate pin (D5)
+]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1"]
+# D-672 (user-approved download, 2026-10-22): the PI-detector defence (transformers_pi_detector) and MELON's numpy.
+# Installed only by `agentprov backends build agentdojo --defence-assets ...` for an entry that needs it.
+defences = ["agentdojo[transformers]==0.1.35", "numpy"]
+
+[tool.uv]
+package = false
+required-version = ">=0.12.22"      # as core (DECISIONS D-6)
+exclude-newer = "2026-10-07T00:00:00Z"   # fixed RFC 3339 timestamp (G.7.1(4)); moved deliberately
+# wheels only (G.7.1(5)). `no-build = true` cannot be used: the two path dependencies (agentprov-capture,
+# agentprov-backend) are source trees and must be built. Every registry package is therefore listed in
+# `no-build-package`; this list is derived from uv.lock (all entries carry wheels; G.11.3 item 5).
+no-build-package = [
+    "agentdojo",
+    "annotated-doc",
+    "annotated-types",
+    "anthropic",
+    "anyio",
+    "cachebox",
+    "certifi",
+    "cffi",
+    "charset-normalizer",
+    "click",
+    "cohere",
+    "colorama",
+    "cryptography",
+    "cuda-bindings",
+    "cuda-pathfinder",
+    "cuda-toolkit",
+    "deepdiff",
+    "distro",
+    "dnspython",
+    "docstring-parser",
+    "email-validator",
+    "fastavro",
+    "filelock",
+    "fsspec",
+    "google-auth",
+    "google-genai",
+    "h11",
+    "hf-xet",
+    "httpcore",
+    "httpcore2",
+    "httpx",
+    "httpx2",
+    "httpx2-jsfetch",
+    "huggingface-hub",
+    "idna",
+    "iniconfig",
+    "jinja2",
+    "jiter",
+    "jsonpatch",
+    "jsonpointer",
+    "langchain",
+    "langchain-core",
+    "langchain-protocol",
+    "langgraph",
+    "langgraph-checkpoint",
+    "langgraph-prebuilt",
+    "langgraph-sdk",
+    "langsmith",
+    "markdown-it-py",
+    "markupsafe",
+    "mdurl",
+    "mpmath",
+    "networkx",
+    "numpy",
+    "nvidia-cublas",
+    "nvidia-cuda-cupti",
+    "nvidia-cuda-nvrtc",
+    "nvidia-cuda-runtime",
+    "nvidia-cudnn-cu13",
+    "nvidia-cufft",
+    "nvidia-cufile",
+    "nvidia-curand",
+    "nvidia-cusolver",
+    "nvidia-cusparse",
+    "nvidia-cusparselt-cu13",
+    "nvidia-nccl-cu13",
+    "nvidia-nvjitlink",
+    "nvidia-nvshmem-cu13",
+    "nvidia-nvtx",
+    "openai",
+    "orderly-set",
+    "orjson",
+    "ormsgpack",
+    "packaging",
+    "pluggy",
+    "pyasn1",
+    "pyasn1-modules",
+    "pycparser",
+    "pydantic",
+    "pydantic-core",
+    "pygments",
+    "pytest",
+    "python-dotenv",
+    "pyyaml",
+    "regex",
+    "requests",
+    "requests-toolbelt",
+    "rfc8785",
+    "rich",
+    "safetensors",
+    "setuptools",
+    "shellingham",
+    "sniffio",
+    "sympy",
+    "tenacity",
+    "tokenizers",
+    "torch",
+    "tqdm",
+    "transformers",
+    "triton",
+    "truststore",
+    "typer",
+    "types-requests",
+    "typing-extensions",
+    "typing-inspection",
+    "urllib3",
+    "uuid-utils",
+    "websockets",
+    "xxhash",
+    "zstandard",
+]
+default-groups = ["dev"]
+
+[tool.uv.sources]
+agentprov-capture = { path = "../../capture" }
+agentprov-backend = { path = "../shared" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "backend_agentdojo: needs the backends/agentdojo environment (spec M/K name: agentdojo)",
+    "old_package: needs agentdojo-prov 1.0.0 @ 579a908 in a separate interpreter (AGENTPROV_BASELINE_PYTHON); gate C6",
+]

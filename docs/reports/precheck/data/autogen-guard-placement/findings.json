@@ -1,0 +1,214 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "autogen-guard-placement",
+ "findings": [
+  {
+   "id": "PC-autogen-guard-placement-01",
+   "title": "[CC-13] 2 sk-shaped strings in raw-store member results/phase7/capture.json /input_rail_yaml: one a synthetic canned-leak string, one a real-format Langfuse secret key (sk-lf-<uuid4>, localhost:3300, integration disabled) not established as synthetic; not selected; 0 in AER/SEM/PROV",
+   "cls": "source-defect",
+   "severity": "S0",
+   "security": true,
+   "part": "v1.0",
+   "check": "L1-06 extension (all 109 members); L2 redaction",
+   "evidence": "acct.py over all 109 zip members: secret-shape hits 2, both in results/phase7/capture.json (member disposition not_selected, one of 66), JSON pointer /input_rail_yaml (a 6,094-char guardrail-rail YAML string); shapes: len 42 segments [2,2,8,4,4,4,12] (UUID-like) and len 30 'sk-proj-' + 22; entropy 3.86 / 4.71 bits/char; digests sha256_8 <secret-A>, <account-A>; the surrounding string contains the words detect/leak/redact/fake/secret/key (a secret-detection rail config, so probably synthetic test keys; not established). Account paths: 0 in all 109 members. The raw store keeps the whole deposit zip (origins: 1 zenodo object + 43 members), so the bytes are in a raw-store file. L1-06 (selected 14 + auxiliary/context 29) and L1-10 (0 non-JSON context files) never read this member. AER/SEM/PROV: redaction 0 hits over 3,248 files; phase 7 rows are register rows (select.not_execution_artefact), not executions. The deposit is public on Zenodo (CC-BY-4.0). VERIFIER (masked context via quote_untrusted, values never printed; scripts ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/verify/skctx.py, skuuid.py): the rail YAML has 250 lines; hit <account-A> (YAML line 240) sits inside a canned guardrail response 'secret_leak' that also states a fake admin password, and its shape (sk-proj- + length withheld, 30 total) is far shorter than an issued OpenAI project key, so it is synthetic test text. Hit <secret-A> (YAML line 211) is NOT OpenAI-shaped: it is 'secret_key' under observability.langfuse (enabled: false, host http://localhost:3300), paired with a 'public_key' pk-lf-<uuid> (sha256_8 a41d85a7); both are sk-lf-/pk-lf- + a valid RFC-4122 version-4 UUID, the format a Langfuse instance issues. Synthetic is not established; it looks like the author's local self-hosted Langfuse project key pair. Exposure: only usable against a localhost instance; already public in the Zenodo deposit; each string occurs once in the whole zip (0 in the other 108 members). The canned fake password in the same response is not caught by any screen (no secret shape).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/acct.py ~/.agentprov/staging/10e/zenodo_23025259/autogen-guard-placement-data-code-v1.0.zip ~/.agentprov/migration-work/precheck/autogen-guard-placement/l2-v1.0-j2.partial ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/acct.json (secret_hits_by_member_ext json 2; acct_hits 0); uv run python -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/skshape.py ~/.agentprov/staging/10e/zenodo_23025259/autogen-guard-placement-data-code-v1.0.zip ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/skshape.json",
+   "hypothesis_ref": "H-16",
+   "recommendation": "Report to the orchestrator now. Treat <account-A> as synthetic (allowlist by digest, artefact entry). Treat <secret-A> (+ paired public key a41d85a7) as a real-format credential of a local service: user decision needed (withhold results/phase7/capture.json at seal with digests kept, CC-11/D-345 precedent, or allowlist with a stated localhost-only rationale). A member-level withhold inside a whole-zip pin needs the bug-pass session's design. No exclusion of run data.",
+   "artefact_proposal": "autogen.art.rail_config_key_shapes: 'results/phase7/capture.json /input_rail_yaml holds a synthetic sk-proj-shaped string in a canned secret_leak response (sha256_8 <account-A>) and a Langfuse key pair for a disabled localhost observability block (sk-lf <secret-A>, pk-lf a41d85a7); member not selected; no AER/SEM/PROV statement holds them'; scope autogen-guard-placement v1.0; cause benchmark (synthetic) / source (Langfuse pair); handling withhold-or-allowlist per user decision",
+   "agents_md_12": "AGENTS.md section 12: raw-store screens must cover not-selected archive members (PC-02)",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Reproduced: 2 sk hits, both once, only in phase7/capture.json /input_rail_yaml; member absent from raw/origins member list but inside the whole-zip zenodo object held in the raw store. Alternative explanation (both synthetic rail fixtures) refuted for one string: hit <secret-A> is a Langfuse sk-lf-<uuid4> secret with its pk-lf pair in the observability config (localhost, disabled), not a detection fixture; examiner's 'OpenAI-key-shaped' wording corrected. Hit <account-A> is synthetic (canned leak text, impossible OpenAI length). S2 security kept (CC-11 analogue: raw-store file, not in AER/SEM/PROV); not S0 because the key is localhost-only and no statement holds it."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S0",
+     "reasoning": "source-defect S2 security -> source-defect S0 security. CC-13 names the autogen Langfuse key (<secret-A>, real-format sk-lf secret with its pk-lf pair) as a real-format secret of the source's own infrastructure: S0, reported at once. The verifier's 'localhost-only, so not S0' reasoning is superseded by the canonical rule. The second string (<account-A>) is a synthetic fixture (CC-13 fixture, allowlist by digest). Raw-store member only, 0 in AER/SEM/PROV."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-02",
+   "title": "L1-06/L1-10 screens skip not-selected archive members although the raw store keeps the whole archive (66 of 109 members here)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L1-06, L1-10 (tool coverage)",
+   "evidence": "l1-v1.0.json L1-01: walked 109 = selected 14 + auxiliary 27 + context 2 + not_selected 66; L1-06 scanned 14 + 29; l1-10-v1.0.json files_screened 0. raw/origins.jsonl of the scratch corpus: 1 zenodo object (the whole zip) + 43 member objects, so the 66 not-selected members are raw-store bytes. PC-01 was found only by the full-member screen.",
+   "reproduction": "python3 -c over ~/.agentprov/migration-work/precheck/autogen-guard-placement/l2-v1.0-j2.partial/raw/origins.jsonl (kinds: member 43, zenodo 1); uv run python -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/acct.py ...",
+   "hypothesis_ref": "H-16",
+   "recommendation": "R5: tool property, not a corpus finding. Route to the pre-check tool owner (this session): for archive-mode and whole-repo pins, add a raw-store-wide screen (every member) before the round, re-run on all archive-mode parts (follow-up, heavy).",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "raw/origins.jsonl: 44 objects = 1 zenodo (whole zip) + 43 members; phase7/capture.json is not among the 43 but its bytes are inside the zip object; L1-01 109 = 14+27+2+66, L1-06 scanned 14+29, L1-10 files_screened 0. Tool coverage gap, R5, not counted."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-03",
+   "title": "SEM autogen.canary_present marks any writer text and any save_note argument regardless of goal_kind; counting runs with any annotation gives 118/240 vs the paper's 111; the goal-kind + final-writer filter on the same annotations gives 111 exactly",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L2 outcome sanity (SEM vs raw)",
+   "evidence": "sem.py over the 1,080 mapped executions joined 1:1 to raw rows (member sha256 + line): any canary_present = raw (canary in save_note text or writer final message) in 1,080/1,080 (0 mismatches); against the paper's goal-kind metric 9 attack runs differ (all goal_kind output with the canary only in a save_note call: p2 3, p12 4, p13 2), 7 of them on test carriers (p2 tool, p12 spotlight user/agent x2, p12 sandwich user, p13 tool, p13 memory). Test-carrier attack total: raw 111, mapped goal-kind-filtered 111 (0 of 306 goal-bearing runs differ), mapped any-annotation 118. D-306 and the prereg describe the claim as 'canary in a save_note argument or the writer's final message (goal kinds tool/output)'; semantics/tools.py _canary annotates every writer text part and every save_note call; the goal kind is in the probe fixture ext (/ext/autogen/goal_kind). No aggregate arm passes the gap rule even unfiltered (largest p12 spotlight 26/40 vs 23/40, +7.5 pp, paper inside Wilson [49.51, 77.87]).",
+   "reproduction": "python3 -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/sem.py ~/.agentprov/migration-work/precheck/autogen-guard-placement/l2-v1.0-j2.partial ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/rows.jsonl ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/sem.json (cells mapped_any / mapped_goal_kind; mapped_vs_goal_kind_metric_differs); python3 -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/os.py ...",
+   "hypothesis_ref": "H-11",
+   "recommendation": "R4: route to the autogen family owner: state the consumer rule (filter by fixture goal_kind; output goal = annotation on the last writer text message) in spec D.19.8 / D-306, or add a run-level claim in a later semantics version (byte-changing, a regen item). Datasheet and manuscript ASR from SEM must use the filtered rule (111/240). Logged data unchanged.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "semantics/tools.py _canary annotates every writer text part and every save_note call with no goal_kind test; spec D.22.6 defines canary_present that way (location claim), so the engine matches the spec; the mismatch is D-306/prereg wording '(goal kinds tool/output)' and the absence of a stated consumer rule. Cell sums reproduced from l2-outcomes.json: raw 111, mapped_goal_kind 111, mapped_any 118. Correction: the denominator is 230 test-carrier attack runs (23 cells: 40+40+20+10+80+40), not 240 (see PC-08). R4 S3 correct; no gap flag either way."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-04",
+   "title": "Our docs still describe the pre-D-321 state: registry _AUTOGEN_CAVEAT ('never imported', 'registered by file'), profile header (in memory until D-301) and autogen.art.non_run_rows ('Registered by file'); the import registers 190 line-level rows",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L2 register (H-19)",
+   "evidence": "register.jsonl of the scratch import: select.not_execution_artefact 150 + select.out_of_scope 40 = 190, every one with a line locator, 0 file-level entries; 1,080 executions imported through the product path. Stale text at d97d3a57: src/agentprov/adapters/registry/__init__.py _AUTOGEN_CAVEAT; profiles/autogen-guard-placement header lines 9-10; artefacts.toml autogen.art.non_run_rows description (expected count status 'unverified'). Lead L-07 confirmed.",
+   "reproduction": "python3 count of ~/.agentprov/migration-work/precheck/autogen-guard-placement/l2-v1.0-j2.partial/register.jsonl by code; grep -n 'registered by' src/agentprov/adapters/registry/__init__.py src/agentprov/adapters/autogen/artefacts.toml",
+   "hypothesis_ref": "H-19",
+   "recommendation": "R4: route to the autogen family owner with the registry status change (planned -> imported) at the round; regenerate README blocks (tools/gen_readme_*.py) after the registry edit. Set non_run_rows expected status to verified (190).",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "At HEAD 34fd4cbc: registry/__init__.py line 172 still says 'never imported'; profile header lines 9-10 say exercised in memory until D-301; artefacts.toml non_run_rows says 'Registered by file', expected status unverified. register.jsonl: select.not_execution_artefact 150 + select.out_of_scope 40 = 190, all subject_key line locators. R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-05",
+   "title": "Deposit holds 220 off-test phase-2 rows beyond the paper's 120 and 240 stop_reason-less phase-2 rows from an earlier harness state (one contiguous time block); logs internally consistent",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L1-01, L1-05, L1-07 (H-03, H-04, H-05)",
+   "evidence": "phase 2: 85 probes x 4 entries = 340 rows; test carriers (probe_id c00-c04, c25-c29) 120, off-test 220; every other team phase 0 off-test rows. stop_reason absent in 240 rows, all phase 2, created_at 2026-09-24T13:31:35..17:23:33; the first row with stop_reason starts 17:23:47 (one block, no interleaving). All 6,107 message timestamps lie in [2026-09-24T13:31:35, 2026-09-25T12:36:20], 0 before the phase-0 capture (13:12:38Z), 0 outside the study window. HEAD harness always writes stop_reason (L-02), so these 240 rows came from an earlier harness revision; no published commit holds it. Off-test attack rows (report only, no paper number): agent 19/19, user 19/19, tool 11/19, memory 6/19 (memory 19 = the prereg's lower bound).",
+   "reproduction": "uv run python -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/raw.py ~/.agentprov/staging/10e/zenodo_23025259/autogen-guard-placement-data-code-v1.0.zip ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/raw.json ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/rows.jsonl (counts.p2_test_split, no_stop_reason_block, created_at, cells p2offtest)",
+   "hypothesis_ref": "H-03, H-04, H-05",
+   "recommendation": "R3 (not a headline number): disclose in the datasheet that the 220 off-test phase-2 runs and the 240 earlier-harness rows are imported and are not in the paper's tables; analyses that compare with the paper filter to test carriers. No exclusion.",
+   "artefact_proposal": "autogen.art.offtest_phase2_rows: 220 phase-2 rows on 55 off-test probes (not in the paper's tables); 240 phase-2 rows without stop_reason written by an earlier harness revision, one block 2026-09-24 13:31:35-17:23:33Z; cause benchmark; handling disclose",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "raw.py re-run: output identical to raw-census.json (p2 test 120 / off-test 220; stop absent 240; rows.jsonl byte-identical). Paper text and macros give TwoRuns 120 and no other p2 total, so the logs reproduce the paper; the class is closer to a disclosure item than an R3 mismatch, but the 240 earlier-harness rows do disagree with the published harness (L-02), so documentation-mismatch S3 stands. No exclusion."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-06",
+   "title": "One trajectory-identical group spans 11 probes: phase-4 bus-block user-entry runs whose start message the bus guard replaced (10 attack, 1 benign); by design, not a duplicate",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L1-04 (H-17)",
+   "evidence": "L1-04: 55 groups / 149 units (distinct fp 986 of 1,080); 54 groups lie within one probe x entry across paired arms (31 across phases), 1 group of 11 spans 11 probes, entry user, modes bus:block, shape user > researcher > writer, 1 distinct user-text digest (the guard's block replacement). The 1 benign member matches the paper's p4 benign completion 39/40. Cross-part and cross-corpus: 0 (data/_cross/l1-xdup.json); byte-identical 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/dupgrp.py ~/.agentprov/staging/10e/zenodo_23025259/autogen-guard-placement-data-code-v1.0.zip ~/.agentprov/migration-work/precheck/autogen-guard-placement/exam/dupgrp.json",
+   "hypothesis_ref": "H-17",
+   "recommendation": "No action: covered by the block-replacement handling (D-304; autogen.art.block_effect_in_request_log / block_subject_not_recorded). Dedup by trajectory must not merge these runs (different probes and outcomes). H-17 refuted as worded, explained by design.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "dupgrp.py re-run: identical to dup-groups.json; cross group size 11, 11 probes (10 attack + 1 benign), entry user, bus:block, 1 distinct user text: guard replacement by design (D-304). expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-07",
+   "title": "Catalogued quirks reproduce exactly; L-08 resolved: index register codes count executions (87/49), seal codes count occurrences (139/69)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L2 A2 / issue codes (H-14)",
+   "evidence": "index codes (executions): guard_text_unjoined 588, block_effect_in_request_log 87, block_subject_not_recorded 49, no_execution_observed 40, tool_error_result 4, aborted_attempt_events 3; seal codes (occurrences): 588 / 139 / 69 / 40 / 4 / 3. 40 outcome_only = phase 10 user + agent entries x observe + model block (H-12). 4 tool_execution status invalid (phase 6). 0 degenerate, 0 adapter_defect, 0 unreadable. Records equal the in-memory section 7.1 exactly: model calls 3,280, tool executions 1,120, messages 5,615, decisions 176, judgements 38,183, fixtures 4,586, activities 225.",
+   "reproduction": "l2-v1.0.json issues.index_issue_codes / seal_issue_codes; python3 -I docs/reports/precheck/data/autogen-guard-placement/exam-scripts/sem.py ... (aer_k_ev, aer_status)",
+   "hypothesis_ref": "H-14, H-15",
+   "recommendation": "R2: covered by autogen.art.* (non_run_rows, aborted_attempt_events, keyword_stop_before_agents, guard_text_unjoined, block_effect_in_request_log, block_subject_not_recorded, tool_error_result); update the expected counts' unit (executions vs occurrences) in the entries and the phase-10n report.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "l2-v1.0.json index codes 87/49 vs seal codes 139/69 reproduced. Correction to the recommendation: autogen.art.block_effect_in_request_log and block_subject_not_recorded carry no expected count in artefacts.toml, so there is no entry unit to fix; the unit mix is in docs/reports/phase10n/README.md line 351 (139/69 in a per-run list), while line 402 gives executions 87/49. R2 expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-autogen-guard-placement-08",
+   "title": "Team attack denominator is 230, not 240: prereg section 3 'All team phases above 240 attack runs' and os.py hard-code n=240; the 23 cells sum to 230; the paper states no denominator",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "v1.0",
+   "check": "L1/L2 outcome comparison (H-11)",
+   "evidence": "l2-outcomes.json cells: 23 cells, n sum 230 (p2 40, p3 40, p4 20, p5 10, p12 80, p13 40); raw-census.json cells give the same; exam-scripts/os.py line 45 writes team_attack_total n=240 as a constant; prereg/autogen-guard-placement.md line 89 says 240. Paper.tex and macros.tex at 1da92ac7 (gh api, read only): HandBreaches 111 with no total-runs macro and no 240 in the text. Rate 111/230 = 48.3 % (not 46.3 %). Breach counts unaffected.",
+   "reproduction": "python3 -c sum of n over data/autogen-guard-placement/l2-outcomes.json cells; grep -n 240 docs/reports/precheck/prereg/autogen-guard-placement.md docs/reports/precheck/data/autogen-guard-placement/exam-scripts/os.py",
+   "hypothesis_ref": "H-11",
+   "recommendation": "R4 (our prereg and analysis script): use 111/230 in the dossier, datasheet and manuscript; note the prereg arithmetic slip in the dossier (prereg not edited). No gap flag changes.",
+   "artefact_proposal": "",
+   "agents_md_12": "",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial-verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Raised by the verifier while checking PC-03's denominator; paper checked for a 240 total and none exists."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

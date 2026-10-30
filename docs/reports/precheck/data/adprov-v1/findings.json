@@ -1,0 +1,394 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "adprov-v1",
+ "findings": [
+  {
+   "id": "PC-adprov-v1-01",
+   "title": "Qwen-2.5-72B sample ASR flagged by the gap rule: sampling variance, not a corpus or mapping property",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "OS-2 / L2 outcome sanity (H5)",
+   "evidence": "qwen attacked sample n=36, k=14 (38.9% unweighted, Wilson [24.8, 55.1]; 29.6% post-stratified) vs paper 14.6%. Raw meta == AER on 300/300 labels (utility and security). Population 413/2,847 = 14.51% [13.26, 15.85]. Excess from workspace x important_instructions 2/3 sampled vs 90/560 = 16.1% in the population (weight 560 of 2,847). 20,000 redraws of the same allocation: 2.5/50/97.5% = 6.2/14.0/26.4%, P(>= 29.6%) = 0.008; 12 arms tested.",
+   "reproduction": "python3 docs/reports/precheck/data/adprov-v1/exam-scripts/os2.py ~/.agentprov/migration-work/precheck/adprov-v1/l2-release-j2.partial ~/.agentprov/migration-work/precheck/adprov-v1/l1-units-release.jsonl docs/reports/precheck/data/adprov-v1/os2-sample-release.json -> {model: qwen-2.5-72b, metric: asr, n: 36, k: 14, unweighted: 38.89, wilson95: [24.78, 55.14], post_stratified: 29.6, paper: 14.6, interval_excludes_paper_by_pp: 10.18, flag: True}; raw_vs_aer: utility equal 300, security equal 300. Per-stratum table and simulation: inline python over l1-units-release.jsonl and l2-sample-release.json (exam.json level2).",
+   "hypothesis_ref": "H5",
+   "recommendation": "Verdict from OS-1 (population = paper, 0 flags). Post-check method: apply the sample rule to post-stratified estimates with a stratified variance. R6: the flag is explained by the sample design; the post-stratified rate (29.60 %) and the L1 population rate (14.51 %, = paper 14.6) are reported beside it in the dossier.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "independent redraw 6.15/13.98/26.37%, P = 0.0081; raw == AER 300/300; population = paper; the rule compares a Wilson interval of the unweighted k/n of an equal-allocation sample (expected about 23%) with a population value. Corrections applied: stratum weight 560 of 2,847 (was 560 of 1,707); method note: under equal 3-per-stratum allocation the expected unweighted qwen ASR is about 23%."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R6 situation (stratified equal-allocation sample vs paper): not a corpus finding. Kept as analysis-artefact S3 under R5 because the l2_check gap rule compares an unweighted sample rate (a tool property); not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-02",
+   "title": "Prereg compared pooled important_instructions utility with the paper's user-task-weighted column",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "OS-1 / imp_instr utility",
+   "evidence": "Mean of per-(suite, user_task) means over 97 cells: 78.4/29.1/68.9/33.1/30.6/75.8 (ds/gem/gpt/llama/qwen/glm) vs paper macros 78.4/29.2/68.9/33.1/30.6/75.8; pooled 79.98/26.55/73.45/33.51/27.92/78.71 (max gap 4.55 pp, gpt). 949 rows, 0 null utility per model. Producer doc stats.tex ('Definitional trap') documents the cell weighting.",
+   "reproduction": "python3 - (group l1-units-release.jsonl rows with attack=important_instructions by (model_folder, suite, user_task) and average the per-task means) -> google_gemini-2.5-flash 97 29.1; meta-llama 97 33.1; prov-deepseek-chat 97 78.4; prov-gpt-5-nano 97 68.9; qwen 97 30.6; z-ai_glm-4.6 97 75.8",
+   "hypothesis_ref": "",
+   "recommendation": "Dossier states the task-weighted basis and compares like with like. No data issue.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "reproduced; producer stats.tex documents the weighting; no tool artefact. Corrections applied: source: producer docs/stats.tex 'Definitional trap' added beside make_figures.py; research.json 'n' for the row should read 97 (suite, user_task) cells over 949 traces; no row is unscored for utility; dossier writer checked the paper macro: AdpGemImportantUtilityPct = 29.2 (macros.tex l.271), so research.json is right; stats.tex's 29.1 is the producer doc's figure; the 0.1 pp Gemini gap is plausibly the paper's exclusion of unscored re-runs (not verified)."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-03",
+   "title": "[CC-03] Account-path shapes in 5 raw transcripts are fictional banking file paths written by the model (E2 U14), not 0 as pre-registered",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L1-06 / H15",
+   "evidence": "5 artefacts / 12 strings (home-dir generic 3/6, home-dir named 1/2, users-dir named 1/4) only at /turns/*/args/file_path and /turns/*/tool_calls/*/args/file_path, all read_file; llama 2, deepseek 3 (banking user tasks 9, 10, 11). Persona/placeholder names 12/12; operator match 0. Stored corpus independent scan: AER 12, PROV 6 strings in 5 executions, all persona, = E2 u14 (benchmark content). 0 of the 5 labels in the L2 sample.",
+   "reproduction": "python3 -c (rows of ~/.agentprov/migration-work/precheck/adprov-v1/l1-units-release.jsonl with an account_path_* flag) -> 5 labels; jq '.\"L1-06\"' docs/reports/precheck/data/adprov-v1/l1-release.json -> artefacts_with {account:home-dir:generic: 3, account:home-dir:named: 1, account:users-dir:named: 1}; persona/operator comparison script (booleans only): read_file hits, persona True, operator False for all 12",
+   "hypothesis_ref": "H15",
+   "recommendation": "Scenario fiction (protocol 8.4 trap 11); no redaction needed; raw baseline 5 artefacts / 12 strings.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "aggregate and per-unit rows agree; independent regex scan of the stored corpus gives 12 AER + 6 PROV, persona only; the prereg's '0 (E2 U14)' misreads E2. Corrections applied: the correction concerns the prereg's citation of E2 U14 (which attributes 18 adprov-v1 strings to benchmark content), not E2 itself."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Instance of CC-03: model-written persona account paths (benchmark content); 0 operator matches. Canonical expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-04",
+   "title": "[CC-01] L1 trajectory-identical groups (169/593) use a different fingerprint than E2 (112/431)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L1-04 / H12",
+   "evidence": "L1 fp = [role, content, [function, args], error], no provider call ids; 17,240 distinct of 17,664. In groups: utility differs 0, security differs 0 among non-null values (21 benign/attacked groups have benign null), user task mixed 0; attack mixed 141, benign/attacked 21, model 3. Byte-identical 0. Verifier: E2 digest on the stored corpus = 112/431 (17,345 distinct); the same digest without provider_call_id = 169/593 (17,240 distinct).",
+   "reproduction": "python3 - (group l1-units-release.jsonl by fp) -> 169 groups, 593 units; cross-model 3; util differ groups 0; sec differ groups 0; groups mixing user tasks 0. grep -n traj tools/analysis/phase10_extract.py (l.178-233)",
+   "hypothesis_ref": "H12",
+   "recommendation": "CC-01: report both bases (L1 id-free 169/593; E2 with provider ids 112/431). H12 text: 112/431 = AER parts incl. provider_call_id; 169/593 = call-id-free L1 baseline. No corpus action.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "provider_call_id is the whole difference between the two fingerprints (exact equivalence shown on the stored corpus). Corrections applied: 'security differs 0' -> 'security differs 0 among non-null values'; evidence adds the equivalence result 112/431 vs 169/593."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "reclassified",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Instance of CC-01 (the L1 trajectory fingerprint excludes provider call ids). Canonical analysis-artefact S3 (R5), was documentation-mismatch S3; not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-05",
+   "title": "3 tool-free Qwen traces share their message-list fingerprint with gpt-4o agentdojo-upstream runs (convergent replies)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L1-04 cross-corpus (_cross/l1-xdup.json)",
+   "evidence": "2 cross-corpus groups (sizes 181, 44) hold qwen banking_user_task_11 direct IT8 and important_instructions IT0/IT1: system 469 + user 194 + one 114/115-char reply, no tool call. Content hashes equal the upstream gpt-4o 2024-06 members' (read through the pinned bare cache, no fetch). Byte-identical cross-corpus 0; model, harness, timestamps differ; temperature 0.0; real wall-clock times.",
+   "reproduction": "python3 - (docs/reports/precheck/data/_cross/l1-xdup.json trajectory_identical.cross_corpus.pairs) -> {'agentdyn|rope': 7, 'adprov-v1|agentdojo-upstream': 2}; shape of the adprov member via strict_json_loads: [('system', 469), ('user', 194), ('assistant', 115)]",
+   "hypothesis_ref": "",
+   "recommendation": "List as trivially convergent short trajectories in the C5 table. No exclusion.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "tool-free shape real; hashes match; two groups because the two replies differ by one word; attack arms collapse because without a tool call the injection is never delivered. Corrections applied: mechanism added (one-word reply difference; injection undelivered without a tool call); only 2024-06 upstream members were checked, not head; adprov assistant replies sit under 'text' (hook handles it)."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-06",
+   "title": "8 .DS_Store files in the local producer checkout are skipped by the walk",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L1-01",
+   "evidence": "Local tree 35,354 regular files = 35,346 walked + 8 .DS_Store; walked = Zenodo v2.3 corpus-prov entries 35,346 = 17,664 x 2 + 18. No other dotfiles, no symlinks.",
+   "reproduction": "jq '.\"L1-01\"' docs/reports/precheck/data/adprov-v1/l1-release.json -> walked 35346, strays_skipped_by_walk 8, excluded_by_code {}; find <staged tree> -name .DS_Store | wc -l -> 8",
+   "hypothesis_ref": "",
+   "recommendation": "None.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "counts reproduced; skipped by agentprov.ingest.paths discover (Discovery.skipped). Corrections applied: mechanism: skipped by the ingest discover walk before profile selection, not 'the include glob never matches them'."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-07",
+   "title": "L1-07 non-monotone units: 26 from benchmark calendar arguments, 1 is the known GLM timing-overwritten trace",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L1-07",
+   "evidence": "27 non-monotone: 26 only in naive args start_time/end_time pointers (pointer range 2022-03-06..2025-11-14); 1 at turn level = z-ai_glm-4.6 injecagent travel_user_task_19 x injectiontask2, a repeated tool-call id puts a later turn's time on tool turn 4 = the stored corpus's only map.adprov.tool_timing_overwritten execution (same raw sha256).",
+   "reproduction": "python3 - (rows with ts.monotone false, by tz forms) -> 26 with ('naive','utc_offset'), 1 with ('utc_offset',) = glm travel_user_task_19_x_injectiontask2; stored executions.jsonl issue map.adprov.tool_timing_overwritten -> the same label via raw sha256",
+   "hypothesis_ref": "",
+   "recommendation": "Execution-time monotonicity: 1 known unit.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "per-pointer monotonicity confirmed in l1_scan; meta times 0 non-monotone; raw GLM file shows the overwrite (R07). Corrections applied: the 26 are a scope limit of L1-07 (scenario dates in tool arguments), not a source artefact; the 2022..2025 range covers the whole args/start_time pointer."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-08",
+   "title": "The L2 import verified the listing over all candidates, so DL-9 (H13) was not exercised",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L2 import / H13",
+   "evidence": "j1 and j2: recipe LocalTree+PinCheck(listing, prepared over all candidates), listing_candidates 17,664, listing_ok true, verified 300, unverified 0. register blob_mismatch 0; 300/300 origins kind corpus. Prereg row: 'without a listing pin check (DL-9, CD-8 held)'; no README section 8 amendment covers this.",
+   "reproduction": "python3 -c (json of ~/.agentprov/migration-work/precheck/adprov-v1/l2-release-j2.l2-import.json, keys recipe and pin_verification) -> {kind: listing, listing_ok: true, verified: 300, unverified: 0}",
+   "hypothesis_ref": "H13",
+   "recommendation": "Origins are verified listing origins; H13 stays untested; a one-label DL-9 import only if a decision needs it.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "l2_import.py prepares the PinCheck before the include filter; deviation documented only in the tool docstring. Corrections applied: record as a pre-registration deviation in which the run used a stronger pin check."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-09",
+   "title": "[CC-05] Stored validation rows differ from fresh ones only by the item-10 checks, the SEM profile rename and the AER validation mode",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L2 validation rows stored (adprov-v1-release-p10.partial) vs scratch (amendment 1)",
+   "evidence": "300 rows; only in scratch pv.constraints.cycles/derivation_parts/ordering/unique_start (300 each) and agentdojo.suites@2 SEM-V01..V12; only in stored suites@1 SEM-V01..V12; changed shared checks 0; verdict pass/pass 300; aer.mode release (stored) vs dev (scratch) in 300, aer verdict pass both.",
+   "reproduction": "python3 - (compare validation/results.jsonl rows of the stored and scratch corpora by ex) -> only_new pv.constraints.* 300 each; verdict (pass, pass) 300",
+   "hypothesis_ref": "",
+   "recommendation": "Re-validate stored corpora in the round; the post-check compares in the same AER mode.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "reproduced against p10 for j1 and j2; adds the aer.mode difference; the baseline is p10, not the older adprov-v1-release.partial. Corrections applied: aer.mode release vs dev added; stored baseline named: adprov-v1-release-p10.partial."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Instance of CC-05 (stored corpus validate.results.differ, rows predate regen item 10). Canonical expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-10",
+   "title": "DL-1 delta since E2 is fully attributed on the 300 sampled ids; 0 unexplained",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "DL-1 stored p10 vs scratch j2",
+   "evidence": "Index: profile @1->@2 only. AER: D-31 bumps 300; ev/evf D->I and 16 base->_unverified swaps (item 3/E2-c6); one seal issue's rule ref moves to the twin. SEM: yaml_norm@2 on 1,705 markers, status 446/1,259 unchanged (item 8); 8 partial_payload in 4 executions (item 6); ns +2 (items 6, 4). PROV: core D 20,170->4,368; inference I 20,478->42,125; core O 11,091 unchanged; afterCausal 3,468 core->inference (item 14). Validation: 4 pv.constraints added, suites@2 (item 10), 300/300 pass. Completeness, status, issue codes unchanged.",
+   "reproduction": "uv run python tools/analysis2/exam2_p9diff.py --old ~/.agentprov/corpora/adprov-v1-release-p10.partial --new ~/.agentprov/migration-work/precheck/adprov-v1/l2-release-j2.partial --out <out>/p9diff.json --jobs 2 -> executions_new 300, only_in_new 0, files_differ aer/sem/prov 300; python3 docs/reports/precheck/data/adprov-v1/exam-scripts/delta.py ~/.agentprov/corpora/adprov-v1-release-p10.partial ~/.agentprov/migration-work/precheck/adprov-v1/l2-release-j2.partial <out> -> docs/reports/precheck/data/adprov-v1/delta-e2-release.json",
+   "hypothesis_ref": "",
+   "recommendation": "The post-check expects exactly these movements on the full corpus; the item-14 prediction names message entities and the Assessment placement.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "delta.py re-run reproduces every committed non-SEM section; independent afterCausal and SEM multiset censuses agree. Corrections applied: item 14 on adprov-v1: 2,291 afterCausal on message entities + 1,177 for tool executions; in the new inference bundle the latter sit on apv:Assessment entities, not on the activities; item 10 added to the evidence; one seal issue's rule ref moves to the _unverified twin (item 3); delta-e2-release.json omits the positional sem/sem_marker/sem_rule sections delta.py emits (noise from 4 executions); note it in the file."
+    }
+   ]
+  },
+  {
+   "id": "PC-adprov-v1-11",
+   "title": "l2_check reports benign<->none as identity mismatches (76) and shows executions 0 for A3 pass classes",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "release",
+   "check": "L2-C identity; A3 report",
+   "evidence": "identity.direct_mismatches {attack: 76}, all (l1 benign, aer none); the mapper sets attack none for benign under rule adprov.v1_benign_label@1; l2_check compares strings literally. a3 pass classes increment counts without recording executions: unexecuted_represented {2, 0}, time_run_scope {300, 0}.",
+   "reproduction": "python3 -c (l2-release.json identity.direct_mismatches) -> counts {attack: 76}, value pairs {('benign','none')}; prov.a3.unexecuted_represented -> {count: 2, executions: 0}",
+   "hypothesis_ref": "",
+   "recommendation": "Tool owner, after the batch: equate benign with none for AgentDojo-family attack facets (keyed on the rule), count executions for pass classes.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "intended rule-recorded mapping; tool reporting artefact in both parts. Corrections applied: the executions-0 artefact also covers time_run_scope; the tool fix can key the equivalence on adprov.v1_benign_label@1."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5: l2_check property; analysis-artefact S3, not counted in the readiness verdict."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

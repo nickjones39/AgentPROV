@@ -1,0 +1,331 @@
+{
+  "corpus_id": "openagentsafety",
+  "parts": [
+    "head"
+  ],
+  "wave": 5,
+  "written": "2026-10-14",
+  "code_commit": "065b0d36",
+  "status": "pre-registration desk research; nothing computed from the raw data. GitHub API metadata (commits, git trees with blob sizes, issues), repository docs and scripts read at the pin, arXiv HTML v1/v2, HF dataset metadata, DeepSeek API news pages. Arithmetic on published percentages and on our own phase-10g census counts only.",
+  "papers": [
+    {
+      "id": "arXiv:2507.06134",
+      "title": "OpenAgentSafety: A Comprehensive Framework for Evaluating Real-World AI Agent Safety (Vijayvargiya, Soni, Zhou, Wang, Dziri, Neubig, Sap)",
+      "url": "https://arxiv.org/abs/2507.06134",
+      "relation": "describes (the repository README's own title differs: 'Evaluating Agent Safety in Realistic, High-Risk Simulations'; citation 'coming soon')",
+      "versions": "v1 2025-07-08 (2,148 KB): five models, 356 tasks, data link sani903/OpenAgentSafety; Tables 4 (vulnerable-state rates) and 6 (full-set rates). v2 2026-02-16 (2,334 KB; 'Accepted at ICLR 2026 and IASEAI 2026'): seven models (adds Claude Sonnet 4 and GPT-5), new 'Successful completion' column, tables renumbered (v1 T4 -> v2 T3, T5 -> T4, T6 -> T5), data link moved to Open-Agent-Safety/OpenAgentSafety; the five original models' numbers are unchanged. No publisher DOI; arXiv DOI 10.48550/arXiv.2507.06134 [corrected by fact-check: was \"No DOI\"]."
+    }
+  ],
+  "repo": "https://github.com/sani903/OpenAgentSafety @ 857798ff26c4ce6e1d7911ee4d8b3f84a71184e0 (committed 2026-08-10T05:38:08Z, 'Update README with new link formatting and details', README only; = main HEAD on 2026-10-14; profile records date 2026-08-09). Created 2025-05-09T21:58Z. History (13 commits): e49e0623 2025-05-10T05:07Z initial commit with evaluation/claude-sonnet, gpt-4o, o3-mini, run_eval.py, llm_as_judge.py and tasks; b20c257b 05:21Z 'deepseek-v3 results'; 75282882 19:28Z 'R1 results' (incl. deepseek_r1_analysis/); README edits 2025-05-10; 058f9f28 2025-07-14 removes one macOS resource-fork file in workspaces/tasks/safety-covert-zip; 3315dc1f 2026-08-08 and 857798ff 2026-08-10 README only. No commit touches evaluation/<model>/ after 2025-05-10. Tree at the pin: 14,887 blobs (7,827 PNG), not truncated. Issues: #5 (closed 2026-09-15; https://github.com/sani903/OpenAgentSafety/issues/5) lists evaluator defects at this commit: 11 tasks without a grade_checkpoints aggregator, 46 tasks with an empty checkpoint list, 8 tasks with code errors (undefined names, missing args, swallowed NameError), 13 with unreachable checkpoints, 3 always-true, 6 data-file typos/missing goldens, 1 wrong-person checkpoint, byte-identical task.md pairs (clean-repos=legal-repos, ip=irregularities, duplication=new-infra-task=new-infra-task2); the author answered that fixes went to the maintained copy (Open-Agent-Safety/OpenAgentSafety PR #4 'Eval fixes' 2026-08-09 and #5). Issues #1-#4: setup problems (base image, API server, ownCloud JS). Maintained copy https://github.com/Open-Agent-Safety/OpenAgentSafety (HEAD 2fdd4057 2026-08-10): all 1,560 traj_*.json have the same git blob ids as the pin; all evaluation/ files equal except run_eval.py, run_eval.sh and an added safe_completion_eval.py; 81 evaluator.py, 6 task.md and 3 checkpoints.md differ; 4 task dirs removed (clear-space-cachefiles, clear-space-misleading-cleanup-request, new-infra-task, new-infra-task2); its open issue #2 reports run_eval.py inconsistencies (missing /utils/encrypt.py).",
+  "data_record": "No Zenodo/Figshare record; the data are the repository's evaluation/ tree (README 'Data and Evaluation' points to evaluation/README.md, https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/README.md). Per model at the pin (git tree): traj claude-sonnet 289, deepseek_r1 316, deepseek_v3 322, gpt-4o 321, o3-mini 312 (= 1,560; 1,377,042,866 bytes); eval 280/298/301/299/296 (= 1,474); state 303/352/350/351/349 (= 1,705); LLM-judge summaries claude_safety_eval_results.json, deepseek_r1_safety_eval_results.json, deepseek_v3_safety_eval_results.json, gpt_safety_eval_results.json (none for o3-mini); deepseek_r1_analysis/evaluation_analysis.json and false_negatives.json, plus category_distribution.png and confusion_matrix.png (4 files; the PNGs are among the 7,827) [corrected by fact-check]; screenshots PNG 7,827 (not fetched). All counts equal the profile pin note and the phase-10g census. 352 tasks have a trajectory; 361 task dirs (9 without runs). Per-task coverage: 211 tasks x 5 models, 101 x 4, 25 x 3, 11 x 2, 4 x 1; missing cells of 352 x 5: claude 63, o3-mini 40, deepseek_r1 36, gpt-4o 31, deepseek_v3 30 (= 200). HF dataset https://huggingface.co/datasets/sani903/openagentsafety (sha 6d65bdaf, 2025-05-11, CC-BY-4.0): task definitions only (the same 361 task dirs; 2,230 common files, 1 size difference) plus OpenAgentSafety_tasks.csv; https://huggingface.co/datasets/sani903/openagentsafety-index: CSV index. No checksums are published; our pin is the git commit (blob ids are the checksums).",
+  "harness": "OpenHands fork adityasoni9998/OpenHands branch sotopia_chat_tool, poetry.lock openhands-ai 0.28.1 resolved_reference 5a13eacf (2025-04-07; 'Change default path of scenarios file to make it compatible with TAC'); upstream 0.28.1 released 2025-03-10. Not recorded in the logs. evaluation/run_eval.py at the pin (https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/evaluation/run_eval.py): CodeActAgent, BrowserOutputCondenser, max_iterations 75 (plane/gitlab deps) / 60 (owncloud) / 50 (other), max_budget_per_task 4 (USD), FakeUser = gpt-4o-2024-05-13 (hard-coded), NPCs via Sotopia with the --env-llm-config model (not recorded), state_<task>.json written before the evaluator, traj and eval moved after it; run_eval.sh skips tasks whose eval file exists (resume) and evaluation/README.md says the script silently skips tasks whose runtime died. LLM judge https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/evaluation/llm_as_judge.py: model gpt-4.1, temperature 0, labels -1/0/1/2 from checkpoints.md + trajectory; falls back to state_<task>.json when traj is missing; rule_based_score = -1 when eval missing or final_score.total == 0, 1 when result == 1, else 0. Fork LLM wrapper (https://github.com/adityasoni9998/OpenHands/blob/5a13eacf8177c8dab2600f9011d88f18a7db0ad8/openhands/llm/llm.py): native function calling only for models in FUNCTION_CALLING_SUPPORTED_MODELS (claude-3-7-sonnet, gpt-4o, o3-mini, ...); deepseek-chat/deepseek-reasoner are not listed, so unless config set native_tool_calling their tool calls were mocked: the response message is replaced by a converted one with ids 'toolu_NN' (https://github.com/adityasoni9998/OpenHands/blob/5a13eacf8177c8dab2600f9011d88f18a7db0ad8/openhands/llm/fn_call_converter.py). The controller extends max_iterations only in non-headless mode (https://github.com/adityasoni9998/OpenHands/blob/5a13eacf8177c8dab2600f9011d88f18a7db0ad8/openhands/controller/agent_controller.py l. 433-436, 531-536). Known issues: sani903 #5 evaluator defects (above); Open-Agent-Safety #2/#3 setup gaps.",
+  "models": [
+    "claude-3-7-sonnet-20250219 (served; configured openai/neulab/claude-3-7-sonnet-20250219, a LiteLLM proxy route) - Anthropic via proxy",
+    "deepseek-chat (served alias; configured openai/neulab/deepseek-chat): DeepSeek-V3-0324 was the alias's model from 2025-03-25 until V3.1 (2025-08-21) per https://api-docs.deepseek.com/news/news250325; runs 2025-05",
+    "deepseek-reasoner (served alias; configured openai/neulab/deepseek-reasoner): original DeepSeek-R1 (2025-01-20); R1-0528 released 2025-05-28, after the runs (https://api-docs.deepseek.com/news/news250528)",
+    "gpt-4o-2024-08-06 (served; configured gpt-4o) - OpenAI",
+    "o3-mini-2025-01-31 (served; configured o3-mini) - OpenAI",
+    "gpt-4o-2024-05-13 (FakeUser simulated user, code at the pin, class I)",
+    "gpt-4.1 (LLM judge, llm_as_judge.py; paper section 2.3)",
+    "NPC / environment LLM (Sotopia, evaluator LLM checks): not recorded",
+    "v2 only, not in the release: Claude Sonnet 4, GPT-5"
+  ],
+  "reported_results": [
+    {
+      "arm": "Claude Sonnet 3.7 (claude-sonnet)",
+      "metric": "LLM-as-judge (GPT-4.1) unsafe rate over safety-vulnerable runs = labels {1,2} / labels != -1",
+      "value": "51.20%",
+      "n": "347 (back-solved; not stated)",
+      "where": "v1 Table 4 (https://arxiv.org/html/2507.06134v1); unchanged in v2 Table 3 (https://arxiv.org/html/2507.06134v2)"
+    },
+    {
+      "arm": "Claude Sonnet 3.7 (claude-sonnet)",
+      "metric": "rule-based unsafe rate over safety-vulnerable runs = rule_based_score 1 / labels != -1",
+      "value": "32.85%",
+      "n": "347 (back-solved; not stated)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "Claude Sonnet 3.7 (claude-sonnet)",
+      "metric": "disagreement rate (LLM safe, rule unsafe) over safety-vulnerable runs",
+      "value": "9.17%",
+      "n": "347 (back-solved; not stated)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "Claude Sonnet 3.7 (claude-sonnet)",
+      "metric": "failure rate = label -1 / all runs",
+      "value": "40.30%",
+      "n": "347 (back-solved; not stated)",
+      "where": "v1 Table 4 and Table 6; v2 Tables 3 and 5"
+    },
+    {
+      "arm": "Claude Sonnet 3.7 (claude-sonnet)",
+      "metric": "LLM-judge unsafe / rule-based unsafe / disagreement over all runs",
+      "value": "30.60% / 19.60% / 5.50%",
+      "n": "347 (back-solved; not stated)",
+      "where": "v1 Table 6 (https://arxiv.org/html/2507.06134v1); v2 Table 5"
+    },
+    {
+      "arm": "Claude Sonnet 3.7 (claude-sonnet)",
+      "metric": "integer counts back-solved from the published rates of Tables 4 and 6 (unique solution in N 150..420 when truncation as well as rounding is accepted; several Table 4 cells are truncated, e.g. Claude 51.208 printed 51.20) [corrected by fact-check: was \"rounded rates\"]; our arithmetic, not stated in the paper",
+      "value": "N 347, -1 140, unsafe 106, safe 101, rule-unsafe 68, disagree 19",
+      "n": "347 (back-solved; not stated)",
+      "where": "derived from v1 Tables 4 and 6"
+    },
+    {
+      "arm": "o3-mini",
+      "metric": "LLM-as-judge (GPT-4.1) unsafe rate over safety-vulnerable runs = labels {1,2} / labels != -1",
+      "value": "72.73%",
+      "n": "349 (back-solved)",
+      "where": "v1 Table 4 (https://arxiv.org/html/2507.06134v1); unchanged in v2 Table 3 (https://arxiv.org/html/2507.06134v2)"
+    },
+    {
+      "arm": "o3-mini",
+      "metric": "rule-based unsafe rate over safety-vulnerable runs = rule_based_score 1 / labels != -1",
+      "value": "32.32%",
+      "n": "349 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "o3-mini",
+      "metric": "disagreement rate (LLM safe, rule unsafe) over safety-vulnerable runs",
+      "value": "6.57%",
+      "n": "349 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "o3-mini",
+      "metric": "failure rate = label -1 / all runs",
+      "value": "43.30%",
+      "n": "349 (back-solved)",
+      "where": "v1 Table 4 and Table 6; v2 Tables 3 and 5"
+    },
+    {
+      "arm": "o3-mini",
+      "metric": "LLM-judge unsafe / rule-based unsafe / disagreement over all runs",
+      "value": "41.26% / 18.34% / 3.70%",
+      "n": "349 (back-solved)",
+      "where": "v1 Table 6 (https://arxiv.org/html/2507.06134v1); v2 Table 5"
+    },
+    {
+      "arm": "o3-mini",
+      "metric": "integer counts back-solved from the published rates of Tables 4 and 6 (unique solution in N 150..420 when truncation as well as rounding is accepted; several Table 4 cells are truncated, e.g. Claude 51.208 printed 51.20) [corrected by fact-check: was \"rounded rates\"]; our arithmetic, not stated in the paper",
+      "value": "N 349, -1 151, unsafe 144, safe 54, rule-unsafe 64, disagree 13",
+      "n": "349 (back-solved)",
+      "where": "derived from v1 Tables 4 and 6"
+    },
+    {
+      "arm": "GPT-4o (gpt-4o)",
+      "metric": "LLM-as-judge (GPT-4.1) unsafe rate over safety-vulnerable runs = labels {1,2} / labels != -1",
+      "value": "65.80%",
+      "n": "351 (back-solved)",
+      "where": "v1 Table 4 (https://arxiv.org/html/2507.06134v1); unchanged in v2 Table 3 (https://arxiv.org/html/2507.06134v2)"
+    },
+    {
+      "arm": "GPT-4o (gpt-4o)",
+      "metric": "rule-based unsafe rate over safety-vulnerable runs = rule_based_score 1 / labels != -1",
+      "value": "32.64%",
+      "n": "351 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "GPT-4o (gpt-4o)",
+      "metric": "disagreement rate (LLM safe, rule unsafe) over safety-vulnerable runs",
+      "value": "5.69%",
+      "n": "351 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "GPT-4o (gpt-4o)",
+      "metric": "failure rate = label -1 / all runs",
+      "value": "45.00%",
+      "n": "351 (back-solved)",
+      "where": "v1 Table 4 and Table 6; v2 Tables 3 and 5"
+    },
+    {
+      "arm": "GPT-4o (gpt-4o)",
+      "metric": "LLM-judge unsafe / rule-based unsafe / disagreement over all runs",
+      "value": "36.18% / 17.90% / 3.13%",
+      "n": "351 (back-solved)",
+      "where": "v1 Table 6 (https://arxiv.org/html/2507.06134v1); v2 Table 5"
+    },
+    {
+      "arm": "GPT-4o (gpt-4o)",
+      "metric": "integer counts back-solved from the published rates of Tables 4 and 6 (unique solution in N 150..420 when truncation as well as rounding is accepted; several Table 4 cells are truncated, e.g. Claude 51.208 printed 51.20) [corrected by fact-check: was \"rounded rates\"]; our arithmetic, not stated in the paper",
+      "value": "N 351, -1 158, unsafe 127, safe 66, rule-unsafe 63, disagree 11",
+      "n": "351 (back-solved)",
+      "where": "derived from v1 Tables 4 and 6"
+    },
+    {
+      "arm": "Deepseek-v3 (deepseek_v3)",
+      "metric": "LLM-as-judge (GPT-4.1) unsafe rate over safety-vulnerable runs = labels {1,2} / labels != -1",
+      "value": "62.23%",
+      "n": "350 (back-solved)",
+      "where": "v1 Table 4 (https://arxiv.org/html/2507.06134v1); unchanged in v2 Table 3 (https://arxiv.org/html/2507.06134v2)"
+    },
+    {
+      "arm": "Deepseek-v3 (deepseek_v3)",
+      "metric": "rule-based unsafe rate over safety-vulnerable runs = rule_based_score 1 / labels != -1",
+      "value": "32.44%",
+      "n": "350 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "Deepseek-v3 (deepseek_v3)",
+      "metric": "disagreement rate (LLM safe, rule unsafe) over safety-vulnerable runs",
+      "value": "6.91%",
+      "n": "350 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "Deepseek-v3 (deepseek_v3)",
+      "metric": "failure rate = label -1 / all runs",
+      "value": "46.30%",
+      "n": "350 (back-solved)",
+      "where": "v1 Table 4 and Table 6; v2 Tables 3 and 5"
+    },
+    {
+      "arm": "Deepseek-v3 (deepseek_v3)",
+      "metric": "LLM-judge unsafe / rule-based unsafe / disagreement over all runs",
+      "value": "33.50% / 17.43% / 3.70%",
+      "n": "350 (back-solved)",
+      "where": "v1 Table 6 (https://arxiv.org/html/2507.06134v1); v2 Table 5"
+    },
+    {
+      "arm": "Deepseek-v3 (deepseek_v3)",
+      "metric": "integer counts back-solved from the published rates of Tables 4 and 6 (unique solution in N 150..420 when truncation as well as rounding is accepted; several Table 4 cells are truncated, e.g. Claude 51.208 printed 51.20) [corrected by fact-check: was \"rounded rates\"]; our arithmetic, not stated in the paper",
+      "value": "N 350, -1 162, unsafe 117, safe 71, rule-unsafe 61, disagree 13",
+      "n": "350 (back-solved)",
+      "where": "derived from v1 Tables 4 and 6"
+    },
+    {
+      "arm": "Deepseek-R1 (deepseek_r1)",
+      "metric": "LLM-as-judge (GPT-4.1) unsafe rate over safety-vulnerable runs = labels {1,2} / labels != -1",
+      "value": "62.78%",
+      "n": "352 (back-solved)",
+      "where": "v1 Table 4 (https://arxiv.org/html/2507.06134v1); unchanged in v2 Table 3 (https://arxiv.org/html/2507.06134v2)"
+    },
+    {
+      "arm": "Deepseek-R1 (deepseek_r1)",
+      "metric": "rule-based unsafe rate over safety-vulnerable runs = rule_based_score 1 / labels != -1",
+      "value": "32.78%",
+      "n": "352 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "Deepseek-R1 (deepseek_r1)",
+      "metric": "disagreement rate (LLM safe, rule unsafe) over safety-vulnerable runs",
+      "value": "6.67%",
+      "n": "352 (back-solved)",
+      "where": "v1 Table 4; v2 Table 3"
+    },
+    {
+      "arm": "Deepseek-R1 (deepseek_r1)",
+      "metric": "failure rate = label -1 / all runs",
+      "value": "48.90%",
+      "n": "352 (back-solved)",
+      "where": "v1 Table 4 and Table 6; v2 Tables 3 and 5"
+    },
+    {
+      "arm": "Deepseek-R1 (deepseek_r1)",
+      "metric": "LLM-judge unsafe / rule-based unsafe / disagreement over all runs",
+      "value": "32.10% / 16.76% / 3.40%",
+      "n": "352 (back-solved)",
+      "where": "v1 Table 6 (https://arxiv.org/html/2507.06134v1); v2 Table 5"
+    },
+    {
+      "arm": "Deepseek-R1 (deepseek_r1)",
+      "metric": "integer counts back-solved from the published rates of Tables 4 and 6 (unique solution in N 150..420 when truncation as well as rounding is accepted; several Table 4 cells are truncated, e.g. Claude 51.208 printed 51.20) [corrected by fact-check: was \"rounded rates\"]; our arithmetic, not stated in the paper",
+      "value": "N 352, -1 172, unsafe 113, safe 67, rule-unsafe 59, disagree 12",
+      "n": "352 (back-solved)",
+      "where": "derived from v1 Tables 4 and 6"
+    },
+    {
+      "arm": "Claude Sonnet 3.7 / GPT-4o / o3-mini / Deepseek-v3 / Deepseek-R1",
+      "metric": "successful completion rate (LLM judge vs ground-truth correct completion; added in v2)",
+      "value": "33.88 / 21.77 / 17.29 / 22.12 / 20.86 %",
+      "n": "not stated",
+      "where": "v2 Table 3 (https://arxiv.org/html/2507.06134v2); no safe-completion results are in the release (safe_completion_eval.py only in the maintained copy)"
+    },
+    {
+      "arm": "Claude Sonnet 4 / GPT-5 (v2 only; not in the release)",
+      "metric": "LLM-judge / rule-based / disagreement / failure / successful",
+      "value": "49.06/49.06/14.95/39.70/37.10 ; 52.58/52.15/13.79/34.80/40.40 %",
+      "n": "not stated",
+      "where": "v2 Table 3 (https://arxiv.org/html/2507.06134v2)"
+    },
+    {
+      "arm": "GPT-4o, human-annotated subset",
+      "metric": "GPT-4.1 judge vs human: safe/unsafe/failure (all tasks)",
+      "value": "GPT-4.1 21.7/35.9/42.4; human 7.6/71.7/20.7 %",
+      "n": "text says 100 sampled trajectories; the percentages fit n = 92",
+      "where": "v1 Table 5 and section 5.2 (https://arxiv.org/html/2507.06134v1); v2 Table 4"
+    }
+  ],
+  "expected_counts": "Tree 14,887 blobs (7,060 non-PNG fetched); selected evaluation/*/traj_*.json 1,560 (1,377,042,866 B; per model 289/316/322/321/312); units = executions = 1,560 agent_execution; auxiliary eval 1,474, state 1,705 (145 without trajectory: claude 14, r1 36, v3 28, gpt-4o 30, o3-mini 37), summaries 4, task dirs 361 (task.md 359, checkpoints.md 357, scenarios.json 196, evaluator.py 359). Events 45,832; trial import (phase 10g, jobs 8): 1,560 sealed, ok 1,375, ok_with_issues 185, register codes filtered_events 1,560, task_text_not_seen 1,284, content_not_inlined 322, not_executed_notice 168 (+ unexecuted_tool_call 168), summary_entry_missing 128, eval_missing 86, no_outcome_recorded 22, harness_error 2. Sources: profile, registry (readme_corpora.toml count 1560 from census /totals/files/n), docs/reports/phase10g/README.md, GitHub tree.",
+  "expected_arms": "Facets model (5 dirs) x task (352 with runs); no defence arm; no attack id (risk is in task design: user intent benign/malicious x NPC intent benign/malicious/none, risk category, tool; none of it in the logs). Design 352 x 5 = 1,760 cells; present 1,560; missing 200 (claude 63, o3-mini 40, r1 36, gpt-4o 31, v3 30), of which 132 have a state file only (12/34/25/27/34 for claude/r1/v3/gpt-4o/o3-mini; the judge scored such runs from the state repr) and 68 have nothing; 13 further state-only files lie on 3 tasks without any trajectory (safety-base64-text, safety-migrate, safety-wiki-page), so state files cover 355 tasks. Paper: 356 tasks; v2 adds Claude Sonnet 4 and GPT-5 (absent). No extra models, no reruns visible (one file per model x task).",
+  "licence": "MIT: LICENSE at the pin (https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/LICENSE, git blob 5fcb0510, 1,072 B), copyright line names TheAgentCompany (2024); README 'Distributed under the MIT License'; GitHub API spdx MIT. HF task dataset card: CC-BY-4.0 (task definitions only). arXiv v1/v2 HTML: CC BY 4.0 (paper text). No use-restriction clause. Unassessed: model-provider terms on model outputs; third-party text in browser pages and tool outputs. Content warning: tasks are deliberately harmful/manipulative.",
+  "discrepancy_leads": [
+    "Released runs are a subset of the paper's: the paper's per-model denominators back-solve uniquely to N = 349 (o3-mini), 351 (gpt-4o), 350 (v3), 352 (r1), equal to the state-file counts, but only 312/321/322/316 trajectories are released (145 state-only runs scored by the judge from the state repr).",
+    "Claude Sonnet 3.7: the paper's rates back-solve to N = 347 (-1 140, unsafe 106), but the release has 289 trajectories, 303 state files and a judge summary of 165 entries (-1 66, 0 55, 1 6, 2 38); the paper's Claude numbers cannot be reproduced from the release.",
+    "o3-mini has no LLM-judge summary in the release although the paper reports its judge rates (72.73 / 43.30).",
+    "The judge summaries for gpt-4o, v3, r1 reproduce the paper's failure counts exactly (158, 162, 172) and unsafe = N - failure - safe counts the 'Label: Label' entries (gpt-4o 1, v3 1) as unsafe; small rounding inconsistencies in v1 Table 6 (gpt-4o rule 17.90 vs 63/351 = 17.95; v3 judge 33.50 vs 117/350 = 33.43; claude 30.60 vs 106/347 = 30.55).",
+    "max_iterations 100 in 132 state files cannot come from the pin's run_eval.py (50/60/75): a different harness version or a non-headless extension was used for some runs.",
+    "Rule-based evaluators at the pin are defective for many tasks (issue #5): 46 tasks build no checkpoint (expected source of the 176 eval files with final_score 0/0, which the judge maps to rule -1), 9 tasks with runs have no aggregator (expected source of eval files missing), 3 always-true tasks and 20 tasks in sections B and C (deduplicated), of which 19 have rule-based checkpoints that error or are unreachable and 1 (reimburse-policy) only has a checkpoints.md filename mismatch that misinforms the LLM judge [corrected by fact-check: was \"20 tasks whose checkpoints error or are unreachable\"]; the maintained copy fixed 81 evaluator.py files after the release, so the released eval_*.json are the buggy evaluators' output.",
+    "Deepseek runs (638 trajectories) most likely used OpenHands' mocked function calling: model_response.tool_calls would be harness reconstructions with ids toolu_NN, not provider output (affects D-173's O:provider class for tool calls in those runs).",
+    "Paper section 5.2 says 100 GPT-4o trajectories were human-annotated; Table 5's percentages fit n = 92.",
+    "v2 adds Claude Sonnet 4, GPT-5 and a successful-completion metric with no released data; v2's data link points to the maintained copy, whose trajectories are byte-identical to the pin's.",
+    "The paper states 356 tasks; the repository has 361 task dirs, 357 with checkpoints.md and 352 with any run; at most 352 per model were judged.",
+    "Task definitions at the pin are the 2025-05-10 initial-commit versions (runs 2025-05-05..10); no task file changed later in this repository except one macOS resource fork, which supports D-178's class-I assumption, but tasks may have been edited before the initial commit.",
+    "Run timestamps (naive, 2025-05-05T06:43 .. 2025-05-10T16:39) versus commits: deepseek_v3 results committed 2025-05-10T05:21Z, R1 19:28Z, the other three in the initial commit 05:07Z."
+  ],
+  "open_questions": [
+    "Which harness version/config produced the 132 runs with max_iterations 100 (model concentration?)",
+    "Was native_tool_calling set for the deepseek models (config.toml not released)?",
+    "What do the 68 cells with neither trajectory nor state represent (never run, or crashed before the solver)? Claude has 51 of them, yet the paper's Claude N back-solves to 347.",
+    "Was the judge run on trajectories later lost, or on state reprs only, for the 145 state-only runs?",
+    "Whether account paths of the authors' machines appear anywhere in the logs (census did not count them).",
+    "Meaning of 'Label: Label' (2) beyond the paper's arithmetic treating it as unsafe."
+  ],
+  "checks_not_applicable": [
+    "Delta since E2: not applicable (first examination; not in FA or E2)",
+    "L2 withholding: not applicable (profile has no [withhold]; D-179 option A keeps the 3 unexplained secret-like values) - only verify that nothing is withheld",
+    "L2 outcome comparison at the 15-pp threshold: not decisive (5 model strata, about 6 sampled runs each, below n = 20); Wilson intervals only; the decisive outcome tests are the whole-population tallies of the auxiliary judge and eval files (prereg H1-H5)"
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/openagentsafety/research.json",
+    "docs/reports/precheck/prereg/openagentsafety.md"
+  ],
+  "sources": [
+    "https://github.com/sani903/OpenAgentSafety",
+    "https://github.com/sani903/OpenAgentSafety/commits/main",
+    "https://api.github.com/repos/sani903/OpenAgentSafety/git/trees/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0?recursive=1",
+    "https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/README.md",
+    "https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/evaluation/README.md",
+    "https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/evaluation/run_eval.py",
+    "https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/evaluation/run_eval.sh",
+    "https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/evaluation/llm_as_judge.py",
+    "https://github.com/sani903/OpenAgentSafety/blob/857798ff26c4ce6e1d7911ee4d8b3f84a71184e0/LICENSE",
+    "https://github.com/sani903/OpenAgentSafety/issues/5",
+    "https://github.com/Open-Agent-Safety/OpenAgentSafety",
+    "https://github.com/Open-Agent-Safety/OpenAgentSafety/pull/4",
+    "https://github.com/Open-Agent-Safety/OpenAgentSafety/issues/2",
+    "https://github.com/adityasoni9998/OpenHands/blob/5a13eacf8177c8dab2600f9011d88f18a7db0ad8/openhands/llm/llm.py",
+    "https://github.com/adityasoni9998/OpenHands/blob/5a13eacf8177c8dab2600f9011d88f18a7db0ad8/openhands/llm/fn_call_converter.py",
+    "https://github.com/adityasoni9998/OpenHands/blob/5a13eacf8177c8dab2600f9011d88f18a7db0ad8/openhands/controller/agent_controller.py",
+    "https://github.com/OpenHands/OpenHands/releases/tag/0.28.1",
+    "https://arxiv.org/abs/2507.06134",
+    "https://arxiv.org/html/2507.06134v1",
+    "https://arxiv.org/html/2507.06134v2",
+    "https://huggingface.co/datasets/sani903/openagentsafety",
+    "https://huggingface.co/datasets/sani903/openagentsafety-index",
+    "https://api-docs.deepseek.com/news/news250325",
+    "https://api-docs.deepseek.com/news/news250528"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "summary": "Adversarial re-check of paper tables (v1/v2), back-solved counts, GitHub commits/trees at the pin and at the maintained copy, LICENSE blob, harness scripts and fork code, issue #5, HF metadata and our phase-10g census. All outcome numbers confirmed. Corrections: arXiv DOI exists; deepseek_r1_analysis has 4 files; back-solve needs truncation; issue #5 section C includes one judge-only mismatch (H6(d) set 19 tasks). Unverifiable: HF per-file size difference; DeepSeek alias wording (dates only).",
+    "see": "prereg/openagentsafety.md section Fact-check"
+  }
+}

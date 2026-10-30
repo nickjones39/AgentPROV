@@ -1,0 +1,13 @@
+import sys
+sys.path.insert(0, 'tests/adapters/agentdojo')
+from test_v1_import import v1_log
+from agentdojo_support import map_log
+
+for ts in ('2025-07-25 11:07:03', '2025-13-40 25:61:61', '2025-02-30 11:07:03', '2025-07-25 24:00:00'):
+    try:
+        m = map_log(v1_log(evaluation_timestamp=ts))
+        run = m.get('run')
+        rep = m.validate()
+        print(repr(ts), '->', run['t'].get('start_naive'), 'raw', run['t'].get('raw'), 'validate ok', rep.ok and rep.passed)
+    except Exception as e:
+        print(repr(ts), '-> EXC', type(e).__name__, str(e)[:300])

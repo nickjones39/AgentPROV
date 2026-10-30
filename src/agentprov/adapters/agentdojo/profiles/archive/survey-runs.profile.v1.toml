@@ -1,0 +1,205 @@
+# Source profile `survey-runs`: the AgentDojo part of Forever-CodingNoob/agent-security-tools-survey, 3,243 TraceLogger logs of
+# three Ollama-served models (qwen3:14b, qwen3-coder:30b, gpt-oss:120b) produced by AgentDojo @089ed468 plus three local
+# patches that are not in git (docs/architecture D.4.4, D.6.15; I.1.1 row agent-security-tools-survey · agentdojo-runs;
+# sources/agent-security-tools-survey.md §4, §10; verify/agent-security-tools-survey.md). Corpus `ast-survey-agentdojo`.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The `[family.agentdojo]` part is checked against the closed
+# schema `family.schema.json` of this family (D.4.1). The quirks' `observed` counts are measured over the full pinned
+# snapshot (tools/agentdojo/profile_census.py, tests/full_corpus/test_profile_census.py; docs/reports/survey/): `files = 11`
+# (run errors), `traces = 48` (iteration cap) and the prepass `files = 105` are the investigation's figures, reproduced;
+# every other count had no investigation figure and is the phase-10 census's own measurement.
+#
+# The survey's other parts are not selected here: agentharm/results/**/*.eval belongs to the profile survey-agentharm
+# (family inspect, corpus ast-survey-agentharm, restricted use) and is registered `select.owned_elsewhere` with that
+# corpus as owner; the ASB result CSVs are `select.dialect_planned`; the AgentDojo submodule is not part of the pinned
+# tree (a gitlink). The Zenodo archive also bundles AgentDojo's own runs/ (36,679 files, owned by `agentdojo`).
+
+[profile]
+id = "survey-runs"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "agent-security-tools-survey"
+family = "agentdojo"
+parts = ["agentdojo-runs"]
+title = "Agent Security Tools Survey: AgentDojo run logs of three Ollama models (corpus ast-survey-agentdojo)"
+evidence = ["sources/agent-security-tools-survey.md §4, §10", "verify/agent-security-tools-survey.md §2"]
+
+[source]
+canonical_repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey"
+paper = "none found (verify/agent-security-tools-survey.md §2.1)"
+concept_doi = "10.5281/zenodo.22135956"
+note = "the concept DOI is cited together with the version actually fetched (R-62)"
+package = { name = "agentdojo", submodule_commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", local_patches = 3, patches_in_git = false, version_identifies_code = false }
+
+# The pin covers agentdojo/ (not only agentdojo/results/) so that the run script, which is a context artefact, is vouched
+# for by the same pinned listing as the logs. The tree holds 3,256 files (43,565,675 bytes): the 3,243 logs, eight console
+# logs, timing_summary.csv, the README, extract_results.py and the two benchmark scripts; the submodule agentdojo/agentdojo
+# is a gitlink and is not fetched.
+[[source.pins]]
+role = "git"
+part = "agentdojo-runs"
+primary = true
+kind = "git"
+repo = "https://github.com/Forever-CodingNoob/agent-security-tools-survey"
+commit = "89c4db2c949797fbb38c5bfed85dc82780ddbfe3"
+date = "2026-08-28"
+tree = "agentdojo"
+expected_files = 3256
+expected_bytes = 43565675
+note = "3,243 logs under agentdojo/results/runs_*/openai-compatible/ (38,581,746 bytes) plus the context artefacts of agentdojo/"
+
+[[source.pins]]
+role = "zenodo_v1_0_0"
+part = "agentdojo-runs"
+kind = "zenodo"
+doi = "10.5281/zenodo.22135957"
+primary = false
+note = "alternative origin: artifact.zip, 243,606,319 bytes, md5 2cdcea49099b8e79a72263d7aeb47795 (member prefix codesafe/); not fetched, archive inputs are deferred"
+
+[[source.pins]]
+role = "zenodo_v1_0_1"
+part = "agentdojo-runs"
+kind = "zenodo"
+doi = "10.5281/zenodo.22140262"
+primary = false
+note = "alternative origin: artifact.zip, 243,606,321 bytes, md5 f623f7f776b8f24c19cdaeba1a20f654 (member prefix codesafe/); not fetched, archive inputs are deferred"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["Jhih-Jhong Lin"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "CC-BY-4.0 (repository LICENSE and Zenodo deposit); the logs embed AgentDojo benchmark text (MIT)"
+attribution = ["Jhih-Jhong Lin, Reproduction Artifact for 'Evaluating Agentic LLM Security Benchmarks for Cybersecurity Education: A Reproducible Study' (CC-BY-4.0)", "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60 + 3 local patches (patched files only in the Zenodo zip)"]
+vendored = []
+duplicates = [
+  { of = "agentdojo", path = "zenodo:codesafe/agentdojo/agentdojo/runs/**", relation = "mirror", owner = "agentdojo" },
+]
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 1, survey = 1 }
+include = ["agentdojo/results/runs_*/openai-compatible/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "agentdojo/agentdojo/**", code = "select.owned_elsewhere", owner = "agentdojo" },
+  { glob = "asb/results/*.csv", code = "select.dialect_planned" },
+  # selected by profile survey-agentharm (family inspect), a separate restricted-use corpus (U-05)
+  { glob = "agentharm/results/**/*.eval", code = "select.owned_elsewhere", owner = "agent-security-tools-survey", owner_corpus = "ast-survey-agentharm" },
+]
+layout = "agentdojo/results/{results_dir}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# The run script (the only place the model tags are written), the timing summary and the console logs are stored as
+# supporting artefacts (role supporting) and are never mapped as executions.
+context_artefacts = ["agentdojo/results/runs_*/console_*.log", "agentdojo/results/timing_summary.csv", "agentdojo/run_full_benchmark.sh"]
+
+[family.agentdojo.identity]
+model_from = "results_dir_slug"
+pipeline_name_policy = "constant_not_model"
+slug_to_model = { "runs_qwen3_14b" = "qwen3:14b", "runs_qwen3-coder_30b" = "qwen3-coder:30b", "runs_gpt-oss_120b" = "gpt-oss:120b" }
+rule = "survey.model_from_results_dir@1"
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", travel = "agentdojo", banking = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 1 }
+
+[family.agentdojo.harness]
+# the code that wrote the logs is the submodule pin plus three patches that are not in git: its state is the author's claim
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "I twins": the survey's patched fork is unpinned, so the _unverified twins of the structural rules are cited
+structural_rule_class = "I"
+# The default prompt (469 characters): every one of the 3,243 logs carries it. Its text is the `default` key of
+# system_messages.yaml at the submodule pin 089ed468 (the same digest as the agentdojo-upstream profile pins).
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+note = "396 = 291 benign user tasks + 105 solvability runs; 395 take the benign constant, the 396th is a gpt-oss run error (workspace/injection_task_13)"
+observed = { agentdojo-runs = { files = 396, origin_rule_applied = 395 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { agentdojo-runs = { files = 105 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+note = "no survey log ends with a null content, so no hidden earlier pass is detectable (sources §4.4)"
+observed = { agentdojo-runs = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["survey.internal_server_error_patch@1"]
+params = { utility = false, security = true, error_class = "openai.InternalServerError" }
+note = "11 gpt-oss logs; the values are imposed by the survey's local patch (c), which copies upstream's cohere and google handlers"
+observed = { agentdojo-runs = { files = 11 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+note = "48 traces (the iteration cap, ToolsExecutionLoop max_iters = 15) hold 49 unexecuted calls"
+observed = { agentdojo-runs = { traces = 48, logs = 48, calls = 49 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { agentdojo-runs = { files = 2901 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { agentdojo-runs = { files_without_package_version = 0 } }
+note = "agentdojo_package_version is 0.1.35 in all 3,243 logs, but the code is the submodule pin (5 commits past the 0.1.35 tag) plus three local patches"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { agentdojo-runs = { present = 11286, present_and_null = 11286 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.semantic_trap_security_gloss"
+applies = {}
+rules = ["agentdojo.security_polarity@1"]
+note = "the survey's README glosses security as 'did the agent resist the injection'; AgentDojo's code semantics apply (security = the injection task succeeded), so every 'Security %' of the README is a targeted attack success rate (sources §4.4, verify §2.4)"
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "survey.internal_server_error_patch@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

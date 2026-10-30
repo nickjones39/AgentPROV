@@ -1,0 +1,273 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "rope",
+ "findings": [
+  {
+   "id": "PC-rope-01",
+   "title": "Three ROPE entries in the agentdojo artefact catalogue are stale against suites@2 and the data (manuscript = true)",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "security": false,
+   "part": "rope head (+ rope-slice)",
+   "check": "H-22 / DL-1 / identity",
+   "evidence": "src/agentprov/adapters/agentdojo/artefacts.toml: (1) rope.art.autodojo_payload_escaped (l.469-479): count 1166 'under agentdojo.suites@1', description says the unescape is not applied, handling FO. Scratch suites@2 SEM cites agentdojo.autodojo_payload_unescape_unverified@1 64 (head) + 82 (slice) times; marker transitions absent->present 55 + 58 and ambiguous->present 9 + 24, all AutoDojo. AutoDojo executions with a present marker: slice 78/90 (stored 38/90), head 46/54 (stored 21/54). (2) rope.art.security_without_exposure (l.482-492): count 22, detector agentdojo.checker_outcome@1 class D. The rule catalogue now has agentdojo.success_without_visible_payload@1 (class D, regen item 4, D-377), and checker_outcome is cited through its _unverified twin (class I; swapped 300/300 in the head). The prereg count 5 is an expectation; the rule fired 0/390 in the sample. (3) rope.art.pipeline_tag_not_identity (l.507-516) says the tag is 'qwen3-235b' and generalises to 'the AutoDojo arm'; in the data only the qwen3-235b AutoDojo directory carries a foreign tag, and it names gpt-4o-mini (identity pairs 18 head + 30 slice; 949 in the population). The entry ids are not referenced in docs, tests or regen-batch items 1/4: not previously routed.",
+   "reproduction": "grep -n 'id = \"rope.art.autodojo_payload_escaped\"' -A10 src/agentprov/adapters/agentdojo/artefacts.toml\nuv run python docs/reports/precheck/data/rope/exam-scripts/delta.py ~/.agentprov/corpora/rope-p10.partial ~/.agentprov/migration-work/precheck/rope/l2-rope-slice-j2.partial <scratch>/d.json  -> unescape_unverified@1 +82, injection_marker_ambiguous@1 -24\nuv run python docs/reports/precheck/data/rope/exam-scripts/sample.py ~/.agentprov/migration-work/precheck/rope/l2-rope-slice-j2.partial <scratch>/s.json  -> autodojo_present new 78 / old 38\ndocs/reports/precheck/data/rope/l2-rope-slice.json identity.pairs_l1_to_aer['model<-h_pipeline'] -> gpt-4o-mini iter4 tag -> qwen3-235b: 30",
+   "hypothesis_ref": "H-22",
+   "recommendation": "Route to the agentdojo family owner; update the three entries before the datasheet/manuscript pass; recount the suites@2 values on the regenerated corpus (prereg: 2,528/2,847 AutoDojo executions with a present marker; success_without_visible_payload 5, pending); keep the suites@1 rows as basis lines (entry 1 also with the re-measure 1,235 executions / 1,840 markers, regen-batch.md l.32).",
+   "artefact_proposal": "Entry 1 rope.art.autodojo_payload_escaped: new description (suites@2 compares the payload with the YAML escape undone where the cache link holds; agentdojo.autodojo_payload_unescape@1, twin _unverified on this harness; suites@1 marker was a wrong absent); handling CR, rule agentdojo.autodojo_payload_unescape@1; expected = [{rope:head, 1166, basis suites@1 (re-measured 1,235 executions / 1,840 markers), verified}, {rope:head, <recount; prereg 2528 of 2847>, basis suites@2 AutoDojo executions with >= 1 present marker, pending}]; manuscript = true. Entry 2 rope.art.security_without_exposure: detector agentdojo.success_without_visible_payload@1 (D); checker_outcome is cited via agentdojo.checker_outcome_unverified@1 (I, D-80/81 twin); handling FO; expected = [{rope:head, 22, suites@1, verified}, {rope:head, 5, suites@2 annotation (regen item 4), pending}]; the slack injection_task_1 AutoDojo cases are expected (not yet observed) to be visible under suites@2. Entry 3 rope.art.pipeline_tag_not_identity: 'The pipeline_name of the qwen3-235b AutoDojo arm is a configuration tag naming gpt-4o-mini, not the agent model; the model comes from the release directory (identity_conflict on these 949 logs). The other AutoDojo arms carry tags of their own models.'",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Catalogue text reproduced at the cited lines; delta.py re-run (slice +82/-24, head +64/-9); marker transitions and present counts reproduced; success_without_visible_payload@1 exists (D, D-377) and checker_outcome twin swapped 300/300; identity pairs 18/30. Not routed before (no reference outside artefacts.toml except research lead L-15). S2: manuscript-flagged disclosure entries. Corrections: (a) count 5 is a pre-registered expectation (0/390 in sample; targeted import pending), keep 'pending'; (b) entry 1 basis should note the re-measure 1,235 executions / 1,840 markers; (c) entry 2: name checker_outcome_unverified@1 (I) as now cited; (d) entry 3 wrongly generalises to 'the AutoDojo arm'."
+    }
+   ]
+  },
+  {
+   "id": "PC-rope-02",
+   "title": "DL-1: every stored-vs-scratch difference on the 390 sampled ids is attributed; 0 unexplained",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head + rope-slice",
+   "check": "DL-1 (stored rope-p10.partial afe7038 vs l2-*-j2.partial)",
+   "evidence": "Matched 300/300 and 90/90; every AER/SEM/PROV/index digest differs. Head attribution: item 30 profile/rules 300; item 3 15 twin swaps (benchmark_from_dialect, checker_outcome, functions_runtime, log_holds_last_pass, system_prompt_from_harness, user_is_simulated, rope.benchmark_from_suite 300; args_are_effective, tool_status_from_error 289; call_id_unique_match 243; denial_query_echo_variant 132; tools_executed_sequentially 122; benign_security_constant 109; tree_arm_config 75; null_final_implies_three_passes 14) with their ev/evf pointers; U6-c /params 300 (in PROV the apv:paramsStatus attribute on model-call activities; apv:Gap count unchanged 6,828); item 5 load_environment +191 (= attacked executions); items 9/11 completeness 14 known_incomplete -> unverifiable; SEM: profile/rules/ns (items 4/6), outcome ev D->I 511, marker ev D->I 4,175, yaml_norm@1->@2 label on 4,267 markers with 0 status changes from item 8, B1 unescape +64 and 55+9 newly present markers with span +40 (item 1), partial_payload +153 (item 6); PROV: core->inference -5,182 statements; inference bundles 4,342 -> 9,163 (+4,821 entity/specializationOf/wasGeneratedBy; wasDerivedFrom +15,294; inf:mentionOf +900) (item 3); inference used +467 / activity +191 / association +191 (item 5); assessment +55 wasGeneratedBy (B1), +153 mentionOf (item 6). 0 removed records, 0 other rule changes, 0 judgement value changes, 0 issue-code changes. Slice: same pattern (activity +90; completeness 87/3; markers 58+24, span +40).",
+   "reproduction": "uv run python docs/reports/precheck/data/rope/exam-scripts/delta.py ~/.agentprov/corpora/rope-p10.partial ~/.agentprov/migration-work/precheck/rope/l2-head-j2.partial <scratch>/delta-head.json (committed as exam-delta-head.json / exam-delta-rope-slice.json)",
+   "hypothesis_ref": "H-12, H-14, H-15, H-16, H-17",
+   "recommendation": "None before the round. Post-check expects the same pointer set on the regenerated stored corpus (activities = attacked executions). Prereg rope.md section 6 wording 'one apv:Gap per model call' is a wrong expectation (it is apv:paramsStatus); item 8 bumps the normaliser label on every marker with 0 status changes. The U6-c wording part ('one apv:Gap per model call') is cross-cutting item CC-04, recorded once in cross-cutting.md (no separate finding here).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "delta.py re-run byte-equal to the committed outputs; independent per-annotation SEM, AER evf and PROV checks found nothing unexplained; aer_rule_added/removed empty rules out a twin-only detection artefact. Corrections: Add PROV item-3 bundle statements (+4,821 x3, wasDerivedFrom +15,294, inf:mentionOf +900), SEM span +40 on B1 markers, U6-c as apv:paramsStatus (apv:Gap unchanged), item 8 label bump with 0 status changes. delta.py compares PROV at statement level only; attribute coverage from the verifier's extra check."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "DL-1 attribution finding; expected-known S3 unchanged. Its U6-c prediction-text part is CC-04 (referenced in the recommendation, not tagged as an instance)."
+    }
+   ]
+  },
+  {
+   "id": "PC-rope-03",
+   "title": "[CC-05] Stored rope-p10 validation rows predate item 10 (validate.results.differ)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head (stored corpus)",
+   "check": "README section 8 amendment 1",
+   "evidence": "All 10,791 stored validation rows lack the 4 item-10 checks (pv.constraints.cycles, derivation_parts, ordering, unique_start); every stored row passes. In the scratch imports the 4 checks pass 1,200/1,200 (head) and 360/360 (slice); no shared check changes value. The validation digests also differ for two other reasons in all 390 rows: aer.mode release (stored) vs dev (scratch), and SEM check keys suites@1 vs suites@2.",
+   "reproduction": "read-only Python over ~/.agentprov/corpora/rope-p10.partial/validation/results.jsonl and ~/.agentprov/migration-work/precheck/rope/l2-*-j2.partial/validation/results.jsonl; not run: uv run agentprov validate --corpus ~/.agentprov/corpora/rope-p10.partial",
+   "hypothesis_ref": "",
+   "recommendation": "Protocol 8.3 item 3: compare a re-validated stored corpus with a fresh import at the same validation mode (dev on both, or --release on both), comparing check sets and values after normalising the sem profile version, not digests.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Direct check: 0/10,791 stored rows carry the item-10 checks; they pass in scratch. Digest differences are overdetermined (mode release vs dev, suites@1 vs @2), so the 390/390 digest count alone proves nothing about item 10. Corrections: Replace the digest-count evidence with the missing-check evidence; add mode and SEM-key differences; recommendation must match validation mode and normalise the sem profile."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Instance of CC-05 (stored corpus validate.results.differ, rows predate regen item 10). Canonical expected-known S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-rope-04",
+   "title": "Long-horizon attack alias flagged as path/identity mismatch by the pre-check tools (760 L1, 27 L2)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head",
+   "check": "L1-05/L1-08 path_disagrees, L2 identity direct_mismatches",
+   "evidence": "L1 path_disagrees:attack_dir 760 = every agentlab_longhorizon log (header long_horizon 760). l2_check direct_mismatches attack 27, all agentlab_longhorizon -> long_horizon. The profile maps the alias (rope.profile.toml l.93 [family.agentdojo.identity] attack_dir_alias); scratch AER attack = long_horizon 27/27; E2 had 0 path_field_mismatch. tools/precheck/l1_families.py l.258-268 (agentdojo_unit) and l2_check identity compare without the alias.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/rope/l1-head.json'));print(d['L1-08']['flags']['path_disagrees:attack_dir'], d['L1-05']['facets']['attack_dir']['agentlab_longhorizon'])\" -> 760 760",
+   "hypothesis_ref": "",
+   "recommendation": "After the batch, apply the profile's attack_dir_alias in the L1 hook and in l2_check identity; never report this as a corpus property. Any other profile declaring attack_dir_alias shows the same artefact.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Counts reproduce; alias is a documented profile rule (also in archive/rope.profile.v1.toml); tool loop reads no alias. Corrections: None to the claim; both false-positive sites are in tools/precheck."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5: property of the pre-check tools (attack_dir alias); analysis-artefact S3, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-rope-05",
+   "title": "[CC-01] Identical-trajectory counts depend on whether provider call ids are fingerprinted (L1 id-free 235/1,042 vs census 53/396); manuscript row 7 label/count",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head",
+   "check": "L1-04 / H-20",
+   "evidence": "0 byte-identical files in every scope. L1 fingerprint (provider ids ignored): 235 groups / 1,042 units; within one model-attack-suite-user-task cell 156 / 660. Stored AER recount: with provider_call_id 53 / 396 (= census, manuscript artefact row 7 labelled 'Byte-identical trajectories'); without it 235 / 1,042. Mechanism: all 396 members of the with-id groups have only null/absent provider ids (gemini-2.5-flash 381, qwen3-235b 15), so 53/396 measures id availability, not trajectory identity; 646 of the 1,042 id-free members carry differing non-null ids. 120 groups span more than one model directory (115 with one attack, 5 with several), 70 of them include gpt-4o-mini. Cross-corpus vs agentdyn a: 7 groups with 15 ROPE logs and 9 agentdyn a logs (the census '9' counts the AgentDyn side or pairs; not a count conflict).",
+   "reproduction": "python3 docs/reports/precheck/data/rope/exam-scripts/stored_extra.py -> with_provider_ids 53 396; without_provider_ids 235 1042\npython3 docs/reports/precheck/data/rope/exam-scripts/l1_dup.py -> all 235 1042; within cell 156 660",
+   "hypothesis_ref": "H-20",
+   "recommendation": "CC-01: report both counts with their definitions (L1 id-free fingerprint 235/1,042; with-id census 53/396). Manuscript artefact row 7 (labelled 'Byte-identical trajectories', while 0 byte-identical files exist) is one decision for its rope, agentdojo-upstream head and agentdyn entries and is routed once under CC-01 to the manuscript owner. Original recommendation: State the definition next to every duplicate count. Change the manuscript artefact row 7 entry for ROPE to the id-free count (235 / 1,042) with its definition, and give I_matrix section I.2.4 / C27 a definition. Check whether the head and AgentDyn entries of row 7 (382/3,612, 655/4,120) use the same with-id definition. Post-check compares L1 with L1.",
+   "artefact_proposal": "",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Both definitions reproduced exactly; L1 fingerprint and an independent stored-AER recount agree (235/1,042). With-id groups contain only null-id providers, so 53/396 cannot group gpt-4o-mini/router/ablation runs. Cross-corpus reconciles (15 ROPE + 9 AgentDyn). Severity raised S3 -> S2 because the disclosed manuscript count and label (row 7) must change, about 2.6x as many executions. Corrections: 115 groups -> 120 multi-model groups (115 one attack + 5 several), 70 with gpt-4o-mini; cross-corpus 15 vs 9 is a definition/wording gap; add the null-id mechanism; severity S2."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "reclassified",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Instance of CC-01 (the L1 trajectory fingerprint excludes provider call ids). Canonical analysis-artefact S3 (R5), was documentation-mismatch S2. The verifier raised S3 -> S2 because manuscript artefact row 7 uses the with-id count under a 'byte-identical' label; that row covers every AgentDojo-family entry and is routed once under CC-01 instead of raising this corpus's severity. The data are not affected; not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-rope-06",
+   "title": "Pre-check tool counting notes (walk includes .git, pin-check scope, argument-date monotonicity, arm key, null_final name)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "rope head",
+   "check": "L1-01, L1-07, L1-08, L2 outcomes",
+   "evidence": "(a) walked 24,938 = 24,909 + 29 .git files (not_selected 46 = 17 + 29). (b) pin_check verified 10,813 = 10,791 logs + 22 auxiliary JSON; the 13 runs/*.py context files are never read (the import verified 10,826). (c) L1-07 non-monotone 35 artefacts are all tool-argument dates (start_time, end_time, new_*_time, body/*/date); /evaluation_timestamp 0. (d) l2_check's arm key model|defence|attack folds the 75 ablation/router head labels into gpt-4o-mini|rope (n 56 / 55 vs 18 elsewhere); exam-outcomes.json pools by tree. (e) L1 null_final 33 (empty final turn, gemini) is not the profile's 322 null-final reruns (retry_passes_inferred).\n\nRecheck12 (CC-08, 2026-10-15): item (e) null_final stays 33 under the widened rule; trailing_calls 675 new; twin inference:I head 101,570 -> 89,438 (mixed 12,132, native 0), rope-slice 29,460 -> 25,546 (mixed 3,914).",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/rope/l1-head.json'));print(d['L1-01']['walked'],d['L1-01']['pin_check'],d['L1-07']['artefacts'],d['L1-07']['pointers']['/evaluation_timestamp']['units_non_monotone'])\" -> 24938 {'verified': 10813} {...35...} 0",
+   "hypothesis_ref": "",
+   "recommendation": "After the batch (tools frozen now): exclude .git from local walks, pin-check context artefacts, limit L1-07 monotonicity to run/step pointers, add ext.rope.arm to l2_check's arm key. Raw counts do not change. Item (e) is the L1 null_final rule of cross-cutting item CC-08; rope head is a v1.k14 part, so its L1-08 is re-run after that fix (dossier section 10).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Each of (a)-(e) reproduced from outputs and tool source; no data value affected. Corrections: None; the fix is a tools/precheck edit after the batch, outside this session."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5 tool notes; analysis-artefact S3, not counted in the readiness verdict. Item (e) is covered by CC-08 (referenced in the recommendation)."
+    }
+   ]
+  },
+  {
+   "id": "PC-rope-07",
+   "title": "[CC-02, CC-03] Benchmark-fiction secret and home-path shapes reach AER/PROV verbatim (dailylife key header, model placeholder keys, persona home paths); no real secret",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "part": "rope head (+ rope-slice)",
+   "check": "L1-06, L2 redaction (trap 11)",
+   "evidence": "private-key-block: 79/10,791 artefacts, all dailylife (67 main, 3 ablation, 9 router); the header is in the vendored fixture dailylife filesystem.yaml and injection_tasks.py (header only, no END line). 3 head files (dailylife injection_task_4) have model-written BEGIN/END OPENSSH blocks with ellipsised placeholder bodies: no base64 run >= 60 chars, no openssh-key-v1 magic. Slice redaction: 1 execution, header only, in AER text/args and PROV apv:args. generic-credential-assignment 2,830 artefacts (benchmark accounts). home-dir: 6 artefacts (3 named with 2 distinct names by digest, 3 generic); they start in assistant tool-call args and are echoed in the next tool message; each name occurs in the persona prompt or earlier env output; the operator digest matches none. None sampled. No [withhold] table; operator_home 0.",
+   "reproduction": "uv run python -I docs/reports/precheck/data/rope/exam-scripts/pk.py -> header-only on 2 records of 1 slice execution; full key blocks 0\nuv run python -I docs/reports/precheck/data/rope/exam-scripts/acct2.py <6 labels> -> name from prompt/env in 6/6",
+   "hypothesis_ref": "",
+   "recommendation": "CC-02: no [withhold] exists today. The AgentDojo family owner widens RT-10 to every part with AgentDyn suites, including rope head (79 private-key-block logs, all dailylife; 1 slice execution sampled) and decides a [withhold] rule or a catalogue entry before release; the 'no withholding' below is superseded by that decision. CC-03: the persona home paths are benchmark or model content (operator digest matches none). Original recommendation: Disclose in the datasheet as benchmark fiction: 'fixture header plus 3 model-written placeholder blocks; no key material'. No withholding. Optional catalogue entry.",
+   "artefact_proposal": "[[artefact]] id = \"agentdojo.art.fixture_secret_shapes\"; title = \"Benchmark fixtures contain secret- and home-path-shaped strings\"; cause = \"benchmark\"; scope = rope/head, profiles rope + autodojo-via-rope; detector = none (pre-check L1-06 / redaction screen), class O; handling FO; expected = [{rope:head, 79, L1-06 private-key-block artefacts (dailylife), logs, verified}, {rope:head, 2830, L1-06 generic-credential-assignment artefacts, logs, verified}, {rope:head, 6, L1-06 home-dir artefacts (3 named with 2 distinct names, 3 generic), logs, verified}]; manuscript = false; refs = CORPUS-CHECK-PROTOCOL 8.4 trap 11",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Raw grep re-count 79 (all dailylife); fixture header-only; pk.py reproduced; 3 head END blocks checked structurally (no content printed) are placeholders; home-dir names digest-distinct from the operator. Corrections: 'Header only' holds for the slice only (3 head placeholder blocks); home paths are also echoed in tool results; home-dir unit is 6 artefacts with 2 distinct named accounts."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "reclassified",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Instance of CC-02 (dailylife private-key-shaped fixture string reaching AER and PROV apv:args) and CC-03 (persona home paths). Canonical CC-02 class expected-known S2 (disclosure), was expected-known S3; same decision as PC-agentdyn-13. Not a real secret."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

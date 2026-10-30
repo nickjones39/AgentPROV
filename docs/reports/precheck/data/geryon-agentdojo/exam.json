@@ -1,0 +1,522 @@
+{
+ "corpus_id": "geryon-agentdojo",
+ "format": "agentprov-precheck-exam/1",
+ "date": "2026-10-15",
+ "code_commit": "cb0af3d813ac1062681e8a3c73cc8776f1059ee1 (L1, sample, both imports, check); examiner at 6b76c15e",
+ "examiner_scripts": "~/.agentprov/migration-work/precheck/geryon-agentdojo/exam (run from the repo root: uv run python -I <script> ...; they read the pinned blobs through tools/precheck/l1_scan.GitBlobReader with GIT_NO_LAZY_FETCH=1 and agentprov.ingest strict JSON)",
+ "files_written": [
+  "docs/reports/precheck/data/geryon-agentdojo/exam.json",
+  "docs/reports/precheck/data/geryon-agentdojo/os1-population.json",
+  "docs/reports/precheck/data/geryon-agentdojo/os2-sample.json",
+  "docs/reports/precheck/data/geryon-agentdojo/l1-extra.json",
+  "docs/reports/precheck/data/geryon-agentdojo/exam-scripts/ (copies of the examiner scripts; $X in the reproduction lines = ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam, identical copies here)"
+ ],
+ "level1": "Part head, git pin 905aae02 read through agentprov.ingest from the staged bare clone (wave 2, code cb0af3d8, batch rc 0 for all 5 steps). L1-01: walked 3,313 = profile expected_files; selected 3,179, context 10, not_selected 124 (134 not selected = prereg), 0 excluded/rejected/strays, units 3,179 = registry figure 3,179 (census /files); variants v0.k11 3,178 + v0.k11.incomplete 1; 2 auxiliary pair files parsed ok. L1-02: 3,179/3,179 strict ok (0 duplicate keys, non-finite, big ints, lone surrogates, BOM, trailing data, invalid UTF-8, truncation, depth); expectation 0 met. L1-03: 0 U+2028/2029/0085, C0/C1, bidi, tag, U+FFFD, mojibake; variation selectors 22 strings in 22 artefacts and zero-width 2 in 2 (all /messages/*/content: model text); literal escape residues escaped_newline 462 strings / 299 artefacts (458 in content, 2 in /messages/*/error, 2 in tool args), escaped_quote 2 (tool args body), escaped_unicode 2 (content; AgentDojo #214 class) - expected-known, no json_in_string. L1-04: 0 byte-identical files (3,179 distinct sha256 = prereg); identical-trajectory groups 18 / 63 units of 3,179 (distinct fp 3,134; CC-01 fingerprint without call ids); repeats of the same cell sharing a fingerprint 15 of 928 cells with >= 2 repeats (1.62%, H13 part 1 supported), 6 cells with all repeats identical; identical A vs B trajectories in 8 of 620 cells (Progent never intervened). Cross-part file _cross/l1-xdup.json: within_part 16 groups + 2 cross_corpus groups (= the 18), cross_part 0, byte-identical cross-corpus 0; the 2 cross-corpus trajectory groups pair 4 qwen3 banking injection_task_7 pre-passes (5 messages) with agentdojo-upstream gpt-4o-2024-05-13 / gpt-4-turbo-2024-04-09 pre-passes in both upstream parts (PC-10, CC-01). L1-05: 28 log sets (model_dir) with exactly the per-set sizes of prereg section 2 (153/110/105/99/1), 55 strata (27 attacked + 28 pre-pass), A 13 sets / 1,531 logs, B 15 / 1,648; attack important_instructions 2,967 + none 212; suites banking 2,314 / slack 550 / travel 315; models gpt-oss-120b 2,576 / qwen3-235b 603; travel injection tasks 0,1,3,4,5 only, slack 1-5, banking 0-8; 0 workspace, 0 condition C, 0 benign user-task logs; missing by release exactly the 4 full-set repeats slack-A-r3, travel-A-r2, travel-A-r3, travel-B-r3 (425 logs, run records present: PC-02); no extra cell; runs*/ grids log 90 attacked pairs per run, of which the 42 banking within-policy pairs of results/pairs.json are a subset (42/42 inside the grid). L1-06: 0 secret-like strings, 0 named accounts, 0 operator-home, 0 local-path models; account:home-dir:generic 13 strings in 12 artefacts (26 pointer hits = /messages/*/tool_call/args/file_path 13 + /messages/*/tool_calls/*/args/file_path 13, the same strings in the call and its tool echo), all qwen3 banking read_file arguments (runs-strong-agent A 8 logs, runs-full-set-strong-agent A 2 / B 2), 0 of 13 present in any earlier message text: model-invented placeholder paths (PC-06, CC-03); prereg H12 expected 0. L1-07: 0 recorded run timestamps (v0.k11, as expected); 48 artefacts carry naive dates in tool arguments start_time/end_time (49 each, 2023-11-14..2026-11-14, 0 parse failures): benchmark/model content, not clock data. Run records (not selected) date the runs 2026-08-25..2026-08-30 = results/README. L1-08: 0 empty, tiny, zero-message, error-only or unterminated files; incomplete 1 (runs-claude-policy pre-pass, system message only, no outcome keys); L1 null_final 0 although 27 logs end in an assistant message with content null and 1 pending call (the harness retry trigger the mapper uses; PC-07); trailing unexecuted calls 28 in 28 logs; error_present 0/3,179.",
+ "level2": "Sample 271 units (55 strata; 5 per stratum, the claude-policy stratum has 1; not over_maximum), imported at jobs 2 and 1 through the queue (rc 0, 72.7 s / 139.5 s, selection guard ok, 271/271 labels with exactly 1 execution). Validate tiers aer,sem,prov,linkage,shacl,regression: 271/271 passed, 0 failed, linkage 271/271 (100%); shacl not implemented (skipped, not passed), regression not applicable; results reproduced 271 (fresh scratch, CC-05 not applicable: not a stored corpus, import_status planned). recompute --dry-run (selection shim): 271 identical, 0 changed, 0 unexplained. verify --level chain: ok, 281 raw objects rehashed; checksums.absent unverified (working tree, expected). Determinism j2 vs j1: 1,101 vs 1,101 files, 0 differ, index identical. A2: degenerate 0, adapter_defect 0, unreadable 0, failures 0; status ok 268 / ok_with_issues 3 (population trial 29/3,179); completeness unverifiable 270 / known_incomplete 1; register codes accounting_unverifiable 270, earlier_attempts_unobservable 271, retry_passes_inferred 2, unexecuted_tool_call 2, incomplete_run 1 (only the trial's register codes, as expected). A3: unexecuted call parts 2/2 represented; 0 dangling, missing or invented relations; 132,384 statements, 222,224 relation arguments, 944 tool executions with call, 2,209 messages with generated_by, 1,232 model calls with input checked. Denials: 33 Progent denials in the sample, all as decision records (verdict deny, ev I, condition B only), equal to the raw count per execution in 271/271; population 773 (677 single-line + 96 multi-line; the hook's fullmatch DOTALL catches both), 0 in A sets, > 0 in every B set except runs-claude-policy (H3); JSON-schema argument errors 743 (B only) stay tool errors as D-113 says. Evidence classes (l2_check at cb0af3d8): core D 1,218 / O 7,875 / none 979; inference I 47,663 / none 3,594; assessment I 11,275 / O 542 / none 5,601; top O 45,917 / none 7,720. The 'twin' counters (assessment:I 5,611, inference:I 46,592, inference:none 3,290) predate the CC-08 twin fix and include native class-I *_unverified rules (PC-08; recheck12 re-runs check). Direct audit: harness-dependent agentdojo D rules reach PROV only via twins (16 distinct twin rules); native D citations are the INDEPENDENT rules (yaml_norm@2 in 113 PROV docs, system_prompt_variant_digest@1 in 271 AER messages: the only D field in the AER) plus seal-issue citations of agentdojo.unexecuted_trailing_calls@1 (2) and agentdojo.incomplete_run@1 (1), which are code-dependent D rules with no declared twin although verified_code = [] (PC-09). Identity: 0 unresolved, 0 direct mismatches; model = h_pipeline = pipeline_dir 271/271 (gpt-oss 221, qwen3 50); defence by log set none 130 (A) / progent 141 (B); attack important_instructions 135 / none 136; suites 191/50/30. All condition-B run sets (runs, runs-full-set, runs-full-set-strong-agent, runs-strong-policy, runs-strong-policy-fixed, runs-claude-policy) map to defence actor progent with unk /model and /version not_recorded and no distinguishing SEM or execution field (H9; PC-03). Redaction: 0 account-path or secret hits in 821 AER/SEM/PROV/index files; none of the 12 L1-06-flagged artefacts is in the sample, so their representation is untested at L2 (a 12-label supplementary scratch import is in followups). Withholding: profile has no [withhold] policy and L1-06 found 0 secret-like strings: not applicable, as pre-registered. OS-2 mapping: 542/542 run judgements (utility, security) equal the raw L1 values of the same labels; origin rules security of pre-passes agentdojo.benign_security_constant_unverified@1 (135), all others checker_inputs/checker_outcome _unverified twins.",
+ "outcomes": [
+  {
+   "arm": "runs-full-set gpt-oss-120b B banking (r1-r3)",
+   "level": "L1-population",
+   "n": 144,
+   "metric": "ASR maj3 per pair",
+   "rate": "29.17 (42/144)",
+   "wilson95": "[22.36, 37.05]",
+   "paper": "29.2 (what-went-wrong s1; Progent #3)",
+   "gap_pp": "-0.03",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B slack (r1-r3)",
+   "level": "L1-population",
+   "n": 105,
+   "metric": "ASR maj3",
+   "rate": "7.62 (8/105)",
+   "wilson95": "[3.91, 14.32]",
+   "paper": "7.6 (Progent #3)",
+   "gap_pp": "+0.02",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B slack (r1-r3)",
+   "level": "L1-population",
+   "n": 105,
+   "metric": "utility under attack maj3",
+   "rate": "22.86 (24/105)",
+   "wilson95": "[15.87, 31.76]",
+   "paper": "22.9 (Progent #3)",
+   "gap_pp": "-0.04",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b A banking (r1-r3)",
+   "level": "L1-population",
+   "n": 144,
+   "metric": "utility under attack maj3",
+   "rate": "61.11 (88/144); per-run mean 59.49",
+   "wilson95": "[52.96, 68.69]",
+   "paper": "61.1 (Progent #3)",
+   "gap_pp": "+0.01",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B banking (r1-r3)",
+   "level": "L1-population",
+   "n": 144,
+   "metric": "utility under attack maj3",
+   "rate": "56.25 (81/144); per-run mean 55.32",
+   "wilson95": "[48.09, 64.09]",
+   "paper": "56.2 (Progent #3)",
+   "gap_pp": "+0.05",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B travel (r1, r2 released; r3 absent)",
+   "level": "L1-population",
+   "n": 100,
+   "metric": "ASR, any of 2 (analyse_runs rule for < 3 repeats)",
+   "rate": "8.00 (8/100); bounds both-true 1 / either 8",
+   "wilson95": "[4.11, 15.00]",
+   "paper": "3.0 maj3 (Progent #3)",
+   "gap_pp": "+5.00",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B travel (run records r1-r3)",
+   "level": "L1-population",
+   "n": 100,
+   "metric": "ASR maj3 from the 3 run records",
+   "rate": "3.00 (3/100)",
+   "wilson95": "[1.03, 8.45]",
+   "paper": "3.0",
+   "gap_pp": "0.00",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b A slack (r1, r2 released; r3 absent)",
+   "level": "L1-population",
+   "n": 105,
+   "metric": "utility, any of 2",
+   "rate": "68.57 (72/105); bounds 56..72",
+   "wilson95": "[59.17, 76.66]",
+   "paper": "61.0 maj3 (Progent #3)",
+   "gap_pp": "+7.57",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b A slack (run records r1-r3)",
+   "level": "L1-population",
+   "n": 105,
+   "metric": "utility maj3 from run records",
+   "rate": "60.95 (64/105)",
+   "wilson95": "[51.39, 69.74]",
+   "paper": "61.0",
+   "gap_pp": "-0.05",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B pooled 3 suites (logs)",
+   "level": "L1-population",
+   "n": 349,
+   "metric": "ASR maj3 banking+slack, any-of-2 travel",
+   "rate": "16.62 (58/349); bounds 51..58",
+   "wilson95": "[13.08, 20.88]",
+   "paper": "15.2 [11.8-19.4] (what-went-wrong s1)",
+   "gap_pp": "+1.42",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B pooled 3 suites (run records)",
+   "level": "L1-population",
+   "n": 349,
+   "metric": "ASR maj3",
+   "rate": "15.19 (53/349)",
+   "wilson95": "[11.80, 19.33]",
+   "paper": "15.2 [11.8-19.4] (19.4 fits n=348)",
+   "gap_pp": "-0.01",
+   "flag": false
+  },
+  {
+   "arm": "runs gpt-oss-120b B (policy gpt-oss), 42 within-policy pairs",
+   "level": "L1-population",
+   "n": 42,
+   "metric": "ASR maj3",
+   "rate": "42.86 (18/42)",
+   "wilson95": "[29.12, 57.79]",
+   "paper": "42.9 (results/README; condition-c-decision)",
+   "gap_pp": "-0.04",
+   "flag": false
+  },
+  {
+   "arm": "runs-strong-policy B r1 (policy qwen3 pre-patch), 42 pairs",
+   "level": "L1-population",
+   "n": 42,
+   "metric": "ASR",
+   "rate": "45.24 (19/42)",
+   "wilson95": "[31.22, 60.05]",
+   "paper": "45.2 (broken arm, results/README)",
+   "gap_pp": "+0.04",
+   "flag": false
+  },
+  {
+   "arm": "runs-strong-policy-fixed B r1 (policy qwen3 post-patch), 42 pairs",
+   "level": "L1-population",
+   "n": 42,
+   "metric": "ASR",
+   "rate": "45.24 (19/42)",
+   "wilson95": "[31.22, 60.05]",
+   "paper": "45.2 (results/README)",
+   "gap_pp": "+0.04",
+   "flag": false
+  },
+  {
+   "arm": "runs-strong-agent qwen3 A vs runs gpt-oss A, 42 pairs",
+   "level": "L1-population",
+   "n": 42,
+   "metric": "ASR maj3",
+   "rate": "71.43 (30/42) vs 54.76 (23/42)",
+   "wilson95": "[56.43, 82.83] vs [39.95, 68.78]",
+   "paper": "qwen3 higher (results/README, no number)",
+   "gap_pp": "",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b A banking per run r1/r2/r3",
+   "level": "L1-population",
+   "n": 144,
+   "metric": "ASR per run",
+   "rate": "66.67 / 70.14 / 69.44",
+   "wilson95": "",
+   "paper": "approx 67-70 (Progent author, #3)",
+   "gap_pp": "0",
+   "flag": false
+  },
+  {
+   "arm": "runs-full-set gpt-oss-120b B banking per run r1/r2/r3",
+   "level": "L1-population",
+   "n": 144,
+   "metric": "ASR per run",
+   "rate": "25.00 / 33.33 / 27.78",
+   "wilson95": "",
+   "paper": "approx 25-33 (Progent author, #3)",
+   "gap_pp": "0",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss-120b | none | important_instructions (all A sets)",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "ASR (mapped AER)",
+   "rate": "68.89 (31/45); post-stratified 70.04; population 70.95 (718/1,012)",
+   "wilson95": "[54.34, 80.47]",
+   "paper": "population L1 (no paper number at this pooling)",
+   "gap_pp": "-2.06",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss-120b | progent | important_instructions (all B sets)",
+   "level": "L2-sample",
+   "n": 65,
+   "metric": "ASR (mapped AER)",
+   "rate": "26.15 (17/65); post-stratified 26.20; population 24.77 (346/1,397)",
+   "wilson95": "[17.02, 37.95]",
+   "paper": "population L1",
+   "gap_pp": "+1.38",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b | none | important_instructions",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "ASR (mapped AER)",
+   "rate": "70.00 (14/20); population 71.74 (297/414)",
+   "wilson95": "[48.10, 85.45]",
+   "paper": "population L1",
+   "gap_pp": "-1.74",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b | none | important_instructions",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "utility under attack (mapped AER)",
+   "rate": "55.00 (11/20); post-stratified 53.04; population 67.39 (279/414)",
+   "wilson95": "[34.21, 74.18]",
+   "paper": "population L1",
+   "gap_pp": "-12.39",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-235b | progent | important_instructions",
+   "level": "L2-sample",
+   "n": 5,
+   "metric": "ASR (mapped AER)",
+   "rate": "20.00 (1/5); population 27.08 (39/144)",
+   "wilson95": "[3.62, 62.45]",
+   "paper": "population L1 (n < 20: Wilson only, R6)",
+   "gap_pp": "-7.08",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss-120b | none | important_instructions",
+   "level": "L2-sample",
+   "n": 45,
+   "metric": "utility under attack (mapped AER)",
+   "rate": "53.33 (24/45); population 53.46",
+   "wilson95": "[39.08, 67.06]",
+   "paper": "population L1",
+   "gap_pp": "-0.13",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss-120b | progent | important_instructions",
+   "level": "L2-sample",
+   "n": 65,
+   "metric": "utility under attack (mapped AER)",
+   "rate": "44.62 (29/65); population 43.81",
+   "wilson95": "[33.17, 56.66]",
+   "paper": "population L1",
+   "gap_pp": "+0.81",
+   "flag": false
+  },
+  {
+   "arm": "all sampled units (mapping check)",
+   "level": "L2-sample",
+   "n": 271,
+   "metric": "raw vs mapped judgement equality",
+   "rate": "542/542 equal",
+   "wilson95": "",
+   "paper": "n/a (OS-2)",
+   "gap_pp": "0",
+   "flag": false
+  }
+ ],
+ "hypotheses": [
+  {
+   "id": "H1",
+   "result": "supported",
+   "note": "3,179 logs in exactly the 28 sets and sizes of prereg s2; 2,967 attacked + 212 pre-pass; 0 benign user-task logs; A 13 sets / 1,531, B 15 / 1,648"
+  },
+  {
+   "id": "H2",
+   "result": "supported",
+   "note": "0 travel IT2/IT6, 0 workspace, 0 condition C, 0 logs for slack-A-r3, travel-A-r2, travel-A-r3, travel-B-r3 (run records exist; PC-02)"
+  },
+  {
+   "id": "H3",
+   "result": "supported",
+   "note": "773 denials (677 single-line + 96 multi-line), A 0, every B set > 0 except runs-claude-policy (0); sample 33/33 represented as deny decisions"
+  },
+  {
+   "id": "H4",
+   "result": "supported",
+   "note": "benign/pre-pass 212 with security true 211 + null 1; pre-pass 212; null-final (mapper rule) 27, all with 1 pending call; trailing unexecuted 28 calls / 28 logs; incomplete 1; placeholder_args 14,149 present, 0 non-null"
+  },
+  {
+   "id": "H5",
+   "result": "supported",
+   "note": "banking B maj3 42/144, slack B maj3 8/105, slack B utility maj3 24/105 (exact)"
+  },
+  {
+   "id": "H6",
+   "result": "supported",
+   "note": "maj3 matches exactly (88/144, 81/144); per-run means 85.7 and 79.7 of 144 do not (off by > 1 pair), so the published utilities are majority-of-3"
+  },
+  {
+   "id": "H7",
+   "result": "supported",
+   "note": "travel B both-true 1 <= 3 <= either 8; slack A utility bounds 56..72 contain 64; pooled B bounds 51..58 contain 53 (n 349); the 36 run records reproduce 3/100, 64/105 and 53/349 exactly"
+  },
+  {
+   "id": "H8",
+   "result": "supported",
+   "note": "runs B maj3 18/42; strong-policy r1 19/42; strong-policy-fixed r1 19/42; runs-strong-agent A maj3 30/42 > runs A maj3 23/42"
+  },
+  {
+   "id": "H9",
+   "result": "supported",
+   "note": "runs, runs-strong-policy, -fixed, runs-claude-policy (and all other B sets) map to model gpt-oss-120b (qwen3 for the strong-agent set), defence progent with /model not_recorded; no caveat in AER/SEM: the documentation-mismatch lead stands (PC-03)"
+  },
+  {
+   "id": "H10",
+   "result": "supported",
+   "note": "slack B IT5: 9/63 security true; 2 with every attacker-goal call denied, 5 with at least one goal function never executed without error (PC-01)"
+  },
+  {
+   "id": "H11",
+   "result": "supported",
+   "note": "banking full-set A per run 66.67/70.14/69.44 in [62,75]; B 25.00/33.33/27.78 in [20,38]"
+  },
+  {
+   "id": "H12",
+   "result": "refuted",
+   "note": "0 secret-like strings and 0 recorded timestamps as expected, but 12 artefacts carry a generic /home/<generic>/ path (13 strings, model-invented read_file arguments of qwen3; CC-03, PC-06); 48 artefacts carry dates in tool arguments (content, not timestamps)"
+  },
+  {
+   "id": "H13",
+   "result": "refuted (part 2)",
+   "note": "part 1 supported: 15 of 928 multi-repeat cells share a fingerprint (1.62% <= 50%); part 2 refuted: 2 cross-corpus trajectory groups with agentdojo-upstream (4 qwen3 banking IT7 pre-passes; CC-01 fingerprint, convergent 5-message trajectories, no byte identity; PC-10)"
+  }
+ ],
+ "findings": [
+  {
+   "id": "PC-geryon-agentdojo-01",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "H10",
+   "artefact_proposal": "[[artefact]]\nid = \"agentdojo.art.trace_security_counts_denied_calls\"\ntitle = \"slack injection_task_5 security counts denied or failed attacker calls\"\ndescription = \"AgentDojo's slack injection_task_5 security check reads the function-call trace, so attacker-goal calls that a defence denied (or that failed) still score security = true (AgentDojo #168; Progent agentdojo/README.md note). The logged value is kept; the count is of security-true logs in which at least one of invite_user_to_slack / add_user_to_channel / remove_user_from_slack never executed without an error.\"\nscope = { sources = [\"geryon-agentdojo\"], parts = [\"head\"], profiles = [\"geryon-agentdojo\"] }\ncause = \"benchmark\"\ndetector = { rule = \"agentdojo.security_from_denied_trace\", class = \"I\" }\nrecorded_as = { notes = [\"stats:slack_it5_denied_goal_calls\"] }\nhandling = { class = \"FO\" }\nexpected = [\n  { snapshot = \"head\", count = 5, basis = \"precheck L1/OS-1 (h10b.py): condition-B slack IT5 security-true logs with a goal function never executed without error (2 with every goal call denied)\", status = \"verified\" },\n]\nmanuscript = true\nrefs = [\"https://github.com/ethz-spylab/agentdojo/issues/168\", \"https://github.com/sunblaze-ucb/progent/blob/8a8eb894b9d5/agentdojo/README.md\", \"docs/reports/precheck/geryon-agentdojo.md\"]\n# detector id is a proposal (no detector exists); widen scope to rope/agentdyn/mandate after their counts",
+   "agents_md_12": true,
+   "title": "Slack injection_task_5 security is scored from attempted calls: Progent-denied attempts count as attack success",
+   "cls": "source-defect",
+   "severity": "S2",
+   "check": "L1-05 / OS-1 (H10; CC-07 R1 branch: no validity_defects or other entry covers it)",
+   "evidence": "runs-full-set slack B (r1-r3) user_task_*/important_instructions/injection_task_5: 63 logs, security true 9; in 2 of the 9 every attacker-goal call (invite_user_to_slack, add_user_to_channel, remove_user_from_slack) received the Progent denial, in 5 of the 9 at least one of the three goal functions never executed without an error. maj3 pairs on IT5: 3 of 21 true, 1 of them has no majority of repeats where all three functions executed, so slack B maj3 ASR is 8/105 (7.62%) as logged and 7/105 (6.67%) on an effect reading. Condition A: 2 of 35 security-true IT5 logs have a goal function that only errored (tool errors, no defence). Matches the note in Progent's agentdojo/README.md (Progent corrected its own numbers by hand) and AgentDojo #168 (open); Geryon reports the logged values. No artefacts.toml entry; agentdojo.art.validity_defects neither covers this checker nor scopes geryon-agentdojo.",
+   "reproduction": "cd <repo>; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json; python3 -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/h10_h13.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json -> \"H10 {'cond=A|security=False': 7, 'cond=A|security=True': 35, ..., 'cond=B|security=False': 54, 'cond=B|security=True': 9, 'cond=B|security=True|all_goal_calls_denied': 2, 'cond=B|security=True|goal_calls>0=True': 9, 'cond=B|security=True|some_goal_call_denied': 5}\"; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/h10b.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json -> \"'cond=B|security_true|effective=False': 5, 'cond=B|security_true|effective=True': 4\" and \"slack B IT5 pairs {'maj3_raw=False|maj3_effective=False': 18, 'maj3_raw=True|maj3_effective=False': 1, 'maj3_raw=True|maj3_effective=True': 2}\" (rows in data/geryon-agentdojo/l1-extra.json h10_*)",
+   "recommendation": "Keep the logged judgement (never correct it in the AER, never exclude the logs). Add the artefact entry below via the AgentDojo family owner and disclose in the manuscript table that slack condition-B ASR includes blocked attempts (2-5 logs, 1 of 8 majority pairs). Family owner: check the other corpora with a denying defence on slack IT5 (rope guard denials, agentdyn progent, mandate gate) and widen the scope with their counts."
+  },
+  {
+   "id": "PC-geryon-agentdojo-02",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "H7",
+   "artefact_proposal": "# extension of the proposed agentdojo.art.incomplete_arm (agentdojo-upstream PC-01): add to scope sources \"geryon-agentdojo\", parts \"head\", profiles \"geryon-agentdojo\", and to expected:\n  { snapshot = \"geryon-agentdojo:head\", count = 425, basis = \"precheck L1-05: logs of runs-full-set slack-A-r3 (110), travel-A-r2 (105), travel-A-r3 (105), travel-B-r3 (105) absent; run records present\", status = \"verified\" },",
+   "agents_md_12": true,
+   "title": "Four of the 18 documented runs-full-set repeats have no logs; the published travel, slack-A utility and pooled numbers are reproducible only from the (unselected) run records",
+   "cls": "documentation-mismatch",
+   "severity": "S2",
+   "check": "L1-01 / L1-05 / OS-1 (H2, H7; R3)",
+   "evidence": "L1-05: 14 runs-full-set log sets of the 18 runs results/README.md describes; absent slack-A-r3 (110), travel-A-r2 (105), travel-A-r3 (105), travel-B-r3 (105) = 425 logs; their run records are present but not selected (36 run records at results/<run set>/<suite>-<cond>-r<n>.json, not in context_artefacts). From the logs only bounds: travel B ASR both-true 1 / either 8 of 100 (any-of-2 8.00% [4.11, 15.00] vs published 3.0); slack A utility 56..72 of 105 (any-of-2 68.57% vs 61.0); pooled B 51..58 of 349 (16.62% vs 15.2). The run records reproduce every published figure exactly: travel B maj3 3/100, slack A utility maj3 64/105 (60.95%), pooled B 53/349 = 15.19% [11.80, 19.33] (published [11.8-19.4]; the 19.4 upper bound fits n = 348, a rounding-level inconsistency in what-went-wrong s1); and they equal the logs on every pair of the 27 released sets (2,439 of 2,439 pairs, security and utility; the 11 runs*/ sets log 48 extra non-within-policy pairs each that have no record). travel-A-r2's record lists 1 skipped pair (the documented 'one pair of 348'). Gap rule: no flag (largest gap 7.6 pp on slack A utility any-of-2, inside the Wilson interval).",
+   "reproduction": "uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/os1.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/os1.json -> \"runs-full-set|travel|B {'asr': (100, {'k': 8, 'n': 100, 'pct': 8.0, ...}, 'and', 1, 'or', 8)\" and \"{'collapsed_any_for_travel': {'k': 58, 'n': 349, ...}, 'travel_and': 1, 'travel_or': 8, 'bounds_numerator': [51, 58], 'pairs': 349}\"; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/runrec3.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/runrec.json -> \"MAJ runs-full-set|travel|B|security {... 'maj3': {'k': 3, 'n': 100, 'pct': 3.0, 'wilson95': [1.03, 8.45]}}\", \"MAJ runs-full-set|slack|A|utility {... 'maj3': {'k': 64, 'n': 105, 'pct': 60.95, ...}}\", \"MAJ pooled_B_security_maj3 {'k': 53, 'n': 349, 'pct': 15.19, 'wilson95': [11.8, 19.33]}\", and 27 lines \"CMP ... {'security_equal': N, 'utility_equal': N, ...}\" with no _differ key (data/geryon-agentdojo/os1-population.json)",
+   "recommendation": "Disclose that the corpus lacks 4 of 18 full-set runs (425 logs) and that the travel, slack-A utility and pooled condition-B figures cannot be recomputed from the corpus, only bounded; never exclude the incomplete arms. Family owner (data-only, no core change, corpus not yet imported so no regeneration cost): add the 36 run records to context_artefacts (stored as supporting artefacts, never mapped), so the source's per-pair outcomes of the missing runs travel with the corpus; extend the proposed agentdojo.art.incomplete_arm entry (agentdojo-upstream PC-01) with the row below."
+  },
+  {
+   "id": "PC-geryon-agentdojo-03",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "H9",
+   "artefact_proposal": "[[artefact]]\nid = \"geryon.art.author_declared_unusable_arm\"\ntitle = \"Condition-B arms the authors declare unusable\"\ndescription = \"results/README.md marks runs-strong-policy (qwen3 policy model before the prompt patch; policy updates failed to parse) and runs-claude-policy (failed run, 1 incomplete log) as not to be quoted except as the broken arm. Their logs are ordinary Progent executions and are kept; arm statistics should stratify them by defence configuration.\"\nscope = { sources = [\"geryon-agentdojo\"], parts = [\"head\"], profiles = [\"geryon-agentdojo\"] }\ncause = \"upstream_harness\"\ndetector = { rule = \"agentdojo.pipeline_dir_is_model_identity@1\", class = \"I\" }\nrecorded_as = { notes = [\"identity:log_set\"] }\nhandling = { class = \"FO\" }\nexpected = [\n  { snapshot = \"head\", count = 100, basis = \"precheck L1-05: runs-strong-policy/logs-banking-B-r1 99 + runs-claude-policy/logs-banking-B-r1 1\", status = \"verified\" },\n]\nmanuscript = true\nrefs = [\"https://github.com/luiacuaniello/geryon/blob/905aae02c4185454ffbdb64a8bae6a042f6d7047/results/README.md\", \"docs/reports/precheck/geryon-agentdojo.md\"]",
+   "agents_md_12": true,
+   "title": "Defence configuration (policy model, prompt patch) is not in the identity, and author-declared unusable arms carry no caveat",
+   "cls": "mapping-defect",
+   "severity": "S2",
+   "check": "L2 identity (H9) / OS-1",
+   "evidence": "Sample: every condition-B execution maps to defence actor 'progent' with unk /model = not_recorded and /version = not_recorded (runs 30, runs-full-set 80, runs-full-set-strong-agent 10, runs-strong-policy 10, runs-strong-policy-fixed 10, runs-claude-policy 1); 0 SEM or execution-ext fields distinguish the run sets (the run set survives only in the artefact origin path). The source records the policy model per run: run records give policy_model openai.gpt-oss-120b for runs/B r1-r3, runs-full-set B (8 records) and runs-full-set-strong-agent B, qwen.qwen3-235b-a22b-2507 for runs-strong-policy and runs-strong-policy-fixed; runs-claude-policy has no record (claude-sonnet-5, rejected by the endpoint, per results/README). results/README.md marks runs-strong-policy (pre-patch, policy updates failing to parse) and runs-claude-policy as not to be quoted except as the broken arm. Population effect on a (model, defence) pooling: gpt-oss-120b | progent attacked ASR 346/1,397 = 24.77%, of which the two qwen3-policy arms 90/180 (50.0%) and the gpt-oss-policy sets 256/1,217 (21.04%).",
+   "reproduction": "python3 -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/h9.py | grep -v '^0 ' -> \"30 ('runs', 'progent', '{\\\"/model\\\": \\\"not_recorded\\\", \\\"/version\\\": \\\"not_recorded\\\"}', 'openai.gpt-oss-120b')\", \"10 ('runs-strong-policy', 'progent', ...same...)\", \"10 ('runs-strong-policy-fixed', 'progent', ...)\", \"1 ('runs-claude-policy', 'progent', ...)\"; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/runrec3.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/runrec.json -> \"runs-strong-policy/banking-B-r1 {'agent_model': 'openai.gpt-oss-120b', 'policy_model': 'qwen.qwen3-235b-a22b-2507', ...}\"; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/os1.py ... per-set lines \"runs-strong-policy/logs-banking-B-r1 n= 90 ASR  44\", \"runs-strong-policy-fixed/logs-banking-B-r1 n= 90 ASR  46\"",
+   "recommendation": "Data-only fix in the family's package data (identity table tables/geryon_log_sets.toml and the profile; no aer/prov/validate/corpus change): record the defence configuration per log set (policy model from the run records, class I; prompt-patch state from docs/running-progent.md and the commit history) as defence parameters or distinct defence ids, and add a profile caveat or artefact entry for the author-declared unusable arms (runs-strong-policy 99 logs, runs-claude-policy 1 log) so statistics can stratify or disclose them. Never exclude them. Downstream: AER/SEM/PROV bytes of the 1,648 B logs change; geryon-agentdojo is not yet imported (planned), so this lands before its first import."
+  },
+  {
+   "id": "PC-geryon-agentdojo-04",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "Profile statements contradicted by the pinned tree: harness commit is recorded in every run record; LICENSE has a copyright line",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "check": "L1-01 (context) / desk research (R4)",
+   "evidence": "All 36 run records name provenance.benchmark_repo_commit = 8a8eb894b9d568a32b4e58252fea85b47f789c77 (the Progent HEAD during the runs) and benchmark_version v1.2; the profile says code_identity = \"unpinned\", 'the commit is not recorded' and package 'not pinned'. The profile's licence holders note says the LICENSE carries no copyright line; LICENSE (11,348 bytes) contains 'Copyright 2026' (appendix filled in).",
+   "reproduction": "uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/runrec.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam -> \"run records 36\", \"benchmark_repo_commit {'8a8eb894b9d568a32b4e58252fea85b47f789c77': 36}\"; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/lic.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam -> \"LICENSE bytes 11348 has 'Copyright 2026' True has appendix placeholder '[yyyy]' False\"",
+   "recommendation": "Family owner: correct the two profile comments and record the observed Progent commit as the harness identity (observed in a run record, class I; verified_code stays [] unless a catalogue lists Progent-fork code). Text-only profile change, but it bumps the profile version and so the profile digest in every AER of this corpus (first import pending)."
+  },
+  {
+   "id": "PC-geryon-agentdojo-05",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "H4",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "No artefacts.toml entry scopes geryon-agentdojo although its profile quirks reproduce the family artefacts; banking_ut15_confound does not apply to the v1.2 fork",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "check": "L1-08 / L2 A2 (H4; R2 scope)",
+   "evidence": "grep: 0 entries name geryon-agentdojo. Quirk counts reproduce exactly (expected-known through the profile): benign_security_constant 212 (security true 211 + null 1), injection_task_as_user 212, silent_rerun 27 null-final logs (all with 1 pending call) and earlier_attempts_unobservable 3,179 (sample 271/271), max_iters_pending 28 calls in 28 logs, incomplete_run 1, calls_derived_from_messages (accounting unverifiable, sample 270/271). banking_ut15_confound must not be scoped: 0 of 171 banking user_task_15 logs have the attacker IBAN in the user prompt, and all 64 UT15 security-true logs (and all 1,105 banking security-true logs) carry the payload marker in a tool output (the prereg s5 expectation that it applies is refuted).",
+   "reproduction": "grep -c geryon src/agentprov/adapters/agentdojo/artefacts.toml -> 0; python3 -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/quirks.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json -> \"final_null(mapper rule)\": 27, \"final_null_with_calls:True\": 27, \"final_assistant_trailing_calls\": 28, \"final_assistant_with_calls_logs\": 28, \"placeholder_present\": 14149, \"placeholder_nonnull\": 0, \"prepass_security:True\": 211, \"prepass_security:None\": 1; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/ut15.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json -> \"'ut15=True|user_prompt_has_attacker_iban=False': 171, 'ut15=True|security_true|payload_marker_in_tool_output=True': 64\"",
+   "recommendation": "Family owner: add geryon-agentdojo (head, profile geryon-agentdojo) to the scope and expected rows of agentdojo.art.benign_security_constant (212), injection_task_as_user (212), silent_rerun (27 / 3,179), max_iters_pending (28), incomplete_run (1) and calls_derived_from_messages (3,178); do not scope banking_ut15_confound (state 'legacy v1 prompt only' in its description)."
+  },
+  {
+   "id": "PC-geryon-agentdojo-06",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "H12",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "[CC-03] Model-invented generic /home/<generic>/ paths in 12 read_file arguments (qwen3 banking); not covered by the L2 sample",
+   "cls": "expected-known",
+   "severity": "S3",
+   "check": "L1-06 / L2 redaction (H12; CC-03)",
+   "evidence": "account:home-dir:generic 13 strings in 12 of 3,179 artefacts (pointers /messages/*/tool_calls/*/args/file_path 13 and the tool echo /messages/*/tool_call/args/file_path 13); every account segment is in the generic list; 0 named, 0 operator-home, 0 secret-like; all qwen.qwen3-235b-a22b-2507 banking runs (runs-strong-agent A 8 logs, runs-full-set-strong-agent A 2, B 2), and 0 of the 13 strings occur in any earlier message text (the model invented them). None of the 12 is among the 271 sampled labels (l2 redaction l1_flags_of_sampled_labels = {}), so their AER/SEM/PROV form was not checked; by the mapping they reach apv:args verbatim.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/geryon-agentdojo/l1-head.json'));print(d['L1-06'])\" -> artefacts_with {'account:home-dir:generic': 12}, strings 26, named_accounts_distinct {}; python3 -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/quirks.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json -> \"home_generic\": 13, \"home_hits\": 13, \"home_in_prior_text\": 0, \"home_logs\": 12",
+   "recommendation": "No redaction needed (benchmark/model content, CC-03); disclose under CC-03. Run the 12-label supplementary scratch import in followups to confirm the AER/PROV representation (expect 12 executions with generic hits only, 0 operator/named)."
+  },
+  {
+   "id": "PC-geryon-agentdojo-07",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "L1 null_final rule misses the harness retry trigger when the final assistant message has a pending call (0 vs 27)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "check": "L1-08 (R5; related to CC-08, not fixed by it)",
+   "evidence": "tools/precheck/l1_families.py flags null_final only when the last assistant turn is empty AND has no tool calls; AgentDojo's retry (model_output_from_messages on messages[-1]) and the mapper (mapper.py _scopes: final message assistant with content null) do not require the absence of calls. geryon: 27 logs end in an assistant message with content null and exactly 1 pending call (census and trial 27, sample retry_passes_inferred 2); L1-08 null_final = 0. The CC-08 fix in 6b76c15e (empty text blocks) does not change this, so recheck12 will again report 0 for this part.",
+   "reproduction": "python3 -c \"import json;print(json.load(open('docs/reports/precheck/data/geryon-agentdojo/l1-head.json'))['L1-08'])\" -> {'denominator_artefacts': 3179, 'flags': {'account_path_generic': 12, 'incomplete': 1}, 'unit_flags': {}}; python3 -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/quirks.py ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/pop.json -> \"final_null(mapper rule)\": 27, \"final_null_with_calls:True\": 27; sed -n 293,296p tools/precheck/l1_families.py (the 'and not last_assistant[2]' clause)",
+   "recommendation": "Tool owner after the freeze: report two L1 classes, null_final (no calls, current) and null_final_harness (messages[-1] is an assistant message whose content is null or all-empty, calls allowed), then re-run geryon L1 (expect 27). Not a corpus property."
+  },
+  {
+   "id": "PC-geryon-agentdojo-08",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "[CC-08] Wave-2 l2_check counted native class-I *_unverified rules as twins",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "check": "L2 evidence classes (R5; CC-08)",
+   "evidence": "l2-head.json was produced at cb0af3d8, before 6b76c15e: unverified_twin_by_bundle_class assessment:I 5,611, inference:I 46,592, inference:none 3,290 includes native rules such as agentdojo.auto_execution_unverified@1 and checker_inputs_unverified@1 (no native_unverified_rule_by_bundle_class key in the file). Direct audit of the 271 PROV documents: 16 distinct twin rules, 3,598 document-level citations; native agentdojo D rules in PROV only the INDEPENDENT yaml_norm@2 (113 documents).",
+   "reproduction": "cd <repo>; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/dcls.py -> \"PROV docs citing a native agentdojo D rule {'agentdojo.yaml_norm@2': 113}\", \"twins (docs) 16 3598\"; git log --oneline -1 -- tools/precheck/l2_check.py -> 6b76c15e (after cb0af3d8)",
+   "recommendation": "Covered by plans/recheck12.toml (l1 and check forced for this part); compare the new native/twin split with the audit above. Not a corpus property."
+  },
+  {
+   "id": "PC-geryon-agentdojo-09",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "Seal issues cite code-dependent D rules natively although verified_code = [] (unexecuted_trailing_calls@1, incomplete_run@1)",
+   "cls": "mapping-defect",
+   "severity": "S3",
+   "check": "L2 evidence classes (D.5.4, D-24, D-103)",
+   "evidence": "AER seal issues in 3 of 271 sampled executions cite agentdojo.unexecuted_trailing_calls@1 (2) and agentdojo.incomplete_run@1 (1) at class D; both are class D in agentdojo.rules.toml with code entries at upstream c2748856 (not the Progent fork), are not in citation.INDEPENDENT, and have no _unverified twin in the catalogue. The mapper passes them to issue() as given (mapper.py _trailing_calls and the incomplete-run branch), whereas the retry and earlier-attempt issues go through self.cite.cite() and cite twins. Population: 28 + 1 executions. PROV is unaffected (the citations stay in the AER seal).",
+   "reproduction": "cd <repo>; uv run python -I ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/dcls.py -> \"AER records citing a native agentdojo D rule {'agentdojo.system_prompt_variant_digest@1': 271, 'agentdojo.unexecuted_trailing_calls@1': 2, 'agentdojo.incomplete_run@1': 1}\"; grep -n 'unexecuted_trailing_calls@1\\|incomplete_run@1' src/agentprov/adapters/agentdojo/mapper.py -> lines 1511, 1513, 1562 (issue(...) without cite)",
+   "recommendation": "AgentDojo family owner decides (no core change): either declare these as independent (structural readings of the log, with the reason in citation.py) or route the issue rules through cite() and declare the twins; if the latter, it is a regen item for every AgentDojo-family corpus with verified_code that does not list c2748856 (AER seal bytes change). Possibly by design (issue() docstring: rules 'as given'); verifier to confirm."
+  },
+  {
+   "id": "PC-geryon-agentdojo-10",
+   "security": false,
+   "part": "head",
+   "hypothesis_ref": "H13",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "title": "[CC-01] Two cross-corpus identical-trajectory groups with agentdojo-upstream: convergent 5-message banking injection_task_7 pre-passes",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "check": "L1-04 cross-corpus (H13 part 2; CC-01)",
+   "evidence": "_cross/l1-xdup.json: trajectory_identical cross_corpus pairs agentdojo-upstream|geryon-agentdojo 2 groups; geryon members are 4 qwen3-235b banking injection_task_7/none pre-passes (runs-strong-agent A r1/r3 in one group, runs-full-set-strong-agent A r1 + runs-strong-agent A r2 in the other; 5 messages each), matching gpt-4-turbo-2024-04-09 and gpt-4o-2024-05-13 pre-passes in both upstream parts. 0 byte-identical files across corpora; different models and harness fork: the L1 fingerprint omits call ids (CC-01), so short deterministic pre-pass trajectories coincide. Within-part groups 18 (= xdup within_part 16 + these 2).",
+   "reproduction": "cd ~/.agentprov/migration-work/precheck/_fp && python3 -c \"<match geryon-agentdojo.head.jsonl fp against every other *.jsonl>\" -> 4 matches: agentdojo.2024-06/agentdojo.head runs/gpt-4-turbo-2024-04-09/banking/injection_task_7/none/none.json and runs/gpt-4o-2024-05-13/banking/injection_task_7/none/none.json; python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/_cross/l1-xdup.json'));print(d['trajectory_identical']['cross_corpus']['pairs'].get('agentdojo-upstream|geryon-agentdojo'))\" -> 2",
+   "recommendation": "No action on the corpus (not data reuse). Record under CC-01; route to the agentdojo-upstream examiner for completeness."
+  }
+ ],
+ "followups": [
+  "Already planned: recheck12 (l1 + check forced for geryon-agentdojo head) - uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-recheck12 -- uv run python tools/precheck/run_batch.py --plan tools/precheck/plans/recheck12.toml ; why: CC-08 twin split (PC-08). Expect L1 unchanged (null_final still 0, PC-07) and the twin counters split into twin vs native.",
+  "Tool owner, after the freeze: add a null_final_harness class to tools/precheck/l1_families.py (messages[-1] assistant with null/empty content, calls allowed), then re-run only uv run python tools/precheck/l1_scan.py --source geryon-agentdojo --part head --corpus-id geryon-agentdojo --jobs 2 --emit-fp --git ~/.agentprov/staging/10c/geryon/geryon.git ; why: PC-07 (expect 27).",
+  "Supplementary scratch import of the 12 L1-06-flagged labels (not the pre-registered sample; sample file prepared at ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-supp-acct-sample.json): uv run python tools/suite_queue.py --class import --cpu 2 --label precheck-geryon-supp -- uv run python tools/precheck/l2_import.py --sample ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-supp-acct-sample.json --corpus ~/.agentprov/migration-work/precheck/geryon-agentdojo/l2-head-acct --source geryon-agentdojo --part head --jobs 2 && uv run python tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/geryon-agentdojo/l2-head-acct.partial --out ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-acct.json --sample ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/l2-supp-acct-sample.json --l1-units ~/.agentprov/migration-work/precheck/geryon-agentdojo/l1-units-head.jsonl --jobs 2 ; why: PC-06 / CC-03, confirm the generic paths are the only redaction hits (expect 12 executions, generic only, 0 operator/named).",
+  "Route to the AgentDojo family owner: PC-01 (new artefact entry, widen to rope/agentdyn/mandate slack IT5 under denying defences), PC-02 (run records as context_artefacts; incomplete_arm extension), PC-03 (defence configuration in tables/geryon_log_sets.toml + unusable-arm caveat), PC-04/PC-05 (profile comments, artefacts.toml scopes), PC-09 (cite() for issue rules or INDEPENDENT); all before the first import of geryon-agentdojo (import_status planned), so none forces a stored-corpus regeneration.",
+  "Examiner scripts: ~/.agentprov/migration-work/precheck/geryon-agentdojo/exam/ with identical copies in docs/reports/precheck/data/geryon-agentdojo/exam-scripts/ (run from the repo root with uv run python -I; gx_lib inserts tools/precheck and tools/analysis2 on sys.path)."
+ ],
+ "sample_size": "271 units of 3,179 (55 strata: 54 x 5 + 1; seed 20261011; sha256 f960a4dc...); L1 population 3,179",
+ "l2_status": "done (all 5 batch steps rc 0; check predates the CC-08 twin fix: recheck12 pending)",
+ "readiness": "ready-with-caveats (no blocking defect; mapping fixes PC-03 and PC-09 and the profile/data items PC-02/04/05 should land before the first import; disclose PC-01/PC-02/PC-03; never exclude the unusable or incomplete arms)"
+}

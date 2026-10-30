@@ -1,0 +1,517 @@
+{
+ "corpus_id": "ast-survey-agentdojo",
+ "files_written": [
+  "docs/reports/precheck/data/ast-survey-agentdojo/exam.json",
+  "docs/reports/precheck/data/ast-survey-agentdojo/delta-p10-vs-l2.json",
+  "docs/reports/precheck/data/ast-survey-agentdojo/outcomes.json",
+  "docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json",
+  "docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/ (pop.py, hyp.py, aerdiff.py, semdiff.py, markdiff.py, evf.py, provcls.py, provtypes.py, gaps2.py, outcomes.py; read-only, counts only)"
+ ],
+ "sample_size": "120 units (24 strata x 5; strata = results_dir|attack_dir|suite of the family hook); prereg section 3 expected 36 strata / 180 units (PC-07). n per model x kind: attack 20, none-arm 20 (benign 13/14/13 + solvability 7/6/7)",
+ "l2_status": "done (wave1: l1, sample, import_j2, import_j1, check all rc 0; no failed or blocked step)",
+ "level1": "L1-01: walked 3,267 (prefixes agentdojo, agentharm/results, asb/results); selected 3,243 (= registry 3,243, 1,081 per model); context 10 (8 console logs incl. gpt-oss console_attack_restart and console_attack_v2, timing_summary.csv, run_full_benchmark.sh); excluded select.owned_elsewhere:ast-survey-agentharm 6, select.dialect_planned 4 (3 ASB CSV + asb timing_summary.csv); not_selected 4 = agentdojo/README.md, extract_results.py, run_partial_benchmark.sh + agentharm/results/timing_summary.csv (outside agentdojo/); rejected gitlink 1 (agentdojo/agentdojo submodule). agentdojo/ tree = 3,243 + 10 + 3 = 3,256 as pinned: matches. L1-02: 3,243/3,243 strict ok; 0 duplicate keys, NaN/Infinity, big int, lone surrogate, BOM, trailing data, invalid UTF-8, truncation: matches (E2's 122 paired-surrogate objects are valid, not a strict class). L1-03 (denominator 3,243 artefacts): zero_width 1 (expected 1), variation_selector 12 (expected 12), escaped_newline 1,054 artefacts / 1,847 strings (1,803 content; 20 in tool-call args content/body = E2 N2; 4 error), escaped_unicode 238 / 362 strings (360 content, 2 /error), escaped_quote 133 / 155, json_in_string 6 / 6; 0 U+2028/2029/0085, C0/C1, ESC, bidi, tag, PUA, U+FFFD, mojibake: matches. L1-04: byte-identical 0; trajectory-identical 60 groups / 507 units (qwen3-coder 36, qwen3:14b 14, gpt-oss 10), each one model and one user task with different injection tasks, 13 groups also hold the benign run; utility never differs in a group, 0 of 494 attacked members have security true; 0 cross-part, 0 cross-corpus (_cross/l1-xdup.json). Prereg 32 / 299 (FA 4.6) used a fingerprint with tool-call ids (PC-09, analysis-artefact); consistent with payload_not_reaching_agent. L1-05: per model workspace 40 benign + 14 solvability + 560 attack, travel 20+7+140, banking 16+9+144, slack 21+5+105 = 1,081 x 3 models; attack important_instructions only, pipeline openai-compatible, variant v1.k14 3,243; 0 missing, 0 extra cells vs the AgentDojo design; 105 solvability runs extra vs the README (expected); 0 path_disagrees. L1-06: 0 secret-like, 0 account path, 0 operator home, 0 local-path model in 3,243 (expected 0). L1-07: /evaluation_timestamp 3,243/3,243, naive, 0 parse failures, 2026-08-17..2026-08-21 (expected); one run timestamp per unit; 9 more date pointers are scenario dates in tool args/outputs (2023-05-14..2026-11-14, benchmark fiction; their 5 'non-monotone' units are not run time); per model 0 start+duration overlaps > 60 s (2 within 1 s rounding, 10 equal starts, qwen3-coder). L1-08: tool flags 0 (0 empty, 0 zero-message, 0 error-only, 0 null-final). The expected 11 error-ended and 48 capped are not L1-08 classes (measured: 11 L1 error rows; 48/49 from the stored index); the 84 empty final answers (gpt-oss 68, qwen3:14b 16; stored AER) are missed by the tool's null_final on block-list content (PC-08). OS-1 population: every README cell reproduces exactly from raw outcome fields: Phase-1 utility 15/15 cells, under-attack utility and ASR 30/30, solvability 3/3; utility True 1,624, security True 1,027 of 3,243; gap 0.0 pp on every arm; no run error counted outside the patch-imposed 11 (all gpt-oss, security True by patch (c), included in the README figures as preregistered). H4-H10 measured on the stored corpus AER (full mapped population; text only counted): l1-extra.json.",
+ "level2": "Import j2/j1: 120 selected = sample; mapped 120, failed 0, degenerate 0, adapter_defect 0, sealed_clean 119, sealed_with_issues 1. Validate (aer, sem, prov, linkage; shacl not implemented, regression n/a): 120 passed, 0 failed, linkage 120/120, results_reproduced 120. Recompute --dry-run (shim): 120 identical, 0 unexplained. Determinism j2 vs j1: 497 files, 0 differ, index identical. verify --level chain: 130 raw rehashed, 0 failed, checksums.absent on the working tree (expected). A2 classes in the sample: run errors 0 (population 11, none drawn: followup), capped 1 (unexecuted_tool_call), text-encoded calls 5 (qwen3-coder), empty final answers 7, literal \\uXXXX tool parts 5. Issue codes: accounting_unverifiable 120, earlier_attempts_unobservable 120, unexecuted_tool_call 1. A3: 57,840 statements and 97,783 relation arguments checked, 0 dangling, 0 invented; the unexecuted call is apv:NotDispatched (1/1) but stays in core with no seal-issue pointer, because its issue cites the D rule agentdojo.unexecuted_trailing_calls@1 (PC-01; prereg expected the item-24 pointer). Evidence classes (PROV, 120 executions): core O 3,470 / D 540 (aprov.n_gap 420, n_capture_profile 120) / - 435; inference I 19,672 / - 1,559 (twin-cited I 19,455); assessment I 4,876 / O 240 / D 3 / - 2,511; top O 21,045. AER evf same 120: O .204 / D .022 / I .774 vs stored O .208 / D .324 / I .468 (= FA); the only D left is agentdojo.system_prompt_variant_digest@1 (INDEPENDENT, 120); prereg's +/-5 pp expectation fails, fully explained by item 3 / D-80 (PC-06). Identity: 3 models from the results-dir slug (40 each; survey.model_from_results_dir@1), defence none 120, attack important_instructions 60 / none 60, suites 30 each; 0 mismatches, 0 unresolved; pipeline_name constant. Redaction: 368 files, 0 account-path or secret hits in AER/SEM/PROV/index. Withholding: no [withhold] policy (n/a, preregistered). OS-2: mapped utility and security equal the raw values on 120/120 labels. DL-1 delta vs stored ast-survey-agentdojo-p10 on the same 120 ids (0 only-new): AER, SEM, PROV and validation digests differ in 120/120; every pointer is attributed (delta-p10-vs-l2.json): item 30/D-31 (survey-runs@1->@2, rules agentdojo 1->2, catalogue entity, stage digests, limits notice); item 3/D-24/D-80 (13 rule renames to _unverified twins, record/evf D->I, agents, checker runs and the pass moved core->inference, inference bundles 1,468->3,249, assessment D 396->3, SEM outcome 180 and marker 499 ev D->I); item 5/D-370 (+1 activity record in each of the 60 attacked executions, 60 GenericActivity, 97 used(run,fixture)); U6-c/D-373 (unk /params on 525 model calls -> apv:paramsStatus NotRecorded on 525 ModelInvocations, not apv:Gap as predicted: PC-05); item 8/D-379 (normaliser yaml_norm@1->@2 on 499 markers, 0 status changes); item 6/D-371 (3 partial_payload annotations, 2 executions); item 1/D-86 (suites@2); item 4 (0 success_without_visible_payload); index: profile, SEM ref, paths, digests only (completeness, status, issues unchanged). Unexplained: 0. Stored validate --corpus = validate.results.differ (amendment 1, expected-known; not re-run).",
+ "outcomes": [
+  {
+   "arm": "qwen3:14b | benign",
+   "level": "L1-population",
+   "n": 97,
+   "metric": "utility",
+   "rate": "0.6907 (67/97)",
+   "wilson95": "[0.593, 0.774]",
+   "paper": "69.1 % (67/97)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | benign",
+   "level": "L1-population",
+   "n": 97,
+   "metric": "utility",
+   "rate": "0.5773 (56/97)",
+   "wilson95": "[0.478, 0.671]",
+   "paper": "57.7 % (56/97)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | benign",
+   "level": "L1-population",
+   "n": 97,
+   "metric": "utility",
+   "rate": "0.6701 (65/97)",
+   "wilson95": "[0.572, 0.756]",
+   "paper": "67.0 % (65/97)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | attack",
+   "level": "L1-population",
+   "n": 949,
+   "metric": "utility",
+   "rate": "0.5279 (501/949)",
+   "wilson95": "[0.496, 0.559]",
+   "paper": "52.8 % (501/949)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | attack",
+   "level": "L1-population",
+   "n": 949,
+   "metric": "attack_success",
+   "rate": "0.1760 (167/949)",
+   "wilson95": "[0.153, 0.202]",
+   "paper": "17.6 % (167/949)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | attack",
+   "level": "L1-population",
+   "n": 949,
+   "metric": "utility",
+   "rate": "0.3656 (347/949)",
+   "wilson95": "[0.336, 0.397]",
+   "paper": "36.6 % (347/949)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | attack",
+   "level": "L1-population",
+   "n": 949,
+   "metric": "attack_success",
+   "rate": "0.2192 (208/949)",
+   "wilson95": "[0.194, 0.247]",
+   "paper": "21.9 % (208/949)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | attack",
+   "level": "L1-population",
+   "n": 949,
+   "metric": "utility",
+   "rate": "0.5490 (521/949)",
+   "wilson95": "[0.517, 0.580]",
+   "paper": "54.9 % (521/949)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | attack",
+   "level": "L1-population",
+   "n": 949,
+   "metric": "attack_success",
+   "rate": "0.2698 (256/949)",
+   "wilson95": "[0.242, 0.299]",
+   "paper": "27.0 % (256/949)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | solvability",
+   "level": "L1-population",
+   "n": 35,
+   "metric": "utility",
+   "rate": "0.6286 (22/35)",
+   "wilson95": "[0.463, 0.768]",
+   "paper": "62.9 % (22/35, investigation)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | solvability",
+   "level": "L1-population",
+   "n": 35,
+   "metric": "utility",
+   "rate": "0.6000 (21/35)",
+   "wilson95": "[0.436, 0.745]",
+   "paper": "60.0 % (21/35)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | solvability",
+   "level": "L1-population",
+   "n": 35,
+   "metric": "utility",
+   "rate": "0.6857 (24/35)",
+   "wilson95": "[0.520, 0.815]",
+   "paper": "68.6 % (24/35)",
+   "gap_pp": "0.0",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | attack",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "utility",
+   "rate": "raw 0.5000 (10/20); stratum-weighted 0.5418 (normal95 [0.279, 0.805])",
+   "wilson95": "[0.299, 0.701] (unweighted)",
+   "paper": "0.5490",
+   "gap_pp": "-0.7 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | attack",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "attack_success",
+   "rate": "raw 0.5500 (11/20); stratum-weighted 0.3861 (normal95 [0.157, 0.615]); flag investigated: PC-10 (design artefact)",
+   "wilson95": "[0.342, 0.742] (unweighted)",
+   "paper": "0.2698",
+   "gap_pp": "11.6 (weighted)",
+   "flag": true
+  },
+  {
+   "arm": "gpt-oss:120b | benign",
+   "level": "L2-sample",
+   "n": 13,
+   "metric": "utility",
+   "rate": "raw 0.6154 (8/13); stratum-weighted 0.7148 (normal95 [0.538, 0.892])",
+   "wilson95": "[0.355, 0.823] (unweighted)",
+   "paper": "0.6701",
+   "gap_pp": "4.5 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "gpt-oss:120b | solvability",
+   "level": "L2-sample",
+   "n": 7,
+   "metric": "utility",
+   "rate": "raw 0.7143 (5/7); stratum-weighted 0.6714 (normal95 [0.342, 1.001])",
+   "wilson95": "[0.359, 0.918] (unweighted)",
+   "paper": "0.6857",
+   "gap_pp": "-1.4 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | attack",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "utility",
+   "rate": "raw 0.4500 (9/20); stratum-weighted 0.4303 (normal95 [0.157, 0.704])",
+   "wilson95": "[0.258, 0.658] (unweighted)",
+   "paper": "0.3656",
+   "gap_pp": "6.5 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | attack",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "attack_success",
+   "rate": "raw 0.2500 (5/20); stratum-weighted 0.1189 (normal95 [0.053, 0.185])",
+   "wilson95": "[0.112, 0.469] (unweighted)",
+   "paper": "0.2192",
+   "gap_pp": "-10.0 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | benign",
+   "level": "L2-sample",
+   "n": 14,
+   "metric": "utility",
+   "rate": "raw 0.5714 (8/14); stratum-weighted 0.5902 (normal95 [0.357, 0.823])",
+   "wilson95": "[0.326, 0.786] (unweighted)",
+   "paper": "0.5773",
+   "gap_pp": "1.3 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3-coder:30b | solvability",
+   "level": "L2-sample",
+   "n": 6,
+   "metric": "utility",
+   "rate": "raw 0.6667 (4/6); stratum-weighted 0.5333 (normal95 [0.427, 0.64])",
+   "wilson95": "[0.300, 0.903] (unweighted)",
+   "paper": "0.6000",
+   "gap_pp": "-6.7 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | attack",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "utility",
+   "rate": "raw 0.6500 (13/20); stratum-weighted 0.5492 (normal95 [0.286, 0.812])",
+   "wilson95": "[0.433, 0.819] (unweighted)",
+   "paper": "0.5279",
+   "gap_pp": "2.1 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | attack",
+   "level": "L2-sample",
+   "n": 20,
+   "metric": "attack_success",
+   "rate": "raw 0.4000 (8/20); stratum-weighted 0.2099 (normal95 [0.144, 0.276])",
+   "wilson95": "[0.219, 0.613] (unweighted)",
+   "paper": "0.1760",
+   "gap_pp": "3.4 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | benign",
+   "level": "L2-sample",
+   "n": 13,
+   "metric": "utility",
+   "rate": "raw 0.7692 (10/13); stratum-weighted 0.6976 (normal95 [0.478, 0.918])",
+   "wilson95": "[0.497, 0.918] (unweighted)",
+   "paper": "0.6907",
+   "gap_pp": "0.7 (weighted)",
+   "flag": false
+  },
+  {
+   "arm": "qwen3:14b | solvability",
+   "level": "L2-sample",
+   "n": 7,
+   "metric": "utility",
+   "rate": "raw 0.5714 (4/7); stratum-weighted 0.4333 (normal95 [0.273, 0.593])",
+   "wilson95": "[0.250, 0.842] (unweighted)",
+   "paper": "0.6286",
+   "gap_pp": "-19.5 (weighted)",
+   "flag": false
+  }
+ ],
+ "hypotheses": [
+  {
+   "id": "H1",
+   "result": "supported",
+   "note": "all 45 README cells (15 Phase-1, 30 under attack; per suite and combined) and the 3 solvability counts equal the raw L1 counts exactly"
+  },
+  {
+   "id": "H2",
+   "result": "refuted",
+   "note": "11 errors all gpt-oss (10 attack + 1 solvability workspace/injection_task_13) as expected, but only 1 of the 10 attacked errors is in the README 'Affected tasks' (< 9): PC-02"
+  },
+  {
+   "id": "H3",
+   "result": "supported",
+   "note": "34 of the 35 gpt-oss attack pairs on workspace ut26/ut30 and travel ut19 have no run error: the README's deterministic-error claim is not reflected (PC-02, S3)"
+  },
+  {
+   "id": "H4",
+   "result": "refuted",
+   "note": "14 of 105 partial pairs per model precede the model's other 844 attack logs (13 %, < 50 %); the partial table reproduces in 1 of 6 combined cells: PC-03"
+  },
+  {
+   "id": "H5",
+   "result": "supported",
+   "note": "desk-confirmed (--force-rerun 2026-08-25 after the last log 2026-08-21); L1: all 97 Phase-1 logs of each model precede all its partial-pair logs"
+  },
+  {
+   "id": "H6",
+   "result": "supported",
+   "note": "174 executions, 174/174 qwen3-coder (stored AER text parts)"
+  },
+  {
+   "id": "H7",
+   "result": "supported",
+   "note": "360/360 text parts with literal \\uXXXX are role tool (100 %); 2 further L1 strings are /error"
+  },
+  {
+   "id": "H8",
+   "result": "supported",
+   "note": "per-model Phase 1 / Phase 2 hours equal the README to 0.01 h; 65.09 h vs ~63 h = 1.92 h of solvability runs the README omits"
+  },
+  {
+   "id": "H9",
+   "result": "supported",
+   "note": "gpt-oss benign travel/user_task_19 error null"
+  },
+  {
+   "id": "H10",
+   "result": "supported",
+   "note": "banking injection_task_0 7 of 27 and injection_task_3 6 of 30 successes have no attacker transfer whose subject holds the target term (heuristic terms); injection_task_1 not tested; not catalogued for the survey (PC-04)"
+  },
+  {
+   "id": "H11",
+   "result": "supported",
+   "note": "0 failed, 0 degenerate, 0 adapter_defect, validate 120/120 incl. tier 4, j2 = j1 byte-identical (497 files, index)"
+  },
+  {
+   "id": "H12",
+   "result": "supported",
+   "note": "stratum-weighted gaps <= 11.6 pp on every n=20 arm and each weighted 95 % interval contains the README rate; the one rule flag (gpt-oss ASR, unweighted Wilson [.342,.742] vs .270) is the equal-allocation design (PC-10)"
+  }
+ ],
+ "findings": [
+  {
+   "id": "PC-ast-survey-agentdojo-01",
+   "title": "Seal issues unexecuted_tool_call / missing_tool_result cite the D rule agentdojo.unexecuted_trailing_calls@1 as given under verified_code = []",
+   "cls": "mapping-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L2 A3 / evidence classes / prereg check-map row 'unexecuted calls -> apv:NotDispatched pointing at the seal issue (item 24)': not met",
+   "evidence": "src/agentprov/adapters/agentdojo/mapper.py:1511 and :1513 pass the literal 'agentdojo.unexecuted_trailing_calls@1' to issue() (docstring: pass self.cite.cite(rule)); lines 774 and 1553 resolve through self.cite. The rule is class D, code only at c2748856, no _unverified twin in agentdojo.rules.toml (0 matches), not in citation.INDEPENDENT. Fresh scratch (survey-runs@2, verified_code = []): the capped execution's seal cites it while its other issues use twins; PROV keeps apv:NotDispatched on the core ToolCallRequest part with no seal pointer (item 24 not exercised). Pre-existing in the stored corpus (index map.unexecuted_tool_call 48 executions / 49 calls). Same literal in drift_mapper.py:864/866; 24 AgentDojo profiles set verified_code = [].",
+   "reproduction": "grep -n 'unexecuted_trailing_calls' src/agentprov/adapters/agentdojo/mapper.py -> 104, 1510, 1511, 1513; grep -c 'unexecuted_trailing_calls_unverified' src/agentprov/adapters/agentdojo/rules/agentdojo.rules.toml -> 0; python3 -I -c \"import json,glob;f=glob.glob('$HOME/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-agentdojo-runs-j2.partial/aer/*/ex_6ev2rqvgqj6mboqh7rfmtqlyyi.aer.jsonl')[0];[print([(i['code'],i['rule']) for i in r['issues']]) for r in map(json.loads,open(f)) if r['k']=='seal']\" -> [('earlier_attempts_unobservable','agentdojo.log_holds_last_pass_unverified@1'), ('unexecuted_tool_call','agentdojo.unexecuted_trailing_calls@1'), ('accounting_unverifiable','aer.acc.agent_calls_vs_assistant@1')]",
+   "recommendation": "Route to the agentdojo family owner as a regen-batch item: add class-I twin agentdojo.unexecuted_trailing_calls_unverified@1 and cite self.cite.cite(...) at mapper.py:1511/1513 and drift_mapper.py:864/866 (capture_mapper already uses self.R); agentdojo catalogue integer bump (D-31). Effects: seal-issue rule of the 48 survey executions and of every capped log under a verified_code = [] profile; PROV NotDispatched becomes an inference mention pointing at seal/issues/<i> (item 24 path); AER/SEM/PROV digests of those executions. If the owner rules seal-issue citations exempt from D.5.4, document that in D.5.4 and AGENTS.md instead.",
+   "agents_md_12": true,
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-02",
+   "title": "README 'Affected tasks' of the gpt-oss 500 errors do not match the released logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1 outcome rows (error_present) vs desk research; H2 refuted, H3 and H9 supported",
+   "evidence": "11 logs with non-null error, all runs_gpt-oss_120b: 10 attack pairs (workspace ut1/it8, ut3/it8, ut9/it13, ut13/it13, ut15/it7, ut25/it1, ut29/it13, ut34/it13; slack ut11/it2; travel ut19/it0) and 1 solvability (workspace injection_task_13). 1 of 10 attacked errors is in the README-named tasks (workspace ut26, ut30; travel ut19); 34 of those 35 pairs have no error; benign travel ut19 error null.",
+   "reproduction": "python3 -I -c \"import json;rows=[json.loads(l) for l in open('$HOME/.agentprov/migration-work/precheck/ast-survey-agentdojo/l1-units-agentdojo-runs.jsonl')];e=[r for r in rows if r['outcomes']['error_present']];print(len(e),{r['facets']['results_dir'] for r in e})\" -> 11 {'runs_gpt-oss_120b'}; l1-extra.json /H2_H3_run_errors",
+   "recommendation": "Dossier and manuscript artefact table: the README's list of failing tasks is not backed by the released logs (likely earlier runs, cf. console_attack_restart/_v2). No mapping change; run_error_imposed (11) stays.",
+   "agents_md_12": false,
+   "artefact_proposal": "[[artefact]]\nid = \"survey.art.readme_error_tasks_mismatch\"\ntitle = \"README names other tasks than the released run errors\"\ndescription = \"The survey README attributes the gpt-oss InternalServerError runs to workspace user_task_26/30 and travel user_task_19; the released logs hold 11 errors, 1 of them in those tasks.\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentdojo-runs\"], profiles = [\"survey-runs\"] }\ncause = \"documentation\"\ndetector = { rule = \"survey.internal_server_error_patch@1\", class = \"I\" }\nclaims = []\nrecorded_as = { aer = [\"execution.ext.agentdojo.error\"] }\nhandling = { class = \"FO\" }\nexpected = [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 11, basis = \"precheck L1 error_present; 1 of 10 attacked errors in the README tasks\" } ]\nmanuscript = true\nrefs = [\"docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json\", \"agentdojo/README.md @89c4db2c 'Affected tasks'\"]",
+   "hypothesis_ref": "H2"
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-03",
+   "title": "README 'partial benchmark' table (105 pairs per model) is not reproducible from the released logs",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1-07 run timestamps + raw outcomes; H4 refuted",
+   "evidence": "Per model 14 of the 105 partial pairs precede all other 844 attack logs (only the first user task); the rest interleave in task order with the full run. From the logs (utility, ASR counts): qwen3:14b 52/29 vs README 53/36; qwen3-coder 37/38 vs 27/38; gpt-oss 43/53 (ut20) or 48/53 (ut26) vs 53/48: 1 of 6 combined cells equal. Phase-1 and full-949 tables reproduce exactly (H1).",
+   "reproduction": "python3 -I docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/pop.py ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial pop_rows.json; python3 -I docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/hyp.py pop_rows.json -> 'qwen3:14b partial n 105 earlier than min(other attack) 14 u 52 s 29' (likewise 14/37/38 coder, 14/43/53 gpt-oss); l1-extra.json /H4_partial",
+   "recommendation": "Dossier/manuscript note: the partial run's logs are not in the release (the full run re-ran those pairs; the README's script table also says the partial script was not used). Only the Phase-1 and full-949 tables are backed by data.",
+   "agents_md_12": false,
+   "artefact_proposal": "[[artefact]]\nid = \"survey.art.partial_table_unbacked\"\ntitle = \"Partial-benchmark table not backed by released logs\"\ndescription = \"The README's 105-pair partial table differs from the same pairs of the released full run in 5 of 6 combined cells; the partial run's logs were not released.\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentdojo-runs\"], profiles = [\"survey-runs\"] }\ncause = \"documentation\"\ndetector = { rule = \"agentdojo.checker_outcome_unverified@1\", class = \"I\" }\nclaims = []\nrecorded_as = {}\nhandling = { class = \"FO\" }\nexpected = [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 315, basis = \"precheck: 105 pairs x 3 models; 14 per model precede the rest\" } ]\nmanuscript = true\nrefs = [\"docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json\"]",
+   "hypothesis_ref": "H4"
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-04",
+   "title": "Banking injection_task_0/3 successes without the targeted datum in the transfer subject (agentdojo#181) are not catalogued for the survey",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "H10 (tool-call args via the stored AER; counts only)",
+   "evidence": "All 82 security=True runs of banking injection_task_0/1/3 transfer to the attacker IBAN. Subject holding the target term (case-insensitive heuristic): injection_task_0 20 of 27 ('spotify'), injection_task_3 24 of 30 ('iphone'): 13 of 57 lack it. injection_task_1 not tested. agentdojo.art.validity_defects lists survey count 4 (vacuous utility only).",
+   "reproduction": "python3 -I over docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/pop_rows.json (send_money args of banking successes; counts only) -> injection_task_0 27 {'to_attacker': 27, 'subject_has_target': 20}; injection_task_3 30 {'to_attacker': 30, 'subject_has_target': 24}; l1-extra.json /H10_banking_subject",
+   "recommendation": "Verifier: confirm the AgentDojo 089ed468 banking security functions and exact target strings, then route to the family owner: an expected row for the survey (and other AgentDojo corpora at the same benchmark version) under validity_defects or the new entry below. Never exclude the runs; disclose that banking ASR counts transfers whatever the subject.",
+   "agents_md_12": true,
+   "artefact_proposal": "[[artefact]]\nid = \"agentdojo.art.banking_subject_unchecked\"\ntitle = \"Banking injection checks ignore the transfer subject\"\ndescription = \"Banking injection_task_0/1/3 succeed on any transfer to the attacker IBAN; the subject check that should require the stolen datum is dead code (agentdojo#181).\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentdojo-runs\"], profiles = [\"survey-runs\"] }\ncause = \"benchmark\"\ndetector = { rule = \"agentdojo.checker_outcome_unverified@1\", class = \"I\" }\nclaims = [\"attack_succeeded\"]\nrecorded_as = { sem = [\"outcome\"] }\nhandling = { class = \"FO\" }\nexpected = [ { snapshot = \"agent-security-tools-survey:agentdojo-runs\", count = 13, basis = \"precheck H10: it0 7 of 27, it3 6 of 30 (heuristic target terms); it1 not counted\" } ]\nmanuscript = true\nrefs = [\"https://github.com/ethz-spylab/agentdojo/issues/181\", \"docs/reports/precheck/data/ast-survey-agentdojo/l1-extra.json\"]",
+   "hypothesis_ref": "H10"
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-05",
+   "title": "D-373 / U6-c predicted one apv:Gap per model call; the engine records apv:paramsStatus NotRecorded instead",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "DL-1 delta (PROV) / prereg section 8 row U6-c",
+   "evidence": "Scratch AER: unk /params not_recorded on 525/525 model calls (stored 0). PROV Gap entities 1,619 = 1,619, 0 with property /params; new apv:paramsStatus apv:NotRecorded on 525 ModelInvocation activities (inference bundles). prov/rules/nodes.py _status_target maps /params* to that attribute by design.",
+   "reproduction": "grep -n -A1 'startswith(\"/params\")' src/agentprov/prov/rules/nodes.py -> return ctx.node(lid), (\"apv:paramsStatus\",); delta-p10-vs-l2.json /prov/gap_entities_total, /prov/added",
+   "recommendation": "Correct the U6-c prediction in regen-batch.md (and any stats expectation) to 'apv:paramsStatus apv:NotRecorded on every ModelInvocation'; no code change.",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-06",
+   "title": "Prereg expected AER evidence shares within 5 pp of FA; item 3 moves D to I in the AER as well as in PROV",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L2 evidence classes vs prereg check map; DL-1",
+   "evidence": "Same 120 ids: stored evf O .208 / D .324 / I .468 (= FA .20/.32/.47), record ev D 600; fresh evf O .204 / D .022 / I .774, record ev D 0; remaining D = agentdojo.system_prompt_variant_digest@1 (INDEPENDENT) 120. 13 rule renames to twins (prereg's 'same twin set (13 rules)'); stored structural_rule_class = I affected PROV placement only, its AER cited the D rules.",
+   "reproduction": "python3 -I docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/evf.py <scratch j2>; python3 -I docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/evf.py ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial <scratch j2>/executions.jsonl -> shares as above; delta-p10-vs-l2.json /aer_evidence_tags_same_120",
+   "recommendation": "Expected movement of item 3 / D-80 (records weakened to their rules' class); the post-check baseline is the fresh distribution.",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-07",
+   "title": "Sample strata 24 (results_dir|attack_dir|suite) instead of the prereg's 36 (model x suite x kind)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L2-S",
+   "evidence": "l2-sample: 120 units, 24 strata x 5; benign and solvability share attack_dir=none (sample benign 13/14/13, solvability 7/6/7). Amendment 2.4 fixes the key to the family hook's, so the sample follows the method; the prereg's 180 is superseded.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/ast-survey-agentdojo/l2-sample-agentdojo-runs.json'));print(d['n'],len(d['strata']))\" -> 120 24",
+   "recommendation": "Record in the dossier; no benign-only sample verdict at n >= 20 (population OS-1 covers it exactly). The post-check reuses the committed sample.",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": "H12"
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-08",
+   "title": "L1-08 null_final misses empty final answers in block-list content (84 executions not flagged)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1-08",
+   "evidence": "tools/precheck/l1_families.py agentdojo_unit tests normalised content against (None, '', []); v1.k14 content is a block list normalised to [['text', '']], so an empty final answer is never flagged. Stored AER: 84 executions end with an assistant message without call and with empty text (gpt-oss 68, qwen3:14b 16) = E2 N4; L1-08 flags 0.",
+   "reproduction": "grep -n \"last_assistant\\[1\\] in\" tools/precheck/l1_families.py; count over the stored AER -> 'empty final assistant answer (no call, empty text): 84 {gpt-oss:120b: 68, qwen3:14b: 16}'",
+   "recommendation": "Tool fix after the batch (tools frozen now): treat a block list whose texts are all empty as null_final; re-run L1 for AgentDojo-family parts in the post-check as a recorded tool change.",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-09",
+   "title": "L1-04 trajectory-identical groups 60/507 vs FA 32/299: fingerprint definitions differ",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "L1-04",
+   "evidence": "The L1 hook fingerprints role, content, function, args and error, not provider tool-call ids; FA 4.6 compared AER parts with call ids. All 60 groups: one model, one user task, different injection tasks; 0 utility differences, 0 security true among 494 attacked members, 0 cross-model, 0 cross-part, 0 cross-corpus.",
+   "reproduction": "l1-agentdojo-runs.json /L1-04/trajectory_identical (groups 60, units_in_groups 507); grouping l1-units by fp -> 'groups 60 members 507 utility differs 0 attacked 494 security true 0 cross-model 0 mixed 13'",
+   "recommendation": "Use 60/507 as the post-check baseline for this fingerprint; no corpus property changed (payload_not_reaching_agent).",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-10",
+   "title": "Gap-rule flag on the gpt-oss ASR sample arm is the equal-allocation design (l2_check arm rates are unweighted)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "OS-2 gap rule",
+   "evidence": "Sample 11/20 (Wilson [.342, .742]) vs README .270 (excluded by 7.2 pp); 5 units per suite against population 560/140/144/105, with banking/slack ASR 61/55 % vs workspace 11 %. Stratum-weighted .386 (normal 95 % [.157, .615]) contains .270; raw = mapped on 120/120; 0 run errors sampled; population 256/949 = README exactly.",
+   "reproduction": "python3 -I docs/reports/precheck/data/ast-survey-agentdojo/exam-scripts/outcomes.py <l1-units> <scratch j2> <l2-sample> tools/analysis2 os2.json -> gpt-oss attack_success raw 0.55, weighted 0.3861, weighted_normal95 [0.157, 0.615], flag True",
+   "recommendation": "Apply the gap rule to stratum-weighted estimates in the dossiers (prereg section 4); treat l2_check's unweighted arm rates as descriptive.",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": "H12"
+  },
+  {
+   "id": "PC-ast-survey-agentdojo-11",
+   "title": "Stored corpus validate.results.differ (pre-item-10 validation rows)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentdojo-runs",
+   "check": "stored validate --corpus",
+   "evidence": "README section 8 amendment 1; not re-run here. Fresh scratch validates 120/120 (results_reproduced 120).",
+   "reproduction": "(orchestrator proof, amendment 1) uv run agentprov validate --corpus ~/.agentprov/corpora/ast-survey-agentdojo-p10.partial -> exit 1, validate.results.differ",
+   "recommendation": "Post-check compares a re-validated stored corpus with a fresh scratch import.",
+   "agents_md_12": false,
+   "artefact_proposal": "",
+   "hypothesis_ref": ""
+  }
+ ],
+ "followups": [
+  "Optional targeted L2 import of the 11 run-error logs (L1 rows with outcomes.error_present true) plus 4 capped logs (stored index map.unexecuted_tool_call): write a sample file in l2-sample format with those labels, then: uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentdojo -- uv run python tools/precheck/l2_import.py --sample <that file> --corpus ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors-j2 --source agent-security-tools-survey --part agentdojo-runs --jobs 2; then tools/precheck/l2_check.py --corpus ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors-j2.partial --out ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l2-errors.json --sample <that file> --l1-units ~/.agentprov/migration-work/precheck/ast-survey-agentdojo/l1-units-agentdojo-runs.jsonl. Why: the sample drew 0 of 11 run errors, so survey.internal_server_error_patch@1 / outcome_imposed_by_runner were not exercised at current main.",
+  "Route PC-01 (D citation of agentdojo.unexecuted_trailing_calls@1 on unverified harnesses; mapper.py:1511/1513, drift_mapper.py:864/866) to the agentdojo family owner / regen-batch session before the round; it touches every capped log under the 24 verified_code = [] profiles.",
+  "Verifier for PC-04: check agentdojo@089ed468 banking injection_task_0/1/3 security functions and target strings (ethz-spylab/agentdojo issue 181 and source), then recount it0/it1/it3 with the exact strings.",
+  "After the batch (tools unfrozen): fix l1_families.py null_final for block-list content (PC-08) and re-run L1 for the AgentDojo-family parts in the post-check.",
+  "Post-round: uv run agentprov validate --corpus <regenerated ast-survey-agentdojo> and compare with l2-agentdojo-runs.json (amendment 1).",
+  "Note for the orchestrator: parallel examiners share one scratchpad directory; this session's first outcomes.py/os2.json were overwritten by another examiner's files of the same name (caught and recomputed in a private subdirectory). Ask examiners to use per-corpus subdirectories."
+ ]
+}

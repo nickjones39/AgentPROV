@@ -1,0 +1,36 @@
+import sys
+sys.path.insert(0, "tests/adapters/agentdojo")
+from agentdojo_support import new_log, log_bytes, path_of, load_profile
+import hashlib
+from agentprov.adapters.agentdojo.dialect import TraceLoggerReader
+from agentprov.adapters.agentdojo.mapper import TraceLoggerMapper
+from agentprov.adapters.runner import map_unit, aer_bytes
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin
+from agentprov.ingest.limits import IngestLimits
+from agentdojo_support import REPO_URL, C274885, git_blob
+import json
+
+def prod(d):
+    raw = log_bytes(d); path = path_of(d)
+    profile = load_profile("agentdojo-upstream")
+    reader, mapper = TraceLoggerReader(), TraceLoggerMapper()
+    limits = IngestLimits()
+    sniff = reader.sniff(raw, label=path, limits=limits)
+    origin = Origin.git(REPO_URL, C274885, path, git_blob(raw))
+    art = ArtefactRef("a0", hashlib.sha256(raw).hexdigest(), len(raw), "application/json", origin, "primary", mapper.prov_primary(sniff.flags))
+    unit = ExecutionUnit(next(reader.parse(raw, art, limits=limits)))
+    out = map_unit(unit, mapper, profile)
+    data, info = aer_bytes(out, unit=unit, mapper=mapper, profile=profile)
+    recs = [json.loads(l) for l in data.splitlines()]
+    return [(i["code"], i.get("detail")) for i in info.issues], sorted({r.get("k") for r in recs})
+
+def a(d):
+    d["messages"][2]["tool_calls"][0]["id"] = 5; d["messages"][3]["tool_call_id"] = 5; d["messages"][3]["tool_call"]["id"] = 5
+def c1(d): d["messages"][4]["content"] = [{"type": "text", "content": 5}]
+def none_id(d):
+    d["messages"][2]["tool_calls"][0]["id"] = None; d["messages"][3]["tool_call_id"] = None; d["messages"][3]["tool_call"]["id"] = None
+def tcid_only(d): d["messages"][3]["tool_call_id"] = 5
+for n, f in [("a_int_id", a), ("c_text_int", c1), ("none_id", none_id), ("tcid_int_only", tcid_only)]:
+    d = new_log(); f(d)
+    try: print(n, prod(d))
+    except Exception as e: print(n, "RAISED", type(e).__name__, str(e)[:200])

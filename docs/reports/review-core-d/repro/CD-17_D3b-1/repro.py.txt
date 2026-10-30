@@ -1,0 +1,62 @@
+"""D3b-1: decision events outside a pass are dropped by the capture mapper."""
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd() / "tests" / "adapters" / "agentdojo"))
+import capture_support as cs  # noqa: E402
+from agentprov.adapters.agentdojo.capture_mapper import AgentDojoCaptureMapper  # noqa: E402
+from agentprov.adapters.agentdojo.capture_reader import CaptureLogReader  # noqa: E402
+from agentprov.adapters.profiles import load_profile  # noqa: E402
+from agentprov.adapters.runner import aer_bytes, map_unit  # noqa: E402
+
+
+def build(extra, after_type=None):
+    s = cs.c13_8_session()
+    assert s.events[-1]["type"] == "session.end"
+    s.events.pop()
+    if after_type:
+        idx = next(i for i, e in enumerate(s.events) if e["type"] == after_type) + 1
+    else:
+        idx = len(s.events)
+    s.events[idx:idx] = extra
+    s.close("complete")
+    return s
+
+
+def run(s, label):
+    profile = load_profile("agentdojo-live")
+    log = s.log_bytes()
+    objects = {hashlib.sha256(log).hexdigest(): log, **s.blobs}
+    if s.native is not None:
+        objects[hashlib.sha256(s.native).hexdigest()] = s.native
+    plan = CaptureLogReader().plan(cs.session_objects(log, s.blobs, s.native, s.session), objects.__getitem__, profile)
+    print("==", label, "| reader register:", [r.get("code") if isinstance(r, dict) else r for r in plan.register][:5])
+    if not plan.units:
+        return
+    unit = plan.units[0]
+    mapper = AgentDojoCaptureMapper()
+    outcome = map_unit(unit, mapper, profile, auxiliary=plan.auxiliary)
+    data, info = aer_bytes(outcome, unit=unit, mapper=mapper, profile=profile)
+    recs = [json.loads(x) for x in data.splitlines()]
+    print("  records:", len(recs), "issue codes:", sorted({i["code"] for i in info.issues}))
+    print("  decisions:", [(r["id"], r.get("scope"), r.get("subject"), r.get("verdict")) for r in recs if r.get("k") == "decision"])
+    for i in info.issues:
+        if i["code"] in ("capture_error", "adapter_defect"):
+            print("   issue:", i["code"], i.get("detail"))
+    for r in recs:
+        if r.get("k") == "message" and str(r.get("generated_by", "")).startswith("dc"):
+            print("  msg", r["id"], "generated_by", r["generated_by"])
+
+
+run(build([]), "baseline")
+run(build([{"type": "decision", "pass": 0, "actor": "agent",
+            "data": {"subject": {"call": "c0"}, "verdict": "allow", "actor": "agent"}}]), "allow on c0, pass 0")
+run(build([{"type": "decision", "pass": None, "actor": "agent",
+            "data": {"subject": {"call": "c0"}, "verdict": "allow", "actor": "agent"}}]), "allow on c0, pass null")
+run(build([{"type": "decision", "pass": 7, "actor": "agent",
+            "data": {"subject": {"call": "c0"}, "verdict": "allow", "actor": "agent"}}]), "allow on c0, pass 7 (no boundary)")
+run(build([{"type": "decision", "pass": None, "actor": "env",
+            "data": {"subject": {"occ": "o0"}, "verdict": "redact", "actor": "env"}}], after_type="tool.result"),
+    "redact on o0, pass null")

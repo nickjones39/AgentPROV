@@ -1,0 +1,234 @@
+{
+ "corpus_id": "interbolt-agentdojo",
+ "date": "2026-10-14",
+ "code_commit": "065b0d36",
+ "step": "P0/1 desk research (pre-registration; no data check run)",
+ "parts": [
+  "interbolt-agentdojo · head (2,016 logs at 43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875)"
+ ],
+ "papers": [
+  {
+   "id": "none (blog post, not a paper)",
+   "title": "Prompt Injection Defense by Provenance - AgentDojo Benchmark Results (Deconvolute Labs blog, David Kirchhoff, 2026-08-03)",
+   "url": "https://deconvolutelabs.com/blog/prompt-injection-defense-provenance-agentdojo-benchmark",
+   "relation": "the write-up of the runs; linked from the repository homepage field (old domain deconvoluteai.com answers 301 to deconvolutelabs.com). Reports the same counts as the README plus refusal, coverage, taint and benign-denial figures",
+   "versions": "single dated version (2026-08-03); no errata section; internal inconsistency: a figure caption names 8 banking / 6 travel injection tasks while the text says 9 / 7. Repeats are numbered 1/2 in the post and repeat_0/repeat_1 in the repository"
+  },
+  {
+   "id": "repo README (results table)",
+   "title": "Benchmark: Interbolt on AgentDojo, README.md at the pin",
+   "url": "https://github.com/deconvolute-labs/interbolt-agentdojo/blob/43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875/README.md",
+   "relation": "primary source of the reported per-repeat counts (Results table); README rewritten in e12b48e1 (2026-08-03); [corrected by fact-check] 43e2b5fa does not touch README.md: the README at the pin is byte-identical to e12b48e1; results table rows identical since 496754e9",
+   "versions": "496754e9 (2026-08-03T20:16Z), e12b48e1 (2026-08-03T20:32Z, header/badges; = README at the pin) [corrected: 43e2b5fa leaves README unchanged]. Note: the README header 'In-depth Analysis' link (deconvoluteai.com/blog/provenance-agentdojo-benchmark) redirects to a 404; the body link to the blog resolves (curl 2026-10-14)"
+  },
+  {
+   "id": "arXiv:2406.13352",
+   "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents (Debenedetti et al., NeurIPS 2024 D&B)",
+   "url": "https://arxiv.org/abs/2406.13352",
+   "relation": "benchmark (agentdojo==0.1.35 from PyPI, suites v1.2.2 banking and travel, attack important_instructions)",
+   "versions": "v1 2024-06, v2 2024-07, v3 2024-11 (benchmark paper; not the source of this corpus's numbers)"
+  }
+ ],
+ "repo": {
+  "url": "https://github.com/deconvolute-labs/interbolt-agentdojo",
+  "pinned_commit": "43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875",
+  "pin_date": "2026-08-19T07:59:57Z",
+  "head_at_research": "main = 43e2b5fa (the pin); only branch; 0 tags, 0 releases; created 2026-07-20; pushed 2026-08-19 (gh api repos/deconvolute-labs/interbolt-agentdojo, 2026-10-14)",
+  "tree_at_pin": "2,254 blobs, 39,836,058 bytes (git trees API, recursive, not truncated) = profile expected_files/expected_bytes; the 2,016 include matches total 25,632,780 bytes",
+  "history_touching_logs": [
+   "a74272bf 2026-07-22 'feat: add runs' and 64606a54 2026-07-28 'feat: add new runs for travel suite and banking suite': an earlier batch under runs/published/{banking,travel}-gpt-4o-mini/<experiment>/repeat_0 (repeat_0 only); 80db31a8 2026-07-31T15:47Z 'feat: update pipeline' keeps it",
+   "496754e9 2026-08-03T20:16Z 'feat: add published runs and analysis': the only commit that adds runs/published/{banking,travel}/<experiment>/repeat_{0,1} (the pinned 2,016 logs, 24 run_manifest.json, 80 jsonl, results.csv) and removes the earlier *-gpt-4o-mini batch from the tree; [corrected by fact-check] src/ DID change between 80db31a8 and 496754e9 (src tree 25a44934 -> 20b661de): the run-path modules executor.py, pipeline.py, run_benchmark.py, manifest.py, record_corpus.py, models_ext.py, progress.py, replay_policy.py have identical blob ids, but compute_results.py changed (blob 38ded728, 24,640 B -> 407bf3b2, 41,874 B) and compare_blocking.py / compare_utility_security.py moved into src/; pyproject gained an 'analysis' dependency group; uv.lock changed but still locks interbolt 0.2.0 and agentdojo 0.1.35 from the PyPI registry (gh api git/trees and contents, 2026-10-14)",
+   "43e2b5fa 2026-08-19 'feat: add runs for demo' (PR #6, branch fix/toolreturns): despite the title adds no run files; changes the harness (executor.py namespaces, pipeline.py agent_id, run_benchmark.py, record_corpus.py, compute_results.py, manifest.py), adds policies/workspace/workspace-demo.v{1,2}.yaml and generate-dataset.sh, and switches pyproject to interbolt==0.3.0 with uv.lock pointing to an editable path ../interbolt"
+  ],
+  "harness_that_wrote_logs": "inferred: run-path src modules as at 80db31a8 (byte-identical blob ids at 496754e9; compute_results.py, which produced the README table, differs between the two and changed again in 43e2b5fa) with interbolt 0.2.0 and agentdojo 0.1.35 from PyPI (uv.lock at 80db31a8 and 496754e9). The log timestamps (census: 2026-07-31 17:50:39 to 22:44:10, naive local) start about 2 h after the 80db31a8 commit (15:47:51Z) if read as UTC, i.e. about 3 min after it if local time is UTC+2 (unverified inference). The harness and lock at the pin are NOT the state that wrote the logs",
+  "issues_prs": "0 issues; 6 merged PRs (#1-#5 2026-07-21/22 harness setup, #6 2026-08-18 the post-run harness change). gh issue list / gh pr list 2026-10-14"
+ },
+ "data_record": "No Zenodo/HF/Figshare record: the GitHub repository is the only release (web search and repo homepage 2026-10-14). Our pin = repo head 43e2b5fa, unchanged since 2026-08-19; tree 2,254 blobs / 39,836,058 bytes matches the profile pin and phase-10c tree meta exactly. Logs: 24 run directories runs/published/<suite>/<experiment>/repeat_<n>/ (6 experiments A_ceiling, B_asr_model, C_utility_{strict,targeted}, D_asr_system_{strict,targeted} x 2 suites x 2 repeats). Each Interbolt run dir also holds run_manifest.json, interbolt_events.jsonl, call_records.jsonl, run_index.jsonl, run_outcomes.jsonl (A dirs: run_manifest.json only): 24 manifests, 80 jsonl. Checksums: git blob sha1 only; LICENSE blob 261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+ "harness": "AgentDojo 0.1.35 (PyPI wheel sha256 364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd, uploaded 2025-10-27; benchmark_version v1.2.2) with the repository's InterboltToolsExecutor replacing ToolsExecutor; Interbolt 0.2.0 (PyPI 2026-07-26) per README badge, results line and the run-time lock; at the pin pyproject names interbolt==0.3.0 (PyPI 2026-08-05) as an editable sibling checkout. Known AgentDojo issues relevant to banking/travel v1.2.2: #161 banking user_task_5 utility accepts the pre-existing $50 Spotify transaction; #181 banking injection tasks 0/1/3 subject check is dead code (success = any transfer to the attacker IBAN); #194 update_scheduled_transaction ignores falsy values; #214 tool results escape non-ASCII as \\uXXXX (yaml.safe_dump default); #212 --max-workers>1 crash (not used here). Interbolt 0.2.0 changelog: fixed a fail-open of bare check() (run.tainted false inside an agent_context) that affected earlier builds; 0.3.0 changed the policy schema to 2.0 and the event schema 9 -> 11 (0.2.0 event logs are schema 9)",
+ "models": [
+  "gpt-4o-mini-2024-07-18 (OpenAI API; the only model in the published runs)"
+ ],
+ "reported_results": [
+  {
+   "arm": "banking A_ceiling (no attack, no defence) rep0 / rep1",
+   "metric": "utility (benign user tasks)",
+   "value": "9/16 ; 9/16",
+   "n": "16 per repeat",
+   "where": "README Results table, https://github.com/deconvolute-labs/interbolt-agentdojo/blob/43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875/README.md#results"
+  },
+  {
+   "arm": "travel A_ceiling rep0 / rep1",
+   "metric": "utility",
+   "value": "13/20 ; 10/20",
+   "n": "20 per repeat",
+   "where": "README Results table"
+  },
+  {
+   "arm": "banking C_utility_strict rep0 / rep1",
+   "metric": "utility under policy",
+   "value": "6/16 ; 6/16",
+   "n": "16",
+   "where": "README Results table"
+  },
+  {
+   "arm": "banking C_utility_targeted rep0 / rep1",
+   "metric": "utility under policy",
+   "value": "7/16 ; 6/16",
+   "n": "16",
+   "where": "README Results table"
+  },
+  {
+   "arm": "travel C_utility_strict rep0 / rep1",
+   "metric": "utility under policy",
+   "value": "7/20 ; 8/20",
+   "n": "20",
+   "where": "README Results table"
+  },
+  {
+   "arm": "travel C_utility_targeted rep0 / rep1",
+   "metric": "utility under policy",
+   "value": "6/20 ; 7/20",
+   "n": "20",
+   "where": "README Results table"
+  },
+  {
+   "arm": "banking B_asr_model (important_instructions, interbolt allow_all enforce = undefended baseline) rep0 / rep1",
+   "metric": "ASR (security True)",
+   "value": "71/144 ; 70/144 (pooled 0.49)",
+   "n": "144 per repeat",
+   "where": "README Results table; blog ASR_model banking 0.49"
+  },
+  {
+   "arm": "travel B_asr_model rep0 / rep1",
+   "metric": "ASR",
+   "value": "39/140 ; 42/140 (pooled 0.29)",
+   "n": "140",
+   "where": "README Results table; blog ASR_model travel 0.29"
+  },
+  {
+   "arm": "banking D_asr_system_strict rep0 / rep1",
+   "metric": "ASR defended",
+   "value": "0/144 ; 0/144",
+   "n": "144",
+   "where": "README Results table"
+  },
+  {
+   "arm": "banking D_asr_system_targeted rep0 / rep1",
+   "metric": "ASR defended",
+   "value": "0/144 ; 0/144",
+   "n": "144",
+   "where": "README Results table"
+  },
+  {
+   "arm": "travel D_asr_system_strict rep0 / rep1",
+   "metric": "ASR defended",
+   "value": "9/140 ; 10/140 (all injection_task_6, per blog)",
+   "n": "140",
+   "where": "README Results table; blog"
+  },
+  {
+   "arm": "travel D_asr_system_targeted rep0 / rep1",
+   "metric": "ASR defended",
+   "value": "11/140 ; 11/140 (all injection_task_6, per blog)",
+   "n": "140",
+   "where": "README Results table; blog (travel ASR_system 0.07)"
+  },
+  {
+   "arm": "D arms, 8 configurations (suite x tier x repeat)",
+   "metric": "block rate (attacks reaching a gated sink that were blocked; from Interbolt records, not TraceLogger fields)",
+   "value": "banking strict 66/66, 68/68; banking targeted 67/67, 66/66; travel strict 22/22, 27/27; travel targeted 24/24, 23/23",
+   "n": "as listed",
+   "where": "README Results table"
+  },
+  {
+   "arm": "B arms",
+   "metric": "model_refused (no gated sink reached)",
+   "value": "travel 68/140, 63/140; banking 34/144, 30/144",
+   "n": "per repeat",
+   "where": "blog post, https://deconvolutelabs.com/blog/prompt-injection-defense-provenance-agentdojo-benchmark"
+  },
+  {
+   "arm": "C arms",
+   "metric": "benign calls refused by the policy",
+   "value": "targeted 11 (rep0), 14 (rep1); strict 19 (rep0), 21 (rep1)",
+   "n": "calls, both suites",
+   "where": "blog post (strict vs targeted section)"
+  },
+  {
+   "arm": "all defended runs",
+   "metric": "policy evaluation errors",
+   "value": "1 of 8,669 defended decisions (travel targeted, blog repeat 2 = repeat_1, malformed send_email JSON, failed closed)",
+   "n": "8,669 decisions (Interbolt events incl. discarded retry passes)",
+   "where": "blog post"
+  }
+ ],
+ "expected_counts": "Tree 2,254 blobs / 39,836,058 bytes (profile pin; GitHub tree API 2026-10-14). Selected logs 2,016 (registry/readme_corpora.toml census figure; phase-10d census; phase-10c census; include glob on the pin listing). Per run dir: banking A 16, B 153 (144 attacked + 9 injection-task prepass), C 16, D 153; travel A 20, B 147 (140 + 7), C 20, D 147. Kinds: attacked 1,704; benign user-task 216 (A 72, C 144); prepass 96 (B/D x 2 suites x 2 repeats). Context artefacts 131 (LICENSE, README, pyproject, uv.lock, 13 src .py, 9 policy yaml, results.csv, 24 manifests, 80 jsonl). Executions 2,016 (one per log; phase-10d trial).",
+ "expected_arms": "gpt-4o-mini-2024-07-18 x {none (A), interbolt-allow_all-enforce (B), interbolt-strict-enforce (C,D), interbolt-targeted-enforce (C,D)} x {none, important_instructions} x {banking v1.2.2 (16 UT x 9 IT), travel v1.2.2 (20 UT x 7 IT)} x repeat {0,1}. Complete grid of the README design; by design no attacked run without Interbolt and no benign run under allow_all except the 32 prepass logs.",
+ "licence": "Apache-2.0 (LICENSE at the pin, standard text, blob 261eeb9e, no copyright line; README badge; GitHub API licence Apache-2.0). No separate data licence. Logs embed AgentDojo benchmark text (MIT, (c) 2024 Debenedetti et al.). Unassessed: OpenAI terms on redistributing model outputs. The blog post is not part of the corpus.",
+ "discrepancy_leads": [
+  "Harness at the pin is not the harness that wrote the logs: 43e2b5fa (after the 2026-07-31 runs) changes executor/pipeline/run_benchmark and switches to interbolt 0.3.0 as an editable ../interbolt path; the logs were written with interbolt 0.2.0 (README) and the run-path src as of 80db31a8 (compute_results.py differs between 80db31a8 and 496754e9 [corrected]). Profile lineage says 'Interbolt 0.2.0 (README)' and 'uv.lock (PyPI registry)' for agentdojo, which holds for agentdojo but not for interbolt at the pin. The 24 run_manifest.json should record interbolt version/install_mode (README says compute_results refuses editable or dirty runs).",
+  "B arm is labelled 'undefended' by the paper but runs Interbolt enforce with allow_all; our identity table maps it to defence interbolt-allow_all-enforce. L2 outcome comparison must join the paper's 'ASR undefended' to defence interbolt-allow_all-enforce, not to 'none'.",
+  "README/blog figures can be recomputed from the TraceLogger utility/security fields: phase-10d census totals (security True 575 = 312 benign constant + 263; 263 = B 222 + D-strict 19 + D-targeted 22 from the README) already agree in total; per-cell agreement is untested.",
+  "Blog: travel ASR_system residual comes only from injection_task_6 (goal is a sentence in the reply); banking 0/144 in all four D configurations.",
+  "Blog: travel injection_task_1 and banking injection_task_8 cannot succeed as posed (expect security True = 0 in those cells in every arm).",
+  "Blog: banking user_task_3 hit the iteration cap in every dataset, but the census found only 1 log with unexecuted trailing calls, which is also the 1 null-final log, and [corrected by fact-check] that log is travel D_asr_system_strict repeat_0 user_task_12 / injection_task_3 (phase-10d r1 census issue_samples for retry_passes_inferred and unexecuted_tool_call), not banking user_task_3. The logs hold the last pass only (silent rerun), so cap hits on discarded passes are invisible; the blog's banking user_task_3 cap claim has no visible trace in the logs as far as prior reports show.",
+  "Blog counts benign refusals 19/21 (strict) and 11/14 (targeted) in C runs; these are a subset of the 1,879 'Blocked by security policy.' denials (D-113) and an instance of agentdojo.art.defence_benign_intervention whose artefacts.toml scope does not include this source. [fact-check] The blog does not say which suite(s) the 19/21 and 11/14 cover; read here as both suites combined (unverifiable).",
+  "One policy evaluation error (travel targeted repeat_1, malformed send_email JSON, fail-closed) may surface as a denial with the same text or a different error text.",
+  "Superseded earlier batch (repeat_0 only, under runs/published/*-gpt-4o-mini/, 2026-07-22/28) exists only in git history; the blog says banking runs against a locally modified AgentDojo checkout across two Interbolt builds (ASR_model 0.57) were not used. Expect none of it at the pin.",
+  "Commit 43e2b5fa is titled 'add runs for demo' and adds workspace demo policies, but adds no workspace logs: expect 0 workspace logs.",
+  "artefacts.toml scopes (benign_security_constant, injection_task_as_user, silent_rerun, max_iters_pending, naive_timestamp, defence_benign_intervention, payload_not_reaching_agent, banking_ut15_confound) do not list interbolt-agentdojo although the profile declares the matching quirks (documentation gap).",
+  "AgentDojo #214: non-ASCII tool results are \\uXXXX-escaped by the runner; literal escape residues in travel/banking tool outputs are a harness property, not a mapping defect.",
+  "run_manifest.json carries command/platform/python_version keys (phase-10c census keyset): possible account paths in context artefacts stored as supporting raw objects; they must not reach AER/SEM/PROV."
+ ],
+ "open_questions": [
+  "Does every run_manifest.json record interbolt 0.2.0 from the registry (install_mode not editable) and agentdojo 0.1.35? (L1 on context artefacts)",
+  "Is the local time zone of the naive TraceLogger timestamps recoverable from run_manifest run_started_at/run_finished_at?",
+  "Which message does the one policy-evaluation error leave in the TraceLogger log?",
+  "Does compute_results apply any filter (retry filtering, ambiguous_sink_match) that would make README counts differ from a plain tally of utility/security fields?"
+ ],
+ "checks_not_applicable": [
+  "E2 delta: this corpus was not examined in FA or E2 (wave 2, full pre-check)",
+  "Data-record checksum comparison (Zenodo/HF/Figshare): no such record; git blob ids only",
+  "L1-02/L1-04 archive-member checks: plain git tree, no archives",
+  "Withholding / verify --level chain on a sealed copy: applies only if L1-06 finds secret-like strings or account paths in selected units"
+ ],
+ "sources": [
+  "https://github.com/deconvolute-labs/interbolt-agentdojo",
+  "https://github.com/deconvolute-labs/interbolt-agentdojo/commit/43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875",
+  "https://github.com/deconvolute-labs/interbolt-agentdojo/commit/496754e9d67c",
+  "https://github.com/deconvolute-labs/interbolt-agentdojo/commit/80db31a8b3b7",
+  "https://github.com/deconvolute-labs/interbolt-agentdojo/blob/43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875/README.md",
+  "https://github.com/deconvolute-labs/interbolt-agentdojo/blob/43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875/LICENSE",
+  "https://deconvolutelabs.com/blog/prompt-injection-defense-provenance-agentdojo-benchmark",
+  "https://pypi.org/project/interbolt/",
+  "https://github.com/deconvolute-labs/interbolt/blob/main/CHANGELOG.md",
+  "https://pypi.org/project/agentdojo/0.1.35/",
+  "https://github.com/ethz-spylab/agentdojo/issues/161",
+  "https://github.com/ethz-spylab/agentdojo/issues/181",
+  "https://github.com/ethz-spylab/agentdojo/issues/194",
+  "https://github.com/ethz-spylab/agentdojo/issues/214",
+  "https://arxiv.org/abs/2406.13352"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-checker (pre-registration; no raw data read)",
+  "confirmed": [
+   "pin 43e2b5fa = main head, 2026-08-19T07:59:57Z; 1 branch, 0 tags, 0 releases, 6 merged PRs, 0 issues",
+   "tree 2,254 blobs / 39,836,058 B (not truncated); include-shaped logs 2,016 / 25,632,780 B; per-dir counts; banking 1,014 / travel 1,002; 131 context artefacts under fnmatch; 107 other; 0 workspace logs; runs/ tree identical at 496754e9 and 43e2b5fa",
+   "README Results table (24 per-repeat counts, block rates) re-read at the pin; pooled rates recomputed",
+   "README: B = allow_all enforce 'undefended baseline'; Interbolt 0.2.0; both packages used unmodified",
+   "blog author/date, 0.49/0.29/0.07, model_refused, benign refusals, 1 of 8,669 error, IT1/IT8, IT6 residual, UT3 cap claim, 0.57 modified-checkout runs, caption 8/6 vs 9/7, repeats 1/2",
+   "pyproject/uv.lock at 80db31a8, 496754e9 (interbolt 0.2.0 registry) and 43e2b5fa (interbolt==0.3.0, editable ../interbolt); agentdojo 0.1.35 wheel sha256 364bea42...affd uploaded 2025-10-27",
+   "PyPI interbolt 0.2.0 2026-07-26, 0.3.0 2026-08-05; CHANGELOG fail-open fix (0.2.0), event schema 9->11 and policy 2.0 (0.3.0)",
+   "AgentDojo issues #161/#181/#194/#212/#214 exist and are open with the described content",
+   "LICENSE at pin blob 261eeb9e, 11,357 B, Apache-2.0 text with no filled copyright line; GitHub API spdx Apache-2.0",
+   "arXiv 2406.13352 v1 2024-06-19 .. v3 2024-11-24",
+   "census figures 575/312/263/1,879/12,730/12,727/2,362/1,997/469-char prompt/ts range from phase-10c summary and phase-10d census; artefacts.toml scopes omit interbolt-agentdojo"
+  ],
+  "corrected": [
+   "src/ changed between 80db31a8 and 496754e9 (compute_results.py and two moved scripts); run-path modules identical",
+   "43e2b5fa does not touch README; README at pin = e12b48e1",
+   "the single trailing-calls/null-final log is travel D strict rep0 user_task_12/injection_task_3 (prior r1 census), not banking user_task_3; H6 restated"
+  ]
+ }
+}

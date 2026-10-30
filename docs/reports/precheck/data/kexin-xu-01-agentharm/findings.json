@@ -1,0 +1,297 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "kexin-xu-01-agentharm",
+ "findings": [
+  {
+   "id": "PC-kexin-xu-01-agentharm-01",
+   "title": "Named third-party account path in raw header /eval/dataset/location of 24 logs (+ their _journal/start.json); 1 named account, not in AER/SEM/PROV",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": true,
+   "part": "logs",
+   "check": "L1-06 / H-13 / CC-11",
+   "evidence": "raw_checks: /eval/dataset/location holds an account path in 68/68 logs (66 header.json + 2 _journal/start.json): named account sha8 <account-E> in 24 logs, generic account sha8 <account-A> in 44. L1-06 nonsample pointers: home-dir:named header.json:/eval/dataset/location 24, _journal:/eval/dataset/location 24. <account-E> occurs in 0 sample strings of any log (raw content census) and 0 AER/SEM/PROV files of the 50 imported logs (pass2 is_dataset_location_account false for all 14 named segments). l2_check operator-* hits 0; L1-10 operator_home_hits 0. The 18 local-path model ids are a separate class (account:local-path-model, /eval/model 18 + 15,760 sample strings), covered by profile quirk inspect.local_path_model_id (PC-08).",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/raw_checks.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json; jq .H13_dataset_location docs/reports/precheck/data/kexin-xu-01-agentharm/raw-hypotheses.json; jq '.\"L1-06\".classes' docs/reports/precheck/data/kexin-xu-01-agentharm/l1-logs.json",
+   "hypothesis_ref": "H-13 (supported for header pointers and derived records)",
+   "recommendation": "Report to the orchestrator now (README §5 security class). D-186 option (c) ships raw with account paths unchanged, but the user decision of 2026-10-15 (CC-11) makes a third-party account path in any raw-store file a security finding with withhold-at-seal precedent; the orchestrator/user decides which applies to these 24 primary logs (withholding the raw bytes with digests kept would not remove their AER/SEM/PROV, which hold no hit). Not an outcome-based exclusion; no data is recommended for exclusion.",
+   "artefact_proposal": null,
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Not refuted. Independent raw re-scan (agentprov.ingest, pinned blobs): /eval/dataset/location named account <account-E> in 24 header.json + 24 _journal/start.json, generic <account-A> in 42 + 44; 1 named account; not the operator (sha8 of this machine's account differs; 0 matches). Grep of both scratch corpora (j2, j1; 8,154 files each) for the account segment: 6 files, all raw/objects/*.json extracted header members (pointer /eval/dataset/location only), 0 in aer/, sem/, prov/. Correction to scope: of the 24 logs, 6 are in the L2 frame (their .eval and extracted header objects sit in the raw store) and 18 are the local-checkpoint logs (named-location logs are 8 per variant base/v1/v3; 6 per variant are local), so the D-182 redact table for the 18 must also cover /eval/dataset/location, and a CC-11 withhold would have to cover the extracted header member objects as well as the .eval files. Alternative explanation (generic, operator, or benchmark content) rejected. Class R1/CC-11 source-defect S2 security; the CC-11 vs D-186(c) question for primary logs is a real open decision, not decided here."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-02",
+   "title": "inspect_evals #2439: read_file on bundled benchmark files fails (556 raw events, 443 on bundled names); all affected samples are behaviour 43, so the bias is task 43 uncompletable (<= 4/44 per log)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "logs",
+   "check": "H-09 / L2 tool_execution status / outcome bias (R1)",
+   "evidence": "Population (68 logs, raw tool events with error): read_file file_not_found B 374, H 182 (556; census figure 530, PC-06). L2 (50 logs, AER): read_file status error B 229, H 164 calls; 321/393 failed calls name a file whose basename the benchmark bundles under src/inspect_evals/agentharm at the pin, and bundled-name read_file calls fail 321/341 (94.1%). Judged samples with >=1 failed read_file: benign 58/968 (mean score 0.155 vs 0.738 unaffected), harmful 43/1,012 (0.065 vs 0.388). The author's tables reproduce exactly (PC-03 aside), so the bias is inside the published numbers. No artefacts.toml entry scopes this source; the ast-survey-agentharm dossier proposed inspect.art.bundled_file_not_found (classed documentation-mismatch there; R1 applies here: critic to align).",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/raw_checks.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/pass2.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l2-logs-j2.partial ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l1-units-logs.jsonl ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/pass2.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/readfile_2439.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l2-logs-j2.partial ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/readfile.json; jq '.samples_with_read_file_error,.score_by_read_file_error,.readfile_2439' docs/reports/precheck/data/kexin-xu-01-agentharm/l2-aer-pass.json",
+   "hypothesis_ref": "H-09 (lead L-07 confirmed: >=1 in benign)",
+   "recommendation": "Widen the proposed inspect.art.bundled_file_not_found scope to kexin-xu-01-agentharm with these counts; disclose in the datasheet that benign completion scores of affected samples are depressed by the harness. Never exclude the samples.",
+   "artefact_proposal": "[[artefact]]\nid = \"inspect.art.bundled_file_not_found\"  # proposed in ast-survey-agentharm; add scope\nscope = { sources = [\"kexin-xu-01-agentharm\"], parts = [\"logs\"], profiles = [\"kexin-xu-01-agentharm\"] }\ncause = \"upstream_harness\"\nexpected = [ { snapshot = \"git:859c34f411fdf8d6a01670da2d2460d21e739e7e\", count = 556, basis = \"raw read_file tool events with error type file_not_found over 68 logs (B 374, H 182); L2 50 logs: 393 failed calls, 321 on bundled names; samples B 58/968, H 43/1012\" } ]\nrefs = [\"https://github.com/UKGovernmentBEIS/inspect_evals/issues/2439\"]",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Defect confirmed, effect size corrected. Raw events: 556 read_file file_not_found (all read_file; no other tool), bundled basenames fail 443 / succeed 38 (92%), other names fail 113 / succeed 69. No artefacts.toml entry covers it (R1). But every affected scored sample (benign 89, harmful 51 over the population) is behaviour 43 (ids 43-1..43-4); within those 4 ids per split, samples with a failed read_file score +0.07 higher on average than those without (B 0.068, H 0.070), and unaffected id-43 samples score 0.0-0.08. So the 0.155 vs 0.738 contrast compares task 43 with all other tasks (task confounding), not the defect's effect; the bias is that task 43 is uncompletable for every model, bounded by 4/44 samples per log of the mean score. Still S2 under R1 (biases the reported mean score); the datasheet text should state the task-43 bound, not the 0.155 vs 0.738 contrast."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-03",
+   "title": "Runs in logs/ that no author table reports: a second Gemini 2.5 Pro base harmful log, 3 auth-error logs (25 samples) and 2 unfinished GPT-4o logs (28 scored samples)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L1-05 / H-02 / H-03 / H-04 / OS-1 (R3)",
+   "evidence": "OS-1: the two Gemini 2.5 Pro base harmful logs (both revision bd5d9bf) give 22/44, mean 0.4437 (= docs 22, 0.444) and 18/44, mean 0.4505 (the unreported rerun; -9.1 pp, inside the Wilson interval [27.7, 55.6] %, so not a gap under README §4; count difference investigated: it is the extra log). Error logs: Claude Sonnet 4.5 1 sample (176-sample dataset), Claude Sonnet 5 harmful 4 and benign 20: every sample errored, 0 scored, all 25 carry a 401 and the header error is an authentication error. Unfinished logs: agent and judges gpt-4o-2024-08-06, task agentharm, 18 + 10 samples all scored, no header (select.dialect_planned 2).",
+   "reproduction": "python3 -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/os1_population.py ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l1-units-logs.jsonl docs/reports/precheck/data/kexin-xu-01-agentharm/os1-population.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/raw_checks.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json; jq .H02_H03_nonsuccess docs/reports/precheck/data/kexin-xu-01-agentharm/raw-hypotheses.json",
+   "hypothesis_ref": "H-02, H-03, H-04 supported",
+   "recommendation": "Disclose the extra and partial runs in the datasheet (open question 5); keep them all; record which Pro log the docs use (tail np9GTPhB).",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Re-scan: Gemini 2.5 Pro base harmful logs PFaxbfVw 18/44 scored refusals and np9GTPhB 22/44; Wilson 18/44 = 27.7-55.6 % (recomputed). Error and unfinished logs per raw-hypotheses H02_H03 (Sonnet 4.5 1 sample 401; journal-only GPT-4o logs 18 + 10 scored). R3 documentation-mismatch S3 (not a headline paper number)."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-04",
+   "title": "Logger events concentrate in vLLM logs, not Claude logs (lead L-14 wrong): 180 of 196",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "H-15 (R4, our research note)",
+   "evidence": "raw_checks: logger events 196 = vllm base Qwen 96 + local checkpoints 84 + Anthropic 16; 0 in OpenAI/Google logs. Claude share 8.2% < 50% threshold.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/raw_checks.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json; jq .H15_logger_by_provider docs/reports/precheck/data/kexin-xu-01-agentharm/raw-hypotheses.json",
+   "hypothesis_ref": "H-15 refuted",
+   "recommendation": "Correct research.json L-14 (owner: precheck research); R-H4 handling unchanged (inspect.unmapped_event 47 in L2 covers logger + error events of the 50 logs).",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Re-scan: logger events vllm-prefixed models 180 (base Qwen + local checkpoints), anthropic 16, 0 elsewhere; research lead L-14 expected the Claude temperature warning there. R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-05",
+   "title": "No inspect.art entry scopes this source (inspect-family analogue of CC-09): sample_limit, lost tool results, judge = agent, event order are uncatalogued here",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "artefacts scope / L1-07 / L1-08 / L2 register (R4)",
+   "evidence": "src/agentprov/adapters/inspect/artefacts.toml: every inspect.art.* scope lists only agent-security-tools-survey / survey-agentharm. This source shows: sample_limit 298 samples (L1 unit flag; L2 map.inspect.sample_limit 186), missing_tool_result 40 + dangling_source_ref 40 (L2, = known_incomplete 40), judge model equal to agent in 6 finished + 2 unfinished GPT-4o logs, event timestamps non-monotone in 2,043/2,825 units (event_order_not_time_order).",
+   "reproduction": "grep -n 'scope = ' src/agentprov/adapters/inspect/artefacts.toml; jq '.\"L1-08\",.\"L1-07\".pointers.\"samples:/events/*/timestamp\"' docs/reports/precheck/data/kexin-xu-01-agentharm/l1-logs.json; jq .executions.register_codes docs/reports/precheck/data/kexin-xu-01-agentharm/l2-logs.json",
+   "hypothesis_ref": "prereg §5 (artefacts.toml row)",
+   "recommendation": "Inspect family owner: widen scopes of inspect.art.sample_limit, tool_result_lost_at_limit, judge_same_model_as_agent, event_order_not_time_order (and the proposed bundled_file_not_found) to kexin-xu-01-agentharm with these counts.",
+   "artefact_proposal": null,
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "grep of src/agentprov/adapters/inspect/artefacts.toml: every scope line lists only agent-security-tools-survey / survey-agentharm. The artefacts named occur here (sample_limit, event_order_not_time_order etc.). CC-09 analogue, S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-07",
+   "title": "Patched scorer variant not in the log header (identical across base/v1/v2/v3); recoverable only from the raw origin path label, not an AER identity facet",
+   "cls": "source-defect",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "H-10 / L2 identity (R1-like: the author's local patch is invisible in the record)",
+   "evidence": "raw_checks H10_header_identity: one identical scorer/packages/task_version/judges tuple in all 26 base, 20 v1, 2 v2, 20 v3 logs; revision differs by run batch only (kexin commits 7 values, upstream 1, none 30). L2 identity: suite inspect_evals/agentharm{,_benign}, bench agentharm for all 2,005; no variant facet. Outcomes differ by variant for the same model (e.g. Claude Sonnet 5 harmful refusals 31 / 32 / 30 / 37 in base / v1 / v2 / v3).",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/raw_checks.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json; jq '.H10_header_identity,.H10_revision' docs/reports/precheck/data/kexin-xu-01-agentharm/raw-hypotheses.json; jq .identity docs/reports/precheck/data/kexin-xu-01-agentharm/l2-logs.json",
+   "hypothesis_ref": "H-10 supported (expectation was 'not recorded'); open question 2",
+   "recommendation": "Profile owner: declare judge_variant by path (as R-H3's per-path declaration) so AER/SEM carry the scorer variant; until then the datasheet must state that pooling across logs/ subdirectories mixes scorer versions.",
+   "artefact_proposal": "[[artefact]]\nid = \"inspect.art.patched_scorer_unrecorded\"\ntitle = \"Locally patched scorer not visible in the log header\"\nscope = { sources = [\"kexin-xu-01-agentharm\"], parts = [\"logs\"], profiles = [\"kexin-xu-01-agentharm\"] }\ncause = \"source_documentation\"\nexpected = [ { snapshot = \"git:859c34f411fdf8d6a01670da2d2460d21e739e7e\", count = 42, basis = \"logs under logs/patched-judge{,-v2,-v3}/ whose header names the stock combined_scorer, inspect_evals 0.20.0, task version 8\" } ]",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S3",
+     "reasoning": "Header claim confirmed, 'not in the record' corrected, severity lowered S2 -> S3. Within each variant the header tuple (task_version, packages, task_args incl. judges, scorer names) has the same two digests (harmful/benign) as base, so the producer header does not record the patch. But the variant is in the corpus record: raw/origins.jsonl holds the source label with the subdirectory for all 50 imported logs (base 20, patched-judge 14, -v2 2, -v3 14), joinable to all 2,005 executions through their primary raw sha256; the inspect_evals fork revision commit (in AER for logs that carry one) also differs by variant (v1 d393605, v2 545a638, v3 1c38908/8a12ac0) but is absent in 30 logs and the commits are not in the pinned repo. No outcome metric is biased (each variant reproduces its own table); the risk is pooling without a variant facet, so S3 under R1. Recommendation stands: the profile should declare judge_variant from the path."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-08",
+   "title": "18 local-checkpoint logs (792 samples, the only fine-tuned models) outside the L2 frame until the profile has a D-182 redact table",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "sample frame (README §8 amendment 2.5) / profile quirk inspect.local_path_model_id",
+   "evidence": "l2_import filtered 18; sample 50 logs in 46 strata. L1 only: their 6 cells (base/v1/v3 x H/B, 3 logs each, model bucketed) reproduce the docs' run 40/42/56 refusal counts and means exactly under one assignment per cell (os1-population local_fit 6/6).",
+   "reproduction": "python3 -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/os1_population.py ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l1-units-logs.jsonl docs/reports/precheck/data/kexin-xu-01-agentharm/os1-population.json; jq .local_fit docs/reports/precheck/data/kexin-xu-01-agentharm/os1-population.json",
+   "hypothesis_ref": "prereg §3, §6 L2 redaction row",
+   "recommendation": "Profile owner (R-H1): add the D-182 redact table; then run follow-up 1 (L2 of the 18 logs).",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "os1-population local_fit: 6/6 cells all_match under one assignment; 18 logs filtered by the frame. Note from PC-01 verification: these 18 are also the bulk of the named dataset-location logs."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-09",
+   "title": "[CC-12] Account-path shapes in AER/PROV are benchmark or model content (CC-03): 14 named segments, 3 from the benchmark source, 11 from model/judge text; none is the dataset-location account or the operator",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L2 redaction / CC-03",
+   "evidence": "l2_check: account-path hits in AER of 146 executions, PROV apv:args of 47. pass2: named segments 14 (home-dir 4, windows-users 10); 264c8c38 (101 executions), 2db6922f (3), 9bd88f24 (1) occur in the benchmark source at the pin; 11 others (19 executions) only in model output, reasoning or refusal-judge text; generic 3 (e.g. /home/user). 0 equal the dataset-location account <account-E>; l2_check operator-* 0.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/pass2.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l2-logs-j2.partial ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l1-units-logs.jsonl ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/pass2.json; jq .aer_named_accounts docs/reports/precheck/data/kexin-xu-01-agentharm/l2-aer-pass.json; jq .redaction docs/reports/precheck/data/kexin-xu-01-agentharm/l2-logs.json",
+   "hypothesis_ref": "H-13",
+   "recommendation": "None beyond CC-03 (family owner's D-182 tables).",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "14 named AER segments rechecked: none equals the dataset-location accounts (<account-E>, <account-A>) or the operator; local model ids carry no home-dir account. 3 occur in the benchmark source, 11 only in model/judge text. CC-03 expected-known S3."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "expected-known S3 unchanged. CC-12 (c): benchmark-source (3) and model/judge-authored (11) segments; none is the dataset-location account (PC-01, raw only) or the operator -> CC-03."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-10",
+   "title": "[CC-13] Secret-shaped tokens are benchmark fixtures (D-188): the anthropic- and openai-shaped tokens in AER message text occur in the benchmark source",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L1-06 / L2 redaction / D-188",
+   "evidence": "L1-06: anthropic-api-key 10 strings in 3 logs, openai-api-key 10 in 3, generic-credential-assignment 393 in 32 (precheck detector, not the census detector: 33 in 10 logs is not comparable); 0 in headers. AER: 1 anthropic-shaped and 1 openai-shaped token (sha8 <secret-A>, <secret-B>), 3 executions each, both present in src/inspect_evals/agentharm at the pin.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/pass2.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l2-logs-j2.partial ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l1-units-logs.jsonl ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/pass2.json; jq .aer_secret_tokens docs/reports/precheck/data/kexin-xu-01-agentharm/l2-aer-pass.json",
+   "hypothesis_ref": "H-14 (partly: 0 in headers; whole-token test not run)",
+   "recommendation": "None (D-188 stands).",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "l2-aer-pass: anthropic- and openai-shaped tokens, 3 executions each, both in_benchmark_source true. D-188 expected-known S3."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "expected-known S3 unchanged. CC-13 fixture, catalogued (D-188, R2); the two shapes are in AER message text only (PROV 0 in l2-logs.json redaction), so S3 without security; release_scan allowlist by digest (<secret-A>, <secret-B>)."
+    }
+   ]
+  },
+  {
+   "id": "PC-kexin-xu-01-agentharm-11",
+   "title": "l2_check outcome extraction is AgentDojo-specific: its outcome arms are empty for inspect.eval",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "L2 outcome sanity (R5)",
+   "evidence": "l2-logs.json outcomes.arms: 8 arms, all {}; the note describes AgentDojo utility/security. The exam recomputed mapped outcomes with exam-scripts/pass2.py: 48/48 containers equal the L1 raw values (scored, refusals, mean).",
+   "reproduction": "jq .outcomes docs/reports/precheck/data/kexin-xu-01-agentharm/l2-logs.json; GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/pass2.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l2-logs-j2.partial ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/l1-units-logs.jsonl ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/pass2.json; jq .mapping_check docs/reports/precheck/data/kexin-xu-01-agentharm/l2-aer-pass.json",
+   "hypothesis_ref": "-",
+   "recommendation": "Tool owner (this session): add judgement-name outcomes (combined_scorer.score/refusal) for inspect parts before the post-check.",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l2-logs.json outcomes.arms: 8 arms, all {}; mapping_check 48/48 equal from pass2. R5, not counted in readiness."
+    }
+   ]
+  }
+ ],
+ "refuted": [
+  {
+   "id": "PC-kexin-xu-01-agentharm-06",
+   "title": "Census figure for file_not_found tool errors (530) differs from the raw event count (556)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "logs",
+   "check": "H-09 counts vs phase-10h census (R4)",
+   "evidence": "raw_checks counts tool events with error.type file_not_found over 68 logs: 556 (all read_file; B 374, H 182) vs census 530; parsing 128 (send_email 123, 5 others) vs census 127. AER tool_execution invalid over the 50 imported logs is also 128, so all parsing errors sit in the 50 non-local logs. The census counting basis (messages or events) is not recorded.",
+   "reproduction": "GIT_NO_LAZY_FETCH=1 GIT_ALLOW_PROTOCOL=file uv run python -I docs/reports/precheck/data/kexin-xu-01-agentharm/exam-scripts/raw_checks.py \"$PWD\" ~/.agentprov/cache/git/github.com/Kexin-xu-01/agentharm.git 859c34f411fdf8d6a01670da2d2460d21e739e7e ~/.agentprov/migration-work/precheck/kexin-xu-01-agentharm/exam/raw.json; jq .H09_tool_error_events docs/reports/precheck/data/kexin-xu-01-agentharm/raw-hypotheses.json",
+   "hypothesis_ref": "prereg §2 (tool errors row)",
+   "recommendation": "Census owner (phase 10h): state the counting basis; verifier: recount tool messages with error to see whether 530 is a message count.",
+   "artefact_proposal": null,
+   "agents_md_12": false,
+   "verdict": "refuted",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1, 2026-10-21)",
+     "verdict": "refuted",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Refuted: counting-basis difference, not a mismatch. Recounting tool messages (role tool with error) over the 68 logs gives file_not_found 530 and parsing 127, exactly the census figures; tool events give 556 and 128. The census counts messages (some tool events have no matching tool message, e.g. at the sample limit), so it agrees with the data under its own basis. Optional: the census could state its basis; not a finding."
+    }
+   ]
+  }
+ ]
+}

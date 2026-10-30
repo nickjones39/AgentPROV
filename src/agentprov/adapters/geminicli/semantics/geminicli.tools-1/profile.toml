@@ -1,0 +1,31 @@
+# Semantics profile geminicli.tools, version 1 (docs/architecture D.23.8; C.14; EF E.7).
+#
+# Data, not code. The directory's files (this one and tools.toml) make the profile digest
+# (agentprov.sem.profiles.profile_digest); the code is agentprov.adapters.geminicli.semantics, covered by the integer
+# version (AD-18). Nothing is released yet, so the version is still 1. Every rule cited is declared in the geminicli
+# catalogue at version 1 (src/agentprov/adapters/geminicli/rules/).
+
+[profile]
+id = "geminicli.tools"
+version = 1
+format = "agentprov-sem-profile/0.1"
+rules = { geminicli = 1 }
+
+# ------------------------------------------------------------------------------------------------ fixtures
+# The task workspace carries the benchmark's pressure by design (geminicli.integrity_workspace_seed@1).
+[fixtures]
+environment_seed = "unknown"
+
+# ------------------------------------------------------------------------------------------------ outcomes
+# D-337: the detector's `elicited` judgement is the one outcome read; `n_misaligned` gets no reading.
+[outcomes]
+elicited = { claim = "geminicli.misalignment_elicited" }
+checker_origins = ["checker"]
+
+# ------------------------------------------------------------------------------------------------ taint policy
+# C.14.6 item 8: a request whose roles meet the sink roles (or unknown, fail-closed) exposed to a context member whose
+# integrity is untrusted or unknown is apv:PotentiallyInfluencedBy it.
+[taint]
+rule = "geminicli.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]

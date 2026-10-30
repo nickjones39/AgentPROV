@@ -1,0 +1,149 @@
+# Source profile `craibench-agentdojo`: AthaSSiN/CrAIBench, a fork of AgentDojo 0.1.15 with two new suites,
+# crypto_trading (1,013 logs) and chain (147), plus banking (3): 1,163 v0.k11 TraceLogger logs of gpt-4o and
+# gpt-4o-mini-2024-07-18 under AgentDojo spotlighting (delimiting, datamarking) (phase 10d; shortlist row 15;
+# sources/agentdojo-format-candidates.md §3.16).
+#
+# 688 logs are memory-injection runs: the attack label stays important_instructions and the variant is visible only
+# in the file name injection_task_<n>_memory_injection.json, so path_must_agree leaves out injection_task_id (the
+# stem would never equal the logged id; D-107); the injected memory arrives as an extra user message, which the mapper
+# leaves unattributed (unattributed_additional_user_message, class I). SEM reads agentdojo.suites@2, whose reviewed tool
+# tables cover the new suites (routing.md R8, D-110..D-112; read from the suite code at the commits that added the runs:
+# crypto_trading knows its 13 tools, chain only the 4 labelled alike in both of its code states). v0.k11: no
+# timestamps or versions.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/craibench@e41eac1eb2fe.*).
+
+[profile]
+id = "craibench-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "craibench-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "CrAIBench: AgentDojo v0.k11 logs of two new crypto suites with memory and prompt injection (AthaSSiN/CrAIBench)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/AthaSSiN/CrAIBench"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", vendored = "the fork itself, from AgentDojo 0.1.15 (8 code commits after the runs)", version_identifies_code = false }
+
+# The pin covers the repository root (1,344 files): the runs, the fork's code with the new suites, a fine-tuning dataset
+# card. The byte total is not stated: one figure (finetune_dataset/) was not fetched in phase 10c; the other 1,343
+# files hold 10,397,784 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "e41eac1eb2fea00a31c69827bfe83f9722a25702"
+date = "2026-01-09"
+expected_files = 1344
+note = "the default branch at 2026-10-11 (phase 10c); 1,163 logs under runs/"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr (the upstream LICENSE kept by the fork)", "AthaSSiN (fork owner; no own copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin (upstream text); the finetune_dataset/ card's CC-BY-4.0 covers that dataset, not the runs"
+attribution = [
+  "AthaSSiN/CrAIBench (MIT), commit e41eac1eb2fea00a31c69827bfe83f9722a25702",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["ethz-spylab/agentdojo 0.1.15 (vendored fork with the crypto_trading and chain suites and memory injection)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v0.k11"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type"]
+# Stored as supporting artefacts (role supporting), never mapped as executions.
+context_artefacts = ["LICENSE", "README.md", "pyproject.toml", "CITATION.bib", "src/agentdojo/data/system_messages.yaml", "src/agentdojo/agent_pipeline/basic_elements.py"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = ["spotlighting_with_delimiting", "spotlighting_with_datamarking"]
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { crypto_trading = "craibench", chain = "craibench", banking = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the fork vendors AgentDojo 0.1.15 and changed its code after the runs (8 commits, phase 10c h01); v0.k11
+# logs record no version
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# Four system prompts (651 to 3,092 characters), none traceable to a text of the repository (the fork's
+# system_messages.yaml keys default, default_defended and blockchain do not match them alone): unrecognised.
+system_prompt_variants = [
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 40, origin_rule_applied = 40 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 40 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { pipeline_dir = ["*-spotlighting_with_delimiting"] }
+rules = ["agentdojo.spotlighting_content@1"]
+observed = { head = { logs = 1144, logs_with_tool_results = 1095 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

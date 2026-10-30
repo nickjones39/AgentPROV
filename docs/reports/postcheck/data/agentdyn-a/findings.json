@@ -1,0 +1,33 @@
+{
+ "check": "post-check",
+ "corpus_id": "agentdyn-a",
+ "findings": [
+  {
+   "agents_md_12": false,
+   "artefact_proposal": null,
+   "check": "PC6",
+   "cls": "documentation-mismatch",
+   "evidence": "rg1 (imported with `--fetch`) records 0 of p10's 949 `select.owned_elsewhere` rows (DRIFT copies under `src/agentdojo/defenses/drift/runs/`, owner `drift`); ast-survey-agentdojo likewise 0 of 6 `select.owned_elsewhere` (the AgentHarm `.eval` files, owner ast-survey-agentharm) and 0 of 4 `select.dialect_planned` (`asb/` CSVs). All lie outside the pin's subtree (`runs/`, `agentdojo`): a fetched git-pin tree walks only the pin's subtree, the p10 `--input` import walked the whole local clone. Every file of the snapshot keeps its disposition; executions, verify and the seal forecast are unaffected. p10's origins are `local` (the `--input` route), which `package` refuses (D-33), so the register the spec describes (`D_adapters.md`: the 949 DRIFT copies `select.owned_elsewhere`; the survey's six `.eval` rows) belongs to a route that cannot be sealed. Side effect: these profile excludes (`src/agentdojo/defenses/drift/runs/**`, `agentharm/results/**/*.eval`, `asb/results/*.csv`) can never fire under `--fetch`. R4.",
+   "hypothesis_ref": null,
+   "id": "POST-agentdyn-a-01",
+   "part": "all",
+   "recommendation": "Runner/spec owner: state which route defines the register (pin subtree only, or the whole tree), update the D.6.x text and the H.6.2 ownership reading accordingly. No corpus change needed for the seal.",
+   "reproduction": "see the dossier's section 9",
+   "security": false,
+   "severity": "S3",
+   "title": "The register's out-of-pin `select.*` rows depend on the import route",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "cls": "documentation-mismatch",
+     "lens": "reproduction",
+     "reasoning": "re-measured from the committed data files",
+     "severity": "S3",
+     "verdict": "confirmed"
+    }
+   ]
+  }
+ ],
+ "format": "agentprov-precheck-findings/0.1",
+ "refuted": []
+}

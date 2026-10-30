@@ -1,0 +1,18 @@
+# Optional local hooks (`uvx pre-commit install`). CI runs the same checks.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: unicode-controls
+        name: reject invisible/control Unicode
+        entry: uv run python tools/check_unicode.py
+        language: system
+        pass_filenames: true
+      - id: ruff
+        name: ruff
+        entry: uv run ruff check
+        language: system
+        types: [python]

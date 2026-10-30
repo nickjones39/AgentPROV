@@ -1,0 +1,105 @@
+"""A2b-8 (test gap): no in-repo mutation round trip for transcript/v1 import -> view, and no render_converted test on
+an ``agentdojo.unknown_message`` part or a multi-block tool result.
+
+Everything here is built from frozen specification data (the C.16.2 vector, docs/architecture/examples/C) or the
+synthetic TraceLogger log of ``tests/adapters/agentdojo/agentdojo_support.py``; no golden fixture is needed.
+
+Property: for a single-member mutation ``src`` of the C.16.2 source, either
+``serialise(render(map(src))) == src`` (A2 bytes), or the mapping is degenerate, or the seal records an issue.
+A silent byte difference with an empty seal-issue list is the hole.
+"""
+
+from __future__ import annotations
+
+import copy
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path.cwd()
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+
+from agentprov.adapters.runner import aer_bytes, map_artefact  # noqa: E402
+from agentprov.adapters.types import Origin  # noqa: E402
+from agentprov.views.transcript_v1 import ViewError, render, render_converted, serialise  # noqa: E402
+from tests.adapters.agentdojo.agentdojo_support import map_log, new_log  # noqa: E402
+
+VECTOR = REPO / "docs" / "architecture" / "examples" / "C" / "adprov_v1_llama_injecagent.aer.jsonl"
+SOURCE_SHA256 = "a8ef75b854a1bddbb9b3b265fdd48094f5ca689aab762da24a05472e56221335"
+
+
+def _source() -> bytes:
+    records = [json.loads(line) for line in VECTOR.read_bytes().splitlines()]
+    src = serialise(render(records))
+    assert hashlib.sha256(src).hexdigest() == SOURCE_SHA256
+    return src
+
+
+def _mc(d):
+    return d["meta"]["model_config"]
+
+
+MUTATIONS = {
+    "identity": lambda d: None,
+    "usage_negative": lambda d: _mc(d)["usage"].__setitem__("prompt_tokens", -1),
+    "usage_string": lambda d: _mc(d)["usage"].__setitem__("prompt_tokens", "9278"),
+    "usage_bool": lambda d: _mc(d)["usage"].__setitem__("prompt_tokens", True),
+    "finish_reasons_null": lambda d: _mc(d).__setitem__("finish_reasons", None),
+    "released_run_error": lambda d: d["meta"].__setitem__("run_error", "x"),
+    "released_source": lambda d: d["meta"].__setitem__("source", "x"),
+    "released_timing_stubbed": lambda d: d["meta"].__setitem__("timing_stubbed", False),
+    "released_pipeline_name": lambda d: d["meta"].__setitem__("pipeline_name", "p"),
+}
+
+
+@pytest.mark.parametrize("name", list(MUTATIONS))
+def test_v1_mutation_round_trip_is_exact_or_flagged(name):
+    doc = json.loads(_source())
+    MUTATIONS[name](doc)
+    src = json.dumps(doc, indent=2).encode()
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "x/y.transcript.json",
+                           producer_commit="579a908354b93361efe0905ffb7623256aa96a06")
+    outcome, _ = map_artefact(src, origin, profile_id="adprov-v1")
+    if outcome.degenerate:
+        return
+    data, _ = aer_bytes(outcome)
+    records = [json.loads(line) for line in data.splitlines()]
+    issues = records[-1].get("issues", [])
+    out = serialise(render(records))
+    assert out == src or issues, f"{name}: view differs from the source and the seal records no issue"
+
+
+def _content_int(log):
+    log["messages"][4]["content"] = 5
+
+
+def _args_str(log):
+    log["messages"][3]["tool_call"]["args"] = "xy"
+
+
+@pytest.mark.parametrize("mutate", [_content_int, _args_str], ids=["content-int", "echo-args-str"])
+def test_render_converted_unknown_message_raises_view_error_only(mutate):
+    log = new_log()
+    mutate(log)
+    m = map_log(log)
+    assert "agentdojo.unknown_message_shape" in m.codes
+    try:
+        render_converted(m.records)
+    except ViewError:
+        pass
+    except Exception as exc:  # noqa: BLE001
+        pytest.fail(f"render_converted raised {type(exc).__name__}, not ViewError: {exc}")
+
+
+def test_render_converted_multi_block_tool_result_is_joined():
+    log = new_log()
+    log["messages"][3]["content"] = [{"type": "text", "content": "a"}, {"type": "text", "content": "b"}]
+    m = map_log(log)
+    assert "agentdojo.multi_block_tool_content" in m.codes
+    turn = render_converted(m.records)["turns"][3]
+    assert turn["role"] == "tool" and turn["content"] == "ab", turn["content"]
+    assert turn["content_sha256"] == "sha256:" + hashlib.sha256(b"ab").hexdigest()

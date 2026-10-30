@@ -1,0 +1,42 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.getcwd(), "tests", "adapters", "qwencode"))
+import qwencode_support as s
+
+def set_name(v, drop=False):
+    def ch(items):
+        n = 0
+        for m in items:
+            if m.get("type") == "assistant":
+                for c in m["message"]["content"]:
+                    if isinstance(c, dict) and c.get("type") == "tool_use":
+                        if drop: c.pop("name", None)
+                        else: c["name"] = v
+                        n += 1
+                        return None
+        assert n
+    return ch
+
+def set_user_text(v):
+    def ch(items):
+        for m in items:
+            if m.get("type") == "user":
+                cs = m["message"]["content"]
+                if isinstance(cs, list):
+                    for c in cs:
+                        if isinstance(c, dict) and c.get("type") == "text":
+                            c["text"] = v; return None
+        # none present: append a user text message before the last item
+        items.insert(len(items)-1, {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": v}]}, "parent_tool_use_id": None, "session_id": items[0].get("session_id")})
+        return None
+    return ch
+
+cases = [("name=5", set_name(5)), ("name=['x']", set_name(["x"])), ("name=None", set_name(None)),
+         ("name absent", set_name(None, drop=True)), ("user text=7", set_user_text(7)), ("control name='ok'", set_name("Bash"))]
+for label, ch in cases:
+    try:
+        r = s.modified("python", ch)
+        tes = r.of("tool_execution")
+        msgs = [p for rec in r.of("message") for p in rec.get("parts", []) if p.get("t") == "tool_call"]
+        print(label, "-> OK; tool_call names:", [p.get("name") for p in msgs][:2], "codes:", sorted(set(r.codes()))[:8])
+    except Exception as e:
+        print(label, "->", type(e).__name__, str(e)[:300])

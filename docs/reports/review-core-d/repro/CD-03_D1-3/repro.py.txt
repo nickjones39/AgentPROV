@@ -1,0 +1,24 @@
+from agentprov.adapters.profiles import parse_profile
+from agentprov.errors import ProfileError
+
+TEMPLATE = '''
+[profile]
+id = "foobench"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "foobench"
+family = "foobench"
+parts = ["a"]
+[source]
+[licence]
+[lineage]
+[import]
+variants = ["v1"]
+variant_labels = { "%s" = "a" }
+'''
+for key in ("drift.k18.conversations", "v2"):
+    try:
+        p = parse_profile((TEMPLATE % key).encode())
+        print(key, "-> ACCEPTED", p.family)
+    except ProfileError as e:
+        print(key, "-> ProfileError:", e)

@@ -1,0 +1,246 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "ast-survey-agentharm",
+ "findings": [
+  {
+   "id": "PC-ast-survey-agentharm-01",
+   "title": "Bundled-content file tools return file-not-found in 63 samples (inspect_evals #2439 confirmed in the data)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": false,
+   "part": "agentharm",
+   "check": "H-10 / L1 raw tool events + L2 AER tool_execution status / outcome: no gap, scores published without the defect / delta: none (raw)",
+   "evidence": "Raw (6/6 logs): read_file file_not_found error 84 of 93 calls (coder_benign 22/22, coder_harmful 10/10, gptoss_benign 24/27, qwen14_benign 12/16, qwen14_harmful 16/18), convert_pdf_to_text result 'File not found at benchmark/...' 63 of 63 calls (12/8/26/5/7/5), edit_txt 0/2; samples with >= 1 such call 63 of 1,056 (coder_benign 13, coder_harmful 9, gptoss_benign 15, gptoss_harmful 2, qwen14_benign 12, qwen14_harmful 12: benign 40/528, harmful 23/528). AER: tool_execution status error 84 = read_file only. Mean score affected vs not: gptoss_benign 0.378 (15) vs 0.664 (161); others within about 0.07 or higher. No artefacts.toml entry; the survey README reports the scores without this note. Lead L-07 (#2439, open). Verifier correction: convert_pdf_to_text 62 of 63 calls are the harness defect (1 gptoss_harmful call is a model miss with an unmatched path); read_file 84 of 84 allowlisted calls failed, 0 successful reads in the corpus; the defect affects both benign_tools and harmful_tools.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/toolerr.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial  -> calls {coder_benign|read_file: 22, ..., qwen14_benign|edit_txt: 2}; samples_with_file_not_found {coder_benign: 13, coder_harmful: 9, gptoss_benign: 15, gptoss_harmful: 2, qwen14_benign: 12, qwen14_harmful: 12}; error templates 'read_file|error:file_not_found|File <q> was not found.' 84, 'convert_pdf_to_text|result|...Error: File not found at benchmark<path>' 63",
+   "hypothesis_ref": "H-10",
+   "recommendation": "Disclose in the dossier/datasheet: AgentHarm scores of this corpus include 63 samples whose bundled-file tools failed (harness working-directory defect, #2439); keep all data (no exclusion). Route the artefacts.toml entry below to the inspect family owner; a detector needs either a tool_execution status/error-type rule (read_file) or an env-result text marker (convert_pdf_to_text). Optional assessment flag per affected sample.",
+   "artefact_proposal": "[[artefact]]\nid = \"inspect.art.bundled_file_not_found\"\ntitle = \"Bundled-content file tools fail with file not found\"\ndescription = \"AgentHarm's read_file and convert_pdf_to_text (benign_tools and harmful_tools alike) resolve bundled files relative to the process working directory; the survey ran the benchmark from the inspect_evals checkout root (inferred), so every call naming a bundled file failed: read_file with error type file_not_found, convert_pdf_to_text with a 'File not found at benchmark/...' result. Scores of the affected samples rest on a broken tool environment (inspect_evals #2439, which names the benign tools only).\"\nscope = { sources = [\"agent-security-tools-survey\"], parts = [\"agentharm\"], profiles = [\"survey-agentharm\"] }\ncause = \"upstream_harness\"\ndetector = { rule = \"<new: inspect.file_tool_not_found@1: read_file tool_execution error type file_not_found, or the convert_pdf_to_text result marker 'PDF content from ...: Error: File not found at benchmark/'>\", class = \"O\" }\nrecorded_as = {}\nhandling = { class = \"FO\" }\nexpected = [\n  { snapshot = \"git:89c4db2c949797fbb38c5bfed85dc82780ddbfe3\", count = 63, basis = \"samples with >= 1 harness-failed call: coder_benign 13, coder_harmful 9, gptoss_benign 15, gptoss_harmful 2, qwen14_benign 12, qwen14_harmful 12 (benign 40, harmful 23); calls: read_file 84 of 84 allowlisted (93 total; 7 invalid names, 2 directories), convert_pdf_to_text 62 of 63 (1 unmatched path), edit_txt 0 of 2\" },\n]\nmanuscript = true\nrefs = [\"https://github.com/UKGovernmentBEIS/inspect_evals/issues/2439\", \"https://github.com/UKGovernmentBEIS/inspect_evals/pull/2455\"]",
+   "agents_md_12": true,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S2",
+     "reasoning": "Re-ran toolerr.py: same counts. Upstream read_file uses an allowlist (unknown names return 'not a valid file', no exception); only allowlisted names reach open() on a relative benchmark/ path, so all 84 file_not_found errors are correct requests for bundled files; no read_file call in the corpus succeeded (the other 9: not_valid_file 7, is-a-directory 2). convert_pdf_to_text: 62 of 63 calls are the harness defect (path matched, bundled file missing), 1 (gptoss_harmful) a genuine model miss; harness-only samples still 63. Not in artefacts.toml; #2439 open (fix PR #2455 open) and names benign tools only, but harmful_tools share the code (23 harmful samples). Score effect depends on arm. Corrections: (a) convert_pdf_to_text: 62/63 harness defect, 1 model miss; sample count 63 unchanged. (b) read_file: 84/84 allowlisted calls failed, 0 successful reads. (c) Defect affects benign_tools and harmful_tools; #2439 names benign only; the exact working directory is inferred. (d) Score effect: lower in gptoss_benign (0.378 vs 0.664, n 15), higher in gptoss_harmful (0.643 vs 0.126, n 2), small elsewhere. (e) Add PR #2455 to refs."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "reclassified",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "R1: an upstream harness defect visible in the data (inspect_evals #2439, bundled-content file tools resolve paths against the working directory) that no artefacts.toml entry or profile quirk covers (checked src/agentprov/adapters/inspect/artefacts.toml 2026-10-15). source-defect S2 (it biases the scores of 63 samples) with the proposed entry inspect.art.bundled_file_not_found; was documentation-mismatch S2."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentharm-02",
+   "title": "Safety-net catalogue gap E2-b5 still open: max_tokens 23 and text-encoded calls 12 unclassified",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentharm",
+   "check": "L2 A2 / safety net / no movement since E2",
+   "evidence": "agentprov.artefacts.scan over 1,056 scratch executions: artefact.generic.abnormal_finish#max_tokens n 23 in 23 executions UNCLASSIFIED; artefact.generic.text_encoded_call#marker n 12 in 12 executions UNCLASSIFIED; inspect/artefacts.toml has 9 entries, none for these. Raw: agent max_tokens stops 23 (gptoss_benign 2, qwen14_benign 10, qwen14_harmful 11); '<function=' in 13 assistant messages / 13 model events of 12 samples (coder_benign 8, coder_harmful 4); the prereg's '14 turns' is not reproduced.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/aer_pass.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial /tmp/aer_pass.json  -> agg.net: 'artefact.generic.abnormal_finish#max_tokens|UNCLASSIFIED|' 23; 'artefact.generic.text_encoded_call#marker|UNCLASSIFIED|' 12",
+   "hypothesis_ref": "H-16",
+   "recommendation": "Family owner adds the two entries drafted in phase10-examination-2.md section 10.2 (inspect.art.abnormal_finish_max_tokens, inspect.art.text_tool_call; counts 23 and 12, basis: executions/locators); state the text-call basis as 12 samples / 13 messages.",
+   "artefact_proposal": "See phase10-examination-2.md section 10.2 (entries inspect.art.abnormal_finish_max_tokens count 23 and inspect.art.text_tool_call count 12); no new text.",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "aer_pass.py re-run: abnormal_finish#max_tokens 23 and text_encoded_call#marker 12 UNCLASSIFIED, per execution too; raw pass agrees (max_tokens 2/10/11 = 23; text calls 13 messages in 12 samples, qwen3-coder only). artefacts.toml unchanged since 1e9f037d (9 entries). Documented as E2-b5 with entry texts in E2 section 10.2; no corpus bytes change. Corrections: None; add: all 12 text-call samples are qwen3-coder:30b (benign 8/9 msgs, harmful 4/4); max_tokens stops are gpt-oss 2 + qwen3:14b 21."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentharm-03",
+   "title": "Verify report's members-per-log figure (6 x 286 = 1,716) is one log's count; the 25-member gap (L-10) does not exist",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "agentharm",
+   "check": "L1-01 / H-02",
+   "evidence": "ZIP central directory through agentprov.ingest.archives.iter_zip_members equals raw/members.jsonl labels in 6/6 logs; per log coder_harmful 229, coder_benign 247, gptoss_harmful 272, gptoss_benign 286, qwen14_harmful 317, qwen14_benign 340 = 1,691 (1,062 selected, 629 not selected); stored and scratch members tables identical except fn_digest.",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/raw_checks.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial /tmp/rc.json  -> logs.*.members_zip = members_rows (229/247/272/286/317/340), members_equal true x 6",
+   "hypothesis_ref": "H-02",
+   "recommendation": "Correct verify/agent-security-tools-survey.md section 2.3 (286 is gptoss_benign only); the prereg row stays as registered; no corpus change.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Full central directory via agentprov.ingest.archives.open_zip (infolist, nothing extracted): 0 directory entries; CD total = non-dir members = members.jsonl rows per log (229/247/272/286/317/340 = 1,691). The verify report's 286 is gptoss_benign only; bytes identical to the pin per research.json. Corrections: The gap is ruled out on the full central directory (directory entries included); the per-log variation presumably comes from _journal entry counts."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentharm-04",
+   "title": "Three of the 54 limit-stopped samples hold fewer than 20 messages: the dropped tool results count toward the message limit",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentharm",
+   "check": "H-12 / L1-08 / seal issues",
+   "evidence": "Limit-stopped 54 (message limit 20); message-list lengths 18 (1, coder_benign) and 16 (2, qwen14_benign), the other 51 at 20; the 3 short ones and one more qwen14_benign sample have unanswered tool calls: 4 samples, 16 calls = seal missing_tool_result 16 / dangling_source_ref 16 in 4 executions (inspect.art.tool_result_lost_at_limit).",
+   "reproduction": "uv run --offline python -I docs/reports/precheck/data/ast-survey-agentharm/exam-scripts/raw_checks2.py ~/.agentprov/migration-work/precheck/ast-survey-agentharm/l2-agentharm-j2.partial /tmp/rc2.json  -> coder_benign limit_msgs=18: 1, limit_msgs=20: 8, unanswered_tool_calls_at_limit 4; qwen14_benign limit_msgs=16: 2, limit_msgs=20: 4, limit_samples_with_unanswered_tool_calls 3, unanswered 12",
+   "hypothesis_ref": "H-12",
+   "recommendation": "Add one sentence to inspect.art.sample_limit / tool_result_lost_at_limit descriptions: the limit counts tool results that the log then drops, so a limit-stopped sample can hold fewer messages than the limit; no mapping change.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "raw_checks2.py re-run, plus an independent per-sample pass: message_limit 20 in all logs, every sample_limit event is type message limit 20; the 4 lost-result samples end on an assistant turn whose whole parallel batch is unanswered (18+4, 16+5, 16+5, 20+2; 16 calls, all with tool events); the other 50 end on a tool message at 20. Inferred from counts, not checked against Inspect source. Corrections: Reword: when appending a turn's parallel tool results would exceed the message limit, the harness leaves out the whole batch although the tools ran, so a limit-stopped sample can end on an assistant turn below the limit."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentharm-05",
+   "title": "l2_check gives no outcome table and no A2 section for Inspect (boolean-only judgements; arm key merges harmful and benign)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentharm",
+   "check": "L2-C outcomes / A2 (tool)",
+   "evidence": "l2-agentharm.json outcomes.arms = 3 empty arms 'model|none|none' (judgements combined_scorer.score/refusal are numeric, judgements_of keeps booleans only; the arm key has no suite, so 176 harmful + 176 benign share an arm); no 'a2' key in the report (protocol 8.1 lists A2 under L2-C). OS-2 and A2 here come from the examiner script aer_pass.py: AER score distributions equal the raw L1 distributions in 6/6 arms, refusals 35/109/93/161/11/51.",
+   "reproduction": "python3 -c \"import json;print(json.load(open('docs/reports/precheck/data/ast-survey-agentharm/l2-agentharm.json'))['outcomes']['arms'])\"  -> {'ollama/gpt-oss:120b|none|none': {}, 'ollama/qwen3-coder:30b|none|none': {}, 'ollama/qwen3:14b|none|none': {}}",
+   "hypothesis_ref": "",
+   "recommendation": "After the batch (tools frozen): l2_check reads numeric judgements (mean, share == 1, k/n of 0/1 values) and adds suite/task to the arm key; add an A2 section (finish reasons, tool statuses, unk kinds, seal codes). Post-check: re-run aer_pass.py or the fixed l2_check.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "l2_check judgements_of keeps only bool judgements; AgentHarm judgements are combined_scorer.score (float) and .refusal (int), so all 3 arms are empty; arm key model|defence|attack merges harmful and benign (defence/attack none). No l2-*.json of wave 1 has an a2 key. OS-2 mapping rows in outcomes.json are True in 6/6 arms. Corrections: Scope: the missing A2 section is tool-wide (every wave-1 l2 report), route to the orchestrator against prereg sections 4 and 6; the numeric-judgement filter and the suite-blind arm key are Inspect-specific."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "unchanged",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "R5: l2_check property; analysis-artefact S3, not counted in the readiness verdict."
+    }
+   ]
+  },
+  {
+   "id": "PC-ast-survey-agentharm-07",
+   "title": "[CC-05] Stored corpus ast-survey-agentharm-p10.partial gives validate.results.differ (validation rows predate regen item 10's pv.constraints.* checks)",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "agentharm",
+   "check": "stored validate --corpus (README section 8 amendment 1)",
+   "evidence": "README section 8 amendment 1 (orchestrator note from the PROV cache session's proofs, 2026-10-15): on the 8 stored wave-1 corpora, agentprov validate --corpus exits 1 with validate.results.differ, cache on or off; the stored rows predate the four pv.constraints.* checks of regeneration-batch item 10 (cycles, derivation_parts, ordering, unique_start) and every row still passes them. Not re-run on the stored corpus here (dossier follow-up). The scratch L2 import at a871e2d7 validates fresh (1,056/1,056).",
+   "reproduction": "uv run python tools/suite_queue.py --class import --cpu 2 --mem-gib 4 --label precheck-ast-survey-agentharm -- uv run agentprov validate --corpus <copy of ~/.agentprov/corpora/ast-survey-agentharm-p10.partial> --jobs 2   # not run in this pre-check",
+   "hypothesis_ref": "",
+   "recommendation": "None before the round. The round re-validates; the post-check compares a re-validated stored or regenerated corpus with a fresh import, like with like (amendment 1).",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Numbered finding added under CC-05 (one per stored corpus); the dossier carried this as a text note only. The observation is the amendment-1 proof, not a re-run by this pre-check."
+    }
+   ]
+  }
+ ],
+ "refuted": [
+  {
+   "id": "PC-ast-survey-agentharm-06",
+   "title": "Cross-corpus duplicate check does not cover Inspect sample members and lacks the other AgentHarm corpora",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "agentharm",
+   "check": "L1-04 cross-part (tool coverage)",
+   "evidence": "_cross/l1-xdup.json inputs: agent-security-tools-survey.agentharm units 1,056, artefacts 0 (unit rows carry the container sha, so byte identity is compared only for the 6 containers); kexin-xu-01-agentharm and fragfuse-agentharm are not among the 10 inputs (later waves). Within part: 1,056 distinct member sha256 and fingerprints.",
+   "reproduction": "python3 -c \"import json;d=json.load(open('docs/reports/precheck/data/_cross/l1-xdup.json'));print([i for i in d['inputs'] if i['part']=='agentharm'])\"  -> [{... 'units': 1056, 'artefacts': 0}]",
+   "hypothesis_ref": "H-17",
+   "recommendation": "Re-run l1_xdup.py once the AgentHarm-family parts of later waves have L1 fingerprints; let l1_xdup compare member sha256 (from l1 rows or members.jsonl) for archive-member units.",
+   "artefact_proposal": "",
+   "agents_md_12": false,
+   "verdict": "refuted",
+   "verdicts": [
+    {
+     "lens": "examiner",
+     "verdict": "proposed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Examiner's class and severity before verification (exam.json findings)."
+    },
+    {
+     "lens": "verifier",
+     "verdict": "refuted",
+     "cls": "analysis-artefact",
+     "severity": "S4",
+     "reasoning": "The per-input 'artefacts' field is a display counter that counts only rows without a unit; the comparison adds every row's sha256 (1,056/1,056 rows; 6 distinct = the 6 .eval files) to the byte-identity map (totals.artefacts 134,743 vs inputs sum 134,737: +6) and every row's trajectory fp (1,056 distinct). File-level byte identity and trajectory duplicates were therefore compared, as the prereg asks. kexin-xu-01-agentharm and fragfuse-agentharm are wave-4 parts; their absence from the post-wave-1 snapshot is timing. Corrections: Not a finding. Cosmetic reporting note only (S4): the per-input artefacts label reads 0 for archive-member parts. Re-run l1_xdup after wave 4 as planned."
+    },
+    {
+     "lens": "harmonisation (cross-cutting.md, 2026-10-15)",
+     "verdict": "refuted",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Moved from findings to refuted under CC-06; its former status field read 'refuted (not a finding)'."
+    }
+   ]
+  }
+ ]
+}

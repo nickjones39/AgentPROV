@@ -1,0 +1,21 @@
+import sys, tempfile, json
+from pathlib import Path
+sys.path.insert(0, "tests/adapters/inspect")
+from inspect_support import basic_sample, build_eval, synthetic_header, import_log
+from agentprov.adapters.profiles import load_profile
+
+def tune(s, sample):
+    for e in sample["events"]:
+        if e["event"] == "score":
+            e.pop("scorer", None); e.pop("scorer_args", None)
+
+prof = load_profile("fragfuse-agentharm")
+data = build_eval(synthetic_header("0.3.158"), {"s1_epoch_1.json": basic_sample(tune=tune)})
+with tempfile.TemporaryDirectory(dir="repro/D4-1") as d:
+    imp = import_log(data, Path(d), profile=prof)
+    print("register", imp.register)
+    u = imp.units[0]
+    print("outcome", u.outcome.kind if hasattr(u.outcome, "kind") else type(u.outcome))
+    for j in u.of_kind("judgement"):
+        print(j["id"], j["name"], j["actor"], j.get("generated_by"), j["value"])
+    print(u.issue_codes())

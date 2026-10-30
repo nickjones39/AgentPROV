@@ -1,0 +1,38 @@
+import sys, os, json, shutil, hashlib
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO/"tests/adapters"))
+WORK = Path(sys.argv[1])
+if WORK.exists(): shutil.rmtree(WORK)
+WORK.mkdir(parents=True)
+os.environ["AGENTPROV_HOME"] = str(WORK/"home")
+import import_support as support
+from agentprov.adapters.runner.importer import ImportSample, LocalTree, import_source, SampleRefusedError
+from agentprov.corpus.writer import CorpusWriter
+support.agentdojo_tree(WORK/"in", count=3)
+def snap(p):
+    return {str(f.relative_to(p)): hashlib.sha256(f.read_bytes()).hexdigest()[:12] for f in sorted(p.rglob("*")) if f.is_file() and f.name != "lock"}
+# Case A: fresh corpus, refused spread
+try:
+    with CorpusWriter(WORK/"fresh") as corpus:
+        import_source("agentdojo", LocalTree(WORK/"in"), corpus=corpus, part="2024-06", until="aer",
+                      pin_check=support.vouch(WORK/"in"), in_process=True, sample=ImportSample(1, "spread"))
+except SampleRefusedError as e:
+    print("A refused", e.code, e.exit_code)
+p = WORK/"fresh.partial"
+print("A partial exists:", p.exists(), sorted(snap(p)) if p.exists() else None)
+# Case B: sampled corpus then refused spread
+with CorpusWriter(WORK/"c") as corpus:
+    import_source("agentdojo", LocalTree(WORK/"in"), corpus=corpus, part="2024-06", until="aer", pin_check=support.vouch(WORK/"in"), in_process=True, sample=ImportSample(2, "random", "s"))
+q = WORK/"c.partial"
+before = snap(q)
+print("B before selection", json.loads((q/"corpus.json").read_text())["selection"])
+try:
+    with CorpusWriter(WORK/"c") as corpus:
+        import_source("agentdojo", LocalTree(WORK/"in"), corpus=corpus, part="2024-06", until="aer",
+                      pin_check=support.vouch(WORK/"in"), in_process=True, sample=ImportSample(1, "spread"))
+except SampleRefusedError as e:
+    print("B refused", e.code, e.exit_code)
+after = snap(q)
+print("B after selection", json.loads((q/"corpus.json").read_text())["selection"])
+print("B changed files:", sorted(k for k in set(before)|set(after) if before.get(k) != after.get(k)))

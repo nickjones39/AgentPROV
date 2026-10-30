@@ -1,0 +1,20 @@
+--- a/src/agentprov/views/transcript_v1.py
++++ b/src/agentprov/views/transcript_v1.py
+@@ def _handler_usage(doc: _Aer, v1: Mapping[str, Any]) -> dict[str, Any] | None:
+     out: dict[str, Any] = {}
+     for key in keys:
++        extra = f"/ext/adprov/usage_extra/{_esc(key)}"
+         if key in mapping:
+-            out[str(key)] = doc.value(run, f"/usage/{mapping[key]}")[1]
++            # the mapper types a known key only for a non-negative int; any other value is kept at usage_extra
++            found, value = doc.value(run, f"/usage/{mapping[key]}")
++            out[str(key)] = value if found else doc.value(run, extra)[1]
+         else:
+-            out[str(key)] = doc.value(run, f"/ext/adprov/usage_extra/{_esc(key)}")[1]
++            out[str(key)] = doc.value(run, extra)[1]
+     return out
+--- a/src/agentprov/views/transcript_v1_fields.toml
++++ b/src/agentprov/views/transcript_v1_fields.toml
+-# Any other usage member is kept at scope:run:/ext/adprov/usage_extra/<key>.
++# Any other usage member, and a listed one whose value is not a non-negative integer, is kept at
++# scope:run:/ext/adprov/usage_extra/<key>.

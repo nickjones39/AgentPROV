@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AgentPROV</title>
+<meta name="description" content="AgentPROV converts live and released LLM-agent security runs into W3C PROV. Every derived statement names its evidence class, the rule that produced it and the record field that justifies it.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0c1c" media="(prefers-color-scheme: dark)">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<link rel="icon" href="assets/img/brand/agentprov-icon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/img/brand/favicon.png" type="image/png">
+<link rel="stylesheet" href="assets/css/site.css">
+<script src="assets/js/theme.js"></script>
+<!--
+  The AgentPROV website (D-1000; docs/reports/site/design-note.md). Static, self-hosted, no cookies, no analytics, no
+  third-party requests. The user guide is built by MkDocs into docs/ beside this page (.github/workflows/pages.yml).
+  Placeholders to fill on release day carry data-placeholder="…" (tests/repo/test_site.py lists them).
+-->
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="AgentPROV, back to top">
+      <svg viewBox="0 0 1320 256" role="img" aria-hidden="true" focusable="false">
+        <defs>
+          <clipPath id="wm-cap"><rect x="-20" y="20" width="200" height="140"/></clipPath>
+          <linearGradient id="wm-ent" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF19A"/><stop offset="1" stop-color="#FFD84D"/></linearGradient>
+          <linearGradient id="wm-act" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B4C2FF"/><stop offset="1" stop-color="#7B90FF"/></linearGradient>
+          <linearGradient id="wm-agt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFCB73"/><stop offset="1" stop-color="#FFA63D"/></linearGradient>
+        </defs>
+        <svg x="0" y="0" width="256" height="256" viewBox="192 192 640 640">
+          <g fill="none" class="mark-rel" stroke-width="48" stroke-linecap="round"><path d="M474 422 L340 656"/><path d="M550 422 L684 656"/><path d="M402 562 H622"/></g>
+          <path d="M512 255 L602 318 V408 Q602 426 584 426 H440 Q422 426 422 408 V318 Z" fill="url(#wm-agt)" stroke="url(#wm-agt)" stroke-width="22" stroke-linejoin="round"/>
+          <path class="mark-outline mark-outline-agent" d="M512 255 L602 318 V408 Q602 426 584 426 H440 Q422 426 422 408 V318 Z" fill="none" stroke-width="28" stroke-linejoin="round"/>
+          <path d="M512 255 L602 318 V408 Q602 426 584 426 H440 Q422 426 422 408 V318 Z" fill="url(#wm-agt)" stroke="url(#wm-agt)" stroke-width="16" stroke-linejoin="round"/>
+          <ellipse class="mark-outline-entity" cx="330" cy="696" rx="130" ry="90" fill="url(#wm-ent)" stroke-width="6"/>
+          <rect class="mark-outline-activity" x="594" y="616" width="230" height="160" rx="40" fill="url(#wm-act)" stroke-width="6"/>
+        </svg>
+        <g fill="none" stroke-width="22" stroke-linejoin="round">
+          <g transform="translate(300 38)" stroke="currentColor"><g clip-path="url(#wm-cap)"><path d="M-2 172 L52 31 L106 172"/><path d="M19 118 H85"/></g></g>
+          <g transform="translate(418 38)" stroke="currentColor"><path d="M89 60 V168 Q89 205 52 205 Q26 205 14 190"/><path d="M89 110 A39 39 0 1 1 11 110 A39 39 0 1 1 89 110"/></g>
+          <g transform="translate(530 38)" stroke="currentColor"><path d="M11 110 H89 A39 39 0 1 0 78 138"/></g>
+          <g transform="translate(640 38)" stroke="currentColor"><g clip-path="url(#wm-cap)"><path d="M11 60 V160"/><path d="M11 108 A36 37 0 0 1 83 108 V160"/></g></g>
+          <g transform="translate(748 38)" stroke="currentColor"><path d="M30 30 V136 Q30 160 54 160 H62"/><path d="M4 71 H60"/></g>
+          <g transform="translate(830 38)" class="wm-accent"><g clip-path="url(#wm-cap)"><path d="M11 20 V160"/></g><path d="M11 31 H50 A33 33 0 0 1 50 97 H11"/></g>
+          <g transform="translate(940 38)" class="wm-accent"><g clip-path="url(#wm-cap)"><path d="M11 20 V160"/><path d="M54 97 L98 172"/></g><path d="M11 31 H50 A33 33 0 0 1 50 97 H11"/></g>
+          <g transform="translate(1058 38)" class="wm-accent"><path d="M11 90 A59 59 0 1 1 129 90 A59 59 0 1 1 11 90"/></g>
+          <g transform="translate(1212 38)" class="wm-accent"><g clip-path="url(#wm-cap)"><path d="M-2 8 L52 149 L106 8"/></g></g>
+        </g>
+      </svg>
+      <span class="sr-only">AgentPROV</span>
+    </a>
+    <nav aria-label="Sections">
+      <ul class="nav-links">
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#app">Desktop app</a></li>
+        <li><a href="#sources">Sources</a></li>
+        <li><a href="#corpora">Corpora</a></li>
+        <li><a href="docs/">Docs</a></li>
+        <li><a href="https://github.com/nickjones39/AgentPROV">GitHub</a></li>
+      </ul>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Colour theme: follow the system">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17" /><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>
+      </button>
+      <a class="btn small" href="#download">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ================================================================== hero -->
+<section class="hero" id="top" aria-labelledby="hero-title">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">Execution provenance for LLM-agent security research</span>
+        <h1 id="hero-title"><span class="ev ev-o">Observed.</span> <span class="ev ev-d">Derived.</span> <span class="ev ev-i">Inferred.</span></h1>
+        <p class="lede">AgentPROV converts live and released LLM-agent security runs into <strong>W3C PROV</strong>. Every derived statement names its evidence class, the rule that produced it and the record field that justifies it.</p>
+        <div class="cta">
+          <a class="btn" href="#download" id="hero-download">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+            <span>Download the app</span>
+          </a>
+          <a class="btn ghost" href="docs/">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></svg>
+            <span>Read the docs</span>
+          </a>
+        </div>
+        <p class="hero-meta"><span>Version 0.1.0</span><span>MIT licence</span><span>macOS, Windows and Linux</span></p>
+      </div>
+
+      <div class="hero-mark" aria-hidden="true">
+        <svg class="mark-anim" viewBox="150 200 720 690" focusable="false">
+          <defs>
+            <linearGradient id="hm-ent" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF19A"/><stop offset="1" stop-color="#FFD84D"/></linearGradient>
+            <linearGradient id="hm-act" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B4C2FF"/><stop offset="1" stop-color="#7B90FF"/></linearGradient>
+            <linearGradient id="hm-agt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFCB73"/><stop offset="1" stop-color="#FFA63D"/></linearGradient>
+          </defs>
+          <g class="float">
+            <g fill="none" class="mark-rel" stroke-width="48" stroke-linecap="round">
+              <path class="rel rel-1" style="--len:270" d="M474 422 L340 656"/>
+              <path class="rel rel-2" style="--len:270" d="M550 422 L684 656"/>
+              <path class="rel rel-3" style="--len:220" d="M402 562 H622"/>
+            </g>
+            <g class="node node-agent">
+              <path d="M512 255 L602 318 V408 Q602 426 584 426 H440 Q422 426 422 408 V318 Z" fill="url(#hm-agt)" stroke="url(#hm-agt)" stroke-width="22" stroke-linejoin="round"/>
+              <path class="mark-outline mark-outline-agent" d="M512 255 L602 318 V408 Q602 426 584 426 H440 Q422 426 422 408 V318 Z" fill="none" stroke-width="28" stroke-linejoin="round"/>
+              <path d="M512 255 L602 318 V408 Q602 426 584 426 H440 Q422 426 422 408 V318 Z" fill="url(#hm-agt)" stroke="url(#hm-agt)" stroke-width="16" stroke-linejoin="round"/>
+            </g>
+            <ellipse class="node node-entity mark-outline-entity" cx="330" cy="696" rx="130" ry="90" fill="url(#hm-ent)" stroke-width="6"/>
+            <rect class="node node-activity mark-outline-activity" x="594" y="616" width="230" height="160" rx="40" fill="url(#hm-act)" stroke-width="6"/>
+            <g class="labels">
+              <path class="mark-label-line" d="M612 300 L700 262"/>
+              <text class="mark-label" x="708" y="262">agent</text>
+              <path class="mark-label-line" d="M330 790 L330 830"/>
+              <text class="mark-label" x="330" y="862" text-anchor="middle">entity</text>
+              <path class="mark-label-line" d="M709 780 L709 830"/>
+              <text class="mark-label" x="709" y="862" text-anchor="middle">activity</text>
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <figure class="hero-shot" style="margin-inline:0">
+      <div class="window">
+        <img class="l" src="assets/img/gui/light/agentprov-app.webp" width="1560" height="1032" alt="The AgentPROV desktop app: three executions open in tabs; the current one shows its PROV graph beside the PROV-JSON tree, with one statement selected in both.">
+        <img class="d" src="assets/img/gui/dark/agentprov-app.webp" width="1560" height="1032" alt="The AgentPROV desktop app in dark mode: three executions open in tabs; the current one shows its PROV graph beside the PROV-JSON tree, with one statement selected in both.">
+      </div>
+      <figcaption class="caption">The desktop app with three executions open in tabs, each graph beside its PROV-JSON.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================================================================== how it works -->
+<section class="chapter" id="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <div class="chapter-head reveal">
+      <span class="eyebrow">How it works</span>
+      <h2 id="how-title">From raw bytes to W3C PROV, in five versioned stages.</h2>
+      <p>Each stage is a versioned function of the one before it, and each output is chained to its input by sha256. A corpus can be checked end to end, and its provenance recomputed without running a model again.</p>
+    </div>
+
+    <ol class="pipeline reveal" aria-label="The pipeline">
+      <li class="stage">
+        <span class="stage-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linejoin="round"><path d="M8 4h11l6 6v18H8z" stroke="var(--ink-2)"/><path d="M19 4v6h6" stroke="var(--ink-2)"/><path d="M12 16h9M12 20h9M12 24h5" stroke="var(--accent)" stroke-linecap="round"/></svg></span>
+        <span class="ver">sha256 · pinned origins</span>
+        <h3>Raw store</h3>
+        <p>Byte-identical source artefacts. Raw bytes are never edited and archives are never extracted to disk.</p>
+        <span class="stage-n" aria-hidden="true">1</span>
+      </li>
+      <li class="stage">
+        <span class="stage-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round"><rect x="5" y="6" width="22" height="20" rx="3" stroke="var(--ink-2)"/><path d="M9 12h3M9 16h3M9 20h3" stroke="var(--accent)"/><path d="M15 12h8M15 16h6M15 20h8" stroke="var(--ink-3)"/></svg></span>
+        <span class="ver">aer/0.2</span>
+        <h3>AER</h3>
+        <p>The AgentPROV Execution Record: 13 typed record kinds, explicit unknowns and locators back into the raw bytes.</p>
+        <span class="stage-n" aria-hidden="true">2</span>
+      </li>
+      <li class="stage">
+        <span class="stage-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linejoin="round"><path d="M5 9.5V5h4.5L20 15.5 15.5 20z" stroke="var(--ink-2)"/><circle cx="8.5" cy="8.5" r="1.3" fill="var(--accent)" stroke="none"/><path d="M14 5h4.5L29 15.5 24.5 20" stroke="var(--accent)" stroke-linecap="round"/></svg></span>
+        <span class="ver">sem/0.1</span>
+        <h3>SEM</h3>
+        <p>Standoff annotations from versioned profiles: integrity, roles, injection markers and outcome meaning.</p>
+        <span class="stage-n" aria-hidden="true">3</span>
+      </li>
+      <li class="stage">
+        <span class="stage-icon" aria-hidden="true"><svg viewBox="0 0 32 32" stroke-width="1.6"><path d="M16 4l5 3.5V12H11V7.5z" fill="var(--agent)" stroke="var(--agent-edge)" stroke-linejoin="round"/><ellipse cx="9" cy="23" rx="6" ry="4.2" fill="var(--entity)" stroke="var(--entity-edge)"/><rect x="18" y="19" width="11" height="8" rx="2" fill="var(--activity)" stroke="var(--activity-edge)"/><path d="M14 13l-4 6M18 13l4 5" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round" fill="none"/></svg></span>
+        <span class="ver">agentprov-prov/0.1</span>
+        <h3>PROV</h3>
+        <p>PROV-JSON in three bundles: core (observed and derived), inference, and assessment for policy claims.</p>
+        <span class="stage-n" aria-hidden="true">4</span>
+      </li>
+      <li class="stage">
+        <span class="stage-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="11" width="12" height="10" rx="5" stroke="var(--ink-2)"/><rect x="16.5" y="11" width="12" height="10" rx="5" stroke="var(--accent)"/><path d="M12 16h8" stroke="var(--ink-2)"/></svg></span>
+        <span class="ver">validate · verify · seal</span>
+        <h3>Corpus</h3>
+        <p>Validation tiers gate every write. A sealed corpus has a manifest, a register and a root digest.</p>
+        <span class="stage-n" aria-hidden="true">5</span>
+      </li>
+      <li class="flow" aria-hidden="true"><i></i><i></i><i></i></li>
+    </ol>
+
+    <div class="rules reveal">
+      <div class="rule"><h3>Temporal order is never causality.</h3><p>Order is recorded as order. It never becomes a PROV dependency.</p></div>
+      <div class="rule"><h3>Context is not derivation.</h3><p>A model invocation uses the messages in its request. A tool execution uses only its request and the environment state it read.</p></div>
+      <div class="rule"><h3>Missing evidence is declared.</h3><p>No placeholder timestamps and no reconstructed trajectories. Unknowns carry a reason from a closed list.</p></div>
+      <div class="rule"><h3>Policy claims stay out of the facts.</h3><p>Integrity labels, taint and injection markers live in a separately attributed assessment bundle.</p></div>
+    </div>
+
+    <div class="explorer">
+      <div class="explorer-copy reveal">
+        <span class="eyebrow">Evidence classes</span>
+        <h3>Three kinds of evidence, drawn three ways.</h3>
+        <p>Every AER record and field is tagged with how it is known. Core PROV statements carry observed or derived evidence; inferred statements go to their own inference bundles. The app draws the difference in the line itself.</p>
+        <div class="seg" role="group" aria-label="Show evidence class">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="O" aria-pressed="false"><span class="swatch sw-o" aria-hidden="true"></span>Observed</button>
+          <button type="button" data-filter="D" aria-pressed="false"><span class="swatch sw-d" aria-hidden="true"></span>Derived</button>
+          <button type="button" data-filter="I" aria-pressed="false"><span class="swatch sw-i" aria-hidden="true"></span>Inferred</button>
+        </div>
+        <ul class="legend">
+          <li><span class="k k-o">O</span><span><b>Observed</b>: read directly from the source.</span></li>
+          <li><span class="k k-d">D</span><span><b>Derived</b>: computed by a declared, deterministic rule.</span></li>
+          <li><span class="k k-i">I</span><span><b>Inferred</b>: produced by a named inference method, kept apart from the core.</span></li>
+        </ul>
+      </div>
+      <figure class="graph-card reveal" id="evidence-graph" data-filter="all" style="margin:0">
+        <svg viewBox="0 0 640 360" role="img" aria-labelledby="eg-title eg-desc">
+          <title id="eg-title">A small PROV graph with observed, derived and inferred elements</title>
+          <desc id="eg-desc">A run activity and two message entities are observed, drawn with solid borders. A model invocation activity and the agent are derived, drawn dashed, as are the generated-by and associated-with relations. The model invocation's use of a message part is inferred, drawn dotted in the inference colour.</desc>
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="g-arrow" d="M0 0L10 5L0 10z"/></marker>
+            <marker id="ar-i" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="g-arrow-i" d="M0 0L10 5L0 10z"/></marker>
+          </defs>
+          <!-- edges: PROV points from the subject to the object -->
+          <g class="g-el" data-ev="D"><path class="g-edge g-d" d="M182 68 L448 84" marker-end="url(#ar)"/><text class="g-rel" x="316" y="64" text-anchor="middle">wasAssociatedWith</text></g>
+          <g class="g-el" data-ev="D"><path class="g-edge g-d" d="M412 152 L470 124" marker-end="url(#ar)"/><text class="g-rel" x="404" y="134" text-anchor="end">wasAssociatedWith</text></g>
+          <g class="g-el" data-ev="D"><path class="g-edge g-d" d="M500 260 L418 222" marker-end="url(#ar)"/><text class="g-rel" x="512" y="236" text-anchor="start">wasGeneratedBy</text></g>
+          <g class="g-el" data-ev="I"><path class="g-edge g-i" d="M244 222 L168 262" marker-end="url(#ar-i)"/><text class="g-rel inf" x="150" y="226" text-anchor="end">used</text><text class="g-rel inf" x="150" y="242" text-anchor="end">inference</text></g>
+          <!-- nodes -->
+          <g class="g-el" data-ev="O"><rect class="g-node g-activity g-o" x="30" y="40" width="150" height="58" rx="10"/><text class="g-id" x="46" y="64">x:run</text><text class="g-type" x="46" y="84">apv:Run · O</text></g>
+          <g class="g-el" data-ev="D"><rect class="g-node g-activity g-d" x="215" y="150" width="205" height="70" rx="10"/><text class="g-id" x="231" y="178">x:mc0</text><text class="g-type" x="231" y="200">apv:ModelInvocation · D</text></g>
+          <g class="g-el" data-ev="D"><path class="g-node g-agent g-d" d="M535 36 L620 70 V124 Q620 132 612 132 H458 Q450 132 450 124 V70 Z"/><text class="g-id" x="466" y="96">x:agent</text><text class="g-type" x="466" y="116">apv:AgentSystem · D</text></g>
+          <g class="g-el" data-ev="O"><ellipse class="g-node g-entity g-o" cx="112" cy="300" rx="100" ry="42"/><text class="g-id" x="112" y="296" text-anchor="middle">x:m2-0</text><text class="g-type" x="112" y="316" text-anchor="middle">apv:MessagePart · O</text></g>
+          <g class="g-el" data-ev="O"><ellipse class="g-node g-entity g-o" cx="524" cy="300" rx="96" ry="42"/><text class="g-id" x="524" y="296" text-anchor="middle">x:m4</text><text class="g-type" x="524" y="316" text-anchor="middle">apv:Message · O</text></g>
+        </svg>
+        <figcaption class="graph-note">A sketch after the app's graph view: five elements of one AgentDojo test execution, with their identifiers and evidence classes as the app shows them.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== the app tour -->
+<section class="band" id="app" aria-labelledby="app-title">
+  <div class="wrap">
+    <div class="chapter-head reveal">
+      <span class="eyebrow">The desktop app</span>
+      <h2 id="app-title">Open a corpus. See how every fact is known.</h2>
+      <p>A viewer and job runner for AgentPROV corpora. Opening a corpus never writes to it, content stays hidden until you ask for it, and every action has a command-line equivalent. Pick a step, then a numbered point to look closer.</p>
+    </div>
+
+    <div class="tour" id="tour">
+      <div class="tabs" role="tablist" aria-label="Tour of the desktop app">
+        <button class="tab" role="tab" id="tab-viewer" aria-controls="panel-viewer" aria-selected="true">Viewer</button>
+        <button class="tab" role="tab" id="tab-graph" aria-controls="panel-graph" aria-selected="false" tabindex="-1">Graph</button>
+        <button class="tab" role="tab" id="tab-outcomes" aria-controls="panel-outcomes" aria-selected="false" tabindex="-1">Outcomes</button>
+        <button class="tab" role="tab" id="tab-aer" aria-controls="panel-aer" aria-selected="false" tabindex="-1">Records</button>
+        <button class="tab" role="tab" id="tab-newjob" aria-controls="panel-newjob" aria-selected="false" tabindex="-1">New Job</button>
+        <button class="tab" role="tab" id="tab-runs" aria-controls="panel-runs" aria-selected="false" tabindex="-1">Runs</button>
+        <button class="tab" role="tab" id="tab-live" aria-controls="panel-live" aria-selected="false" tabindex="-1">Run Live</button>
+        <button class="tab" role="tab" id="tab-package" aria-controls="panel-package" aria-selected="false" tabindex="-1">Package</button>
+      </div>
+
+      <!-- 1 Viewer -->
+      <div class="panel" role="tabpanel" id="panel-viewer" aria-labelledby="tab-viewer">
+        <div class="stagebox">
+          <div class="shot">
+            <img class="l" src="assets/img/gui/light/viewer-graph.webp" width="1560" height="1032" loading="lazy" alt="The Viewer: the corpora list, the not-sealed banner, filters, the agentprov stats line, the executions table and the graph of one execution.">
+            <img class="d" src="assets/img/gui/dark/viewer-graph.webp" width="1560" height="1032" loading="lazy" alt="The Viewer in dark mode: the corpora list, the not-sealed banner, filters, the agentprov stats line, the executions table and the graph of one execution.">
+            <div class="spots">
+              <button class="spot" type="button" data-spot="1" style="--x:19.9%;--y:11.6%" aria-label="Point 1: Corpora">1</button>
+              <button class="spot" type="button" data-spot="2" style="--x:44%;--y:17.7%" aria-label="Point 2: The banner">2</button>
+              <button class="spot" type="button" data-spot="3" style="--x:64%;--y:22.7%" aria-label="Point 3: Filters">3</button>
+              <button class="spot" type="button" data-spot="4" style="--x:94.2%;--y:30.2%" aria-label="Point 4: The CLI line">4</button>
+              <button class="spot" type="button" data-spot="5" style="--x:36%;--y:36.5%" aria-label="Point 5: Executions">5</button>
+              <button class="spot" type="button" data-spot="6" style="--x:57.7%;--y:46.1%" aria-label="Point 6: Preview tabs">6</button>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Browse every corpus on your machine.</h3>
+          <p>The Viewer scans your corpus roots and opens a corpus by reading its files only. No file is written and no lock is taken.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Corpora.</b> Each with its state (working, sealed, being written), version, execution count and digests.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>The banner.</b> Whether the corpus is a working tree, sealed, or sealed and verified.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>Filters.</b> Status, completeness, source, unit, issue and an id search.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>The CLI line.</b> The exact <code>agentprov stats</code> command for the rows shown. Copy CLI copies it; it runs nothing.</span></button></li>
+            <li><button class="point" type="button" data-spot="5"><span class="n">5</span><span><b>Executions.</b> Sort by any column. A double-click opens the execution in a tab of its own.</span></button></li>
+            <li><button class="point" type="button" data-spot="6"><span class="n">6</span><span><b>Preview.</b> Graph, PROV-JSON, AER, SEM, Register, Validation, Raw and Index Row of the selected row.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov stats --corpus DIR --select …</code></p>
+        </div>
+      </div>
+
+      <!-- 2 Graph -->
+      <div class="panel" role="tabpanel" id="panel-graph" aria-labelledby="tab-graph" hidden>
+        <div class="stagebox">
+          <div class="shot">
+            <img class="l" src="assets/img/gui/light/agentprov-app.webp" width="1560" height="1032" loading="lazy" alt="An execution open in its own tab: the graph, the element list and inspector, and the PROV-JSON tree side by side.">
+            <img class="d" src="assets/img/gui/dark/agentprov-app.webp" width="1560" height="1032" loading="lazy" alt="An execution open in its own tab in dark mode: the graph, the element list and inspector, and the PROV-JSON tree side by side.">
+            <div class="spots">
+              <button class="spot" type="button" data-spot="1" style="--x:41%;--y:6.4%" aria-label="Point 1: Execution tabs">1</button>
+              <button class="spot" type="button" data-spot="2" style="--x:31%;--y:15.8%" aria-label="Point 2: Bundles and filters">2</button>
+              <button class="spot" type="button" data-spot="3" style="--x:32.7%;--y:58.5%" aria-label="Point 3: The graph">3</button>
+              <button class="spot" type="button" data-spot="4" style="--x:61%;--y:63%" aria-label="Point 4: Inspector">4</button>
+              <button class="spot" type="button" data-spot="5" style="--x:79.5%;--y:33%" aria-label="Point 5: PROV-JSON">5</button>
+              <button class="spot" type="button" data-spot="6" style="--x:82.7%;--y:68%" aria-label="Point 6: Hidden content">6</button>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Read the graph and its JSON side by side.</h3>
+          <p>Each execution opens in a tab of its own, from any corpus, so you can compare executions across corpora.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Tabs.</b> Up to 12 executions open at once; titles name the corpus when tabs come from more than one.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>Bundles and filters.</b> Core is always on, inference on by default, assessment off. Filter by evidence class; choose the layout.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>The graph.</b> Entities are ovals, activities boxes, agents house shapes. Solid is observed, dashed derived, dotted inferred.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>Inspector.</b> The attributes of the selected element, including its evidence class and basis rule.</span></button></li>
+            <li><button class="point" type="button" data-spot="5"><span class="n">5</span><span><b>PROV-JSON.</b> Selecting a node selects its statement in the tree, and the other way round.</span></button></li>
+            <li><button class="point" type="button" data-spot="6"><span class="n">6</span><span><b>Content stays hidden.</b> Corpora carry prompt-injection payloads by design, so text is shown only when you switch it on, escaped and fenced.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov render --corpus DIR --ex ID</code></p>
+        </div>
+      </div>
+
+      <!-- 3 Outcomes -->
+      <div class="panel" role="tabpanel" id="panel-outcomes" aria-labelledby="tab-outcomes" hidden>
+        <div class="stagebox">
+          <div class="shot">
+            <img class="l" src="assets/img/gui/light/viewer-outcomes.webp" width="1560" height="1032" loading="lazy" alt="The Viewer on a derived corpus: task and outcome pickers, the attack-succeeded legend, a row marked attack succeeded yes, and the SEM annotations of that execution.">
+            <img class="d" src="assets/img/gui/dark/viewer-outcomes.webp" width="1560" height="1032" loading="lazy" alt="The Viewer on a derived corpus in dark mode: task and outcome pickers, the attack-succeeded legend, a row marked attack succeeded yes, and the SEM annotations of that execution.">
+            <div class="spots">
+              <button class="spot" type="button" data-spot="1" style="--x:48.7%;--y:26.7%" aria-label="Point 1: Task and outcome pickers">1</button>
+              <button class="spot" type="button" data-spot="2" style="--x:16.3%;--y:30.2%" aria-label="Point 2: The legend">2</button>
+              <button class="spot" type="button" data-spot="3" style="--x:92.3%;--y:41.7%" aria-label="Point 3: Attack succeeded">3</button>
+              <button class="spot" type="button" data-spot="4" style="--x:26.6%;--y:60%" aria-label="Point 4: SEM annotations">4</button>
+              <button class="spot" type="button" data-spot="5" style="--x:75.5%;--y:60%" aria-label="Point 5: Rules">5</button>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Find the cells where an attack succeeded.</h3>
+          <p>On a derived corpus the Viewer adds task and outcome columns, and the SEM tab lists every annotation of the selected execution.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Task and outcome pickers.</b> Suite, attack, injection task, defence, requested model, utility and attack succeeded.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>The legend.</b> Says exactly what the marker means and what a blank means.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>⚑ yes.</b> Shown only when the SEM claim <code>attack_succeeded</code> holds: the benchmark's checker judged the injection task achieved. Never guessed from a raw judgement.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>SEM annotations.</b> Integrity, role, channel and injection marker, each with its evidence class.</span></button></li>
+            <li><button class="point" type="button" data-spot="5"><span class="n">5</span><span><b>Rules.</b> Every annotation names the versioned rule that produced it.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov inspect ID --corpus DIR --view sem</code></p>
+        </div>
+      </div>
+
+      <!-- 4 AER -->
+      <div class="panel" role="tabpanel" id="panel-aer" aria-labelledby="tab-aer" hidden>
+        <div class="stagebox">
+          <div class="shot">
+            <img class="l" src="assets/img/gui/light/viewer-aer.webp" width="1560" height="1032" loading="lazy" alt="The AER tab of one execution: records grouped by kind, each with its evidence class, attesting party and rules.">
+            <img class="d" src="assets/img/gui/dark/viewer-aer.webp" width="1560" height="1032" loading="lazy" alt="The AER tab of one execution in dark mode: records grouped by kind, each with its evidence class, attesting party and rules.">
+            <div class="spots">
+              <button class="spot" type="button" data-spot="1" style="--x:34%;--y:53.4%" aria-label="Point 1: Digests">1</button>
+              <button class="spot" type="button" data-spot="2" style="--x:21.6%;--y:61.6%" aria-label="Point 2: Record kinds">2</button>
+              <button class="spot" type="button" data-spot="3" style="--x:33.2%;--y:66%" aria-label="Point 3: Evidence class">3</button>
+              <button class="spot" type="button" data-spot="4" style="--x:36.2%;--y:79%" aria-label="Point 4: Attesting party">4</button>
+              <button class="spot" type="button" data-spot="5" style="--x:52%;--y:63.4%" aria-label="Point 5: Rules">5</button>
+              <button class="spot" type="button" data-spot="6" style="--x:74.4%;--y:53.4%" aria-label="Point 6: Show content">6</button>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Look underneath, at the execution record.</h3>
+          <p>The AER is the canonical record every graph is derived from. Each record says how it is known and which rule put it there.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Digests.</b> The execution digest, the file's sha256 and the seal.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>Record kinds.</b> Activity, actor, execution, fixture, judgement, message and more.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>Evidence class.</b> O, D or I for every record.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>Attesting party.</b> Who vouches for the record: the source, the benchmark or the configuration.</span></button></li>
+            <li><button class="point" type="button" data-spot="5"><span class="n">5</span><span><b>Rules.</b> The adapter rules that produced it, with versions.</span></button></li>
+            <li><button class="point" type="button" data-spot="6"><span class="n">6</span><span><b>Show content.</b> Off by default in every pane; when on, text is escaped, fenced and truncated.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov inspect ID --corpus DIR --view records</code></p>
+        </div>
+      </div>
+
+      <!-- 5 New Job -->
+      <div class="panel" role="tabpanel" id="panel-newjob" aria-labelledby="tab-newjob" hidden>
+        <div class="stagebox">
+          <div class="shot dialog-step">
+            <img class="l" src="assets/img/gui/light/runs-jobs.webp" width="1560" height="1032" loading="lazy" alt="">
+            <img class="d" src="assets/img/gui/dark/runs-jobs.webp" width="1560" height="1032" loading="lazy" alt="">
+            <div class="dlg" style="--ar:760/748">
+              <img class="l" src="assets/img/gui/light/new-job.webp" width="760" height="748" loading="lazy" alt="The New Job form for an import, scrolled to its end: options, the conformance check, the tier R2 and the exact command that will run.">
+              <img class="d" src="assets/img/gui/dark/new-job.webp" width="760" height="748" loading="lazy" alt="The New Job form for an import in dark mode: options, the conformance check, the tier R2 and the exact command that will run.">
+              <div class="spots">
+                <button class="spot" type="button" data-spot="1" style="--x:64.5%;--y:26.7%" aria-label="Point 1: Options">1</button>
+                <button class="spot" type="button" data-spot="2" style="--x:38.6%;--y:60.4%" aria-label="Point 2: Conformance">2</button>
+                <button class="spot" type="button" data-spot="3" style="--x:12.9%;--y:71.7%" aria-label="Point 3: Tier">3</button>
+                <button class="spot" type="button" data-spot="4" style="--x:51.3%;--y:82%" aria-label="Point 4: The command">4</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>See the exact command before it runs.</h3>
+          <p>New Job has a form for every command: import, derive, validate, verify, recompute, render, statistics, seal and more.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Options.</b> Each form is built from the command's own options. More Options shows the rest.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>Conformance.</b> The W3C PROV conformance check (tier 4) is on by default. Turning it off marks the corpus unvalidated.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>Tier.</b> R0 reads only, R1 writes local data, R2 uses the network or paid calls and needs a tick to confirm.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>The command.</b> Exactly what will run, as a separate <code>agentprov</code> process.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>the command in the preview, exactly as shown</code></p>
+        </div>
+      </div>
+
+      <!-- 6 Runs -->
+      <div class="panel" role="tabpanel" id="panel-runs" aria-labelledby="tab-runs" hidden>
+        <div class="stagebox">
+          <div class="shot">
+            <img class="l" src="assets/img/gui/light/runs-jobs.webp" width="1560" height="1032" loading="lazy" alt="The Runs page: two finished jobs and the dashboard of the validate job, with its exact command, counts by status and the end of its stderr.">
+            <img class="d" src="assets/img/gui/dark/runs-jobs.webp" width="1560" height="1032" loading="lazy" alt="The Runs page in dark mode: two finished jobs and the dashboard of the validate job, with its exact command, counts by status and the end of its stderr.">
+            <div class="spots">
+              <button class="spot" type="button" data-spot="1" style="--x:30.8%;--y:7.6%" aria-label="Point 1: Start a job">1</button>
+              <button class="spot" type="button" data-spot="2" style="--x:34.6%;--y:20.4%" aria-label="Point 2: Jobs">2</button>
+              <button class="spot" type="button" data-spot="3" style="--x:57%;--y:41.7%" aria-label="Point 3: The command">3</button>
+              <button class="spot" type="button" data-spot="4" style="--x:51.3%;--y:81.4%" aria-label="Point 4: Output">4</button>
+              <button class="spot" type="button" data-spot="5" style="--x:69.2%;--y:91.1%" aria-label="Point 5: Controls">5</button>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Jobs keep running when you close the window.</h3>
+          <p>A job is a detached <code>agentprov</code> process. The app finds it again when it reopens.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Start.</b> Run Live, New Job, Dev Run and Live Dev Run.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>Jobs.</b> Label, command, state, tier, progress and start time.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>The command.</b> The job's full command line, with its progress and rates.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>Output.</b> The end of stderr: here a validate job that passed every tier.</span></button></li>
+            <li><button class="point" type="button" data-spot="5"><span class="n">5</span><span><b>Controls.</b> Stop, Force Kill, Pause (Drain), Resume, Open Log and Copy Command.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov jobs list</code></p>
+        </div>
+      </div>
+
+      <!-- 7 Run Live -->
+      <div class="panel" role="tabpanel" id="panel-live" aria-labelledby="tab-live" hidden>
+        <div class="stagebox">
+          <div class="shot dialog-step">
+            <img class="l" src="assets/img/gui/light/runs-jobs.webp" width="1560" height="1032" loading="lazy" alt="">
+            <img class="d" src="assets/img/gui/dark/runs-jobs.webp" width="1560" height="1032" loading="lazy" alt="">
+            <div class="dlg" style="--ar:1150/928">
+              <img class="l" src="assets/img/gui/light/run-live.webp" width="1150" height="928" loading="lazy" alt="The Run Live dialog with the scripted transport: backend agentdojo with live status partial, the transport, the containment field, and the suites and attacks from the backend's catalogue.">
+              <img class="d" src="assets/img/gui/dark/run-live.webp" width="1150" height="928" loading="lazy" alt="The Run Live dialog in dark mode with the scripted transport: backend agentdojo with live status partial, the transport, the containment field, and the suites and attacks from the backend's catalogue.">
+              <div class="spots">
+                <button class="spot" type="button" data-spot="1" style="--x:23.5%;--y:13.6%" aria-label="Point 1: Live status">1</button>
+                <button class="spot" type="button" data-spot="2" style="--x:56%;--y:24.7%" aria-label="Point 2: Transport">2</button>
+                <button class="spot" type="button" data-spot="3" style="--x:26%;--y:53.7%" aria-label="Point 3: Containment">3</button>
+                <button class="spot" type="button" data-spot="4" style="--x:24%;--y:70%" aria-label="Point 4: Cells">4</button>
+                <button class="spot" type="button" data-spot="5" style="--x:95.1%;--y:96.6%" aria-label="Point 5: Start">5</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Set up a live run, with its cost up front.</h3>
+          <p>Run Live sets up a capture, shows its estimate, asks for confirmation and hands it to Runs as a job.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Live status.</b> What the backend's live part supports on this build.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>Transport.</b> The scripted transport needs no network, keys or money. An endpoint takes its key from the OS keychain.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>Containment.</b> Required for a real model. Options that AgentPROV cannot enforce are recorded as your declaration.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>Cells.</b> Suites and attacks come from the backend's own catalogue.</span></button></li>
+            <li><button class="point" type="button" data-spot="5"><span class="n">5</span><span><b>Start.</b> Shows the estimate, the worst case and your caps. A real model starts only after you tick consent.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov estimate …  then  agentprov run …</code></p>
+        </div>
+      </div>
+
+      <!-- 8 Package -->
+      <div class="panel" role="tabpanel" id="panel-package" aria-labelledby="tab-package" hidden>
+        <div class="stagebox">
+          <div class="shot">
+            <img class="l" src="assets/img/gui/light/package.webp" width="1560" height="1032" loading="lazy" alt="The Package page at step 1 of nine: the working corpus, the corpus version, and the preconditions checked before a dry run.">
+            <img class="d" src="assets/img/gui/dark/package.webp" width="1560" height="1032" loading="lazy" alt="The Package page in dark mode at step 1 of nine: the working corpus, the corpus version, and the preconditions checked before a dry run.">
+            <div class="spots">
+              <button class="spot" type="button" data-spot="1" style="--x:23.5%;--y:13.6%" aria-label="Point 1: Nine steps">1</button>
+              <button class="spot" type="button" data-spot="2" style="--x:58%;--y:37.8%" aria-label="Point 2: Preconditions">2</button>
+              <button class="spot" type="button" data-spot="3" style="--x:65.2%;--y:89.6%" aria-label="Point 3: Dry run">3</button>
+              <button class="spot" type="button" data-spot="4" style="--x:22.5%;--y:18.6%" aria-label="Point 4: Deposit">4</button>
+            </div>
+          </div>
+        </div>
+        <div class="notes">
+          <h3>Seal a corpus and prepare its deposit.</h3>
+          <p>Package walks through sealing and the deposit draft. Every step that does something runs as a job.</p>
+          <ol class="points">
+            <li><button class="point" type="button" data-spot="1"><span class="n">1</span><span><b>Nine steps.</b> Corpus, withholding, counts and licences, datasheet, seal, verify, release scan, deposit, finish.</span></button></li>
+            <li><button class="point" type="button" data-spot="2"><span class="n">2</span><span><b>Preconditions.</b> State, release status, validation mode, the writer's lock and a clean checkout commit.</span></button></li>
+            <li><button class="point" type="button" data-spot="3"><span class="n">3</span><span><b>Dry run first.</b> Check and Dry Run before anything is sealed.</span></button></li>
+            <li><button class="point" type="button" data-spot="4"><span class="n">4</span><span><b>Nothing is uploaded until you ask.</b> The Zenodo helper makes unpublished drafts only. You press Publish on Zenodo yourself.</span></button></li>
+          </ol>
+          <p class="cli">Same thing in a terminal<code>agentprov package --corpus DIR --corpus-version X.Y.Z --dry-run</code></p>
+        </div>
+      </div>
+
+      <div class="tour-foot">
+        <div class="stepper">
+          <button type="button" id="tour-prev" aria-label="Previous step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+          <span id="tour-count" aria-live="polite">Step 1 of 8</span>
+          <button type="button" id="tour-next" aria-label="Next step"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+        </div>
+        <p class="tour-note">Screenshots of version 0.1.0 on synthetic test corpora, taken with the project's screenshot script. Run Live shows stub answers; nothing ran. The <a href="docs/08-desktop-app/">desktop app chapter</a> covers every page.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== live and released -->
+<section class="chapter" id="sources" aria-labelledby="sources-title">
+  <div class="wrap">
+    <div class="chapter-head reveal">
+      <span class="eyebrow">Sources</span>
+      <h2 id="sources-title">Live runs and released logs, one record.</h2>
+      <p>Runs captured live and logs released by other research projects become the same AgentPROV Execution Record, so the same engine derives their provenance.</p>
+    </div>
+    <div class="duo">
+      <article class="card reveal">
+        <span class="tagline"><i style="background:var(--entity)"></i>Released logs</span>
+        <h3>Import what other studies published.</h3>
+        <p>Import adapters read released logs as untrusted bytes. Parsing is bounded, archives are streamed and never extracted, and the raw bytes are kept and hash-pinned beside the record.</p>
+        <ul class="chips" aria-label="Import adapter families">
+          <li>AgentDojo family</li><li>AgentDyn</li><li>ROPE</li><li>Inspect</li><li>OpenHands</li><li>Gemini CLI</li><li>Qwen Code</li><li>AutoGen</li><li>AgentOps</li><li>DTap</li><li>MCPHunt</li><li>CredLeak</li><li>Wire logs</li>
+        </ul>
+        <p class="coverage"><b>Coverage, as the registry states it</b>adapter-based core; demonstrated on 48 sources in 13 formats (single-agent, tool-calling traces)</p>
+      </article>
+      <article class="card reveal">
+        <span class="tagline"><i style="background:var(--activity)"></i>Live runs</span>
+        <h3>Capture new runs as they happen.</h3>
+        <p>Four live backends: AgentDojo, AutoDojo and AgentDyn record runs as <code>capture/0.1</code>, and an Inspect harness runs AgentHarm and keeps Inspect's own log of the run.</p>
+        <ul class="checks">
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg><span>A real model starts only with your consent, cost caps and a containment choice.</span></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg><span>Keys come from the OS keychain; the app never shows one.</span></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 10.5 4 4 8-9"/></svg><span>A scripted transport tests the whole path with no network, keys or cost.</span></li>
+        </ul>
+        <p class="status"><strong>A tested capability.</strong> Live capture works and is tested in v0.1. No live results are claimed, and live corpora cannot be sealed until v0.2. Live runs need macOS or Linux.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== corpora -->
+<section class="chapter" id="corpora" aria-labelledby="corpora-title">
+  <div class="wrap">
+    <div class="chapter-head reveal">
+      <span class="eyebrow">Corpora</span>
+      <h2 id="corpora-title">Corpora you can check for yourself.</h2>
+      <p>The corpora built with this release are published on Zenodo as one collection. Each has a datasheet, a licence class and a root digest.</p>
+    </div>
+    <ol class="chain reveal" aria-label="The digest chain of a corpus">
+      <li><b>Raw bytes</b><code>sha256 of each source artefact</code></li>
+      <li><b>AER</b><code>execution digest and seal</code></li>
+      <li><b>SEM</b><code>annotation digest</code></li>
+      <li><b>PROV</b><code>bundle digests, then the root digest</code></li>
+    </ol>
+    <div class="corpora-grid">
+      <article class="card reveal">
+        <span class="tagline"><i style="background:var(--agent)"></i>On Zenodo</span>
+        <h3>One collection, one DOI per record.</h3>
+        <p>Download a corpus, then check its chain from the raw bytes to the root digest. Provenance is derivation-reproducible: recompute it from the stored record without running any model.</p>
+        <p><span class="pending" data-placeholder="umbrella-doi">Collection DOI: assigned at deposit</span></p>
+        <p class="linkrow"><a href="docs/14-corpora/">The corpora chapter</a><a href="docs/15-corpus-artefacts/">What a corpus holds</a></p>
+      </article>
+      <div class="terminal reveal">
+        <div class="terminal-bar"><i></i><i></i><i></i><span>Check a corpus</span><button class="copy" type="button" data-copy="verify-cmds">Copy</button></div>
+<pre id="verify-cmds"><span class="c"># the chain from raw bytes to the root digest</span>
+<span class="p">$ </span>agentprov verify --corpus CORPUS --level chain
+
+<span class="c"># run the validation tiers again</span>
+<span class="p">$ </span>agentprov validate --corpus CORPUS
+
+<span class="c"># recompute provenance from the record and compare</span>
+<span class="p">$ </span>agentprov recompute --corpus CORPUS --dry-run</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== downloads -->
+<section class="chapter" id="download" aria-labelledby="download-title">
+  <div class="wrap">
+    <div class="chapter-head reveal">
+      <span class="eyebrow">Download</span>
+      <h2 id="download-title">Get the desktop app.</h2>
+      <p>Free and open source under the MIT licence. Without an AgentPROV checkout the app opens as a viewer; point it at a checkout in Settings › General to run jobs.</p>
+    </div>
+
+    <div class="dl-hero reveal" id="dl-hero">
+      <div class="dl-hero-main">
+        <img class="app-icon" src="assets/img/brand/agentprov-icon.svg" width="96" height="96" alt="">
+        <div>
+          <h3 id="dl-hero-title">AgentPROV 0.1.0</h3>
+          <p id="dl-hero-sub">Choose your platform below.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn" id="dl-primary" href="#platforms">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+          <span id="dl-primary-label">See all downloads</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="platforms" id="platforms">
+      <article class="platform reveal" data-os="mac">
+        <div class="platform-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20" stroke-linecap="round"/></svg>
+          <h3>macOS</h3><span class="yours" hidden>Your system</span>
+        </div>
+        <ul class="files">
+          <li><a class="file" data-asset="AgentPROV-macos-arm64.dmg" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/AgentPROV-macos-arm64.dmg"><b>Apple silicon</b><small>macOS 15 or later · disk image</small><code>AgentPROV-macos-arm64.dmg</code><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></a></li>
+        </ul>
+        <p class="note"><b>First launch.</b> The app is signed ad hoc, not notarised, so macOS refuses the first launch. Open System Settings › Privacy &amp; Security and click <b>Open Anyway</b>.</p>
+      </article>
+      <article class="platform reveal" data-os="windows">
+        <div class="platform-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18"/><path d="M6 6.3h.01M8.5 6.3h.01" stroke-linecap="round" stroke-width="2"/></svg>
+          <h3>Windows</h3><span class="yours" hidden>Your system</span>
+        </div>
+        <ul class="files">
+          <li><a class="file" data-asset="AgentPROV-windows-x64.zip" data-arch="x64" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/AgentPROV-windows-x64.zip"><b>x64</b><small>Windows 11 · zip · tested under emulation</small><code>AgentPROV-windows-x64.zip</code><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></a></li>
+          <li><a class="file" data-asset="AgentPROV-windows-arm64.zip" data-arch="arm64" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/AgentPROV-windows-arm64.zip"><b>ARM64</b><small>Windows 11 · zip</small><code>AgentPROV-windows-arm64.zip</code><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></a></li>
+        </ul>
+        <p class="note"><b>First launch.</b> The bundles are not code-signed. When SmartScreen warns you, choose <b>More info</b>, then <b>Run anyway</b>. Live runs are not available on Windows in v0.1.</p>
+      </article>
+      <article class="platform reveal" data-os="linux">
+        <div class="platform-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 10 3 2.5L7 15M12 15h5"/></svg>
+          <h3>Linux</h3><span class="yours" hidden>Your system</span>
+        </div>
+        <ul class="files">
+          <li><a class="file" data-asset="AgentPROV-linux-x86_64.tar.gz" data-arch="x64" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/AgentPROV-linux-x86_64.tar.gz"><b>x86_64</b><small>glibc 2.35 or later · tested under emulation</small><code>AgentPROV-linux-x86_64.tar.gz</code><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></a></li>
+          <li><a class="file" data-asset="AgentPROV-linux-aarch64.tar.gz" data-arch="arm64" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/AgentPROV-linux-aarch64.tar.gz"><b>aarch64</b><small>glibc 2.39 or later</small><code>AgentPROV-linux-aarch64.tar.gz</code><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg></a></li>
+        </ul>
+        <p class="note"><b>First launch.</b> Unpack the archive and run <code>AgentPROV/AgentPROV</code>. The folder has a desktop-entry installer. Needs the X11 libraries listed in the guide.</p>
+      </article>
+    </div>
+
+    <div class="dl-foot">
+      <article class="card reveal">
+        <h3>Check what you downloaded.</h3>
+        <p>Every release file is listed in <code>SHA256SUMS</code>, signed with an SSH key (<code>ssh-keygen -Y verify</code>).</p>
+        <p class="linkrow">
+          <a data-asset="SHA256SUMS" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/SHA256SUMS">SHA256SUMS</a>
+          <a data-asset="SHA256SUMS.sig" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/SHA256SUMS.sig">SHA256SUMS.sig</a>
+          <a href="https://github.com/nickjones39/AgentPROV/releases/latest">All release files</a>
+        </p>
+      </article>
+      <article class="card reveal">
+        <h3>Prefer the command line?</h3>
+        <p>The <code>agentprov</code> CLI and library run on Python 3.14. The source archive holds the whole repository at the release tag.</p>
+        <p class="linkrow">
+          <a data-asset="AgentPROV-0.1.0-source.tar.gz" href="https://github.com/nickjones39/AgentPROV/releases/latest/download/AgentPROV-0.1.0-source.tar.gz">AgentPROV-0.1.0-source.tar.gz</a>
+          <a href="docs/01-install/">Installation guide</a>
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== cite -->
+<section class="chapter" id="cite" aria-labelledby="cite-title">
+  <div class="wrap cite">
+    <div class="cite-copy reveal">
+      <span class="eyebrow">Cite</span>
+      <h2 id="cite-title" style="font-size:var(--step-3);line-height:1.06;letter-spacing:-0.028em">Cite AgentPROV.</h2>
+      <p>If AgentPROV or its corpora help your work, please cite the software. The repository's <code>CITATION.cff</code> has the same record, and GitHub offers it under “Cite this repository”.</p>
+      <div class="paper">
+        <i>AgentPROV: Converting Live and Released LLM-Agent Security Runs to W3C PROV, with Systematically Sourced Corpora</i>
+        <span data-placeholder="paper">Nicholas Jones · paper in preparation; the link follows on publication</span>
+      </div>
+    </div>
+    <div class="terminal reveal">
+      <div class="terminal-bar"><i></i><i></i><i></i><span>BibTeX</span><button class="copy" type="button" data-copy="bibtex">Copy</button></div>
+<pre id="bibtex">@software{jones_agentprov_2026,
+  author  = {Jones, Nicholas},
+  title   = {AgentPROV: execution provenance for
+             LLM-agent security research},
+  version = {0.1.0},
+  year    = {2026},
+  license = {MIT},
+  url     = {https://github.com/nickjones39/AgentPROV},
+  doi     = {10.5281/zenodo.23786079}
+}</pre>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-about">
+        <a class="brand" href="#top" aria-label="AgentPROV, back to top">
+          <img src="assets/img/brand/agentprov-wordmark.svg" class="l" width="146" height="28" alt="" style="height:28px;width:auto">
+          <img src="assets/img/brand/agentprov-wordmark-on-dark.svg" class="d" width="146" height="28" alt="" style="height:28px;width:auto">
+        </a>
+        <p>Execution provenance for LLM-agent security research. Developed by Nicholas Jones as part of PhD research at Torrens University Australia.</p>
+      </div>
+      <nav aria-label="Project">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/nickjones39/AgentPROV">GitHub</a></li>
+          <li><a href="https://github.com/nickjones39/AgentPROV/releases/latest">Releases</a></li>
+          <li><a href="https://github.com/nickjones39/AgentPROV/blob/main/LICENSE">MIT licence</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Documentation">
+        <h4>Docs</h4>
+        <ul>
+          <li><a href="docs/">User guide</a></li>
+          <li><a href="docs/08-desktop-app/">Desktop app</a></li>
+          <li><a href="docs/09-safety/">Safety</a></li>
+          <li><a href="https://w3id.org/agentprov/ns">The apv namespace</a></li>
+        </ul>
+      </nav>
+      <nav aria-label="Research">
+        <h4>Research</h4>
+        <ul>
+          <li><span data-placeholder="paper-link">Paper (in preparation)</span></li>
+          <li><span data-placeholder="zenodo-link">Corpora on Zenodo (at release)</span></li>
+          <li><a href="#cite">How to cite</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer-base">
+      <span>© 2026 Nicholas Jones. Code under the MIT licence; corpora under their own licence classes.</span>
+      <span>This site sets no cookies and loads nothing from other servers.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,431 @@
+# Artefact catalogue `adprov` (docs/architecture D.15.2, D.15.6; DECISIONS D-12): the AgentDojo-PROV transcript/v1 trees.
+#
+# Data, not code: loaded by agentprov.artefacts through importlib.resources (this directory's catalogue is found without
+# importing any adapter module). It covers both trees of profile `adprov-v1`: the generated tree (registry part
+# `release`, the 13 classes A1-A13 of D.10.9, found in the manuscript's corpus of 17,664 traces) and the converted tree
+# (part `converted-legacy`, the compat oracle; the baseline converter's artefacts). `adprov.art.reported_calls_exceed`
+# was found on 2026-10-08 by the full-scope gate run; `adprov.art.payload_not_reaching_agent` (the SEM-reading detector
+# of D.15.8 item 11) on 2026-10-29 by the stats run over the sealed round-1 corpus, where it was unclassified.
+#
+# Handling follows D.15.1: evidence is never edited. CR states the fact truthfully in the engine's model, NR counts a loss
+# that was never recorded, FO flags what cannot be corrected. No entry uses DR or RJ: this family reads recorded
+# transcripts and reconstructs nothing beyond the rules of its rule catalogue.
+#
+# `expected` counts are the manuscript and audit figures quoted by the specification. Each is `unverified` until the
+# first full-snapshot import has confirmed it (D.15.6, phase 13); none is a gate, and a mismatch is reported, never hidden.
+# Where the specification gives no count, no `expected` row is written: nothing here is estimated.
+#
+# An entry accounts for a safety-net finding (agentprov.artefacts) when its `detector.rule` is the generic detector, or is
+# the mapper rule that the finding's field-scoped rule references cite, or the finding is one of its `claims`, or it carries
+# one of the entry's `recorded_as.issues` codes. Anything else the net finds is reported as artefact.unclassified.*.
+#
+# Rules named here exist in the `adprov`, `agentdojo` and `aer` rule catalogues (tests/unit/artefacts checks it). Code and
+# audit locations behind each entry are in `refs`; the baseline is nickjones39/agentdojo-prov @ 579a908.
+
+version = 1
+family = "adprov"
+namespaces = ["adprov"]
+
+# ============================================================================================ generated tree (release)
+
+[[artefact]]
+id = "adprov.art.rerun_passes_lost"
+title = "Earlier passes of a silent re-run are lost (A1)"
+description = "AgentDojo re-runs a pass up to three times when the final reply is empty and the transcript holds only the last pass. Where the harness call counter exceeds the held assistant turns, the earlier calls are emitted as lost model calls in a non-scored attempt; their content is unknown."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.lost_calls_from_count@1", class = "D" }
+handling = { class = "CR", rule = "adprov.lost_calls_from_count@1" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 153, basis = "traces whose usage.n_llm_calls exceeds the assistant turns held (I.1.2 C07; EF F.2 item 5)", unit = "traces", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A1", "docs/architecture/C_data_model.md C.7.4", "audit/capture.md section 4.2.4"]
+
+[[artefact]]
+id = "adprov.art.single_attempt_inferred"
+title = "A single attempt is inferred from the harness call counter"
+description = "Where the harness call counter equals the assistant turns held, the transcript's turns are read as the only attempt (index 0): no earlier pass made calls. The reading rests on the counter's documented semantics, not on cited code, so it is cited through its I twin and the attempt is INFERRED (D-27 c6); a pass that made no call would not show in the counter."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.single_attempt_from_call_count@1", class = "I" }
+handling = { class = "CR", rule = "adprov.single_attempt_from_call_count_unverified@1" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 14567, basis = "phase-10 examination 2, R07: executions citing adprov.single_attempt_from_call_count@1 before item 3", unit = "traces", status = "unverified" },
+]
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.5.4", "docs/architecture/DECISIONS.md D-27 c6", "audit/capture.md section 4.2.4"]
+
+[[artefact]]
+id = "adprov.art.last_pass_only"
+title = "A transcript holds only the final scored pass"
+description = "The turns of a transcript/v1 file are the message list of the final, scored pipeline pass. Earlier passes are never recorded (discarded_attempts occurs 0 times in the released tree), so the scored attempt carries an unknown index."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.turns_hold_last_pass@1", class = "D" }
+recorded_as = { issues = ["earlier_attempts_unobservable"] }
+handling = { class = "NR", rule = "adprov.turns_hold_last_pass@1" }
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.7", "audit/capture.md section 3"]
+
+[[artefact]]
+id = "adprov.art.times_not_recorded"
+title = "transcript/v1 records no per-message or per-model-call time"
+description = "The format holds the run start and end and, in the generated tree, tool timings. Messages, model calls and environment-state records have no time slot, so their times are unknown (not recorded). No time is derived from the run interval or from file dates."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "capture"
+detector = { rule = "adprov.run_interval_scope@1", class = "D" }
+claims = ["artefact.generic.sentinel_time#unknown_not_recorded"]
+handling = { class = "NR", rule = "adprov.run_interval_scope@1" }
+manuscript = true
+refs = ["docs/architecture/C_data_model.md C.7.1", "audit/legacy_replay.md section 4"]
+
+[[artefact]]
+id = "adprov.art.usage_absent"
+title = "Model-call completeness is unverifiable without reported usage (A2)"
+description = "Some providers return no usage and the transcript has no model_config, so the reported call count cannot be compared with the assistant turns. The calls are derived from the turns, and the accounting check agent_calls_vs_assistant is recorded as unverifiable."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "provider"
+detector = { rule = "aer.acc.agent_calls_vs_assistant@1", class = "D" }
+recorded_as = { issues = ["accounting_unverifiable"] }
+handling = { class = "FO", rule = "aer.acc.agent_calls_vs_assistant@1" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 2944, basis = "DeepSeek traces with no model_config (EF F.2 item 5; I.1.2 C07)", unit = "traces", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A2", "docs/architecture/C_data_model.md C.12.2"]
+
+[[artefact]]
+id = "adprov.art.reported_calls_exceed"
+title = "Reported call count exceeds the held assistant messages"
+description = "In some traces the usage-reported call count is larger than the assistant messages held, and the finish-reason list or the lost-call rule cannot reconcile them. They are sealed accounting_inconsistent (reported_calls_differ). The cause (unrecorded calls or a counting defect) is unknown."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "unknown"
+detector = { rule = "aer.acc.reported_counts@1", class = "D" }
+recorded_as = { issues = ["accounting_inconsistent"] }
+handling = { class = "FO", rule = "aer.acc.reported_counts@1" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 32, basis = "qwen-2.5-72b-instruct 20 and gemini-2.5-flash 12, found by the full-scope gate run of 2026-10-08", unit = "traces", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.6", "docs/architecture/C_data_model.md C.7.4"]
+
+[[artefact]]
+id = "adprov.art.temperature_not_transmitted"
+title = "A configured temperature was never transmitted (A3)"
+description = "agentdojo 0.1.35 sends `temperature or NOT_GIVEN`, so a configured 0.0 is not sent. The transcript records the configured value; the transmitted value is unknown."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.temperature_not_transmitted@1", class = "D" }
+handling = { class = "FO", rule = "adprov.temperature_not_transmitted@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A3", "audit/capture.md section 3"]
+
+[[artefact]]
+id = "adprov.art.text_tool_call"
+title = "Tool calls written as text and never executed (A4)"
+description = "Some models wrote a tool call into the reply text instead of a structured call. The call was not executed. Re-parsing it into a tool_call part is forbidden (D.15.1); it is flagged by the generic text-encoded-call detector, whose counts are heuristic."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "provider"
+detector = { rule = "artefact.generic.text_encoded_call", class = "I" }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 470, basis = "traces, 469 of them Llama 3.3 70B (heuristic count)", unit = "traces", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A4"]
+
+[[artefact]]
+id = "adprov.art.calls_pending_at_limit"
+title = "Calls requested but not executed when max_iters stopped the loop (A5)"
+description = "The last assistant message holds tool calls with no tool message because the iteration limit (max_iters = 15) ended the run. The requests exist and have no execution; the baseline dropped them."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.unexecuted_trailing_calls@1", class = "D" }
+recorded_as = { issues = ["unexecuted_tool_call", "missing_tool_result"] }
+handling = { class = "CR", rule = "agentdojo.unexecuted_trailing_calls@1" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 47, basis = "traces cut with calls pending (A5)", unit = "traces", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A5", "docs/architecture/C_data_model.md C.7.4"]
+
+[[artefact]]
+id = "adprov.art.abnormal_finish"
+title = "Abnormal finish reasons (A6)"
+description = "Replies that ended with a finish reason other than a normal stop or tool-call ending (for example a length cut). The baseline lost them to a broad except; the verbatim reasons are kept in the model calls."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "provider"
+detector = { rule = "artefact.generic.abnormal_finish", class = "O" }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 184, basis = "traces with abnormal finish reasons (A6)", unit = "traces", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A6"]
+
+[[artefact]]
+id = "adprov.art.failed_tool_empty_content"
+title = "Failed tool calls recorded as an empty string (A7)"
+description = "A failed tool call is stored with empty content although the model saw the error. The execution status is derived from the recorded error, so the failure is stated truthfully."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.tool_status_from_error@1", class = "D" }
+handling = { class = "CR", rule = "agentdojo.tool_status_from_error@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A7"]
+
+[[artefact]]
+id = "adprov.art.provider_call_ids"
+title = "Provider tool-call ids are absent, empty or repeated (A8)"
+description = "Some providers return no tool-call id (Cohere), an empty string (Gemini) or a repeated id (GLM-4.6). Provider ids are attributes, never keys. The frozen compat builder falls back to ids of the form a_tc_step<n> for them (PRV-08), which the oracle keeps; AgentPROV uses its own occurrence ids."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "provider"
+detector = { rule = "adprov.call_id_unique_match@1", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly"]
+recorded_as = { issues = ["adprov.tool_call_id_mismatch"] }
+handling = { class = "CR", rule = "adprov.call_id_unique_match@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A8", "docs/architecture/D_adapters.md D.15.5", "docs/architecture/B_audit.md PRV-08"]
+
+[[artefact]]
+id = "adprov.art.timing_overwritten_by_id"
+title = "Tool timing keyed by a repeated call id"
+description = "When a tool-call id repeats, the capture kept one timing pair per id, so only the last of the turns holds its own timing and the earlier ones are overwritten. Their times are unknown (overwritten)."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.timing_keyed_by_call_id@1", class = "I" }
+recorded_as = { issues = ["adprov.tool_timing_overwritten"] }
+handling = { class = "NR", rule = "adprov.timing_keyed_by_call_id@1" }
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.10.9 A8"]
+
+[[artefact]]
+id = "adprov.art.harness_side_effects"
+title = "Harness side effects of the AgentDojo-PROV capture (A9)"
+description = "The capture's compatibility client rewrote the developer role, resampled malformed tool-call replies and retried provider failures. The transcript does not record them per call, and the capture-code version is not recorded, so they are imported as declared instrumentation (class I), not as per-call facts."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "capture"
+detector = { rule = "adprov.v1_capture_code_semantics@1", class = "I" }
+handling = { class = "FO", rule = "adprov.v1_capture_code_semantics@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A9", "docs/architecture/D_adapters.md D.7.3"]
+
+[[artefact]]
+id = "adprov.art.model_display_name"
+title = "Title-cased model display name inside the attack payload (A10)"
+description = "The harness synthesised the model name that the attack payload addresses from the model id. It is an attack parameter, declared as instrumentation."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.model_display_name@1", class = "I" }
+handling = { class = "FO", rule = "adprov.model_display_name@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A10"]
+
+[[artefact]]
+id = "adprov.art.discarded_attempts_unrecorded"
+title = "Aborted cells silently re-run and omitted (A11)"
+description = "The baseline generator re-ran aborted cells and kept only the successful run, a selection effect. The released transcripts hold no discarded attempts, so the omission cannot be measured from them."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.discarded_attempts_in_order@1", class = "D" }
+handling = { class = "NR", rule = "adprov.discarded_attempts_in_order@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A11", "audit/capture.md section 8 D5"]
+
+[[artefact]]
+id = "adprov.art.served_model_unrecorded"
+title = "Served model, routing and reasoning not recorded (A12)"
+description = "The per-call served model and the provider route were lost by aggregation in transcript/v1. They are declared not recorded; the requested model name stays a harness-synthesised label."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "capture"
+detector = { rule = "adprov.model_names_registration@1", class = "I" }
+handling = { class = "NR", rule = "adprov.model_names_registration@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.10.9 A12", "audit/capture.md section 4.1 defect 3"]
+
+[[artefact]]
+id = "adprov.art.null_reply_as_empty"
+title = "A null assistant reply is stored as an empty string"
+description = "Before 2026-10-04 the generator stored a null reply as an empty string, so an empty text is ambiguous (null or empty). The importer states it as an ambiguous unknown and keeps the verbatim value."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.release_null_as_empty@1", class = "D" }
+handling = { class = "NR", rule = "adprov.release_null_as_empty@1" }
+manuscript = false
+refs = ["docs/architecture/C_data_model.md C.7.1", "audit/capture.md section 5.3"]
+
+[[artefact]]
+id = "adprov.art.benign_security_normalised"
+title = "A released benign security of null is a normalisation of a constant"
+description = "The generator passes security null for a benign cell, normalising AgentDojo's constant benign value. It is a harness default, not an observation, so no outcome claim is made for it."
+scope = { profiles = ["adprov-v1"], parts = ["release"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.benign_security_normalised@1", class = "D" }
+handling = { class = "CR", rule = "adprov.benign_security_normalised@1" }
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.15.5 benign_security_constant"]
+
+[[artefact]]
+id = "adprov.art.additional_user_turn"
+title = "A user turn after the first is attributed by role only"
+description = "Defence elements (tool_filter, repeat_user_prompt) also write user-role turns, and the v1 importer cannot identify them. The additional turn is attributed to the simulated user by role, flagged as unattributed."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "adprov.additional_user_turn_unattributed@1", class = "I" }
+recorded_as = { issues = ["unattributed_additional_user_message"] }
+handling = { class = "FO", rule = "adprov.additional_user_turn_unattributed@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 1527, basis = "converted traces with more than one user turn (EF F.2 e_user_query)", unit = "traces", status = "unverified" },
+]
+manuscript = false
+refs = ["docs/architecture/EF_provenance.md F.2"]
+
+[[artefact]]
+id = "adprov.art.payload_not_reaching_agent"
+title = "The injected payload never appears in what the agent read"
+description = "Attacked runs in which no tool result carries the payload (no present injection marker in the SEM). AgentDojo places its injections in environment data, so a payload reaches the agent only through the output of a tool that reads that data. In the released tree no defence ran: the agent called no tool at all (variant no_marker: no tool result to compare), or none of its calls returned the injected data or they failed (variant absent: every comparison found nothing). No message of any role in these runs holds the payload. In the converted tree a defence that redacts tool output or filters tools also produces it. The run cannot show an attack effect; the finding is only as good as the SEM marker."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "benchmark"
+detector = { rule = "artefact.generic.payload_not_reaching_agent", class = "D" }
+recorded_as = { sem = ["injection_marker"] }
+handling = { class = "FO" }
+expected = [
+  { snapshot = "adprov-v1/release@579a908", count = 3034, basis = "safety-net run (read-only, 2026-10-29) over the sealed corpus adprov-v1-release-rg2, 3,033 executions (absent 1,667, no_marker 1,366; none an attack success), and its withheld sibling, 1 (absent); 3,034 of 17,082 attacked, as phase-10 examination 2 section 10.1 row 6", unit = "executions", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.3", "docs/reports/analysis/phase10-examination-2.md section 10.1 row 6", "docs/reports/precheck/adprov-v1.md H16"]
+
+# ======================================================================================== converted tree (compat oracle)
+
+[[artefact]]
+id = "adprov.art.timing_stub"
+title = "Tool turns carry the baseline converter's timing stub"
+description = "The converter wrote start and end \"0\" for every tool turn. The stub is kept verbatim in t.raw and the start and end are unknown (not recorded). Times are never derived from durations or commit dates."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "baseline_converter"
+detector = { rule = "adprov.timing_stub_is_unknown@1", class = "D" }
+handling = { class = "CR", rule = "adprov.timing_stub_is_unknown@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 68620, basis = "tool turns with start and end \"0\" (BASELINE section 5.1; D.15.5 timing_stub)", unit = "tool_turns", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.5", "audit/legacy_replay.md section 3.6 D4"]
+
+[[artefact]]
+id = "adprov.art.dos_polarity"
+title = "Denial-of-service runs score security as the negation of utility"
+description = "For the five DoS attack families the runner sets security = not utility. The judgement is a runner rule derived from the utility judgement, not a checker result, with the polarity explicit in the semantics layer."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.dos_security_rule@1", class = "D" }
+handling = { class = "CR", rule = "agentdojo.dos_security_rule@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 485, basis = "DoS runs where security = not utility (D.15.5 dos_polarity)", unit = "runs", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.5"]
+
+[[artefact]]
+id = "adprov.art.benign_security_constant"
+title = "Benign runs carry the constant security true"
+description = "AgentDojo writes security true for every benign run. It is a harness default, not an observation, so no outcome claim is made for it."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.benign_security_constant@1", class = "D" }
+handling = { class = "CR", rule = "agentdojo.benign_security_constant@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 2024, basis = "benign logs, all security true (D.15.5 benign_security_constant)", unit = "logs", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.5"]
+
+[[artefact]]
+id = "adprov.art.run_error_imposed"
+title = "A run error imposes the outcome (False, True)"
+description = "When a run ended in an error the runner wrote utility false and security true. No checker ran, so the judgements carry the harness-default origin and no outcome claim."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.run_error_imposed_outcome@1", class = "D" }
+recorded_as = { issues = ["outcome_imposed_by_runner"] }
+handling = { class = "CR", rule = "agentdojo.run_error_imposed_outcome@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 106, basis = "run-error logs, all utility false and security true (D.15.5 run_error_imposed)", unit = "logs", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.5"]
+
+[[artefact]]
+id = "adprov.art.injection_task_as_user_task"
+title = "Injection tasks run as user tasks are labelled benign"
+description = "The solvability pre-pass runs an injection task as the user task with no attack. The benign label exists only in the v1 view; the importer maps it to a null attack and never to a task kind."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.injection_task_as_user_task@1", class = "D" }
+handling = { class = "CR", rule = "agentdojo.injection_task_as_user_task@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 432, basis = "injection-task-as-user-task logs labelled benign (D.15.5)", unit = "logs", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.5"]
+
+[[artefact]]
+id = "adprov.art.no_execution_observed"
+title = "A log with no messages has no observed execution"
+description = "An empty message list yields an outcome-only execution with the outcomes as logged. No empty trajectory is fabricated. The baseline excluded such logs; this tree should hold none."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "unknown"
+detector = { rule = "agentdojo.no_execution_observed@1", class = "D" }
+recorded_as = { issues = ["no_execution_observed"] }
+handling = { class = "CR", rule = "agentdojo.no_execution_observed@1" }
+manuscript = false
+refs = ["docs/architecture/D_adapters.md D.15.5 empty_log", "docs/architecture/C_data_model.md C.7.4"]
+
+[[artefact]]
+id = "adprov.art.context_taint_used"
+title = "Context membership inferred from message order"
+description = "The baseline builder asserted context-visibility used edges as PROV. The context of each call is inferred from the message prefix (class I), which is false for tool_filter, repeat_user_prompt and PI-detector pipelines, so it belongs in the inference bundle."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "baseline_converter"
+detector = { rule = "adprov.context_is_prefix@1", class = "I" }
+handling = { class = "CR", rule = "adprov.context_is_prefix@1" }
+manuscript = true
+refs = ["docs/architecture/D_adapters.md D.15.5", "docs/architecture/C_data_model.md C.3.5"]
+
+[[artefact]]
+id = "adprov.art.pi_detector_overwritten"
+title = "Tool output replaced by the prompt-injection detector sentinel"
+description = "The transformers_pi_detector defence replaced tool output with a fixed sentinel before logging. The original text is unknown (overwritten); the sentinel stays as the recorded content."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "upstream_harness"
+detector = { rule = "agentdojo.pi_detector_sentinel@1", class = "I" }
+handling = { class = "CR", rule = "agentdojo.pi_detector_sentinel@1" }
+expected = [
+  { snapshot = "adprov-v1/converted-legacy@579a908", count = 2154, basis = "entities in 624 graphs (C.7.1 resolved note; D.15.5 context_taint_used)", unit = "entities", status = "unverified" },
+]
+manuscript = true
+refs = ["docs/architecture/C_data_model.md C.7.1", "docs/architecture/D_adapters.md D.15.5"]
+
+[[artefact]]
+id = "adprov.art.upstream_link_unresolved"
+title = "A converted transcript cannot be linked to its upstream log"
+description = "The upstream path is rebuilt from the meta fields the converter copied. When the rebuilt path is unusable the link to the pinned upstream log is unresolved, and the execution is not de-duplicated against the native import."
+scope = { profiles = ["adprov-v1"], parts = ["converted-legacy"] }
+cause = "baseline_converter"
+detector = { rule = "adprov.converted_stem_to_upstream_path@1", class = "D" }
+recorded_as = { issues = ["adprov.upstream_link_unresolved"] }
+handling = { class = "FO", rule = "adprov.converted_stem_to_upstream_path@1" }
+manuscript = false
+refs = ["audit/legacy_replay.md section 3.2"]
+
+[[artefact]]
+id = "adprov.art.writer_layout_deviation"
+title = "A transcript deviates from the AgentDojo-PROV writer layout"
+description = "A member order the writer layout does not allow, an unknown member or a content digest that differs from the content. Such files were not written by the pinned writer; the deviation is a seal issue."
+scope = { profiles = ["adprov-v1"], parts = ["release", "converted-legacy"] }
+cause = "capture"
+detector = { rule = "adprov.v1_writer_layout@1", class = "D" }
+recorded_as = { issues = ["adprov.v1_layout_unexpected_order", "adprov.v1_layout_unknown_member", "adprov.content_hash_mismatch"] }
+handling = { class = "FO", rule = "adprov.v1_writer_layout@1" }
+manuscript = false
+refs = ["docs/architecture/J_migration.md J.3.2"]

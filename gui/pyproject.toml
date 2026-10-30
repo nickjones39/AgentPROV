@@ -1,0 +1,83 @@
+[project]
+name = "agentprov-gui"
+version = "0.1.0"
+description = "AgentPROV desktop GUI: a read-only viewer and a job runner over the agentprov CLI (Qt Widgets; no web view, no network)"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Nicholas Jones" }]
+# D-390/D-391: a separate uv project with its own lock. The core never imports it and never lists it.
+# The core is a read-only library here (allowlist enforced by tests/test_core_allowlist.py); every write is the CLI.
+dependencies = [
+    "agentprov",                        # path source below (editable): the checkout's core, read-only modules only
+    "agentprov-capture",                # the core's own path dependency
+    "pyside6-essentials>=6.12,<6.13",   # D-390: Qt Widgets only; uv.lock pins 6.12.0 (D-441 asks for 6.12.1 on macOS 27, QTBUG-150017)
+    "psutil>=7.2,<9",                   # System sampler, job identity (pid + create time)
+    # D-440: the macOS native chrome layer (platform/macos.py only; S15). Darwin only, never the core.
+    "pyobjc-core>=12.2,<13; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=12.2,<13; sys_platform == 'darwin'",
+    "pyobjc-framework-UserNotifications>=12.2,<13; sys_platform == 'darwin'",
+]
+
+[project.scripts]
+agentprov-gui = "agentprov_gui.app:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+    "mypy>=2.4.0",
+    # G5 (D-399): one-folder bundles; dev only, never a runtime dependency (user yes 2026-10-22)
+    "pyinstaller>=6.11",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.18,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = ">=0.12.22"
+# Later than the core's (2026-10-07): PySide6 6.12.x was published after it (research §Q1). Moved deliberately.
+exclude-newer = "2026-10-14T00:00:00Z"
+default-groups = ["dev"]
+
+[tool.uv.sources]
+agentprov = { path = "..", editable = true }
+agentprov-capture = { path = "../capture", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-ra --strict-markers --import-mode=importlib"
+markers = [
+    "real_corpus: reads a local corpus under AGENTPROV_GUI_REAL_CORPUS (read-only; skipped when unset)",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "T20"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agentprov_gui", "_ast_support", "_corpus_support", "test_viewer"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B011", "T20"]
+"tools/**" = ["T20"]  # maintenance scripts print, as in the core's tools/
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src"]
+strict = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["agentprov", "agentprov.*", "agentprov_capture", "agentprov_capture.*"]
+follow_untyped_imports = true
+
+[[tool.mypy.overrides]]
+module = ["psutil", "psutil.*", "objc", "objc.*", "AppKit", "Foundation", "UserNotifications", "PyObjCTools.*"]
+ignore_missing_imports = true  # no stubs in the lock (types-psutil would be another download)

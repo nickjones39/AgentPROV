@@ -1,0 +1,53 @@
+import sys, os, json, shutil, copy
+from pathlib import Path
+from types import SimpleNamespace as NS
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO/"tests/adapters"))
+WORK = Path(sys.argv[1])
+if WORK.exists(): shutil.rmtree(WORK)
+WORK.mkdir(parents=True)
+os.environ["AGENTPROV_HOME"] = str(WORK/"home")
+import import_support as support
+from agentprov.adapters.runner.importer import ImportSample, LocalTree, import_source, select_sample
+from agentprov.corpus.writer import CorpusWriter
+from agentprov.corpus import package as pkg
+from agentprov.corpus import derive
+support.agentdojo_tree(WORK/"in", count=4)
+def run(cdir, snap, **kw):
+    with CorpusWriter(WORK/cdir) as corpus:
+        return import_source("agentdojo", LocalTree(WORK/"in"), corpus=corpus, part="2024-06", until="aer", snapshot_id=snap,
+                             pin_check=support.vouch(WORK/"in"), in_process=True, **kw)
+def man(cdir): return json.loads((WORK/f"{cdir}.partial"/"corpus.json").read_text())
+def rows(cdir): return [json.loads(l) for l in (WORK/f"{cdir}.partial"/"executions.jsonl").read_text().splitlines()]
+def check(m):
+    m = copy.deepcopy(m)
+    src = m["sources"][0]
+    for s in src["snapshots"]: s["pin"] = {"kind": "stub"}  # in-memory only: pass the D-33 pin check
+    spec = NS(corpus_version="0.1.0", mode="import",
+              source=NS(source_id=src["source_id"], profile_id=src["profile"]["id"], profile_version=src["profile"]["version"],
+                        parts=src["parts"], snapshots=[NS(snapshot_id=s["snapshot_id"]) for s in src["snapshots"]]))
+    try: pkg._check_working(m, spec, "0.1.0"); return "ACCEPTED"
+    except Exception as e: return f"{type(e).__name__}: {e}"
+# case A
+run("a", "s1", sample=ImportSample(2, "first")); run("a", "s2")
+m = man("a")
+print("A partial:", m["partial"], "sample" in m["selection"])
+print("A rows:", sorted(r["snapshot_ids"] for r in rows("a")))
+print("A snapshot counts:", [(s["snapshot_id"], s["counts"]["candidates"], s["counts"]["executions"]) for s in m["sources"][0]["snapshots"]])
+print("A package._check_working:", check(m))
+src = derive.SourceCorpus if hasattr(derive, "SourceCorpus") else None
+print("A derive class:", [n for n in dir(derive) if "import_arguments" in str(getattr(getattr(derive, n), "__dict__", {}))])
+
+from types import SimpleNamespace
+d = object.__new__(derive.Derivation); d.manifest = m; d.plan = SimpleNamespace(until="aer", semantics=(), mode="import")
+for sid in d.snapshot_ids():
+    a = d.import_arguments(sid); print("A import_arguments", sid, "sample" in a, a.get("limit"))
+# case B: first-2 then a random-2 resume that picks other files
+files = sorted(str(p.relative_to(WORK/"in")) for p in (WORK/"in").rglob("*") if p.is_file())
+print("files:", len(files))
+first = select_sample([(f, None) for f in files], ImportSample(2, "first"))
+seed = next(str(i) for i in range(1000) if not (select_sample([(f, None) for f in files], ImportSample(2, "random", str(i))) & first))
+print("disjoint seed:", seed)
+run("b", "s1", sample=ImportSample(2, "first")); run("b", "s1", sample=ImportSample(2, "random", seed))
+m = man("b")
+print("B rows:", len(rows("b")), "manifest sample:", m["selection"]["sample"], "snapshot executions:", m["sources"][0]["snapshots"][0]["counts"]["executions"])

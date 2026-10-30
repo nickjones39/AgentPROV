@@ -1,0 +1,342 @@
+{
+ "corpus_id": "gate-agentdojo",
+ "parts": [
+  "head"
+ ],
+ "wave": 3,
+ "written": "2026-10-14",
+ "code_commit": "065b0d36",
+ "status": "desk research for the pre-registration; no data check of this corpus has run (counts below come from our own phase-10c/10d reports, the GitHub tree listing at the pin, and the repository's documents)",
+ "papers": [
+  {
+   "title": "The Gate Does Not Transfer: Measured Failure Modes of Deterministic Prompt-Injection Gating Beyond Its Original Suite, and a Language-Level Repair Path (working draft, revised 2026-08-25; unpublished)",
+   "url": "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md",
+   "id": "none (no arXiv id, DOI or data record; arXiv API title and keyword search 2026-10-14: 0 hits)",
+   "relation": "primary write-up of the gatellml/ arms (paper §2-§6); the README and STATE.md document the results/ arms (workspace headline, capability ladder, hold-out)",
+   "versions": "one in-repo file; edited in 13 commits ac4f51c (skeleton), 0debff0, aa26cf8, 6e4e532, dafbd70, 0105c9d, 025c2ec, 11e029a, a0291c5, 2ca5b75, 411c637, 77f6824, 51b51ff (2026-08-24..25 UTC; corrected in fact-check, ac4f51c/6e4e532/dafbd70 were missing). 0105c9d corrected §4.1 noise-cell signs and the §5.5 'exact' replication claim; 025c2ec/a0291c5 withdrew the vacuous hand-manifest (g2/l*-gB) arms and the travel 'utility collapse'; 411c637 added the frontier Addendum F arms. Not updated for the 2026-09-18 Addenda G-R (g4-g8 arms), which are reported only in gatellml/STATE.md"
+  },
+  {
+   "title": "AgentDojo (benchmark used; NeurIPS 2024 D&B)",
+   "url": "https://github.com/ethz-spylab/agentdojo",
+   "id": "arXiv:2406.13352",
+   "relation": "harness and suites (agentdojo 0.1.35 per logs; suites v1.2 via run_defended.py, v1.2.2 via agentdojo.scripts.benchmark)",
+   "versions": "package v0.1.35 (tag a75aba76); suite v1.2.2 added by PR #130 (merged 2025-10-27), changing workspace UserTask16 and banking UserTask6 only"
+  }
+ ],
+ "repo": {
+  "url": "https://github.com/dafarusd/gate",
+  "pinned_commit": "925b99260beec53d94bd48b587b0bdc33614e3df",
+  "pin_date": "2026-09-26T20:57:02Z (author = committer, UTC; GitHub API). Profile records 2026-09-26: agrees. Message: README donation addresses",
+  "head_now": "the pin is still HEAD of the only branch main (repo pushed_at 2026-09-26T20:57:02Z; 0 tags, 0 releases, 0 issues, 0 forks)",
+  "pin_tree": "4,155 blobs, 33,233,807 bytes (git trees API, not truncated); results/capability-curve.png 53,663 bytes, so the other 4,154 blobs hold 33,180,144 bytes, matching the profile",
+  "selected": "3,872 JSON blobs match the profile include globs (results/*/*/*/*/*/*.json with * crossing '/', gatellml/results/..., results/demo/*/*.json), 32,006,982 bytes, 815..215,378 bytes per file; 3,870 distinct blob ids. The 2 duplicate pairs are results/demo/{undefended,gated}/injection_task_2.json = copies of v2-venice-undefended-clean/... and v6-focused-gatev3/... user_task_2/important_instructions/injection_task_2.json, documented in results/demo/SOURCE.md",
+  "not_selected": "283 blobs: 8 non-run JSON (gatellml/manifests 5, gatellml/tests/vectors 1, results/probe 2), 105 gatellml/results *.log, 80 DONE markers, 9 .SHA files, 1 g8 echo removal log (.echo.jsonl), FINAL_SUMMARY.md, results/*.log (21) and results/probe/full.log (1) (corrected in fact-check), code, docs",
+  "history_touching_logs": "results/ was added in the initial commit 82780926 (2026-08-22, all runs of 2026-08-20..22) and only touched again by 17b05a2/21efa5c (demo copies and SOURCE.md). gatellml/results/ was built in commits 2026-08-24 (UTC; runs 2026-08-23/24 EDT, incl. finalizer d5ab42c, Addendum F local a337bd2, frontier 411c637) and 27d076f (2026-09-21: 'Addenda G-R and their raw runs', g4..g8). The gate fix d196e1c (2026-09-18, whole-token matching) postdates every PolicyGate run",
+  "code_identity": "gatellml/STATE.md and the 9 .SHA files name gate commits of a private clone (~/northstar-loop/gatellml: 5c11374, d59e1d4, ac1077f, 5266dcb, ab27de2, 98f0692): none exists in the public history (GitHub API 422). Addendum J records a protocol deviation: benign arms ran one commit newer than registered. Scripts at the pin were edited after the runs (Addendum R added --no-answer-echo to every campaign script)",
+  "issues": "no issues or PRs in dafarusd/gate"
+ },
+ "data_record": "None: no Zenodo (API query 0 hits), Hugging Face (dataset search 'gatellml' and author 'dafarusd' empty) or Figshare record. The data is the git tree at the pin; integrity rests on git blob ids. Our pin (profile) = HEAD = 925b9926, expected_files 4,155 = tree blob count; the PNG is the only absent blob in our trial (pin.absent_blobs).",
+ "harness": "AgentDojo 0.1.35 (README/paper: pip install agentdojo==0.1.35; every log records 0.1.35 per phase-10c census), installation not pinned in the repo (no lockfile). Two entry points: (1) agentdojo.scripts.benchmark --model LOCAL (Phase 0/1: results/p1-*, runs*, pipeline_name 'local', benchmark default v1.2.2); (2) src/run_defended.py (all other dirs, --benchmark-version default v1.2, pipeline_name 'local-<model>-gate-<arm>[-echo]', 'local' prefix forced so important_instructions resolves the model name to AgentDojo's 'Local model'). Providers: Ollama via LocalLLM (32k arms) and Venice via OpenAILLM behind a request-sanitising proxy that sets include_venice_system_prompt=false (480b and ladder arms); 'venice-prompt' LocalLLM path for Hermes-text models. Defences: PolicyGate (src/defenses/policy_gate.py, versions v1, v2, v3, v3.1 all under label gate-all) and GatellmGate (gatellml runtime; auto-manifest and hand manifests v1/v2/v3 under label gate-gatellm), optional AnswerEchoFilter (-echo). Both gates strip blocked calls from the assistant message and append error tool results (PolicyGate 'BLOCKED by security policy: <rule>...', GatellmGate 'BLOCKED by security policy (<rule>)...'; corrected in fact-check). Known AgentDojo 0.1.35 issues relevant here: LocalLLM drops fenced tool calls (#202), keeps only the first call (#150), drops calls with empty body/trailing text (#219), turns server errors into an empty answer (#220); security_from_traces counts proposed calls (#189 closed, #168 slack inj5); slack utility KeyError when post_webpage does not execute (#188); non-ASCII tool results as \\uXXXX (#214); banking UserTask5 utility check (#161); workspace v1.2.2 discrimination question (#201).",
+ "models": [
+  "qwen3-coder-480b-a35b-instruct-turbo (Venice API, OpenAILLM; temperature AgentDojo default; Venice hidden system prompt disabled except in v1-CONTAMINATED-superseded): pipeline dirs ...-gate-off/-gate-all/-gate-gatellm/-gate-gatellm-echo",
+  "qwen3-coder-32k:latest (local Ollama tag: qwen3-coder 30B with num_ctx 32768 and Modelfile temperature 0.2, per STATE.md; LocalLLM): pipeline dirs local-qwen3-coder-32k:latest-gate-*, and per STATE.md/src/phase1_before.sh also the 194 p1 logs and 10 runs-benign-32k logs in dir 'local'",
+  "qwen3-coder:30b at Ollama default num_ctx 4096 (per STATE.md Phase 0 'Arm 1'): the 10 results/runs-benign logs and the 1 results/runs smoke log, in dir 'local' (model not logged)",
+  "qwen3-235b-a22b-instruct-2507, qwen3-next-80b, qwen3-5-9b, qwen3-6-35b-a3b (Venice ids; capability ladder, workspace only; 35b reported as unable to use native tool calls)"
+ ],
+ "reported_results": [
+  {
+   "arm": "results/p1-attack + p1-benign (pipeline `local` = qwen3-coder-32k:latest, Ollama), no defence, workspace, important_instructions",
+   "metric": "ASR; utility under attack; benign utility",
+   "value": "1.4% (2/140); 59.1% (= 91/154 incl. 14 pre-pass); 45.0% (18/40)",
+   "n": "140 attacked (+14 pre-pass) / 40 benign",
+   "where": "README 'Headline results' table row 1 and STATE.md 'Phase 1 FINAL' (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/STATE.md)"
+  },
+  {
+   "arm": "results/p2-gateall-* (local-qwen3-coder-32k:latest-gate-all, PolicyGate v1 per STATE chronology), workspace",
+   "metric": "ASR; utility under attack; benign utility",
+   "value": "0.0% (0/140); 58.4% (= 90/154); 42.5% (17/40)",
+   "n": "140 / 40",
+   "where": "README headline row 2; STATE.md 'HEADLINE TABLE' (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/v2-venice-undefended-clean + v4-venice-benign-ungated (480b gate-off, Venice), workspace",
+   "metric": "ASR; utility under attack; benign utility",
+   "value": "7.1% (5/70); 41.7% (= 35/84); 80% (8/10)",
+   "n": "70 (+14 pre-pass) / 10",
+   "where": "README headline row 3; capability ladder row qwen3-coder-480b (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/v3-venice-gateall + v4-venice-benign-gated (480b gate-all, PolicyGate v1)",
+   "metric": "ASR; utility under attack; benign utility",
+   "value": "0.0% (0/70); 33.3% (= 28/84); 70% (7/10)",
+   "n": "70 / 10",
+   "where": "README headline row 4 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/p3-adaptive-gateall (480b gate-all v1, focused grid user_task_2,4 x 14 inj)",
+   "metric": "ASR; utility under attack",
+   "value": "3.6% (1/28); 35.7% (10/28 or 15/42, denominator ambiguous)",
+   "n": "28 (+14 pre-pass)",
+   "where": "README focused grid row v1; STATE 'Phase 3-adaptive' item 3-4 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/STATE.md)"
+  },
+  {
+   "arm": "results/p3-adaptive-gatev2 + v5-frontier-benign-gatev2 (480b gate-all v2)",
+   "metric": "ASR; utility under attack; benign utility",
+   "value": "0.0% (0/28); 7.1% (2/28 or 3/42); 30% (3/10)",
+   "n": "28 / 10",
+   "where": "README focused grid row v2; STATE 'Gate evolution' (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/STATE.md)"
+  },
+  {
+   "arm": "results/v7-focused-gatev31 + v7-benign-gatev31 (480b gate-all v3.1)",
+   "metric": "ASR; benign utility",
+   "value": "0.0% (0/28); 70% (7/10)",
+   "n": "28 / 10",
+   "where": "README focused grid row v3.1 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/v1-CONTAMINATED-superseded (480b gate-off, Venice hidden system prompt NOT disabled)",
+   "metric": "ASR",
+   "value": "about 5% (STATE: '5% with vs 5.7% without' hidden prompt; consistent with 3/61) [fact-check: STATE's '5.7% without' does not equal the 7.1% V2 clean figure, so '5%' may be an interim count; 3/61 is an inference, not a reported count]",
+   "n": "61 attacked of 70 planned (+14 pre-pass)",
+   "where": "STATE 'Venice arm' bullet 1 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/STATE.md)"
+  },
+  {
+   "arm": "results/ladder-qwen3-235b-a22b-instruct-2507-* (Venice)",
+   "metric": "benign utility (ungated); ASR ungated; ASR gated",
+   "value": "80% (8/10); 31.4% (22/70); 0% (0/70)",
+   "n": "10 / 70 / 70",
+   "where": "README 'capability ladder' table; STATE '#1 capability ladder' (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/ladder-qwen3-next-80b-*",
+   "metric": "benign utility; ASR ungated; ASR gated",
+   "value": "90% (9/10); 0% (0/70); 0% (0/70)",
+   "n": "10 / 70 / 70",
+   "where": "README capability ladder (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/ladder-qwen3-5-9b-*",
+   "metric": "benign utility; ASR ungated; ASR gated",
+   "value": "40% (4/10); 0/70; 0/70",
+   "n": "10 / 70 / 70",
+   "where": "README capability ladder (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/ladder-qwen3-6-35b-a3b-*",
+   "metric": "benign utility; ASR ungated; ASR gated",
+   "value": "0% (0/10); 0/70; 0/70 (no benign-gated arm exists)",
+   "n": "10 / 70 / 70",
+   "where": "README capability ladder; STATE ladder note (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "results/p3-holdout/h01..h10 (480b gate-all, frozen v1 gate) and p3-holdout-CONTROL (480b gate-off)",
+   "metric": "ASR; utility under hold-out attacks",
+   "value": "defended 0/135 (9 runnable attacks x 15; h03 not runnable: 1 cell attempted, empty log); control 0% on h01-h10; utility 61-72% per attack",
+   "n": "15 attacked + 3 pre-pass per attack dir",
+   "where": "README 'Final security record' and limitations; STATE 'Phase 3 defended', 'Phase 3-adaptive' item 1 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/STATE.md)"
+  },
+  {
+   "arm": "README aggregate: 'v3.1 gate' security record",
+   "metric": "attack successes",
+   "value": "0 in 373 cells (140 local grid + 70 frontier grid + 28 focused adaptive + 135 hold-out)",
+   "n": "373",
+   "where": "README 'Final security record' (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md)"
+  },
+  {
+   "arm": "gatellml b4-attack-ungated / b3-attack-gated (480b, banking utask 0-2 x inj 0-8)",
+   "metric": "ASR; utility under attack; episodes with blocks",
+   "value": "24/27 vs 0/27; 9/27 vs 6/27; 0 vs 25",
+   "n": "27 each (+9 pre-pass)",
+   "where": "paper §2 table; FINAL_SUMMARY.md rows b3,b4 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md)"
+  },
+  {
+   "arm": "gatellml t4-attack-ungated / t3-attack-gated (480b, travel utask 0-2 x inj 0-6)",
+   "metric": "ASR; utility; blocks",
+   "value": "4/21 vs 3/21; 10/21 vs 10/21; 0 vs 2",
+   "n": "21 each (+7 pre-pass)",
+   "where": "paper §2; FINAL_SUMMARY rows t3,t4 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md)"
+  },
+  {
+   "arm": "gatellml s4-attack-ungated / s3-attack-gated (480b, slack utask 0-2 x inj 1-5)",
+   "metric": "ASR; utility; blocks",
+   "value": "11/15 vs 4/15; 15/15 vs 7/15; 0 vs 11",
+   "n": "15 each (+5 pre-pass)",
+   "where": "paper §2; FINAL_SUMMARY rows s3,s4 (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md)"
+  },
+  {
+   "arm": "gatellml benign 480b: b2/b1 banking, s2/s1 slack, t2/t1 travel, w2 workspace ungated",
+   "metric": "benign utility ungated vs PolicyGate",
+   "value": "banking 11/16 vs 9/16; slack 17/21 vs 6/21; travel 14/20 vs 15/20; workspace ungated 29/40",
+   "n": "16/21/20/40",
+   "where": "FINAL_SUMMARY rows b1,b2,s1,s2,t1,t2,w2; paper §4.2 cost table (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md)"
+  },
+  {
+   "arm": "gatellml auto-manifest (gate-gatellm): gw2 workspace, g-banking, g-slack, g-travel attack",
+   "metric": "ASR (blocks); utility under attack",
+   "value": "0/140 (63), 56/140; 0/27 (24), 7/27; 3/15 (11), 7/15; 4/21 (9), 9/21",
+   "n": "140/27/15/21",
+   "where": "paper §4.1 table; FINAL_SUMMARY (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md)"
+  },
+  {
+   "arm": "gatellml auto-manifest benign: gw1 (10), gw1-full (40), g-banking/slack/travel benign gated and ungated",
+   "metric": "benign utility",
+   "value": "gw1 4/10; gw1-full 20/40; banking 7/16 (ungated 13/16); slack 6/21 (16/21); travel 11/20 (13/20)",
+   "n": "as given",
+   "where": "FINAL_SUMMARY (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md)"
+  },
+  {
+   "arm": "gatellml hand manifest v1, WITHDRAWN as vacuous: g2-slack/travel attack+benign (480b), l1..l4 *-gB (32k)",
+   "metric": "ASR; benign utility",
+   "value": "g2 slack 0/15 (util 5/15), travel 0/21 (0/21); benign slack 2/21, travel 0/20; l2-gB 0/15; l4-gB 0/21; l1-gB 2/21; l3-gB 0/20",
+   "n": "15/21/21/20",
+   "where": "paper §4.2 Withdrawal, §6; gatellml/STATE 'DEFECT' (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md)"
+  },
+  {
+   "arm": "gatellml Addendum F hand manifest v2: g3-* (480b), l6-*-gB2 (32k)",
+   "metric": "ASR; benign utility",
+   "value": "g3 slack 0/15 (10 delivered), travel 2/21; benign slack 2/21, travel 10/20; l6 slack 0/15 (10 delivered), travel 2/21; benign slack 2/21, travel 7/20",
+   "n": "15/21/21/20",
+   "where": "paper §4.2 tables; gatellml/STATE Addendum F results (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md)"
+  },
+  {
+   "arm": "gatellml local replication (32k Ollama): l2/l4/l5 attack ungated vs gate, l1/l3 benign",
+   "metric": "ASR; utility; benign",
+   "value": "slack 1/15 vs 0/15 (util 10/15 vs 5/15); travel 4/21 vs 2/21 (16/21 vs 19/21); banking 13/27 vs 0/27 (8/27 vs 7/27); benign slack 10/21 vs 4/21; travel 11/20 vs 11/20",
+   "n": "15/21/27/21/20",
+   "where": "paper §6 table; FINAL_SUMMARY (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md)"
+  },
+  {
+   "arm": "gatellml k-repeats: c1 (gated) / c2 (ungated) workspace u2xi2 x10; sk1 slack u1xi1 x5; tk1 travel u0xi6 x5 (PolicyGate)",
+   "metric": "ASR",
+   "value": "c1 0/10; c2 0/10; sk1 5/5; tk1 5/5",
+   "n": "10/10/5/5",
+   "where": "paper §5; FINAL_SUMMARY variance packs (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md)"
+  },
+  {
+   "arm": "gatellml Addendum J g4-* (480b, slack v2 / travel v3 policies)",
+   "metric": "ASR; benign utility",
+   "value": "slack 0/15, travel 2/21; benign slack 2/21, travel 9/20",
+   "n": "15/21/21/20",
+   "where": "gatellml/STATE Addendum J RESULT (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md)"
+  },
+  {
+   "arm": "gatellml Addendum L g5-* (pinned .SHA)",
+   "metric": "ASR; benign utility",
+   "value": "slack 0/15, travel 3/21; benign slack 2/21, travel 11/20",
+   "n": "15/21/21/20",
+   "where": "gatellml/STATE Addendum L RESULT (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md)"
+  },
+  {
+   "arm": "gatellml Addendum O g6-workspace-* (480b auto-manifest, pinned)",
+   "metric": "ASR; utility under attack; benign utility",
+   "value": "0/140; 64/140; 18/40",
+   "n": "140/40",
+   "where": "gatellml/STATE Addendum O RESULT (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md)"
+  },
+  {
+   "arm": "gatellml Addendum P/Q g7-*-echo, g8-travel-attack-echo (gatellm + answer-echo filter)",
+   "metric": "ASR; utility under attack; benign",
+   "value": "g7 0/21, 13/21, benign 10/20; g8 0/21, 13/21",
+   "n": "21/20/21",
+   "where": "gatellml/STATE Addenda P, Q RESULT (https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md)"
+  },
+  {
+   "arm": "Not reported anywhere (expected by census arithmetic, see H2)",
+   "metric": "ASR",
+   "value": "v5-frontier-fullgrid-gatev2 0/70; v6-focused-gatev3 0/28 (demo SOURCE.md: v6 u2xi2 security false)",
+   "n": "70 / 28",
+   "where": "inferred: 125 attacked successes in the census minus all reported arms; https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/results/demo/SOURCE.md"
+  }
+ ],
+ "expected_counts": "Tree 4,155 blobs (33,233,807 B); selected 3,872 files (32,006,982 B), 3,870 distinct (2 demo copies collapse); executions 3,870 (agent_execution 3,868 + outcome_only 2 in the trial; census units 3,870 + 2 over files); sealed clean 2,822 / with issues 1,048 (trial, jobs 8; jobs-3 subset of 830 byte-identical). Per pipeline (files): 480b gate-gatellm 898, 480b gate-all 724 (+1 demo), 480b gate-off 593 (+1 demo), 32k gate-all 319, local 215, 32k gate-gatellm 178, 32k gate-off 125, 235b/9b/80b gate-all and gate-off 94 each, 35b gate-off 94, 35b gate-all 84, 480b gate-gatellm-echo 76, demo 2. Kinds: attacked 2,379 (important_instructions 2,107; ten holdout_* 272 = 9x30 + h03 2), benign user task 929, injection-task pre-pass 562 (benign total 1,491). Suites: workspace 2,508 (+2 demo), travel 634, slack 483, banking 245. 152 experiment directories; 83 (pipeline, suite, attack_dir) strata incl. demo; 2,624 distinct (pipeline, suite, task, attack, file) keys, 651 of them repeated across experiments (1,897 files). benchmark_version v1.2 3,655 (+2 demo) / v1.2.2 215; agentdojo 0.1.35 in all; timestamps 2026-08-20 15:21:57 .. 2026-09-18 15:39:18 naive (Aug 3,421, Sep 449). Sources: phase-10c census summaries (~/.agentprov/migration-work/phase10c/census/gate@925b99260bee.*), docs/reports/phase10d/gate-agentdojo.{census,trial,reconcile}.json, r1/gate-agentdojo.census.json, GitHub tree at the pin.",
+ "expected_arms": "Facets: model (8 labels incl. unresolved 'local') x defence {none (gate-off and 'local'), gate-all (PolicyGate v1/v2/v3/v3.1, version only in the experiment dir name), gate-gatellm (auto, hand v1 withdrawn, v2, v3 manifests), gate-gatellm-echo} x attack {important_instructions, holdout_h01..h10, none} x suite {workspace, banking, slack, travel} x experiment (152 dirs). Grids by design: workspace user_task_0-9 x inj 0-13 (140) for p1/p2/gw2/g6; user_task_0-4 x 14 (70) for v2/v3/v5/ladder; user_task_2,4 x 14 (28) focused; holdout 5 user tasks x 3 injection tasks (15); banking utask 0-2 x inj 0-8 (27), travel utask 0-2 x inj 0-6 (21), slack utask 0-2 x inj 1-5 (15); benign full suites (40/16/21/20) or 10-task slices. Expected missing: v1-CONTAMINATED-superseded 9 cells (user_task_4 x 9 injections; run stopped); h03_fake_tool_result 14 of 15 cells per arm (harness YAML store refused the payload) and the 1 attempted cell per arm holds no messages; ladder-qwen3-6-35b-a3b benign-gated dir absent; 480b/32k on banking/slack/travel only user tasks 0-2. Expected extra (by design): k-repeats c1/c2 (10 each), sk1/tk1 (5 each), smoke dirs (smoke, smoke-gatellm, g4-smoke, results/runs), injection-task pre-passes repeated in every attack dir (26x for 480b gate-all injection_task_2), and the 2 demo copies.",
+ "licence": "AGPL-3.0-only: LICENSE at the pin is the AGPL v3 text (blob bae94e18; GitHub detects AGPL-3.0); NOTICE states AGPL-3.0-only, 'Copyright (c) 2026 Dafarus (dafarusd). All rights reserved.', reserves rights not granted by the AGPL, offers a separate commercial licence, and requires contributors to grant a relicensing right; README 'License' repeats AGPL-3.0-only and sole copyright holder. AgentDojo (MIT, ETH Zurich) is an external dependency, not vendored; the logs embed AgentDojo suite text. No separate data licence. ACKNOWLEDGMENTS.md says the experiments were executed by an AI agent ('Kimi K3') directed by the author: no licence effect. Model-provider (Venice/Qwen) output terms unassessed. Sources: https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/LICENSE, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/NOTICE, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md, https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/ACKNOWLEDGMENTS.md",
+ "discrepancy_leads": [
+  "Identity resolvable by documentation: the 215 'local' logs (D-92/D-105 unresolved) are attributed by STATE.md and src/phase1_before.sh to qwen3-coder-32k:latest (p1-attack 154, p1-benign 40, runs-benign-32k 10) and to qwen3-coder:30b at num_ctx 4096 (runs-benign 10, runs 1). D-92 allows a class-I row where a document states the model; the README headline 'qwen3-coder-32k (local), undefended' row IS this unresolved directory",
+  "Dedup keeps the demo path: the trial's 217 identity_unresolved executions = 215 'local' + the 2 demo copies, so the stored objects carry the unresolved results/demo/* origin and the identified v2/v6 run paths are recorded only as duplicates (2 executions lose model and defence identity)",
+  "Defence-version folding: label gate-all covers PolicyGate v1 (p2, v3, p3-holdout, p3-adaptive-gateall), v2 (p3-adaptive-gatev2, v5), v3 (v6), v3.1 (v7, ladder gated, gatellml s1/s3/t1/t3/b1/b3/c1/sk1/tk1/l*-gate); label gate-gatellm covers the auto-manifest (g-*, gw*, g6), withdrawn hand manifest v1 (g2, l1-l4 gB), v2 (g3, l6, g4/g5 slack) and v3 (g4/g5 travel, g7/g8); the version is only in the experiment directory name",
+  "README attributes the '0 in 373 cells' record to gate v3.1, but by STATE.md chronology 140 (p2), 70 (v3) and 135 (hold-out) of those cells ran with v1; only v7-focused (28) is v3.1",
+  "Logged assistant messages are edited by the defence: both gates strip blocked calls from tool_calls (source of the 819 orphan-tool-result logs, R6), and in the -echo arms (76 logs) the logged final answer is the filtered one (gatellml/STATE Addendum P says the raw answer is not recoverable); the only record of the 2 echo removals is g8-travel-attack-echo.echo.jsonl, which the profile does not store as a supporting artefact",
+  "Hidden input not in the logs: v1-CONTAMINATED-superseded (75 logs) ran with Venice's ~1,676-token hidden system prompt, which the logs do not show; all Venice requests passed a sanitising proxy (content coercion, role remap), so logged messages differ from wire requests",
+  "Two benchmark versions: v1.2.2 in the 215 'local' logs (agentdojo.scripts.benchmark default) vs v1.2 elsewhere; the README compares p1 (v1.2.2) with p2 (v1.2) as one grid; v1.2.2 changes only workspace UserTask16 (in p1-benign, not in any attack grid) and banking UserTask6",
+  "Metric mapping differs by tool: README/STATE (src/aggregate.py) compute utility under attack over attacked + pre-pass files (59.1% = 91/154) but ASR over attacked files only; gatellml (suite_summary.py) uses attacked files only and excludes pre-pass ('calib'); the paper sometimes uses delivered-cell denominators (slack 0/10)",
+  "Census arithmetic: 1,616 security==true over 3,870 logs minus 1,491 benign constants = 125 attacked successes; the reported arms sum to 122 plus about 3 in v1-CONTAMINATED (STATE '5%'), which implies the unreported v5-frontier-fullgrid-gatev2 and v6-focused-gatev3 arms have 0 successes (fact-check: the unreported smoke-gatellm attacked cell is also implied 0; the v1-CONTAMINATED '3' rests on STATE's approximate '5%', so the v5/v6 = 0 inference is conditional)",
+  "WITHDRAWN in fact-check: September-dated logs (phase-10c census) = 449 = exactly the files in g4 (90 incl. g4-smoke), g5 (89), g6 (194), g7 (48), g8 (28) per the GitHub tree at the pin; the earlier '425, 24 unexplained' was an addition error",
+  "Code that ran is not public: .SHA files and STATE name private-clone commits; PolicyGate's substring-matching defect (fixed 2026-09-18, d196e1c) was present in every gate-all run; the README replay ('8,026 tool calls') differs from the phase-10c call count (8,329 listed calls, excluding stripped blocked calls) because of scope and recovery rules",
+  "LocalLLM defects (#202 fenced calls dropped, #150 first call only, #219, #220 empty answer on server error) apply to the 32k Ollama arms and p1; the paper itself reports the 32k model emitting fenced calls (5 slack utask1 cells), so local ASR/utility are lower bounds",
+  "One gate denial text sits in a 'local' log (R1/D-113): a 'local' directory was produced by a gated pipeline at least once (STATE: the runner required 'local' in the pipeline name), so 'local' does not always mean undefended",
+  "Interim vs final counts: gatellml/STATE Interim A1 reported b4 20/23 (resumed later to 24/27, Addendum D) and c2 0/7 vs FINAL 0/10: resumed arms (force_rerun=False) may hold logs from two sessions; check timestamps within b4 and c2"
+ ],
+ "open_questions": [
+  "Which 3 logs lack utility/security keys (phase-10c flags) given phase-10d's incomplete_run null_outcome_files = 0: the 2 h03 empty logs plus which third?",
+  "The phase-10d census measures empty_messages_with_outcome = 2 and without_outcome = 2: are these the same 2 h03 files (detector overlap) or 4 files?",
+  "RESOLVED in fact-check: no September-dated log is outside g4..g8 (449 = 449)",
+  "Exact gate/manifest version per experiment where STATE.md is silent: the ladder gated arms (v3.1 by chronology only). The gatellml s/t/b PolicyGate arms are v3.1 per paper §2 table header (fact-check)",
+  "Should the 215 'local' logs get D-92 identity rows from STATE.md/phase1_before.sh (decision for the family owner, not this pre-check)?"
+ ],
+ "checks_not_applicable": [
+  "delta since E2: gate-agentdojo was not examined in FA or E2 (wave 3, first examination)",
+  "L1-07 monotonicity within a unit: v1.k14 TraceLogger logs carry one naive evaluation_timestamp per file and no per-call times",
+  "L2 outcome verdicts by the 15-point rule: no L2 arm reaches 20 sampled executions (about 5 per stratum), so outcome comparison is Wilson-only; the exact comparison is the L1-05 whole-population tally (H1, H2)",
+  "withholding: only if L1-06 finds a secret-like string that is not AgentDojo's synthetic environment data; none expected"
+ ],
+ "sources": [
+  "https://github.com/dafarusd/gate",
+  "https://api.github.com/repos/dafarusd/gate",
+  "https://api.github.com/repos/dafarusd/gate/commits",
+  "https://api.github.com/repos/dafarusd/gate/git/trees/925b99260beec53d94bd48b587b0bdc33614e3df?recursive=1",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/README.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/paper/DRAFT.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/STATE.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/STATE.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/results/FINAL_SUMMARY.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/results/demo/SOURCE.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/aggregate.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/src/suite_summary.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/defenses/policy_gate.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/gatellm_gate.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/run_defended.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/phase1_before.sh",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/sweep_ladder.sh",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/src/answer_echo_filter.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/gatellml/lang/runtime.py",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/NOTICE",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/LICENSE",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/ACKNOWLEDGMENTS.md",
+  "https://github.com/dafarusd/gate/blob/925b99260beec53d94bd48b587b0bdc33614e3df/.gitignore",
+  "https://github.com/ethz-spylab/agentdojo/blob/v0.1.35/src/agentdojo/scripts/benchmark.py",
+  "https://github.com/ethz-spylab/agentdojo/pull/130",
+  "https://github.com/ethz-spylab/agentdojo/issues/150",
+  "https://github.com/ethz-spylab/agentdojo/issues/161",
+  "https://github.com/ethz-spylab/agentdojo/issues/168",
+  "https://github.com/ethz-spylab/agentdojo/issues/188",
+  "https://github.com/ethz-spylab/agentdojo/issues/189",
+  "https://github.com/ethz-spylab/agentdojo/issues/201",
+  "https://github.com/ethz-spylab/agentdojo/issues/202",
+  "https://github.com/ethz-spylab/agentdojo/issues/214",
+  "https://github.com/ethz-spylab/agentdojo/issues/219",
+  "https://github.com/ethz-spylab/agentdojo/issues/220",
+  "https://zenodo.org/api/records?q=gatellml%20OR%20dafarus",
+  "https://huggingface.co/api/datasets?author=dafarusd",
+  "http://export.arxiv.org/api/query?search_query=all:gatellml"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "checked": "pin/HEAD, tags/releases/issues/forks, tree blob count and bytes, profile-glob selection (3,872 / 3,870 distinct, 2 demo pairs), per-pipeline and task-kind counts, strata 83, repeat keys 651/1,897, v1-CONTAMINATED coverage; every reported_results row against README, STATE.md, FINAL_SUMMARY.md, paper §2/§4.1/§4.2/§5/§6 and gatellml/STATE Addenda F/J/L/O/P/Q; aggregate.py and suite_summary.py denominators; AgentDojo tag a75aba76, PR #130 scope, benchmark.py default v1.2.2, issue states; private SHAs (422); LICENSE/NOTICE; Zenodo/HF/arXiv/Figshare searches; our own phase-10c/10d/r1 reports",
+  "corrected": [
+   "experiment dirs results/ 55 + gatellml/results/ 97 (prereg said 70 / 82)",
+   "September logs 449 = g4..g8 files exactly (lead '24 unexplained' withdrawn; H7 rewritten)",
+   "GatellmGate denial text form",
+   "paper commit list (3 commits added)",
+   "not-selected .log breakdown",
+   "H2 caveats (smoke-gatellm cell; v1-CONTAMINATED count approximate)"
+  ],
+  "unverifiable": [
+   "the single denial in a 'local' log",
+   "which 3 logs lack outcome keys",
+   "directory-level model attribution of runs-benign / runs / runs-benign-32k (by name and size only)",
+   "ladder gated PolicyGate version",
+   "v5/v6 zero successes (inference)"
+  ]
+ }
+}

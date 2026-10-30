@@ -1,0 +1,44 @@
+import json, os, sys, tempfile
+from pathlib import Path
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "dtap"))
+import dtap_support as support
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.runner.importer import ContextTree, LocalTree, import_source
+from agentprov.corpus.writer import CorpusWriter
+tmp = Path(tempfile.mkdtemp(dir=sys.argv[1]))
+os.environ["AGENTPROV_HOME"] = str(tmp / "home")
+pins = load_profile(support.PROFILE).data["source"]["pins"]
+runs_pin = dict(next(p for p in pins if p["role"] == "runs")); tasks_pin = dict(next(p for p in pins if p["role"] == "tasks"))
+runs_root = support.write_tree(tmp / "runs", support.runs_files())
+tasks_root = support.write_tree(tmp / "tasks", support.tasks_files())
+def go(with_ctx, limit=None):
+    ctx = [ContextTree("tasks", LocalTree(tasks_root), support.vouch(tasks_root, support.TASKS_REPO, support.TASKS_COMMIT), pin=tasks_pin)] if with_ctx else []
+    with CorpusWriter(tmp / "c") as w:
+        r = import_source("dtap", LocalTree(runs_root), corpus=w, profile_id=support.PROFILE, pin_check=support.vouch(runs_root, support.RUNS_REPO, support.RUNS_COMMIT),
+                          context_trees=ctx, pin=runs_pin, in_process=True, until="aer", limit=limit)
+    return r
+r1 = go(False, limit=5)   # e.g. --no-context tasks, then interrupted/limited
+print("run1", {k: r1.counters.get(k) for k in ("mapped", "skipped_resume")}, r1.exit_code)
+try:
+    r2 = go(True)
+    print("run2 (with context) accepted:", {k: r2.counters.get(k) for k in ("mapped", "skipped_resume")}, r2.exit_code)
+except Exception as e:
+    print("run2 refused:", type(e).__name__, getattr(e, "code", ""))
+part = tmp / "c.partial"
+snap = json.loads((part / "corpus.json").read_text())["sources"][0]["snapshots"][0]
+print("manifest context roles:", [c["role"] for c in snap.get("context") or []])
+import collections
+st = collections.Counter()
+for line in (part / "executions.jsonl").read_text().splitlines():
+    row = json.loads(line)
+    head = json.loads((part / row["paths"]["aer"]).read_bytes().split(b"\n", 1)[0])
+    st[sum(1 for a in head.get("artifacts", []) if str(a.get("label", "")).startswith("tasks:") or a.get("role") == "supporting")] += 1
+print("units by #supporting artefacts:", dict(st))
+idx = [json.loads(l) for l in (part / "executions.jsonl").read_text().splitlines()]
+res = collections.Counter()
+for row in idx:
+    head = json.loads((part / row["paths"]["aer"]).read_bytes().split(b"\n", 1)[0])
+    has = any(a.get("origin", {}).get("commit") == support.TASKS_COMMIT for a in head.get("artifacts", []))
+    res[has] += 1
+print("units with a tasks-commit artefact:", dict(res))

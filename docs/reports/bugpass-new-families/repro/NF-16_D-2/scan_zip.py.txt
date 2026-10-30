@@ -1,0 +1,55 @@
+import sys, json, zipfile, hashlib
+from collections import Counter
+p = sys.argv[1]
+data = open(p, "rb").read()
+print("sha256", hashlib.sha256(data).hexdigest())
+import io
+z = zipfile.ZipFile(io.BytesIO(data))
+n_res = n_stats = eq_total = ne_total = ne_main = extra_src = 0
+src_runs = Counter(); usage_excess = 0; usage_excess_and_total_ne = 0; usage_excess_main_ne = 0
+excess_explained = 0
+for info in z.infolist():
+    if "/trajectory/qwen_" not in info.filename or not info.filename.endswith(".json"): continue
+    raw = z.read(info)
+    try: msgs = json.loads(raw)
+    except Exception: continue
+    res = [m for m in msgs if isinstance(m, dict) and m.get("type") == "result"]
+    if not res: continue
+    r = res[-1]; n_res += 1
+    # blocks
+    blocks = 0; prev_asst = False
+    for m in msgs:
+        t = m.get("type")
+        if t == "assistant":
+            if not prev_asst: blocks += 1
+            prev_asst = True
+        elif t == "user" and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in (m.get("message", {}).get("content") or [])):
+            prev_asst = False
+    # summed message usage
+    s_in = s_out = 0
+    for m in msgs:
+        if m.get("type") == "assistant":
+            u = m.get("message", {}).get("usage") or {}
+            s_in += u.get("input_tokens", 0) or 0; s_out += u.get("output_tokens", 0) or 0
+    ru = r.get("usage") or {}
+    excess = (ru.get("input_tokens", 0), ru.get("output_tokens", 0)) != (s_in, s_out)
+    st = r.get("stats")
+    if not isinstance(st, dict): continue
+    n_stats += 1
+    tot = 0; main = 0; srcs = set()
+    for mv in (st.get("models") or {}).values():
+        tot += mv.get("api", {}).get("totalRequests", 0)
+        for k, v in (mv.get("bySource") or {}).items():
+            srcs.add(k)
+            if k == "main": main += v.get("api", {}).get("totalRequests", 0)
+    for s in srcs - {"main"}: src_runs[s] += 1
+    if tot == blocks: eq_total += 1
+    else: ne_total += 1
+    if main != blocks: ne_main += 1
+    if srcs - {"main"}: extra_src += 1
+    if excess:
+        usage_excess += 1
+        if tot != blocks: usage_excess_and_total_ne += 1
+print("results", n_res, "with stats", n_stats, "totalRequests==blocks", eq_total, "!=", ne_total,
+      "main!=blocks", ne_main, "runs with extra sources", extra_src, dict(src_runs),
+      "usage excess (approx)", usage_excess, "excess & total!=blocks", usage_excess_and_total_ne)

@@ -1,0 +1,295 @@
+# Artefact catalogue `geminicli` (docs/architecture D.23.10, D.15.2; DECISIONS D-330..D-337). Data, not code.
+#
+# Every source-data problem of the gemini_cli part of Zenodo 20404563 found by the phase-10o census, with the rule that
+# detects it, how it is recorded and its handling class (D.15.1). The `expected` counts are the census's for the pinned
+# archive, counted on the 2,182 mapped streams unless the unit says otherwise; they stay `unverified` until a full import
+# confirms them (D.15.6): a regression expectation, never a gate.
+#
+# Claims are specific (as for agentops): an entry claims a safety-net finding only through a rule, `claims` item or issue
+# code of its own case. Cases no AER field read by the net carries (the scope selection, rollouts without a stream, the
+# credential-shaped value, stderr retries, the derived harness atoms, the missing route configuration) name a `reserved`
+# detector rule of the geminicli catalogue, so they claim nothing. The version stays 1: nothing is released.
+
+version = 1
+family = "geminicli"
+namespaces = ["geminicli"]
+
+[[artefact]]
+id = "geminicli.art.out_of_scope_scaffolds"
+title = "Scaffolds outside the structured part"
+description = "The claude_code (plain-string transcripts), codex_cli (plain-text streams) and openhands (transcript tails) cells are not readable faithfully (D-143): each rollout is registered select.out_of_scope through its verdict.json, never mapped or dropped silently."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "benchmark"
+detector = { rule = "geminicli.scope_selection@1", class = "D" }
+handling = { class = "FO", rule = "geminicli.scope_selection@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 7500, basis = "phase-10o census: 15 cells x 500 rollouts", unit = "rollouts", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-143, D-331", "docs/reports/phase10o/README.md §3"]
+
+[[artefact]]
+id = "geminicli.art.rollouts_without_stream"
+title = "gemini_cli rollouts without a structured stream"
+description = "175 rollouts wrote an empty gemini_stream.jsonl and 143 none at all (MiniMax-M2 97, gemini-2.5-pro 46; 141 of them hold harness atoms with calls but no results, a partial trajectory). They are registered select.not_execution_artefact (geminicli.empty_stream, geminicli.no_stream). The exclusion rests on format: 19 of the 318 are elicited, and the datasheet states both rates."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.no_stream_rollout@1", class = "D" }
+handling = { class = "FO", rule = "geminicli.no_stream_rollout@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 318, basis = "phase-10o census", unit = "rollouts", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-331", "docs/reports/phase10o/README.md §6 item 3"]
+
+[[artefact]]
+id = "geminicli.art.leaked_credential"
+title = "Credential-shaped value in a tool output"
+description = "One tool output holds a value of the Google API key shape that no task workspace holds (also in three claude_code files): most likely a harness credential the agent printed. The profile's [withhold] rule withholds that execution and its objects from any release; the value is never printed or written."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.leaked_credential@1", class = "D" }
+handling = { class = "FO", rule = "geminicli.leaked_credential@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 1, basis = "phase-10o census (pattern scan, value never printed)", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-336", "docs/reports/phase10o/README.md §6 item 6"]
+
+[[artefact]]
+id = "geminicli.art.hidden_retries"
+title = "API retries not in the stream"
+description = "gemini_stderr.log records failed API attempts (793 retry lines; MiniMax-M2 718 at HTTP 500) the stream does not show; model calls are read from blocks (class I) and the logs are stored, not read."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "provider"
+detector = { rule = "geminicli.hidden_retries@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 793, basis = "phase-10o census (stderr lines)", unit = "retry_lines", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §5"]
+
+[[artefact]]
+id = "geminicli.art.derived_harness_atoms"
+title = "Harness atoms are a derived view"
+description = "events.jsonl is the harness's trace_to_atom output: renamed tools, no tool results, its own clock (0-147 s off the stream). Stored as a sidecar, never mapped (D-330)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.derived_harness_atoms@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 2179, basis = "phase-10o census (non-empty beside a stream)", unit = "files", status = "unverified" }]
+manuscript = false
+refs = ["DECISIONS D-330", "docs/reports/phase10o/README.md §5"]
+
+[[artefact]]
+id = "geminicli.art.missing_route_config"
+title = "Route configuration missing for one cell"
+description = "The code repository at 1dec4f17 has no configs/sut/gemini_cli_glm47.yaml (only glm5 files), so the glm-4.7-probe cell's proxy route is not in the published code; the cell model is the harness's label (D-333)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.missing_route_config@1", class = "D" }
+handling = { class = "NR" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 457, basis = "phase-10o census (the cell's non-empty streams)", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §6 item 1"]
+
+[[artefact]]
+id = "geminicli.art.no_result_event"
+title = "Stream without a result event"
+description = "719 streams end without a result event (last event a tool result 623, a tool call 73, text 23); gemini_meta.json records exit code 143 for each: read as a terminated CLI (status aborted, class I). The verdict says exit 0 and no timeout for all of them (geminicli.art.verdict_meta_disagree)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.exit_143_terminated_unverified@1", class = "I" }
+recorded_as = { issues = ["geminicli.no_result_event", "incomplete_run"] }
+claims = ["artefact.generic.accounting_unverifiable#geminicli.acc.counters@1"]
+handling = { class = "FO", rule = "geminicli.exit_143_terminated_unverified@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 719, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-335", "docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.cli_error_result"
+title = "Run ended with an error result"
+description = "495 streams end with result status error (API errors such as provider 5xx and invalid content); the run scope gets status error and the error object is kept verbatim."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "provider"
+detector = { rule = "geminicli.result_status@1", class = "D" }
+recorded_as = { issues = ["geminicli.cli_error_result", "incomplete_run"] }
+handling = { class = "FO", rule = "geminicli.result_status@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 495, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.unanswered_last_call"
+title = "Call without a result"
+description = "73 tool calls have no result, each the last event of a terminated stream: the call part stays, no execution is written (whether it ran is not recorded), and missing_tool_result is raised; the core dispatch check is therefore inconsistent by design."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.tool_id_link_unverified@1", class = "I" }
+recorded_as = { issues = ["missing_tool_result"] }
+claims = ["artefact.generic.unexecuted_call", "artefact.generic.accounting_inconsistent#aer.acc.tool_calls_dispatched@1"]
+handling = { class = "FO", rule = "geminicli.tool_id_link_unverified@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 73, basis = "phase-10o census", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.cli_model_alias"
+title = "Stream names the CLI's model, not the cell's"
+description = "init.model is gemini-2.5-pro in every cell because the harness routes the CLI through a LiteLLM proxy; the agent's requested model is the verdict's cell model (class I) and the stream's name stays in ext.geminicli.cli_model."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.cli_model_compare@1", class = "D" }
+recorded_as = { issues = ["geminicli.cli_model_alias"] }
+handling = { class = "CR", rule = "geminicli.cell_model_routed_unverified@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 1762, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-333", "docs/reports/phase10o/README.md §6 item 1"]
+
+[[artefact]]
+id = "geminicli.art.verdict_meta_disagree"
+title = "Verdict exit code contradicts the CLI's"
+description = "verdict.json (and the manifest) record exit_code 0 and timed_out false for every rollout, while gemini_meta.json records 143, 244, 1, 147 or 246 for 1,214 mapped runs; both stay verbatim, neither is corrected."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.verdict_meta_compare@1", class = "D" }
+recorded_as = { issues = ["geminicli.verdict_meta_disagree"] }
+handling = { class = "FO", rule = "geminicli.verdict_meta_compare@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 1214, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = true
+refs = ["DECISIONS D-335", "docs/reports/phase10o/README.md §5"]
+
+[[artefact]]
+id = "geminicli.art.subagent_internals"
+title = "Sub-agent calls not logged"
+description = "codebase_investigator runs a gemini-cli sub-agent whose calls the stream does not log (76 calls in 29 streams); the CLI's own counter shows the hidden calls in 20 streams, where the counter check is unverifiable."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.subagent_tool_unverified@1", class = "I" }
+recorded_as = { issues = ["geminicli.subagent_internals_unobserved"] }
+claims = ["artefact.generic.accounting_unverifiable#geminicli.acc.counters@1"]
+handling = { class = "FO", rule = "geminicli.subagent_tool_unverified@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 73, basis = "phase-10o mapping census: 76 calls, 3 of them unanswered (no execution)", unit = "tool_executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.cli_notice"
+title = "CLI warning in the stream"
+description = "68 error events of severity warning, each before a result: harness activities with their text as an artefact (C.3.13), never agent output."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.cli_notice_is_harness_unverified@1", class = "I" }
+recorded_as = { issues = ["geminicli.cli_notice"] }
+handling = { class = "FO", rule = "geminicli.cli_notice_is_harness_unverified@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 68, basis = "phase-10o census", unit = "events", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.derived_model_calls"
+title = "Model calls derived from blocks"
+description = "No model request is logged: each block of assistant deltas and calls is read as one model call (class I), so the core check aer.acc.agent_calls_vs_assistant is unverifiable by design; usage, served model and time are not recorded per call."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.block_is_model_turn_unverified@1", class = "I" }
+claims = ["artefact.generic.accounting_unverifiable#aer.acc.agent_calls_vs_assistant@1"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-332, D-334"]
+
+[[artefact]]
+id = "geminicli.art.cli_call_ids"
+title = "Call ids are the CLI's, not the provider's"
+description = "Each call carries the CLI's tool_id (kept in ext.geminicli), not a provider call id: no provider_call_id is written, never synthesised."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "artefact.generic.provider_id_anomaly", class = "D" }
+claims = ["artefact.generic.provider_id_anomaly#absent"]
+handling = { class = "NR" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 34281, basis = "phase-10o census", unit = "tool_calls", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.emission_times"
+title = "Event times are emission times"
+description = "Every event has a UTC millisecond timestamp written when the CLI emitted it: kept verbatim in t.raw (run, executions) and ext, typed slots ambiguous; messages and model calls carry no time."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.event_time_is_emission_unverified@1", class = "I" }
+claims = ["artefact.generic.sentinel_time#unknown_ambiguous", "artefact.generic.sentinel_time#unknown_not_recorded"]
+handling = { class = "NR" }
+manuscript = false
+refs = ["DECISIONS D-335"]
+
+[[artefact]]
+id = "geminicli.art.result_without_output"
+title = "Tool result without an output field"
+description = "3,313 successful tool results carry no output field: the tool message's text is null with unk ambiguous (the tool returned nothing, or the CLI omitted it), never an empty string."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.result_is_execution_unverified@1", class = "I" }
+handling = { class = "NR" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 3313, basis = "phase-10o census", unit = "tool_results", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md §4"]
+
+[[artefact]]
+id = "geminicli.art.label_field_mismatch"
+title = "Label and verdict disagree"
+description = "The label's scaffold, model or mutation differs from the verdict's: recorded, never corrected (none in the census)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.label_facets@1", class = "D" }
+recorded_as = { issues = ["geminicli.label_field_mismatch"] }
+handling = { class = "FO", rule = "geminicli.label_facets@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 0, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md"]
+
+[[artefact]]
+id = "geminicli.art.manifest_differs"
+title = "Manifest row differs from the verdict"
+description = "The deposit's manifest.csv row disagrees with the verdict or is missing (none in the census: 2,500/2,500 rows join)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.manifest_agrees@1", class = "D" }
+recorded_as = { issues = ["geminicli.manifest_differs"] }
+handling = { class = "FO", rule = "geminicli.manifest_agrees@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 0, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md"]
+
+[[artefact]]
+id = "geminicli.art.sidecar_problem"
+title = "Verdict or CLI meta missing or unparseable"
+description = "A rollout's verdict.json or gemini_meta.json is absent or not strict JSON: no judgement or status reading rests on it (none in the census)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.sibling_join@1", class = "D" }
+recorded_as = { issues = ["geminicli.sidecar_missing", "geminicli.sidecar_unparseable"] }
+handling = { class = "FO", rule = "geminicli.sibling_join@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 0, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md"]
+
+[[artefact]]
+id = "geminicli.art.unmapped_event"
+title = "Event outside the v1 vocabulary"
+description = "An event type the census never saw: a harness activity with the event verbatim (none in the census)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.unmapped_event@1", class = "I" }
+recorded_as = { issues = ["geminicli.unmapped_event"] }
+handling = { class = "FO", rule = "geminicli.unmapped_event@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 0, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md"]
+
+[[artefact]]
+id = "geminicli.art.events_after_result"
+title = "Events after the result event"
+description = "A stream continues after its result event (none in the census)."
+scope = { sources = ["code-agent-misalignment-geminicli"], profiles = ["code-agent-misalignment-geminicli"], parts = ["results-raw"] }
+cause = "upstream_harness"
+detector = { rule = "geminicli.result_is_last@1", class = "D" }
+recorded_as = { issues = ["geminicli.events_after_result"] }
+handling = { class = "FO", rule = "geminicli.result_is_last@1" }
+expected = [{ snapshot = "code-agent-misalignment-geminicli:results-raw", count = 0, basis = "phase-10o census", unit = "executions", status = "unverified" }]
+manuscript = false
+refs = ["docs/reports/phase10o/README.md"]

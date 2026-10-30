@@ -1,0 +1,14 @@
+--- a/src/agentprov/views/transcript_v1.py
++++ b/src/agentprov/views/transcript_v1.py
+@@ -614,7 +614,11 @@ def _converted_turn(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
+             call = doc.part(str(part.get("responds_to"))) if "responds_to" in part else None
+             tool_call_id = call.get("provider_call_id") if isinstance(call, Mapping) else None
+         execution = _execution_of(doc, message)
+-        _, content = _joined(doc, message, ("tool_result",))
++        if "value" in part and "text" not in part:  # a list the mapper kept verbatim (agentdojo.multi_block_tool_content)
++            content = _split_blocks(doc.value(message, "/parts/0/value")[1])[0]
++        else:
++            _, content = _joined(doc, message, ("tool_result",))
+         return {
+             "role": "tool",
+             "tool_call_id": tool_call_id,

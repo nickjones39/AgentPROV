@@ -1,0 +1,19 @@
+import sys, pathlib, importlib.util
+repo = pathlib.Path.cwd()
+sys.path.insert(0, str(repo / "tools" / "agentdojo"))
+import profile_census
+from agentprov.adapters.profiles import load_profile
+p = load_profile("agentdyn")
+print("profile version", p.version, "parts", p.data["profile"]["parts"])
+pins = p.data["source"]["pins"]
+print("pins:", [(x["role"], x.get("part"), x.get("primary")) for x in pins])
+quirks = p.data["family"]["agentdojo"]["quirk"]
+parts_with_counts = sorted({k for q in quirks for k in q.get("observed", {})})
+print("parts with observed counts:", parts_with_counts)
+for part in ("history", "c"):
+    pin = next((dict(x) for x in pins if x.get("part") == part and x.get("primary") is True), None)
+    print(f"test_profile_census pin lookup for {part}:", pin, "-> skip 'no primary git pin'" if pin is None else "")
+    try:
+        profile_census.census("agentdyn", part, cache=sys.argv[1], workers=1, limit=1)
+    except BaseException as e:
+        print(f"census(agentdyn, {part}) raised {type(e).__name__}: {e!r}")

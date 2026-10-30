@@ -1,0 +1,316 @@
+# Source profile `controlarena-persistent`: HF dataset idacy/control-arena-persistent-state-eval-archive-2026-07-30 @
+# 84d39e0a (MIT, card), the final local archive of the AI-control study "Distributed Attacks in Persistent-State AI
+# Control" (Inspect .eval logs of the control_arena vibe_coding_persistent setting; phase 10p; phase-10e card §3.6,
+# D-144, D-145 rank 13; docs/reports/phase10p/README.md).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18): version 2 adds D-345's exact-path holds (code select.redaction_pending, D-324) and the nested zips
+# ([[import.nested]], D-382). The [family.inspect] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Observed counts are the phase-10p census of every log the pins reach
+# (nested zips included) (~/.agentprov/migration-work/phase10p/census/; docs/reports/phase10p/README.md §3).
+#
+# Decisions (user-approved 2026-10-13): D-340 an execution is one sample of a log with a header in the band; attack and
+# honest, errored and tool-less samples alike (never an outcome rule). D-341 one corpus, one part per pinned container
+# (D-202 snapshots; D-108 one pin per part). D-342 exclusions by rule (below). D-343 band and family values. D-344
+# [withhold] pattern rules: every sample carries a generated key at /metadata/API_KEY that reaches its AER, so a release
+# seal withholds every execution (a public release holds metadata only). D-345 the account-path logs stay out of every
+# import until the D-182 redaction covers their pointer classes: exact-path excludes with `select.redaction_pending`
+# (D-324, R-10p-5) in [import] below.
+#
+# Not pinned (D-342), with the reason recorded here and in the screening record: the two loose logs under
+# logs_20260315_unique/ (unfinished: no header.json; a single-file HF pin is an archive input whose candidates would be
+# the log's own members, D-200); apr2026_backup_public_only_data-20260423.tar.zst (its 227 logs, inside nested zips, are
+# byte duplicates of the split zips' logs or empty); link_tracker_rescore_finals-20260730.tar.zst, logs_march_rescored/,
+# logs_Josh3_analysis_csvs/, the analysis CSVs and paper_figures/ (rescore results and analysis: outcome-only records,
+# EX-NOLOG, D-141); xx_working_dir_delta_data-20260730.tar.zst (no log). In the auditor tar, the agentic auditor's own
+# records (commands with outputs and a final response, without the model's per-step input) are a partial trajectory in
+# another format (EX-FMT, D-141); only the auditor's one input log is selected.
+#
+# Inside the pinned split zips, five nested zips hold 928 logs / 3,475 samples found nowhere else:
+# logs/gradual_f3m1.zip, logs/2026-01-15_last-two-days.zip, logs/honest_all.zip and logs/run_2.zip in zip-3-001;
+# logs/positional_f3m1.zip in zip-3-002 (312 MB to 2.09 GB). Version 2 declares them as [[import.nested]] (D-382;
+# R-10p-1, ingest-formats-3): each is stored as its own member object (D-381), streamed when over the global member
+# bound (D-383), and its .eval logs open at level 3. 358 .eval members are empty (172) or truncated (186; a local header and no central
+# directory): the import records the code the Inspect reader gives them (279 of the 406 such files in the archive have a
+# complete copy inside the nested zips).
+
+[profile]
+id = "controlarena-persistent"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "controlarena-persistent"
+family = "inspect"
+parts = ["zip-3-001", "zip-3-002", "zip-3-003", "batch-runs", "auditor"]
+title = "Control-arena persistent-state evaluation archive: Inspect .eval logs of AI-control runs (HF idacy, 2026-07-30)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.6", "docs/reports/phase10p/README.md"]
+
+[source]
+canonical_repo = "https://huggingface.co/datasets/idacy/control-arena-persistent-state-eval-archive-2026-07-30"
+paper = "Hills, Caspary & Cooper Stickland, Distributed Attacks in Persistent-State AI Control (arXiv:2607.02514; dataset card)"
+
+# One pin per part (D-108), each a snapshot of the one corpus (D-202). The three logical zips are stored as 256 MiB parts
+# (D-243, D-249): every part is pinned by file, size and LFS sha256; their total, 5,076,016,476 B, needs the large-download
+# consent (U-07). Sizes and digests are the tree listing at the revision (phase 10e), re-checked on the staged copies.
+[[source.pins]]
+role = "zip-3-001"
+part = "zip-3-001"
+primary = true
+kind = "hf"
+dataset = "idacy/control-arena-persistent-state-eval-archive-2026-07-30"
+revision = "84d39e0a485d7ea6ca10f4ceb2a3fbf88dab0e62"
+gated = false
+file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip"
+archive = "split-zip"
+note = "8 parts, 2,147,474,457 B in all; the logical zip's sha256 per the deposit's SHA256SUMS is checked in the census, not pinned (the descriptor is the identity, D-244)"
+parts = [
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0000", bytes = 268435456, sha256 = "4b5e9cfea7a7fa15b28050de3fbdef637d7d4e57040730a353148ec4ff7ce039" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0001", bytes = 268435456, sha256 = "cc244047160b6b800830edfcfca94cbfb63bcf14cbcbcc63979928c61e6e4717" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0002", bytes = 268435456, sha256 = "9d7567ebf5f0775fe9114bbd69b34391bae55608cb254c188e58e1aea4317014" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0003", bytes = 268435456, sha256 = "23ce6ae17c6d665fec1086a49937ac560f59451dada7e012ad9d7b46acccf8ed" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0004", bytes = 268435456, sha256 = "479c0160b61d5c9178f0e8568cf839613b629c6152e76edd9f93cf2125ebcff6" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0005", bytes = 268435456, sha256 = "606265dda26a6b151ed9132387f11963e75d37fb348ef4c070f6dc5d54c909ed" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0006", bytes = 268435456, sha256 = "02f046772e6e82b7d4301b194dd559fb0365cc4ba70c5b6d613c326ec297e7c4" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-001.zip.part-0007", bytes = 268426265, sha256 = "52e79be13eced9da7e122563f8ff1037b5ee6f54ee72f13464022cfb9386e629" },
+]
+
+[[source.pins]]
+role = "zip-3-002"
+part = "zip-3-002"
+primary = true
+kind = "hf"
+dataset = "idacy/control-arena-persistent-state-eval-archive-2026-07-30"
+revision = "84d39e0a485d7ea6ca10f4ceb2a3fbf88dab0e62"
+gated = false
+file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip"
+archive = "split-zip"
+note = "8 parts, 2,147,478,676 B in all; the logical zip's sha256 per the deposit's SHA256SUMS is checked in the census, not pinned (the descriptor is the identity, D-244)"
+parts = [
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0000", bytes = 268435456, sha256 = "fc01dc9cf12702b3566601cc844be098ed1fb4164fc76c368428ae42754c106e" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0001", bytes = 268435456, sha256 = "9c25e3101a0c36b7c63bb948520b7e0742f2fe02e1327329501a8b0134bd49fc" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0002", bytes = 268435456, sha256 = "8a1a9fa902551457d93b4ac211ff3d6ac491bece78bbd444b6a0927303334d84" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0003", bytes = 268435456, sha256 = "eabbd7097e6b80801ea85a93e154bb6a434f10246d9dc2621ddb5b45a8287b66" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0004", bytes = 268435456, sha256 = "3b0fa5f8e1d752f46020150bf77de33ccf0e8f07b3ec8af9498c32e768c3329c" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0005", bytes = 268435456, sha256 = "3cc535ee0869b962f040c9e38353cf88fa76c98b677433d8986bc2ca7d90143e" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0006", bytes = 268435456, sha256 = "f4153a23dbfcee5833d91e6232b7c2666c0eb7c9aa14546d1b71db99b49af165" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-002.zip.part-0007", bytes = 268430484, sha256 = "57fb662f7620be41fda3f80f2d5c3ff7093f2b45dc60f04716542c0bc7752c47" },
+]
+
+[[source.pins]]
+role = "zip-3-003"
+part = "zip-3-003"
+primary = true
+kind = "hf"
+dataset = "idacy/control-arena-persistent-state-eval-archive-2026-07-30"
+revision = "84d39e0a485d7ea6ca10f4ceb2a3fbf88dab0e62"
+gated = false
+file = "logs_tmp_zips/logs-20260610T154758Z-3-003.zip"
+archive = "split-zip"
+note = "3 parts, 781,063,343 B in all; the logical zip's sha256 per the deposit's SHA256SUMS is checked in the census, not pinned (the descriptor is the identity, D-244)"
+parts = [
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-003.zip.part-0000", bytes = 268435456, sha256 = "b300da94fa24d5d5061e34aeee494c0e0bdb42632b4d2216b6065624e7ba6f64" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-003.zip.part-0001", bytes = 268435456, sha256 = "85a3fa4cff57a5679d408886c72ccc7d58c4bbb15b9263d03fe45b991286a274" },
+  { file = "logs_tmp_zips/logs-20260610T154758Z-3-003.zip.part-0002", bytes = 244192431, sha256 = "019343604122099d181b23ed4372ce9dbdd69eae55d911d96996ec8a99e97b9a" },
+]
+
+[[source.pins]]
+role = "batch-runs"
+part = "batch-runs"
+primary = true
+kind = "hf"
+dataset = "idacy/control-arena-persistent-state-eval-archive-2026-07-30"
+revision = "84d39e0a485d7ea6ca10f4ceb2a3fbf88dab0e62"
+gated = false
+file = "logs_batch_runs-20260730.tar.zst"
+sha256 = "44c96a7ccdee6deb432af61d01000dc4749c8a60b305d76eb2f89a7b57cff5fc"
+size = 885551965
+note = "June 2026 dbl_honest / dbl_triggered_attack batches: 110 .eval logs (sibling manifest .manifest.tsv, not pinned)"
+
+[[source.pins]]
+role = "auditor"
+part = "auditor"
+primary = true
+kind = "hf"
+dataset = "idacy/control-arena-persistent-state-eval-archive-2026-07-30"
+revision = "84d39e0a485d7ea6ca10f4ceb2a3fbf88dab0e62"
+gated = false
+file = "agentic_auditor_logs-20260730.tar.zst"
+sha256 = "ccadc05074dc693fc19a2d641492e23ac31fa50f5d47dbb665cd053a094cd43b"
+size = 22039676
+note = "the agentic-auditor experiment: its one input .eval is selected; the auditor's own records are not Inspect logs (D-342)"
+
+[licence]
+spdx = "MIT"
+holders = ["the dataset's authors (Hills, Caspary and Cooper Stickland; dataset card)"]
+data_licence = "MIT"
+policy = "include"
+basis = "dataset card front matter 'license: mit' at revision 84d39e0a (HF API card_licence mit); no separate LICENSE file in the tree"
+attribution = ["idacy/control-arena-persistent-state-eval-archive-2026-07-30 (MIT), revision 84d39e0a485d7ea6ca10f4ceb2a3fbf88dab0e62"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["inspect_ai 0.3.159 (log headers)", "control_arena, setting vibe_coding_persistent (solver plan and sample metadata); code at github.com/josh-hills/control-arena-persistent-state-eval (dataset card)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "inspect.eval"
+mapper = "inspect.eval"
+variants = ["v2"]
+include = ["**/*.eval"]
+# D-345 (D-324): the 36 logs that record a workstation account path (header micro_protocol.prompt_file; error
+# tracebacks) are held back by exact label until the D-182 redaction covers both pointer classes (R-10p-3). 8 are
+# members of the split zips, 28 members of zip-3-001's nested zips (matched by their own member label once nested reads
+# exist, R-10p-1). The account name is in none of these labels.
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "logs/2026-01-11_baseline/direct_attack_anthropic_claude_sonnet_4_20250514_uptime-monitor_20260111_212639/2026-01-12T05-26-52+00-00_vibe-coding-persistent-attack-policy-attack-8ca14bac_DtVHTMzaEzz7zSUZTs3J22.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-11_baseline/direct_attack_mistral_mistral_large_latest_uptime-monitor_20260111_212804/2026-01-12T05-28-09+00-00_vibe-coding-persistent-attack-policy-attack-8ca14bac_LmLH6VRPZUkCEN8pCJSdtc.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-12/gradual_quote_monitor_anthropic_claude_sonnet_4_5_20250929_uptime-monitor_20260112_121606/2026-01-12T20-16-16+00-00_vibe-coding-persistent-gradual-attack-policy-attack-174b6e12_jo2kbAuyVUGMGzULQQkuYS.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-12/non_gradual_baseline_anthropic_claude_sonnet_4_5_20250929_uptime-monitor_20260112_120645/2026-01-12T20-07-00+00-00_vibe-coding-attack-policy-attack-0119274a_kWHB8axwyVDW65PqMRbch8.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-12/non_gradual_baseline_mistral_mistral_large_latest_uptime-monitor_20260112_120647/2026-01-12T20-07-00+00-00_vibe-coding-attack-policy-attack-0119274a_kzvceojyiLsAmjboPquwDu.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-12/non_gradual_quote_monitor_anthropic_claude_sonnet_4_5_20250929_uptime-monitor_20260112_124819/2026-01-12T20-48-24+00-00_vibe-coding-attack-policy-attack-0119274a_Yceh6mY8pPbDsQKhnVrdLT.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-12/non_gradual_quote_monitor_anthropic_claude_sonnet_4_5_20250929_uptime-monitor_20260112_145404/2026-01-12T22-54-19+00-00_vibe-coding-attack-policy-attack-0119274a_TPhLhMkyZtR6uMqyo4BRUi.eval", code = "select.redaction_pending" },
+  { glob = "logs/2026-01-12/non_gradual_quote_monitor_mistral_mistral_large_latest_uptime-monitor_20260112_124111/2026-01-12T20-41-26+00-00_vibe-coding-attack-policy-attack-0119274a_CtAxZBRcojXq9CtB7fCxKK.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/all_tasks_gradual_anthropic_claude_sonnet_4_5_20250929_all_20260113_121136_3ad7ea/networking-tools_121136/2026-01-13T20-11-41+00-00_vibe-coding-persistent-gradual-attack-policy-attack-56a264f8_7NaqhQXaRDGFBmY3hnxtAi.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/all_tasks_non_gradual_anthropic_claude_sonnet_4_5_20250929_all_20260113_111125_593ed8/2026-01-13T19-12-24+00-00_vibe-coding-attack-policy-attack-0119274a_H93tNA5awtxm2PH5gYbbtH.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/all_tasks_non_gradual_anthropic_claude_sonnet_4_5_20250929_all_20260113_121214_5a6e8c/2026-01-13T20-13-33+00-00_vibe-coding-attack-policy-attack-0119274a_RdXjpT2iHwizNhS5HDAvdo.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_full_diffs_20260114_130732/config-validator/2026-01-14T21-08-17+00-00_vibe-coding-persistent-untrusted-policy-honest-6d6f5f26_jTg28gmQTe79DkdxpCShXP.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_full_diffs_20260114_130732/deploy-helper/2026-01-14T22-21-32+00-00_vibe-coding-persistent-untrusted-policy-honest-d57f1610_eEh6pXRiVT9NthinWkXasj.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_full_diffs_20260114_130732/env-audit/2026-01-14T21-45-52+00-00_vibe-coding-persistent-untrusted-policy-honest-3416873f_HANGnAGAzonPT6xQTTXyEw.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_full_diffs_20260114_130732/incident-reporter/2026-01-14T21-45-52+00-00_vibe-coding-persistent-untrusted-policy-honest-b9d31354_m4i5U4zYw9mMAsK52wgwoR.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_full_diffs_20260114_130732/log-shipper/2026-01-14T22-21-32+00-00_vibe-coding-persistent-untrusted-policy-honest-fa990c03_7cJTZmayr2cw8yoSsmstYx.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_full_diffs_20260114_130732/secret-scanner/2026-01-14T22-21-32+00-00_vibe-coding-persistent-untrusted-policy-honest-25ce25fa_mMS8g6iUKGmNjCErKpL6x6.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/config-validator/2026-01-14T18-18-48+00-00_vibe-coding-persistent-untrusted-policy-honest-cb828444_AQQuzFTZoHonDvKckrq4sB.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/env-audit/2026-01-14T18-52-30+00-00_vibe-coding-persistent-untrusted-policy-honest-64c9a4bd_jEbDVpd4ZhWiN66AGqV7BK.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/error-tracker/2026-01-14T18-52-30+00-00_vibe-coding-persistent-untrusted-policy-honest-3c507a16_8RDaVomobQtRLKbXdTMaxW.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/incident-reporter/2026-01-14T18-52-30+00-00_vibe-coding-persistent-untrusted-policy-honest-c00a16ed_DEjHE2jX5mKHFt7fLqGeUq.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/networking-tools/2026-01-14T18-18-48+00-00_vibe-coding-persistent-untrusted-policy-honest-e7036a4d_gt8CwihjjhB6z8uzh6LrBm.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/secret-scanner/2026-01-14T19-45-26+00-00_vibe-coding-persistent-untrusted-policy-honest-0d7ecee3_9pEJqVNJw5nENnKF9KwSnD.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_honest_task_sequence_20260114_101807/uptime-monitor/2026-01-14T18-18-51+00-00_vibe-coding-persistent-untrusted-policy-honest-24e8c305_bGUgpsB37AjV5Afm6ziYBt.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_run_20260113_170553/log-shipper/2026-01-14T01-48-42+00-00_vibe-coding-persistent-untrusted-policy-attack-5ba9807a_o5penWikZesGKZt26BQe7P.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_run_20260113_181327/error-tracker/2026-01-14T02-37-21+00-00_vibe-coding-persistent-untrusted-policy-attack-0346ef67_PkAFRVt93b8Yr9o7DxUhrV.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/batch_run_20260113_181327/secret-scanner/2026-01-14T02-56-40+00-00_vibe-coding-persistent-untrusted-policy-attack-fd201159_8rnBUv2xdy7CBDcemGVdQb.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/comprehensive_20260114_233840/claude/networking-tools/honest_full_diffs/run_7/2026-01-15T18-28-46+00-00_vibe-coding-persistent-untrusted-policy-honest-729adb78_gTWXFzfAPE7Wx9Xjavr5CE.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/side_task_variants_20260114_161842/api-token-exfil/2026-01-15T00-19-19+00-00_vibe-coding-persistent-untrusted-policy-attack-c3271a30_HPdUoSKyMeHvXdGGEzrt8e.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/side_task_variants_20260114_161842/auth-bypass-backdoor/2026-01-15T00-19-19+00-00_vibe-coding-persistent-untrusted-policy-attack-28aa826d_AVszkF2PWUFZtDPhdQGpAA.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/side_task_variants_20260114_161842/stealth-package-injection/2026-01-15T00-19-19+00-00_vibe-coding-persistent-untrusted-policy-attack-c61b8eaa_kRs6hqDxNcGkqgwXtxJun4.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/stats_run_20260114_200510/honest_full_diffs/run_10/2026-01-15T06-02-03+00-00_vibe-coding-persistent-untrusted-policy-honest-729adb78_8xqUkZifqhsuS7Aoaveub3.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/stats_run_20260114_200510/honest_full_diffs/run_6/2026-01-15T06-02-03+00-00_vibe-coding-persistent-untrusted-policy-honest-729adb78_GNCDDxQs6c3k5YYbJw8yAB.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/stats_run_20260114_200510/honest_full_diffs/run_7/2026-01-15T06-02-03+00-00_vibe-coding-persistent-untrusted-policy-honest-729adb78_muK6kPrdHG968SsP95TA77.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/stats_run_20260114_200510/honest_full_diffs/run_8/2026-01-15T06-02-03+00-00_vibe-coding-persistent-untrusted-policy-honest-729adb78_f8PtdjEPWBHufQejMkZksV.eval", code = "select.redaction_pending" },
+  { glob = "relevant_logs_20260115/stats_run_20260114_200510/honest_full_diffs/run_9/2026-01-15T06-02-03+00-00_vibe-coding-persistent-untrusted-policy-honest-729adb78_WUxbNJZ9pNoqNkrCGTHbPF.eval", code = "select.redaction_pending" },
+]
+layout = "logs/<experiment>/.../run_<n>/<timestamp>_<task>_<id>.eval | dbl_<mode>/batch_<ts>/<sequence>/<side_task>/<mode>/run_<n>/<timestamp>_<task>_<id>.eval | agent_monitor_logs/agentic_smoke_input/<timestamp>_<task>_<id>.eval"
+
+# D-382 (version 2): the five nested zips of the split zips (largest 2,091,106,621 B); their .eval logs open at level 3.
+[[import.nested]]
+id = "split-zip-nested-zips"
+pattern = "logs/*.zip"
+max_member_bytes = 2147483648
+max_depth = 3
+note = "logs/gradual_f3m1.zip, logs/2026-01-15_last-two-days.zip, logs/honest_all.zip, logs/run_2.zip (zip-3-001); logs/positional_f3m1.zip (zip-3-002)"
+
+[family.inspect]
+benchmark = "control-arena"
+producer_band = { inspect_ai = ["0.3.159"] }
+log_versions = [2]
+members = ["header.json", "samples/*_epoch_*.json"]
+span_roles = { solver = "agent", scorer = "judge" }
+
+[[family.inspect.quirk]]
+id = "inspect.judge_model_separate_from_agent"
+note = "the scorers' post-hoc monitors call the trusted model (openai/gpt-4o, openai/gpt-4.1-mini-2025-04-14) inside scorer spans; solver spans call only the untrusted model"
+
+[[family.inspect.quirk]]
+id = "inspect.model_roles_not_mapped"
+note = "control_arena names its models by role (eval.model_roles untrusted/trusted); 152 logs record eval.model none/none, which the mapper copies as the agent's requested model (served models per call are right; routed R-10p-2)"
+observed = { logs = 152 }
+
+[[family.inspect.quirk]]
+id = "inspect.error_logs"
+note = "26 logs end with status error; their finished samples are kept"
+observed = { logs = 26 }
+
+[[family.inspect.quirk]]
+id = "inspect.unfinished_logs"
+note = "8 logs have no header.json (journal only; 7 of them in nested zips), select.dialect_planned by the reader"
+observed = { logs = 8 }
+
+[[family.inspect.quirk]]
+id = "inspect.empty_or_truncated_logs"
+note = "172 empty and 186 truncated .eval members (a local header, no central directory, size a multiple of 256 KiB)"
+observed = { empty = 172, truncated = 186 }
+
+[[family.inspect.quirk]]
+id = "inspect.event_order_not_time_order"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.attachment_refs"
+rules = ["inspect.model_event_is_call@1"]
+observed = { samples_with_attachments = 5754 }
+
+[[family.inspect.quirk]]
+id = "inspect.sample_limit"
+rules = ["inspect.sample_limit@1"]
+observed = { samples = 445 }
+
+[[family.inspect.quirk]]
+id = "inspect.tool_span_separate_from_tool_event"
+rules = ["inspect.no_order_from_event_list@1"]
+
+[[family.inspect.quirk]]
+id = "inspect.parallel_tool_batches"
+rules = ["inspect.tool_event_message_id_first_of_batch@1"]
+note = "13 parallel batches; 20 tool events name the first result of their batch (execute_tools defect, regeneration-batch item 16 (b))"
+observed = { batches = 13, first_of_batch_events = 20 }
+
+[[family.inspect.quirk]]
+id = "inspect.strings_over_1mib"
+note = "28 strings over 1 MiB in 22 samples (attachments, pr_diff, submission_diff); regeneration-batch item 28"
+observed = { strings = 28 }
+
+[[family.inspect.quirk]]
+id = "inspect.prose_tool_name"
+note = "1 tool call whose function name is a sentence of model output; kept verbatim"
+observed = { calls = 1 }
+
+[[family.inspect.quirk]]
+id = "inspect.planted_credentials"
+note = "every sample holds a generated sk- key at /metadata/API_KEY (one per run); agents handle further key-shaped values in the side tasks; see [withhold]"
+observed = { samples = 5754 }
+
+# D-344 (user-approved 2026-10-13): pattern rules for the six key shapes seen (D-234 grammar). Scope `executions`: the key
+# at /metadata/API_KEY reaches every AER (ext.inspect.sample_metadata), so the derived-hit escalation (D-235) withholds
+# every execution at a release seal; a public release holds metadata only. Rule ids and counts only, never a match.
+[withhold]
+reason = "secret"
+public_note = "generated and planted credentials of the AI-control setting (benchmark design); values never recorded"
+scan_rules = ["openai-api-key", "aws-access-token", "github-pat", "gcp-api-key", "private-key", "slack-bot-token", "generic-api-key"]
+
+[[withhold.rules]]
+id = "sk-key-shape"
+pattern = "sk-[A-Za-z0-9_\\-]{20,256}"
+
+[[withhold.rules]]
+id = "aws-key-shape"
+pattern = "AKIA[0-9A-Z]{16}"
+
+[[withhold.rules]]
+id = "github-token-shape"
+pattern = "gh[pousr]_[A-Za-z0-9]{36,255}"
+
+[[withhold.rules]]
+id = "google-api-key-shape"
+pattern = "AIza[0-9A-Za-z_\\-]{35}"
+
+[[withhold.rules]]
+id = "private-key-header"
+pattern = "\\-\\-\\-\\-\\-BEGIN [A-Z ]{0,40}PRIVATE KEY\\-\\-\\-\\-\\-"
+
+[[withhold.rules]]
+id = "slack-token-shape"
+pattern = "xox[baprs]\\-[A-Za-z0-9\\-]{10,256}"

@@ -1,0 +1,56 @@
+"""Results-container build: a lone surrogate in a message's text."""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+REPO = Path.cwd()
+sys.path.insert(0, str(REPO / "tests" / "adapters" / "agentdojo"))
+sys.path.insert(0, str(REPO / "tests"))
+import test_rescont as T  # noqa: E402
+from agentprov.adapters.runner import aer_bytes, map_unit  # noqa: E402
+from agentprov.adapters.agentdojo.mapper import TraceLoggerMapper  # noqa: E402
+from agentprov.adapters.agentdojo.results_reader import ResultsContainerReader  # noqa: E402
+from agentprov.adapters.profiles import load_profile  # noqa: E402
+from agentprov.adapters.types import ArtefactRef, ExecutionUnit, Origin  # noqa: E402
+from agentprov.ingest.limits import IngestLimits  # noqa: E402
+from agentprov.testing import golden  # noqa: E402
+import hashlib  # noqa: E402
+
+
+def run(label, mutate):
+    r = T.row()
+    mutate(r)
+    raw = json.dumps(T.container(rows=[r]), indent=2, ensure_ascii=True).encode()
+    print(label, "raw has \\ud800:", b"\\ud800" in raw)
+    # 1. strict (no fallback) path, as test helper map_all
+    try:
+        ms = T.map_all(raw)
+        print("  strict seal ok; issues:", sorted({i.get("code") for i in ms[0].outcome.issues}))
+    except Exception as exc:  # noqa: BLE001
+        print("  strict seal EXC", type(exc).__name__, str(exc)[:200])
+    # 2. importer-like path with fallback (unit/mapper/profile given)
+    profile = load_profile(T.PROFILE)
+    reader, mapper, limits = ResultsContainerReader(), TraceLoggerMapper(), IngestLimits()
+    sniff = reader.sniff(raw, label="results/api_evals/test.json", limits=limits)
+    origin = Origin.git(T.REPO_URL, T.PIN, "results/api_evals/test.json", golden.git_blob_sha1(raw))
+    art = ArtefactRef("a0", hashlib.sha256(raw).hexdigest(), len(raw), "application/json", origin, "primary",
+                      mapper.prov_primary(sniff.flags))
+    for item in reader.parse(raw, art, limits=limits):
+        unit = ExecutionUnit(item)
+        outcome = map_unit(unit, mapper, profile)
+        data, info = aer_bytes(outcome, unit=unit, mapper=mapper, profile=profile)
+        recs = [json.loads(line) for line in data.splitlines()]
+        kinds = [x.get("k") for x in recs]
+        head = recs[0]
+        print("  fallback path: n_records", len(recs), "kinds", kinds[:8],
+              "degenerate:", head.get("degenerate") or head.get("status"),
+              "issue codes", sorted({i.get("code") for i in getattr(info, "issues", ()) or ()} ) if hasattr(info, "issues") else "")
+        print("  head keys", sorted(head)[:20])
+        print("  data contains 'adapter_defect':", b"adapter_defect" in data, "; 'Done' msg present:", b"Bill: 98.70" in data)
+
+
+run("A assistant text", lambda r: r["messages"][4].__setitem__("content", "done \ud800"))
+run("B tool output", lambda r: r["messages"][3].__setitem__("content", "Bill \ud83d"))
+run("C control (no surrogate)", lambda r: None)

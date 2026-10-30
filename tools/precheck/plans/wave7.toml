@@ -1,0 +1,74 @@
+# Wave 7: the six phase-10j corpora merged into main after the pre-check began (9 parts; D-250..D-258,
+# docs/reports/phase10j/). Raw from the phase-10c staging copies, read only (deposit zips verified against their pins;
+# bare partial clones read with lazy fetch off). L2 trees are the phase-10j trial driver's (l2_import.py kind
+# "phase10j": tools/agentdojo/phase10j_trial.py _tree, git pins from a scratch cache seeded by its seed). The wave-7
+# pre-registration (prereg/<corpus_id>.md, incl. the proposed STRATA keys in l1_families.py) must be committed first.
+# Queue with --mem-gib 4 (largest input: authority-caps, 40 MB zip with 19,186 nested members).
+
+[[part]]
+corpus_id = "authority-caps-agentdojo"
+l1_09 = true
+source = "authority-caps-agentdojo"
+part = "head"
+l1 = ["--input", "~/.agentprov/staging/10c/zenodo-23138310/agent-authority-caps-v2.0.0.zip"]
+# 21,999 selected members collapse to 18,739 executions on import (3,260 re-packed byte copies, D-250): a sampled
+# copy is imported and recorded dedup.collapsed, not a missing execution.
+
+[[part]]
+corpus_id = "ipi-defenses-agentdojo"
+l1_09 = true
+source = "ipi-defenses-agentdojo"
+part = "head"
+l1 = ["--input", "~/.agentprov/staging/10c/zenodo-22011266/AgentSecurity-IPIDefenses-v4.0.zip"]
+
+[[part]]
+corpus_id = "dca-agentdojo"
+l1_09 = true
+source = "dca-agentdojo"
+part = "v1"
+l1 = ["--input", "~/.agentprov/staging/10c/figshare-32657856/DCA_AgentDojo_artifact_v1_20260612.zip"]
+l2_blocked = "import held until D-455 lands (orchestrator 2026-10-15); a url pin is not an archive input today (R-10j-3)"
+
+[[part]]
+corpus_id = "dca-agentdojo"
+l1_09 = true
+source = "dca-agentdojo"
+part = "drift"
+l1 = ["--input", "~/.agentprov/staging/10c/figshare-32657856/DCA_AgentDojo_artifact_v1_20260612.zip"]
+l2_blocked = "import held until D-455 lands (orchestrator 2026-10-15); a url pin is not an archive input today (R-10j-3)"
+
+# Kavach: one corpus, three snapshots in the profile's part order (D-253); each part's commit is its own pin.
+# The three parts share one scratch cache (~/.agentprov/migration-work/precheck/kavach-agentdojo/cache), seeded once.
+[[part]]
+corpus_id = "kavach-agentdojo"
+source = "kavach-agentdojo"
+part = "main"
+l1 = ["--git", "~/.agentprov/staging/10c/kavach/Kavach.git"]
+
+[[part]]
+corpus_id = "kavach-agentdojo"
+source = "kavach-agentdojo"
+part = "nav-fixer2"
+l1 = ["--git", "~/.agentprov/staging/10c/kavach/Kavach.git"]
+
+[[part]]
+corpus_id = "kavach-agentdojo"
+source = "kavach-agentdojo"
+part = "rearch-forcedformat-fix"
+l1 = ["--git", "~/.agentprov/staging/10c/kavach/Kavach.git"]
+
+# EnvironmentOptim: the 6,016 local-Qwen logs are select.redaction_pending (D-255) and the 84,360 copies
+# select.owned_elsewhere: L1 classifies them excluded and never reads them; the sample frame drops whatever the
+# profile's redaction_pending globs match (expected 0 rows), and l2_import refuses a sample holding one.
+[[part]]
+corpus_id = "environmentoptim-agentdojo"
+source = "environmentoptim-agentdojo"
+part = "head"
+l1 = ["--git", "~/.agentprov/staging/10c/environmentoptim/EnvironmentOptim.git"]
+sample = ["--exclude-profile-code", "select.redaction_pending"]
+
+[[part]]
+corpus_id = "drift1-agentdojo"
+source = "drift1-agentdojo"
+part = "drift"
+l1 = ["--git", "~/.agentprov/staging/10c/drift-1/drift-1.git"]

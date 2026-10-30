@@ -1,0 +1,164 @@
+# Source profile `tacit-agentdojo`: the AgentDojo part of CSSLab/Tacit (data/agentdojo/), 2,076 TraceLogger logs of two
+# local models, llama3.1-8b-instruct through AgentDojo's local client and qwen3-4b-instruct through its vLLM client,
+# on all four suites: training and evaluation data of a trajectory-safety study (phase 10d; shortlist row 11;
+# sources/agentdojo-format-candidates.md §3.12). Unrelated to the Tacit defence of Linyxus/agentdojo.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/tacit@995692d3cd42.*).
+
+[profile]
+id = "tacit-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "tacit-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "TACIT AgentDojo trajectories: AgentDojo 0.1.35 logs of two local models (CSSLab/Tacit)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/CSSLab/Tacit"
+paper = "TACIT: Detecting Harmful Agent Trajectories from Internal Representations (README title; no identifier in the repository)"
+package = { name = "agentdojo", requirement = "not declared (requirements.txt lists the analysis stack only)", version_identifies_code = false }
+
+# The pin covers the repository root (2,139 files): the logs, the data splits, the analysis package and scripts. The byte
+# total is not stated: one figure (assets/, a PNG) was not fetched in phase 10c; the other 2,138 files hold 34,094,608 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "995692d3cd42c32e08cf0db8a5fae55fec272f1a"
+date = "2026-09-23"
+expected_files = 2139
+note = "the only commit at 2026-10-11 (phase 10c); 2,076 logs under data/agentdojo/<model>/<client>/"
+
+[licence]
+spdx = "Apache-2.0"
+holders = ["CSSLab (repository owner; the LICENSE carries no copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "Apache-2.0 LICENSE at the pin; the logs embed AgentDojo benchmark text (MIT)"
+attribution = [
+  "CSSLab/Tacit (Apache-2.0), commit 995692d3cd42c32e08cf0db8a5fae55fec272f1a",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; the runner is scripts/data/collect_agentdojo.sh, the installation is not declared)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["data/agentdojo/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "data/agentdojo/{model_dir}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions.
+context_artefacts = ["LICENSE", "README.md", "requirements.txt", "scripts/data/collect_agentdojo.sh", "scripts/data/agentdojo_compat.py", "tacit/data/agentdojo.py", "data/splits/*.json"]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "config_tag_never_model"
+table = { path = "tables/tacit_model_dirs.toml", sha256 = "83988c3c4133bd2855ad88aacba4e6438632ed7e8856fcb1bbfd5c986463ee1e" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", banking = "agentdojo", travel = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no AgentDojo installation is declared in the repository; the logs record only the distribution version
+# string (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log, recognised by its upstream digest.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 194, origin_rule_applied = 194 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 2 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 96, logs = 96 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 1695 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 7504, present_and_null = 7504 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 1, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { head = { null_ids = 3750, logs_with_null_ids = 699 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

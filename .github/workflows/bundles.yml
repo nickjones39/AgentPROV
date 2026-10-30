@@ -1,0 +1,55 @@
+name: bundles
+# D-750: the GUI desktop bundles for Linux and Windows, one runner per OS, on manual dispatch only (never push,
+# pull_request or a schedule). Each leg runs gui/tools/build_bundle.py (the build-time checks and an automated --smoke
+# start of the GUI and the preview helper) and uploads its package and bundle-report.json as an artifact. Nothing is
+# released here: the bundles are labelled "not tested on a clean machine" (D-750). macOS arm64 is built on the
+# development Mac. Not dispatched while private-repository Actions billing fails.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    name: bundle (${{ matrix.os }})
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04        # Linux x86_64, glibc 2.35 floor
+            glibc_floor: "2.35"
+          - os: ubuntu-24.04-arm    # Linux aarch64 (D-750)
+            glibc_floor: "2.39"
+          - os: windows-latest      # Windows x86_64, unsigned (SmartScreen: More info, then Run anyway)
+            glibc_floor: "2.35"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - name: GUI environment (locked; CPython 3.14.8, PySide6, PyInstaller)
+        # explicit, as gui/.python-version: uv --project gui ignores the root .python-version (G5 clean-machine report)
+        run: uv sync --locked --project gui --python 3.14.8
+      - name: Notices for this platform's packages (gen_notices reads the installed distributions)
+        run: uv run --project gui python gui/tools/gen_notices.py
+      - name: Build and check the bundle; package it
+        run: >-
+          uv run --project gui python gui/tools/build_bundle.py --out "$RUNNER_TEMP/gui-g5"
+          --glibc-floor "${{ matrix.glibc_floor }}"
+      - name: Upload the package and the report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agentprov-gui-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/gui-g5/AgentPROV-*
+            ${{ runner.temp }}/gui-g5/bundle-report.json
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,11 @@
+import hashlib, re, sys, collections
+sys.path.insert(0, "tools/qwencode")
+from map_census import read_zip
+RX = re.compile(rb"/home/+([A-Za-z0-9._-]+)")
+_, supp = read_zip(sys.argv[1], lambda l: l.startswith("dataset/RedCode-Exec/"))
+c = collections.Counter()
+for label, (b, _) in supp.items():
+    for m in RX.finditer(b):
+        n = m.group(1)
+        if hashlib.sha256(n).hexdigest().startswith("0f6f284f58"): c[label.rsplit("/",1)[-1][:40]] += 1
+print("dataset /home/<len8 name> hits:", sum(c.values()), "in", len(c), "files")

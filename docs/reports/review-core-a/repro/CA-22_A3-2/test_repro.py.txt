@@ -1,0 +1,25 @@
+"""A3-2: apv:assumption is declared owl:ObjectProperty with rdfs:range apv:Assumption, but the engine emits
+adapter-declared assumptions as xsd:string literals (EF E.10 item 11 documents the string form)."""
+from pathlib import Path
+
+import rdflib
+from rdflib.namespace import OWL, RDF, RDFS
+
+from agentprov.aer.reader import load_aer
+from agentprov.prov.engine import derive
+from agentprov.prov.serialise.trig import to_trig
+
+ROOT = Path.cwd()
+APV = rdflib.Namespace("https://w3id.org/agentprov/ns#")
+
+
+def test_apv_assumption_objects_match_declared_range():
+    vocab = rdflib.Graph().parse(ROOT / "src/agentprov/vocab/apv-0.1.ttl")
+    obj_props = set(vocab.subjects(RDF.type, OWL.ObjectProperty))
+    prop = next(p for p in obj_props if str(p).endswith("assumption") and str(p).startswith(str(APV)[:-1]))
+    assert (prop, RDFS.range, None) in vocab
+    d = derive(load_aer(str(ROOT / "docs/architecture/examples/C/rope_denial_qwen_autodojo.aer.jsonl")))
+    ds = rdflib.Dataset()
+    ds.parse(data=to_trig(d.prov_json), format="trig")
+    literals = sorted({str(o) for _s, p, o, _g in ds.quads((None, prop, None, None)) if isinstance(o, rdflib.Literal)})
+    assert literals == [], f"ObjectProperty {prop} has literal objects: {literals}"

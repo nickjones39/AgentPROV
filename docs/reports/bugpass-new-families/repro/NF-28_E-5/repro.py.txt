@@ -1,0 +1,51 @@
+"""E-10i-5: context download pin / lfs_object pin with md5 only, served from the fetch cache."""
+import argparse, hashlib, io, sys, tempfile, zipfile
+from pathlib import Path
+from types import SimpleNamespace
+
+from agentprov.cli import import_ as imp
+from agentprov.cli.common import Context, CommandResult
+from agentprov.raw.fetch import Recipe
+
+base = Path(tempfile.mkdtemp(prefix="e10i5-", dir=sys.argv[1]))
+home = base / "home"; cache = home / "cache"; cache.mkdir(parents=True)
+env = {"AGENTPROV_HOME": str(home)}
+
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, "w") as z:
+    z.writestr("tasks/t1.yaml", "a: 1\n")
+data = buf.getvalue()
+md5 = hashlib.md5(data).hexdigest()
+
+ctx_pin = {"role": "tasks", "kind": "zenodo", "doi": "10.5281/zenodo.1234567", "file": "tasks.zip", "md5": md5, "bytes": len(data)}
+lfs_pin = {"role": "lfs_object", "kind": "hf", "repo": "org/ds", "revision": "a" * 40, "file": "docs/big.bin", "md5": hashlib.md5(b"OBJ").hexdigest()}
+for pin, payload in ((ctx_pin, data), (lfs_pin, b"OBJ")):
+    p = Recipe.from_pin(pin).cache_path(cache); p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(payload)
+local = base / "local" / "tasks.zip"; local.parent.mkdir(); local.write_bytes(data)
+
+primary = {"role": "primary", "kind": "git", "repo": "https://github.com/org/x", "commit": "b" * 40}
+profile = SimpleNamespace(id="synthetic", data={"source": {"pins": [primary, ctx_pin, lfs_pin]},
+                                                 "import": {"context_artefacts": ["tasks:tasks/*.yaml"]}})
+
+def args(context=()):
+    return argparse.Namespace(context=list(context), no_context=[], cache_dir=None, allow_network=False, dry_run=False,
+                              allow_hardlinks=False, i_consent_to_large_download=False)
+
+class Tree:
+    def walk(self):
+        yield SimpleNamespace(label="docs/big.bin")
+
+def run(label, a):
+    res = CommandResult()
+    try:
+        out = imp._per_unit_inputs(a, Context(args=a, env=env), profile, primary, Tree(), None, res)
+        ctxs, objs, _local = out
+        for c in ctxs:
+            print(f"{label}: ACCEPTED context role={c.role} tree={type(c.tree).__name__} sha256={c.tree.sha256[:16]}.. pin_has_sha256={'sha256' in c.pin}")
+        for o in objs:
+            print(f"{label}: ACCEPTED lfs object label={o.label} sha256={o.sha256[:16]}.. pin_has_sha256={'sha256' in lfs_pin}")
+    except Exception as exc:
+        print(f"{label}: REFUSED {type(exc).__name__} code={getattr(exc, 'code', None)}: {exc}")
+
+run("cache path (--fetch, pin cached)", args())
+run("local copy (--context tasks=PATH)", args([f"tasks={local}"]))

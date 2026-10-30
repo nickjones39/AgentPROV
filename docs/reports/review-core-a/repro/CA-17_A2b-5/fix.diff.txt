@@ -1,0 +1,25 @@
+--- a/src/agentprov/adapters/adprov/mapper.py
++++ b/src/agentprov/adapters/adprov/mapper.py
+@@ def _check_turn_layout(self, rec: _Rec, turn: Mapping[str, Any], template: str) -> None:
+-        if observed != canonical:
++        # J.3.2: tool_calls appears only with >= 1 call; a present-but-empty array is kept through the key list,
++        # which the view already honours (transcript_v1.py:398)
++        empty_calls = template.startswith("assistant_turn") and turn.get("tool_calls") == []
++        if observed != canonical or empty_calls:
+             adprov["keys"] = observed
+             if not ok and not alternative:
+@@ (header, after the model_config block)
+         if attempts.get("finish_reasons_verbatim") is not None:
+             v1["finish_reasons"] = h.enc(attempts["finish_reasons_verbatim"], "/ext/adprov/v1/finish_reasons")
++        if self.doc.get("discarded_attempts") == []:
++            v1["discarded_attempts_empty"] = True
+         ext_adprov["v1"] = v1
+--- a/src/agentprov/views/transcript_v1.py
++++ b/src/agentprov/views/transcript_v1.py
+@@ def render(aer: Any) -> dict[str, Any]:
+     if discarded:
+         out["discarded_attempts"] = [_render_discarded(doc, scope) for scope in discarded]
++    elif v1.get("discarded_attempts_empty") is True:
++        out["discarded_attempts"] = []
+     return out
+(+ an entry for ext.adprov.v1.discarded_attempts_empty in src/agentprov/views/transcript_v1_fields.toml and the generated C.15.3 / D.7.3 tables. Alternative: reject both shapes with a seal issue adprov.v1_layout_unexpected_order, since the J.3.2 table says "only when >= 1 call".)

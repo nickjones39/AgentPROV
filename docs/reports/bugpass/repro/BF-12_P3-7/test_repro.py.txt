@@ -1,0 +1,26 @@
+import json, sys
+from pathlib import Path
+ROOT = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+sys.path.insert(0, str(ROOT / "tools"))
+import queue_status as qs  # noqa: E402
+
+def _doc(tmp_path, **over):
+    d = {"schema": "agentprov-session-status/1", "name": "s1", "worktree": str(tmp_path), "branch": "b",
+         "head": "a" * 40, "dirty": False, "base": {"ref": "origin/main", "sha": None, "ahead": 1, "behind": 0},
+         "state": "building", "waits_on": {"kind": "none"}, "updated_at": "2026-10-14T00:00:00Z",
+         "heartbeat_at": "2026-10-14T00:00:00Z"}
+    d.update(over)
+    return d
+
+def test_non_object_base_does_not_crash_report(tmp_path):
+    sdir = tmp_path / "sessions"; sdir.mkdir()
+    (sdir / "good.json").write_text(json.dumps(_doc(tmp_path, name="good")))
+    (sdir / "bad.json").write_text(json.dumps(_doc(tmp_path, name="bad", base="x")))
+    report = qs.collect(sdir, tmp_path / "noqueue", now=1.8e9, stale_hours=2)
+    out = qs.render(report)  # expected: bad flagged INVALID, table prints
+    assert "INVALID" in out and "good" in out
+
+def test_cli_main_does_not_crash(tmp_path):
+    sdir = tmp_path / "sessions"; sdir.mkdir()
+    (sdir / "bad.json").write_text(json.dumps(_doc(tmp_path, name="bad", base="x")))
+    assert qs.main(["--sessions-dir", str(sdir), "--queue-dir", str(tmp_path / "noq")]) == 0

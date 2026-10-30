@@ -1,0 +1,40 @@
+"""Verify: own_pin_part exempts part 'history' from variant ownership on files of ANY pin (no origin-commit check);
+CLI _pin returns any role's pin whatever its part; the history capability is still 'planned' (gate refuses)."""
+import sys, argparse
+sys.path.insert(0, "tests/adapters/agentdojo")
+from test_agentdyn import FIXTURES, REPO_URL, _entries  # noqa
+from agentprov.adapters.runner import map_artefact_total, NotSelected, own_pin_part
+from agentprov.adapters.profiles import load_profile
+from agentprov.adapters.types import Origin
+from agentprov.adapters.registry import get_source
+from agentprov.testing import golden
+from agentprov.cli.import_ import _pin, _capability
+
+HEAD = "5353cf7615b135cace8d07c8f12dac53a16b6db3"
+prof = load_profile("agentdyn")
+print("profile version", prof.version, "own_pin_part(history)", own_pin_part(prof, "history"))
+seen = set()
+for e in _entries():
+    raw = (FIXTURES / e["sample_file"]).read_bytes()
+    origin = Origin.git(REPO_URL, HEAD, e["original_path"], golden.git_blob_sha1(raw))
+    res = {}
+    for part in ("a", "b", "c", "history"):
+        try:
+            out, unit = map_artefact_total(raw, origin, profile_id="agentdyn", part=part)
+            res[part] = f"SELECTED(degenerate={out.degenerate})"
+            var = unit.primary.variant
+        except NotSelected:
+            res[part] = "NotSelected"
+        except Exception as exc:
+            res[part] = type(exc).__name__
+    key = tuple(sorted(res.items()))
+    if key not in seen:
+        seen.add(key)
+        print("head-origin fixture", e["sample_file"].split("/")[0] if "/" in e["sample_file"] else e["sample_file"][:40], res)
+
+ns = argparse.Namespace(snapshot="history", pin="head")
+print("_pin(--snapshot history --pin head) ->", {k: _pin(prof, ns, "history").get(k) for k in ("role", "part", "commit")})
+ns2 = argparse.Namespace(snapshot="c", pin="history")
+print("_pin(--snapshot c --pin history) ->", {k: _pin(prof, ns2, "c").get(k) for k in ("role", "part", "commit")})
+reg, cap = _capability("agentdyn", None, argparse.Namespace(snapshot="history", pin="head"))
+print("_capability(--snapshot history --pin head) -> part", cap.part, "import_status", cap.import_status)

@@ -1,0 +1,16 @@
+import sys
+sys.path.insert(0, "tests/adapters/agentdojo")
+from phase10d_support import BY_NAME, map_doc
+from source_support import call, log_with, result, turn
+
+SRC = BY_NAME["llm-lock"]
+C1 = call("get_balance", {}, "call_1")
+for err in (None, "Skipping task user_task_0 due to context_length_exceeded: Error code: 400"):
+    doc = log_with([turn(C1), result(C1, "1000")], pipeline_name="local", benchmark_version="v1.2.2")
+    doc["error"] = err
+    path = (f"data/agentdojo/llm/logs/local/{doc['suite_name']}/{doc['user_task_id']}/"
+            f"{doc.get('attack_type') or 'none'}/{doc.get('injection_task_id') or 'none'}.json")
+    m = map_doc(SRC, doc, path)
+    terms = [(r["id"], r["actor"], r["subject"], r["verdict"]) for r in m.of_kind("decision") if r.get("verdict") == "terminate"]
+    print("error=", repr(err)[:40], "terminate decisions:", terms,
+          "outcome_imposed_by_runner:", bool(m.issues("outcome_imposed_by_runner")))

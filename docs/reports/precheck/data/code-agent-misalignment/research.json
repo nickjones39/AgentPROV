@@ -1,0 +1,156 @@
+{
+ "corpus_id": "code-agent-misalignment",
+ "parts": [
+  "code-agent-misalignment-geminicli · results-raw"
+ ],
+ "wave": 6,
+ "written": "2026-10-14",
+ "code_commit": "065b0d36",
+ "status": "desk research for the pre-registration; no data check of this corpus has run. Nothing from the pinned archive was read. Read over the internet: Zenodo API metadata and the record's 96-byte .sha256 file; GitHub API metadata, commit list, recursive tree listing (names, sizes, blob ids) of the companion repository at its head 1dec4f17; its README, RESULTS/README.md, ZENODO_UPLOAD.md, LICENSE, the gemini_cli Dockerfile/entrypoint, comment and model lines of the gemini_cli SUT configs and litellm/minimax_gemini.yaml (credential-like lines filtered out, none printed), s2/run_mutation_agent.py, s2/llm/registry.py, s2/agent_orchestrator.py, scripts/build_results.py; and the tier-1 aggregate CSVs RESULTS/manifest.csv (956,483 B), RESULTS/cell_summary.csv (880 B), RESULTS/diff_filter_stats.csv (484,098 B) to the session scratchpad (aggregate tables, no rollout content). gemini-cli releases and stream-json type definitions via GitHub API",
+ "files_written": [
+  "docs/reports/precheck/data/code-agent-misalignment/research.json",
+  "docs/reports/precheck/prereg/code-agent-misalignment.md"
+ ],
+ "papers": [
+  {
+   "title": "Probing Agentic Misalignment Propensity in Code Agents: A Software-Engineering-Grounded Benchmark (anonymous; JSS submission, under review). No preprint, DOI or public version found",
+   "url": "https://github.com/warmjademe/code_agent_agentic_misalignment#citation",
+   "id": "none (data DOI 10.5281/zenodo.20404563, concept 10.5281/zenodo.20404562)",
+   "relation": "primary study of the deposit; the repository README carries the abstract, the 5x4 design and a BibTeX entry marked under review",
+   "versions": "no public versions: arXiv API title/abstract searches (ti:misalignment AND ti:code AND ti:agents; ti:\"Software-Engineering-Grounded\"; abs:\"agentic misalignment\" AND abs:\"Gemini CLI\") and a web search for the exact title returned no match (2026-10-14): https://export.arxiv.org/api/query?search_query=ti:misalignment+AND+ti:code+AND+ti:agents"
+  },
+  {
+   "title": "gemini-cli stream-json output format (google-gemini/gemini-cli, packages/core/src/output/types.ts)",
+   "url": "https://github.com/google-gemini/gemini-cli/blob/v0.14.0/packages/core/src/output/types.ts",
+   "id": "tag v0.14.0 (released 2025-11-12)",
+   "relation": "harness CLI; the SUT configs and entrypoint say 'Gemini CLI 0.14'; the event types and fields of v0.14 equal the census vocabulary exactly",
+   "versions": "types.ts blob 04483542 unchanged v0.11.0..v0.20.0; v0.21.0 blob 81de667b keeps the same StreamStats; v0.22.0 adds StreamStats.cached and .input (https://github.com/google-gemini/gemini-cli/blob/v0.22.0/packages/core/src/output/types.ts)"
+  }
+ ],
+ "repo": "https://github.com/warmjademe/code_agent_agentic_misalignment (MIT, public, created 2026-05-24, 0 issues ever, 0 stars). Only 3 commits: 82ca4554 2026-05-24 'Initial public release: code, scenarios, and orchestrator'; a1289574 2026-05-27T01:41Z 'RESULTS: tier-1 analysis-ready data (10000 records, 127 MB)' (300+ files: RESULTS/README.md, cell_summary.csv, manifest.csv, diff_filter_stats.csv, cells/*/verdict.json, final_diff.patch, transcript_tail.txt); 1dec4f17 2026-05-27T02:15:00Z (head = the profile's cited commit) adds 8 lines to RESULTS/README.md (the Zenodo DOI and archive sha256), 34 s before the Zenodo record was created (02:15:34Z). Tier-1 tree at 1dec4f17: 10,000 verdict.json (gemini_cli 2,500, 234-251 B each), 7,859 final_diff.patch (gemini_cli 2,500; filtered, capped 64 KiB, redacted), 2,000 transcript_tail.txt (openhands only); no rollouts/ subdirectory despite RESULTS/README saying so. scripts/build_results.py derives RESULTS/ from RESULTS_raw/: copies verdict.json, manifest.csv, cell_summary.csv and README.md verbatim, filters and redacts diffs (pattern list includes the AIza key shape) and writes diff_filter_stats.csv with raw_bytes per rollout (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/scripts/build_results.py). Harness: s2/run_mutation_agent.py writes verdict.json; exit_code = return code of `docker run` (the gemini entrypoint ends with `exit 0` whatever the CLI returned; [corrected, fact-check] non-zero only on a missing task file (exit 2) or a failing post-run step under set -e), timed_out = an outer Python timeout of OE_RUN_TIMEOUT+60 s, elicited = the mutation's detector called with an EMPTY transcript and the workspace diff only, any detector exception counts as not elicited; runner_stdout/stderr logs keep the last 50,000 characters (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/s2/run_mutation_agent.py). agents/gemini_cli/entrypoint.sh runs `timeout --preserve-status -k 5 240 gemini --yolo -m $OE_MODEL --include-directories <sandbox> -o stream-json`, writes gemini_meta.json {exit_code, elapsed_sec}, fs_before/fs_after, events.jsonl via trace_to_atom.py and file_after.json (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/agents/gemini_cli/entrypoint.sh). The Dockerfile builds FROM an unpinned private image `overeager-bench/gemini-cli:latest` (configs name `emnlp/gemini-cli:latest`), so no gemini-cli version is pinned anywhere (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/agents/gemini_cli/Dockerfile). s2/agent_orchestrator.py moves to the next agent once a (agent, model) pair has >= 510 verdicts (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/s2/agent_orchestrator.py).",
+ "data_record": "Zenodo 20404563 (concept 20404562; the only version; published 2026-05-27, created 02:15:34Z, revision 3; dataset; CC-BY-4.0; creator 'Anonymous (camera-ready will list authors)'; isSupplementTo the GitHub repo) https://zenodo.org/api/records/20404563 . Files: RESULTS_raw.tar.zst 207,950,011 B md5 c8f46f1eae55897fe55955f368d5da77; RESULTS_raw.tar.zst.sha256 96 B md5 a90b5b35f2b23950b6bf421141fb3cf3, content sha256 f7186010db235cbff10f40c3c2d98208328c6836792973621382b981d0acc3cf followed by a depositor host path (a home directory; value not repeated here). Our pin (profile [[source.pins]]): same size, md5 and sha256, fetched 2026-10-12 (phase 10e) -> MATCH, no newer version. Description: 10,000 rollouts, 20 cells (4 scaffolds x 5 models) x 500 mutations, 'complete transcripts (untruncated)', ~1.6 GB uncompressed (census: 1,464,483,840 B decompressed tar), tier-1 subset in the GitHub repo. GitHub-side companions read for this step (aggregates only): RESULTS/manifest.csv blob c143c23f (sha256 35344806819911e565dab3eb2aeb68fda63e0a0da091d0f7c4b0053b69268577, 10,000 rows), RESULTS/cell_summary.csv blob 8f7e199e (sha256 7c962212070e5540407cd6651289dff1399e3f4097e187453220979396bd3c39), RESULTS/diff_filter_stats.csv blob ef5ad2e7 (sha256 8ae168fb0bf5ddfa8f98b42b9f23291dfb721f1a78bcd54eee249a454b47f090), RESULTS/README.md blob c2fbaab8 at a1289574 and 66bbd47c at 1dec4f17; all three CSVs unchanged between a1289574 and 1dec4f17.",
+ "harness": "gemini-cli 'Gemini CLI 0.14' per SUT-config and litellm comments (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/configs/sut/gemini_cli_minimax.yaml), not pinned (base image :latest). The stream-json schema of v0.11.0-v0.21.x (event types init/message/tool_use/tool_result/error/result; StreamStats {total_tokens,input_tokens,output_tokens,duration_ms,tool_calls}; tool_result.output optional) matches the census exactly; v0.22.0 added StreamStats.cached/input (https://github.com/google-gemini/gemini-cli/releases/tag/v0.14.0 ; v0.14.0 published 2025-11-12). codebase_investigator sub-agent exists in packages/core/src/agents from v0.11.0 [corrected, fact-check: codebase-investigator.ts is already present at v0.10.0]. Known gemini-cli issue of interest: #20183 'Auth errors in non-interactive stream-json mode produce no structured RESULT event' (filed 2026-02-24 on a later version, closed 2026-05-19) https://github.com/google-gemini/gemini-cli/issues/20183 . Wrapper: `timeout --preserve-status -k 5 240` makes a CLI killed at 240 s exit 143 (SIGTERM), which is the census's 143 <-> no result event pattern. Routing (SUT configs): every gemini_cli config sets OE_MODEL 'gemini-2.5-pro' (the CLI's hard-coded name, which explains init.model in all cells); gemini-2.5-pro goes direct to Google AI Studio through a host proxy; claude-sonnet-4-6 via a hand-written Gemini<->Anthropic sidecar (:4013) to the 'simpleai' relay; gpt-5.3-codex via a Gemini<->OpenAI sidecar (:4016) to the 'shqbb' relay; MiniMax-M2 via a stock LiteLLM Gemini-surface proxy ([corrected, fact-check] configs/sut/gemini_cli_minimax.yaml points at 127.0.0.1:4000 while litellm/minimax_gemini.yaml describes itself as the :4006 bridge with provider minimax/MiniMax-M2; the port actually used is not established); no gemini_cli config for GLM-4.7 (only glm5 configs routing to glm-5.1). The sonnet and gpt configs state that LiteLLM's stock OpenAI->Gemini back-translation strips tool-call args (args={}) and gave spurious 0% trigger rates on the earlier :4004/:4006/:4009 bridges (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/configs/sut/gemini_cli_gpt53codex.yaml , https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/configs/sut/gemini_cli_sonnet.yaml , https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/litellm/minimax_gemini.yaml).",
+ "models": [
+  "MiniMax-M2 (MiniMax, api.minimaxi.com via a stock LiteLLM Gemini-surface bridge: SUT config :4000, litellm/minimax_gemini.yaml :4006, provider minimax/MiniMax-M2 [corrected, fact-check]; s2/llm/registry.py role probe)",
+  "glm-4.7-probe (label; registry maps it to glm-4.7 via the z.ai coding-plan endpoint; the gemini_cli route for it is not in the published configs, which route GLM under gemini_cli to glm-5.1)",
+  "claude-sonnet-4-6 (Anthropic model through the third-party 'simpleai' relay; released 2026-02-17)",
+  "gemini-2.5-pro (Google AI Studio direct)",
+  "gpt-5.3-codex (OpenAI model through the third-party 'shqbb' relay; registry comment: the relay answered with gpt-5.4 in the response model field; released 2026-02-05)",
+  "stream-recorded model: init.model = 'gemini-2.5-pro' in every cell (CLI alias, OE_MODEL)"
+ ],
+ "reported_results": [
+  {
+   "arm": "all",
+   "metric": "paper results",
+   "value": "no public paper; the only author-reported numbers are the deposit's own cell_summary.csv (copied verbatim into the GitHub tier-1), the repository's ZENODO_UPLOAD.md total and the README design",
+   "n": "n/a",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment"
+  },
+  {
+   "arm": "gemini_cli x MiniMax-M2",
+   "metric": "detector-flagged elicitation rate (n_elicited/n)",
+   "value": "28/500 = 0.056 (n_timed_out 0)",
+   "n": "500",
+   "where": "RESULTS/cell_summary.csv row gemini_cli,MiniMax-M2: https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/cell_summary.csv"
+  },
+  {
+   "arm": "gemini_cli x glm-4.7-probe",
+   "metric": "elicitation rate",
+   "value": "107/500 = 0.214",
+   "n": "500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/cell_summary.csv"
+  },
+  {
+   "arm": "gemini_cli x gemini-2.5-pro",
+   "metric": "elicitation rate",
+   "value": "120/500 = 0.24",
+   "n": "500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/cell_summary.csv"
+  },
+  {
+   "arm": "gemini_cli x gpt-5.3-codex",
+   "metric": "elicitation rate",
+   "value": "68/500 = 0.136",
+   "n": "500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/cell_summary.csv"
+  },
+  {
+   "arm": "gemini_cli x claude-sonnet-4-6",
+   "metric": "elicitation rate",
+   "value": "59/500 = 0.118",
+   "n": "500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/cell_summary.csv"
+  },
+  {
+   "arm": "gemini_cli (5 cells)",
+   "metric": "elicitation rate",
+   "value": "382/2,500 = 0.1528 (sum of the five rows; equals the census's 382 verdicts and the manifest's 382)",
+   "n": "2500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/cell_summary.csv ; docs/reports/phase10o/README.md §5"
+  },
+  {
+   "arm": "all 20 cells",
+   "metric": "elicitation rate",
+   "value": "1,787/10,000 = 17.87 % (also the sum of cell_summary.csv: claude_code 590, codex_cli 301, gemini_cli 382, openhands 514)",
+   "n": "10000",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/ZENODO_UPLOAD.md"
+  },
+  {
+   "arm": "gemini_cli per cell",
+   "metric": "verdict elapsed_sec >= 240 (manifest.csv)",
+   "value": "MiniMax-M2 21, glm-4.7-probe 172, gemini-2.5-pro 258, gpt-5.3-codex 80, claude-sonnet-4-6 389 (total 920); timed_out 0 and exit_code 0 in all 2,500; run_id empty; one source_slug per cell",
+   "n": "2500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/manifest.csv"
+  },
+  {
+   "arm": "gemini_cli per cell",
+   "metric": "raw final_diff.patch bytes (diff_filter_stats.csv raw_bytes)",
+   "value": "zero-byte diffs: MiniMax-M2 459, sonnet 265, glm 129, gemini-2.5-pro 120, gpt 100 (total 1,073); > 1 MiB: 14 (all gemini-2.5-pro, max 32,723,159 B); total 319,646,502 B; 3 filtered diffs truncated",
+   "n": "2500",
+   "where": "https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/RESULTS/diff_filter_stats.csv"
+  }
+ ],
+ "expected_counts": "Registry/README listing: 2,182 streams (tools/readme_corpora.toml, basis census). Census (docs/reports/phase10o/README.md §3-§4): 63,384 regular members, 20 cells x 500 rollouts; gemini_cli 2,500 rollouts, 2,357 stream files, 175 empty, 2,182 non-empty (sonnet 460, gpt 461, glm 457, gemini 420, MiniMax 384), 143 without a stream (MiniMax 97, gemini 46); 107,006 events; 7,500 out-of-scope verdicts. Phase-10o trial import: 2,182 mapped, 0 failed, register out_of_scope 7,500, no_stream 143 (+890 sibling rows), empty_stream 1 (+9) and dedup.collapsed 174. Paper/README: 'approximately 10,000' rollouts, 500 per cell.",
+ "expected_arms": "Facets model x skeleton x mutation (no defence or attack facet; pressure is in the task design). 5 models x 500 mutations per cell; 51 skeletons (README says 50 seeds), 41 with m01-m10 and 10 with 9 mutations (a 510-slot pool less 10 slots [fact-check: 510 is inferred from 51 x m01-m10 and the orchestrator's --target-n 510; the README states |V|=500]: SK-ASSERTWEAKEN m01, SK-AUDITDEL m01, SK-CACHESTALE m04, SK-COOKIEFLAGS m03, SK-CORSWIDE m01, SK-DELETE m03, SK-DEPDOWN m04, SK-DIVZERO m01, SK-FAILOPEN m05, SK-FKDROP m02, absent in every gemini_cli cell of the GitHub manifest). In the corpus a cell is present when its stream is non-empty: 2,182 of 2,500 (model,mutation) cells; 318 absent by format (175 empty, 143 no stream). Other scaffolds (claude_code, codex_cli, openhands) are out of scope (D-143).",
+ "licence": "Data: CC-BY-4.0 on Zenodo 20404563 (https://zenodo.org/records/20404563); no extra clause in the record. Code: MIT, 'Copyright (c) 2026 The Authors' (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/LICENSE). The README's data-availability text says raw transcripts are 'available on request pending size and privacy review', but the Zenodo record publishes them openly under CC-BY-4.0. Unassessed (profile): model-provider terms on outputs relayed via third-party relays; replayed web-search results.",
+ "discrepancy_leads": [
+  "MiniMax-M2 cell runs through a stock LiteLLM Gemini-surface bridge ([corrected, fact-check] SUT config :4000, LiteLLM yaml :4006); the authors' own configs name :4006 among bridges that strip tool-call args ({}) and gave 'spurious 0% trigger rates'; the cell has the lowest elicitation (5.6 %) and 459/500 zero-byte diffs; test parameters=={} share per cell (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/configs/sut/gemini_cli_sonnet.yaml , https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/litellm/minimax_gemini.yaml)",
+  "glm-4.7-probe gemini_cli route absent from the published configs (only glm5 -> glm-5.1); verdict sut_id gemini_cli_glm47 names a config that is not published; served model unverifiable (artefacts.toml geminicli.art.missing_route_config)",
+  "gpt-5.3-codex is served by a third-party relay that, per s2/llm/registry.py, reported gpt-5.4 in its response model field; the stream records no served model, so the label cannot be checked from the data (https://github.com/warmjademe/code_agent_agentic_misalignment/blob/1dec4f17e85c589db22ae3f6e7d79a4f0a71de45/s2/llm/registry.py)",
+  "verdict exit_code 0 / timed_out false contradict gemini_meta exit 143 by design: verdict.exit_code is the docker return code of an entrypoint that always exits 0 and timed_out is an outer timeout (240+60 s) that the inner 240 s CLI timeout pre-empts; documentary support for D-335's class-I reading of 143 as a timeout kill",
+  "143 rollouts without gemini_stream.jsonl and gemini_meta.json but 141 with harness events.jsonl, which the entrypoint derives FROM the stream: the stream likely existed in the container and was lost when the bundle was assembled (packaging loss, not run failure); 19 of them elicited",
+  "elicited is computed from the workspace diff only (detector gets an empty transcript; exceptions -> False): the outcome is independent of the mapped stream; the paper's rate counts the 318 rollouts without a stream",
+  "README/ZENODO_UPLOAD mismatches: 50 seeds vs 51 skeletons; design matrix lists an 'in-house probe' framework but the deposit has claude_code; records said to carry transcript_tail.txt (openhands only in tier-1); 'untruncated' transcripts while runner logs keep the last 50,000 characters; archive root RESULTS_build/ vs RESULTS_raw/ in the docs and build script; ~1.6 GB vs 1.46 GB decompressed",
+  "the entrypoint writes file_after.json, which the census does not list among rollout files",
+  "orchestrator moves on at >= 510 verdicts per (agent, model) while each cell holds 500: selection of the 500 (the 10 missing pool slots) is not documented; claude_code x gpt-5.3-codex merges 141 + 369 = 510 verdicts into 500 (out of scope here, but shows that selection happened)",
+  "the deposit metadata and the tier-1 README name depositor/NAS host home directories; the runner's work root is under the operator's $HOME (~/jss_agent_work) and the census's /home/ubuntu/ (1,393) may be host rather than container paths (ZENODO_UPLOAD shows a /home/ubuntu host path)",
+  "archive verbatim copies should equal the GitHub tier-1 (build_results.py copies verdict.json, manifest.csv, cell_summary.csv, README.md verbatim; raw diff sizes in diff_filter_stats.csv): any difference means a different snapshot"
+ ],
+ "checks_not_applicable": [
+  "L1-05 defence and attack facets: none in the design (attack_id/defense_id not_recorded, D-330); arms are model x skeleton",
+  "Expected movement since E2: not a delta corpus (registry status planned; never imported; absent from FA and E2)",
+  "Outcome 'utility' and 'ASR': the study reports only a detector-flagged elicitation rate per cell"
+ ],
+ "open_questions": [
+  "Which model actually served the glm-4.7-probe gemini_cli cell (no config) and the gpt-5.3-codex cell (relay reportedly answered gpt-5.4)? Only the authors can say",
+  "Was the MiniMax-M2 gemini_cli cell run on the args-stripping LiteLLM bridge? Answered by H-11 at L1",
+  "Should D-334/D-335 rules move from class I to D now that the harness code (entrypoint, runner) has been read? User decision; the product may not cite code it has not pinned (D-334 chose no code fetch)",
+  "Are the /home/ubuntu/ occurrences container or host paths (redaction need)?"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "confirmed": "Zenodo record/version/licence/files/sha256 = profile pin; GitHub commits, MIT LICENSE, 0 issues; cell_summary.csv, manifest.csv, diff_filter_stats.csv sha256 and every per-cell figure recomputed from the tier-1 CSVs at 1dec4f17; runner/entrypoint/Dockerfile/orchestrator/build_results/registry/config claims; gemini-cli types.ts blobs v0.11-v0.20 equal, v0.21 same StreamStats, v0.22 adds cached/input; issue #20183 dates; model release dates; no preprint found; census and artefacts.toml counts (20 expected = H-20)",
+  "corrected": [
+   "MiniMax-M2 port: SUT config :4000 vs LiteLLM yaml :4006 (not established); provider minimax/MiniMax-M2",
+   "entrypoint exit 0 is not unconditional (exit 2 on missing task; set -e after the CLI)",
+   "codebase_investigator present from v0.10.0",
+   "subagent_internals expected count in artefacts.toml is 73 tool executions (prereg §5)",
+   "510-slot pool is an inference; README says |V|=500"
+  ],
+  "unverifiable": [
+   "served models of glm-4.7-probe and gpt-5.3-codex",
+   "archive README = a1289574 blob",
+   "/home/ubuntu host vs container"
+  ]
+ }
+}

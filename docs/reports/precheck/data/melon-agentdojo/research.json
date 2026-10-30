@@ -1,0 +1,241 @@
+{
+ "corpus_id": "melon-agentdojo",
+ "date": "2026-10-14",
+ "code_commit": "065b0d36",
+ "step": "P0/1 desk research (pre-registration; no data check run)",
+ "parts": [
+  "melon-agentdojo · head (1,911 new TraceLogger logs at xwsdid/MELON@71d99dfff5ef; 36,679 upstream copies select.owned_elsewhere)"
+ ],
+ "papers": [
+  {
+   "id": "arXiv:2502.05174",
+   "title": "MELON: Provable Defense Against Indirect Prompt Injection Attacks in AI Agents (Zhu, Yang, Wang, Guo, Wang; ICML 2025)",
+   "url": "https://arxiv.org/abs/2502.05174",
+   "relation": "builds_on: the original MELON defence the fork's variants extend (fork README links it). It reports no MELON-R/SATM/AT results and no banking-only numbers; its runs are not in this corpus",
+   "versions": "v1 2025-02-07, v2 2025-05-01, v3 2025-05-24, v4 2025-06-10 (comment ICML 2025; https://arxiv.org/abs/2502.05174v4). Table 1 GPT-4o/o3-mini/Llama-3.3-70B rows identical v1 vs v4 except the LLM Detector rows, which v4 shows as BU 81.44% and UA/ASR 0.00% for all three models (v1: e.g. GPT-4o avg UA 20.83%, ASR 1.27%); v4 adds Appendix F Table 5 (LLM detector accuracy/FPR/FNR). Tables 2-4 unchanged. Compared from https://arxiv.org/html/2502.05174v1 and https://arxiv.org/html/2502.05174v4"
+  },
+  {
+   "id": "none (course project report)",
+   "title": "Fork README and report/MELON_SATM_AT_补充内容.md (supplementary report text, Chinese) describing MELON-R, MELON-SATM, MELON-AT",
+   "url": "https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/report/MELON_SATM_AT_%E8%A1%A5%E5%85%85%E5%86%85%E5%AE%B9.md",
+   "relation": "describes: the only description of these runs; reported numbers (Tables 6.2.1, 6.3.1, summary) come from it and the README 'experiment results' tables. The report/ also holds a course-design report draft (.docx), defence slides (PDF) and a copy of the MELON paper PDF (absent blobs in our pin)",
+   "versions": "single version in commit 605d99991110 (2026-06-17); unchanged at the pin"
+  },
+  {
+   "id": "arXiv:2406.13352",
+   "title": "AgentDojo (Debenedetti et al., NeurIPS 2024 D&B)",
+   "url": "https://arxiv.org/abs/2406.13352",
+   "relation": "benchmark and vendored harness (agentdojo 0.1.35, suites v1.2.2)",
+   "versions": "not re-examined here (see mandate-agentdojo-eval research)"
+  }
+ ],
+ "repo": "https://github.com/xwsdid/MELON (not a GitHub fork: fork=false, created 2026-06-17T04:55Z, MIT per GitHub API; carries ethz-spylab/agentdojo history up to 18b501a630db 'Improve Stability (#136)' 2026-03-30, lacks upstream 089ed468 2026-06-02). Pin 71d99dfff5ef98ffb25bac451909f3e10af9e27f = current HEAD of main (pushed_at 2026-06-17T12:13Z; no later commits, 1 branch, 0 releases, 0 issues, 0 PRs, 0 forks; GitHub API 2026-10-14). Only two own commits: 605d99991110 (author 2026-06-17T06:01Z, committer 06:16Z, 'MELON defense improvements: MELON-R, MELON-SATM, MELON-AT'): adds the 9 runs/*-melon* directories, runs/detection_stats.json, report/, .env.example, README and .gitignore changes (https://github.com/xwsdid/MELON/commit/605d99991110); 71d99dff (2026-06-17T12:13Z, message '更新' = 'update'): changes only src/agentdojo/agent_pipeline/pi_detector.py (+42/-46), and the diff is comments, docstrings and print strings translated from English to Chinese, no behavioural change (https://github.com/xwsdid/MELON/commit/71d99dfff5ef98ffb25bac451909f3e10af9e27f). So the committed run code is the code at 605d9999, functionally equal to the pin. [CORRECTED by fact-check 2026-10-14: the runs were NOT all made with the committed code. (1) melon_r: the profile's melon_r_prompt digest (sha256 82ce7af3..., 92 chars) equals the newline-joined FIRST FIVE of the six lines of the RECOVERY 'SECURITY WARNING' text at the pin (pi_detector.py, the recovery_instruction; the full six-line text is 132 chars, sha256 be04140f...), so the melon_r logs were written by an earlier, uncommitted pi_detector.py. (2) melon_rp, see next sentence.] Exception: melon_rp, which is NOT in the pin's DEFENSES list (agent_pipeline.py lines 45-54 list melon, melon_r, melon_sm, melon_at; https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/src/agentdojo/agent_pipeline/agent_pipeline.py): the 16 melon_rp logs come from code that was never committed. tests/run_small_compare_melon.py runs melon, melon_r, melon_rp on gpt-4o, banking, direct, v1.2.2 for user_task_11..20 × injection_task_11..20 (banking has only user_task_0..15 and injection_task_0..8), a small-run script whose method/model/suite/attack match the partial gpt-4o melon/melon_r/melon_rp direct arms [CORRECTED by fact-check: its committed TASK_PAIRS do NOT match the logs. The GitHub tree at the pin lists melon_rp direct as the diagonal pairs user_task_i × injection_task_i for i = 1..8 (file names only), whereas the committed script lists i = 11..20, most of which do not exist in banking; the script was edited after (or differs from) the runs. tests/test_melonrp_probe_small.py at the pin imports MELONRP from pi_detector.py, a class that does not exist at the pin (https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/tests/test_melonrp_probe_small.py)] (https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/tests/run_small_compare_melon.py). The detectors write per-step decisions to runs/defense_logs.jsonl and a DetectionStats summary (append_defense_log in pi_detector.py); only runs/detection_stats.json is committed (.gitignore keeps runs/*melon*, runs/detection_stats.json and the upstream no-defence banking dirs; https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/.gitignore). Original MELON code: https://github.com/kaijiezhu11/MELON (pi_detector.py + README, no licence file, GitHub license=null; 1 open issue about adding artefacts to Hugging Face).",
+ "data_record": "No Zenodo/HF/Figshare record; the data are the committed runs/ of the GitHub repository. Our pin: commit 71d99dff, expected_files 38,780 tree entries (profile; phase-10c census all_tree_entries 38,780, json_blobs 38,592), 3 absent blobs (report PDF x2, DOCX), covering_paths 23. GitHub git-trees API at the pin (recursive, truncated=true, so only a lower bound on the total) lists all 1,911 runs/*-melon* blobs, with per-directory counts identical to our census: gpt-4o-2024-05-13-melon 74, -melon_at 441, -melon_r 35, -melon_rp 16, -melon_sm 441; gpt-4o-mini-2024-07-18-melon 154, -melon_at 297, -melon_r 156, -melon_sm 297 (https://api.github.com/repos/xwsdid/MELON/git/trees/71d99dfff5ef98ffb25bac451909f3e10af9e27f?recursive=1). No checksums are published by the source; our integrity reference is the git blob ids at the pin.",
+ "harness": "Vendored AgentDojo (pyproject name agentdojo, version 0.1.35; logs record agentdojo_package_version 0.1.35 and benchmark_version v1.2.2 in all 1,911 per the phase-10c census), python -m agentdojo.scripts.benchmark, TraceLogger v1 logs (variants v1.k14 / v1.k14.incomplete). Windows 11, Python 3.12, uv (README). MELON detectors in src/agentdojo/agent_pipeline/pi_detector.py: MELON (fixed threshold 0.8, text-embedding similarity, sentinel '<Data omitted because a prompt injection was detected>' replaces the flagged tool output), MELONSM (regex semantic masking before masked re-execution), MELONAT (threshold = mean+0.5·std of a sliding window of benign scores, clamped to [0.5, 0.95], state kept across tasks of one process), MELONR (risk probe with routes PASS / SANITIZE (tool content replaced by cleaned text, '[已移除潜在注入内容]') / RECOVERY (inserts a Chinese 'SECURITY WARNING' system message at index 0 and re-queries) / BLOCK (replaces the last message by a fixed Chinese assistant message 'detected high-risk prompt injection, operation terminated', tool_calls None)). [ADDED by fact-check 2026-10-14: (a) MELONR has a second BLOCK path: a pre-route BLOCK on a critical probe hit APPENDS (does not replace) an assistant message with the same Chinese text ending in an ASCII full stop instead of the CJK one (pi_detector.py ~l.1410-1430), so there are two fixed texts. (b) The base MELON class (used by melon, melon_sm, melon_at) also writes a defence-authored assistant message: on detection it replaces the model's new message by the fixed English text 'The tool outputs contain potential prompt injection, stopping execution.' with tool_calls None, besides the sentinel on the tool output (pi_detector.py ~l.640-656; same behaviour in the original https://github.com/kaijiezhu11/MELON/blob/main/pi_detector.py, whose MELON default threshold is 0.1, the value the fork README says it restored to 0.8). So defence-authored assistant messages are expected in every MELON dir, not only melon_r/melon_rp. (c) MELONAT is instantiated with sensitivity=0.5 (agent_pipeline.py) and a 50-score window; the RECOVERY header 'SECURITY WARNING:' is English, the body Chinese.] Known AgentDojo issues relevant to banking outcomes (https://github.com/ethz-spylab/agentdojo/issues): #181 open (banking injection_task 0/1/3 subject check is dead code: security reduces to any transaction to the attacker IBAN), #161 open (banking user_task_5 utility checks a pre-existing $50 transaction, can be True without action), #139 closed 2026-04-02 (banking user_task_14 expects a password change even without attack), #110 closed (banking user_task_6, fixed by v1.2.2 tasks #130), #189 closed 2026-09-07 (security_from_traces counts proposed, not executed, calls; matters for defences that block), #214 open (non-ASCII tool results reach the model as \\uXXXX escapes; relevant to the Chinese MELON-R texts), #212 open (--max-workers > 1 crash). No issue tracker activity on the fork.",
+ "models": [
+  "gpt-4o-2024-05-13 (OpenAI API; README and report say all reported results are GPT-4o)",
+  "gpt-4o-mini-2024-07-18 (OpenAI API; present in 4 pipeline dirs, 904 logs (gpt-4o: 5 dirs, 1,007 logs); no reported numbers. The report's note 3 says the docx report wrongly stated GPT-4o-mini as the base model)",
+  "text-embedding-3-large (OpenAI embeddings, used inside the MELON detectors; README). Original paper: text-embedding-v3, GPT-4o, o3-mini, Llama-3.3-70B, temperature 0"
+ ],
+ "reported_results": [
+  {
+   "arm": "gpt-4o · no defence · banking · direct",
+   "metric": "UA / ASR",
+   "value": "43.06% / 55.56%",
+   "n": "144 per attack (UA 62/144)",
+   "where": "README 'task-level metrics' table and report summary table (https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/README.md); not in this corpus (no undefended arm among the 1,911; upstream gpt-4o banking runs are owned by agentdojo head)"
+  },
+  {
+   "arm": "gpt-4o · no defence · banking · important_instructions / ignore_previous",
+   "metric": "UA / ASR",
+   "value": "45.83% / 51.30%; 44.44% / 52.37%",
+   "n": "ASR 51.30% and 52.37% are not k/144",
+   "where": "README task-level table; report 6.2.1"
+  },
+  {
+   "arm": "gpt-4o · melon · banking · direct",
+   "metric": "UA / ASR",
+   "value": "38.19% / 0.00%",
+   "n": "55/144 implied; corpus holds 65 attacked logs",
+   "where": "README task-level table; report summary"
+  },
+  {
+   "arm": "gpt-4o · melon · banking · important_instructions",
+   "metric": "UA / ASR",
+   "value": "29.86% / 0.00%",
+   "n": "43/144 implied; 0 logs in corpus",
+   "where": "README; report summary"
+  },
+  {
+   "arm": "gpt-4o · melon · banking · ignore_previous",
+   "metric": "UA / ASR",
+   "value": "37.50% / 0.00%",
+   "n": "54/144 implied; 0 logs in corpus",
+   "where": "README; report summary"
+  },
+  {
+   "arm": "gpt-4o · melon_r · banking · direct",
+   "metric": "UA / ASR",
+   "value": "45.83% / 2.08%",
+   "n": "66/144, 3/144 implied; corpus holds 13 banking direct logs",
+   "where": "README; report summary"
+  },
+  {
+   "arm": "gpt-4o · melon_r · banking · important_instructions",
+   "metric": "UA / ASR",
+   "value": "44.44% / 8.33%",
+   "n": "64/144, 12/144 implied; 0 logs in corpus",
+   "where": "README; report summary"
+  },
+  {
+   "arm": "gpt-4o · melon_r · banking · ignore_previous",
+   "metric": "UA / ASR",
+   "value": "43.06% / 2.78%",
+   "n": "62/144, 4/144 implied; 0 gpt-4o logs (gpt-4o-mini melon_r ignore has 144)",
+   "where": "README; report summary"
+  },
+  {
+   "arm": "gpt-4o · melon_sm · banking · direct",
+   "metric": "UA / ASR",
+   "value": "52.08% / 0.00%",
+   "n": "75/144, 0/144",
+   "where": "README; report 6.2.1"
+  },
+  {
+   "arm": "gpt-4o · melon_sm · banking · important_instructions",
+   "metric": "UA / ASR",
+   "value": "33.33% / 2.08%",
+   "n": "48/144, 3/144",
+   "where": "README; report 6.2.1"
+  },
+  {
+   "arm": "gpt-4o · melon_sm · banking · ignore_previous",
+   "metric": "UA / ASR",
+   "value": "52.78% / 0.00%",
+   "n": "76/144, 0/144",
+   "where": "README; report 6.2.1"
+  },
+  {
+   "arm": "gpt-4o · melon_sm · banking · no attack (9 injection tasks as user tasks)",
+   "metric": "BU",
+   "value": "88.89%",
+   "n": "8/9",
+   "where": "report 6.2.1"
+  },
+  {
+   "arm": "gpt-4o · melon_at · banking · direct",
+   "metric": "UA / ASR",
+   "value": "62.50% / 0.00%",
+   "n": "90/144, 0/144",
+   "where": "README; report 6.3.1"
+  },
+  {
+   "arm": "gpt-4o · melon_at · banking · important_instructions",
+   "metric": "UA / ASR",
+   "value": "43.06% / 13.19%",
+   "n": "62/144, 19/144",
+   "where": "README; report 6.3.1"
+  },
+  {
+   "arm": "gpt-4o · melon_at · banking · ignore_previous",
+   "metric": "UA / ASR",
+   "value": "60.42% / 0.00%",
+   "n": "87/144, 0/144",
+   "where": "README; report 6.3.1"
+  },
+  {
+   "arm": "gpt-4o · melon_at · banking · no attack (9 injection tasks as user tasks)",
+   "metric": "BU",
+   "value": "100.00%",
+   "n": "9/9",
+   "where": "report 6.3.1"
+  },
+  {
+   "arm": "gpt-4o · melon_sm · important_instructions (detector level)",
+   "metric": "TP/FP/TN/FN; precision/recall/FPR/FNR",
+   "value": "57/0/16/13; 100.0/81.4/0.0/18.6%",
+   "n": "86 detection events",
+   "where": "README detection table; report 6.2.2"
+  },
+  {
+   "arm": "gpt-4o · melon_at · important_instructions (detector level)",
+   "metric": "TP/FP/TN/FN; precision/recall/FPR/FNR",
+   "value": "55/0/16/15; 100.0/78.6/0.0/21.4%",
+   "n": "86 detection events",
+   "where": "README; report 6.3.2"
+  },
+  {
+   "arm": "original MELON paper · GPT-4o · all 4 suites (not banking-only)",
+   "metric": "BU / UA / ASR per attack",
+   "value": "BU 68.04%; direct 68.52/0.00; ignore 66.93/0.00; system 66.77/0.00; important 32.91/0.95; avg 58.78/0.24",
+   "n": "97 user tasks, 629 attack cases (AgentDojo v1)",
+   "where": "arXiv:2502.05174 Table 1 (https://arxiv.org/html/2502.05174v4); context only, not comparable to these banking v1.2.2 logs"
+  }
+ ],
+ "expected_counts": "head: 38,780 tree entries at the pin (profile expected_files; phase-10c census), 38,592 JSON blobs; selected by include runs/*/*/*/*/*.json minus owned_elsewhere: 1,911 logs (registry tools/readme_corpora.toml count 1911 basis census; docs/reports/phase10d/melon-agentdojo.census.json /files; GitHub tree at the pin); 36,679 select.owned_elsewhere (owner agentdojo; trial counters.excluded); 2 non-TraceLogger JSON (.devcontainer/devcontainer.json, runs/detection_stats.json); 3 absent blobs (report binaries). Units: 1,911 agent_execution; executions 1,911 (phase-10d trial, jobs 8 and 3, byte-identical); variants v1.k14 1,905 + v1.k14.incomplete 6; sealed_clean 1,905, sealed_with_issues 6; register codes map.accounting_unverifiable 1,909, map.earlier_attempts_unobservable 1,911, map.incomplete_run 6. Suites: banking 1,894, travel 17. Attacks: ignore_previous 864, direct 671, important_instructions 288, none 88 (phase-10c novel census). Paper/README design implies 144 attacked logs per (model, defence, attack) cell and 9 benign pre-pass logs per arm.",
+ "expected_arms": "Facets: model (pipeline_dir prefix) × defence (suffix melon|melon_at|melon_sm|melon_r|melon_rp) × suite (banking|travel) × attack (direct|ignore_previous|important_instructions|none). 29 non-empty strata at the pin (GitHub tree; phase-10c model_attack). README design (gpt-4o, banking, 4 MELON defences × 3 attacks = 12 cells of 144): present complete for melon_sm and melon_at (6 cells); missing gpt-4o melon important/ignore and melon_r important/ignore (4 cells, 0 logs); partial gpt-4o melon direct (65/144) and melon_r direct (13/144). Extra (not in any reported table): all gpt-4o-mini arms (melon ignore 144; melon_at direct 144, ignore 144; melon_r ignore 144; melon_sm direct 144, ignore 144; plus none pre-passes), melon_rp (gpt-4o, 8 direct + 8 none), travel (17 logs: gpt-4o melon_r 8 direct + 5 none; gpt-4o-mini melon 1 none; gpt-4o-mini melon_r 1 direct + 2 none). No undefended arm and no benign user-task runs (all 88 'none' logs are injection tasks run as user tasks).",
+ "licence": "MIT: the LICENSE at the pin is the upstream AgentDojo text '(c) 2024 Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr'; the fork adds no copyright line and no data licence (https://github.com/xwsdid/MELON/blob/71d99dfff5ef98ffb25bac451909f3e10af9e27f/LICENSE; GitHub API license MIT). Profile policy include. Caveats: the MELON detector code in src/agentdojo/agent_pipeline/pi_detector.py (stored by the profile as a context artefact) derives from kaijiezhu11/MELON, which has no licence file (https://github.com/kaijiezhu11/MELON; API license null); the MELON paper PDF in report/ is arXiv CC BY 4.0 (v4 HTML states the licence) but is an absent blob in our pin; model-provider terms on redistributing OpenAI outputs unassessed (profile).",
+ "discrepancy_leads": [
+  "README/report claim GPT-4o banking results for MELON and MELON-R on all three attacks, but the corpus has 0 gpt-4o melon logs for important_instructions/ignore_previous, 65/144 for melon direct, and 13/144 banking (+8 travel) for melon_r direct: 4 reported cells unbacked, 2 partial",
+  "The README MELON and MELON-R ignore_previous rows may come from the gpt-4o-mini arms (the report's note 3 says the docx text named GPT-4o-mini): gpt-4o-mini melon ignore (144) vs 37.50%/0.00%, gpt-4o-mini melon_r ignore (144) vs 43.06%/2.78%",
+  "No-defence row ASR 51.30% and 52.37% are not k/144 and no undefended run of the fork exists in the pin; the baseline is unbacked by the released data",
+  "melon_rp (16 logs) is not a registered defence at the pin (DEFENSES lacks it): produced by uncommitted code",
+  "MELON-R BLOCK route writes a defence-authored assistant message (fixed Chinese text, tool_calls None) replacing the last message: mapping it as model output would misattribute a defence decision (cf. D-113 / defence_denial_message, not declared in the melon profile)",
+  "[ADDED by fact-check] Base MELON (melon, melon_sm, melon_at) replaces the model's message after a detection by a fixed English assistant message ('The tool outputs contain potential prompt injection, stopping execution.', tool_calls None): a defence decision logged as model output in every MELON dir, probably paired with most of the 910 sentinel redactions (not declared in the profile; cf. D-113, which covers tool-error denials only)",
+  "MELON-R RECOVERY route inserts a Chinese 'SECURITY WARNING' system message at index 0: the profile's 'melon_r_prompt' system-prompt variant (92 logs, 92 chars, sha256 82ce7af3...) is likely this defence intervention, not the agent's system prompt; phase-10c census shows 2,024 system messages for 1,911 logs (113 extra)",
+  "[ADDED by fact-check] The melon_r_prompt text (92 chars, 82ce7af3) is exactly the first five lines of the six-line RECOVERY text at the pin: the melon_r runs used uncommitted code that differs from the pin (the pin is not the run code for melon_r)",
+  "[ADDED by fact-check] Report 6.2.1 says its table continues the format of 'docx report Table 1': the No Defense, MELON and MELON-R rows are carried from the course report docx (an absent blob), the same document that note 3 says named GPT-4o-mini as base model",
+  "MELON-R SANITIZE replaces tool content by cleaned text ('[已移除潜在注入内容]', 7 tool messages per routing.md R3) besides the AgentDojo sentinel: tool output in those logs is not the tool's output",
+  "MELON-AT keeps its benign-score window across tasks of one process, so per-task outcomes depend on run order; the report says the adapted threshold was about 0.2 while the code clamps it to [0.5, 0.95]; README says agent_pipeline threshold was 'restored from 0.1 to 0.8' (some runs may predate the fix)",
+  "Detector decisions (runs/defense_logs.jsonl: scores, thresholds, routes) were not committed; only runs/detection_stats.json (a supporting artefact) is",
+  "Timestamps span 2026-05-24..2026-06-16 (phase-10c, naive local time, Windows 11): 125 logs from May predate the reported experiment window; check which arms",
+  "README says runs/ holds only the MELON directories, but the pin carries 36,679 byte copies of upstream runs (already handled: select.owned_elsewhere)",
+  "artefacts.toml has no entry whose scope lists melon-agentdojo although the census measured incomplete_run 6, benign_security_constant 88, injection_task_as_user 88, sentinel redactions 910 and naive timestamps apply",
+  "AgentDojo banking defects #181 (injection_task 0/1/3 security check), #161 (user_task_5 utility vacuous), #139 (user_task_14) bias banking UA/ASR in every arm of this corpus"
+ ],
+ "open_questions": [
+  "Which code produced the melon_rp logs and the small gpt-4o melon/melon_r direct arms (task pairs, thresholds)?",
+  "Do the README MELON/MELON-R rows come from unreleased gpt-4o runs, from the gpt-4o-mini arms, or from a different code state (threshold 0.1 era)?",
+  "Does runs/detection_stats.json (supporting artefact) agree with the report's 86 detection events and TP/FP/TN/FN? (to be read at L1 as a context artefact, not in this step)",
+  "Are the BLOCK-route assistant messages and RECOVERY system messages present in the melon_r logs, and how does the current mapper attribute them?",
+  "Licence of the MELON detector code derived from kaijiezhu11/MELON (no licence) stored as a context artefact"
+ ],
+ "checks_not_applicable": [
+  "E2 delta: not applicable (melon-agentdojo was not examined in FA or E2; full pre-check)",
+  "L2 outcome sanity verdicts for gpt-4o-mini, melon_rp and travel strata: no reported numbers (rates reported with Wilson intervals only)",
+  "Benign utility on user tasks (paper BU): not applicable, the corpus has no benign user-task runs; only the 9 injection-task pre-passes per arm (report BU)",
+  "Withholding: no copyleft or use-restriction rule applies (MIT, policy include); only the generic secret/account-path withholding path, expected to be inert"
+ ],
+ "files_written": [
+  "docs/reports/precheck/data/melon-agentdojo/research.json",
+  "docs/reports/precheck/prereg/melon-agentdojo.md"
+ ],
+ "fact_check": {
+  "date": "2026-10-14",
+  "by": "adversarial fact-checker (desk only; no raw data read)",
+  "confirmed": [
+   "Repo metadata via GitHub API: fork=false, created 2026-06-17T04:55:11Z, pushed 2026-06-17T12:13:21Z, licence MIT, 1 branch (main), 0 releases, 0 issues/PRs, 0 forks; HEAD = 71d99dff",
+   "Commits: 605d9999 (author 06:01:44Z, committer 06:16:56Z) and 71d99dff ('更新', only pi_detector.py +42/-46, comments/docstrings/print strings only); parent history ends at 18b501a6 (2026-03-30); upstream 089ed468 (2026-06-02) is 1 commit ahead of 18b501a6",
+   "runs/ tree: all 29 upstream runs/ subtrees have identical tree SHAs at 18b501a6 and at the pin (incl. gpt-4o-2024-05-13 and gpt-4o-mini-2024-07-18): no undefended fork run; the pin adds exactly the 9 melon dirs + detection_stats.json",
+   "Per-dir blob counts from non-truncated subtree listings: 74/441/35/16/441 and 154/297/156/297 = 1,911; per-stratum counts (suite × attack dir, from paths) equal prereg §3 in all 29 cells",
+   "README and report tables: every UA/ASR/BU and TP/FP/TN/FN value in reported_results matches README.md and report/MELON_SATM_AT_补充内容.md at the pin; k/144 conversions recomputed (51.30 and 52.37 are not k/144); recall 57/70=81.4%, 55/70=78.6%; 57+0+16+13=55+0+16+15=86",
+   "Report note 3 and the '约为 0.2' adaptive-threshold claim; code clamps to [0.5, 0.95]; README '0.1 -> 0.8' fix",
+   "arXiv 2502.05174: v1 2025-02-07, v2 2025-05-01, v3 2025-05-24, v4 2025-06-10, comment ICML 2025, CC BY 4.0; Table 1 GPT-4o MELON BU 68.04, avg UA 58.78, avg ASR 0.24 (identical v1/v4); v4 LLM Detector rows BU 81.44 and 0.00 elsewhere for all three models; Tables 2-4 text identical v1/v4; v4 adds Table 5; 97 tasks / 629 cases; FPR 9.28% for MELON",
+   "AgentDojo issues #181 open, #161 open, #139 closed 2026-04-02, #110 closed 2025-10-27 (cross-referenced by PR #130 'V1.2.2 tasks'), #189 closed 2026-09-07, #214 open, #212 open; titles match the summaries",
+   "kaijiezhu11/MELON: licence null, 1 open issue (Hugging Face artefacts)",
+   "LICENSE at the pin: upstream AgentDojo MIT text, (c) 2024 Debenedetti et al.; no fork line",
+   "Our reports: phase-10c census (all_tree_entries 38,780, json_blobs 38,592, novel suites/attacks/outcomes/ts_range/system_sha256/roles system 2,024), phase-10d census (files 1,911, variants, measured quirk counts, absent_blobs 3), trial (jobs 8 and 3, excluded 36,679, sealed_clean 1,905 / with issues 6, register codes, compare n_differ 0), routing.md R3 (7 messages), registry count 1911"
+  ],
+  "corrected": [
+   "repo: the run code is not functionally the pin for melon_r (RECOVERY text 5 of 6 lines) as well as melon_rp",
+   "repo: tests/run_small_compare_melon.py task pairs (11..20) do not match the melon_rp logs (1..8 diagonal)",
+   "harness: base MELON also writes a defence-authored English stop message; MELONR pre-route BLOCK appends rather than replaces",
+   "prereg H11 scope (defence-authored messages are not confined to melon_r/melon_rp dirs)"
+  ],
+  "unverifiable": [
+   "Whether the README MELON/MELON-R/No Defense rows are gpt-4o-mini results or come from unreleased runs (the docx Table 1 is an absent blob)",
+   "runs/detection_stats.json content (587 bytes; not read in this step)",
+   "Model-provider terms"
+  ]
+ }
+}

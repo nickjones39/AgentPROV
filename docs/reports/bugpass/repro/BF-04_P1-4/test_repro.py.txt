@@ -1,0 +1,34 @@
+"""P1-4: AGENTPROV_TEST_WRITE_ALLOW=<file> should let a regenerator that does parent.mkdir(exist_ok=True) pass."""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path("~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-perf-10-review-b5384c")
+PROBE = Path(__file__).with_name("probe") / "probe_regen.py"
+
+
+def _run(tmp_path, target, **env):
+    environ = {k: v for k, v in os.environ.items() if k != "AGENTPROV_TEST_WRITE_ALLOW"}
+    environ.update(GUARD_PROBE_TARGET=str(target), AGENTPROV_TEST_WRITE_GUARD="enforce",
+                   PYTHONPATH=str(REPO / "tests"), **env)
+    # load the repository's real tests/conftest.py as a plugin so its D-402 guard applies to the probe
+    return subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:randomly",
+                           "-p", "conftest", "--basetemp", str(tmp_path / "child-basetemp"), str(PROBE)],
+                          cwd=REPO, env=environ, capture_output=True, text=True, timeout=120)
+
+
+def test_guard_is_active_without_allow(tmp_path):  # control: the plugin-loaded guard really enforces
+    target = tmp_path / "outside" / "golden.json"
+    target.parent.mkdir()
+    done = _run(tmp_path, target)
+    assert done.returncode == 1 and "D-402" in done.stdout, done.stdout[-1500:]
+
+
+def test_allowing_the_output_file_lets_the_regenerator_pass(tmp_path):
+    target = tmp_path / "outside" / "golden.json"
+    target.parent.mkdir()
+    done = _run(tmp_path, target, AGENTPROV_TEST_WRITE_ALLOW=str(target))
+    print(done.stdout[-1500:])
+    assert target.read_text(encoding="utf-8") == "{}\n"  # the write itself was admitted
+    assert done.returncode == 0, done.stdout[-1500:]

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schema/adapters/autogen/family-0.1.json",
+  "title": "[family.autogen] table of an autogen source profile (D.4.1, D.19.10; closed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verified_code", "block_guard_by_phase", "semantics_profile", "runs", "task_templates", "prompt_defenses"],
+  "properties": {
+    "verified_code": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["commit"],
+        "properties": {
+          "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "applies": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "block_guard_by_phase": {
+      "type": "object",
+      "additionalProperties": {"enum": ["deberta", "llm", "keyword"]},
+      "propertyNames": {"pattern": "^[0-9]{1,2}$"},
+      "description": "the block guard of phases whose rows omit block_guard (harness code; autogen.run_settings_unverified@1)"
+    },
+    "semantics_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {"id": {"type": "string"}, "version": {"type": "integer", "minimum": 1}}
+    },
+    "runs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "runs", "rail", "framework"],
+      "properties": {
+        "rows": {"type": "integer", "minimum": 0},
+        "runs": {"type": "integer", "minimum": 0},
+        "rail": {"type": "integer", "minimum": 0},
+        "framework": {"type": "integer", "minimum": 0}
+      },
+      "description": "the D-300 census of the pinned deposit (checked by a test against the staged zip when present)"
+    },
+    "task_templates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "user", "agent", "memory"],
+      "properties": {
+        "tool": {"type": "string"}, "user": {"type": "string"}, "agent": {"type": "string"}, "memory": {"type": "string"}
+      }
+    },
+    "prompt_defenses": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": {"enum": ["datamark", "suffix"]},
+          "marker": {"type": "string", "minLength": 1},
+          "note": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "quirk": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observed"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^autogen\\.[a-z][a-z0-9_]*$"},
+          "rules": {"type": "array", "items": {"type": "string", "pattern": "^autogen\\.[a-z][a-z0-9_.]*@[1-9][0-9]*$"}},
+          "note": {"type": "string"},
+          "observed": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

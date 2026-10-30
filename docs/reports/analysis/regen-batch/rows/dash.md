@@ -1,0 +1,1 @@
+| — | Item 1 (B1) re-measured: exact whole-payload count 1,235 executions / 1,840 markers (not 1,166); 10 further long-horizon markers are not covered by an AutoDojo-gated fix | examination 2 | — | size the fix and its test on these numbers |

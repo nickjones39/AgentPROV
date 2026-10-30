@@ -1,0 +1,92 @@
+# The AgentPROV user guide as a website (MkDocs 1.6.1 + Material for MkDocs 9.7.7; the `docs` dependency group).
+# It is served under /docs/ of the project website, whose landing page is `site/` (D-1000). Built only on a manual
+# dispatch of .github/workflows/pages.yml, and live only once the repository is public, on the project owner's
+# instruction (docs/reports/release/public-repo-plan.md step 19). Local preview: uv run --group docs mkdocs serve
+# (127.0.0.1 only). Kept to settings Zensical, Material's named successor, also reads.
+site_name: AgentPROV user guide
+site_description: Execution provenance for LLM-agent security research
+site_url: https://w3id.org/agentprov/docs/
+repo_url: https://github.com/nickjones39/AgentPROV
+repo_name: nickjones39/AgentPROV
+edit_uri: edit/main/docs/user-guide/
+copyright: MIT, © 2026 Nicholas Jones. Developed as part of PhD research.
+
+# Only the guide is published: never the rest of docs/ (specification, reports, reviews).
+docs_dir: docs/user-guide
+site_dir: _site/docs   # the landing page (site/) is copied to _site/ beside it (D-1000)
+exclude_docs: |
+  _*.md
+strict: true
+dev_addr: 127.0.0.1:8000
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+theme:
+  name: material
+  custom_dir: docs/site-overrides
+  logo: images/brand/agentprov-mark-on-dark.svg   # rendered and copied by gui/tools/make_icons.py
+  favicon: images/brand/favicon.png
+  language: en
+  font: false            # no Google Fonts: the system font stack only
+  features:
+    - navigation.sections
+    - navigation.footer
+    - toc.follow
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Light mode
+
+# The header logo leads to the project's landing page at the site root (D-1000), relative so it also works locally.
+extra:
+  homepage: ..
+
+# The built-in search only; no plugin that calls the network (no social cards, no analytics).
+plugins:
+  - search
+
+markdown_extensions:
+  - tables
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.details
+
+nav:
+  - Home: README.md
+  - 1. Installing AgentPROV: 01-install.md
+  - 2. Concepts: 02-concepts.md
+  - 3. Sources and import: 03-sources-and-import.md
+  - 4. Derive, recompute, validate and verify: 04-derive-recompute-validate-verify.md
+  - 5. Package and deposit: 05-package-and-deposit.md
+  - 6. Statistics and rendering: 06-stats-and-render.md
+  - 7. Live runs: 07-live-runs.md
+  - 8. The desktop app: 08-desktop-app.md
+  - 9. Safety: 09-safety.md
+  - 10. Troubleshooting: 10-troubleshooting.md
+  - 11. CLI reference: 11-cli-reference.md
+  - 12. Glossary: 12-glossary.md
+  - 13. Vocabulary and identifiers: 13-namespace.md
+  - 14. Corpora and where they come from: 14-corpora.md
+  - 15. Known corpus artefacts: 15-corpus-artefacts.md

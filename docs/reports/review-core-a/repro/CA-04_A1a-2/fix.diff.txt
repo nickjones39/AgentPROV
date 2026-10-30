@@ -1,0 +1,25 @@
+--- a/src/agentprov/sem/validate.py
++++ b/src/agentprov/sem/validate.py
+@@ def rule_exists(self, line: int, pointer: str, ref: str) -> str | None:
+         """The class of the rule ``ref`` names, or ``None`` after reporting why it is not citable."""
+         if RULE_REF_RE.fullmatch(ref) is None:
+             return None
+-        parsed = parse_rule_ref(ref)
++        try:
++            parsed = parse_rule_ref(ref)
++        except ValueError:  # a version past int's digit limit (G obs-G4): the grammar matches, the integer does not
++            self.add("sem.rule.syntax", line, pointer, "rule_version_out_of_range")
++            return None
+         if parsed.namespace not in self.declared_rules:
+@@ def rules(self, line: int, rec: Mapping[str, Any], premise_tags: list[str] | None) -> None:
+             if not isinstance(ref, str) or RULE_REF_RE.fullmatch(ref) is None:
+                 complete = False
+                 continue
+-            pointer = parse_rule_ref(ref).pointer
++            try:
++                pointer = parse_rule_ref(ref).pointer
++            except ValueError:  # reported by rule_exists below as sem.rule.syntax
++                pointer = None
+             if pointer is not None and not pointer_exists(rec, pointer):
+                 self.add("sem.rule.syntax", line, f"/rule/{i}", "scope_pointer_does_not_resolve")
+             cls = self.rule_exists(line, f"/rule/{i}", ref)

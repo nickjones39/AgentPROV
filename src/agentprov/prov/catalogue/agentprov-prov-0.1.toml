@@ -1,0 +1,510 @@
+# Rule catalogue `aprov`: the prov:Plan of the derive activity of `agentprov-prov/0.1` (docs/architecture EF E.1-E.3).
+#
+# Data, not code: loaded through importlib.resources by agentprov.prov.specs (this directory has no __init__.py).
+# Its SHA-256 enters every bundle's derivation key (E.3.4), so any byte change here changes every bundle IRI; a change
+# of a rule's statement or ceiling mints @n+1 (rules are immutable once released; nothing is released yet).
+#
+# `ceiling` is the strongest class a statement of the rule can have (E.1.5 item 2): O for structural restatement
+# rules, D for rules that apply an assumption or a PROV-CONSTRAINTS inference, I for policy and heuristic rules.
+# Some rules have a weaker per-path cap, listed in `caps` (path -> class); the engine applies them.
+# `assumptions` are the engine rule's own assumption terms, listed as apv:assumption wherever the path applies
+# (the assumptions of the AER rules a statement rests on are read from their adapter catalogues, F.1.5).
+
+[catalogue]
+id = "aprov"
+# version 2 (D-621, D-31 owner ruling 2026-10-22): aprov.n_message@2. Version 1 (the bytes stored corpora record,
+# sha256 79b0a1e78dc7...) is archived byte-exact in archive/agentprov-prov-0.1.v1.toml.
+# version 3 (D-930, user 2026-10-28): aprov.a_label@2, aprov.a_payload@2 and aprov.a_author@2 cite no premise field
+# declared unknown (NE-12). Version 2 (sha256 99b6511a2d5e...) is archived byte-exact in archive/agentprov-prov-0.1.v2.toml.
+version = 3
+format = "agentprov-prov-catalogue/0.1"
+spec = "agentprov-prov/0.1"
+vocabulary = "0.2.0"
+
+# ------------------------------------------------------------------------------------------------- node rules (E.1.3)
+[[rule]]
+id = "aprov.n_header"
+version = 1
+ceiling = "O"
+statement = "The execution record maps to the entity x:exec (apv:ExecutionDescription) carrying the execution id, mode, unit, task coordinates (configuration provenance, AD-11) and instrumentation ids."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_actor"
+version = 1
+ceiling = "O"
+statement = "An actor record maps to the agent x:L(a), typed by its kind and role."
+spec = "EF E.1.3, E.4.3"
+
+[[rule]]
+id = "aprov.n_model"
+version = 1
+ceiling = "D"
+caps = { service = "O" }
+statement = "An actor with /model gets the model entity x:L(a).model (definitional: every invocation is served by some model, DERIVED, capped by the actor's existence); a model call with /served_model gets x:L(mc).model; an actor whose served model or provider is recorded gets the model-service agent x:L(a).svc at the class of the identifying field."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_scope"
+version = 1
+ceiling = "O"
+statement = "A non-thread scope maps to an activity typed by its kind (apv:Run, apv:Pass, apv:AgentInvocation, apv:SubagentInvocation, apv:Step); thread scopes have no node."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_message"
+version = 1
+ceiling = "O"
+statement = "A message maps to the entity x:L(m) (apv:Message plus its role class), a prov:Collection iff it has a tool_call part; apv:contentSha256 is over the JCS bytes of /parts."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_message"
+version = 2
+ceiling = "O"
+statement = "A message maps to the entity x:L(m) (apv:Message plus its role class), a prov:Collection iff it has a tool_call part; apv:contentSha256 is over the JCS bytes of /parts; its /scope gives apv:partOf the scope activity (non-thread) or apv:thread the thread's local id (aprov.part_of@1). Supersedes @1, which stated no scope (D-621; E.1.3, E.1.4)."
+spec = "EF E.1.3, E.1.4"
+
+[[rule]]
+id = "aprov.n_part"
+version = 1
+ceiling = "O"
+statement = "Each message part maps to the entity x:L(m)-k typed by its part kind; text-bearing parts carry the SHA-256 and length (Unicode scalar values) of their text; an unexecuted request part carries apv:dispatchStatus."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_model_call"
+version = 1
+ceiling = "O"
+statement = "A model call maps to an apv:ModelInvocation (status kept, discarded or error), an apv:CacheRead (status cached), or, for a lost call (C.7.4), an apv:ModelInvocation with apv:outputStatus apv:Lost."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_tool_execution"
+version = 1
+ceiling = "O"
+statement = "A tool execution maps to an apv:ToolExecution with its tool name, status, effective arguments when they differ from the request, exception and times."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_decision"
+version = 1
+ceiling = "O"
+statement = "A decision maps to an apv:Decision with its verdict and reason."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_state"
+version = 1
+ceiling = "O"
+statement = "A state change with digests maps to the state entities x:L(sc).before (unless carried over) and x:L(sc).after (iff the digests differ)."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_fixture"
+version = 1
+ceiling = "O"
+statement = "A fixture maps to the entity x:L(fx) typed by its kind, with its vector and content digest."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_judgement"
+version = 1
+ceiling = "O"
+statement = "A judgement maps to the entity x:L(j) (apv:Outcome) with its name, value and origin; no polarity or meaning."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_artefact"
+version = 1
+ceiling = "O"
+statement = "A generic artefact record maps to the entity x:L(af) (apv:GenericArtefact) with its type, content digest and media type."
+spec = "EF E.1.3; AD-15"
+
+[[rule]]
+id = "aprov.g_act"
+version = 1
+ceiling = "O"
+statement = "G-ACT: a generic activity record maps to the activity x:L(ac) (apv:GenericActivity), never typed with a specialised activity class."
+spec = "EF E.1.3; AD-15"
+
+[[rule]]
+id = "aprov.n_capture_profile"
+version = 1
+ceiling = "D"
+statement = "The entity x:capture-profile (apv:CaptureProfile) carries the seal's accounting status and issue codes; capability individuals are listed when the source profile declares them."
+spec = "EF E.1.3"
+
+[[rule]]
+id = "aprov.n_gap"
+version = 1
+ceiling = "D"
+statement = "An unknown pointer of an emitted node that has no fixed status property maps to an apv:Gap entity x:L(r).gap-<n>."
+spec = "EF E.1.3, E.4.5"
+
+# ------------------------------------------------------------------------------------------------- edge rules (E.1.4)
+[[rule]]
+id = "aprov.gen_message"
+version = 1
+ceiling = "O"
+statement = "wasGeneratedBy(message, generator) from message/generated_by."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.gen_part"
+version = 1
+ceiling = "O"
+statement = "wasGeneratedBy(part, generator) for every non-tool_result part of a generated message."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.gen_result"
+version = 1
+ceiling = "O"
+statement = "wasGeneratedBy(tool_result part, tool execution); when a decision generated the message, the part is generated by the decision and the pre-decision output by the execution."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.member_request"
+version = 1
+ceiling = "O"
+statement = "hadMember(message, request part) for every tool_call part; the message is a prov:Collection."
+spec = "EF E.1.4; AD-19(a)"
+
+[[rule]]
+id = "aprov.use_context"
+version = 1
+ceiling = "O"
+statement = "used(invocation, context message) for every item of model_call/input (members encoding), qualified by role, context index and sent transforms."
+spec = "EF E.1.4, E.6.1"
+
+[[rule]]
+id = "aprov.use_model"
+version = 1
+ceiling = "O"
+caps = { per_actor = "D" }
+assumptions_by_path = { per_actor = ["apv:SingleModelPerActor"] }
+statement = "used(invocation, model): the per-call served model when recorded, else the actor's model under apv:SingleModelPerActor (ceiling D); never for cached or error calls."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.use_tools"
+version = 1
+ceiling = "O"
+statement = "used(invocation, tool-definitions fixture) from model_call/tools."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.use_request"
+version = 1
+ceiling = "O"
+statement = "used(tool execution, request part) from tool_execution/call; suppressed when a modify decision has the request as subject (NE-18)."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.start_tool"
+version = 1
+ceiling = "D"
+statement = "wasStartedBy(tool execution, request part, invocation that generated it) under a cited rule declaring apv:AutoExecution, when the execution has no authorising decision."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.authorise"
+version = 1
+ceiling = "O"
+statement = "wasStartedBy(tool execution, -, authorising decision) from tool_execution/authorised_by."
+spec = "EF E.1.4; R-36"
+
+[[rule]]
+id = "aprov.assoc_model_call"
+version = 1
+ceiling = "O"
+statement = "wasAssociatedWith(invocation, actor) in the role apv:AgentSystemRole, and with the model-service agent in the role apv:InferenceProvider for kept or discarded calls."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.assoc_tool"
+version = 1
+ceiling = "O"
+caps = { delegation = "D" }
+statement = "wasAssociatedWith(tool execution, runtime) in the role apv:ExecutingRuntime; actedOnBehalfOf(runtime, requester, execution) under apv:AutoExecution or an authorising decision, or from tool_execution/requested_by."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.assoc_scope"
+version = 1
+ceiling = "O"
+statement = "wasAssociatedWith(scope activity, actor) from scope/actor."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.deleg_user"
+version = 1
+ceiling = "D"
+statement = "actedOnBehalfOf(actor, principal) for an actor of at least one scope that carries /on_behalf_of."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.attr_message"
+version = 1
+ceiling = "O"
+statement = "wasAttributedTo(message, actor) for a message with /actor and no generating activity."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.attr_fixture"
+version = 1
+ceiling = "O"
+statement = "wasAttributedTo(fixture, actor) from fixture/actor (configuration provenance, AD-11)."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.decision"
+version = 1
+ceiling = "O"
+statement = "A decision is associated with its actor (apv:DefenceRole or apv:DeciderRole) and uses its subject entity; a modify or redact verdict with a recorded result gives wasDerivedFrom(result, subject) typed apv:DefenceModification or apv:DefenceRedaction."
+spec = "EF E.1.4; A5"
+
+[[rule]]
+id = "aprov.env_pass"
+version = 1
+ceiling = "O"
+caps = { carry_over = "D" }
+statement = "A per-pass state change: the scope activity uses the initial state and, if changed, generates the after-state revised from it; carry-over from the predecessor along after edges under apv:EnvironmentCarriedOver."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.env_call"
+version = 1
+ceiling = "O"
+caps = { carry_over = "D" }
+statement = "As aprov.env_pass@1 with a tool execution as cause; a changed before-state is invalidated by the execution."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.state_patch"
+version = 1
+ceiling = "O"
+statement = "A patched state change gives the after-state generated by its cause and revised from the nearest predecessor patched state of the same target along after edges."
+spec = "EF E.1.4; R-35"
+
+[[rule]]
+id = "aprov.inj_placement"
+version = 1
+ceiling = "D"
+statement = "wasDerivedFrom(first state entity, injection payload) under a cited rule declaring apv:InjectionPlacement."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.rerun"
+version = 1
+ceiling = "D"
+statement = "wasStartedBy(next pass, last null-content message of the previous pass, its invocation) under a cited rule declaring apv:RerunOnEmptyReply."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.spawn"
+version = 1
+ceiling = "O"
+statement = "wasStartedBy(sub-agent scope, -, spawner) from scope/spawned_by."
+spec = "EF E.1.4; R-36"
+
+[[rule]]
+id = "aprov.outcome"
+version = 1
+ceiling = "O"
+caps = { checker_run = "D", assumed_inputs = "D" }
+statement = "Judgement provenance by origin: generation by the judge call or scorer span (or a synthetic checker run, DERIVED), checker inputs as usages, attribution of harness defaults, harness-rule evaluations and recomputed revisions."
+spec = "EF E.1.4; R-21, R-37"
+
+[[rule]]
+id = "aprov.g_use"
+version = 1
+ceiling = "O"
+statement = "G-USE: used(generic activity, input entity) for each activity/inputs item, at the class of the input link."
+spec = "EF E.1.4; AD-15"
+
+[[rule]]
+id = "aprov.g_gen"
+version = 1
+ceiling = "O"
+statement = "G-GEN: wasGeneratedBy(generic artefact, generator) from artefact/generated_by."
+spec = "EF E.1.4; AD-15"
+
+[[rule]]
+id = "aprov.g_assoc"
+version = 1
+ceiling = "O"
+statement = "G-ASSOC: wasAssociatedWith(generic activity, actor) in the role apv:PerformerRole."
+spec = "EF E.1.4; AD-15"
+
+[[rule]]
+id = "aprov.comm"
+version = 1
+ceiling = "D"
+statement = "wasInformedBy(a2, a1) for exactly the Inference 6 closure over named activities, per routing scope, with apv:viaEntity and apv:premise."
+spec = "EF E.1.6; AD-19(c)"
+
+[[rule]]
+id = "aprov.part_of"
+version = 1
+ceiling = "O"
+statement = "Containment as the attribute apv:partOf (never a relation): part to message, message to scope, activity to scope, scope to parent."
+spec = "EF E.1.4"
+
+[[rule]]
+id = "aprov.after"
+version = 1
+ceiling = "O"
+statement = "AER after edges as the attributes apv:afterCausal, apv:afterTime, apv:afterPos and apv:afterProto (never a relation); INFERRED edges are routed out of the core."
+spec = "EF E.1.4; R-53"
+
+[[rule]]
+id = "aprov.status"
+version = 1
+ceiling = "D"
+statement = "Declared unknowns as fixed status properties on emitted nodes (E.4.5); other pointers become apv:Gap entities."
+spec = "EF E.1.4, E.4.5"
+
+[[rule]]
+id = "aprov.a_sent_transform"
+version = 1
+ceiling = "I"
+statement = "An INFERRED sent transform on a stronger usage is stated as an apv:Assessment (apv:SentTransformed) whose subject is the usage."
+spec = "EF E.1.5 item 5, E.7.3"
+
+# ------------------------------------------------------------------------------------- assessment bundle (E.7)
+# One assessment bundle per SEM document. Its statements are non-PROV claims (mentions and apv:Assessment entities)
+# at the class of their premises: the SEM annotation's `ev`, its AER premise fields, the existence of the nodes it
+# names and its premise statements, capped by the ceiling below. They are never routed to the core or an inference
+# bundle, and never become used, wasDerivedFrom, wasInformedBy, wasAttributedTo or wasInfluencedBy (NE-10).
+[[rule]]
+id = "aprov.a_evaluation"
+version = 1
+ceiling = "O"
+statement = "Each assessment bundle declares its policy-evaluation activity x:assess.<profile-slug> (apv:PolicyEvaluation), associated with the engine under the semantics profile as plan."
+spec = "EF E.7.2 item 2"
+
+[[rule]]
+id = "aprov.a_label"
+version = 1
+ceiling = "O"
+statement = "A SEM label (integrity, role, channel, outcome or a namespaced type) on an entity is a mention of it carrying the label (one mention per annotation); on an activity it is an apv:Assessment with apv:claim apv:Labelled. An outcome label on a harness-default judgement is not emitted."
+spec = "EF E.7.3; AD-19(b); R-21"
+
+[[rule]]
+id = "aprov.a_label"
+version = 2
+ceiling = "O"
+statement = "A SEM label (integrity, role, channel, outcome or a namespaced type) on an entity is a mention of it carrying the label (one mention per annotation); on an activity it is an apv:Assessment with apv:claim apv:Labelled. An outcome label on a harness-default judgement is not emitted. Supersedes @1, which cited every premise field the annotation names: a premise field declared unknown in its record (unk, E.1.5 item 1) is not cited and is counted as premise_field_unknown in the derivation report (NE-12; D-930)."
+spec = "EF E.7.3, NE-12; AD-19(b); R-21"
+
+[[rule]]
+id = "aprov.a_payload"
+version = 1
+ceiling = "D"
+caps = { ambiguous = "I" }
+statement = "A SEM injection marker with status present is an apv:Assessment apv:ContainsPayload of the payload fixture by the part, with its span; ambiguous gives the same claim with apv:markerStatus apv:Ambiguous (INFERRED, under the assumption that the SEM profile's marker rule or normaliser declares); absent and gap give no statement and are counted in the derivation report."
+spec = "EF E.7.3"
+
+[[rule]]
+id = "aprov.a_payload"
+version = 2
+ceiling = "D"
+caps = { ambiguous = "I" }
+statement = "A SEM injection marker with status present is an apv:Assessment apv:ContainsPayload of the payload fixture by the part, with its span; ambiguous gives the same claim with apv:markerStatus apv:Ambiguous (INFERRED, under the assumption that the SEM profile's marker rule or normaliser declares); absent and gap give no statement and are counted in the derivation report. Supersedes @1, which cited every premise field the annotation names: a premise field declared unknown in its record (unk, E.1.5 item 1) is not cited and is counted as premise_field_unknown in the derivation report (NE-12; D-930)."
+spec = "EF E.7.3, NE-12"
+
+[[rule]]
+id = "aprov.a_author"
+version = 1
+ceiling = "D"
+caps = { authorship = "I" }
+statement = "A SEM author annotation is a mention of the content carrying apv:declaredSender (a parse fact), plus an INFERRED apv:Assessment apv:QuotesAuthoredContent with apv:authorName whose premise is the mention; never wasAttributedTo (NE-4, NE-10)."
+spec = "EF E.7.3; R-20"
+
+[[rule]]
+id = "aprov.a_author"
+version = 2
+ceiling = "D"
+caps = { authorship = "I" }
+statement = "A SEM author annotation is a mention of the content carrying apv:declaredSender (a parse fact), plus an INFERRED apv:Assessment apv:QuotesAuthoredContent with apv:authorName whose premise is the mention; never wasAttributedTo (NE-4, NE-10). Supersedes @1, which cited every premise field the annotation names: a premise field declared unknown in its record (unk, E.1.5 item 1) is not cited and is counted as premise_field_unknown in the derivation report (NE-12; D-930)."
+spec = "EF E.7.3, NE-12; R-20"
+
+[[rule]]
+id = "aprov.a_exposure"
+version = 1
+ceiling = "D"
+statement = "An apv:Assessment apv:ExposedTo of request part p by a context member m of the invocation that generated p, whose premises are the aprov.use_context@1 and aprov.gen_part@1 statements. Materialised only for requests with a role other than neutral (unknown and unlabelled included) and members whose integrity is not trusted (unknown and unlabelled included); a tool execution without a request part has no generating invocation and gets none."
+spec = "EF E.7.3 items 1-2; AD-05"
+
+[[rule]]
+id = "aprov.a_taint"
+version = 1
+ceiling = "I"
+statement = "An apv:Assessment apv:PotentiallyInfluencedBy over an exposure whose request roles and member integrity meet the semantics profile's taint policy (apv:policy); premises are the exposure and the label statements it was selected by. A policy, over-approximate by design."
+spec = "EF E.7.3; F.1.2"
+
+# ------------------------------------------------------------------------------------------- top level (E.3.3)
+[[rule]]
+id = "aprov.t_raw"
+version = 1
+ceiling = "O"
+statement = "Each raw artefact of the execution header is a content-addressed entity raw:sha256-<hex>."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_capture"
+version = 1
+ceiling = "O"
+statement = "A live capture session is an activity associated with the capture and backend software and generating the capture artefacts."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_map"
+version = 1
+ceiling = "O"
+statement = "The AER entity, the mapping activity that used the raw artefacts and generated the AER, and its association with the adapter and its rule catalogues."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_annotate"
+version = 1
+ceiling = "O"
+statement = "Each SEM document, the annotation activity that used the AER and generated it, and its association with the engine and the semantics profile."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_derive"
+version = 1
+ceiling = "O"
+statement = "The derive activity, its use of the AER and SEM documents, its association with the engine under this catalogue, and the generation and derivation of every bundle."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_primary"
+version = 1
+ceiling = "O"
+statement = "Every bundle is derived from every raw artefact; a primary-source derivation only for prov_primary native or byte_derived (NE-20)."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_spec"
+version = 1
+ceiling = "O"
+statement = "Every bundle is a specialization of the version-independent entity xd:provenance."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_plans"
+version = 1
+ceiling = "O"
+statement = "The rule catalogues (this one and every adapter catalogue named by the AER header) as prov:Plan entities with their digests."
+spec = "EF E.3.3"
+
+[[rule]]
+id = "aprov.t_agents"
+version = 1
+ceiling = "O"
+statement = "The AgentPROV engine and the adapter as software agents."
+spec = "EF E.3.3"

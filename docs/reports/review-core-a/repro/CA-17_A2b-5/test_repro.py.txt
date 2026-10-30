@@ -1,0 +1,47 @@
+"""A2b-5: present-but-empty containers in a transcript/v1 file must survive serialise(render(map(file))) or raise an issue."""
+import json
+from pathlib import Path
+
+import pytest
+
+from agentprov.adapters.runner import aer_bytes, map_artefact
+from agentprov.adapters.types import Origin
+from agentprov.views.transcript_v1 import render, serialise
+
+REPO = Path.cwd()
+VECTOR = REPO / "docs/architecture/examples/C/adprov_v1_llama_injecagent.aer.jsonl"
+
+
+def _source() -> dict:
+    records = [json.loads(line) for line in VECTOR.read_bytes().splitlines()]
+    return json.loads(serialise(render(records)))
+
+
+def _round_trip(doc: dict) -> tuple[bytes, bytes, list[str]]:
+    src = json.dumps(doc, indent=2).encode()
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "x/y.transcript.json",
+                           producer_commit="579a908354b93361efe0905ffb7623256aa96a06")
+    outcome, _ = map_artefact(src, origin, profile_id="adprov-v1")
+    assert not outcome.degenerate, outcome.error_code
+    data, _ = aer_bytes(outcome)
+    records = [json.loads(line) for line in data.splitlines()]
+    codes = [str(i.get("code")) for r in records if r.get("k") == "seal" for i in (r.get("issues") or ())]
+    return src, serialise(render(records)), codes
+
+
+def _empty_tool_calls(doc: dict) -> None:
+    turn = next(t for t in doc["turns"] if t.get("role") == "assistant" and "tool_calls" not in t)
+    turn["tool_calls"] = []
+
+
+def _empty_discarded(doc: dict) -> None:
+    doc["discarded_attempts"] = []
+
+
+@pytest.mark.parametrize("mutate", [_empty_tool_calls, _empty_discarded], ids=["tool_calls_empty", "discarded_attempts_empty"])
+def test_present_empty_container_round_trips_or_is_flagged(mutate):
+    doc = _source()
+    mutate(doc)
+    src, out, codes = _round_trip(doc)
+    layout_issue = any(c.startswith("adprov.v1_layout") for c in codes)
+    assert out == src or layout_issue, f"member silently dropped; issues={codes}"

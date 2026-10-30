@@ -1,0 +1,22 @@
+import json, tomllib, pathlib
+R = pathlib.Path.cwd()
+t = tomllib.loads((R/"src/agentprov/adapters/agentdojo/tables/authority_caps_pipeline_dirs.toml").read_text())
+names = [d["name"] for d in t["dir"]]
+print("rows", len(names), "any '/' in key:", any("/" in n for n in names))
+p = tomllib.loads((R/"src/agentprov/adapters/agentdojo/profiles/authority-caps-agentdojo.profile.toml").read_text())
+print("model_from", p["family"]["agentdojo"]["identity"]["model_from"])
+c = json.loads((R/"docs/reports/phase10j/census.json").read_text())
+def find(o, k, path=""):
+    if isinstance(o, dict):
+        for kk, v in o.items():
+            if kk == k: yield path+"/"+kk, v
+            yield from find(v, k, path+"/"+kk)
+    elif isinstance(o, list):
+        for i, v in enumerate(o): yield from find(v, k, f"{path}/{i}")
+for path, v in find(c, "run_dirs_byte_distinct"):
+    if "23138310" in path:
+        print(path, len(v))
+        for k in sorted(v):
+            if "autoconfirm" in k or "luna" == k.split("/")[-1]: print("  ", k, v[k])
+        for k in sorted(v):
+            if k.endswith("gpt-6-luna"): print("  ", k, v[k])

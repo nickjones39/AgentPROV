@@ -1,0 +1,14 @@
+import sys, json
+W="~/Desktop/PhD/Labs/AgentPROV-framework/.claude/worktrees/bugpass-new-families-aceed5"
+sys.path[:0]=[W+"/tests/adapters/agentdojo", W+"/tests"]
+import test_rescont as T
+m = T.one(T.container([T.row(messages=[], utility=False, security=True)]))
+print("verified_code:", T.family_table(m.profile).verified_code if hasattr(m,"profile") else "?")
+for r in m.records:
+    if isinstance(r, dict) and r.get("k") == "judgement":
+        print("judgement", r["name"], r.get("ev"), r.get("evf"), r["rule"])
+for i in m.info.issues:
+    print("issue", i.get("code") if isinstance(i, dict) else i)
+print("---")
+for i in m.info.issues: print(json.dumps(i, default=str))
+# compare: generic TraceLogger mapper path rule for run error

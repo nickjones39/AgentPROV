@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://w3id.org/agentprov/schemas/foobench-family-0.1.json",
+  "title": "[family.foobench] of a source profile (docs/architecture D.4.1, D.12.1)",
+  "description": "Closed schema of the family table of the foobench profile: the main thread's name, the closed guard-verdict and approval-decision tables (foobench.verdict_table@1), the approver table and the actor table (foobench.actor_table@1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["main_thread", "guard_verdicts", "approval_decisions", "approvers", "actors"],
+  "$defs": {
+    "verdict": { "enum": ["allow", "deny", "modify", "redact", "escalate", "terminate"] },
+    "actorId": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" }
+  },
+  "properties": {
+    "main_thread": { "type": "string", "minLength": 1, "description": "The thread label that is the attempt; any other thread is a thread scope." },
+    "guard_verdicts": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/verdict" },
+      "description": "Source guard verdict string -> AER decision verdict."
+    },
+    "approval_decisions": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/verdict" },
+      "description": "Source approval decision string -> AER decision verdict."
+    },
+    "approvers": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/actorId" },
+      "description": "Source approver label -> a key of `actors`."
+    },
+    "actors": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/actorId" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["llm_agent", "user", "simulated_user", "attacker", "defense", "judge", "tool_runtime", "environment", "harness", "benchmark"] },
+          "role": { "type": "string", "minLength": 1 },
+          "on_behalf_of": { "$ref": "#/$defs/actorId" },
+          "call_role": { "enum": ["agent", "auxiliary"], "description": "model_call.role of this actor's calls (default agent)." },
+          "model_from": { "type": "string", "minLength": 1, "description": "Header member that names the requested model." },
+          "model_file": { "enum": ["primary", "sub"], "description": "Which file's header holds that member (default primary)." }
+        }
+      }
+    }
+  }
+}

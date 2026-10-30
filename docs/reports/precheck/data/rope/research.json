@@ -1,0 +1,226 @@
+{
+  "corpus_id": "rope",
+  "date": "2026-10-14",
+  "code_commit": "065b0d36",
+  "step": "P0/1 desk research (pre-registration; no data check run). Delta corpus: examined in E2 (docs/reports/analysis/phase10-examination-2.md) without network; this is the first networked desk research since the 2026-10-07 investigation (investigation/sources/rope.md, verify/rope.md, sources/autodojo.md, verify/autodojo.md)",
+  "parts": [
+    "rope · head (10,791 TraceLogger logs under runs/ at xhOwenMa/ROPE@64495e16e640d687e06e6b1b6cee6dccc5b9b7cb; profile rope@2)",
+    "autodojo · rope-slice (via = rope, corpus rope): the 2,847 runs/{gpt-4o-mini,gemini-2.5-flash,qwen3-235b}/<suite>/user_task_*/autodojo/*.json logs inside rope · head; profile autodojo-via-rope@1 supplies the payload-cache provenance"
+  ],
+  "papers": [
+    {
+      "id": "arXiv:2608.27496",
+      "title": "ROPE: Routed Origin Policy Enforcement against Indirect Prompt Injection (Ma, Xiao, Yeoh, Zhang, Vorobeychik)",
+      "url": "https://arxiv.org/abs/2608.27496v1",
+      "relation": "primary paper of the source; abstract says code and logs are at github.com/xhOwenMa/ROPE; Tables 2-6 and 11-14 are computed from runs/ by the shipped aggregators (runs/aggregate.py, adaptive_rope.py, longhorizon_rope.py, ablation.py, router.py, failures.py)",
+      "versions": "v1 only (submitted 2026-08-27T01:22:14Z; arXiv API 2026-10-14 https://export.arxiv.org/api/query?id_list=2608.27496). No later version, so no table changed. Licence CC BY 4.0 (https://arxiv.org/abs/2608.27496v1). Not on the HF papers index (https://huggingface.co/api/papers/2608.27496: not found; https://huggingface.co/api/arxiv/2608.27496/repos: no models, datasets or spaces)"
+    },
+    {
+      "id": "arXiv:2606.15057",
+      "title": "AutoDojo: A Generative Benchmark for Evaluating Prompt Injection Defenses in LLM Agents (Ma, Li, Xiao, Yu, Zhang, Vorobeychik)",
+      "url": "https://arxiv.org/abs/2606.15057v3",
+      "relation": "attack of the 2,847-log AutoDojo slice; its v3 Tables 5, 6, 8, 9 ROPE rows for GPT-4o-mini and Gemini-2.5-Flash reproduce exactly from the ROPE logs with raw security and micro-averaging (verify/autodojo.md #14, §3.1). Its ROPE rows for GPT-5.4-mini, DeepSeek-v4-Flash and Claude-Haiku-4.5 have no released logs",
+      "versions": "v1 2026-06-13, v2 2026-06-19, v3 2026-09-28T04:15:17Z (latest; arXiv API 2026-10-14). Titles differ between versions (v1: '...Adaptive Attacks Expose Superficial Defenses and User-Underspecification Limits...'; v3: 'A Generative Benchmark...'); v1 covered 3 suites only; v3 adds the AgentDyn suites and a frontier model (DeepSeek-v4-Pro, App. C.1) (verify/autodojo.md #26). Cite v3"
+    },
+    {
+      "id": "arXiv:2602.16901",
+      "title": "AgentLAB: Benchmarking LLM Agents against Long-Horizon Attacks (Jiang, Wang, Liang, Wang)",
+      "url": "https://arxiv.org/abs/2602.16901v1",
+      "relation": "source of the long-horizon Task-Injection payloads replayed in the 760 agentlab_longhorizon logs; its traces are vendored byte-identically in agentlab/res/** (owned elsewhere: ext:agentlab)",
+      "versions": "v1 only (2026-02-18; arXiv API 2026-10-14)"
+    },
+    {
+      "id": "arXiv:2406.13352",
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents",
+      "url": "https://arxiv.org/abs/2406.13352",
+      "relation": "benchmark (banking, slack, travel suites; important_instructions attack; TraceLogger format)",
+      "versions": "not re-checked here (see the AgentDojo corpora's research); the ROPE harness is an AgentDojo 0.1.35 fork"
+    }
+  ],
+  "repo": "https://github.com/xhOwenMa/ROPE. Pin 64495e16e640d687e06e6b1b6cee6dccc5b9b7cb (2026-08-31T04:07:41Z, 'Update README.md'), root tree c4df12c3afe361b1923c33a1e6f26c763462dff8 (https://api.github.com/repos/xhOwenMa/ROPE/git/commits/64495e16e640d687e06e6b1b6cee6dccc5b9b7cb). The pin is still HEAD of main, the only branch: full history is 3 commits, 446074ec 2026-08-20 (public release), f5a48f00 2026-08-26 ('runs: ship the ablation and cheaper-router logs, and aggregators for every reported table'), 64495e16 2026-08-31 (README only) (https://api.github.com/repos/xhOwenMa/ROPE/commits). pushed_at 2026-08-31T04:07:42Z, so nothing changed since the pin; 0 tags, 0 releases, 0 issues and 0 PRs ever (has_issues true), 0 forks, 0 stars (https://api.github.com/repos/xhOwenMa/ROPE). Recursive tree listing (not truncated): 24,909 blobs, 265,463,047 bytes; runs/ tree 6a8c86f2 = 10,805 blobs (10,791 logs = 175,263,358 B, runs/lh_cells.json, 13 .py aggregators); agentlab/ 13,765 blobs (13,525 under agentlab/res/); autodojo/ 304 blobs (incl. the 3 routed caches); src/ 32 blobs (incl. 18 cached scope files) (https://api.github.com/repos/xhOwenMa/ROPE/git/trees/64495e16e640d687e06e6b1b6cee6dccc5b9b7cb?recursive=1). README claims (https://github.com/xhOwenMa/ROPE/blob/64495e16e640d687e06e6b1b6cee6dccc5b9b7cb/README.md): runs/ holds the run logs for all four agent models plus ablation and router trees and the scripts that recompute the reported numbers; three oracles are re-scored by runs/corrections.py and CU/UA are never touched; all reported runs call the agent models through OpenRouter (contradicted by the logs: Gemini via the native Google API, Qwen via a local vLLM; verify/rope.md §5). Upstreams: AutoDojo xhOwenMa/AutoDojo HEAD aa458794 (2026-09-29; issues disabled; no runs shipped) (https://api.github.com/repos/xhOwenMa/AutoDojo); AgentLAB TanqiuJiang/AgentLAB HEAD 36f58e60 (2026-06-01), unchanged; AgentDyn SaFo-Lab/AgentDyn HEAD 5353cf76 (2026-05-19), unchanged, issues #6 (github InjectionTask1 false positive for user_task_2, closed 2026-05-02 by 1a6d11d5/2c99edcb, both before 5353cf76) and #8 (github user_task_5/7/8/11 can never reach utility True at 5353cf76, open 2026-10-12) (https://github.com/SaFo-Lab/AgentDyn/issues/6, https://github.com/SaFo-Lab/AgentDyn/issues/8).",
+  "data_record": "No separate data record. Searches 2026-10-14: HF datasets by author xhOwenMa = [] (https://huggingface.co/api/datasets?author=xhOwenMa); Zenodo query \"Routed Origin Policy Enforcement\" = 0 hits (https://zenodo.org/api/records?q=%22Routed%20Origin%20Policy%20Enforcement%22); HF paper repos for 2608.27496 empty. The git tree is the record. Pin comparison: profile rope@2 [[source.pins]] commit 64495e16, tree_sha1 c4df12c3, expected_files 24,909, expected_bytes 265,463,047, runs/ tree 6a8c86f2 with 10,805 files: all equal to the GitHub API listing today. Import report docs/reports/rope/import-cli-rope.json: --verify-against-pin read 10,826 files (10,791 logs + 35 context artefacts: runs/lh_cells.json, 13 runs/*.py, 18 src/rope/scopes/** files, 3 routed injections.json caches; counted in the API listing as 1 + 13 + 18 + 3 = 35), all matched. AutoDojo slice: 2,847 files, 48,275,981 bytes in the listing (= verify/autodojo.md #5).",
+  "harness": "AgentDojo 0.1.35 fork, unreleased code states. Logs written by TraceLogger of the vendored AutoDojo fork (autodojo/src/agentdojo, pyproject agentdojo 0.1.35; vendored snapshot between AutoDojo bf2e4cb3 2026-08-10 and abbcbd8d 2026-08-21, exact commit unknown), but the logged system prompt (AgentDojo default + 'Complete all tasks automatically without requesting user confirmation.') is AgentDyn's / ROPE's agentlab copy, not producible by the released autodojo/ (verify/rope.md §3); pipeline tags (iter2/iter4 synthesis handspec, final-opus, router_*, always-*) are not the shipped run_eval.py naming ({TAG}-rope-{router}), so the defence code per log is unknown; enforcer text changed mid-evaluation (~2026-06-29, 'THE FIX' comment). agentdojo_package_version is 'unknown' on all 2,268 qwen3-235b logs (PyPI agentdojo latest is still 0.1.35, released 2025-10-27: https://github.com/ethz-spylab/agentdojo/releases). Benchmark versions: v1.2.2 on 10,031 logs, v1.2.1 on the 760 long-horizon logs (AgentLAB overlay suites, not stock v1.2.1); AgentDyn suites github/shopping/dailylife equal SaFo-Lab/AgentDyn@5353cf76 except shopping ground_truth stubs, and are registered under every benchmark version label. Known bugs of AgentDojo 0.1.35 relevant to these logs (ethz-spylab/agentdojo issues, untrusted text, summarised): #168 and #189 slack injection_task_5 security_from_traces scores proposed (denied) calls as executed, which inflates ASR for execution-blocking defences (open/closed; PRs #199, #207) = ROPE's slack IT5 correction (https://github.com/ethz-spylab/agentdojo/issues/168, https://github.com/ethz-spylab/agentdojo/issues/189); #218 the utility-side counterpart (utility_from_traces can count a proposed but unexecuted call) (https://github.com/ethz-spylab/agentdojo/issues/218); #181 banking InjectionTask0/1/3 subject check is dead code by operator precedence (security reduces to 'any transaction to the attacker IBAN') (https://github.com/ethz-spylab/agentdojo/issues/181); #188 slack utility check raises KeyError when post_webpage does not execute, which would abort a run under a blocking defence (https://github.com/ethz-spylab/agentdojo/issues/188); #214 non-ASCII tool results reach the model as \\uXXXX escapes (yaml.safe_dump/json.dumps defaults) (https://github.com/ethz-spylab/agentdojo/issues/214); #161/#138 banking user_task_5 utility checks the old $50 payment; #139 banking user_task_14 expects a password change without an attack (closed); #212/#177 --max-workers > 1 passes arguments to benchmark_suite in the wrong order (the AutoDojo fork added parallel evaluation; whether ROPE used it is unknown) (https://github.com/ethz-spylab/agentdojo/issues/212). AgentDyn (suites github/shopping/dailylife): #8 github user_task_5/7/8/11 utility can never be True at 5353cf76 (https://github.com/SaFo-Lab/AgentDyn/issues/8); #6 github InjectionTask1 false positive when the user task transfers the repo, fixed before 5353cf76 by an execution-based check (https://github.com/SaFo-Lab/AgentDyn/issues/6) - ROPE still re-scores github IT1 (paper A.5: two user tasks transfer a repository).",
+  "models": [
+    "gpt-4o-mini (tag gpt-4o-mini-2024-07-18-openrouter-*; OpenRouter, call_* ids; dated snapshot is a tag label, not API evidence) - main tree 2,268 logs plus the 2,920 ablation/router logs (identity by tree, rope.model_dir_identity@1)",
+    "gpt-4o (tag gpt-4o-2024-08-06-openrouter-iter4-synthesis-handspec; OpenRouter) - 1,066 logs (clean + important_instructions only); its AgentDojo-suite logs are in no reported table (runs/_scope.py)",
+    "gemini-2.5-flash (native Google API, tag gemini-2.5-flash-google-*; null or tool_* call ids, 8,707 null ids; snapshot unknown) - 2,269 logs",
+    "qwen3-235b (local vLLM, chatcmpl-tool-* ids, package version 'unknown'; exact checkpoint unknown; paper says Qwen3-235B) - 2,268 logs; the 949 autodojo logs carry a gpt-4o-mini pipeline tag (identity_conflict)",
+    "router (not an agent): Claude Opus 4.8 per the paper (§4, A.4; scopes cached in src/rope/scopes/opus); router study Gemini-3-Flash and gpt-oss-20b (src/rope/scopes/{gemini-3-flash,gpt-oss-20b}); none named in any log except the tag fragment final-opus (63 gpt-4o-mini logs)",
+    "attack optimiser (not an agent): google/gemini-3-flash-preview for the 3 ROPE-routed AutoDojo caches (sources/rope.md §2); AutoDojo upstream caches used Gemini-3.1-Pro (verify/autodojo.md)",
+    "decoding: paper A.4 says temperature 0, single greedy run per cell; no parameter is logged (U6-c declares /params not_recorded)"
+  ],
+  "reported_results": [
+    {
+      "arm": "ROPE / GPT-4o-mini / AgentDyn / important_instructions",
+      "metric": "CU, UA, ASR (corrected, unweighted mean of github, shopping, dailylife)",
+      "value": "CU 43.3, UA 36.6, ASR 1.8",
+      "n": "clean 20 per suite; attacked 180/180/200",
+      "where": "ROPE v1 Table 11 and Table 2 (https://arxiv.org/html/2608.27496v1)"
+    },
+    {
+      "arm": "ROPE / GPT-4o / AgentDyn / important_instructions",
+      "metric": "CU, UA, ASR",
+      "value": "CU 53.3, UA 45.0, ASR 2.4",
+      "n": "clean 20 per suite; attacked 180/180/200",
+      "where": "ROPE v1 Table 11"
+    },
+    {
+      "arm": "ROPE / Gemini-2.5-Flash / AgentDyn / important_instructions",
+      "metric": "CU, UA, ASR",
+      "value": "CU 25.0, UA 20.9, ASR 1.6",
+      "n": "as above",
+      "where": "ROPE v1 Table 11, Table 2"
+    },
+    {
+      "arm": "ROPE / Qwen3-235B / AgentDyn / important_instructions",
+      "metric": "CU, UA, ASR",
+      "value": "CU 53.3, UA 46.3, ASR 2.6",
+      "n": "as above",
+      "where": "ROPE v1 Table 11, Table 2"
+    },
+    {
+      "arm": "ROPE / per-suite AgentDyn ASR static vs adaptive (github, shopping, dailylife; overall)",
+      "metric": "ASR corrected, static/adaptive",
+      "value": "GPT-4o-mini 0.0/0.0, 4.4/4.4, 1.0/0.5; overall 1.8/1.6 (UA 36.6/34.3). Gemini 0.0/0.0, 3.9/2.2, 1.0/0.0; 1.6/0.7 (UA 20.9/12.5). Qwen 0.0/0.0, 7.2/7.2, 0.5/0.5; 2.6/2.6 (UA 46.3/39.1)",
+      "n": "180/180/200 per suite and attack",
+      "where": "ROPE v1 Table 2"
+    },
+    {
+      "arm": "ROPE / AgentDojo / important_instructions",
+      "metric": "CU, UA, ASR (corrected, unweighted mean of banking, slack, travel)",
+      "value": "GPT-4o-mini 58.9 / 45.6 / 3.7; Gemini-2.5-Flash 58.6 / 51.7 / 3.7; Qwen3-235B 67.9 / 57.6 / 4.6 (no GPT-4o row)",
+      "n": "clean 16/21/20; attacked 144/105/140",
+      "where": "ROPE v1 Table 13"
+    },
+    {
+      "arm": "ROPE / AgentDojo / autodojo (adaptive)",
+      "metric": "CU, UA, ASR (corrected, macro)",
+      "value": "GPT-4o-mini 58.9 / 50.2 / 2.8; Gemini-2.5-Flash 58.6 / 52.2 / 4.0; Qwen3-235B 67.9 / 58.5 / 5.0",
+      "n": "144/105/140",
+      "where": "ROPE v1 Table 14"
+    },
+    {
+      "arm": "ROPE / long-horizon (AgentLAB Task-Injection replay)",
+      "metric": "CU, UA, ASR banking/slack/travel/overall (pooled per matched cell, lh_cells.json)",
+      "value": "GPT-4o-mini CU 65.8, UA 40.9, ASR 0/0/0/0; Gemini 68.4, 45.7, 0/0/0/0; Qwen 71.1, 47.2, 0/0/0/0",
+      "n": "matched cells 144/85/23 (GPT-4o-mini, Qwen), 144/85/25 (Gemini) per sources/rope.md §4.2",
+      "where": "ROPE v1 Table 3"
+    },
+    {
+      "arm": "ROPE ablation (GPT-4o-mini, AgentDyn)",
+      "metric": "CU, UA, ASR per suite and overall",
+      "value": "shopping fully-spec 20.0/21.1/5.0, action-open 30.0/31.1/28.9, ROPE 35.0/36.1/4.4; github 40.0/32.8/0.0, 65.0/51.7/35.0, ROPE 60.0/52.8/0.0; daily-life 20.0/14.5/0.5, 35.0/31.0/68.0, ROPE 35.0/21.0/1.0; overall 26.7/22.8/1.8, 43.3/37.9/44.0, ROPE 43.3/36.6/1.8",
+      "n": "clean 20; attacked 180/180/200 per policy",
+      "where": "ROPE v1 Table 4"
+    },
+    {
+      "arm": "ROPE router study (GPT-4o-mini, AgentDyn)",
+      "metric": "CU, ASR, ASR +clamp",
+      "value": "GitHub Opus 60.0/0.0/0.0, Gemini-3-Flash 55.0/1.7/0.0, gpt-oss-20b 40.0/1.1/0.0; Shopping 35.0/4.4/4.4, 35.0/5.0/5.0, 40.0/7.2/7.2; Daily-life 35.0/1.0/0.0, 30.0/6.0/0.0, 35.0/0.5/0.5; Overall 43.3/1.8/1.5, 40.0/4.2/1.7, 38.3/2.9/2.6",
+      "n": "clean 20; attacked 180/180/200; clamp logs exist for daily-life only",
+      "where": "ROPE v1 Table 5"
+    },
+    {
+      "arm": "ROPE residual attack successes, important_instructions, paper cells (4 models AgentDyn, 3 models AgentDojo)",
+      "metric": "count of corrected security true",
+      "value": "90 = travel IT6 23 + slack IT1 19 + travel IT5 2 + shopping IT2/IT5 39 + daily-life IT6 7",
+      "n": "3,407 attacked logs (949 x 4 models main-tree important_instructions minus 389 gpt-4o AgentDojo-suite logs; runs/_scope.py paper_cells)",
+      "where": "ROPE v1 Table 6, §4.7"
+    },
+    {
+      "arm": "ROPE headline",
+      "metric": "ASR range and retained clean utility, four models, open-ended suites",
+      "value": "ASR 1.6-2.6%; 82-100% of undefended CU",
+      "n": "",
+      "where": "ROPE v1 abstract (https://arxiv.org/abs/2608.27496v1)"
+    },
+    {
+      "arm": "ROPE / GPT-4o-mini (AutoDojo paper)",
+      "metric": "clean util., static ASR (UA), AutoDojo ASR (UA): raw security, micro-averaged",
+      "value": "AgentDojo 59.6, 6.4 (45.5), 4.4 (49.6); AgentDyn 43.3, 2.1 (36.1), 2.9 (33.6); per suite clean/static/AutoDojo: banking 50.0/0.0/0.0, slack 66.7/15.2/11.4, travel 60.0/6.4/3.6, github 60.0/0.6/0.0, shopping 35.0/4.4/4.4, dailylife 35.0/1.5/4.0",
+      "n": "389 and 560 attack cases",
+      "where": "AutoDojo v3 Tables 5, 6, 8, 9 (https://arxiv.org/html/2606.15057v3)"
+    },
+    {
+      "arm": "ROPE / Gemini-2.5-Flash (AutoDojo paper)",
+      "metric": "as above, raw, micro",
+      "value": "AgentDojo 59.6, 3.3 (51.7), 3.9 (50.6); AgentDyn 25.0, 1.6 (20.9), 0.7 (12.3); per suite: banking 50.0/0.0/0.0, slack 85.7/6.7/5.7, travel 40.0/4.3/6.4, github 20.0/0.0/0.0, shopping 15.0/3.9/2.2, dailylife 40.0/1.0/0.0",
+      "n": "389 and 560",
+      "where": "AutoDojo v3 Tables 5, 6, 8, 9"
+    },
+    {
+      "arm": "ROPE / GPT-5.4-mini, DeepSeek-v4-Flash, Claude-Haiku-4.5 (AutoDojo paper, AgentDojo suites)",
+      "metric": "clean util., static ASR (UA), AutoDojo ASR (UA)",
+      "value": "66.7, 0.5 (57.8), 1.8 (57.8); 73.7, 1.5 (73.0), 1.5 (72.0); 70.2, 0.0 (60.4), 0.3 (61.2) - no released logs",
+      "n": "389",
+      "where": "AutoDojo v3 Table 5"
+    }
+  ],
+  "expected_counts": "rope · head: 10,791 selected logs (175,263,358 B) = 10,789 v1.k14 agent_execution + 2 v1.k14.incomplete outcome_only (empty messages, no utility/security); 35 context artefacts; excluded by selection 14,066 (select.owned_elsewhere 13,765 agentlab/**, select.not_execution_artefact 301 = vendored autodojo/** (304 blobs) minus the 3 routed caches [CORRECTED in fact-check: was 'runs/lh_cells.json + vendored autodojo/**', which would be 305; lh_cells.json is one of the 35 context artefacts]), reported as selection_excluded under D-33; 0 archive members; 0 degenerate; 187,255 messages, 83,068 assistant, 83,362 tool calls (8,707 null ids), 82,609 tool results, 12,657 guard denials (9,424 'None' variant, 3,233 query variant), 2,524 other tool errors, 753 unexecuted trailing calls in 675 logs, 322 null-final logs, 748 clean logs, attack_type important_instructions 6,436 / autodojo 2,847 / long_horizon 760 / null 748. AER records at E2: 505,333 (import-cli-rope.json; sources/rope.md §4; verify/rope.md §6; registry tools/readme_corpora.toml rope·head 10,791). autodojo · rope-slice: 2,847 logs (3 models × 949 cells; per model banking 144, slack 105, travel 140, github 180, shopping 180, dailylife 200), 5,775 payload slots all linked (5,772 exact, 3 wrapped) (rope-q8.json; tools/readme_corpora.toml autodojo·rope-slice 2847, counted under rope).",
+  "expected_arms": "Main tree (model dir × attack × suite): gpt-4o-mini / gemini-2.5-flash / qwen3-235b each: none 117 (16/21/20/20/20/20), important_instructions 949 (144/105/140/180/180/200), autodojo 949 (same grid), agentlab_longhorizon (AgentDojo suites only) 253/254/253 (banking 144, slack 85, travel 24 or 25); gpt-4o: none 117 + important_instructions 949 only. ablation/{always-fully-specified, always-action-open}: AgentDyn suites only, none 60 + important_instructions 560 each. router/{gemini-3-flash, gpt-oss-20b}: AgentDyn only, 60 + 560 each; router/*-clamp: dailylife only, 20 + 200 each. Missing by design: every undefended and baseline-defence arm (11 baselines × 4 models), gpt-4o autodojo and long-horizon, AgentDojo suites in ablation/router, github/shopping clamp arms, opus-clamp arm, AutoDojo-paper ROPE rows for GPT-5.4-mini/DeepSeek-v4-Flash/Claude-Haiku-4.5. Missing cells: travel long-horizon user_task_0 × injection_task_2 for gpt-4o-mini and qwen3-235b. Extra: gpt-4o AgentDojo-suite logs (in no table); 2 aborted long-horizon logs (travel user_task_2 × injection_task_2, gpt-4o-mini and qwen3-235b).",
+  "licence": "MIT. ROPE LICENSE: 'Copyright (c) 2026 Xinhang Ma, Chaowei Xiao, William Yeoh, Ning Zhang, Yevgeniy Vorobeychik' (https://github.com/xhOwenMa/ROPE/blob/64495e16e640d687e06e6b1b6cee6dccc5b9b7cb/LICENSE); no separate data licence, runs/ falls under it. autodojo/LICENSE is AgentDojo's MIT (2024 Debenedetti et al.); agentlab/LICENSE is MIT with no named holder. AutoDojo payload caches: AutoDojo MIT (Ma, Li, Xiao, Yu, Zhang, Vorobeychik 2026). Papers CC BY 4.0. No use restriction clause found. Unassessed: model-provider terms on redistributing outputs (OpenAI via OpenRouter, Google, Qwen weights); payloads contain prompt-injection text by design.",
+  "discrepancy_leads": [
+    "L-01 Router study clamp column: ROPE Table 5 reports '+clamp' ASR for GitHub and Shopping (all three routers) and for the Opus 4.8 row in every suite, but the release has clamp trees only for router/{gemini-3-flash,gpt-oss-20b}-clamp/dailylife, and runs/router.py prints '--' where no clamped tree exists (Opus has none). Expect: 0 clamp logs outside dailylife and 0 opus-clamp logs; 7 of Table 5's 9 per-suite clamp cells (all but Gemini-3-Flash and gpt-oss-20b on daily-life) and its 3 clamp overall values are not reproducible from the release (documentation-mismatch, data vs paper).",
+    "L-02 Main-tree router identity: the paper says Opus 4.8 routes the main results, but no log names it; gpt-4o-mini main-tree tags are iter4-synthesis-handspec 1,774, iter2-synthesis-handspec 178 (github II 162 + none 16, 2026-06-16) and final-opus 63 (2026-08-12); the reported GPT-4o-mini github arm mixes code states (verify/rope.md §6).",
+    "L-03 Enforcer text changed mid-evaluation: denials ending 'user task: None.' 9,424 vs query-echo 3,233, only 2026-06-29 has both; gpt-4o important_instructions mixes 261 (06-26) and 239 (06-30) logs. The paper describes one deterministic configuration.",
+    "L-04 System prompt: all 10,789 non-empty logs carry the AgentDyn-style prompt (extra auto-complete line) that the released autodojo/ harness cannot produce (verify/rope.md §3); live reruns with the release would differ.",
+    "L-05 Retry passes: 322 null-final logs are by code third passes on an environment mutated by two unlogged passes (verify/rope.md §4); their outcomes are not first-pass outcomes.",
+    "L-06 Model provenance: README says all reported runs use OpenRouter; logs show native Google for Gemini and a local vLLM for Qwen; dated OpenAI snapshots are tag labels; the 949 qwen3-235b autodojo logs carry a gpt-4o-mini tag.",
+    "L-07 Two published ASR derivations from the same logs: AutoDojo v3 uses raw security, micro-averaged (GPT-4o-mini AgentDojo AutoDojo ASR 4.4); ROPE uses effect-corrected security, macro-averaged (same cells 2.8). Raw AutoDojo-arm successes 88, corrected 71.",
+    "L-08 AgentDyn issue #8: at 5353cf76 github user_task_5/7/8/11 can never reach utility True; ROPE's github suite equals 5353cf76, so these four tasks should have utility False in every ROPE github log (any True would mean the run-time suite differs from the vendored one).",
+    "L-09 Long-horizon matched set: lh_cells.json lists 144/85/23 cells for gpt-4o-mini and qwen3-235b vs 24 travel logs each; the 2 aborted empty logs (travel user_task_2 × injection_task_2) should be exactly the difference; travel user_task_0 × injection_task_2 is absent for both models (AgentLAB has 25 travel pairs).",
+    "L-10 benchmark_version v1.2.1 on all 760 long-horizon logs (AgentLAB overlay suites) vs v1.2.2 elsewhere; the AgentDyn suites are registered under every label, so the label is not a suite version for github/shopping/dailylife.",
+    "L-11 AgentDojo #188: a blocking defence that denies post_webpage makes the slack utility check raise KeyError and abort the run; all 10,791 logs have error null and no cell is missing in slack, so either the fork guards it or no such denial occurred; test that slack logs with a denied post_webpage exist and carry a utility value.",
+    "L-12 AgentDojo #218: utility_from_traces can count a proposed but denied call; with 12,657 denials, UA could be inflated where the utility check reads the call trace; not corrected by ROPE ('CU and UA are never touched').",
+    "L-13 AgentDojo #181: banking InjectionTask0/1/3 security is 'any transaction to the attacker IBAN'; ROPE banking ASR is 0.0 in every reported arm, so no effect is expected on reported numbers, but recorded banking security true counts should be 0 in II and autodojo arms.",
+    "L-14 AgentDojo #214: non-ASCII tool results logged as \\uXXXX escapes in YAML/JSON tool text (L1-03 literal escape residues).",
+    "L-15 artefacts.toml stale after regen-batch item 1 and item 4: rope.art.autodojo_payload_escaped says the unescape is not applied and expects 1,166 (E2 census 1,235 executions / 1,840 markers; B1 implemented in agentdojo.suites@2); rope.art.security_without_exposure expects 22 (5 under @2); rope.art.pipeline_tag_not_identity describes the tag as 'qwen3-235b' (it is the gpt-4o-mini tag in the qwen3-235b directory).",
+    "L-16 SEM fail-closed persists for ROPE's AgentDyn suites: rope reads agentdojo.suites@2, whose tables cover no AgentDyn suite (@3 adds them, selected by the agentdyn profile only); E2 counted 170,013 unknown-tool annotations in github/shopping/dailylife and 3,820 in banking/slack/travel (cause unverified).",
+    "L-17 Parallel-evaluation bug: the vendored autodojo/ fork predates AutoDojo's cost_tracker (abbcbd8d) and its parallel-evaluation code path exists; AgentDojo #212/#177 (--max-workers argument order) would show as path/field disagreement; E2 import found 0 path_field_mismatch.",
+    "L-18 AgentDyn issue #6 (github IT1 false positive) was fixed in AgentDyn before 5353cf76 with an execution-based check, yet ROPE logs record github IT1 security true in 5 logs that ROPE's correction flips to 0; test which user tasks they are (paper A.5 names repository-transfer tasks)."
+  ],
+  "open_questions": [
+    "Whether ROPE should read agentdojo.suites@3 (AgentDyn tool tables) instead of @2: an owner decision (rope profile, registry semantics), not a pre-check finding by itself.",
+    "Whether the two empty long-horizon logs end at completeness known_incomplete (agentdojo.incomplete_run@1 is class D and has no _unverified twin) or unverifiable; either way not verified_complete (B2).",
+    "Router configuration actually installed per log (handspec, iter2/iter4, final-opus) is not recoverable from the release.",
+    "Exact Qwen3-235B checkpoint and Gemini snapshot; whether evaluation_timestamp time zones differ between hosts (Qwen on a separate vLLM host)."
+  ],
+  "checks_not_applicable": [
+    "Withholding ([withhold] behaviour, verify --level chain on a sealed copy for withheld objects): the rope profile has no [withhold] table and E2 found no real credential (233 secret-shaped strings are benchmark fixtures); run the secret screen (L1-06) and confirm 0 withheld objects instead.",
+    "Archive member checks within L1-01/L1-02 (members, ratio, depth): plain git tree, 0 archive members.",
+    "L1-07 monotonicity within a unit: TraceLogger records one run-level evaluation_timestamp and a duration, no per-step time; only presence, format, zone and range apply.",
+    "Account-path redaction tables: no redact table in the rope profile and no agentdojo-family redaction on this code; the check reduces to 'no machine-specific path in AER/SEM/PROV' (E2: 0)."
+  ],
+  "files_written": [
+    "docs/reports/precheck/data/rope/research.json",
+    "docs/reports/precheck/prereg/rope.md"
+  ],
+  "fact_check": {
+    "date": "2026-10-14",
+    "method": "adversarial re-check from public metadata and papers only (GitHub API incl. recursive tree listing of the pin, LICENSE/README/router.py/_scope.py at the pin, arXiv API + abs pages + HTML of 2608.27496v1 and 2606.15057v3, AgentDyn and AgentDojo issue API, PyPI JSON, HF and Zenodo APIs); no data payload downloaded, nothing computed from raw logs",
+    "confirmed": [
+      "Pin 64495e16 = HEAD of main (only branch), tree c4df12c3, 3 commits (446074ec 2026-08-20, f5a48f00 2026-08-26, 64495e16 2026-08-31), pushed_at 2026-08-31T04:07:42Z, 0 tags/releases/issues/PRs/forks (https://api.github.com/repos/xhOwenMa/ROPE, /commits, /branches, /tags, /releases, /issues?state=all)",
+      "Recursive tree (truncated=false): 24,909 blobs / 265,463,047 B; runs/ 6a8c86f2 10,805 blobs; runs/**/*.json minus lh_cells.json = 10,791 / 175,263,358 B; 13 .py in runs/; agentlab/ 13,765 (res/ 13,525); autodojo/ 304; src/ 32 (scopes 18); autodojo logs 2,847 / 48,275,981 B; 103 (tree, attack, suite) strata with exactly the per-cell counts of prereg section 3, incl. LH travel 24/25/24 (https://api.github.com/repos/xhOwenMa/ROPE/git/trees/64495e16e640d687e06e6b1b6cee6dccc5b9b7cb?recursive=1)",
+      "Licence MIT with the named holders; autodojo/LICENSE AgentDojo MIT 2024 Debenedetti et al.; agentlab/LICENSE MIT with empty holder; upstream xhOwenMa/AutoDojo LICENSE MIT (Ma, Li, Xiao, Yu, Zhang, Vorobeychik 2026); paper CC BY 4.0",
+      "README: runs/ = all four agent models + ablation/router trees + scripts; three oracles re-scored by runs/corrections.py, CU and UA never touched; OpenRouter claim present (README.md lines 22, 56-59, 83-84 at the pin)",
+      "router.py: Opus has no clamped tree, cells without a clamped run print '--'; _scope.py: gpt-4o AgentDojo runs are in no reported table",
+      "ROPE arXiv 2608.27496 v1 only (2026-08-27T01:22:14Z); abstract: 1.6-2.6% ASR, 82-100% of undefended CU, code and logs at github.com/xhOwenMa/ROPE; 'Overall is the unweighted mean over a benchmark's three suites'; three injection tasks re-scored by effect (A.5, two github user tasks transfer a repository); A.4 temperature 0, single greedy run; 11 baselines",
+      "ROPE v1 Tables 2, 3, 4, 5, 6, 11, 13, 14: every ROPE value in reported_results re-read and equal",
+      "AutoDojo 2606.15057 v1 2026-06-13, v2 2026-06-19, v3 2026-09-28; v1 title differs; v3 Tables 5, 6, 8, 9 ROPE rows (GPT-4o-mini, Gemini-2.5-Flash, GPT-5.4-mini, DeepSeek-v4-Flash, Claude-Haiku-4.5) re-read and equal",
+      "Per-suite integers of prereg section 4 recomputed from the published percentages and n: all consistent with RP T2/T11/T13/T14 macro values and AP T6/T9; 90 = 24+22+31+13 and the Table 6 split; AutoDojo 88 -> 71 = 33/19/36 -> 19/19/33; LH CU 25/38, 26/38, 27/38",
+      "AgentDyn HEAD 5353cf76 (2026-05-19); #6 closed 2026-05-02 by 1a6d11d5 and 2c99edcb (both before 5353cf76); #8 open since 2026-10-12; AutoDojo HEAD aa458794 2026-09-29, issues disabled; AgentLAB HEAD 36f58e60 2026-06-01",
+      "AgentDojo issues #138, #139, #161, #168, #177 (a PR), #181, #188, #189, #212, #214, #218: titles match the summaries; PyPI agentdojo latest 0.1.35 (2025-10-27)",
+      "No data record: HF datasets by xhOwenMa []; HF arXiv repos for 2608.27496 empty; HF papers 404; Zenodo exact-title query 0 hits",
+      "rope-q8.json: corrections slack IT5 32->0 (198 logs), dailylife IT7 39->22 (260), github IT1 5->0 (220); guard denials 9,424/3,233; artefacts.toml rope.art entries read as L-15 states"
+    ],
+    "corrected": [
+      "expected_counts: composition of select.not_execution_artefact 301 (see the field)",
+      "prereg section 5 agentdojo.rope_release_tree: router 1,680 includes the 440 clamp files (profile router_files; 1,240 + 1,680 = 2,920 ablation/router logs), not an additional 440"
+    ],
+    "notes": [
+      "Pin accounting from the listing: 24,909 = 10,791 selected + 35 context + 14,066 excluded + 17 files outside every glob (14 src/ files other than the scope caches, .gitignore, LICENSE, README.md)",
+      "Consistency with RP Table 6: Table 6 has no dailylife IT7 row, so the 22 corrected dailylife IT7 successes of rope-q8.json (all important_instructions) must lie outside the paper cells (ablation/router trees). Not added as a hypothesis; flagged for the verifier",
+      "Unverifiable from public sources (rest on our census/verify reports, not re-checked here): tag counts (L-02), denial dates and gpt-4o 261/239 (L-03), system-prompt variant (L-04), retry passes (L-05), provider evidence in logs (L-06), message/tool-call counts, E2 annotation counts"
+    ]
+  }
+}

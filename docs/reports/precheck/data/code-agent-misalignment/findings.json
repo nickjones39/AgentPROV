@@ -1,0 +1,357 @@
+{
+ "format": "agentprov-precheck-findings/0.1",
+ "corpus_id": "code-agent-misalignment",
+ "findings": [
+  {
+   "id": "PC-code-agent-misalignment-01",
+   "title": "272 raw-store final_diff.patch files hold the host work-root path /home/<named>/jss_agent_work/ (CC-11): 836 matches in diff header lines, 1 named account (length withheld), 0 operator hits, 0 in AER/SEM/PROV. The second 'account' in 11 patches is a length withheld placeholder (resolved, not CC-11); 2 patches carry agent-written PEM/JWT shapes",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": true,
+   "part": "results-raw",
+   "check": "L1-10, H-17",
+   "evidence": {
+    "files": 272,
+    "matches": 836,
+    "role": {
+     "final_diff.patch": 836
+    },
+    "line_class": {
+     "other": 836
+    },
+    "next_segment": "jss_agent_work (836/836)",
+    "by_model_matches": {
+     "MiniMax-M2": 3,
+     "claude-sonnet-4-6": 60,
+     "gemini-2.5-pro": 740,
+     "glm-4.7-probe": 33
+    },
+    "distinct_named_accounts": 1,
+    "account_digest12": "<account-B>",
+    "operator_home_hits": 0,
+    "in_raw_store": "all 2,500 final_diff.patch are raw-store members of the scratch import (raw/members.jsonl, selected, object present)",
+    "in_aer_sem_prov": 0,
+    "aer_home_paths_sample": "10 executions, all generic (/home/ubuntu-class)",
+    "also": {
+     "second_named_digest_<account-A>": {
+      "files": 11,
+      "matches": 21,
+      "lines": "+ (agent-written)",
+      "model": "gemini-2.5-pro",
+      "with_jss_agent_work": 0,
+      "status": "undetermined"
+     },
+     "windows_users_digest_<account-C>": {
+      "files": 12,
+      "matches": 24,
+      "note": "digest = sha256('foo')[:12], a placeholder"
+     },
+     "pem_header_lines": 4,
+     "jwt_lines": 4,
+     "pem_jwt_where": "2 gemini-2.5-pro SK-DEPDOWN patches, + lines"
+    }
+   },
+   "reproduction": "uv run python -I docs/reports/precheck/data/code-agent-misalignment/exam-scripts/patches.py ~/.agentprov/migration-work/precheck/code-agent-misalignment/exam/patches.json",
+   "hypothesis_ref": "H-17 refuted (prereg: 0 jss_agent_work or other host work root)",
+   "recommendation": "Report to the orchestrator at once (security, CC-11). Decision for the user: withhold the 272 patches at seal with digests kept (D-345/CC-11 precedent) or a profile redaction; extend [withhold] scope (today executions-only, pattern AIza) to context artefacts; the release_scan third-party home-path detector (CC-11) must cover final_diff.patch. Verifier: inspect the <account-A> lines with quote_untrusted (fiction vs a real account).",
+   "artefact_proposal": "geminicli.art.host_path_in_diff: 272 final_diff.patch (gemini_cli) carry /home/<account>/jss_agent_work/ in diff header lines; 1 named account; context artefacts only; handling withhold-at-seal (proposed)",
+   "agents_md_12": "code-agent-misalignment: 272 raw-store final_diff.patch hold a third-party host work-root path (1 named account); withhold/redact before seal (CC-11)",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "Not refuted. Independent grep over the j1 scratch raw store (raw/objects, mapped through raw/members.jsonl): exactly 272 objects hold jss_agent_work, all gemini_cli final_diff.patch with disposition selected; 836 matches of /home/<acct>/jss_agent_work, 1 account (length withheld alphabetic name, digest <account-B>, not the GitHub owner handle); aer/sem/prov: 0 files. Alternative (operator or generic account) ruled out: not in GENERIC_ACCOUNTS, 0 operator hits. CC-11 applies as written: source-defect S2 security. Correction: the second account (digest <account-A>, 11 patches, 21 '+' lines, gemini-2.5-pro only, never with jss_agent_work) is a 1-character lowercase name in agent-written paths, so it is non-identifying placeholder text, not a CC-11 account (resolved; L1-10 tool should treat length withheld names as generic, R5). PEM/JWT shapes: 4 lines each in 2 SK-DEPDOWN patches, agent-written '+' lines; not re-examined further (release_scan will list them)."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-02",
+   "title": "[CC-13] One Stripe-shaped benchmark fixture value with the sk_live_ prefix (SK-SECRETLOG, 2 models) appears in 14 streams and 14 events.jsonl (+2 patches) and reaches AER (10 hits) and PROV apv:args (5 hits) in the sample; uncatalogued (CC-02 analogue, expected-known)",
+   "cls": "source-defect",
+   "severity": "S2",
+   "security": true,
+   "part": "results-raw",
+   "check": "L1-06, L2 redaction",
+   "evidence": {
+    "streams": 14,
+    "matches_streams": 35,
+    "matches_events_jsonl": 35,
+    "distinct_values": 1,
+    "prefix_class": {
+     "sk_live_": 70
+    },
+    "skeletons": {
+     "SK-SECRETLOG": 70
+    },
+    "pointers": {
+     "/parameters/new_string": 16,
+     "/parameters/old_string": 16,
+     "/parameters/content": 3
+    },
+    "sample_hits": {
+     "aer": 10,
+     "prov_apv_args": 5
+    },
+    "withhold_scan_rules": [
+     "gcp-api-key"
+    ],
+    "artefacts_toml_entry": "none"
+   },
+   "reproduction": "uv run python -I docs/reports/precheck/data/code-agent-misalignment/exam-scripts/census.py ~/.agentprov/migration-work/precheck/code-agent-misalignment/exam/census.json; grep -c stripe src/agentprov/adapters/geminicli/artefacts.toml",
+   "hypothesis_ref": "prereg section 5 secret list (stripe not listed)",
+   "recommendation": "Benchmark fixture value (present in old_string, one value, one skeleton): treat as CC-02-class content. Family owner: add an artefacts.toml entry with the count and decide a [withhold] or a release_scan allowlist by digest before the release scan; widen CC-02 to this corpus.",
+   "artefact_proposal": "geminicli.art.fixture_secret_shapes: 1 sk_live_-prefixed value in 14 SK-SECRETLOG streams (35 matches) and their events.jsonl; benchmark fixture; reaches AER/PROV args",
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Counts confirmed, class corrected. In the j1 corpus the full stripe regex hits aer 10, prov 5, sem 0; 1 distinct value (digest <secret-A>). Raw store: 30 objects hold the full-length value = 14 gemini_stream.jsonl + 14 events.jsonl (gemini-2.5-pro 4, gpt-5.3-codex 10) + 2 final_diff.patch, all SK-SECRETLOG; 4 more objects hold only the bare 8-char prefix (15 streams by plain grep). Fixture evidence: the same value in two different models' rollouts of one skeleton, present in /parameters/old_string (pre-existing file content), and its 32-char body contains 'abc' and '1234' runs with 20 digits (placeholder shape). This is the CC-02 situation (benchmark fixture shaped like a secret reaching AER/PROV args), whose precedent class is expected-known S2, security false (agentdyn-13, rope-07). Reclassified source-defect -> expected-known, security true -> false. The release_scan action stays: catalogue entry plus allowlist by digest or [withhold] before the release scan."
+    },
+    {
+     "lens": "reclass CC-12/CC-13 (2026-10-21)",
+     "verdict": "confirmed",
+     "cls": "source-defect",
+     "severity": "S2",
+     "reasoning": "expected-known S2 no-security -> source-defect S2 security. CC-13: an uncatalogued benchmark fixture (no artefacts.toml entry; proposed geminicli.art.fixture_secret_shapes) is R1 source-defect; a provider-live-prefixed shape (sk_live_) reaches PROV apv:args (5 hits in the sample), so S2 + security. Needs a release_scan allowlist entry by digest (<secret-A>)."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-03",
+   "title": "MiniMax-M2 cell: 351/384 streams end in a CLI error result (meta exit 244); no args-stripping signature (H-11 refuted)",
+   "cls": "expected-known",
+   "severity": "S2",
+   "security": false,
+   "part": "results-raw",
+   "check": "L1-08, H-11, H-12",
+   "evidence": {
+    "minimax": {
+     "result_error": 351,
+     "success": 33,
+     "meta_exit_244": 351,
+     "tool_use": 975,
+     "tool_use_params_empty": 0
+    },
+    "other_cells_error_or_zero_tool_share": {
+     "claude-sonnet-4-6": "4/460",
+     "gemini-2.5-pro": "89/420",
+     "glm-4.7-probe": "33/457",
+     "gpt-5.3-codex": "21/461"
+    },
+    "params_empty_all_cells": 0,
+    "cli_error_result_total": 495,
+    "other_nonzero_meta_exit": {
+     "gpt-5.3-codex": {
+      "244": 14,
+      "246": 2,
+      "147": 4
+     },
+     "glm-4.7-probe": {
+      "147": 31
+     }
+    }
+   },
+   "reproduction": "uv run python -I docs/reports/precheck/data/code-agent-misalignment/exam-scripts/census.py ...; per_model.result_status / tool_use.params_empty",
+   "hypothesis_ref": "H-11 refuted, H-12 supported",
+   "recommendation": "Disclose with geminicli.art.cli_error_result (351 of its 495 are this cell): the MiniMax-M2 rate (22/384) measures a mostly failed CLI run. Keep every run (no outcome-based exclusion). Research: the bridge args-stripping explanation is not visible in the stream (0 empty parameters).",
+   "artefact_proposal": "geminicli.art.cli_error_result: add per-cell split MiniMax-M2 351, gemini-2.5-pro 88, glm-4.7-probe 33, gpt-5.3-codex 20, claude-sonnet-4-6 3 (meta exit 244 for all 351 MiniMax)",
+   "agents_md_12": "code-agent-misalignment MiniMax-M2: 351/384 streams end in CLI error; cell rate is a degraded-run rate (disclose)",
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S2",
+     "reasoning": "Not refuted. exam-census per_model: MiniMax-M2 result error 351 / success 33, meta exit 244 = 351, 975 tool_use, params_empty 0; params_empty 0 in all five cells (17,919 / 5,836 / 5,396 / 4,155 tool_use). H-11 (parameters == {} share >= 10%) refuted; H-12 supported (351/384 vs others <= 89/420). Documented in artefacts.toml geminicli.art.cli_error_result. Disclosure S2 is right: the cell rate (22/384) is a degraded-run rate. No exclusion."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-04",
+   "title": "subagent_internals: 76 codebase_investigator calls sit in 72 streams, not 29 (artefacts.toml description, prereg H-18)",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "results-raw",
+   "check": "H-18, H-20",
+   "evidence": {
+    "calls": 76,
+    "streams": 72,
+    "by_model_streams": {
+     "MiniMax-M2": 8,
+     "claude-sonnet-4-6": 8,
+     "gemini-2.5-pro": 4,
+     "glm-4.7-probe": 51,
+     "gpt-5.3-codex": 1
+    },
+    "stats_tool_calls_differs": 20,
+    "differs_all_glm_with_tool": true,
+    "sample_issue_subagent_internals_unobserved": "7/251 executions (index)"
+   },
+   "reproduction": "uv run python -I docs/reports/precheck/data/code-agent-misalignment/exam-scripts/census.py ...; per_model.investigator",
+   "hypothesis_ref": "H-18 partly refuted (calls 76 and counter 20 confirmed)",
+   "recommendation": "Correct the description of geminicli.art.subagent_internals and C section 9 to 72 streams (R4, geminicli family owner); the expected count (73 tool executions) is not affected.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Not refuted. Per-model investigator streams 8+8+4+51+1 = 72, calls 8+9+4+54+1 = 76; artefacts.toml geminicli.art.subagent_internals says '76 calls in 29 streams'. stats_differs 20, all glm. No alternative reading of 29 found (it is neither the counter-mismatch count 20 nor any per-model figure). R4 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-05",
+   "title": "Corpus denominators differ from the paper's by design: 318 stream-less rollouts (19 elicited: MiniMax-M2 6, gemini-2.5-pro 13) are outside the corpus",
+   "cls": "expected-known",
+   "severity": "S3",
+   "security": false,
+   "part": "results-raw",
+   "check": "L1-01, outcome sanity",
+   "evidence": {
+    "selected_units": 2500,
+    "executions": 2182,
+    "empty_stream": 175,
+    "no_stream": 143,
+    "elicited_streams": 363,
+    "elicited_no_stream": 19,
+    "elicited_empty": 0,
+    "paper": "382/2500",
+    "corpus": "363/2182"
+   },
+   "reproduction": "l1-results-raw.json family.outcomes; exam-census.json rollout_join",
+   "hypothesis_ref": "H-07 supported",
+   "recommendation": "Disclose with geminicli.art.rollouts_without_stream; corpus rates are per mapped stream, paper rates per rollout. Exclusion is by format, never by outcome.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "expected-known",
+     "severity": "S3",
+     "reasoning": "Not refuted. rollout_join: stream 2,182, empty 175, no_stream 143 (MiniMax-M2 97, gemini-2.5-pro 46) = 2,500; elicited no_stream 6+13 = 19, empty 0. Per model 22+6 = 28, 59, 107+13 = 120, 107, 68 = paper 28/59/120/107/68 per 500 (5.6/11.8/24.0/21.4/13.6%), total 382/2,500. The format-based exclusion is documented in artefacts.toml (not outcome-based); 141 of the 143 hold non-empty events.jsonl sidecars (D-330, never mapped). Both rates go in the datasheet."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-06",
+   "title": "L1-04 trajectory-identical groups among non-empty streams: 27 groups / 86 units (prereg expected 0)",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "results-raw",
+   "check": "L1-04 (CC-01)",
+   "evidence": {
+    "groups": 27,
+    "units": 86,
+    "within_model": 23,
+    "cross_model": 4,
+    "median_size_bytes": 1135,
+    "elicited_in_groups": 0
+   },
+   "reproduction": "python over l1-units-results-raw.jsonl fp groups (dossier section 9)",
+   "hypothesis_ref": "L1-04 expectation",
+   "recommendation": "The fingerprint drops call ids and timestamps (CC-01); the groups are short runs with the same prompt per skeleton. Not a corpus duplicate; no action.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Group count confirmed: recomputed from l1-units-results-raw.jsonl fp field, 27 groups / 86 units, 4 cross-model, 0 byte-identical (so they differ in call ids/timestamps), median 1,135 B, largest group 8. elicited-in-groups = 0 was not re-derived (the L1 unit rows carry no stream outcomes and the scratch raw store lacks those verdict objects); it does not change the class. CC-01 / R5 S3."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-07",
+   "title": "Pre-check tool properties: sample remainder allocation in sorted stratum order (MiniMax-M2 96/300 labels) and verdict-only/empty units in the frame (49 labels without execution); 'foo' missing from GENERIC_ACCOUNTS",
+   "cls": "analysis-artefact",
+   "severity": "S3",
+   "security": false,
+   "part": "results-raw",
+   "check": "L2 sample, L1-10",
+   "evidence": {
+    "labels_by_model": {
+     "MiniMax-M2": 96,
+     "claude-sonnet-4-6": 51,
+     "gemini-2.5-pro": 51,
+     "glm-4.7-probe": 51,
+     "gpt-5.3-codex": 51
+    },
+    "sampled_without_execution": {
+     "no_stream_verdict_only": 25,
+     "empty_stream": 24
+    },
+    "executions": 251,
+    "post_stratified_sample_rate": 0.1413,
+    "windows_named_placeholder_files": 12
+   },
+   "reproduction": "l2-sample-results-raw.json quotas; l2-results-raw.json sample_join",
+   "hypothesis_ref": "README section 4 / amendment 2",
+   "recommendation": "R5/R6: report post-stratified rates (done). Tool owner (after the round, no change now): spread the remainder across the first facet; add 'foo' to GENERIC_ACCOUNTS.",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "analysis-artefact",
+     "severity": "S3",
+     "reasoning": "Not refuted. l2-sample labels by model: MiniMax-M2 96, others 51 each (rule: proportional reduction then remainder in sorted stratum order). 49 sampled labels without execution follow from the unit definition. 'foo' absent from l1_scan.GENERIC_ACCOUNTS (and length withheld names, see PC-01). R5/R6, tool property, not a corpus finding."
+    }
+   ]
+  },
+  {
+   "id": "PC-code-agent-misalignment-08",
+   "title": "Desk documentation mismatches of the deposit (H-22), not re-tested",
+   "cls": "documentation-mismatch",
+   "severity": "S3",
+   "security": false,
+   "part": "results-raw",
+   "check": "H-22",
+   "evidence": {
+    "items": [
+     "50 seeds vs 51 skeletons",
+     "'in-house probe' vs claude_code",
+     "transcripts on request vs open deposit",
+     "RESULTS_build/ vs RESULTS_raw/",
+     "~1.6 GB vs 1.46 GB"
+    ]
+   },
+   "reproduction": "prereg section 1, research.json",
+   "hypothesis_ref": "H-22",
+   "recommendation": "Record in the datasheet (R3, S3).",
+   "artefact_proposal": null,
+   "agents_md_12": null,
+   "verdict": "confirmed",
+   "verdicts": [
+    {
+     "lens": "adversarial verifier (1/1)",
+     "verdict": "confirmed",
+     "cls": "documentation-mismatch",
+     "severity": "S3",
+     "reasoning": "Confirmed for 4 of 5 items from research.json (51 skeletons = 255/5 strata vs '50 seeds'; 'in-house probe' vs claude_code; 'on request' vs open Zenodo raw bundle; RESULTS_build/ vs RESULTS_raw/). The size item is weak: '~1.6 GB' vs 1,464,483,840 B tar is a ~9% gap that on-disk block allocation of 63,384 members plausibly explains; recorded as undetermined, not a mismatch. R3 S3."
+    }
+   ]
+  }
+ ],
+ "refuted": []
+}

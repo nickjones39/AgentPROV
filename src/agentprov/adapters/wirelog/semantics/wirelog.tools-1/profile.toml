@@ -1,0 +1,33 @@
+# Semantics profile wirelog.tools, version 1 (docs/architecture D.20.8; C.14; EF E.7).
+#
+# Data, not code. The directory's files (this one, tools.toml and documents.toml) make the profile digest
+# (agentprov.sem.profiles.profile_digest); the code is agentprov.adapters.wirelog.semantics, covered by the integer
+# version (AD-18). Nothing is released yet, so the version is still 1. Every rule cited is declared in the wirelog
+# catalogue at version 1 (src/agentprov/adapters/wirelog/rules/).
+
+[profile]
+id = "wirelog.tools"
+version = 1
+format = "agentprov-sem-profile/0.1"
+rules = { wirelog = 1 }
+
+# ------------------------------------------------------------------------------------------------ matcher
+# The harness delivers payloads byte-identical in every arm (the study's design), so the marker searches verbatim.
+[matcher]
+normaliser = "wirelog.verbatim_match@1"
+
+# ------------------------------------------------------------------------------------------------ outcomes
+# Results-table columns (strings "1"/"0") -> outcome claims; hijack only for a run with an attack.
+[outcomes]
+hijack = { claim = "attack_succeeded", needs_attack = true }
+exfiltration = { claim = "wirelog.exfiltration", needs_attack = true }
+silent = { claim = "wirelog.silent_send", needs_attack = true }
+checker_origins = ["checker", "recomputed"]
+
+# ------------------------------------------------------------------------------------------------ taint policy
+# C.14.6 item 8: a request whose roles meet the sink roles (or unknown, fail-closed) exposed to a context member whose
+# integrity is untrusted or unknown is apv:PotentiallyInfluencedBy it.
+[taint]
+rule = "wirelog.taint_sink_untrusted@1"
+subject_roles = ["execute_sink", "send_sink", "unknown", "write_sink"]
+object_integrity = ["unknown", "untrusted"]
