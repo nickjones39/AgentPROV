@@ -95,7 +95,8 @@
     }
   }
 
-  function select(i, focus) {
+  // `user` is false only for the first selection on load: scrolling then would move the page away from its top.
+  function select(i, focus, user) {
     i = (i + tabs.length) % tabs.length;
     tabs.forEach(function (tab, j) {
       var on = j === i;
@@ -105,7 +106,7 @@
       if (panels[j]) panels[j].hidden = !on;
     });
     if (focus) tabs[i].focus();
-    tabs[i].scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    if (user) tabs[i].scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
     if (count) count.textContent = "Step " + (i + 1) + " of " + tabs.length;
   }
   function selected() {
@@ -114,17 +115,17 @@
   }
 
   tabs.forEach(function (tab, i) {
-    tab.addEventListener("click", function () { select(i, false); });
+    tab.addEventListener("click", function () { select(i, false, true); });
     tab.addEventListener("keydown", function (e) {
       var to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
       if (to === undefined) return;
       e.preventDefault();
-      select(to, true);
+      select(to, true, true);
     });
   });
   var prev = $("#tour-prev"), next = $("#tour-next");
-  if (prev) prev.addEventListener("click", function () { select(selected() - 1, false); });
-  if (next) next.addEventListener("click", function () { select(selected() + 1, false); });
+  if (prev) prev.addEventListener("click", function () { select(selected() - 1, false, true); });
+  if (next) next.addEventListener("click", function () { select(selected() + 1, false, true); });
 
   panels.forEach(function (panel) {
     if (!panel) return;
@@ -142,7 +143,7 @@
     });
     panel.addEventListener("keydown", function (e) { if (e.key === "Escape") unzoom(panel); });
   });
-  if (tabs.length) select(0, false);
+  if (tabs.length) select(0, false, false);
 
   // ---------------------------------------------------------------- downloads: a guess at the visitor's platform
   var ASSETS = {
