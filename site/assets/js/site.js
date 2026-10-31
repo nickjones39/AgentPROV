@@ -80,7 +80,9 @@
     });
     // Scale about the top-left corner, then move the point toward the centre, without uncovering the frame.
     var o = origin(spot);
-    var zoom = spot.closest(".dlg") ? 1.55 : 1.85;
+    // On a phone the whole window is too small to read, so a point zooms in further.
+    var small = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+    var zoom = spot.closest(".dlg") ? (small ? 1.8 : 1.55) : (small ? 2.5 : 1.85);
     function shift(p) { return Math.min(0, Math.max((1 - zoom) * 100, 50 - zoom * p)); }
     shot.style.setProperty("--zoom", String(zoom));
     shot.style.setProperty("--tx", shift(o[0]) + "%");
