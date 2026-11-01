@@ -153,6 +153,8 @@ def test_a_refused_checksums_file_is_a_finding_not_an_exception(tmp_path, kind):
         outside.write_bytes(data)  # the same bytes: following it would pass
         os.symlink(outside, root / "checksums.sha256")
     else:
+        if not hasattr(os, "mkfifo"):
+            pytest.skip("os.mkfifo is POSIX only")
         os.mkfifo(root / "checksums.sha256")
     report = verify_checksums(root)
     assert not report.ok and report.listed == report.matched == 0

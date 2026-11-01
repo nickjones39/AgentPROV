@@ -110,6 +110,20 @@ def test_follow_prints_progress_until_the_end(cli: Callable[..., Run]) -> None:
     assert logged.code == 0 and records and all("level" in r and "event" not in r for r in records)
 
 
+def test_follow_of_an_ended_job_prints_its_whole_file(cli: Callable[..., Run]) -> None:
+    """Review UC-28: after the job ended, follow made one more 1 MiB read and dropped the rest with exit 0."""
+    job = json.loads(cli("jobs", "start", "--format", "json", "--", "info").out)
+    _until_ended(cli, job["job_id"])
+    progress = Path(job["directory"]) / "progress.jsonl"
+    before = sum(1 for line in progress.read_bytes().splitlines() if line.strip())
+    line = json.dumps({"event": "step", "stage": "x", "pad": "p" * 200}).encode() + b"\n"
+    with open(progress, "ab") as fh:
+        fh.write(line * 15_000)  # about 3.3 MiB
+    followed = cli("jobs", "follow", job["job_id"], "--timeout", "30")
+    assert followed.code == 0
+    assert sum(1 for out in followed.out.splitlines() if out.strip()) == before + 15_000
+
+
 def test_meta_is_recorded_as_scalars(cli: Callable[..., Run]) -> None:
     job = json.loads(cli("jobs", "start", "--meta", "call_cap=5", "--meta", "backend=autodojo", "--meta",
                          "devrun=true", "--format", "json", "--", "info").out)
@@ -118,6 +132,23 @@ def test_meta_is_recorded_as_scalars(cli: Callable[..., Run]) -> None:
     _until_ended(cli, job["job_id"])
     pruned = json.loads(cli("jobs", "prune", "--keep", "0", "--format", "json").out)
     assert [j["job_id"] for j in pruned["jobs"]] == [job["job_id"]] and pruned["deleted"] is False
+
+
+def test_a_non_finite_meta_number_is_kept_as_text_and_the_job_stays_listable(cli: Callable[..., Run],
+                                                                              tmp_path: Path) -> None:
+    """Review UC-27: ``1e999`` parsed as inf, was written as ``Infinity`` and refused by the strict loader (exit 70, a
+    job directory that could be neither listed nor pruned)."""
+    from agentprov.jobs.manager import atomic_write_json
+
+    run = cli("jobs", "start", "--meta", "k=1e999", "--meta", "m=-1e999", "--format", "json", "--", "info")
+    assert run.code == 0, run.err
+    job = json.loads(run.out)
+    assert job["meta"] == {"k": "1e999", "m": "-1e999"}
+    _until_ended(cli, job["job_id"])
+    assert job["job_id"] in {j["job_id"] for j in json.loads(cli("jobs", "list", "--format", "json").out)["jobs"]}
+    with pytest.raises(ValueError):
+        atomic_write_json(tmp_path / "x.json", {"v": float("inf")})
+    assert not (tmp_path / "x.json").exists()
 
 
 # ---------------------------------------------------------------------------------------------- F-14 (D-704)

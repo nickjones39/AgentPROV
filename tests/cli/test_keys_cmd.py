@@ -99,6 +99,19 @@ def test_set_reads_stdin_only_and_never_echoes(stub: Path, cli: Callable[..., Ru
         assert SECRET not in text
 
 
+@pytest.mark.parametrize("raw", [b"\xff\xfe" + SECRET.encode("utf-16-le") + b"\n", SECRET.encode() + b"\xff\n"])
+def test_a_value_that_is_not_utf8_is_refused_without_showing_it(stub: Path, cli: Callable[..., Run], tmp_path: Path,
+                                                                 raw: bytes) -> None:
+    """Review UC-8: the UnicodeDecodeError's arguments hold the raw line, and the key is not yet registered for
+    redaction, so ``-v`` printed it and ``--log-file`` recorded it (exit 70). Now a usage error that shows nothing."""
+    log = tmp_path / "log.jsonl"
+    run = cli("keys", "set", "DEEPSEEK_API_KEY", "--stdin", "-v", "--progress", "off", "--log-file", str(log), stdin=raw)
+    assert run.code == 2, run.err
+    assert "not UTF-8" in run.err and not stub.exists()
+    for text in (run.out, run.err, log.read_text()):
+        assert SECRET not in text and "stub-0123" not in text and "UnicodeDecodeError" not in text
+
+
 @pytest.mark.parametrize(("argv", "code"), [
     (("keys", "set", "HOME_SECRET_TOKEN", "--stdin"), 2),  # not a key variable of endpoints.toml
     (("keys", "set", "DEEPSEEK_API_KEY"), 2),  # not interactive and no --stdin: never from argv

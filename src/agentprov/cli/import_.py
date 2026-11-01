@@ -56,6 +56,7 @@ from agentprov.cli.common import (
     safe_text,
 )
 from agentprov.errors import AgentProvError
+from agentprov.io import remove
 
 _UNTIL = ("raw", "aer", "sem", "prov", "validation")
 _SELECT = re.compile(r"[A-Za-z][A-Za-z0-9_]*=[^=,][^=]*")
@@ -910,7 +911,6 @@ def _import_and_scan(source: str, tree: Any, common: dict[str, Any], limits: Any
     (and SEM files) have to exist somewhere to be scanned, so they go into a throwaway working tree below a fresh
     temporary directory that is removed in every case; the requested ``--corpus`` is never touched or resumed.
     """
-    import shutil
     import tempfile
 
     from agentprov.adapters.runner.importer import import_source
@@ -940,7 +940,7 @@ def _import_and_scan(source: str, tree: Any, common: dict[str, Any], limits: Any
         result.notices.append("artefact scan: the mapped executions were held in a private temporary corpus, deleted afterwards")
         return report, table(findings, n_executions=len(rows)), len(rows)
     finally:
-        shutil.rmtree(scratch, ignore_errors=True)
+        remove.rmtree(scratch, ignore_errors=True)  # read-only raw objects: Windows needs the bit cleared
 
 
 def _artefact_table(result: CommandResult, rows: list[Any], scanned: int, args: argparse.Namespace) -> None:

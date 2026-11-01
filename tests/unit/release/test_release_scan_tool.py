@@ -25,6 +25,10 @@ import release_support as rs
 from agentprov.corpus.integrity import root_digest
 from agentprov.release.builder import scan_path_for
 
+#: gitleaks is faked by an executable script, which Windows cannot run; tools/release_scan.py runs on the release
+#: machine (macOS, Linux)
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the fake gitleaks is a POSIX script")
+
 _TOOL = Path(__file__).resolve().parents[3] / "tools" / "release_scan.py"
 _spec = importlib.util.spec_from_file_location("release_scan_tool", _TOOL)
 assert _spec is not None and _spec.loader is not None

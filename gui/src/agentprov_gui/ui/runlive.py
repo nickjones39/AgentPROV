@@ -89,7 +89,7 @@ from agentprov_gui.live.runspec import (
     job_spec,
     key_names,
 )
-from agentprov_gui.ui.jobdialog import TIER_TEXT, confirm, conformance_warning
+from agentprov_gui.ui.jobdialog import CONFORMANCE_TIP, TIER_TEXT, confirm, conformance_warning, field_tip
 from agentprov_gui.ui.safe import (
     ReadOnlyText,
     SafeForm,
@@ -97,10 +97,11 @@ from agentprov_gui.ui.safe import (
     ask,
     safe_message_box,
     set_combo_item_tooltip,
+    set_control_tooltip,
     set_list_item_tooltip,
     set_tooltip,
 )
-from agentprov_gui.ui.worker import submit
+from agentprov_gui.ui.worker import run_off_ui, submit
 
 __all__ = ["DEV_SCRIPT", "LiveStart", "RunLiveDialog", "consent_text", "run_cli"]
 
@@ -216,6 +217,7 @@ class RunLiveDialog(QDialog):
         self.catalogue: Catalogue | None = None
         self.catalogues: dict[str, Catalogue | str] = {}  # backend: catalogue, or why there is none
         self.estimate_result: EstimateView | None = None
+        self._estimate_for: tuple[str, ...] | None = None  # the estimate argv estimate_result was computed for
         self.live_status: dict[str, str | None] = {}
         self.keys_present: dict[str, bool] = {}
         self.keychain_ok: bool | None = None
@@ -252,14 +254,20 @@ class RunLiveDialog(QDialog):
         index = self.source.findData(s.source)
         self.source.setCurrentIndex(max(0, index))
         self.source.currentIndexChanged.connect(self._backend_changed)
-        sf.add("Backend", self.source)
+        sf.add("Backend", self.source,
+               "The live backend that runs the cells (agentprov run SOURCE). A backend whose environment is not built "
+               "says so, with the command that builds it.")
         self.status = SafeLabel("Live status: checking…", name="Live status", parent=src)
-        sf.add("Status", self.status)
+        sf.add("Status", self.status,
+               "The backend's live status (agentprov info SOURCE --format json). While it is planned or not_possible, "
+               "only scripted runs can start.")
         self.version = QComboBox(src)
         self.version.setEditable(True)
         self.version.setCurrentText(s.benchmark_version)
         self.version.currentTextChanged.connect(lambda _t: self._changed())
-        sf.add("Benchmark version (default: the backend's)", self.version)
+        sf.add("Benchmark version (default: the backend's)", self.version,
+               "The benchmark version to run (--benchmark-version); the list holds the versions the backend's "
+               "catalogue offers. Blank: the backend's default.")
         col.addWidget(src)
         # model
         mod = QGroupBox("Model", body)
@@ -268,21 +276,28 @@ class RunLiveDialog(QDialog):
         self.mode.addItems(["Scripted transport (no network, no keys, no cost)", "Endpoint (real model)"])
         self.mode.setCurrentIndex(0 if s.scripted else 1)
         self.mode.currentIndexChanged.connect(self._mode_and_changed)
-        mf.add("Transport", self.mode)
+        mf.add("Transport", self.mode,
+               "Scripted transport replays the script below (--llm-script): no network, no keys, no cost, and the "
+               "corpus is marked test_only. Endpoint calls a real model: an R2 run that needs consent and a "
+               "containment, and the key of an API endpoint.")
         self.script = QLineEdit(s.script or str(DEV_SCRIPT), mod)
         self.script.textChanged.connect(lambda _t: self._changed())
-        mf.add("Script (SCRIPT.json)", self.script)
+        mf.add("Script (SCRIPT.json)", self.script,
+               "The scripted transport's replies, a JSON file (--llm-script); the shipped dev script by default.")
         self.endpoint = QComboBox(mod)
         self.endpoint.addItems(sorted(self.endpoints))
         if s.model:
             self.endpoint.setCurrentText(s.model)
         self.endpoint.currentTextChanged.connect(self._endpoint_changed)
-        mf.add("Endpoint (endpoints.toml)", self.endpoint)
+        mf.add("Endpoint (endpoints.toml)", self.endpoint,
+               "The endpoint to call, by its shorthand in the checkout's endpoints.toml (--model).")
         self.model_id = QComboBox(mod)
         self.model_id.setEditable(True)
         self.model_id.setCurrentText(s.model_id)
         self.model_id.currentTextChanged.connect(lambda _t: self._changed())
-        mf.add("Model id (no default)", self.model_id)
+        mf.add("Model id (no default)", self.model_id,
+               "The model the endpoint is asked for (--model-id); there is no default. The list comes from agentprov "
+               "models for this endpoint, else from the price table.")
         # the model picker is a client of agentprov models (D-691, D-730; D-700): list, refresh, identity
         picker_row = QHBoxLayout()
         self.models_status = SafeLabel("", name="Model list status", parent=mod)
@@ -295,22 +310,34 @@ class RunLiveDialog(QDialog):
         self.identity_btn = QPushButton("Identity…", mod)
         self.identity_btn.setAccessibleName("Show the local model's identity record")
         self.identity_btn.clicked.connect(self._show_identity)
+        set_control_tooltip(self.identity_btn, "Shows the local model's identity record (agentprov models --endpoint "
+                                               "NAME --model-id ID); its weight digests are cached after the first "
+                                               "time.")
         picker_row.addWidget(self.identity_btn)
         picker_box = QWidget(mod)
         picker_box.setLayout(picker_row)
-        mf.add("Models", picker_box)
+        mf.add("Models", picker_box,
+               "The state of the endpoint's model list from agentprov models, which fills Model id: an API provider's "
+               "cached list (Refresh List fetches it anew) or a local server's own. Other endpoints take their ids "
+               "from the price table.", active=lambda: not self.scripted)
         key_row = QHBoxLayout()
         self.key_label = SafeLabel("", name="Key status", parent=mod)
         key_row.addWidget(self.key_label, 1)
         self.key_btn = QPushButton("Store Key…", mod)
         self.key_btn.setAccessibleName("Store the endpoint key")
         self.key_btn.clicked.connect(self._store_key)
+        set_control_tooltip(self.key_btn, "Stores the endpoint's key variable in the OS keychain (agentprov keys set "
+                                          "NAME --stdin); the app never shows it again.")
         key_row.addWidget(self.key_btn)
         key_box = QWidget(mod)
         key_box.setLayout(key_row)
-        mf.add("Key", key_box)
+        mf.add("Key", key_box,
+               "Whether the endpoint's key variable is in the OS keychain. A real run reads it there itself (run "
+               "--keychain), never from .env, and its value is never shown.", active=lambda: not self.scripted)
         self.price_label = SafeLabel("", name="Price", parent=mod)
-        mf.add("Price", self.price_label)
+        mf.add("Price", self.price_label,
+               "The model's price as agentprov prices list resolves it, used by the estimate; a missing price is "
+               "entered in Settings › Prices.", active=lambda: not self.scripted)
         self.containment = QComboBox(mod)
         self.containment.addItems(["", *containment_choices()])  # sandbox-exec on macOS only (G5 P-4)
         self.containment.setCurrentText(s.containment)
@@ -325,11 +352,18 @@ class RunLiveDialog(QDialog):
         self.max_tokens.setValue(16_000)
         self.max_tokens.setAccessibleName("Max tokens")
         self.max_tokens.valueChanged.connect(lambda _v: self._changed())
+        set_control_tooltip(self.max_tokens_mode, "Harness default sends --max-tokens harness-default (16,000, "
+                                                  "recorded as a harness policy); a number states the cap yourself.")
+        set_control_tooltip(self.max_tokens, "The reply's token cap you state (--max-tokens N).")
         mt_row.addWidget(self.max_tokens_mode)
         mt_row.addWidget(self.max_tokens)
         self.max_tokens_box = QWidget(mod)
         self.max_tokens_box.setLayout(mt_row)
-        self.max_tokens_label = mf.add("Max tokens (Anthropic endpoints; D-656)", self.max_tokens_box)
+        # shown only for an Anthropic endpoint (and the caps only for an API endpoint): hidden rows show no tooltip
+        self.max_tokens_label = mf.add(
+            "Max tokens (Anthropic endpoints; D-656)", self.max_tokens_box,
+            "The reply's token cap an Anthropic endpoint requires (--max-tokens): the harness default 16,000 "
+            "(recorded as a harness policy) or a number you state. AgentDojo's own 1024 is never used silently.")
         # D-725 (live pilot): an API-endpoint run needs both caps; shown once the CLI offers them
         caps_row = QHBoxLayout()
         self.max_calls = QSpinBox(mod)
@@ -354,43 +388,67 @@ class RunLiveDialog(QDialog):
             caps_row.addWidget(cap)
         self.caps_box = QWidget(mod)
         self.caps_box.setLayout(caps_row)
-        self.caps_label = mf.add("API caps: calls, USD, $/M in, $/M out (D-725)", self.caps_box)
+        for cap, tip in (
+                (self.max_calls, "Billed model calls of the corpus at most, preflight probes included (--max-calls)."),
+                (self.max_cost, "Spend of the corpus at most, in USD (--max-cost-usd), an upper bound priced from the "
+                                "recorded usage at the two prices beside it."),
+                (self.price_in, "USD per million input-side tokens for the cost cap (--price-in): the highest of "
+                                "input, cache write and cached; filled from the price table."),
+                (self.price_out, "USD per million output tokens for the cost cap (--price-out); filled from the price "
+                                 "table.")):
+            set_control_tooltip(cap, tip)
+        self.caps_label = mf.add(
+            "API caps: calls, USD, $/M in, $/M out (D-725)", self.caps_box,
+            "A run on an API endpoint needs both caps: billed model calls and spend in USD, priced per million "
+            "tokens. A cell starts only if its worst case fits.")
         self._caps_priced_for: tuple[str, str] | None = None
-        mf.add("Containment (required for a real model)", self.containment)
+        mf.add("Containment (required for a real model)", self.containment,
+               "How the worker running the backend is contained (--containment). sandbox-exec (macOS) is enforced by "
+               "the probed profile; dedicated-user and vm are your declaration, recorded but not checked.")
         mf.add("", SafeLabel(DECLARED_CONTAINMENT, name="Containment note", parent=mod))
         col.addWidget(mod)
         # cells
         cells = QGroupBox("Cells", body)
         cf = SafeForm(cells)
         self.cat_label = SafeLabel("Catalogue: loading…", name="Catalogue status", parent=cells)
-        cf.add("Catalogue", self.cat_label)
+        cf.add("Catalogue", self.cat_label,
+               "What the backend offers (agentprov run SOURCE --catalogue): its suites, tasks, attacks and benchmark "
+               "version. No model call, nothing written.")
         self.suites = QListWidget(cells)
         self.suites.setAccessibleName("Suites")
         self.suites.setMaximumHeight(140)
         self.suites.itemChanged.connect(lambda _i: self._changed())
-        cf.add("Suites", self.suites)
+        cf.add("Suites", self.suites,
+               "The suites to run (--suite), each with its number of user and injection tasks. Tick at least one.")
         self.attacks = QListWidget(cells)
         self.attacks.setAccessibleName("Attacks")
         self.attacks.setMaximumHeight(180)
         self.attacks.itemChanged.connect(lambda _i: self._changed())
-        cf.add("Attacks", self.attacks)
+        cf.add("Attacks", self.attacks,
+               "The attacks to run (--attack); none ticked means benign cells only. A DoS attack runs one cell per "
+               "user task, and an attack the backend refuses cannot be ticked.")
         self._wanted = (set(s.suites), set(s.attacks))
         self.user_tasks = QLineEdit(s.user_tasks, cells)
         self.user_tasks.setPlaceholderText("all (or ids, or index ranges such as 0-2,5)")
         self.user_tasks.textChanged.connect(lambda _t: self._changed())
-        cf.add("User tasks", self.user_tasks)
+        cf.add("User tasks", self.user_tasks,
+               "The user tasks of each suite (--user-tasks): all, ids, or index ranges over the tasks sorted by "
+               "number, such as 0-2,5. Blank: all.")
         self.injection_tasks = QLineEdit(s.injection_tasks, cells)
         self.injection_tasks.setPlaceholderText("all (or ids, or index ranges)")
         self.injection_tasks.textChanged.connect(lambda _t: self._changed())
-        cf.add("Injection tasks", self.injection_tasks)
+        cf.add("Injection tasks", self.injection_tasks,
+               "The injection tasks paired with each attack (--injection-tasks): all, ids, or index ranges such as "
+               "0-2,5. Blank: all.")
         self.benign = QComboBox(cells)
         self.benign.addItems(["include", "exclude", "only"])
         self.benign.setCurrentText(s.benign or "include")
         self.benign.currentTextChanged.connect(lambda _t: self._changed())
-        cf.add("Benign cells", self.benign)
+        cf.add("Benign cells", self.benign,
+               "Whether the benign (unattacked) cells are included (the default), excluded or run alone (--benign).")
         self.repeats = _spin(cells, 1, 1000, s.repeats)
         self.repeats.valueChanged.connect(lambda _v: self._changed())
-        cf.add("Repeats", self.repeats)
+        cf.add("Repeats", self.repeats, "Independent repeats of each cell (--repeats); default 1.")
         col.addWidget(cells)
         # run
         runbox = QGroupBox("Run", body)
@@ -398,23 +456,34 @@ class RunLiveDialog(QDialog):
         self.corpus = QLineEdit(s.corpus, runbox)
         self.corpus.setPlaceholderText(str(self.home / "corpora" / "<source>-live-<campaign>"))
         self.corpus.textChanged.connect(lambda _t: self._changed())
-        rf.add("Working corpus (outside the repository)", self.corpus)
+        rf.add("Working corpus (outside the repository)", self.corpus,
+               "The working corpus directory (--corpus), outside the repository; DIR.partial while it is a working "
+               "corpus. Blank: corpora/<source>-live-<campaign> under $AGENTPROV_HOME.")
         self.campaign = QLineEdit(s.campaign, runbox)
         self.campaign.textChanged.connect(lambda _t: self._changed())
-        rf.add("Campaign (corpus id <source>-live-<campaign>)", self.campaign)
+        rf.add("Campaign (corpus id <source>-live-<campaign>)", self.campaign,
+               "The campaign's name (--campaign), required: the corpus id is <source>-live-<campaign>.")
         self.jobs = _spin(runbox, 1, 512, s.jobs)
         self.jobs.valueChanged.connect(lambda _v: self._changed())
-        rf.add("Concurrent traces (--jobs)", self.jobs)
+        rf.add("Concurrent traces (--jobs)", self.jobs,
+               "How many traces run at once (--jobs; default 1). Tune… computes one with a host preset; a value "
+               "above the host's maximum is refused, never clamped.")
         self.max_attempts = _spin(runbox, 1, 100, s.max_attempts)
         self.max_attempts.valueChanged.connect(lambda _v: self._changed())
-        rf.add("Max attempts per unit", self.max_attempts)
+        rf.add("Max attempts per unit", self.max_attempts,
+               "The most attempts a unit (one repeat of a cell) gets, counted across invocations: a unit that has not "
+               "settled is attempted again up to this number in all (--max-attempts; default 3).")
         self.canary = _spin(runbox, 0, 100_000, s.canary)
-        rf.add("Canary cells (0 disables)", self.canary)
+        rf.add("Canary cells (0 disables)", self.canary,
+               "How many of the first cells the canary checks for a misconfiguration (--canary; default 10). If it "
+               "finds one while cells remain, the campaign stops.")
         self.cell_timeout = QDoubleSpinBox(runbox)
         self.cell_timeout.setRange(0, 86_400)
         self.cell_timeout.setSpecialValueText("default (1800 s)")
         self.cell_timeout.setValue(s.cell_timeout or 0)
-        rf.add("Cell timeout (seconds)", self.cell_timeout)
+        rf.add("Cell timeout (seconds)", self.cell_timeout,
+               "Wall clock per cell before its worker is killed and the session sealed aborted (--cell-timeout; "
+               "default 1800 s).")
         self.conformance = QCheckBox("Run the W3C PROV conformance check (tier 4)", runbox)
         self.conformance.setAccessibleName("Run the W3C PROV conformance check")
         self.conformance.setChecked(True)
@@ -422,7 +491,8 @@ class RunLiveDialog(QDialog):
             self.conformance.setEnabled(False)
             set_tooltip(self.conformance, "This CLI cannot skip the check yet (G2c-5): the check always runs.")
         self.conformance.clicked.connect(self._conformance_clicked)
-        rf.add("Conformance", self.conformance)
+        # a disabled box keeps its explanation above (a gated tip would hide it)
+        rf.add("Conformance", self.conformance, CONFORMANCE_TIP if self.conformance_option is not None else None)
         tune_row = QHBoxLayout()
         self.tune_btn = QPushButton("Tune…", runbox)
         self.tune_btn.setAccessibleName("Tune the concurrency with a host preset")
@@ -431,13 +501,18 @@ class RunLiveDialog(QDialog):
         tune_row.addStretch(1)
         tune_box = QWidget(runbox)
         tune_box.setLayout(tune_row)
-        rf.add("Concurrency plan (run --dry-run with a host preset)", tune_box)
+        rf.add("Concurrency plan (run --dry-run with a host preset)", tune_box,
+               "Tune… runs agentprov run SOURCE --dry-run with a host preset (--m5ultra unless More Options name "
+               "another) and shows the concurrency plan; Apply copies its --jobs into Concurrent traces. No cell runs.",
+               subject=self.tune_btn)
         col.addWidget(runbox)
         # more options: every other run field (D-654)
         self.more = QToolButton(body)
         self.more.setText("More Options")
         self.more.setCheckable(True)
         self.more.setAccessibleName("Show more run options")
+        set_control_tooltip(self.more, "Shows or hides every other option of agentprov run that has no control above, "
+                                       "such as --defence, --defence-endpoint and the Inspect options.")
         col.addWidget(self.more)
         more_box = QWidget(body)
         more_form = SafeForm(more_box)
@@ -450,12 +525,14 @@ class RunLiveDialog(QDialog):
             w = _field_widget(f, more_box, s.extra.get(f.key))
             _connect(w, self._changed)
             self.more_inputs[f.key] = w
-            more_form.add(f.label, w)
+            more_form.add(f.label, w, field_tip(f))
         col.addWidget(more_box)
         # estimate
         est = QGroupBox("Estimate", body)
         el = QVBoxLayout(est)
         self.headline = SafeLabel("Estimate: waiting for the plan…", name="Estimate", parent=est)
+        set_control_tooltip(self.headline, "agentprov estimate's headline for these settings (asked again after every "
+                                           "change): cost and time at p50 and p90. The app computes no number itself.")
         self.headline.setWordWrap(True)
         el.addWidget(self.headline)
         self.details = ReadOnlyText(name="Estimate details", parent=est)
@@ -471,12 +548,19 @@ class RunLiveDialog(QDialog):
         buttons = QDialogButtonBox(self)
         self.preflight_btn = buttons.addButton("Preflight Only…", QDialogButtonBox.ButtonRole.ActionRole)
         self.preflight_btn.setAccessibleName("Run the preflight probe only")
+        set_control_tooltip(self.preflight_btn, "Starts a separate R2 job that runs only the endpoint's preflight "
+                                                f"probe (up to {PROBE_CALLS} calls; --preflight-only), without the "
+                                                "caps.")
         self.preflight_btn.clicked.connect(lambda: self._start(preflight=True))
         self.start_btn = buttons.addButton("Start…", QDialogButtonBox.ButtonRole.AcceptRole)
         self.start_btn.setAccessibleName("Start the live run")
+        set_control_tooltip(self.start_btn, "Confirms the run (for a real model: the cost, endpoint, model, key "
+                                            "variable and containment, with a consent box), then starts agentprov run "
+                                            "as a job on the Runs page.")
         self.start_btn.clicked.connect(lambda: self._start(preflight=False))
         cancel = buttons.addButton(QDialogButtonBox.StandardButton.Cancel)
         cancel.clicked.connect(self.reject)
+        set_control_tooltip(cancel, "Closes the dialog; nothing starts.")
         outer.addWidget(buttons)
         self._mode_changed()
         self._models()
@@ -738,7 +822,7 @@ class RunLiveDialog(QDialog):
         preflight-only run does not take (``self.preflight_reason``)."""
         self._anthropic_controls()
         reason = None
-        caps_missing = False
+        caps_missing = estimate_missing = False
         status = self.live_status.get(self.backend())
         s = self.settings()
         entry = self.catalogues.get(s.source)
@@ -768,15 +852,19 @@ class RunLiveDialog(QDialog):
                                                       or not self.keys_present.get(ep.api_key_env)):
                 reason = f"{ep.api_key_env} is not in the keychain (Store Key…)."
             elif self.cost_cap is not None:
-                e = self.estimate_result
+                e = self.current_estimate()
                 if e is None or e.cost_p90 is None:
                     reason = "The dev run's cost cap needs an estimate with a price first."
                 elif float(e.cost_p90) > self.cost_cap:
                     reason = f"The estimate (p90 ${e.cost_p90:.4f}) is above the dev run's cost cap (${self.cost_cap:g})."
             caps_missing = self._caps_shown() and not (self.max_calls.value() and self.max_cost.value())
+            estimate_missing = self.current_estimate() is None
         self.preflight_reason = reason
         if reason is None and caps_missing:
             reason = "An API-endpoint run needs both caps: max model calls and max cost (D-725)."
+        if reason is None and estimate_missing:  # Preflight Only… needs none: it runs no cell
+            reason = ("Waiting for the estimate of this selection: the consent's attempt count (and a dev run's cost "
+                      "cap) comes from it.")
         self.start_btn.setEnabled(reason is None)
         self.preflight_btn.setEnabled(self.preflight_reason is None and not self.scripted)
         self.error.set_plain(reason or "")
@@ -910,44 +998,66 @@ class RunLiveDialog(QDialog):
 
         submit(self, work, done, lambda _code: None)
 
-    def refresh_estimate(self) -> None:
+    def _estimate_argv(self) -> tuple[str, ...]:
+        """``agentprov estimate`` for the current selection (FormError: the form cannot be built)."""
         s = self.settings()
-        if not s.suites or not self.manager.cli.available:
-            self.headline.set_plain("Estimate: tick a suite (and attacks) to see the cost.")
-            self.details.setPlainText("")
-            return
         ep = self._endpoint()
         status = self.live_status.get(s.source)
         names = key_names(ep.api_key_env if ep else None, optional=bool(ep and ep.local))
         real_ok = (not self.scripted and status not in GATED and status is not None
                    and all(self.keys_present.get(n) for n in names))
+        return estimate_argv(s, real_allowed=real_ok, stats_corpora=self.opened)
+
+    def current_estimate(self) -> EstimateView | None:
+        """The estimate, only while the selection is the one it was computed for: a changed selection's estimate is
+        pending (or failed), and the old one must not gate Start or fill the consent text."""
+        if self.estimate_result is None:
+            return None
         try:
-            argv = estimate_argv(s, real_allowed=real_ok, stats_corpora=self.opened)
+            argv = self._estimate_argv()
+        except FormError:
+            return None
+        return self.estimate_result if argv == self._estimate_for else None
+
+    def _no_estimate(self, headline: str) -> None:
+        self.estimate_result = self._estimate_for = None
+        self.headline.set_plain(headline)
+        self._gate()
+
+    def refresh_estimate(self) -> None:
+        s = self.settings()
+        if not s.suites or not self.manager.cli.available:
+            self.details.setPlainText("")
+            self._no_estimate("Estimate: tick a suite (and attacks) to see the cost.")
+            return
+        try:
+            argv = self._estimate_argv()
         except FormError as exc:
-            self.headline.set_plain(f"Estimate: {exc}")
+            self._no_estimate(f"Estimate: {exc}")
             return
         self._dry_seq += 1
         seq = self._dry_seq
         self.headline.set_plain("Estimate: planning and pricing the cells (agentprov estimate)…")
 
-        def work(_s: object) -> tuple[int, int, bytes, bytes]:
-            return (seq, *self.run(self.manager, list(argv), timeout=600))  # --keychain: the CLI reads it
+        def work(_s: object) -> tuple[int, tuple[str, ...], int, bytes, bytes]:
+            return (seq, argv, *self.run(self.manager, list(argv), timeout=600))  # --keychain: the CLI reads it
 
-        submit(self, work, self._estimate_loaded, lambda code: self.headline.set_plain(f"Estimate: {code}"))
+        submit(self, work, self._estimate_loaded, lambda code: self._no_estimate(f"Estimate: {code}"))
 
-    def _estimate_loaded(self, result: tuple[int, int, bytes, bytes]) -> None:
-        seq, code, out, err = result
+    def _estimate_loaded(self, result: tuple[int, tuple[str, ...], int, bytes, bytes]) -> None:
+        seq, argv, code, out, err = result
         if seq != self._dry_seq:
             return  # a newer selection is being estimated
         if code != 0:
             tail = T.line(err.decode("utf-8", "replace").strip().splitlines()[-1] if err.strip() else "", 300)
-            self.headline.set_plain(f"Estimate: agentprov estimate ended with exit {code}: {tail}")
+            self._no_estimate(f"Estimate: agentprov estimate ended with exit {code}: {tail}")
             return
         try:
             self.estimate_result = parse_estimate(out)
         except PlanError as exc:
-            self.headline.set_plain(f"Estimate: the estimate is unusable ({exc})")
+            self._no_estimate(f"Estimate: the estimate is unusable ({exc})")
             return
+        self._estimate_for = argv
         self.show_estimate()
 
     def show_estimate(self) -> None:
@@ -979,7 +1089,7 @@ class RunLiveDialog(QDialog):
             self.error.set_plain(f"Tune: {exc}")
             return
         argv = [*spec.argv[:-1], "--json", spec.argv[-1]]
-        code, out, err = self.run(self.manager, argv, timeout=120)
+        code, out, err = run_off_ui(self, lambda: self.run(self.manager, argv, timeout=120))
         jobs = None
         try:
             import json
@@ -1070,7 +1180,7 @@ class RunLiveDialog(QDialog):
         """The R2 confirmation (§8.3): endpoint host, model, key variable name, containment, cells, repeats, jobs,
         both estimates, the billing note, and the consent box that alone enables Start."""
         ep = self._endpoint()
-        e = self.estimate_result
+        e = self.current_estimate()
         attempts = 1 if preflight else (e.attempts_due if e else 0)
         dlg = QDialog(self)
         dlg.setWindowTitle("Confirm: Run Live" + (" (preflight only)" if preflight else ""))
@@ -1140,8 +1250,6 @@ def _field_widget(f: Field, parent: QWidget, value: Any) -> QWidget:
             line.setText(str(value))
         w = line
     w.setAccessibleName(f.label)
-    if f.help:
-        set_tooltip(w, f.help)
     return w
 
 

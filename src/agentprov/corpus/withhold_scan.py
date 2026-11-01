@@ -64,11 +64,10 @@ from __future__ import annotations
 import glob
 import os
 import queue
-import shutil
 import sys
 import tempfile
 import threading
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,6 +76,7 @@ from typing import TYPE_CHECKING, Final
 from agentprov.errors import AgentProvError
 from agentprov.ingest.limits import IngestLimits
 from agentprov.corpus.zip_local import LOCAL_HEADER as _LOCAL_HEADER
+from agentprov.io import remove
 from agentprov.io.workers import Job, MemberOutput, WorkerPool, resolve_worker_count
 from agentprov.raw.members import (
     ContainerSpec,
@@ -168,7 +168,7 @@ def _empty_zip(head: bytes, size: int) -> bool:
         magic in head[22:] for magic in (b"PK", b"\x1f\x8b", b"\x28\xb5\x2f\xfd"))
 
 
-def _store_chunks(store: RawObjectStore, sha: str) -> Iterator[bytes]:
+def _store_chunks(store: RawObjectStore, sha: str) -> Generator[bytes]:
     with store.open(sha) as handle:
         while chunk := handle.read(1 << 20):
             yield chunk
@@ -176,7 +176,7 @@ def _store_chunks(store: RawObjectStore, sha: str) -> Iterator[bytes]:
 
 def _drop(store: RawObjectStore, sha: str) -> None:
     for path in (store.objects_dir / sha[:2]).glob(sha + ".*"):
-        path.unlink()
+        remove.unlink(path)  # a read-only (0444) object, which Windows deletes only once the bit is cleared
 
 
 def _scratch_dir() -> Path:
@@ -257,9 +257,11 @@ def scan_archives(
                 found, problem = reader.walk.root(sha, parts)
                 return found, problem, reader.walk.partial
             finally:
-                for child in reader.store.objects_dir.iterdir():
-                    shutil.rmtree(child)
-                readers.put(reader)
+                try:
+                    for child in reader.store.objects_dir.iterdir():
+                        remove.rmtree(child)
+                finally:  # a reader never lost to a failed clean-up, or every later root waits for it forever
+                    readers.put(reader)
 
         def scan_all(roots: Sequence[tuple[str, tuple[tuple[str, int], ...]]]) -> dict[str, _Outcome]:
             """Read ``roots``, up to ``count`` at once."""
@@ -302,7 +304,7 @@ def scan_archives(
             if problem is not None:
                 unscanned[sha] = problem
     finally:
-        shutil.rmtree(scratch, ignore_errors=True)
+        remove.rmtree(scratch, ignore_errors=True)
     return DecodedScan(hits, unscanned, frozenset(partial))
 
 
@@ -428,7 +430,11 @@ class _Walk:
         if kind is not None:
             self.problems.append(kind)
         else:
-            self.found |= self.member_scan(sha, locator, "data", _store_chunks(self.store, digest))
+            chunks = _store_chunks(self.store, digest)
+            try:
+                self.found |= self.member_scan(sha, locator, "data", chunks)
+            finally:  # closed now, not when a raised error lets it go: Windows cannot remove a file still open
+                chunks.close()
         _drop(self.store, digest)
         return True
 

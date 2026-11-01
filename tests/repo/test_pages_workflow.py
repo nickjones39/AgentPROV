@@ -28,9 +28,25 @@ def test_pages_is_dispatch_only() -> None:
 
 
 def test_pages_has_exactly_the_pages_permissions() -> None:
-    assert _workflow()["permissions"] == {"contents": "read", "pages": "write", "id-token": "write"}
-    for name, job in _workflow()["jobs"].items():
-        assert "permissions" not in job, f"job {name} must not widen the permissions"
+    """Review UC-47: the workflow reads only; the Pages write and the OIDC token belong to the deploy job alone, never
+    to the build, which runs mkdocs and its plugins."""
+    assert _workflow()["permissions"] == {"contents": "read"}
+    jobs = _workflow()["jobs"]
+    assert jobs["deploy"]["permissions"] == {"pages": "write", "id-token": "write"}
+    for name, job in jobs.items():
+        if name != "deploy":
+            assert "permissions" not in job, f"job {name} must not widen the permissions"
+
+
+def test_every_checkout_drops_its_credentials() -> None:
+    """Review UC-47: with persist-credentials left true, the token stays in .git/config while the build runs."""
+    for path in (PAGES, PAGES.with_name("ci.yml"), PAGES.with_name("pypi.yml"), PAGES.with_name("bundles.yml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        checkouts = [step for job in doc["jobs"].values() for step in job.get("steps", [])
+                     if str(step.get("uses", "")).startswith("actions/checkout@")]
+        assert checkouts, path.name
+        for step in checkouts:
+            assert (step.get("with") or {}).get("persist-credentials") is False, (path.name, step)
 
 
 def test_every_action_is_pinned_by_full_commit_sha() -> None:

@@ -22,7 +22,10 @@ report, Linux arm64: 3.15.1). The report names the interpreter. The checks:
    no-op unless ``--sign-identity NAME`` names a codesigning identity of the login keychain. Then the bundle is signed
    with it and the hardened runtime, and notarisation is still a separate, manual step. ``codesign -dv`` reports
    which signature the bundle has.
-5. **Smoke start:** the bundle's executable with ``--smoke`` under ``QT_QPA_PLATFORM=offscreen`` and a scratch
+5. **User guide (D-1030):** ``agentprov_gui/data/user-guide/`` holds exactly the files
+   :func:`agentprov_gui.guide.bundle_files` names in ``docs/user-guide/`` (the chapters and the images they show), with
+   the same bytes, so Help › Docs works without a checkout and shows the guide the bundle was built from.
+6. **Smoke start:** the bundle's executable with ``--smoke`` under ``QT_QPA_PLATFORM=offscreen`` and a scratch
    ``AGENTPROV_HOME`` exits 0; ``--preview-helper`` exits on EOF.
 
 **Provenance of the bundle** (v0.1.0 plan §3): the report names the GUI's and the bundled core's version and the commit
@@ -69,6 +72,7 @@ from pathlib import Path
 
 GUI = Path(__file__).resolve().parent.parent
 SPEC = GUI / "packaging" / "agentprov-gui.spec"
+GUIDE = GUI.parent / "docs" / "user-guide"
 ICONS = GUI / "packaging" / "icons"
 LINUX_DESKTOP = ("org.agentprov.gui.desktop", "install-desktop-entry.sh")  # from gui/packaging/linux/
 #: the 32-byte FinderInfo of a folder with a custom icon: kHasCustomIcon (0x0400) in the flags at offset 8
@@ -313,6 +317,27 @@ def check_licences(app: Path, platform: str = sys.platform) -> list[str]:
     return bad
 
 
+def check_guide(app: Path, platform: str = sys.platform, guide: Path = GUIDE) -> list[str]:
+    """The bundled user guide against ``guide`` (D-1030): a file missing, differing or extra. Empty when they agree."""
+    sys.path.insert(0, str(GUI / "src"))
+    try:
+        from agentprov_gui.guide import bundle_files
+    finally:
+        sys.path.pop(0)
+    bundled = _resources(app, platform) / "agentprov_gui" / "data" / "user-guide"
+    want = bundle_files(guide)
+    bad = []
+    for name in want:
+        got = bundled / name
+        if not got.is_file():
+            bad.append(f"missing: {name}")
+        elif got.read_bytes() != (guide / name).read_bytes():
+            bad.append(f"differs: {name}")
+    have = {p.relative_to(bundled).as_posix() for p in bundled.rglob("*") if p.is_file()} if bundled.is_dir() else set()
+    bad += [f"extra: {name}" for name in sorted(have - set(want))]
+    return bad
+
+
 def launcher_sdk(exe: Path) -> tuple[int, int] | None:
     if sys.platform != "darwin":
         return None
@@ -420,14 +445,14 @@ def main(argv: list[str] | None = None) -> int:
               "glibc_required": ".".join(map(str, glibc)) if glibc else None,
               "glibc_floor": args.glibc_floor, "glibc_above_floor": glibc is not None and glibc > floor,
               "excluded_found": check_excluded(app), "licences_missing": check_licences(app),
-              "icon_problems": check_icon(app),
+              "icon_problems": check_icon(app), "guide_problems": check_guide(app),
               "launcher_sdk": ".".join(map(str, sdk)) if sdk else None, "launcher_sdk_step": restored,
               "signing_step": signing, "signature": signature(app),
               "smoke": smoked,
               "size_mb": size_mb(app)}
     ok = (not report["excluded_found"] and not report["licences_missing"] and not signing.startswith("failed")
           and not report["layout_problems"] and not report["qt_dynamic_problems"] and not report["plugins_missing"]
-          and not report["icon_problems"]
+          and not report["icon_problems"] and not report["guide_problems"]
           and not report["glibc_above_floor"] and all(smoked[k] == 0 for k in ("gui", "preview_helper")))
     if ok:
         packed = package(app, args.out)

@@ -297,15 +297,19 @@ def test_stop_sends_one_sigterm_and_the_cli_ends_interrupted(tmp_path: Path) -> 
 @posix_only
 def test_kill_needs_the_identity(tmp_path: Path) -> None:
     """The identity check is the CLI's (``agentprov jobs kill``): a supervisor whose recorded create time no longer
-    matches is not this job's, so nothing is signalled."""
+    matches is not this job's, so nothing is signalled (a CLI that still passes its own check keeps the job running,
+    review UC-10, so its identity is changed too)."""
     m = manager(tmp_path / "home")
     job = m.spawn(spec("--units", "200", "--sleep", "0.05"))
+    end = time.monotonic() + 20
+    while time.monotonic() < end and (read_json(job.file("job.json")) or {}).get("pid_create_time") is None:
+        time.sleep(0.05)
     record = read_json(job.file("job.json"))
     assert record is not None
-    good = record["supervisor_create_time"]
-    atomic_write_json(job.file("job.json"), {**record, "supervisor_create_time": 1.0})
+    atomic_write_json(job.file("job.json"), {**record, "supervisor_create_time": 1.0, "pid_create_time": 1.0,
+                                             "supervisor_start_ticks": None, "pid_start_ticks": None})
     assert not m.kill(job) and not m.stop(job)
-    atomic_write_json(job.file("job.json"), {**record, "supervisor_create_time": good})
+    atomic_write_json(job.file("job.json"), record)
     assert m.kill(job)
     wait_end(m, job.job_id)
     assert m.jobs[job.job_id].outcome == "killed"

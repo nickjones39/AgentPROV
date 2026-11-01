@@ -62,7 +62,6 @@ import json
 import logging
 import os
 import platform
-import shutil
 import tempfile
 from collections import Counter
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
@@ -94,6 +93,7 @@ from agentprov.corpus.writer import CorpusWriter
 from agentprov.errors import AgentProvError
 from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.profile_limits import apply_profile_limits
+from agentprov.io import remove
 from agentprov.io.atomic import atomic_write_bytes
 from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.io.workers import KIND_RSS_BYTES, Job, JobResult, WorkerLimits, WorkerPool, prov_charge
@@ -1415,7 +1415,7 @@ class Derivation:
         finally:
             with contextlib.suppress(AgentProvError):
                 writer.flush()
-            shutil.rmtree(scratch, ignore_errors=True)
+            remove.rmtree(scratch, ignore_errors=True)  # read-only raw objects: Windows needs the bit cleared
 
     def _prov_charge(self, row: IndexRow) -> int:
         """D-554: the memory charge of re-deriving ``row``, from its stored PROV size in the source corpus (prov-perf's

@@ -7,7 +7,9 @@ on:
   #               skips every job on those events, so a push costs no minutes and sends no failure email.
   #               gh variable set CI_ON_PUSH --body true    (or --body false; gh variable delete CI_ON_PUSH)
   #   CI_RUNNER   a self-hosted runner label (e.g. the Mac Studio's, once one is registered; none is set up now).
-  #               Every job then runs there, except the Windows leg of `core`, which stays GitHub-hosted.
+  #               Every job then runs there, except the Windows leg of `core`, which stays GitHub-hosted, and except
+  #               a pull request from a fork, which always runs GitHub-hosted: the self-hosted machine holds
+  #               AGENTPROV_HOME and keychain tokens, so code from outside the repository never runs on it.
   #               gh variable set CI_RUNNER --body <label>    (gh variable delete CI_RUNNER for GitHub-hosted)
   # Dispatch (`gh workflow run ci.yml --ref main`) always runs every job, at the K.19.1 points.
   # No schedule (user decision 2026-10-11, D-22): backend-autodojo, old-vs-new and fuzz-thorough run only by manual
@@ -24,15 +26,25 @@ jobs:
   # behaviour (worker isolation) is chosen by probed capabilities (src/agentprov/host.py), so every leg runs the
   # same tests; the capabilities each host probed are printed by the "Host profile" step.
   core:
-    name: core (${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }})
+    name: core (${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }}, ${{ matrix.shard }}/${{ matrix.shards }})
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
     # With CI_RUNNER set, the matrix is the self-hosted runner plus the GitHub-hosted Windows leg (running the three
     # other legs on one self-hosted machine would test the same host three times).
+    # D-1020: each GitHub-hosted leg's tests are split over `shards` runners, run i keeping the i-th part
+    # (AGENTPROV_SHARD/AGENTPROV_SHARDS, tests/conftest.py): Windows, the slowest on 4 cores, over 4, and the other
+    # legs about in proportion to their single-runner times (CI round 10: about 35, 30, 20 and 15 minutes). The
+    # self-hosted runner runs its leg whole.
     runs-on: ${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(vars.CI_RUNNER && '["self-hosted", "windows-latest"]' || '["ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"]') }}
+        include: >-
+          ${{ fromJSON((vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '[{"os": "self-hosted", "shard": 1, "shards": 1},
+          {"os": "windows-latest", "shard": 1, "shards": 4}, {"os": "windows-latest", "shard": 2, "shards": 4}, {"os": "windows-latest", "shard": 3, "shards": 4}, {"os": "windows-latest", "shard": 4, "shards": 4}]'
+          || '[{"os": "ubuntu-latest", "shard": 1, "shards": 3}, {"os": "ubuntu-latest", "shard": 2, "shards": 3}, {"os": "ubuntu-latest", "shard": 3, "shards": 3},
+          {"os": "ubuntu-24.04-arm", "shard": 1, "shards": 2}, {"os": "ubuntu-24.04-arm", "shard": 2, "shards": 2},
+          {"os": "macos-latest", "shard": 1, "shards": 2}, {"os": "macos-latest", "shard": 2, "shards": 2},
+          {"os": "windows-latest", "shard": 1, "shards": 4}, {"os": "windows-latest", "shard": 2, "shards": 4}, {"os": "windows-latest", "shard": 3, "shards": 4}, {"os": "windows-latest", "shard": 4, "shards": 4}]') }}
     defaults:
       run:
         shell: bash
@@ -40,6 +52,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"
@@ -68,14 +81,28 @@ jobs:
       - name: Lint
         run: uv run ruff check .
       - name: Tests
-        run: uv run pytest -m "not network and not backend_agentdojo and not backend_autodojo and not full_corpus"
+        # this run's shard of the suite (D-1020); every core of the runner (D-1011): run one test at a time, the suite
+        # outgrew a runner's 6 h (about 3 h on 4 cores); --dist loadgroup keeps the xdist_group tests together, as
+        # tools/suite_queue.py runs them locally
+        # --durations lists the slowest tests; faulthandler_timeout dumps every thread's stack of a test that runs past
+        # 20 minutes, so a hang shows where it is, and faulthandler_exit_on_timeout then ends that worker, so the hung
+        # test is reported as failed and the run still ends with its summary
+        run: >-
+          uv run pytest -n auto --dist loadgroup --durations=30 -o faulthandler_timeout=1200
+          -o faulthandler_exit_on_timeout=true
+          -m "not network and not backend_agentdojo and not backend_autodojo and not full_corpus"
+        env:
+          AGENTPROV_SHARD: ${{ matrix.shard }}
+          AGENTPROV_SHARDS: ${{ matrix.shards }}
   # capture/ on 3.14 runs through the core workspace (whose requires-python is >=3.14); on 3.12 it runs inside the
   # backend-shared job, whose environment installs agentprov-capture by path.
   capture:
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"
@@ -85,9 +112,11 @@ jobs:
         run: uv run pytest capture/tests
   backend-shared:
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"
@@ -101,9 +130,11 @@ jobs:
         run: uv run --no-sync --project backends/shared pytest backends/shared/tests capture/tests
   backend-agentdojo:
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"
@@ -125,9 +156,11 @@ jobs:
   # from a checkout of the public baseline repository at the pinned commit; no secret is used.
   old-vs-new:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: nickjones39/agentdojo-prov
@@ -156,7 +189,10 @@ jobs:
           uv python install 3.14
           env -u UV_PROJECT_ENVIRONMENT uv sync --locked --extra shacl
       - name: C6 comparer
-        run: env -u UV_PROJECT_ENVIRONMENT uv run --no-sync pytest tests/migration/test_c6_old_vs_new.py -m old_package
+        # the summary is the comparer's declared output in the work directory, so the D-402 write guard admits it
+        run: >-
+          env -u UV_PROJECT_ENVIRONMENT AGENTPROV_TEST_WRITE_ALLOW="$AGENTPROV_C6_WORK/c6-summary.json"
+          uv run --no-sync pytest tests/migration/test_c6_old_vs_new.py -m old_package
       - name: C6 summary
         if: always()
         run: cat "$AGENTPROV_C6_WORK/c6-summary.json" || true
@@ -181,9 +217,11 @@ jobs:
   # --keep-staging feed the core live_artefacts tests (AGENTPROV_LIVE_ARTEFACTS).
   live-run:
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"
@@ -220,9 +258,11 @@ jobs:
   # No --no-config for (2): it would drop [tool.uv] exclude-newer and report the lock stale.
   backend-autodojo:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"
@@ -251,21 +291,27 @@ jobs:
         run: uv run --no-sync --project backends/autodojo python backends/autodojo/tools/make_capture_fixtures.py --check
   secrets:
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # the gitleaks the .gitleaksignore fingerprints were made with (tools/public_export.py fingerprint; the local
+          # gate's): the action's default 8.24.3 flags the DTap tool-name lists as Atlassian tokens (D-1011)
+          GITLEAKS_VERSION: "8.30.1"
   # The spec's `supply-chain` job (G.10 SEC-23, K.14; DoD Q.17): osv-scanner over every lockfile (`uv lock --check` on
   # all five projects runs in `core`). One scanner only (AD-10 row 19).
   dependencies:
     if: github.event_name == 'workflow_dispatch' || vars.CI_ON_PUSH == 'true'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
         with:
           scan-args: |-
@@ -280,9 +326,11 @@ jobs:
   # budgets of the same suites run in `core` (on dispatch, or on push and pull requests when CI_ON_PUSH is "true").
   fuzz-thorough:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ${{ (vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
         with:
           version: ">=0.12.22"

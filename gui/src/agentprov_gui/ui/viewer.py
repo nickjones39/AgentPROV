@@ -12,6 +12,7 @@ threads and come back as immutable objects; a newer request supersedes an older 
 
 from __future__ import annotations
 
+import re
 import shlex
 import threading
 import time
@@ -66,10 +67,11 @@ from agentprov_gui.ui import theme
 from agentprov_gui.ui.execution import CorpusSource, ExecutionPane
 from agentprov_gui.ui.safe import (
     SafeLabel,
+    help_tooltip,
     is_tooltip_role,
     safe_tooltip,
+    set_control_tooltip,
     set_tab_tooltip,
-    set_tooltip,
     tab_text,
 )
 from agentprov_gui.ui.worker import JobSignals, submit
@@ -98,6 +100,42 @@ OUTCOME_RULE: Final = {
 TASK_PICKERS: Final = ("cell.suite", "cell.attack_id", "cell.attack_target_id", "cell.defense_id", "model.requested",
                        "outcome.user_task_solved", ATTACK_KEY)
 _TITLES: Final = {c.key: c.title for c in COLUMNS}
+#: what each column of the corpora list holds (header tooltips)
+CORPUS_TIPS: Final = (
+    "The corpus folder's name. Double-click or Return opens it, read-only.",
+    "sealed (finished; never written again), working (not sealed yet), writing (a CLI job holds its lock now) or "
+    "unreadable (hover the row for the reason).",
+    "The corpus id from corpus.json.",
+    "The corpus version (SemVer) from corpus.json.",
+    "The number of executions the manifest (corpus.json) counts.",
+    "The corpus content digest from corpus.json (shortened; the full value is in the corpus).",
+    "The folder that holds the corpus: one of the corpus roots in Settings.",
+)
+#: what each column of the executions table holds (header tooltips; the outcome columns use OUTCOME_RULE)
+COLUMN_TIPS: Final = {
+    "ex": "The execution id. Double-click or Return opens the execution in a tab of its own.",
+    "status": "ok, ok with issues (a warning in the register) or failed (a failed stage or an error-severity issue).",
+    "completeness": "verified complete (the record reconciles with the source), known incomplete (a rule proves loss) "
+                    "or unverifiable (the source does not record enough to tell).",
+    "source_id": "The registry id of the source the execution came from.",
+    "snapshot": "The source snapshots in which this execution was found.",
+    "unit": "What the record describes: an observed agent execution, an outcome only (no trajectory) or a scenario.",
+    "profile": "The source profile (id@version) that mapped the execution.",
+    "cell.suite": "The benchmark suite.",
+    "cell.task_id": "The user task.",
+    "cell.attack_id": "The attack (injection method); blank on a benign cell.",
+    "cell.attack_target_id": "The injection task the attack tries to achieve; blank on a benign cell.",
+    "cell.defense_id": "The defence the run used; blank when none was recorded.",
+    "model.requested": "The model the run asked for.",
+    "model.served": "The model the provider reports it served.",
+    "judgements": "The benchmark's own outcome judgements, as recorded.",
+    "cell.repeat": "The repeat index of the cell.",
+    "n.messages": "Messages in the execution.",
+    "n.model_calls": "Model calls in the execution.",
+    "n.tool_executions": "Tool executions in the execution.",
+    "n_issues": "Issue codes in the register for this execution; hover a cell for the codes.",
+    "attempt": "Live runs: the attempt index of this cell (0-based). Blank for imports.",
+}
 
 
 def elide_middle(text: str, limit: int = TAB_TITLE_CHARS) -> str:
@@ -109,6 +147,12 @@ def elide_middle(text: str, limit: int = TAB_TITLE_CHARS) -> str:
 
 
 # ----------------------------------------------------------------------------------------------- models
+#: The core's ``agentprov.aer.ids.EXECUTION_ID_RE`` (not on the GUI's import allowlist; a test pins the two together).
+EXECUTION_ID: Final = re.compile(
+    r"ex_(?:[a-z2-7]{26}|[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})"
+)
+
+
 class CorporaModel(QAbstractTableModel):
     HEADERS: Final = ("corpus", "state", "corpus_id", "version", "executions", "content_digest", "root")
 
@@ -150,8 +194,12 @@ class CorporaModel(QAbstractTableModel):
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+        if orientation != Qt.Orientation.Horizontal:
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
             return self.HEADERS[section]
+        if is_tooltip_role(role):
+            return help_tooltip(CORPUS_TIPS[section])
         return None
 
 
@@ -244,8 +292,9 @@ class ExecutionsModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return f"{theme.ATTACK_GLYPH} {self.columns[section].title}" if key == ATTACK_KEY else \
                 self.columns[section].title
-        if is_tooltip_role(role) and key in OUTCOME_RULE:
-            return safe_tooltip(OUTCOME_RULE[key])
+        if is_tooltip_role(role):
+            tip = OUTCOME_RULE.get(key) or COLUMN_TIPS.get(key)
+            return help_tooltip(tip) if tip else None
         return None
 
 
@@ -297,10 +346,12 @@ class ViewerPage(QWidget):
         cl = QHBoxLayout(corner)
         cl.setContentsMargins(0, 0, 0, 0)
         self.tab_count = SafeLabel("", name="Open execution tabs", parent=corner, selectable=False)
+        set_control_tooltip(self.tab_count, f"Execution tabs open. At most {MAX_TABS}: opening another closes the least "
+                                            "recently viewed one.")
         cl.addWidget(self.tab_count)
         self.reload_btn = QPushButton("Reload", corner)
         self.reload_btn.setAccessibleName("Reload corpora list")
-        set_tooltip(self.reload_btn, "Reload the corpora list (⌘R)")
+        set_control_tooltip(self.reload_btn, "Look for corpora again under the corpus roots in Settings (⌘R)")
         self.reload_btn.clicked.connect(self.refresh)
         cl.addWidget(self.reload_btn)
         self.doc_tabs.setCornerWidget(corner, Qt.Corner.TopRightCorner)
@@ -336,6 +387,9 @@ class ViewerPage(QWidget):
         bl.addWidget(self.banner_text, 1)
         self.revalidate_btn = QPushButton("Revalidate (full recompute)…", self.banner)
         self.revalidate_btn.setAccessibleName("Revalidate this corpus with a full recompute into a new corpus")
+        set_control_tooltip(self.revalidate_btn, "Opens the recompute form: a full recompute (sem, prov, validation) into a "
+                                                 "new corpus runs the PROV conformance check this corpus skipped. This "
+                                                 "corpus is not changed.")
         self.revalidate_btn.clicked.connect(self._request_revalidate)
         self.revalidate_btn.hide()
         bl.addWidget(self.revalidate_btn)
@@ -349,8 +403,8 @@ class ViewerPage(QWidget):
             box.setAccessibleName(f"Filter by {_TITLES[key]}")
             box.addItem(f"{_TITLES[key]}: {ANY}")
             box.currentIndexChanged.connect(self._filter_changed)
-            if key in OUTCOME_RULE:
-                set_tooltip(box, OUTCOME_RULE[key])
+            set_control_tooltip(box, f"Show only the executions whose {_TITLES[key]} is the chosen value. "
+                                     + (OUTCOME_RULE.get(key) or COLUMN_TIPS[key]))
             self.pickers[key] = box
             (task_filters if key in TASK_PICKERS else filters).addWidget(box)
         task_filters.addStretch(1)
@@ -358,14 +412,17 @@ class ViewerPage(QWidget):
         self.issue_picker.setAccessibleName("Filter by issue code")
         self.issue_picker.addItem(f"issue: {ANY}")
         self.issue_picker.currentIndexChanged.connect(self._filter_changed)
+        set_control_tooltip(self.issue_picker, "Show only the executions with this issue code in the register")
         filters.addWidget(self.issue_picker)
         self.ex_filter = QLineEdit(mid)
         self.ex_filter.setAccessibleName("Filter executions by id")
         self.ex_filter.setPlaceholderText("id contains")
         self.ex_filter.setClearButtonEnabled(True)
         self.ex_filter.textChanged.connect(self._filter_changed)
+        set_control_tooltip(self.ex_filter, "Show only the executions whose id contains this text")
         filters.addWidget(self.ex_filter, 1)
         self.count_label = SafeLabel("", name="Executions count", parent=mid)
+        set_control_tooltip(self.count_label, "Executions the filters show, of all in the corpus")
         filters.addWidget(self.count_label)
         ml.addLayout(filters)
         ml.addLayout(task_filters)
@@ -380,10 +437,12 @@ class ViewerPage(QWidget):
         cli_row = QHBoxLayout()
         self.cli_line = SafeLabel("", name="CLI selection", parent=mid)
         self.cli_line.setWordWrap(True)
+        set_control_tooltip(self.cli_line, "The agentprov stats command that selects the rows shown; filters it cannot "
+                                           "express are named in parentheses")
         cli_row.addWidget(self.cli_line, 1)
         self.copy_cli_btn = QPushButton("Copy CLI", mid)
         self.copy_cli_btn.setAccessibleName("Copy the CLI selection")
-        set_tooltip(self.copy_cli_btn, "The agentprov stats command that selects the rows shown (D-700)")
+        set_control_tooltip(self.copy_cli_btn, "Copy the agentprov stats command that selects the rows shown (D-700)")
         self.copy_cli_btn.clicked.connect(self._copy_cli)
         cli_row.addWidget(self.copy_cli_btn)
         ml.addLayout(cli_row)
@@ -804,7 +863,7 @@ class ViewerPage(QWidget):
         menu.addSeparator()
         menu.addAction("Show in Corpora", lambda: self.reveal_in_corpora(pane))
         menu.addAction("Reload Execution", pane.reload)
-        menu.addAction("Copy Execution Id", lambda: self._copy_text(pane.ex))
+        menu.addAction("Copy Execution Id", lambda: self._copy_id(pane.ex))
         menu.exec(bar.mapToGlobal(pos))
 
     def _exec_menu(self, pos: QPoint) -> None:
@@ -814,8 +873,15 @@ class ViewerPage(QWidget):
         ex = self.table.ex(self.model.table_row(index.row()))
         menu = QMenu(self)
         menu.addAction("Open in New Tab", lambda: self.open_row(index.row()))
-        menu.addAction("Copy Execution Id", lambda: self._copy_text(ex))
+        menu.addAction("Copy Execution Id", lambda: self._copy_id(ex))
         menu.exec(self.exec_view.viewport().mapToGlobal(pos))
+
+    @classmethod
+    def _copy_id(cls, ex: str | None) -> None:
+        """S13: only a well-formed execution id reaches the clipboard. The index row's ``ex`` is checked as ASCII only,
+        so a hostile corpus could otherwise put LF, ESC or other control characters there."""
+        if ex is not None and EXECUTION_ID.fullmatch(ex) is not None:
+            cls._copy_text(ex)
 
     @staticmethod
     def _copy_text(text: str | None) -> None:

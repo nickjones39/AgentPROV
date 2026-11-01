@@ -57,7 +57,8 @@ THIRD_PARTY_IMPORTERS: dict[str, tuple[str, ...]] = {
     "urllib.request": ("raw/fetch.py",),
     # D-691: cli/live/localmodels.py lists and fingerprints local model servers (loopback-only, peer checked).
     # D-730: cli/live/providermodels.py fetches an API provider's model list (registry host only, TLS verified).
-    "http.client": ("raw/fetch.py", "presets.py", "cli/live/localmodels.py", "cli/live/providermodels.py"),
+    "http.client": ("raw/fetch.py", "presets.py", "cli/live/localmodels.py", "cli/live/providermodels.py",
+                    "cli/live/assistant.py"),  # D-1010: the Assistant's one chat request
     # worker_testjobs.py holds the hostile test job kinds that probe the audit hook (G.4.4); enabled only in tests.
     # cli/live/egress.py (D-664): the T0 egress proxy (loopback CONNECT-only, asyncio) and the sandbox probe's loopback
     # listeners; it runs in the parent only, never in a T1 or T2 worker.

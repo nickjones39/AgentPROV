@@ -30,12 +30,12 @@ from typing import Any, ClassVar, Final
 
 from agentprov.devrun import plan as devrun
 from agentprov.ingest.limits import IngestLimits
-from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPushButton, QSpinBox, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from agentprov_gui import text as T
-from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel
+from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, set_setting_tooltip
 
-__all__ = ["WORKER_COMMANDS", "CiPane", "CliSettingsPane", "ComputePane", "DevRunPane", "JobsPane", "LocalModelsPane"]
+__all__ = ["WORKER_COMMANDS", "AssistantPane", "CiPane", "CliSettingsPane", "ComputePane", "DevRunPane", "JobsPane", "LocalModelsPane"]
 
 WORKER_COMMANDS: Final = ("import", "derive", "recompute", "validate", "verify", "render")
 
@@ -56,9 +56,10 @@ def int_setting(cfg: Any, key: str, default: int, lo: int, hi: int) -> int:
 
 class CliSettingsPane(QWidget):
     """A pane whose values are ``agentprov settings`` keys under :attr:`PREFIX` (D-700, D-703). The stored values are
-    read in the background; until they arrive the pane is disabled and :meth:`save` writes nothing. Saving writes only
-    the keys that changed (:func:`settings_client.write`); a refused value is listed. :attr:`KEYS` maps each input
-    widget's attribute name to its key (the reverse-parity registry, D-700)."""
+    read in the background; until they arrive the pane's fields (:attr:`body`) are disabled and :meth:`save` writes
+    nothing. When they cannot be read, :attr:`notice`, above the fields and not greyed, says why and what to set
+    (D-1030). Saving writes only the keys that changed (:func:`settings_client.write`); a refused value is listed.
+    :attr:`KEYS` maps each input widget's attribute name to its key (the reverse-parity registry, D-700)."""
 
     PREFIX: str = ""
     TITLE: str = "Settings"
@@ -72,17 +73,27 @@ class CliSettingsPane(QWidget):
         self.checkout = checkout
         self.cli = CliLocator.for_checkout(checkout) if cli is None else cli
         self.loaded: dict[str, Any] | None = None
-        self.form = SafeForm(self)
+        outer = QVBoxLayout(self)
+        self.notice = SafeLabel("Reading the stored settings (agentprov settings list)…",
+                                name=f"{self.TITLE}: status", parent=self)
+        self.notice.setWordWrap(True)
+        outer.addWidget(self.notice)
+        self.body = QWidget(self)
+        self.form = SafeForm(self.body)
+        outer.addWidget(self.body, 1)
         self.build()
-        self.setEnabled(False)
+        self.body.setEnabled(False)
         from agentprov_gui import settings_client
         from agentprov_gui.ui.worker import submit
 
-        submit(self, lambda _s: settings_client.read(self.cli, self.PREFIX), self._loaded,
-               lambda _code: self.load_failed())
+        submit(self, lambda _s: settings_client.read_or_reason(self.cli, self.PREFIX), self._loaded,
+               lambda code: self.load_failed(f"Reading the settings failed ({T.line(code, 60)})."))
 
-    def load_failed(self) -> None:
-        """The stored values could not be read: the pane stays disabled."""
+    def load_failed(self, reason: str = "") -> None:
+        """The stored values could not be read: the fields stay disabled and :attr:`notice` says why."""
+        self.notice.set_plain(f"{self.TITLE} cannot be changed here: {T.line(reason, 400)}" if reason else
+                              f"{self.TITLE} cannot be changed here: the stored settings could not be read.")
+        self.notice.show()
 
     def build(self) -> None:  # pragma: no cover - every pane overrides it
         raise NotImplementedError
@@ -94,13 +105,14 @@ class CliSettingsPane(QWidget):
         """The keys to store; a key at its default is left out, so saving unsets it."""
         raise NotImplementedError
 
-    def _loaded(self, values: dict[str, Any] | None) -> None:
-        if values is None:
-            self.load_failed()
+    def _loaded(self, values: dict[str, Any] | str | None) -> None:
+        if not isinstance(values, dict):
+            self.load_failed(values or "")
             return
         self.loaded = values
         self.show_values(values)
-        self.setEnabled(True)
+        self.notice.hide()
+        self.body.setEnabled(True)
 
     def save(self) -> None:
         if self.loaded is None:
@@ -134,13 +146,19 @@ class JobsPane(CliSettingsPane):
         self.retention = QSpinBox(self)
         self.retention.setRange(10, 10_000)
         self.retention.setValue(200)
-        self.form.add("Keep the last N ended jobs (agentprov jobs prune; deletes only with --yes)", self.retention)
+        self.form.add("Keep the last N ended jobs (agentprov jobs prune; deletes only with --yes)", self.retention,
+                      "agentprov jobs prune keeps at most this many ended jobs (jobs.retention, default 200). It "
+                      "lists what it would remove and deletes only with --yes.")
         self.retention_days = QSpinBox(self)
         self.retention_days.setRange(1, 3650)
         self.retention_days.setValue(90)
-        self.form.add("…and none older than D days", self.retention_days)
+        self.form.add("…and none older than D days", self.retention_days,
+                      "agentprov jobs prune also removes ended jobs older than this many days (jobs.retention_days, "
+                      "default 90).")
         self.continue_on_failure = QCheckBox(self)
-        self.form.add("Batches continue after exit 4 or 70", self.continue_on_failure)
+        self.form.add("Batches continue after exit 4 or 70", self.continue_on_failure,
+                      "Off (default): a batch stops after a step that ends with exit 4 (refused by a guard) or 70 "
+                      "(internal error). On: the remaining steps run anyway (jobs.continue_on_failure).")
         self.form.add("Progress level", SafeLabel("status (steps costs real I/O on large runs)", name="Progress level",
                                                   parent=self))
 
@@ -177,34 +195,54 @@ class ComputePane(CliSettingsPane):
         form = self.form
         self.preset = QComboBox(self)
         self.preset.addItems(list(self.PRESETS))
-        form.add("Machine preset (Run live's Tune)", self.preset)
+        form.add("Machine preset (Run live's Tune)", self.preset,
+                 "The machine preset agentprov estimate plans with (compute.preset). This machine (auto) leaves it "
+                 "unset; --m5ultra is the calibrated Mac Studio preset; named preset uses the name below. Run Live's "
+                 "Tune uses --m5ultra unless its More Options name another preset.")
         self.preset_name = QLineEdit("", self)
-        form.add("Preset name (--preset NAME)", self.preset_name)
+        form.add("Preset name (--preset NAME)", self.preset_name,
+                 "The preset's name in presets.toml, used when Machine preset is named preset (--preset NAME).",
+                 active=lambda: self.preset.currentText() == "named preset")
         self.jobs: dict[str, QSpinBox] = {}
         for cmd in WORKER_COMMANDS:
             spin = QSpinBox(self)
             spin.setRange(0, 512)
             self.jobs[cmd] = spin
-            form.add(f"Default --jobs for {cmd} (0 = host default: min(CPUs, ⌊0.75 RAM / 4 GiB⌋))", spin)
+            form.add(f"Default --jobs for {cmd} (0 = host default: min(CPUs, ⌊0.75 RAM / 4 GiB⌋))", spin,
+                     f"Worker processes for agentprov {cmd} when --jobs is not given (compute.jobs.{cmd}). 0 is the "
+                     "host default; a lower value leaves the machine free for other work.")
         self.stagger = QLineEdit("", self)
-        form.add("Live --start-stagger (seconds)", self.stagger)
+        form.add("Live --start-stagger (seconds)", self.stagger,
+                 "Seconds between the starts of a live run's parallel workers (compute.start_stagger, 0 to 3600). "
+                 "Stored but not used yet (planned for v0.2).")
         self.queue = QCheckBox(self)
         self.queue.setChecked(True)
-        form.add("Run heavy jobs through the shared job queue (--class import)", self.queue)
+        form.add("Run heavy jobs through the shared job queue (--class import)", self.queue,
+                 "On (default): heavy GUI jobs wait for room in the shared job queue (tools/suite_queue.py --class "
+                 "import), so they never compete with test suites or other sessions for the machine. Off: they "
+                 "start at once (compute.queue_heavy).")
         self.queue_cpu = QSpinBox(self)
         self.queue_cpu.setRange(1, 256)
         self.queue_cpu.setValue(2)
-        form.add("Queue reservation per GUI job (--cpu)", self.queue_cpu)
+        form.add("Queue reservation per GUI job (--cpu)", self.queue_cpu,
+                 "How many CPUs of the queue's budget each queued GUI job reserves (--cpu; compute.queue_cpu, "
+                 "default 2).")
         self.cpu_budget = QLineEdit("", self)
         self.cpu_budget.setPlaceholderText("default: CPUs − 2")
-        form.add("Queue CPU budget (AGENTPROV_JOB_CPU_BUDGET)", self.cpu_budget)
+        form.add("Queue CPU budget (AGENTPROV_JOB_CPU_BUDGET)", self.cpu_budget,
+                 "The CPUs the job queue shares out among queued jobs (compute.cpu_budget); agentprov jobs start "
+                 "passes it as AGENTPROV_JOB_CPU_BUDGET. Empty: the CPU count less 2.")
         self.mem_budget = QLineEdit("", self)
         self.mem_budget.setPlaceholderText("default: 75 % of RAM")
-        form.add("Queue memory budget, GiB (AGENTPROV_JOB_MEM_GIB_BUDGET)", self.mem_budget)
+        form.add("Queue memory budget, GiB (AGENTPROV_JOB_MEM_GIB_BUDGET)", self.mem_budget,
+                 "The memory, in GiB, the job queue shares out among queued jobs (compute.mem_gib_budget); "
+                 "agentprov jobs start passes it as AGENTPROV_JOB_MEM_GIB_BUDGET. Empty: 75 % of RAM.")
         self.gate_n = QSpinBox(self)
         self.gate_n.setRange(1, 256)
         self.gate_n.setValue(10)
-        form.add("Test gate workers (pytest -n)", self.gate_n)
+        form.add("Test gate workers (pytest -n)", self.gate_n,
+                 "Workers for the test gate (pytest -n; compute.gate_n). Stored but not used yet: tools/ci_local.py "
+                 "takes $AGENTPROV_SUITE_WORKERS, else a count picked from the host.")
         if os.name != "posix":  # G5 P-3: tools/suite_queue.py locks with fcntl; Windows has no job queue in v0.1
             for w in (self.queue, self.queue_cpu, self.cpu_budget, self.mem_budget):
                 w.setEnabled(False)
@@ -215,7 +253,10 @@ class ComputePane(CliSettingsPane):
         shown.setPlainText("\n".join(f"{f.name} = {getattr(limits, f.name)}" for f in dc_fields(limits)
                                      if f.name != "zip_methods"))
         shown.setMaximumHeight(140)
-        form.add("Ingest limits (read-only; a profile's [import] limits may raise them, up to 64 MiB)", shown)
+        form.add("Ingest limits (read-only; a profile's [import] limits may raise them, up to 64 MiB)", shown,
+                 "The limits every import applies to untrusted input: sizes, counts, compression ratios and nesting "
+                 "depth. They are part of a corpus's identity, so they are not a setting; only a source profile's "
+                 "[import] limits may raise them.")
 
     def show_values(self, values: dict[str, Any]) -> None:
         preset = values.get("compute.preset")
@@ -274,7 +315,10 @@ class CiPane(CliSettingsPane):
         form = self.form
         self.target = QComboBox(self)
         self.target.addItems(list(self.TARGETS.values()))
-        form.add("Default CI target (not used yet; each CI run is chosen in Runs › New Job)", self.target)
+        form.add("Default CI target (not used yet; each CI run is chosen in Runs › New Job)", self.target,
+                 "The CI target to preselect (ci.default_target). Stored but not used yet: each CI run is chosen in "
+                 "Runs › New Job. Local runs tools/ci_local.py through the queue; GitHub-hosted spends Actions "
+                 "minutes; the self-hosted runner needs a registered runner.")
         local = self.checkout is not None and (self.checkout / "tools" / "ci_local.py").is_file()
         form.add("Local runner", SafeLabel("available: Runs › New Job › Run CI locally (it queues itself in the shared "
                                            "suite queue)" if local else "tools/ci_local.py is not in this checkout",
@@ -312,59 +356,90 @@ class DevRunPane(CliSettingsPane):
         form = self.form
         self.samples = QSpinBox(self)
         self.samples.setRange(0, 100_000)
-        form.add("Samples per source/part (default)", self.samples)
+        form.add("Samples per source/part (default)", self.samples,
+                 "How many executions a dev run imports from each importable part, read from the fetch cache "
+                 "(devrun.samples, default 5). Overrides replace it for single parts.")
         self.overrides = QLineEdit(self)
         self.overrides.setPlaceholderText("source/part=N, source=N, … (0 skips)")
-        form.add("Overrides", self.overrides)
+        form.add("Overrides", self.overrides,
+                 "Sample counts for single sources or parts, as source/part=N or source=N, comma separated. A "
+                 "source/part entry wins over a source entry; 0 leaves the part out.")
         self.include = QLineEdit(self)
         self.include.setPlaceholderText("empty: every importable part")
-        form.add("Include (source or source/part, comma separated)", self.include)
+        form.add("Include (source or source/part, comma separated)", self.include,
+                 "Only these sources or parts go into the dev run, comma separated. Empty: every importable part.")
         self.exclude = QLineEdit(self)
-        form.add("Exclude", self.exclude)
+        form.add("Exclude", self.exclude,
+                 "Sources or parts left out of the dev run, comma separated; an excluded part stays out even when "
+                 "Include names it.")
         self.mode = QComboBox(self)
         self.mode.addItems(["first", "spread", "random"])
-        form.add("Sampling mode (spread and random need a CLI option: D-544)", self.mode)
+        form.add("Sampling mode (spread and random need a CLI option: D-544)", self.mode,
+                 "How the sample is chosen before mapping (import --sample-mode): first takes the first N by key, "
+                 "spread goes round-robin over the reader's arms, random draws N with the seed below.")
         self.seed = QSpinBox(self)
         self.seed.setRange(0, 2**31 - 1)
-        form.add("Seed", self.seed)
+        form.add("Seed", self.seed,
+                 "The seed for random sampling (import --seed; recorded in the manifest), so the same sample can be "
+                 "drawn again. Used only when Sampling mode is random.",
+                 active=lambda: self.mode.currentText() == "random")
         self.keep = QSpinBox(self)
         self.keep.setRange(1, 100)
-        form.add("Keep the last N dev runs", self.keep)
+        form.add("Keep the last N dev runs", self.keep,
+                 "How many dev-run folders under $AGENTPROV_HOME/dev-runs are kept; older ones are removed "
+                 "(agentprov devrun prune; devrun.keep, default 5).")
         self.queue_cpu = QSpinBox(self)
         self.queue_cpu.setRange(1, 64)
-        form.add("Queue reservation (--cpu)", self.queue_cpu)
+        form.add("Queue reservation (--cpu)", self.queue_cpu,
+                 "How many CPUs of the job queue's budget each dev-run step reserves (--cpu; devrun.queue_cpu, "
+                 "default 2).")
         self.conformance = QCheckBox("Run the W3C PROV conformance check (tier 4)", self)
         self.conformance.setAccessibleName("Dev runs: run the W3C PROV conformance check")
         self.conformance.clicked.connect(self._conformance_clicked)
-        form.add("Conformance (off: the import skips tier 4 and validate runs aer,sem,linkage)", self.conformance)
+        form.add("Conformance (off: the import skips tier 4 and validate runs aer,sem,linkage)", self.conformance,
+                 "On (default): each dev-run import runs the W3C PROV conformance check, validation tier 4. Off: "
+                 "faster, but the import skips tier 4 and validate checks only the aer, sem and linkage tiers; the "
+                 "app asks before turning it off.")
         self.transport = QComboBox(self)
         self.transport.addItems(["scripted", "real"])
-        form.add("Live: transport (G3; real needs consent and keys)", self.transport)
+        form.add("Live: transport (G3; real needs consent and keys)", self.transport,
+                 "How Live Dev Run talks to a model: scripted replays a fixed script (no network, no cost); real "
+                 "calls the configured model, which needs your consent and a stored key.")
         self.tasks = QSpinBox(self)
         self.tasks.setRange(1, 1000)
-        form.add("Live: tasks per suite", self.tasks)
+        form.add("Live: tasks per suite", self.tasks,
+                 "How many user tasks of each suite Live Dev Run captures: tasks 0 to N−1 "
+                 "(devrun.live.tasks_per_suite, default 3).")
         self.attacks = QSpinBox(self)
         self.attacks.setRange(0, 100)
-        form.add("Live: attacks per task", self.attacks)
+        form.add("Live: attacks per task", self.attacks,
+                 "0 runs each task without an attack. 1 or more adds the direct attack with injection task 0, the "
+                 "only attack a live dev run uses (devrun.live.attacks_per_task, default 1).")
         self.suites = QLineEdit(self)
         self.suites.setPlaceholderText("empty: every configured suite")
-        form.add("Live: suites", self.suites)
+        form.add("Live: suites", self.suites,
+                 "The AgentDojo suites Live Dev Run uses, comma separated. Empty: every configured suite.")
         self.call_cap = QSpinBox(self)
         self.call_cap.setRange(0, 100_000)
-        form.add("Live: model-call cap (total)", self.call_cap)
+        form.add("Live: model-call cap (total)", self.call_cap,
+                 "The most model calls a live dev run may make in all (devrun.live.call_cap, default 5). 0: no call "
+                 "cap.")
         self.cost_cap = QLineEdit(self)
         self.cost_cap.setPlaceholderText("none until prices are entered")
-        form.add("Live: cost cap", self.cost_cap)
+        form.add("Live: cost cap", self.cost_cap,
+                 "The most a live dev run may spend, priced from Settings › Prices (devrun.live.cost_cap). Empty: no "
+                 "cost cap.")
         reset = QPushButton("Reset to Defaults", self)
         reset.setAccessibleName("Reset dev run settings to defaults")
         reset.clicked.connect(lambda: self.show_settings(devrun.DEFAULTS))
-        form.add("", reset)
+        form.add("", reset, "Puts every dev-run field back to the shipped defaults; nothing is stored until OK.")
         self.preview = SafeLabel("", name="Dev run plan preview", parent=self)
         self.preview.setWordWrap(True)
         form.add("Plan", self.preview)
         self.show_settings(devrun.DEFAULTS)
 
-    def load_failed(self) -> None:
+    def load_failed(self, reason: str = "") -> None:
+        super().load_failed(reason)
         self.preview.set_plain("The stored dev-run settings could not be read (agentprov settings).")
 
     def show_values(self, values: dict[str, Any]) -> None:
@@ -457,14 +532,19 @@ class LocalModelsPane(CliSettingsPane):
         self.endpoint = QComboBox(self)
         self.endpoint.addItems(sorted(self.endpoints))
         self.endpoint.setAccessibleName("Local endpoint")
-        form.add("Local endpoint", self.endpoint)
+        form.add("Local endpoint", self.endpoint,
+                 "The local server (a local entry of endpoints.toml) whose models you describe here.")
         self.model = QComboBox(self)
         self.model.setEditable(True)
         self.model.setAccessibleName("Model id")
         self.list_btn = QPushButton("List Models", self)
         self.list_btn.setAccessibleName("List the local server's models")
         self.list_btn.clicked.connect(self.list_models)
-        form.add("Model id (as the server names it)", self._row(QHBoxLayout, self.model, self.list_btn))
+        set_setting_tooltip(self.list_btn, "Asks the local server which models it serves (agentprov models) and adds "
+                            "them to the list.")
+        form.add("Model id (as the server names it)", self._row(QHBoxLayout, self.model, self.list_btn),
+                 "The model id exactly as the server serves it. Type one, or press List Models to ask the server. "
+                 "Each model's values are kept while you switch.", subject=self.model)
         self.folder = QLineEdit("", self)
         self.folder.setPlaceholderText("not set: the server's own listing, or none")
         self.browse_btn = QPushButton("Browse…", self)
@@ -473,23 +553,38 @@ class LocalModelsPane(CliSettingsPane):
         self.find_btn = QPushButton("Find Folder", self)
         self.find_btn.setAccessibleName("Find the model's folder")
         self.find_btn.clicked.connect(self.find_folder)
-        form.add("Folder (--model-dir)", self._row(QHBoxLayout, self.folder, self.browse_btn, self.find_btn))
+        set_setting_tooltip(self.browse_btn, "Picks the model's folder in a folder dialog.")
+        set_setting_tooltip(self.find_btn, "Looks for the model's folder in oMLX's, the Hugging Face cache's and LM "
+                            "Studio's folders (agentprov models --find-folders). No server is asked and no file is "
+                            "opened.")
+        form.add("Folder (--model-dir)", self._row(QHBoxLayout, self.folder, self.browse_btn, self.find_btn),
+                 "The model's folder on disk, an absolute path (--model-dir). run reads its config.json and weight "
+                 "files and records the folder in the run's identity record. Empty: the server's own listing, or "
+                 "none.", subject=self.folder)
         self.size_gb = QLineEdit("", self)  # not `size`: that would hide QWidget.size()
         self.size_gb.setPlaceholderText("not set: summed from the folder's weight files")
-        form.add("Weight size, GB (--model-size-gb)", self.size_gb)
+        form.add("Weight size, GB (--model-size-gb)", self.size_gb,
+                 "The model's weight size in decimal GB, for run's memory plan. Empty: summed from the folder's "
+                 "weight files.")
         self.active = QLineEdit("", self)
         self.active.setPlaceholderText("not set: from the folder's config.json where it can be derived")
-        form.add("Active parameters, billions (--active-params-b)", self.active)
+        form.add("Active parameters, billions (--active-params-b)", self.active,
+                 "The parameters active per token, in billions (for a mixture-of-experts model, the active ones "
+                 "only). It picks the preset's row. Empty: derived from the folder's config.json where it can be.")
         self.context = QLineEdit("", self)
         self.context.setPlaceholderText("not set: the preset's default")
-        form.add("Context per trace, tokens (--context-tokens)", self.context)
+        form.add("Context per trace, tokens (--context-tokens)", self.context,
+                 "The context, in tokens, one trace may fill; the KV-cache plan sizes each trace for it. Empty: the "
+                 "preset's default.")
         self.kv = QLineEdit("", self)
         self.kv.setPlaceholderText("not set: from the folder's config.json, else the preset's fallback")
-        form.add("KV cache per trace, GB (--kv-gb-per-trace)", self.kv)
+        form.add("KV cache per trace, GB (--kv-gb-per-trace)", self.kv,
+                 "The KV-cache memory one trace needs, in GB, for run's memory plan. Empty: from the folder's "
+                 "config.json, else the preset's fallback.")
         self.clear_btn = QPushButton("Clear", self)
         self.clear_btn.setAccessibleName("Clear the model's settings")
         self.clear_btn.clicked.connect(self.clear_model)
-        form.add("", self.clear_btn)
+        form.add("", self.clear_btn, "Empties this model's fields; OK then unsets its stored values.")
         self.status = SafeLabel("", name="Local models status", parent=self)
         form.add("Status", self.status)
         self.endpoint.currentTextChanged.connect(lambda _t: self._endpoint_changed())
@@ -673,3 +768,179 @@ class LocalModelsPane(CliSettingsPane):
             getattr(self, attr).setText("")
         self._commit()
         self.status.set_plain("cleared: OK unsets this model's settings")
+
+
+class AssistantPane(CliSettingsPane):
+    """``assistant.*`` (D-1010): who answers in Help › Assistant (``agentprov assist``). *Server* is a local server kind
+    (its default address fills *Base URL*; *Refresh* lists the models it serves, the loaded one first, with
+    ``agentprov assist --list-models``) or an API provider, chosen under *Provider*. The key is the endpoint's own,
+    stored in Settings › Keys; a local server needs none."""
+
+    PREFIX, TITLE = "assistant.", "Assistant settings"
+    KEYS: ClassVar[dict[str, str]] = {"server": "assistant.server", "base_url": "assistant.base_url",
+                                      "endpoint": "assistant.endpoint", "model": "assistant.model"}
+    #: local server kinds: (label, default base URL); Strata and Other have no fixed address
+    SERVERS: Final = (("omlx", "oMLX", "http://127.0.0.1:8000/v1"), ("mlx_lm", "MLX (mlx_lm.server)", "http://127.0.0.1:8080/v1"),
+                      ("lmstudio", "LM Studio", "http://127.0.0.1:1234/v1"), ("ollama", "Ollama", "http://127.0.0.1:11434/v1"),
+                      ("splash", "Splash", "http://127.0.0.1:8003/v1"), ("strata", "Strata", ""),
+                      ("llamacpp", "llama.cpp", "http://127.0.0.1:8080/v1"), ("vllm", "vLLM", "http://127.0.0.1:8000/v1"),
+                      ("other", "Other (OpenAI-compatible)", ""))
+    PROVIDERS: Final = ("openai", "anthropic", "openrouter", "deepseek", "gemini", "llama", "qwen", "glm")
+    #: a local server kind that is also a local entry of endpoints.toml (its optional key, D-827)
+    REGISTRY_LOCAL: Final = ("omlx", "mlx_lm", "lmstudio", "ollama", "llamacpp", "vllm")
+
+    def build(self) -> None:
+        self.server = QComboBox(self)
+        self.server.addItem("(not set)", "")
+        for key, name, _url in self.SERVERS:
+            self.server.addItem(f"{name} (local)", key)
+        self.server.addItem("API provider (OpenAI, Anthropic, …)", "api")
+        self.form.add("Server", self.server,
+                      "Who answers in Help › Assistant: a local server kind (its default address fills Base URL) or "
+                      "an API provider, chosen under Provider (assistant.server, assistant.endpoint).")
+        self.base_url = QLineEdit(self)
+        self.base_url.setPlaceholderText("http://127.0.0.1:PORT/v1")
+        self.base_url_label = self.form.add("Base URL (loopback; --base-url)", self.base_url,
+                                            "The local server's OpenAI-compatible address, on loopback only, such as "
+                                            "http://127.0.0.1:8000/v1 (assistant.base_url).")
+        self.endpoint = QComboBox(self)
+        for name in self.PROVIDERS:
+            self.endpoint.addItem(name, name)
+        self.endpoint_label = self.form.add("Provider (--endpoint)", self.endpoint,
+                                            "The API provider that answers (assistant.endpoint). Its key comes from "
+                                            "Settings › Keys, and the provider bills the tokens.")
+        self.model = QComboBox(self)
+        self.model.setEditable(True)
+        self.model.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.model.setAccessibleName("Model id")
+        self.refresh = QPushButton("Refresh", self)
+        self.refresh.setAccessibleName("Refresh the server's model list")
+        self.refresh.clicked.connect(self.refresh_models)
+        row = QWidget(self)
+        from PySide6.QtWidgets import QHBoxLayout
+
+        lay = QHBoxLayout(row)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.model, 1)
+        lay.addWidget(self.refresh)
+        set_setting_tooltip(self.refresh, "Asks the local server which models it serves, the loaded one first "
+                            "(agentprov assist --list-models). No model is called.")
+        self.form.add("Model (--model-id)", row,
+                      "The model that answers, by its id (assistant.model). Type one, or press Refresh to list a "
+                      "local server's models.", subject=self.model)
+        self.models_status = SafeLabel("", name="Model list status", parent=self)
+        self.form.add("", self.models_status)
+        self.form.add("Key", SafeLabel(
+            "An API provider's key is stored in Settings › Keys (OpenAI: OPENAI_API_KEY; Anthropic: ANTHROPIC_API_KEY; "
+            "OpenRouter: OPENROUTER_API_KEY). A local server needs none (oMLX's optional OMLX_API_KEY is used when "
+            "stored).", name="Assistant key", parent=self))
+        self.form.add("What is sent", SafeLabel(
+            "Each message, the conversation so far and the passages of the user guide, the CLI help and the code "
+            "docstrings chosen for it go to this server. No corpus content is sent. An API provider bills the tokens.",
+            name="What the Assistant sends", parent=self))
+        for label in self.findChildren(SafeLabel):
+            label.setWordWrap(True)
+        self.server.currentIndexChanged.connect(self._server_changed)
+        self._server_changed()
+
+    @property
+    def kind(self) -> str:
+        return str(self.server.currentData() or "")
+
+    def _server_changed(self, *_: object) -> None:
+        kind = self.kind
+        local = kind not in ("", "api")
+        local_widgets: tuple[QWidget, ...] = (self.base_url, self.base_url_label, self.refresh)
+        for widget in local_widgets:
+            widget.setVisible(local)
+        api_widgets: tuple[QWidget, ...] = (self.endpoint, self.endpoint_label)
+        for widget in api_widgets:
+            widget.setVisible(kind == "api")
+        default = next((url for key, _l, url in self.SERVERS if key == kind), "")
+        known = {url for _k, _l, url in self.SERVERS}
+        if local and (not self.base_url.text().strip() or self.base_url.text().strip() in known):
+            self.base_url.setText(default)
+        self.models_status.set_plain("")
+
+    def refresh_models(self) -> None:
+        """``agentprov assist --list-models`` for the server and address shown (loopback; no model is called)."""
+        from agentprov_gui.ui.worker import submit
+
+        argv = ["assist", "--list-models", "--server", self.kind, "--keychain", "--format", "json"]
+        if self.base_url.text().strip():
+            argv += ["--base-url", self.base_url.text().strip()]
+        self.refresh.setEnabled(False)
+        self.models_status.set_plain("asking the server…")
+        caller = self.cli
+
+        def work(_s: object) -> tuple[int, bytes, bytes]:
+            from agentprov_gui import settings_client
+
+            return settings_client._run(caller, argv)  # the panes' way to run a CLI command (a locator or a callable)
+
+        submit(self, work, self._models, lambda code: self._models((124, b"", code.encode())))
+
+    def _models(self, result: tuple[int, bytes, bytes]) -> None:
+        import json
+
+        from agentprov_gui.live.cli import last_line
+
+        self.refresh.setEnabled(True)
+        code, out, err = result
+        try:
+            doc = json.loads(out) if code == 0 else None
+        except ValueError:
+            doc = None
+        rows = doc.get("models") if isinstance(doc, dict) else None
+        if not isinstance(rows, list):
+            self.models_status.set_plain(f"No model list: {T.line(last_line(err) or f'exit {code}', 300)}")
+            return
+        typed = self.model.currentText().strip()
+        self.model.clear()
+        loaded = ""
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("id"), str):
+                continue
+            ident = T.line(row["id"], 200)
+            self.model.addItem(f"{ident}  (loaded)" if row.get("loaded") else ident, row["id"])
+            if row.get("loaded") and not loaded:
+                loaded = row["id"]
+        pick = typed if typed and self.model.findData(typed) >= 0 else loaded
+        index = self.model.findData(pick) if pick else 0
+        self.model.setCurrentIndex(max(index, 0))
+        self.models_status.set_plain(f"{self.model.count()} models" + (f"; loaded: {T.line(loaded, 200)}" if loaded
+                                                                        else ""))
+
+    def _model_id(self) -> str:
+        data = self.model.currentData()
+        text = self.model.currentText().strip()
+        if isinstance(data, str) and self.model.itemText(self.model.currentIndex()) == text:
+            return data  # a listed model ("id  (loaded)" shows its id's data)
+        return text
+
+    def show_values(self, values: dict[str, Any]) -> None:
+        server, endpoint = values.get("assistant.server"), values.get("assistant.endpoint")
+        kind = server if isinstance(server, str) else "api" if isinstance(endpoint, str) else ""
+        self.server.setCurrentIndex(max(self.server.findData(kind), 0))
+        url = values.get("assistant.base_url")
+        if isinstance(url, str):
+            self.base_url.setText(url)
+        if isinstance(endpoint, str) and endpoint in self.PROVIDERS:
+            self.endpoint.setCurrentIndex(self.endpoint.findData(endpoint))
+        model = values.get("assistant.model")
+        self.model.setEditText(model if isinstance(model, str) else "")
+
+    def values(self) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        kind, model = self.kind, self._model_id()
+        if kind == "api":
+            out["assistant.endpoint"] = str(self.endpoint.currentData())
+        elif kind:
+            out["assistant.server"] = kind
+            if self.base_url.text().strip():
+                out["assistant.base_url"] = self.base_url.text().strip()
+            if kind in self.REGISTRY_LOCAL:
+                out["assistant.endpoint"] = kind  # its optional key (oMLX)
+        if model:
+            out["assistant.model"] = model
+        return out

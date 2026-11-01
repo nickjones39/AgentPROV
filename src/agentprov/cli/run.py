@@ -1137,10 +1137,14 @@ def _defence_endpoint(args: argparse.Namespace, entry: Any, values: Mapping[str,
     except EndpointError:
         raise CliUsageError(f"agentprov run: unknown --defence-endpoint {safe_text(args.defence_endpoint, 40)!r}") from None
     if endpoint.api_key_env:
-        value = values.get(endpoint.api_key_env)
+        value = _defence_key(args, endpoint.api_key_env, values, result)
         if not value:
-            raise LiveEnvironmentError(f"the defence endpoint's credential variable {endpoint.api_key_env} is not set in "
-                                       ".env", code="cli.environment.credential")
+            explicit = any(getattr(args, name, None) for name in ("env_file", "env_stdin"))
+            where = ("is not in the given source" if explicit else "is not in the OS keychain (agentprov keys set "
+                     f"{endpoint.api_key_env})" if getattr(args, "keychain", False) else
+                     f"is in neither the OS keychain (agentprov keys set {endpoint.api_key_env}) nor .env")
+            raise LiveEnvironmentError(f"the defence endpoint's credential variable {endpoint.api_key_env} {where}",
+                                       code="cli.environment.credential")
         register_secret(value)
         keys[endpoint.api_key_env] = value
     base_url = (values.get(endpoint.base_url_env) if endpoint.base_url_env else None) or endpoint.base_url
@@ -1152,6 +1156,95 @@ def _defence_endpoint(args: argparse.Namespace, entry: Any, values: Mapping[str,
     if custom:
         result.notices.append("--allow-custom-endpoint: the defence endpoint's host differs from the registry (recorded)")
     return {"endpoint": endpoint.name, "api_key_env": endpoint.api_key_env, "base_url": base_url}
+
+
+def _defence_entry_remote(name: str | None) -> bool:
+    """Whether ``--defence-endpoint`` names an entry that is not local (decided before any key source is read)."""
+    from agentprov_capture.endpoints import EndpointError, get_endpoint
+
+    if not name:
+        return False
+    try:
+        return not get_endpoint(name).local
+    except EndpointError:  # reported by _defence_endpoint with its own message
+        return False
+
+
+def _defence_class(spec: Mapping[str, Any]) -> str:
+    """The D-721 endpoint class of the resolved defence endpoint (``_defence_endpoint``'s table)."""
+    from agentprov.cli.live.policy import endpoint_class
+    from agentprov_capture.endpoints import get_endpoint
+
+    return endpoint_class(local_entry=get_endpoint(str(spec["endpoint"])).local, base_url=spec.get("base_url"))
+
+
+def _class_with_defence(args: argparse.Namespace, agent: Mapping[str, Any], endpoint_kind: str | None,
+                        defence_endpoint: Mapping[str, Any] | None, result: CommandResult) -> str | None:
+    """The run's D-721 class with the defence's own endpoint (D-675) counted: a defence that calls an endpoint off
+    loopback makes paid calls whatever the agent's endpoint, so the run is an ``api`` run (API consent and both caps,
+    refused before any spawn); the consent text names that endpoint."""
+    if defence_endpoint is None or endpoint_kind != "local" or _defence_class(defence_endpoint) != "api":
+        return endpoint_kind
+    _require_api_caps(args, _caps(args, agent).missing_for_api(), "the defence endpoint is not a local server on loopback")
+    result.notices.append("endpoint class api: the defence endpoint is not a local server on loopback (D-721)")
+    return "api"
+
+
+def _defence_cell_calls(entry: Any) -> int:
+    """The per-cell billed-call bound of an AgentDojo-family cell under the defence ``entry`` (``None``: undefended),
+    from the entry's declared ``cost`` (:func:`agentprov.cli.live.policy.defence_cell_calls`)."""
+    from agentprov.cli.live.policy import CELL_CALL_BOUND, defence_cell_calls
+
+    if entry is None:
+        return CELL_CALL_BOUND
+    bound = defence_cell_calls(entry.raw.get("cost"))
+    if bound is None:
+        raise LiveRefused(f"the API call and cost caps (D-725) cannot bound a cell under the defence {entry.id}: its "
+                          "registry entry declares a cost member the bound cannot use", code="cli.refused.api_caps")
+    return bound
+
+
+def _check_defence_caps(args: argparse.Namespace, entry: Any, defence_endpoint: Mapping[str, Any] | None) -> None:
+    """D-725 under a defence, before any spawn: the defence's calls are inside the per-cell bound
+    (:func:`_defence_cell_calls`), and a cost cap can price them. The caps have one price pair, the agent's, so a cost
+    cap is refused when the defence calls an endpoint off loopback, which has no prices of its own here (a loopback
+    endpoint costs nothing per token, so the agent's prices bound it)."""
+    _defence_cell_calls(entry)
+    if args.max_cost_usd is not None and defence_endpoint is not None and _defence_class(defence_endpoint) == "api":
+        raise LiveRefused(f"the cost cap (D-725) cannot price the calls the defence {entry.id} makes to its own endpoint "
+                          f"{safe_text(str(defence_endpoint.get('endpoint')), 40)}: --price-in and --price-out are the "
+                          "agent's prices, and that endpoint has none of its own", code="cli.refused.api_caps")
+
+
+def _defence_key(args: argparse.Namespace, name: str, values: Mapping[str, str], result: CommandResult) -> str | None:
+    """The defence endpoint's key from the run's key source, as the agent's (D-702 as amended): ``--env-file`` and
+    ``--env-stdin`` are their own source only; ``--keychain`` the keychain only; by default the keychain first, then
+    ``.env``. ``values`` already holds what those sources gave for the agent; the keychain is read for this variable."""
+    from agentprov.keys import KeychainError, read
+
+    if any(getattr(args, flag, None) for flag in ("env_file", "env_stdin")):
+        return values.get(name) or None
+    keychain = bool(getattr(args, "keychain", False))
+    try:
+        from_keychain = read([name]).get(name)
+    except KeychainError as exc:
+        if keychain and exc.code != "keychain.missing":
+            raise LiveEnvironmentError(f"the keychain cannot be read ({exc.code})",
+                                       code="cli.environment.keychain") from None
+        from_keychain = None
+        if not keychain:
+            result.notices.append(f"key: {name} (defence endpoint) not read from the OS keychain ({exc.code}); "
+                                  "looking in .env")
+    if from_keychain:
+        register_secret(from_keychain)
+        result.notices.append(f"key: {name} (defence endpoint) from the OS keychain (the source of truth; D-702)")
+        return from_keychain
+    if keychain:
+        return None
+    value = values.get(name) or None
+    if value:
+        result.notices.append(f"key: {name} (defence endpoint) from .env (not in the OS keychain)")
+    return value
 
 
 def _scripted_agent(args: argparse.Namespace) -> dict[str, Any]:
@@ -1268,6 +1361,30 @@ def _judge(text: str) -> tuple[str, str]:
     return role, model
 
 
+def _plan_judges(judges: Any, agent_table: Mapping[str, Any]) -> dict[str, Any]:
+    """A ``--plan`` file's judge tables, rebuilt from the agent table plus each judge's model, as ``--judge`` builds
+    them: a judge reaches the agent's endpoint with the agent's key, so a table that states another endpoint, base URL,
+    key variable, transport or any other agent member is refused (its own base URL would skip G.9.2's checks and could
+    send the agent's key to any host)."""
+    if not isinstance(judges, dict):
+        raise CliUsageError("agentprov run: --plan [judges] must be a table of judge roles")
+    rebuilt: dict[str, Any] = {}
+    for role, table in judges.items():
+        if not isinstance(table, dict):
+            raise CliUsageError(f"agentprov run: --plan judge {safe_text(str(role), 64)} must be a table")
+        model = table.get("model_requested", table.get("model"))
+        if not isinstance(model, str) or not model:
+            raise CliUsageError(f"agentprov run: --plan judge {safe_text(str(role), 64)} needs model_requested")
+        differ = sorted(str(k) for k, v in table.items()
+                        if k not in ("model_requested", "model") and agent_table.get(k) != v)
+        if differ:
+            raise CliUsageError(f"agentprov run: --plan judge {safe_text(str(role), 64)} sets "
+                                f"{', '.join(safe_text(k, 40) for k in differ[:8])} other than the agent's; judges use "
+                                "the agent's endpoint, base URL, key variable and transport (give only model_requested)")
+        rebuilt[role] = {**agent_table, "model_requested": model}
+    return rebuilt
+
+
 def _inspect_document(args: argparse.Namespace, agent: Mapping[str, Any], backend: str) -> dict[str, Any]:
     """An Inspect plan (D-663; ``agentprov_backend_inspect.plan``): ``[plan]``, ``[inspect]`` and the judge tables from
     the command line (or ``--plan``), the agent from the command line. Judges use the agent's endpoint, base URL and key
@@ -1290,6 +1407,8 @@ def _inspect_document(args: argparse.Namespace, agent: Mapping[str, Any], backen
         from_file = {k: v for k, v in spec.items() if k != "agent"}
         from_file.setdefault("plan", {}).update({"format": "agentprov-run-plan/0.1", "backend": backend})
         from_file["agent"] = agent_table
+        if "judges" in from_file:
+            from_file["judges"] = _plan_judges(from_file["judges"], agent_table)
         if _caps_given(args) and isinstance(from_file.get("inspect"), dict):
             from_file["inspect"].setdefault("cell_size", 1)  # D-740: one sample's worst case reserved per cell
         return from_file
@@ -1444,16 +1563,24 @@ def _probe_inconclusive(results: Mapping[str, Any]) -> bool:
     return bool(results.get("reachable")) and not results.get("roles_accepted") and results.get("roles") == "unconfirmed"
 
 
-def _probe(run_once: Any, result: CommandResult, budget: Any = None) -> tuple[dict[str, Any], int]:
+def _probe(run_once: Any, result: CommandResult, budget: Any = None, prior: Any = None) -> tuple[dict[str, Any], int]:
     """The preflight probe (D.10.9), repeated up to :data:`PROBE_ATTEMPTS` times while its verdict is ``unconfirmed``
     (D-729): the first accepted reply ends it, and any other verdict (refused, unreachable) is final at once. Every call
-    is charged to the caps (D-725). Returns the last results and the number of calls."""
+    is charged to the caps (D-725), and none is sent unless it fits them: ``prior`` is the campaign's
+    spend so far (the working corpus's attempts and earlier probes; :func:`_prior_budget`). Returns the last results and
+    the number of calls."""
     calls = 0
     while True:
+        reason = prior.probe_refusal() if prior is not None else None
+        if reason is not None:
+            raise LiveRefused(f"preflight: no probe call is sent ({reason}); nothing was run",
+                              code="cli.refused.api_caps")
         results = run_once()
         calls += 1
         if budget is not None:
             budget.charge_probe()
+        if prior is not None:
+            prior.charge_probe()
         if not _probe_inconclusive(results) or calls >= PROBE_ATTEMPTS:
             if calls > 1:
                 result.notices.append(f"preflight: {calls} probe call(s); the earlier replies gave no evidence that the "
@@ -1496,7 +1623,8 @@ def _evaluate_probe(results: Mapping[str, Any], args: argparse.Namespace, result
 
 
 def _consent(args: argparse.Namespace, *, agent: Mapping[str, Any], ctx: Context, result: CommandResult,
-             resume: ResumeState | None = None, endpoint_kind: str | None = None, budget: Any = None) -> None:
+             resume: ResumeState | None = None, endpoint_kind: str | None = None, budget: Any = None,
+             defence_endpoint: Mapping[str, Any] | None = None) -> None:
     """N.1.11(3): print what will be billed; ask interactively or require a consent flag (D-726): a ``local`` run takes
     ``--i-consent-to-local-run`` or ``--i-consent-to-api-costs``, an ``api`` run ``--i-consent-to-api-costs`` only.
 
@@ -1522,6 +1650,10 @@ def _consent(args: argparse.Namespace, *, agent: Mapping[str, Any], ctx: Context
     if judges:  # D-667: the judges are paid calls too, at the agent's endpoint and key
         lines.append("  judges (model calls at the same endpoint and key): "
                      + ", ".join(f"{safe_text(r, 64)} {safe_text(m, 120)}" for r, m in judges))
+    if defence_endpoint is not None:  # D-675: the defence's own model or embedding calls are paid calls too
+        lines.append(f"  defence endpoint {safe_text(str(defence_endpoint.get('base_url')), 200)} "
+                     f"({safe_text(str(defence_endpoint.get('endpoint')), 40)}), key variable "
+                     f"{defence_endpoint.get('api_key_env') or 'none'}: the defence's own model or embedding calls")
     local = endpoint_kind == "local"
     if local:
         lines.append("  local model server: no provider billing; the run loads this machine heavily")
@@ -1833,6 +1965,42 @@ def _resume_ledger(args: argparse.Namespace) -> Any:
     return Ledger()
 
 
+def _prior_probe_calls(live: Any) -> int:
+    """The preflight probe calls an earlier invocation recorded in the working corpus's ``live.caps``."""
+    caps = live.get("caps") if isinstance(live, Mapping) else None
+    count = caps.get("probe_calls") if isinstance(caps, Mapping) else None
+    return count if isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
+
+
+def _prior_budget(args: argparse.Namespace, budget: Any) -> Any:
+    """A read-only copy of what the campaign has spent before this invocation's probes (D-725, per corpus): the working
+    corpus's ledgered attempts, charged from their stored capture logs as the campaign charges them, and its earlier
+    probe calls. ``None`` without caps."""
+    from agentprov.cli.live.policy import Budget
+    from agentprov.corpus.layout import CorpusLayout, partial_dir
+    from agentprov.raw.store import RawObjectStore
+
+    if budget is None:
+        return None
+    prior = Budget(budget.caps, cell_calls=budget.cell_calls)
+    partial = partial_dir(_final_dir(args.corpus)) if args.corpus else None
+    if partial is None or not partial.is_dir():
+        return prior
+    manifest = _read_json(CorpusLayout(partial).manifest)
+    store = RawObjectStore(partial / "raw", create=False)
+
+    def stored(entry: Mapping[str, Any]) -> bytes | None:
+        sha = entry.get("capture_sha256")
+        try:
+            return store.read_bytes(sha) if isinstance(sha, str) else None
+        except (KeyError, OSError):
+            return None
+
+    prior.charge_all(stored(e) for e in _load_ledger(manifest, store).entries)
+    prior.charge_probe(_prior_probe_calls((manifest or {}).get("live")))
+    return prior
+
+
 def _resume_settled(args: argparse.Namespace, cells: Sequence[Mapping[str, Any]], config_digest: str,
                     repeats: int) -> dict[str, int]:
     """D-651: per cell key, how many of its units are settled (the rule of :func:`_resume_state`)."""
@@ -2077,6 +2245,10 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
         if not get_endpoint(_endpoint_name(args)).local:
             _require_api_caps(args, Caps(args.max_calls, args.max_cost_usd, args.price_in, args.price_out).missing_for_api(),
                               "the endpoint entry is not local")
+        if defence_entry is not None and defence_entry.aux_llm == "defence_endpoint" and \
+                _defence_entry_remote(args.defence_endpoint):
+            _require_api_caps(args, Caps(args.max_calls, args.max_cost_usd, args.price_in, args.price_out).missing_for_api(),
+                              "the defence endpoint entry is not local")
         if env_values is not None:  # --env-stdin: that source only (read before any other step, D-395)
             values = dict(env_values)
         elif args.keychain:  # --keychain: that source only, read only now (after the caps check)
@@ -2101,6 +2273,9 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
             _warn_unlisted(ctx, agent, result)  # D-734: a cached provider list that lacks the model warns, never refuses
     # D-675, before the redactor is built: the defence endpoint's key joins the secrets T0 scans staged files for
     defence_endpoint = _defence_endpoint(args, defence_entry, values, keys, result, scripted=scripted)
+    endpoint_kind = _class_with_defence(args, agent, endpoint_kind, defence_endpoint, result)
+    if defence_entry is not None and _caps_given(args):
+        _check_defence_caps(args, defence_entry, defence_endpoint)
     preset_rec: dict[str, Any] | None = None
     preset_plan: Any = None
     preset_facts_: Any = None
@@ -2139,7 +2314,7 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
     argv = [str(envs.env_python(env)), "-I", "-B", "-m", envs.backend_kind(project.backend).worker_module]
     egress: Any = None
     if sandbox is not None and sandbox["kind"] == "sandbox_exec":
-        from agentprov.cli.live.egress import EgressProxy, endpoint_target, forward_pairs
+        from agentprov.cli.live.egress import EgressProxy, endpoint_target, forward_pairs, tunnel_cap
         from agentprov.cli.live.sandbox import wrap_argv
 
         # D-664: T2 may connect to two loopback ports only. A remote endpoint is reached through T0's egress proxy,
@@ -2160,7 +2335,10 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
         if loopback:
             egress_port = port
         else:
-            egress = EgressProxy(targets, forward=forward_pairs(base_url, host, port, allow_lan=lan))
+            peak_jobs = max(getattr(args, "tune_values", None) or [jobs]) if getattr(args, "tune_jobs", None) else jobs
+            egress = EgressProxy(targets, forward=forward_pairs(base_url, host, port, allow_lan=lan),
+                                 max_tunnels=tunnel_cap(peak_jobs, len(targets),
+                                                        getattr(args, "max_connections", None) or 1))
             ctx_stack.callback(egress.stop)
             egress_port = egress.start()
         argv = wrap_argv(argv, staging_root=home / "staging", t2home_root=home / "t2home", repo=root, home=Path.home(),
@@ -2187,7 +2365,8 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
 
     if args.preflight_only:
         if not scripted:  # N.1.11(3): the probe is a paid call, so consent comes first
-            _consent(args, agent=agent, ctx=ctx, result=result, endpoint_kind=endpoint_kind)
+            _consent(args, agent=agent, ctx=ctx, result=result, endpoint_kind=endpoint_kind,
+                     defence_endpoint=defence_endpoint)
         results, probes = _probe(lambda: _preflight(argv, env_for, identity, marker, expect, agent, home, script,
                                                     redactor, result, backend), result)
         _evaluate_probe(results, args, result)
@@ -2198,6 +2377,10 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
                               attack_params=cache.attack_params if cache is not None else None)
     if defence_endpoint is not None:  # D-675: in the plan's backend config, so config_sha256 covers it
         plan_doc.setdefault("backend", {})["defence_endpoint"] = defence_endpoint
+    if egress is not None:  # an Inspect plan file's max_connections: concurrent model calls of one cell
+        connections = (plan_doc.get("inspect") or {}).get("max_connections")
+        if isinstance(connections, int) and not isinstance(connections, bool) and connections > 1:
+            egress.max_tunnels = max(egress.max_tunnels, tunnel_cap(peak_jobs, len(targets), connections))
     planned_attacks = (plan_doc.get("plan") or {}).get("attacks") or []
     if cache is None and live_table.get("attack_cache") and \
             _dict_get(live_table["attack_cache"], "attack") in planned_attacks:
@@ -2243,7 +2426,7 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
     if caps.active:
         inspect_backend = project.backend.startswith("inspect-") and not scripted
         budget = Budget(caps, cell_calls=_inspect_cell_calls(project.backend, plan_doc, agent, identity)) \
-            if inspect_backend else Budget(caps)
+            if inspect_backend else Budget(caps, cell_calls=_defence_cell_calls(defence_entry))
     if args.dry_run:
         if budget is not None:
             calls, usd = budget.cell_bound()
@@ -2253,9 +2436,10 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
         return _dry_run_live(args, result, cells, plan, config_digest, repeats, corpus_id, project)
     resume = _resume_state(args, cells, config_digest, repeats)
     if not scripted:  # N.1.11(3): consent before the first model call, which is the paid preflight probe
-        _consent(args, agent=agent, ctx=ctx, result=result, resume=resume, endpoint_kind=endpoint_kind, budget=budget)
+        _consent(args, agent=agent, ctx=ctx, result=result, resume=resume, endpoint_kind=endpoint_kind, budget=budget,
+                 defence_endpoint=defence_endpoint)
         probe, _ = _probe(lambda: _preflight(argv, env_for, identity, marker, expect, agent, home, None, redactor,
-                                             result, backend), result, budget)
+                                             result, backend), result, budget, _prior_budget(args, budget))
         _evaluate_probe(probe, args, result)
     execute_kw: dict[str, Any] = dict(
         capability=capability, project=project, home=home, marker=marker, identity=identity, expect=expect,
@@ -2771,6 +2955,8 @@ def _execute(ctx: Context, args: argparse.Namespace, result: CommandResult, *, c
                 writer.add_object(cache.verified.data, cache.verified.origin, ext="json")
             ledger = _load_ledger(manifest, writer.store)
             before = (manifest or {}).get("live") or {}
+            if budget is not None:  # D-725, per corpus: the earlier invocations' probes left no capture log to charge
+                budget.charge_probe(_prior_probe_calls(before))
             mixed = sorted({str(e.get("config_digest")) for e in ledger.entries} - {config_digest})
             if mixed and not args.allow_mixed_config:
                 raise LiveRefused("the working corpus holds sessions of another live configuration (G5); pass "

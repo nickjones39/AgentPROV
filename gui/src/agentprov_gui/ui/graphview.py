@@ -64,7 +64,16 @@ from agentprov_gui.graph.layout import LayoutResult, compute_layout
 from agentprov_gui.graph.scene import LOD_RASTER, GraphScene, lod_tier, paint_raster
 from agentprov_gui.graph.viewgraph import ViewGraph, attribute_rows, full_view, overlay_view
 from agentprov_gui.ui import theme
-from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, is_tooltip_role, safe_tooltip, set_tooltip
+from agentprov_gui.ui.safe import (
+    ReadOnlyText,
+    SafeLabel,
+    help_tooltip,
+    is_tooltip_role,
+    safe_tooltip,
+    set_control_tooltip,
+    set_header_tooltips,
+    set_tooltip,
+)
 from agentprov_gui.ui.worker import submit
 
 __all__ = ["GraphTab", "GraphView"]
@@ -280,6 +289,10 @@ def fill_table(table: QTableWidget, rows: list[tuple[str, str]]) -> None:
 # ----------------------------------------------------------------------------------------------- elements list
 class ElementsModel(QAbstractTableModel):
     HEADERS: Final = ("id", "section", "bundle", "class", "degree", "folded")
+    TIPS: Final = ("The element's id", "Its PROV section (entity, activity, agent, …)",
+                   "The bundle it is declared in (core, inference, assessment), or outside the drawn bundles",
+                   "Its evidence class: O observed, D derived, I inferred", "The edges drawn at it",
+                   "The elements folded onto it (the +n badge)")
 
     def __init__(self) -> None:
         super().__init__()
@@ -315,8 +328,12 @@ class ElementsModel(QAbstractTableModel):
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+        if orientation != Qt.Orientation.Horizontal:
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
             return self.HEADERS[section]
+        if is_tooltip_role(role):
+            return help_tooltip(self.TIPS[section])
         return None
 
     def row_of(self, key: str) -> int:
@@ -358,7 +375,7 @@ class GraphTab(QWidget):
     def _button(self, text: str, name: str, slot: Any, tip: str) -> QPushButton:
         b = QPushButton(text, self)
         b.setAccessibleName(name)
-        set_tooltip(b, tip)
+        set_control_tooltip(b, tip)
         b.clicked.connect(slot)
         return b
 
@@ -375,10 +392,13 @@ class GraphTab(QWidget):
         self.cb_core = QCheckBox("core", self)
         self.cb_core.setChecked(True)
         self.cb_core.setEnabled(False)
+        set_tooltip(self.cb_core, "The core bundle (the observed and derived statements) is always shown")
         self.cb_inf = QCheckBox("inference", self)
         self.cb_inf.setChecked(True)
         self.cb_assess = QCheckBox("assessment", self)
         self.cb_assess.setChecked(False)
+        set_control_tooltip(self.cb_inf, "Show the inference bundle: statements inferred by a method or heuristic")
+        set_control_tooltip(self.cb_assess, "Show the assessment bundle: policy claims about the execution")
         for cb in (self.cb_core, self.cb_inf, self.cb_assess):
             cb.setAccessibleName(f"Show {cb.text()} bundle")
             bar.addWidget(cb)
@@ -389,16 +409,23 @@ class GraphTab(QWidget):
         self.evidence.setAccessibleName("Evidence class filter")
         self.evidence.addItems(["evidence: all", "only Observed", "only Derived", "only Inferred"])
         self.evidence.currentIndexChanged.connect(self._evidence_changed)
+        set_control_tooltip(self.evidence, "Dim every element that is not of the chosen evidence class: Observed (the "
+                                           "source recorded it), Derived (computed by a rule) or Inferred")
         bar.addWidget(self.evidence)
         self.layout_choice = QComboBox(self)
         self.layout_choice.setAccessibleName("Layout")
         self.layout_choice.addItems(["layout: core + overlays", "layout: full (layered)"])
         self.layout_choice.currentIndexChanged.connect(self._relayout)
+        set_control_tooltip(self.layout_choice, "core + overlays: the core bundle is laid out and the other bundles' "
+                                                "elements are folded onto it (+n badges), their edges drawn over it. "
+                                                "full: every element laid out in layers.")
         bar.addWidget(self.layout_choice)
         self.cb_collapse = QCheckBox("collapse mentions", self)
         self.cb_collapse.setAccessibleName("Collapse assessment mentions")
         self.cb_collapse.setChecked(True)
         self.cb_collapse.toggled.connect(self._relayout)
+        set_control_tooltip(self.cb_collapse, "Full layout: fold the assessment's mentions onto the elements they "
+                                              "mention instead of drawing them as nodes of their own")
         bar.addWidget(self.cb_collapse)
         bar.addStretch(1)
         if self.two_rows:
@@ -410,10 +437,13 @@ class GraphTab(QWidget):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self._search)
         self.search.returnPressed.connect(self._search_enter)
+        set_control_tooltip(self.search, "Find elements by id, PROV type or rule (and attribute values while Show content "
+                                         "is on); Return selects the first match")
         bar.addWidget(self.search, 1 if self.two_rows else 0)
         self.hops = QComboBox(self)
         self.hops.setAccessibleName("Focus neighbourhood size")
         self.hops.addItems(["k = 1", "k = 2", "k = 3"])
+        set_control_tooltip(self.hops, "How many edges away from the selection Focus keeps in view")
         bar.addWidget(self.hops)
         self.focus_btn = self._button("Focus", "Focus on selection", self._focus, "Dim everything outside the k-hop "
                                       "neighbourhood of the selection")
@@ -422,6 +452,8 @@ class GraphTab(QWidget):
         self.content_cb = QCheckBox("Show content", self)
         self.content_cb.setAccessibleName("Show content in the graph popover and inspector")
         self.content_cb.toggled.connect(lambda on: self.set_show_content(on, self.content_limit))
+        set_control_tooltip(self.content_cb, "Show data values in the hover popover and the inspector (escaped, fenced "
+                                             "as data, cut at the Settings limit); off again for each execution")
         bar.addWidget(self.content_cb)
         outer.addLayout(bar)
 
@@ -433,6 +465,8 @@ class GraphTab(QWidget):
         self.results = QListWidget(side)
         self.results.setAccessibleName("Search results")
         self.results.setMaximumHeight(120)
+        set_control_tooltip(self.results, "The elements that match the search; Return or a double-click selects one and "
+                                          "centres it")
         self.results.itemActivated.connect(lambda item: self.select(item.data(Qt.ItemDataRole.UserRole), centre=True))
         sl.addWidget(SafeLabel("Search results", name="Search results heading", parent=side, selectable=False))
         sl.addWidget(self.results)
@@ -451,6 +485,8 @@ class GraphTab(QWidget):
         self.inspector = QTableWidget(0, 2, side)
         self.inspector.setAccessibleName("Selected element attributes")
         self.inspector.setHorizontalHeaderLabels(["attribute", "value"])
+        set_header_tooltips(self.inspector, ["An attribute of the selected element",
+                                             "Its value (data hidden until Show content)"])
         self.inspector.verticalHeader().setVisible(False)
         self.inspector.horizontalHeader().setStretchLastSection(True)
         self.inspector.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)

@@ -76,7 +76,8 @@ def is_index_deposit(directory: Path) -> bool:
 
 
 def parse_deposits(text: str) -> list[Deposit]:
-    """One deposit per line, ``DEPOSIT_DIR sha256:ROOT [sha256:ROOT ...]`` (a path without spaces); the first is the
+    """One deposit per line, ``DEPOSIT_DIR sha256:ROOT [sha256:ROOT ...]`` (an absolute path without spaces, or one
+    starting with ``~``); the first is the
     umbrella. An index-only umbrella (D-947) holds no corpus, so the first line names it alone, with no root digest.
     :class:`ValueError` with the line's number for anything else."""
     out: list[Deposit] = []
@@ -86,6 +87,8 @@ def parse_deposits(text: str) -> list[Deposit]:
             continue
         roots = tuple(parts[1:])
         directory = Path(parts[0]).expanduser()
+        if not directory.is_absolute():  # the uploader runs in the checkout, not the GUI's cwd; "-x" is no option
+            raise ValueError(f"line {number}: DEPOSIT_DIR must be an absolute path (or start with ~)")
         if not out and is_index_deposit(directory):
             if roots:
                 raise ValueError(f"line {number}: an index deposit holds no corpus; give it no root digest")

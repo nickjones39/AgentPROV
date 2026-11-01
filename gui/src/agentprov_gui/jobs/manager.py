@@ -23,6 +23,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import uuid
@@ -41,14 +42,17 @@ from agentprov_gui.jobs.commands import JobSpec
 __all__ = [
     "ENV_ALLOWLIST",
     "JOB_FORMAT",
+    "USER_BIN_DIRS",
     "CliLocator",
     "Job",
     "JobManager",
     "SpawnRefused",
     "allowlisted_env",
     "atomic_write_json",
+    "installed_program",
     "new_job_id",
     "read_json",
+    "set_installed_program",
 ]
 
 JOB_FORMAT: Final = "agentprov-gui-job/0.1"
@@ -147,11 +151,43 @@ def read_json(path: Path, limit: int = _SMALL) -> dict[str, Any] | None:
 
 
 # ----------------------------------------------------------------------------------------------- the CLI
+#: where ``pip install --user``, ``pipx`` and Homebrew's Python put ``agentprov`` on macOS and Linux: an app started from
+#: the Finder or a desktop menu gets a short PATH without them (D-1030)
+USER_BIN_DIRS: Final = ("~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin")
+#: Settings › General's "agentprov program" (:func:`set_installed_program`); ``None``: look on PATH
+_installed_setting: Path | None = None
+
+
+def set_installed_program(program: Path | None) -> None:
+    """The ``agentprov`` program Settings › General names, used when no checkout is set (D-1030)."""
+    global _installed_setting
+    _installed_setting = program
+
+
+def installed_program(program: Path | None = None, environ: Mapping[str, str] | None = None) -> Path | None:
+    """The ``agentprov`` that ``pip install agentprov`` installed (D-1030): ``program`` when given (``None`` when it is
+    not a file: the named one is never swapped for another), else the first on ``PATH``, then in :data:`USER_BIN_DIRS`.
+    The app's own executable is never taken: Windows matches ``agentprov.exe`` to ``AgentPROV.exe``."""
+    if program is not None:
+        program = Path(os.path.abspath(program.expanduser()))
+        return program if program.is_file() and os.access(program, os.X_OK) else None
+    path = (os.environ if environ is None else environ).get("PATH", "")
+    dirs = [*path.split(os.pathsep), *(() if os.name == "nt" else (os.path.expanduser(d) for d in USER_BIN_DIRS))]
+    own = os.path.realpath(sys.executable) if getattr(sys, "frozen", False) else None
+    for found in (shutil.which("agentprov", path=d) for d in dirs if d):
+        if found is not None and os.path.realpath(found) != own:
+            return Path(os.path.abspath(found))
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class CliLocator:
     """Which ``agentprov`` a job runs: the configured checkout's ``.venv`` CLI, else ``uv run --locked --project``.
     ``python`` is the interpreter resolved the same way (GR-19): the job queue wrapper and the checkout's tools run with
-    it, never with a ``.venv`` path the ``uv run`` fallback does not have. Empty: no interpreter is known."""
+    it, never with a ``.venv`` path the ``uv run`` fallback does not have. Empty: no interpreter is known.
+
+    Without a checkout it is the ``agentprov`` installed with ``pip install agentprov`` (:func:`installed_program`,
+    D-1030), with no interpreter: the checkout's tools and the job queue need a checkout."""
 
     checkout: Path | None
     program: tuple[str, ...] = ()
@@ -160,7 +196,8 @@ class CliLocator:
     @classmethod
     def for_checkout(cls, checkout: Path | None) -> CliLocator:
         if checkout is None:
-            return cls(None, ())
+            found = installed_program(_installed_setting)
+            return cls(None, (str(found),) if found is not None else ())
         checkout = Path(os.path.abspath(checkout.expanduser()))  # the child's cwd is its job directory (GR-51)
         venv = checkout / ".venv"
         exe = venv / ("Scripts/agentprov.exe" if os.name == "nt" else "bin/agentprov")
@@ -175,6 +212,15 @@ class CliLocator:
     @property
     def available(self) -> bool:
         return bool(self.program)
+
+    def describe(self) -> str:
+        """Which CLI this is, in words for Settings › General (paths are the user's own; shown escaped)."""
+        if not self.program:
+            return ("none: the checkout has no .venv/bin/agentprov, and uv run cannot run it there" if self.checkout
+                    is not None else "none: no checkout is set and no agentprov program was found (pip install agentprov)")
+        if self.checkout is not None:
+            return f"the checkout's CLI ({'uv run' if len(self.program) > 1 else self.program[0]})"
+        return f"the installed agentprov ({self.program[0]})"
 
 
 # ----------------------------------------------------------------------------------------------- jobs

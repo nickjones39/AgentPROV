@@ -33,6 +33,7 @@ from typing import Any, Final
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QWidget
 
+from agentprov_gui.platform import ACTIVITY_TIP, SEARCH_TIP, TOOLBAR_TIPS
 from agentprov_gui.text import clean
 
 __all__ = ["ITEMS", "DisplayFlags", "NativeChrome", "available", "install"]
@@ -147,18 +148,20 @@ def _make_classes() -> dict[str, Any]:
                 item.searchField().setTarget_(self)
                 item.searchField().setAction_("searchChanged:")
                 item.setLabel_("Search")
+                item.setToolTip_(SEARCH_TIP)
                 return item
             if ident == ACTIVITY_ID:
                 item = AppKit.NSToolbarItem.alloc().initWithItemIdentifier_(identifier)
                 item.setView_(self.activity_view)
                 item.setLabel_("Activity")
+                item.setToolTip_(ACTIVITY_TIP)
                 return item
             if ident not in ITEMS:
                 return None
             symbol, label = ITEMS[ident]
             item = AppKit.NSToolbarItem.alloc().initWithItemIdentifier_(identifier)
             item.setLabel_(label)
-            item.setToolTip_(label)
+            item.setToolTip_(TOOLBAR_TIPS.get(ident, label))  # plain text (AppKit draws no markup)
             image = AppKit.NSImage.imageWithSystemSymbolName_accessibilityDescription_(symbol, label)
             if image is not None:
                 item.setImage_(image)

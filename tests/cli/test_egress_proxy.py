@@ -566,3 +566,15 @@ def test_the_run_forwards_only_an_http_lan_endpoint_in_any_case():
     assert forward_pairs("https://10.0.0.5/v1", host, port, allow_lan=True) == []  # tunnelled through CONNECT
     host, port, _loopback = endpoint_target("https://api.example/v1")
     assert forward_pairs("https://api.example/v1", host, port, allow_lan=False) == []
+
+
+def test_the_tunnel_cap_grows_with_the_campaign_s_concurrency() -> None:
+    """Review UC-24: a fixed 64-tunnel cap was below the --jobs the host allows (96 on the M5 Ultra), so tunnel 65 got
+    503 and its cell failed; the cap is sized from the jobs, the endpoints and an Inspect cell's connections."""
+    from agentprov.cli.live.egress import MAX_TUNNELS, TUNNELS_PER_CONNECTION, tunnel_cap
+
+    assert tunnel_cap(1, 1) == MAX_TUNNELS == 64  # small campaigns keep the old bound
+    assert tunnel_cap(96, 1) == 96 * TUNNELS_PER_CONNECTION >= 96
+    assert tunnel_cap(96, 2) == 2 * tunnel_cap(96, 1)  # MELON: the agent's and the defence's endpoints
+    assert tunnel_cap(10, 1, connections=8) == 160
+    assert tunnel_cap(0, 0, 0) == MAX_TUNNELS

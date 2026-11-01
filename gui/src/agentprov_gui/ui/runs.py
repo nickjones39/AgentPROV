@@ -59,11 +59,15 @@ from agentprov_gui.ui.safe import (
     ReadOnlyText,
     SafeLabel,
     ask,
+    help_tooltip,
     is_tooltip_role,
     safe_message_box,
     safe_tooltip,
+    set_control_tooltip,
+    set_header_tooltips,
+    set_tab_tooltip,
 )
-from agentprov_gui.ui.worker import submit
+from agentprov_gui.ui.worker import run_off_ui, submit
 
 __all__ = ["JobsModel", "RunsPage"]
 
@@ -118,6 +122,15 @@ def job_state_text(job: Job) -> str:
 
 class JobsModel(QAbstractTableModel):
     HEADERS: Final = ("job", "command", "state", "tier", "progress", "created")
+    HEADER_TIPS: Final = (
+        "The job's label; rest the pointer on a row for its job id",
+        "The command the job runs (import, validate, run …)",
+        "◐ running; ✓ ended with exit 0, × with another exit code (the outcome and code in brackets); ? ended "
+        "unobserved: its supervisor is gone and no end was recorded (killed from outside, or the machine restarted)",
+        "The job's risk tier: R0 read-only, R1 writes local data, R2 network, downloads or paid calls",
+        "Units done (of the total, with the share) from the job's progress events; empty until the app follows the job",
+        "When the job was created (UTC)",
+    )
 
     def __init__(self) -> None:
         super().__init__()
@@ -149,8 +162,12 @@ class JobsModel(QAbstractTableModel):
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+        if orientation != Qt.Orientation.Horizontal:
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
             return self.HEADERS[section]
+        if is_tooltip_role(role):
+            return help_tooltip(self.HEADER_TIPS[section])
         return None
 
 
@@ -195,10 +212,11 @@ class RunsPage(QWidget):
         self.sessions_timer.timeout.connect(self._sessions_refresh)
 
     # ------------------------------------------------------------------------------------------ widgets
-    def _button(self, text: str, name: str, slot: Any) -> QPushButton:
+    def _button(self, text: str, name: str, slot: Any, tip: str) -> QPushButton:
         b = QPushButton(text, self)
         b.setAccessibleName(name)
         b.clicked.connect(slot)
+        set_control_tooltip(b, tip)
         return b
 
     def _build(self) -> None:
@@ -211,10 +229,24 @@ class RunsPage(QWidget):
             if form.menu:
                 menu.addAction(form.title, partial(self.new_job, key))
         self.new_btn.setMenu(menu)
+        set_control_tooltip(self.new_btn, "A form for each command (import, validate, derive, recompute, CI …). Each "
+                                          "shows the exact command and its tier, and starts it as a job after the "
+                                          "tier's confirmation.")
         bar.addWidget(self.new_btn)
-        bar.addWidget(self._button("Dev Run…", "Start a dev run", self.start_dev_run))
-        bar.addWidget(self._button("Live Dev Run…", "Start a live dev run", self.start_live_dev_run))
-        self.live_btn = self._button("▶ Run Live…", "Run live", self.run_live)
+        bar.addWidget(self._button(
+            "Dev Run…", "Start a dev run", self.start_dev_run,
+            "A quick end-to-end check: a few executions of every importable part from the fetch cache, each imported "
+            "into a scratch corpus under $AGENTPROV_HOME/dev-runs, then validated and recomputed as one batch. Shows "
+            "the plan first "
+            "(agentprov devrun plan, devrun start --confirm-r2); the choices are in Settings › Dev Runs."))
+        bar.addWidget(self._button(
+            "Live Dev Run…", "Start a live dev run", self.start_live_dev_run,
+            "Opens Run Live preset for a small capture (scripted by default) into a new dev-run folder, with the "
+            "tasks, attacks and the call and cost caps from Settings › Dev Runs."))
+        self.live_btn = self._button(
+            "▶ Run Live…", "Run live", self.run_live,
+            "Configures a live capture (agentprov run), shows its estimate, and starts it as a job after the "
+            "confirmation.")
         bar.insertWidget(0, self.live_btn)
         bar.addStretch(1)
         bar.addWidget(SafeLabel("Each batch runs as its own job: it keeps going when this window closes.", name="Batch note", parent=self))
@@ -235,6 +267,8 @@ class RunsPage(QWidget):
         self.view.verticalHeader().setVisible(False)
         self.view.horizontalHeader().setStretchLastSection(True)
         self.view.selectionModel().currentRowChanged.connect(self._row_changed)
+        set_control_tooltip(self.view, "Every job, running and ended; select one for its dashboard. Jobs keep running "
+                                       "when this window closes.")
         split.addWidget(self.view)
         dash = QWidget(split)
         dl = QVBoxLayout(dash)
@@ -245,13 +279,24 @@ class RunsPage(QWidget):
         dl.addWidget(self.argv)
         self.bar = QProgressBar(dash)
         self.bar.setAccessibleName("Job progress")
+        set_control_tooltip(self.bar, "Units done of the total from the selected job's progress events. The bar "
+                                      "moves without a total while a running job has not reported one, and is full "
+                                      "once a job without one has ended.")
         dl.addWidget(self.bar)
         self.facts = SafeLabel("", name="Job facts", parent=dash)
+        set_control_tooltip(self.facts, "Units done and in flight; while the job runs, its rate and ETA range; dropped "
+                                        "or skipped progress events, and warnings such as a skipped conformance check "
+                                        "or a stale lock.")
         dl.addWidget(self.facts)
         tables = QHBoxLayout()
         self.counts = _table(["status", "count"], "Counts by status", dash)
         self.codes = _table(["code", "count"], "Failures and issues by code", dash)
         self.codes.cellDoubleClicked.connect(self._code_clicked)
+        set_header_tooltips(self.counts, ["The status a finished unit reported in the job's progress events",
+                                          "How many units ended with that status"])
+        set_header_tooltips(self.codes, ["A failure or issue code finished units reported; double-click a row to "
+                                         "open the job's log on the Logs page",
+                                         "How many units reported that code"])
         tables.addWidget(self.counts)
         tables.addWidget(self.codes)
         dl.addLayout(tables)
@@ -259,15 +304,32 @@ class RunsPage(QWidget):
         self.stderr.setMaximumHeight(120)
         dl.addWidget(self.stderr)
         actions = QHBoxLayout()
-        self.stop_btn = self._button("Stop…", "Stop the job", self.stop)
-        self.kill_btn = self._button("Force Kill…", "Force kill the job", self.kill)
-        self.drain_btn = self._button("Pause (Drain)", "Pause the job", self.drain)
-        self.resume_btn = self._button("Resume", "Resume the job as a new job", self.resume)
-        self.viewer_btn = self._button("Open in Viewer", "Open the written corpus in the viewer", self._open_viewer)
-        self.log_btn = self._button("Open Log", "Open the job log", self._open_log)
-        self.copy_btn = self._button("Copy Command", "Copy the job command", self.copy_command)
-        self.preview_btn = self._button("Live Preview (experimental)…", "Open the live preview (off by default)",
-                                        self.open_preview)
+        self.stop_btn = self._button(
+            "Stop…", "Stop the job", self.stop,
+            "Asks, then stops the job gracefully: units in flight are aborted and recorded as aborted, and the CLI "
+            "flushes, releases its lock and exits with code 130 (agentprov jobs stop ID).")
+        self.kill_btn = self._button(
+            "Force Kill…", "Force kill the job", self.kill,
+            "Asks, then kills the job's whole process tree without clean-up; its corpus lock stays (stale). Use it "
+            "only after Stop has had time to work (agentprov jobs kill ID --yes).")
+        self.drain_btn = self._button(
+            "Pause (Drain)", "Pause the job", self.drain,
+            "Finishes the units in flight and starts no new ones (agentprov jobs drain ID). Only for a running job "
+            "started with a control file.")
+        self.resume_btn = self._button(
+            "Resume", "Resume the job as a new job", self.resume,
+            "Starts the same command again as a new job, after the tier confirmation; the command's own resume rules "
+            "decide what is redone (agentprov jobs resume ID).")
+        self.viewer_btn = self._button("Open in Viewer", "Open the written corpus in the viewer", self._open_viewer,
+                                       "Opens the corpus the job writes in the Viewer.")
+        self.log_btn = self._button("Open Log", "Open the job log", self._open_log,
+                                    "Shows the job's log on the Logs page (agentprov jobs follow ID --log).")
+        self.copy_btn = self._button("Copy Command", "Copy the job command", self.copy_command,
+                                     "Copies the job's full command line to the clipboard.")
+        self.preview_btn = self._button(
+            "Live Preview (experimental)…", "Open the live preview (off by default)", self.open_preview,
+            "Opens a provisional graph of the selected running live capture (agentprov run); experimental, and off "
+            "until you open it.")
         self.preview_btn.setEnabled(False)
         for b in (self.stop_btn, self.kill_btn, self.drain_btn, self.resume_btn, self.viewer_btn, self.log_btn,
                   self.copy_btn, self.preview_btn):
@@ -276,17 +338,31 @@ class RunsPage(QWidget):
         split.addWidget(dash)
         jl.addWidget(split)
         self.tabs.addTab(jobs_tab, "Jobs")
+        set_tab_tooltip(self.tabs, 0, "Every job and the dashboard of the selected one. A job is a detached agentprov "
+                                      "process: it keeps running when this window closes.", wrap=True)
         # batches tab
         batch_tab = QWidget(self.tabs)
         bl = QVBoxLayout(batch_tab)
         self.batch_table = _table(["batch", "step", "command", "state", "exit", "note"], "Batch steps", batch_tab)
+        set_header_tooltips(self.batch_table, [
+            "The batch's label (the last 20 batches are listed)",
+            "The step's place in the batch",
+            "The step's job label",
+            "pending, held (an R2 step waits for Resume Batch…), running, done, failed, blocked or skipped",
+            "The step's exit code once it ended",
+            "Why a step is held, blocked, skipped or a fallback"])
         bl.addWidget(self.batch_table)
         batch_actions = QHBoxLayout()
-        batch_actions.addWidget(self._button("Resume Batch…", "Confirm the held steps of the selected batch",
-                                             self.resume_batch))
+        batch_actions.addWidget(self._button(
+            "Resume Batch…", "Confirm the held steps of the selected batch", self.resume_batch,
+            "Confirms each held step (network or paid calls) of the selected row's batch, then starts a new driver "
+            "job for it (agentprov batch resume ID --confirm-r2). A cancelled confirmation leaves the batch held."))
         batch_actions.addStretch(1)
         bl.addLayout(batch_actions)
         self.tabs.addTab(batch_tab, "Batches")
+        set_tab_tooltip(self.tabs, 1, "The steps of each batch: an ordered list of jobs that runs as one job of its "
+                                      "own (agentprov batch run), so it keeps going when this window closes.",
+                        wrap=True)
         # dev runs tab
         dev_tab = QWidget(self.tabs)
         dvl = QVBoxLayout(dev_tab)
@@ -294,8 +370,22 @@ class RunsPage(QWidget):
         dvl.addWidget(self.dev_info)
         self.dev_table = _table(["part", "import", "mapped", "with issues", "degenerate", "failed", "top issues",
                                  "validate", "recompute", "seconds"], "Dev run summary", dev_tab)
+        set_header_tooltips(self.dev_table, [
+            "The source part (source/part) the row covers",
+            "How the part's import ended (… while it has not)",
+            "Executions the import mapped",
+            "Executions sealed with issues",
+            "Degenerate AERs: the header, run scope and seal only, for an execution that could not be mapped",
+            "Executions whose import failed",
+            "The import's five most frequent issue codes, with their counts",
+            "How agentprov validate of the part's scratch corpus ended",
+            "How agentprov recompute --dry-run ended, with its number of differences",
+            "Wall-clock seconds of each of the part's jobs, by command"])
         dvl.addWidget(self.dev_table)
         self.tabs.addTab(dev_tab, "Dev Runs")
+        set_tab_tooltip(self.tabs, 2, "The latest dev run: one row per part with its import, validate and recompute "
+                                      "results. Start one with Dev Run…; Settings › Dev Runs holds the choices.",
+                        wrap=True)
         # sessions tab
         sess_tab = QWidget(self.tabs)
         sl = QVBoxLayout(sess_tab)
@@ -304,14 +394,27 @@ class RunsPage(QWidget):
         sl.addWidget(self.sess_info)
         self.sessions = _table(["name", "state", "waits on", "branch", "dirty", "suite on head", "idle", "flags"],
                                "Development sessions", sess_tab)
+        set_header_tooltips(self.sessions, [
+            "The session's name in its status file (tools/session_status.py)",
+            "The state the session reported (building, suite-running, green, waiting-for-user, parked, done …)",
+            "What the session waits on, as recorded",
+            "The session's branch",
+            "Whether its worktree had uncommitted changes when it reported",
+            "True when its last suite ran green on its current head",
+            "Time since the session's last heartbeat",
+            "STALE, DEAD, WAITING-ON-USER, SUITE-OLD, GONE, INVALID or HEAD-MOVED; sessions waiting on you are "
+            "listed first"])
         sl.addWidget(self.sessions)
         self.tabs.addTab(sess_tab, "Sessions")
+        set_tab_tooltip(self.tabs, 3, "A read-only view of the development sessions that share this machine "
+                                      "(tools/queue_status.py --json, every 30 s while this tab is visible).",
+                        wrap=True)
         self.tabs.currentChanged.connect(self._tab_changed)
 
     # ------------------------------------------------------------------------------------------ jobs
     def options_for(self, words: tuple[str, ...]) -> frozenset[str]:
         if words not in self._options:
-            self._options[words] = cli_options(self.manager.cli, words)
+            self._options[words] = run_off_ui(self, lambda: cli_options(self.manager.cli, words))
         return self._options[words]
 
     def tool_program(self, tool: str) -> tuple[str, ...] | None:
@@ -382,7 +485,7 @@ class RunsPage(QWidget):
         cap = job.record.get("call_cap")
         if not isinstance(cap, int) or isinstance(cap, bool) or job.job_id in self._capped:
             return
-        if follower.state.steps.get("model_call", 0) >= cap:
+        if follower.state.step_count("model_call") >= cap:  # absolute: the heartbeat's count after a re-attach
             self._capped.add(job.job_id)
             if not self.manager.request(job, "drain"):
                 self.manager.stop(job)
@@ -633,10 +736,13 @@ class RunsPage(QWidget):
 
     @staticmethod
     def _resume_extra(job: Job) -> dict[str, str | int]:
-        """GR-25: a resumed dev-run job stays part of its run (its folder busy, its row in the summary, its queue)."""
+        """GR-25: a resumed dev-run job stays part of its run (its folder busy, its row in the summary, its queue), and
+        a capped live dev run keeps its model-call cap (§19.2)."""
         out: dict[str, str | int] = {k: v for k in ("devrun", "part") if isinstance(v := job.record.get(k), str) and v}
         if isinstance(cpu := job.record.get("queue_cpu"), int) and not isinstance(cpu, bool):
             out["queue_cpu"] = cpu
+        if isinstance(cap := job.record.get("call_cap"), int) and not isinstance(cap, bool):  # §19.2: the cap stays,
+            out.update(call_cap=cap, progress_level="steps")  # with the model_call steps it counts
         return out
 
     def _open_log(self) -> None:
@@ -703,7 +809,8 @@ class RunsPage(QWidget):
     # ------------------------------------------------------------------------------------------ dev runs
     def dev_settings(self) -> devrun.DevSettings:
         """The ``agentprov settings`` ``devrun.*`` values (D-703, D-705); the defaults when they cannot be read."""
-        code, out, _err = self.manager.call(["settings", "list", "--prefix", "devrun.", "--format", "json"])
+        code, out, _err = run_off_ui(self, lambda: self.manager.call(["settings", "list", "--prefix", "devrun.",
+                                                                      "--format", "json"]))
         try:
             values = json.loads(out).get("values") if code == 0 else None
         except ValueError:
@@ -716,7 +823,7 @@ class RunsPage(QWidget):
         if self.manager.cli.checkout is None or not self.manager.cli.available:
             safe_message_box(self, "Dev run", "A dev run needs a configured AgentPROV checkout.").exec()
             return
-        code, out, err = self.manager.call(["devrun", "plan", "--format", "json"])
+        code, out, err = run_off_ui(self, lambda: self.manager.call(["devrun", "plan", "--format", "json"]))
         try:
             doc = json.loads(out) if code == 0 else None
         except ValueError:
@@ -740,7 +847,8 @@ class RunsPage(QWidget):
         if not ask(self, "Start dev run", "Start a dev run?", T.multiline(text, 2000), icon=INFORMATION,
                    default_ok=True):
             return
-        code, out, err = self.manager.call(["devrun", "start", "--confirm-r2", "--format", "json"])
+        code, out, err = run_off_ui(self, lambda: self.manager.call(["devrun", "start", "--confirm-r2", "--format",
+                                                                     "json"]))
         if code != 0:
             safe_message_box(self, "Dev run", "The dev run was not started.",
                              informative=T.line(JobManager._refusal(code, err).reason, 400), icon=WARNING).exec()

@@ -81,7 +81,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
 import zlib
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -142,6 +141,7 @@ from agentprov.corpus.stages import StageKey, stage_map
 from agentprov.corpus.withheld import SCHEMA_RESOURCE as WITHHELD_SCHEMA
 from agentprov.corpus.withheld import WithheldDocument, decode_withheld
 from agentprov.errors import AgentProvError
+from agentprov.io import remove
 from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.progress import NULL_PROGRESS, Progress
 from agentprov.raw.members import MemberRow
@@ -1273,8 +1273,8 @@ class _Verifier:
         except DeriveError as exc:
             self.add(exc.code, "raw/objects", level="rederive", detail="the re-derivation failed")
             return
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
+        finally:  # hard links to the corpus's read-only objects (io/remove.py keeps them read-only)
+            remove.rmtree(tmp, ignore_errors=True)
         for key, value in report.counters.items():
             self.counters[f"rederive_{key}"] = int(value)
         refreshed = int(report.counters.get("index_refreshed", 0))

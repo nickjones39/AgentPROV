@@ -138,9 +138,11 @@ def run(pool: WorkerPool) -> str:
 @pytest.fixture
 def fresh_admission(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
     def install(budget: int) -> workers._Admission:
-        from agentprov.host import footprint_reader
+        from agentprov.host import detect_host, footprint_reader
 
-        adm = workers._Admission(budget, footprint_reader())
+        # the host profile, as production passes it (workers._admission): without one only macOS has a reader, and on
+        # Linux no worker could be measured (the replacement test failed on the CI runners; D-1011)
+        adm = workers._Admission(budget, footprint_reader(detect_host(probe=False)))
         monkeypatch.setattr(workers, "_ADMISSION", adm)
         return adm
 

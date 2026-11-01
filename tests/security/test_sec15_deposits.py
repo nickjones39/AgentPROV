@@ -24,6 +24,7 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -108,6 +109,7 @@ def _first_object(root: Path) -> str:
     return sorted(p.relative_to(root).as_posix() for p in (root / "raw" / "objects").rglob("*") if p.is_file())[0]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="creating a symlink needs a privilege on Windows")
 def test_sec15_a_symlinked_raw_object_is_refused_and_never_followed(cli, sealed, tmp_path):
     label = _first_object(sealed)
     target = sentinel(tmp_path, (sealed / label).read_bytes())  # identical bytes: only the link itself is wrong

@@ -34,7 +34,7 @@ from PySide6.QtWidgets import (
 
 from agentprov_gui import text as T
 from agentprov_gui import zenodo_run
-from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, ask
+from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, ask, set_control_tooltip
 from agentprov_gui.ui.settings_panes import CliSettingsPane
 
 __all__ = ["ZenodoDraftsDialog", "ZenodoPane", "creators_of", "release_toml_template"]
@@ -86,17 +86,25 @@ class ZenodoPane(CliSettingsPane):
         form = self.form
         self.target = QComboBox(self)
         self.target.addItems(list(TARGET_LABELS.values()))
-        form.add("Target preselected in Create Zenodo drafts (chosen again for every run)", self.target)
+        form.add("Target preselected in Create Zenodo drafts (chosen again for every run)", self.target,
+                 "Which Zenodo Create Zenodo drafts… preselects: the sandbox (sandbox.zenodo.org, for trials) or "
+                 "production (zenodo.org). You still choose it for every run, and only drafts are made.")
         self.communities = QLineEdit(self)
         self.communities.setPlaceholderText("community identifiers, comma-separated")
-        form.add("Communities (each one's curators accept or decline a draft)", self.communities)
+        form.add("Communities (each one's curators accept or decline a draft)", self.communities,
+                 "Zenodo community identifiers a draft is offered to, comma separated (zenodo.communities). Each "
+                 "community's curators accept or decline it.")
         self.concept_doi = QLineEdit(self)
         self.concept_doi.setPlaceholderText("10.5281/zenodo.NNNNNNN (empty for a first release)")
-        form.add("AgentPROV concept DOI (for a new version)", self.concept_doi)
+        form.add("AgentPROV concept DOI (for a new version)", self.concept_doi,
+                 "The concept DOI shared by every AgentPROV release, so a new deposit becomes a new version of the "
+                 "same record (zenodo.concept_doi). Leave it empty for a first release.")
         self.creators = QPlainTextEdit(self)
         self.creators.setPlaceholderText("Name; ORCID; Affiliation (one creator per line)")
         self.creators.setTabChangesFocus(True)
-        form.add("Default creators (prefill release.toml)", self.creators)
+        form.add("Default creators (prefill release.toml)", self.creators,
+                 "The creators written into a new release.toml, one per line as Name; ORCID; Affiliation (ORCID "
+                 "and affiliation may be left out).")
         form.add("Token", SafeLabel("Settings › Keys holds ZENODO_SANDBOX_TOKEN and ZENODO_TOKEN in the OS keychain; "
                                     "the GUI never reads them back", name="Zenodo token note", parent=self))
 
@@ -157,16 +165,22 @@ class ZenodoDraftsDialog(QDialog):
         form = SafeForm()
         self.target = QComboBox(self)
         self.target.addItems(list(TARGET_LABELS.values()))
-        form.add("Target", self.target)
+        form.add("Target", self.target,
+                 "Where the drafts are made: the Zenodo sandbox (sandbox.zenodo.org, for trials) or production "
+                 "(zenodo.org). Settings › Zenodo preselects it; every run passes it as --target.")
         self.communities = QLineEdit(self)
-        form.add("Communities (comma-separated)", self.communities)
+        form.add("Communities (comma-separated)", self.communities,
+                 "Zenodo community identifiers each draft is offered to (--community); each community's curators "
+                 "accept or decline it. Prefilled from Settings › Zenodo.")
         self.deposits = QPlainTextEdit(self)
         self.deposits.setTabChangesFocus(True)
         self.deposits.setPlaceholderText("DEPOSIT_DIR sha256:ROOT [sha256:ROOT ...], one per line; the first is the "
                                          "umbrella (one deposit per licence class). An index umbrella (package --index) "
                                          "is named alone, with no root digest")
         self.deposits.setPlainText(deposits)
-        form.add("Deposits (first line: the umbrella)", self.deposits)
+        form.add("Deposits (first line: the umbrella)", self.deposits,
+                 "One deposit per line: its directory and the root digest of each corpus in it. The first line is the "
+                 "umbrella the others are cross-linked to; an index umbrella (package --index) is named alone.")
         lay.addLayout(form)
         settings = settings or {}
         self.target.setCurrentText(TARGET_LABELS.get(str(settings.get("zenodo.target_preselect", "sandbox")),
@@ -175,22 +189,32 @@ class ZenodoDraftsDialog(QDialog):
         if isinstance(communities, list):
             self.communities.setText(", ".join(T.line(c, 100) for c in communities))
         self.terminal = ReadOnlyText(name="Uploader terminal", parent=self, wrap=True)
+        set_control_tooltip(self.terminal, "The uploader's output: its notes and the consent screen of each run, which "
+                                           "names the phrase to type below.")
         lay.addWidget(self.terminal, 1)
         row = QHBoxLayout()
         self.typed = QLineEdit(self)
         self.typed.setAccessibleName("Typed confirmation phrase")
         self.typed.setPlaceholderText("type the phrase the uploader asks for, then Send")
         self.typed.returnPressed.connect(self.send)
+        set_control_tooltip(self.typed, "Type the confirmation phrase the running uploader asks for, then press "
+                                        "Send or Return.")
         row.addWidget(self.typed, 1)
         self.send_btn = QPushButton("Send", self)
         self.send_btn.setAccessibleName("Send the typed line to the uploader")
         self.send_btn.clicked.connect(self.send)
+        set_control_tooltip(self.send_btn, "Sends the typed line to the running uploader, as if typed in a terminal.")
         self.start_btn = QPushButton("Start", self)
         self.start_btn.setAccessibleName("Start the Zenodo draft uploader")
         self.start_btn.clicked.connect(self.start)
+        set_control_tooltip(self.start_btn, "Runs the draft-only uploader: it creates or resumes a draft for each "
+                                            "deposit without a complete receipt, then cross-links them when there are "
+                                            "two or more. Each run asks for its own typed phrase; nothing is "
+                                            "published.")
         self.stop_btn = QPushButton("Stop", self)
         self.stop_btn.setAccessibleName("Stop the Zenodo draft uploader")
         self.stop_btn.clicked.connect(self.stop)
+        set_control_tooltip(self.stop_btn, "Stops the current uploader run; the remaining runs are not started.")
         for b in (self.send_btn, self.start_btn, self.stop_btn):
             row.addWidget(b)
         lay.addLayout(row)

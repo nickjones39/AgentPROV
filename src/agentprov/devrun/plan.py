@@ -182,7 +182,7 @@ def summarise(jobs: Iterable[Any]) -> list[PartSummary]:
     """One row per part from dev-run jobs (:class:`agentprov.jobs.record.Job`, or anything with ``record``,
     ``command``, ``outcome`` and ``file``): their ``summary.json`` and ``job.json``. A job's part is its ``part``
     fact (``--meta`` / a batch step's ``extra``)."""
-    from agentprov.jobs.record import read_json
+    from agentprov.jobs.record import read_json, utc_seconds
 
     rows: dict[str, PartSummary] = {}
     for job in jobs:
@@ -193,8 +193,11 @@ def summarise(jobs: Iterable[Any]) -> list[PartSummary]:
         row = rows.setdefault(part, PartSummary(part))
         summary = read_json(job.file("summary.json")) or {}
         outcome = job.outcome or (str(summary.get("outcome")) if summary.get("outcome") else None)
+        # from the job's recorded start (whole seconds) to its end: job.json's ctime is its last rewrite, which the
+        # supervisor makes when the job ends, so it never measured the step
+        started = utc_seconds(job.record.get("created"))
         try:
-            spent = job.file("ended.json").stat().st_mtime - job.file("job.json").stat().st_ctime
+            spent = job.file("ended.json").stat().st_mtime - started if started is not None else None
         except OSError:
             spent = None
         if spent is not None and spent >= 0:

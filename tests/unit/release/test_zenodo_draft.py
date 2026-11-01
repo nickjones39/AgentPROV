@@ -101,13 +101,14 @@ class Result:
 
 
 def go(args: list[str], server: FakeZenodo | None, *, token: str | None = CANARY, phrase: str | None = SANDBOX_PHRASE,
-       tty: bool = True, target_variable: str = "ZENODO_SANDBOX_TOKEN", release_verify: bool = False) -> Result:
+       tty: bool = True, target_variable: str = "ZENODO_SANDBOX_TOKEN", release_verify: bool = False,
+       pauses: list[float] | None = None) -> Result:
     out, err = io.StringIO(), io.StringIO()
     environ = {} if token is None else {target_variable: token}
     answers = iter([phrase or ""])
     code = zd.run(args, environ=environ, stdout=out, stderr=err, input_fn=lambda prompt: next(answers),
-                  interactive=lambda: tty, test_base_url=None if server is None else server.base,
-                  release_verify=release_verify)
+                  sleep=(pauses if pauses is not None else []).append, interactive=lambda: tty,
+                  test_base_url=None if server is None else server.base, release_verify=release_verify)
     return Result(code, out.getvalue(), err.getvalue())
 
 
@@ -282,6 +283,43 @@ def test_a_partial_upload_resumes_with_only_the_missing_files(deposit, server):
     assert server.counts("PUT", "/api/files/") - puts_before == len(state["files"]) - 3
     assert len(dep["files"]) == len(state["files"]) and receipt_of(deposit)["status"] == "complete"
     assert second.out.rstrip().endswith("and press Publish yourself.")
+
+
+def test_a_file_upload_that_fails_in_transit_is_sent_again_with_a_doubling_pause(deposit, server):
+    server.put_failures = [500, "drop", 429]
+    pauses: list[float] = []
+    run = go(draft(deposit), server, pauses=pauses)
+    assert run.code == 0, run.err
+    assert pauses == [30.0, 60.0, 120.0]
+    assert run.out.count("sending it again") == 3 and "attempt 4 of 5" in run.out
+    assert receipt_of(deposit)["status"] == "complete"
+    planned = {f.name: (f.bytes, f.md5) for f in zd.build_plan(deposit, release_verify=False).files}
+    (dep,) = server.depositions.values()
+    assert {name: (f["size"], f["md5"]) for name, f in dep["files"].items()} == planned
+    assert server.counts("PUT", "/api/files/") == len(planned) + 3
+
+
+def test_a_file_upload_stops_after_the_last_attempt_and_resume_finishes_it(deposit, server):
+    server.put_failures = [503] * zd.UPLOAD_ATTEMPTS
+    pauses: list[float] = []
+    first = go(draft(deposit), server, pauses=pauses)
+    assert first.code == 1 and "HTTP 503" in first.err
+    assert len(pauses) == zd.UPLOAD_ATTEMPTS - 1
+    state = receipt_of(deposit)
+    assert state["status"] == "created" and not any(f["uploaded"] for f in state["files"])
+    second = go([str(deposit), "--target", "sandbox", "--create-draft", "--resume"], server,
+                phrase=f"resume unpublished draft {state['deposition_id']} on sandbox.zenodo.org")
+    assert second.code == 0, second.err
+    assert receipt_of(deposit)["status"] == "complete"
+
+
+@pytest.mark.parametrize("status", [400, 403, 404, 413])
+def test_a_client_error_on_a_file_upload_is_not_sent_again(deposit, server, status):
+    server.put_failures = [status]
+    pauses: list[float] = []
+    run = go(draft(deposit), server, pauses=pauses)
+    assert run.code == 1 and f"HTTP {status}" in run.err and "sending it again" not in run.out
+    assert pauses == [] and server.counts("PUT", "/api/files/") == 1
 
 
 def test_resume_refuses_a_directory_that_changed_since_the_receipt(deposit, server):
@@ -649,9 +687,11 @@ def test_the_module_entry_runs_the_tool():
                           env={"PATH": "/usr/bin:/bin"})
     assert shim.returncode == 0 and b"UNPUBLISHED Zenodo draft" in shim.stdout
     # the usage line names how the tool was started (F-19), so the two help texts differ only in that name's wrapping
-    assert done.stdout.startswith(b"usage: python -m agentprov_zenodo ")
-    assert shim.stdout.startswith(b"usage: zenodo_draft.py ")
-    assert b" ".join(done.stdout.split(b"\n\n", 1)[1].split()) == b" ".join(shim.stdout.split(b"\n\n", 1)[1].split())
+    # (Windows: "python.exe", and CRLF line ends)
+    module, script = done.stdout.replace(b"\r\n", b"\n"), shim.stdout.replace(b"\r\n", b"\n")
+    assert module.startswith((b"usage: python -m agentprov_zenodo ", b"usage: python.exe -m agentprov_zenodo "))
+    assert script.startswith(b"usage: zenodo_draft.py ")
+    assert b" ".join(module.split(b"\n\n", 1)[1].split()) == b" ".join(script.split(b"\n\n", 1)[1].split())
 
 
 def test_the_confirmation_phrase_names_the_host(deposit):

@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
@@ -34,6 +33,7 @@ from agentprov.cli import gitinfo
 from agentprov.cli.common import CliUsageError, CommandResult, Context, bounded_int, redact_personal, safe_text
 from agentprov.corpus.scratch import scratch_tree
 from agentprov.errors import AgentProvError
+from agentprov.io import remove
 
 __all__ = ["register", "run_derive", "run_recompute"]
 
@@ -348,8 +348,8 @@ def _run(ctx: Context, command: str) -> CommandResult:
             out_reader = CorpusReader(partial, state="working")
             _trig(args, out_reader, reader, result, corpus_id)
     finally:
-        if tmp is not None:
-            shutil.rmtree(tmp, ignore_errors=True)
+        if tmp is not None:  # hard links to the source's read-only objects (io/remove.py keeps them read-only)
+            remove.rmtree(tmp, ignore_errors=True)
         finish_validation_cache(result, derivation.validation_cache)
     return _result(result, report, args, command, corpus_id, None if args.dry_run else partial)
 

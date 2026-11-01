@@ -241,6 +241,8 @@ class BackendProject:
     fork_subdirectory: str | None = None
     nltk: Mapping[str, Any] | None = None  # ``[tool.agentprov.nltk]`` of the project (D.11.2), when declared
     dataset: Mapping[str, Any] | None = None  # ``[tool.agentprov.dataset]`` (Inspect, D-663), when declared
+    #: ``[tool.uv] exclude-newer-package`` (D-1011): packages allowed past ``exclude_newer`` (their security releases)
+    exclude_newer_packages: tuple[tuple[str, str], ...] = ()
 
     @property
     def env_name(self) -> str:
@@ -264,6 +266,8 @@ def backend_project(backend: str, root: Path) -> BackendProject:
     uv = (config.get("tool") or {}).get("uv") or {}
     exclude_newer = uv.get("exclude-newer")
     no_build = tuple(str(n) for n in uv.get("no-build-package", ()))
+    per_package = uv.get("exclude-newer-package") or {}
+    newer = tuple(sorted((str(k), str(v)) for k, v in per_package.items())) if isinstance(per_package, Mapping) else ()
     commit = _fork_commit(config)
     if commit is not None:
         commit8, source = commit[:8], "fork_commit"
@@ -278,7 +282,7 @@ def backend_project(backend: str, root: Path) -> BackendProject:
                           str(entry["git"]) if isinstance(entry.get("git"), str) else None,
                           str(entry["subdirectory"]) if isinstance(entry.get("subdirectory"), str) else None,
                           dict(nltk) if isinstance(nltk, Mapping) else None,
-                          dict(dataset) if isinstance(dataset, Mapping) else None)
+                          dict(dataset) if isinstance(dataset, Mapping) else None, newer)
 
 
 def _fork_commit(config: Mapping[str, Any]) -> str | None:
@@ -333,7 +337,8 @@ def site_packages(env: Path) -> Path:
 
 
 def uv_sync_argv(project: BackendProject, *, offline: bool, uv: str = "uv", groups: Sequence[str] = ()) -> list[str]:
-    """``uv sync --locked --no-config`` with the project's ``exclude-newer`` and no-build list passed explicitly (M.1.7
+    """``uv sync --locked --no-config`` with the project's ``exclude-newer`` (and its per-package exceptions,
+    ``exclude-newer-package``) and no-build list passed explicitly (M.1.7
     phase-2 note: ``--no-config`` also drops the project's own ``[tool.uv]``, after which ``--locked`` reports the lock
     stale), the shared path packages reinstalled, the dev group left out (the worker needs no test tools), and files
     copied rather than hard-linked from the cache (the environment never shares inodes with the cache). ``groups`` adds
@@ -345,6 +350,8 @@ def uv_sync_argv(project: BackendProject, *, offline: bool, uv: str = "uv", grou
         argv.append("--offline")
     if project.exclude_newer:
         argv += ["--exclude-newer", project.exclude_newer]
+    for name, date in project.exclude_newer_packages:  # D-1011: dropped by --no-config like the cutoff itself
+        argv += ["--exclude-newer-package", f"{name}={date}"]
     for name in project.no_build_packages:
         argv += ["--no-build-package", name]
     for name in backend_kind(project.backend).rebuilt:

@@ -15,18 +15,34 @@ lockfile, so benchmark code never shares an environment with the core.
 | Graph drawing | the `render` extra and the Graphviz `dot` program (optional) |
 | Git | needed by `fetch`, `package` (it records the producer commit) and the backend builds |
 
-**Platforms.** AgentPROV has been developed and used on macOS on Apple silicon. The test suite last ran on Linux
-(x86_64 and arm64) and Windows in GitHub Actions on 2026-10-08, against early code, and CI has not run since (D-431:
-manual dispatch only). In the clean-machine tests of the desktop bundles (G5), bundles built from `main` pass on clean
-Ubuntu 24.04 (aarch64) and Windows 11 ARM64 machines, and under emulation on Ubuntu 22.04 x86_64 and Windows x86_64;
-Windows has no live runs in v0.1 (D-867). Treat other platforms as untested; cross-platform use is not guaranteed.
+**Platforms.** AgentPROV has been developed and used on macOS on Apple silicon. CI runs the full test suite on Linux (x86_64 and arm64), macOS and Windows in GitHub Actions on the public
+repository before each release (D-1011). The release bundles are built natively, each on a GitHub-hosted runner of its
+own operating system and architecture. Before 0.1.1, bundles built from `main` passed the clean-machine tests (G5) on
+clean Ubuntu 24.04 (aarch64) and Windows 11 ARM64 machines, and under emulation on Ubuntu 22.04 x86_64 and Windows
+x86_64; Windows has no live runs in v0.1 (D-867). Treat other platforms as untested; cross-platform use is not guaranteed.
 AgentPROV probes the host instead of branching on the operating system, and reports the isolation it can give its
 worker processes (see `Host` below). Windows has no CPU limit for workers and assigns the Job Object after the process
 starts ([G.4.12](https://github.com/nickjones39/AgentPROV/blob/main/docs/architecture/G_security.md)).
 
 ## Installing the core
 
-From a checkout of the repository:
+**From PyPI** (the command-line program and library; `agentprov-capture` comes with it, and `agentprov-zenodo` with the
+`zenodo` extra):
+
+```bash
+pip install agentprov                  # into an environment with Python 3.14.8 or later
+uv tool install agentprov              # or: as a uv tool, on its own interpreter
+pip install "agentprov[zenodo,render]" # with extras (see Optional extras below)
+agentprov --version
+```
+
+The package holds the commands that convert, derive, validate, verify, recompute, render and seal. Live runs need the
+repository checkout: `agentprov backends build` builds the benchmark backends from their uv projects in `backends/`,
+which the package does not contain (chapter 7). The desktop app is a download on the
+[releases page](https://github.com/nickjones39/AgentPROV/releases/latest), or the `gui/` project of a checkout
+(chapter 8).
+
+**From a checkout of the repository** (development, live runs, every test):
 
 ```bash
 uv python install 3.14.8      # a managed interpreter at the release floor (a download, once)
@@ -38,7 +54,7 @@ Any CPython 3.14.8 or later works; `uv python install` is only needed when none 
 is installed the same way (`uv python install 3.12`) before `agentprov backends build` (chapter 7).
 
 ```text
-agentprov 0.1.0
+agentprov 0.1.1
 formats: aer/0.2 sem/0.1 capture/0.1 agentprov-prov/0.1 apv 0.2.0 agentprov-corpus/0.2
 python 3.14.8 (interpreter_advisory: none)
 ```

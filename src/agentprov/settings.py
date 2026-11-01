@@ -65,6 +65,12 @@ def local_base_url(value: str) -> str | None:
         return "needs http:// or https:// and a host"
     if parts.username or parts.password or parts.query or parts.fragment:
         return "no user info, query or fragment"
+    try:
+        port = parts.port
+    except ValueError:
+        port = 0
+    if port == 0:  # review UC-31: accepted before, and every later use of the URL crashed
+        return "the port is not a number from 1 to 65535"
     host = parts.hostname
     if host in _LOOPBACK_HOSTS:
         return None
@@ -183,6 +189,17 @@ SCHEMA: Final[tuple[Key, ...]] = (
     Key(r"ci\.default_target", "choice", "local, github or mac-studio", choices=("local", "github", "mac-studio")),
     # provider model lists (agentprov models, the local-endpoints session's D-730..D-739): off until switched on
     Key(r"models\.auto_refresh", "bool", "refresh each provider's model list at most once every 24 h (network)"),
+    # the desktop app's Help > Assistant (agentprov assist, D-1010): which endpoint and model answer; the key stays in
+    # the OS keychain (agentprov keys), never here
+    Key(r"assistant\.endpoint", "str", "the endpoints.toml endpoint the Assistant asks (agentprov assist --endpoint)",
+        validator=lambda v: None if re.fullmatch(_NAME, v) else "an endpoint name ([a-z0-9_-])"),
+    Key(r"assistant\.server", "choice", "the local server kind the Assistant asks (agentprov assist --server)",
+        choices=("omlx", "mlx_lm", "lmstudio", "ollama", "splash", "strata", "llamacpp", "vllm", "other")),
+    Key(r"assistant\.base_url", "str", "the local server's base URL, loopback only (agentprov assist --base-url)",
+        validator=lambda v: local_base_url(v) or (None if urlsplit(v).hostname in _LOOPBACK_HOSTS
+                                                  else "a loopback address only (127.0.0.1, ::1, localhost)")),
+    Key(r"assistant\.model", "str", "the model id the Assistant asks (agentprov assist --model-id)",
+        validator=lambda v: None if re.fullmatch(_MODEL, v) else "a model id (letters, digits and . : / @ + - _)"),
     # jobs (D-704)
     Key(r"jobs\.retention", "int", "ended jobs kept", 10, 10_000),
     Key(r"jobs\.retention_days", "int", "days an ended job is kept", 1, 3650),
@@ -328,8 +345,8 @@ def problems(*, home: Path | None = None) -> list[str]:
 
 
 def _write(home: Path | None, change: Callable[[dict[str, Any]], None]) -> None:
-    from agentprov.io.atomic import atomic_write_bytes
     from agentprov.io.locks import ResourceLock
+    from agentprov.io.replace_retry import atomic_write_bytes_retrying
 
     p = path(home)
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -337,7 +354,7 @@ def _write(home: Path | None, change: Callable[[dict[str, Any]], None]) -> None:
         values = _read(p)
         change(values)
         doc = {"format": SETTINGS_FORMAT, "values": dict(sorted(values.items()))}
-        atomic_write_bytes(p, json.dumps(doc, sort_keys=True, indent=1).encode("utf-8") + b"\n", mode=0o600)
+        atomic_write_bytes_retrying(p, json.dumps(doc, sort_keys=True, indent=1).encode("utf-8") + b"\n", mode=0o600)
 
 
 def set(key: str, value: Any, *, home: Path | None = None) -> Value:  # noqa: A001 - the API name the callers use

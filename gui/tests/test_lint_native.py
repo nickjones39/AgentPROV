@@ -60,6 +60,10 @@ def test_qt_toolbar_fallback_has_every_action(qapp: Any, tmp_path: Path) -> None
     bars = w.findChildren(QToolBar)
     assert bars and set(ITEMS) <= set(w.action_map)
     assert {a.text() for a in bars[0].actions() if a.text()} >= {w.action_map[k].text() for k in ITEMS}
+    from agentprov_gui.platform import TOOLBAR_TIPS
+
+    for key in ITEMS:  # every icon says what it does, not only its name
+        assert TOOLBAR_TIPS[key].split(":")[0][:30] in bars[0].widgetForAction(w.action_map[key]).toolTip()
     w.close()
 
 
@@ -90,8 +94,8 @@ def test_accessibility_flags_change_the_graph(qapp: Any, mini_corpus: Path, tmp_
 @pytest.mark.skipif(sys.platform != "darwin" or os.environ.get("AGENTPROV_GUI_COCOA_TESTS") != "1",
                     reason="native smoke test: macOS with QT_QPA_PLATFORM=cocoa and AGENTPROV_GUI_COCOA_TESTS=1")
 def test_cocoa_smoke_native_toolbar(tmp_path: Path) -> None:
-    """Run in a fresh process on the cocoa platform: the toolbar attaches, every item maps to a QAction, the chrome
-    above the content grows (macos-design §2.6 Tests)."""
+    """Run in a fresh process on the cocoa platform: the toolbar attaches, every item maps to a QAction and has a
+    tooltip saying what it does, the chrome above the content grows (macos-design §2.6 Tests)."""
     import subprocess
 
     code = f"""
@@ -103,6 +107,7 @@ app = QApplication([])
 from agentprov_gui.settings import Settings
 from agentprov_gui.ui.mainwindow import MainWindow
 from agentprov_gui.platform.macos import ITEMS
+from agentprov_gui.platform import ACTIVITY_TIP, SEARCH_TIP, TOOLBAR_TIPS
 s = Settings(QSettings({str(tmp_path / 's.ini')!r}, QSettings.Format.IniFormat))
 w = MainWindow(s, cache_dir=Path({str(tmp_path / 'c')!r}), home=Path({str(tmp_path / 'home')!r}))
 w.show(); app.processEvents()
@@ -112,6 +117,9 @@ assert c.window.toolbar() == c.toolbar
 ids = [str(i.itemIdentifier()) for i in c.toolbar.items()]
 assert all(k in ids for k in ITEMS), ids
 assert all(k in w.action_map for k in ITEMS)
+tips = {{str(i.itemIdentifier()): str(i.toolTip() or '') for i in c.toolbar.items()}}
+assert all(tips[k] == TOOLBAR_TIPS[k] for k in ITEMS), tips
+assert tips['search'] == SEARCH_TIP and tips['activity'] == ACTIVITY_TIP, tips
 c.set_activity(2, 5); c.set_progress(0.4); c.set_progress(None); c.set_activity(0, 5)
 print('OK', ids)
 w.close()

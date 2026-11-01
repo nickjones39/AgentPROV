@@ -230,6 +230,7 @@ def test_package_derive_and_recompute_refuse_an_incomplete_corpus(tmp_path):
         assert derive_refused.value.code == "corpus.derive.incomplete" and derive_refused.value.exit_code == 4
 
 
+@pytest.mark.skipif(not hasattr(signal, "SIGKILL"), reason="SIGKILL is POSIX only")
 def test_a_killed_import_writes_no_manifest(tmp_path):
     """SIGKILL (and the second signal's ``os._exit``) runs no ``finally``: nothing is recorded, so nothing can be sealed."""
     support.agentdojo_tree(tmp_path / "in", count=4)

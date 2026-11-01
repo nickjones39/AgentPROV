@@ -276,3 +276,37 @@ def test_create_resolves_relative_step_paths_against_the_callers_cwd(cli: Callab
     step = json.loads(run.out)["steps"][0]
     assert step["argv"] == ["validate", "--corpus", str(work / "corpora" / "mini")]
     assert step["writes"] == [str(work / "out")] and step["reads"] == [str(work / "corpora" / "mini")]
+
+
+def test_a_running_step_whose_job_was_pruned_does_not_stay_running(tmp_path: Path) -> None:
+    """Review UC-26: after ``batch stop`` and a prune of the step's job directory, the step held its slot forever and
+    the batch never finished; it now fails with a fixed note."""
+    from agentprov.jobs.batch import GONE_NOTE
+
+    manager = JobManager(tmp_path / "home", environ={"PATH": os.environ["PATH"]})
+    steps = [_step("info"), _step("info")]
+    batch = Batch.new(manager.home, "t", steps, pin={"commit": "a"})
+    batch.steps[0].state, batch.steps[0].job_id = "running", "0190a0a0-0000-7000-8000-000000000000"  # no such job
+    advance(batch, manager, validate=validate_argv, pin_now=lambda: {"commit": "a"}, driver_job_id="driver-1")
+    assert (batch.steps[0].state, batch.steps[0].exit_code, batch.steps[0].note) == ("failed", None, GONE_NOTE)
+    assert batch.steps[1].state == "running"  # the slot is free again
+    _wait_jobs(manager)
+    advance(batch, manager, validate=validate_argv, pin_now=lambda: {"commit": "a"}, driver_job_id="driver-1")
+    assert batch.finished
+
+
+def test_a_stopped_batch_s_pruned_running_step_does_not_keep_its_dev_run_busy(tmp_path: Path) -> None:
+    """Review UC-26: with the driver stopped nothing advances the batch, so ``devrun prune`` must not read a running
+    step whose job record is gone as a busy run."""
+    from agentprov.cli.devrun import busy_runs
+
+    manager = JobManager(tmp_path / "home", environ={"PATH": os.environ["PATH"]})
+    run = manager.home / "dev-runs" / "20261101T000000Z"
+    run.mkdir(parents=True)
+    step = _step("info", extra={"devrun": run.name})
+    step.state, step.job_id = "running", "0190a0a0-0000-7000-8000-000000000000"
+    Batch.new(manager.home, "t", [step], pin={"commit": "a"}).save()
+    assert run.resolve() not in busy_runs(manager.home)
+    pending = _step("info", extra={"devrun": run.name})
+    Batch.new(manager.home, "u", [pending], pin={"commit": "a"}).save()
+    assert run.resolve() in busy_runs(manager.home)  # an unfinished step still holds it

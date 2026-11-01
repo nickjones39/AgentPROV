@@ -301,8 +301,9 @@ def fixture_exclusions(repo: Path, tree: Mapping[str, TreeEntry]) -> dict[str, s
 def build_archive(repo: Path, commit: str, excluded: Iterable[str]) -> tuple[bytes, bytes]:
     prefix = f"agentprov-{commit[:12]}/"
     specs = [f":(exclude,literal){p}" for p in sorted(excluded)]
-    tar = git(repo, "-c", "tar.umask=0022", "archive", "--format=tar", f"--prefix={prefix}", commit, "--", ".", *specs,
-              binary=True)
+    # core.autocrlf off: Windows git converts text to CRLF in the archive otherwise, and the tree check refuses it
+    tar = git(repo, "-c", "tar.umask=0022", "-c", "core.autocrlf=false", "archive", "--format=tar", f"--prefix={prefix}",
+              commit, "--", ".", *specs, binary=True)
     buf = io.BytesIO()
     with gzip.GzipFile(filename="", mode="wb", fileobj=buf, mtime=0, compresslevel=9) as gz:
         gz.write(tar)

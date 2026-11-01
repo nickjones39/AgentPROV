@@ -38,6 +38,18 @@ def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return home
 
 
+@pytest.fixture(autouse=True)
+def _no_installed_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test picks up an ``agentprov`` from PATH (this environment's own, or the user's) as the CLI without a checkout
+    (D-1030): the lookup answers only for a named program or a given environment, which the D-1030 tests pass."""
+    from agentprov_gui.jobs import manager
+
+    real = manager.installed_program
+    monkeypatch.setattr(manager, "installed_program", lambda program=None, environ=None:
+                        real(program, environ) if program is not None or environ is not None else None)
+    monkeypatch.setattr(manager, "_installed_setting", None)  # restored after a test whose window set it
+
+
 @pytest.fixture
 def fake_checkout(tmp_path: Path) -> Path:
     """A checkout whose ``agentprov`` is the fake CLI, which hands ``settings``, ``jobs``, ``batch`` and ``devrun`` to

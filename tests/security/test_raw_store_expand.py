@@ -36,7 +36,7 @@ def link_info(name):
 
 
 def files_under(root: Path) -> set[str]:
-    return {str(p.relative_to(root)) for p in root.rglob("*")}
+    return {p.relative_to(root).as_posix() for p in root.rglob("*")}
 
 
 @pytest.fixture

@@ -297,7 +297,7 @@ def test_limit_field_and_violation_detail_are_generated_text_within_200_characte
 
 def _tombstone(store, *digests: str) -> None:
     rows = sorted(f'{{"date":"2026-10-12","reason":"secret","sha256":"sha256:{d}"}}\n' for d in digests)
-    (store.root / "tombstones.jsonl").write_text("".join(rows))
+    (store.root / "tombstones.jsonl").write_text("".join(rows), newline="\n")
 
 
 def test_a_tombstoned_digest_is_never_published_by_any_put(store):
@@ -321,7 +321,7 @@ def test_a_tombstone_written_after_the_store_was_opened_is_honoured(store):
 
 @pytest.mark.parametrize("content", ['{"sha256": "abc"}\n', "not json\n", '{"sha256": "sha256:' + "g" * 64 + '"}\n', "[1]\n"])
 def test_a_damaged_tombstone_file_fails_closed(store, content):
-    (store.root / "tombstones.jsonl").write_text(content)
+    (store.root / "tombstones.jsonl").write_text(content, newline="\n")
     with pytest.raises(RawStoreError) as err:
         store.put(b"anything")
     assert err.value.code == "raw.store.tombstones_invalid"

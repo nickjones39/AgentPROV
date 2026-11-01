@@ -119,7 +119,7 @@ def test_sec25_a_tombstone_withheld_json_does_not_list_still_fails_release_mode(
     from agentprov.corpus.purge import Tombstone, decode_tombstones, encode_tombstones
 
     root = purged["root"]
-    label = sorted(str(p.relative_to(root)) for p in (root / "raw" / "objects").rglob("*.json"))[0]
+    label = sorted(p.relative_to(root).as_posix() for p in (root / "raw" / "objects").rglob("*.json"))[0]
     other = label.rsplit("/", 1)[-1].split(".", 1)[0]
     (root / label).chmod(0o644)
     (root / label).unlink()

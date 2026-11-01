@@ -4,7 +4,7 @@ Builds ``$AGENTPROV_HOME/envs/<backend>-<commit8>/`` from ``backends/<backend>/`
 
 1. ``uv sync --locked --no-config`` (:func:`agentprov.cli.live.envs.uv_sync_argv`) with ``UV_PROJECT_ENVIRONMENT`` set
    to that directory and a scrubbed environment (no ``UV_*`` but the cache and interpreter locations, no secret-named
-   variable; :func:`~agentprov.cli.live.envs.uv_environment`). ``--exclude-newer`` and the no-build list are passed
+   variable; :func:`~agentprov.cli.live.envs.uv_environment`). ``--exclude-newer`` (with its ``--exclude-newer-package`` exceptions, D-1011) and the no-build list are passed
    explicitly because ``--no-config`` drops the project's ``[tool.uv]`` (M.1.7 note). Without ``--allow-network`` the
    sync runs ``--offline``: it succeeds only from the uv cache and never touches the network (N.2.1b(2)).
 2. The T0 identity of the result (RECORD verification, guarded source files, PEP 610 source, lock digest).

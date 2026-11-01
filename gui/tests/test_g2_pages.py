@@ -372,3 +372,25 @@ def test_selecting_a_large_ended_job_folds_in_bounded_steps(qapp: Any, runs: Any
         assert f.state.done == units and page.followers[job.job_id] is f  # folded once, never twice
     finally:
         page.deleteLater()
+
+
+def test_copy_execution_id_copies_only_a_well_formed_id(qapp: Any) -> None:
+    """Review UC-34 (S13): the index read checks only that ``ex`` is ASCII, so a hostile corpus's id with LF or ESC
+    must not reach the clipboard."""
+    from PySide6.QtGui import QGuiApplication
+
+    from agentprov_gui.ui.viewer import ViewerPage
+
+    clipboard = QGuiApplication.clipboard()
+    clipboard.setText("before")
+    good = "ex_" + "a" * 26
+    for bad in ("ex_aaaa\n\x1b[2Jrm -rf ~", "ex_" + "a" * 25 + "\x07", "", None):
+        ViewerPage._copy_id(bad)
+        assert clipboard.text() == "before"
+    ViewerPage._copy_id(good)
+    assert clipboard.text() == good
+    from agentprov.aer.ids import EXECUTION_ID_RE
+
+    from agentprov_gui.ui.viewer import EXECUTION_ID
+
+    assert EXECUTION_ID.pattern == EXECUTION_ID_RE.pattern  # the GUI's copy of the core's id rule

@@ -35,9 +35,11 @@ from PySide6.QtWidgets import (
 )
 
 from agentprov_gui import text as T
-from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel
+from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, set_control_tooltip, set_header_tooltips
 
 __all__ = ["AerTab", "ProvJsonTab", "RegisterTab", "SemTab", "ValidationTab", "fill_rows"]
+
+_EV: Final = "evidence class: O observed (the source recorded it), D derived (computed by a rule), I inferred"
 
 #: AER record members that are structure (ids, enums, locators, rule ids), shown without Show content.
 AER_STRUCTURE: Final = frozenset({
@@ -90,6 +92,8 @@ def _table(headers: list[str], name: str, parent: QWidget) -> QTableWidget:
 def _content_switch(parent: QWidget, pane: str, slot: Callable[[bool], None]) -> QCheckBox:
     cb = QCheckBox("Show content (this pane only; escaped, fenced, truncated)", parent)
     cb.setAccessibleName(f"Show content in the {pane} pane")
+    set_control_tooltip(cb, "Show the data values in this pane (messages, tool output and other source text), escaped, "
+                            "fenced as data and cut at the Settings limit. It turns off again for each execution.")
     cb.toggled.connect(slot)
     return cb
 
@@ -113,6 +117,7 @@ class ProvJsonTab(QWidget):
         top = QHBoxLayout()
         self.spec = QComboBox(self)
         self.spec.setAccessibleName("PROV specification")
+        set_control_tooltip(self.spec, "The PROV document to show: the corpus holds one per provenance specification")
         top.addWidget(self.spec)
         self.info = SafeLabel("", name="PROV document facts", parent=self)
         if stacked:  # narrow beside the graph: the facts get a wrapping line of their own
@@ -129,6 +134,7 @@ class ProvJsonTab(QWidget):
         self.tree = QTreeWidget(split)
         self.tree.setAccessibleName("PROV-JSON tree")
         self.tree.setHeaderLabels(["statement", "value"])
+        set_header_tooltips(self.tree, ["The bundle, section, statement or attribute", "Its value"])
         self.tree.setColumnWidth(0, 360)
         self.tree.itemExpanded.connect(self._expand)
         self.tree.currentItemChanged.connect(self._current)
@@ -312,8 +318,18 @@ class AerTab(QWidget):
         self.tree = QTreeWidget(split)
         self.tree.setAccessibleName("AER records")
         self.tree.setHeaderLabels(["id", "kind", "ev", "by", "rule", "src", "unk", "after"])
+        set_header_tooltips(self.tree, [
+            "The record's local id (exec for the header, seal for the trailer)",
+            "The record kind (message, model_call, tool_execution, …); the groups count each kind",
+            "The record's " + _EV,
+            "The party that attests the record's observed fields",
+            "The rules that justify its derived and inferred fields",
+            "Locators into the raw evidence",
+            "Declared unknowns: the field that would hold the value, and why it is unknown",
+            "The records that happen before this one, with the basis (causal, time, position or protocol)"])
         self.tree.currentItemChanged.connect(lambda *_: self._refresh())
         self.fields = _table(["field", "value"], "AER record fields", split)
+        set_header_tooltips(self.fields, ["A field of the selected record", "Its value (data hidden until Show content)"])
         split.addWidget(self.tree)
         split.addWidget(self.fields)
         split.setStretchFactor(0, 3)
@@ -378,12 +394,19 @@ class SemTab(QWidget):
         top = QHBoxLayout()
         self.profile = QComboBox(self)
         self.profile.setAccessibleName("Semantics profile")
+        set_control_tooltip(self.profile, "The semantics profile whose annotations are shown")
         self.profile.currentTextChanged.connect(self._show)
         top.addWidget(self.profile)
         self.info = SafeLabel("", name="SEM facts", parent=self)
         top.addWidget(self.info, 1)
         lay.addLayout(top)
         self.table = _table(self.HEADERS, "SEM annotations", self)
+        set_header_tooltips(self.table, [
+            "The annotation id", "The AER record (or part) annotated",
+            "The annotation type (integrity, channel, role, injection_marker, outcome, author or a profile's own)",
+            "The annotation's value", "The annotation's " + _EV, "The rules that produced it",
+            "The AER fields (or earlier annotations) it reads", "The method of an inferred annotation",
+            "The confidence of an inferred annotation (0 to 1)"])
         lay.addWidget(self.table, 1)
         self.docs: dict[str, SemDocument] = {}
         self.errors: dict[str, str] = {}
@@ -421,6 +444,11 @@ class RegisterTab(QWidget):
         self.info = SafeLabel("", name="Register facts", parent=self)
         lay.addWidget(self.info)
         self.table = _table(self.HEADERS, "Register entries for this execution", self)
+        set_header_tooltips(self.table, [
+            "The issue code", "info, warning or error (a warning makes the status ok with issues, an error failed)",
+            "The pipeline stage that raised it", "What happened to the execution: sealed, not imported, failed or withheld",
+            "The rule that raised it", "Generated text (never raw content)", "The AER records concerned",
+            "The corpus and source that own the execution, for an execution owned elsewhere or a duplicate"])
         lay.addWidget(self.table, 1)
 
     def set_entries(self, entries: list[RegisterEntry], error: str | None) -> None:
@@ -444,6 +472,7 @@ class ValidationTab(QWidget):
         self.info = SafeLabel("", name="Validation facts", parent=self)
         lay.addWidget(self.info)
         self.table = _table(["check", "result", "detail"], "Validation checks", self)
+        set_header_tooltips(self.table, ["The validation check", "Its result", "The check's other recorded fields"])
         lay.addWidget(self.table, 1)
 
     def set_row(self, row: Mapping[str, Any] | None, error: str | None) -> None:

@@ -11,6 +11,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from fuzz_support import budget, byte_mutations, outcome
 from hypothesis import given
 from hypothesis import strategies as st
@@ -50,6 +52,16 @@ def _origins_seed() -> bytes:
     log.add("a" * 64, Origin.git("https://github.com/x/y", "c" * 40, "runs/a.json", "d" * 40))
     log.add("b" * 64, Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.json"))
     return log.serialise()
+
+
+def test_an_origins_row_with_a_lone_surrogate_fails_closed_with_a_code() -> None:
+    """The thorough fuzz profile's finding of 2026-11-01 (D-1011): an escaped lone surrogate is strict JSON, but no row
+    holding one can be canonicalised, so decoding raised rfc8785's own error instead of a coded refusal."""
+    seed = _origins_seed()
+    at = 742 % (len(seed) + 1)  # the falsifying example: an insertion at byte 742 of the seed
+    with pytest.raises(OriginError) as info:
+        decode_origins(seed[:at] + b"\\ud800" + seed[at:])
+    assert info.value.code == "raw.origin.invalid"
 
 
 @budget(150)

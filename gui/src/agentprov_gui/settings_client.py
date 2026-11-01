@@ -16,7 +16,11 @@ from typing import Any
 from agentprov_gui.jobs.manager import CliLocator
 from agentprov_gui.live.cli import call, last_line
 
-__all__ = ["Caller", "read", "text", "write"]
+__all__ = ["NO_CLI", "Caller", "read", "read_or_reason", "text", "unavailable", "write"]
+
+#: why a pane that runs ``agentprov`` cannot be used, and what to set (D-1030)
+NO_CLI = ("No agentprov program to run: set the AgentPROV checkout, or the agentprov installed with pip install "
+          "agentprov, in Settings › General, press OK and open Settings again.")
 
 #: how an ``agentprov`` command is run: a CLI locator, or a callable such as :meth:`JobManager.call` (its home)
 Caller = CliLocator | Callable[[Sequence[str]], tuple[int, bytes, bytes]]
@@ -26,15 +30,35 @@ def _run(cli: Caller, argv: list[str]) -> tuple[int, bytes, bytes]:
     return call(cli, argv) if isinstance(cli, CliLocator) else cli(argv)
 
 
-def read(cli: Caller, prefix: str) -> dict[str, Any] | None:
-    """The stored values under ``prefix`` (already checked by the schema), or ``None`` when they cannot be read."""
-    code, out, _err = _run(cli, ["settings", "list", "--prefix", prefix, "--format", "json"])
+def unavailable(command: str, code: int, err: bytes) -> str:
+    """Why ``agentprov COMMAND`` gave nothing, in words that say what to set: no CLI (127, :data:`NO_CLI`), a CLI that
+    cannot be started (124), else its exit code and its reason line (``last_line``; escaped where shown)."""
+    if code == 127 and err == b"no CLI":
+        return NO_CLI
+    if code == 124:
+        return (f"agentprov could not be run ({err.decode('ascii', 'replace')[:40]}): check the checkout or the "
+                "agentprov program in Settings › General.")
+    reason = last_line(err)
+    return f"agentprov {command} ended with exit {code}" + (f": {reason}" if reason else "") + (
+        "" if code else " (its answer was not a settings list: is the CLI older than this app?)")
+
+
+def read_or_reason(cli: Caller, prefix: str) -> dict[str, Any] | str:
+    """The stored values under ``prefix`` (already checked by the schema), or why they cannot be read
+    (:func:`unavailable`)."""
+    code, out, err = _run(cli, ["settings", "list", "--prefix", prefix, "--format", "json"])
     if code != 0:
-        return None
+        return unavailable("settings list", code, err)
     try:
         values = json.loads(out).get("values")
     except (ValueError, AttributeError):
-        return None
+        values = None
+    return values if isinstance(values, dict) else unavailable("settings list", 0, err)
+
+
+def read(cli: Caller, prefix: str) -> dict[str, Any] | None:
+    """The stored values under ``prefix`` (already checked by the schema), or ``None`` when they cannot be read."""
+    values = read_or_reason(cli, prefix)
     return values if isinstance(values, dict) else None
 
 

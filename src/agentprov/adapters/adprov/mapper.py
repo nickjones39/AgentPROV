@@ -56,9 +56,20 @@ NAMESPACES: Final = {
     "agentdojo": "https://w3id.org/agentprov/ns/agentdojo#",
 }
 _UTC_SUFFIX: Final = "+00:00"
-_RFC3339_UTC: Final = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?\+00:00")
+#: the AER's own field ranges (``aer._structure`` ``time``: month 01-12, day 01-31, hour 00-23, a leap second): a time the
+#: AER would refuse is malformed here, never passed on (a thorough-fuzz finding of D-1011: month 16)
+_RFC3339_UTC: Final = re.compile(r"[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])"
+                                 r"T(?:[01][0-9]|2[0-3]):[0-5][0-9]:(?:[0-5][0-9]|60)(\.[0-9]+)?\+00:00")
 _INVALID_PREFIXES: Final = ("Empty function name provided", "Invalid tool ")
+#: the AER's integer domain (I-JSON, C.11.3): a typed count beyond it cannot be stored as one (D-1011 fuzz finding)
+_MAX_COUNT: Final = 2**53 - 1
+#: more lost calls than this, inferred from n_llm_calls, is not a run AgentDojo can produce (its pipelines make a few
+#: dozen calls): the file is refused rather than mapped to that many records (D-1011)
+MAX_LOST_CALLS: Final = 4096
 _MODEL_CALL_UNKNOWN: Final = ("/params", "/request", "/response", "/t", "/tools", "/usage")
+#: the placeholders AER-V17 refuses in a typed field (aer/validate.py; the agentdojo mapper reads them the same way): a
+#: version or model id holding one was not recorded, and a task identity holding one is malformed (D-1011 fuzz finding)
+_PLACEHOLDERS: Final = frozenset({"", "0", "unknown", "none", "null", "n/a", "na", "-"})
 
 
 def _p(*tokens: str | int) -> str:
@@ -76,6 +87,16 @@ def _to_z(value: object) -> str | None:
     return None
 
 
+def _reversed(start: str, end: str) -> bool:
+    """Whether a normalised ``…Z`` interval ends before it starts: a source that contradicts itself (a fuzz finding of
+    D-1011); the AER refuses it (AER-V19), and an observed time is never repaired or invented (invariant 2)."""
+    def key(value: str) -> tuple[str, str]:  # the AER validator's order (aer.validate._time_key): every digit counts
+        frac = value[20:].rstrip("Z") if len(value) > 19 and value[19] == "." else ""
+        return value[:19], frac.ljust(40, "0")
+
+    return key(start) > key(end)
+
+
 def _tool_status(error: object) -> str:
     """``agentdojo.tool_status_from_error@1``."""
     if error is None:
@@ -84,6 +105,11 @@ def _tool_status(error: object) -> str:
     if text.startswith("ValidationError") or text.startswith(_INVALID_PREFIXES):
         return "invalid"
     return "error"
+
+
+def _recorded(value: object) -> str | None:
+    """``value`` when it is a string other than a placeholder, else ``None`` (not recorded)."""
+    return value if isinstance(value, str) and value.strip().lower() not in _PLACEHOLDERS else None
 
 
 def _dict(value: object) -> dict[str, Any]:
@@ -174,8 +200,8 @@ class TranscriptV1Mapper:
             "rule": [ctx.rule("adprov.v1_benchmark_is_agentdojo@1")],
             "unk": unk,
         }
-        task_id = meta.get("user_task_id")
-        if isinstance(task_id, str):
+        task_id = _recorded(meta.get("user_task_id"))
+        if task_id is not None:
             task["task_id"] = task_id
             header.update(ev="O", by="config", evf={"/task/benchmark": "D"},
                           rule=[ctx.rule("adprov.v1_benchmark_is_agentdojo@1", "/task/benchmark")],
@@ -231,6 +257,13 @@ class _Build:
             return value
         raise MalformedArtefact(f"{where}: unexpected value type")
 
+    def _ident(self, value: object, where: str, *, nullable: bool = False) -> Any:
+        """A task identity: a string (or ``None`` when ``nullable``) that is not a placeholder."""
+        value = self._str(value, where, nullable=nullable)
+        if value is not None and _recorded(value) is None:
+            raise MalformedArtefact(f"{where} holds a placeholder")
+        return value
+
     # ---------------------------------------------------------------------------------------------- run
     def run(self) -> Iterator[dict[str, Any]]:
         self._check_top()
@@ -269,13 +302,13 @@ class _Build:
         meta = self.meta
         h = self.header
         art = self.item.artefact
-        attack_raw = self._str(meta.get("attack_type"), "meta.attack_type")
+        attack_raw = self._ident(meta.get("attack_type"), "meta.attack_type")
         task: dict[str, Any] = {
             "benchmark": "agentdojo",
-            "suite": self._str(meta.get("suite"), "meta.suite"),
-            "task_id": self._str(meta.get("user_task_id"), "meta.user_task_id"),
+            "suite": self._ident(meta.get("suite"), "meta.suite"),
+            "task_id": self._ident(meta.get("user_task_id"), "meta.user_task_id"),
             "attack_id": self.attack_id,
-            "attack_target_id": self._str(meta.get("injection_task_id"), "meta.injection_task_id", nullable=True),
+            "attack_target_id": self._ident(meta.get("injection_task_id"), "meta.injection_task_id", nullable=True),
         }
         evf: dict[str, str] = {"/task/benchmark": "D"}
         rules = [self.R("adprov.v1_benchmark_is_agentdojo@1", "/task/benchmark")]
@@ -405,7 +438,7 @@ class _Build:
     # ---------------------------------------------------------------------------------------------- actors
     def _actors(self, body: list[Any]) -> None:
         meta = self.meta
-        attack = self._str(meta.get("attack_type"), "meta.attack_type")
+        attack = self._ident(meta.get("attack_type"), "meta.attack_type")
         self.attack_id = None if attack == BENIGN_LABEL else attack
         body.append({"k": "actor", "id": "user", "kind": "simulated_user", "ev": "D", "rule": [self.R("agentdojo.user_is_simulated@1")]})
         body.append(self._agent())
@@ -474,8 +507,8 @@ class _Build:
             rec.data["unk"] = unk
             return rec.done()
         src = []
-        model_id = meta.get("model_id")
-        if isinstance(model_id, str):
+        model_id = _recorded(meta.get("model_id"))
+        if model_id is not None:
             rec.data["model"] = {"requested": model_id}
             src.append(_loc("/meta/model_id"))
         else:
@@ -495,7 +528,7 @@ class _Build:
 
     def _bench(self) -> dict[str, Any]:
         meta = self.meta
-        dist_version, label = meta.get("agentdojo_version"), meta.get("benchmark_version")
+        dist_version, label = _recorded(meta.get("agentdojo_version")), _recorded(meta.get("benchmark_version"))
         rec = _Rec(k="actor", id="bench", kind="benchmark", name="agentdojo")
         if not isinstance(dist_version, str) and not isinstance(label, str):
             rec.data.update(ev="D", rule=[self.R("adprov.v1_benchmark_is_agentdojo@1")],
@@ -542,12 +575,16 @@ class _Build:
         reported = usage.get("n_llm_calls")
         if isinstance(reported, bool) or not isinstance(reported, int):
             reported = None
+        elif not 0 <= reported <= _MAX_COUNT:
+            raise MalformedArtefact("meta.model_config.usage.n_llm_calls is outside the integer range")
         # an explicit null or a non-list is not alignable: kept verbatim at ext.adprov.v1.finish_reasons (CA-16)
         verbatim = "finish_reasons" in model_config and not isinstance(model_config["finish_reasons"], list)
         finish = model_config.get("finish_reasons") if "finish_reasons" in model_config and not verbatim else None
         lost = 0
         if reported is not None and reported > held and not discarded and (finish is None or len(finish) == reported):
             lost = reported - held
+            if lost > MAX_LOST_CALLS:
+                raise MalformedArtefact(f"n_llm_calls implies {lost} lost calls, more than {MAX_LOST_CALLS}")
         plan: dict[str, Any] = {"unit": "agent_execution", "lost": lost, "reported": reported, "finish": finish,
                                 "finish_reasons_verbatim": model_config.get("finish_reasons") if verbatim else None,
                                 "finish_reasons_verbatim_set": verbatim, "scopes": []}
@@ -633,6 +670,8 @@ class _Build:
             unk["/t/dur_s"] = "not_recorded"
         else:
             raise MalformedArtefact("meta.wall_clock_s: unexpected value type")
+        if "start" in t and "end" in t and _reversed(t["start"], t["end"]):
+            raise MalformedArtefact("meta.ended_at is before meta.started_at")
         if raw:
             t["raw"] = raw
         if t:
@@ -646,7 +685,7 @@ class _Build:
             typed: dict[str, Any] = {}
             extra: dict[str, Any] = {}
             for key, value in usage.items():
-                if key in mapping and isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                if key in mapping and isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= _MAX_COUNT:
                     typed[mapping[key]] = rec.enc(value, "/usage/" + mapping[key])
                 else:
                     extra[key] = value
@@ -745,7 +784,7 @@ class _Build:
         for i, turn in enumerate(turns):
             if not isinstance(turn, dict):
                 raise MalformedArtefact("a turn is not an object")
-            role = turn.get("role")
+            role = self._str(turn.get("role"), f"turn {i} role")  # a turn without a role is malformed, as for content
             mid = f"{prefix}{i}"
             tsrc = f"{base}/{i}"
             if role == "tool":
@@ -996,6 +1035,8 @@ class _Build:
                 zs, ze = _to_z(start), _to_z(end)
                 if zs is None or ze is None:
                     raise MalformedArtefact("a tool timing is not an RFC 3339 UTC instant")
+                if _reversed(zs, ze):
+                    raise MalformedArtefact("a tool turn ends before it starts")
                 t["start"], t["end"] = zs, ze
             te.data["t"] = t
         else:

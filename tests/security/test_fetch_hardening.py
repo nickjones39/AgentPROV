@@ -185,7 +185,9 @@ def test_git_never_follows_a_redirect_to_another_host(tmp_path):
     for t in threads:
         t.start()
     try:
-        fetcher = Fetcher(tmp_path, env={"PATH": os.environ.get("PATH", "")})
+        # Windows: a child without SYSTEMROOT cannot open a socket
+        fetcher = Fetcher(tmp_path, env={"PATH": os.environ.get("PATH", ""),
+                                         **({"SYSTEMROOT": os.environ["SYSTEMROOT"]} if "SYSTEMROOT" in os.environ else {})})
         done = _git_probe(fetcher, "-c", "protocol.http.allow=always", "ls-remote", "--", f"http://127.0.0.1:{front.server_port}/o/r")
     finally:
         for s in (front, behind):

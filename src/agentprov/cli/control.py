@@ -7,7 +7,8 @@ the job to itself with a pipe. So it writes ``{"format":"agentprov-control/0.1",
 * **Polling.** A daemon thread ``stat``s the file at most once per ``poll_s`` (1 s): a few microseconds per poll. Only a
   changed file (size, mtime or inode) is read, at most 4 KiB, with the strict loader. A request already in the file
   when the command starts belongs to an earlier invocation (a drain is resumed by re-running the same argv) and is
-  ignored, as is a nonce seen before.
+  ignored, as is a nonce seen before, unless it was issued at or after this process started: a job manager may write
+  a stop or drain while the command's interpreter is still starting, and that request is this run's.
 * **``stop``** behaves like the first SIGTERM on every OS: the watcher simulates that signal in the main thread
   (``_thread.interrupt_main``), so the command takes the clean interrupt path (seal or roll back, release the lock,
   exit 130, N.1.10(2)).
@@ -129,7 +130,10 @@ class ControlWatcher:
             data = self._read()
             found = parse_request(data) if data is not None else None
             if isinstance(found, ControlRequest):
-                self._seen.add(found.nonce)
+                if _issued_since_start(found.issued):
+                    self._identity = None  # this run's request, written before the watcher started: the first poll acts
+                else:
+                    self._seen.add(found.nonce)
         self._thread = threading.Thread(target=self._run, name="agentprov-control", daemon=True)
         self._thread.start()
 
@@ -184,6 +188,32 @@ class ControlWatcher:
         if self.accepted is None:
             return None
         return f"control file: {self.accepted.request} (nonce {self.accepted.nonce}): {self.effect}"
+
+
+def _process_start() -> float:
+    """This process's start time (epoch seconds), or now when it cannot be read (the watcher's start is a later
+    bound)."""
+    import time
+
+    from agentprov.jobs.record import process_start_time
+
+    started = process_start_time(os.getpid())
+    return time.time() if started is None else started
+
+
+def _issued_since_start(issued: str) -> bool:
+    """Whether a request's ``issued`` time (RFC 3339; whole seconds as the job manager writes it) is not earlier than
+    this process's start; an unreadable time is earlier."""
+    import math
+    from datetime import datetime
+
+    try:
+        when = datetime.fromisoformat(issued)
+    except ValueError:
+        return False
+    if when.tzinfo is None:
+        return False
+    return when.timestamp() >= math.floor(_process_start())
 
 
 def _interrupt_main() -> None:

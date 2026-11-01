@@ -22,6 +22,8 @@ import import_support as support  # noqa: E402
 import pytest
 import seal_support as ss
 
+from agentprov.versions import __version__
+
 from agentprov.adapters.runner.importer import LocalTree, import_source
 from agentprov.cli import gitinfo
 from agentprov.cli.main import main
@@ -36,8 +38,9 @@ Z = "d" * 40
 DIGEST = "sha256:" + "e" * 64
 
 
-def step(command: str = "import", commit: str = X, clean: bool = True) -> bs.BuildStep:
-    return bs.BuildStep(command, "0.1.0", git_commit=commit, git_tree_clean=clean)
+def step(command: str = "import", commit: str = X, clean: bool = True, version: str = "0.1.0") -> bs.BuildStep:
+    """A build step; ``version`` is the fixtures' fixed one, or ``__version__`` for a step this CLI run writes."""
+    return bs.BuildStep(command, version, git_commit=commit, git_tree_clean=clean)
 
 
 def absent(command: str = "import") -> bs.BuildStep:
@@ -279,7 +282,7 @@ def test_a_derive_that_rebuilds_only_the_later_stages_shows_the_aer_comes_from_t
     producer = manifest_of(out)["producer"]
     first, second = producer["build_steps"]
     assert first == step().record(stage_names(built))  # the import, unchanged: it wrote the AER and everything else
-    assert second == step("recompute", Y).record(["prov", "sem", "validation"])  # no "aer": that layer is the import's
+    assert second == step("recompute", Y, version=__version__).record(["prov", "sem", "validation"])  # no "aer": that layer is the import's
     assert producer["git_commit"] == Y  # the top-level pair is the writer's
 
 
@@ -289,7 +292,7 @@ def test_a_derive_of_a_complete_corpus_wrote_no_stage_and_says_so(capsys, monkey
     code, summary = cli(capsys, "derive", "--corpus", str(built), "--out", str(out), "--in-process")
     assert code == 0, summary
     first, second = manifest_of(out)["producer"]["build_steps"]
-    assert first == step().record(stage_names(built)) and second == step("derive", Y).record([])
+    assert first == step().record(stage_names(built)) and second == step("derive", Y, version=__version__).record([])
 
 
 def test_a_recompute_that_remaps_says_it_rewrote_the_aer_too(capsys, monkeypatch, built, tmp_path):

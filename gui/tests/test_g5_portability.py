@@ -93,3 +93,45 @@ def test_native_toolbar_setting_is_hidden_off_macos(qapp: Any, tmp_path: Path,
         assert dlg.native.isHidden() is not shown
         dlg.deleteLater()
     _settle(qapp)
+
+
+def test_delete_key_asks_first_and_reports_a_failure(qapp: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review UC-33: Settings › Keys deleted a stored key with --yes and no confirmation (contrary to the D-654 note
+    'after the GUI's own confirmation'), and hid a failure."""
+    from agentprov_gui.live import keychain
+    from agentprov_gui.ui import livepanes
+    from agentprov_gui.ui.livepanes import KeysPane
+
+    monkeypatch.setattr(keychain, "status", lambda cli: keychain.KeychainStatus(True, "FakeRing"))
+    monkeypatch.setattr(keychain, "present", lambda cli, names: dict.fromkeys(names, True))
+    deleted: list[str] = []
+    monkeypatch.setattr(keychain, "delete", lambda cli, name: deleted.append(name))
+    asked: list[str] = []
+    answer = {"ok": False}
+    monkeypatch.setattr(livepanes, "ask", lambda parent, title, text, info="": asked.append(text) or answer["ok"])
+    pane = KeysPane(None, None)
+    pane.refresh()
+    pane.table.setCurrentCell(0, 0)
+    name = pane.names[0]
+    pane.delete_selected()
+    assert asked and name in asked[0] and deleted == []  # cancelled: nothing deleted
+    answer["ok"] = True
+    pane.delete_selected()
+    assert deleted == [name]
+    shown: list[str] = []
+
+    class Box:
+        def __init__(self, *a: Any, **kw: Any) -> None:
+            shown.append(a[1])
+
+        def exec(self) -> int:
+            return 0
+
+    def fail(cli: Any, name: str) -> None:
+        raise keychain.KeychainError("keychain.exit_3")
+
+    monkeypatch.setattr(keychain, "delete", fail)
+    monkeypatch.setattr(livepanes, "safe_message_box", Box)
+    pane.delete_selected()
+    assert shown == ["Key not deleted"]
+    pane.deleteLater()

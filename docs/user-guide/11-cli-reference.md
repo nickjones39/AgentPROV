@@ -68,6 +68,7 @@ Commands in this reference (subcommands indented):
   - [`agentprov devrun start`](#agentprov-devrun-start)
   - [`agentprov devrun list`](#agentprov-devrun-list)
   - [`agentprov devrun prune`](#agentprov-devrun-prune)
+- [`agentprov assist`](#agentprov-assist)
 
 ## agentprov
 
@@ -121,6 +122,8 @@ positional arguments:
     jobs                start, list, follow, stop or prune detached jobs
     batch               ordered job lists that run as one job
     devrun              dev runs: a few samples of every part, imported and checked
+    assist              ask the AgentPROV Assistant how to do something (a model answers from
+                        AgentPROV's docs and code)
 
 options:
   -h, --help            show this help message and exit
@@ -4252,6 +4255,81 @@ options:
   -h, --help            show this help message and exit
   --keep N              keep the newest N (default devrun.keep)
   --yes                 delete them
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+## agentprov assist
+
+```text
+usage: agentprov assist [-h] [--version] [-v] [-q] [--log-format {text,json}] [--log-file PATH]
+                        [--log-content] [--progress {off,summary,status,steps,trace}]
+                        [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                        [--progress-interval SECONDS] [--progress-max-bytes N]
+                        [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                        [--summary-json PATH] [--max-listed N] [--no-colour] [--break-stale-lock]
+                        [--question TEXT] [--endpoint NAME] [--model-id ID] [--base-url URL]
+                        [--server KIND] [--list-models] [--allow-network] [--keychain]
+                        [--env-file PATH] [--context-chars N] [--show-context]
+                        [--format {text,json}]
+
+The desktop app's Help > Assistant (D-1010). The conversation is read from stdin as JSON
+(agentprov-assist-request/0.1) or given with --question; the most relevant passages of the user
+guide, the README, this CLI's help and the module docstrings are sent with it to one endpoint of
+endpoints.toml. They come from the checkout this CLI runs from (or the one around the working
+directory); a CLI installed with pip install agentprov, run outside a checkout, uses the copy of
+the user guide its package ships (D-1030). An API provider needs --allow-network (R2); a local
+server is reached on loopback only. --show-context calls no model.
+
+options:
+  -h, --help            show this help message and exit
+  --question TEXT       one question (instead of a conversation on stdin)
+  --endpoint NAME       an endpoint of endpoints.toml (default: the setting assistant.endpoint)
+  --model-id ID         the model id (default: the setting assistant.model)
+  --base-url URL        a local OpenAI-compatible server on loopback, for one that is not an
+                        endpoint of endpoints.toml (default: the setting assistant.base_url)
+  --server KIND         the local server's kind: its default URL, and how --list-models finds the
+                        loaded model (default: the setting assistant.server)
+  --list-models         list the models the local server serves (the loaded ones first, where it
+                        says) and stop
+  --allow-network       allow the request to an API provider (R2; the registry host only, the
+                        conversation and the selected passages are sent)
+  --keychain            read the endpoint's key from the OS keychain only (D-702)
+  --env-file PATH       read the endpoint's key variable from this .env file only
+  --context-chars N     characters of documentation sent with the question (default 24,000; 0
+                        sends none)
+  --show-context        print the passages that would be sent, and call no model
+  --format {text,json}  payload format (default text)
 
 global options:
   --version             show versions and exit

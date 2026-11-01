@@ -172,7 +172,7 @@ def test_expand_reads_a_split_zip_and_records_the_descriptor_as_container(worksp
     for row, (_name, data) in zip(first.rows, MEMBERS, strict=True):
         assert row.crc32 == f"{zlib.crc32(data):08x}" and store.read_bytes(row.sha256) == data
         assert row.origin().data["container"] == sha
-    assert all(p == "raw" or p.startswith("raw/") for p in (str(q.relative_to(sandbox)) for q in sandbox.rglob("*")))
+    assert all(p == "raw" or p.startswith("raw/") for p in (q.relative_to(sandbox).as_posix() for q in sandbox.rglob("*")))
 
 
 def test_a_spec_whose_digest_is_not_the_descriptor_of_its_parts_is_refused(workspace):

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -47,11 +48,31 @@ def prov_docs(root: Path) -> list[bytes]:
 
 @pytest.mark.parametrize("mode", ["dev", "release"])
 @pytest.mark.parametrize("jobs", [None, 1, 3])
-def test_off_cold_and_warm_give_the_same_report(sealed: Path, tmp_path: Path, mode: str, jobs: int | None) -> None:
+def test_off_cold_and_warm_give_the_same_report(sealed: Path, tmp_path: Path, mode: str, jobs: int | None,
+                                                 monkeypatch: pytest.MonkeyPatch) -> None:
     off = report_bytes(sealed, mode=mode, jobs=jobs)
     cache = DiskCache(tmp_path / "c")
+    why: list[str] = []  # Windows CI rounds 7-10: one of three entries was unstorable at jobs=3; say which rule refused it
+    check_hint, storable = tc._check_hint, tc.storable
+
+    def checked(data: Any, doc: str | None) -> Any:
+        out = check_hint(data, doc)
+        if out is None:
+            ctx = data.get("context_sha256") if isinstance(data, dict) else None
+            why.append(f"hint refused: context {'ok' if ctx == tc.context_digest() else 'differs'}, "
+                       f"doc {'ok' if isinstance(data, dict) and data.get('doc_sha256') == doc else 'differs'}")
+        return out
+
+    def complete(outcomes: Any) -> bool:
+        out = storable(outcomes)
+        if not out:
+            why.append("not storable: " + ", ".join(f"{o.id}={o.status}" for o in outcomes))
+        return out
+
+    monkeypatch.setattr(tc, "_check_hint", checked)
+    monkeypatch.setattr(tc, "storable", complete)
     assert report_bytes(sealed, mode=mode, jobs=jobs, cache=cache) == off
-    assert cache.stats.stored == 3 and cache.stats.hits == 0
+    assert cache.stats.stored == 3 and cache.stats.hits == 0, f"{cache.stats}: {'; '.join(why)}"
     assert len(entries(tmp_path / "c")) == 3
     warm = DiskCache(tmp_path / "c")
     assert report_bytes(sealed, mode=mode, jobs=jobs, cache=warm) == off
@@ -223,6 +244,8 @@ def test_eviction_keeps_the_most_recently_used_within_the_bound(sealed: Path, tm
     assert not root.exists() or not any(root.iterdir())
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows refuses to replace a file another thread holds open: the "
+                    "store counts an error and the entry is recomputed, so the strict interleaving is POSIX only")
 def test_concurrent_writers_leave_whole_entries(sealed: Path, tmp_path: Path) -> None:
     root = tmp_path / "c"
     report_bytes(sealed, mode="release", cache=DiskCache(root))

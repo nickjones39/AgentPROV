@@ -507,11 +507,16 @@ class MemberOutput:
         self._ranges = []
 
 
+#: ``os.pread`` and ``os.pwrite`` exist on POSIX only; Windows seeks and reads or writes under the spool's lock instead
+_POSITIONAL: Final = hasattr(os, "pread") and hasattr(os, "pwrite")
+
+
 class _BatchSpool:
     """One unnamed spool file for the outputs of one :meth:`WorkerPool.run` call that do not fit a memory budget (D-414).
 
     Writes happen only in ``_collect``, before ``run`` returns, and append at the end under a lock. Reads use
-    ``os.pread`` only, so no reader moves a shared file position and readers of one batch may interleave. The file is
+    ``os.pread`` only, so no reader moves a shared file position and readers of one batch may interleave (on Windows,
+    which has no ``os.pread``, a read seeks and reads under the lock, so readers take turns). The file is
     unlinked at creation (``tempfile.TemporaryFile``) and closed when its last holder releases it, or when it is
     collected; a crash leaves nothing behind. It holds at most the batch's spilled outputs: per job at most
     ``max_json_job_bytes`` of JSON and ``max_total_bytes`` of members (G.4.3)."""
@@ -541,7 +546,12 @@ class _BatchSpool:
             offset = self._size
             view = memoryview(data)
             while view:
-                written = os.pwrite(self._fd, view, offset + (len(data) - len(view)))
+                at = offset + (len(data) - len(view))
+                if _POSITIONAL:
+                    written = os.pwrite(self._fd, view, at)
+                else:
+                    os.lseek(self._fd, at, os.SEEK_SET)
+                    written = os.write(self._fd, view)
                 view = view[written:]
             self._size += len(data)
         return offset, len(data)
@@ -549,7 +559,12 @@ class _BatchSpool:
     def pread(self, offset: int, length: int) -> bytes:
         parts: list[bytes] = []
         while length > 0:
-            chunk = os.pread(self._fd, length, offset)
+            if _POSITIONAL:
+                chunk = os.pread(self._fd, length, offset)
+            else:
+                with self._lock:
+                    os.lseek(self._fd, offset, os.SEEK_SET)
+                    chunk = os.read(self._fd, length)
             if not chunk:
                 raise OSError("the batch spool file is shorter than a recorded range")
             parts.append(chunk)
@@ -1162,21 +1177,27 @@ def install_audit_hook() -> None:
             # V-4: a fresh import (after the module was dropped from sys.modules) restores the real fork_exec
             raise AuditBlockedError("a fresh import of _posixsubprocess is blocked in a T1 worker")
 
-    sys.addaudithook(hook)
     # _posixsubprocess.fork_exec starts a process without raising any audit event; multiprocessing's spawn and
     # forkserver paths call it from pure Python (pre-round review D #13). No job kind needs it, so the worker replaces
     # it after preload, and the copy `subprocess` bound when it was imported (V-4). Outside the hook remain native code
     # calling the C function and the import internals that rebuild the module without an audit event
     # (`importlib.util.module_from_spec` on its spec, `_imp.create_builtin`), as G.4.4 says.
+    # The module is probed before the hook is installed: the hook refuses the import event of a module that is not
+    # loaded yet, and on Windows, which has no such module, the probe itself raised that event and every worker died at
+    # start-up (review UC-3, D-1011).
+    helper: Any
     try:
-        import _posixsubprocess
+        import _posixsubprocess as helper
     except ImportError:  # no POSIX subprocess helper on this platform
+        helper = None
+    sys.addaudithook(hook)
+    if helper is None:
         return
 
     def fork_exec_blocked(*_args: Any, **_kwargs: Any) -> Any:
         raise AuditBlockedError("_posixsubprocess.fork_exec is blocked in a T1 worker")
 
-    _posixsubprocess.fork_exec = fork_exec_blocked  # type: ignore[attr-defined,assignment,unused-ignore]
+    helper.fork_exec = fork_exec_blocked
     bound = sys.modules.get("subprocess")
     if bound is not None and hasattr(bound, "_fork_exec"):
         bound._fork_exec = fork_exec_blocked  # type: ignore[attr-defined]  # noqa: SLF001

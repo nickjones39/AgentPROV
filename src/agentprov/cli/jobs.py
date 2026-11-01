@@ -84,7 +84,9 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
 
 
 def _meta(items: list[str]) -> dict[str, str | int | float | bool]:
-    """``--meta KEY=VALUE`` pairs: a JSON scalar where VALUE parses as one, else the text (at most 200 characters)."""
+    """``--meta KEY=VALUE`` pairs: a JSON scalar where VALUE parses as one (a finite number), else the text (at most
+    200 characters)."""
+    import math
     import re
 
     out: dict[str, str | int | float | bool] = {}
@@ -96,7 +98,8 @@ def _meta(items: list[str]) -> dict[str, str | int | float | bool]:
             value = json.loads(raw)
         except ValueError:
             value = raw
-        out[key] = value if isinstance(value, str | int | float | bool) and value == value else raw
+        finite = not isinstance(value, float) or math.isfinite(value)  # 1e999 parses as inf, which JSON cannot hold
+        out[key] = value if isinstance(value, str | int | float | bool) and finite else raw
     return out
 
 
@@ -367,6 +370,10 @@ def _follow(ctx: Context, args: argparse.Namespace, result: CommandResult) -> No
         if job.state != "running" or (deadline is not None and time.monotonic() > deadline):
             break
         time.sleep(0.5)
-    for obj in reader.read():
-        ctx.stdout.write(json.dumps(obj, sort_keys=True, ensure_ascii=True) + "\n")
+    while True:  # the rest of the file, one read cap at a time: an ended job's file no longer grows
+        for obj in reader.read():
+            ctx.stdout.write(json.dumps(obj, sort_keys=True, ensure_ascii=True) + "\n")
+        if reader.lagging_bytes == 0:
+            break
+    ctx.stdout.flush()
     result.info(f"jobs: {job.job_id} is {job.state}" + ("" if job.exit_code is None else f" (exit {job.exit_code})"))

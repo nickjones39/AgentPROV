@@ -243,13 +243,13 @@ def _dump(doc: Mapping[str, Any]) -> bytes:
 
 def write_snapshot(directory: Path, rows: Sequence[Price], *, fetched: dt.date, raw_sha256: str) -> Path:
     """A refreshed OpenRouter snapshot ``openrouter-<date>.json`` (atomic; the raw response is not kept)."""
-    from agentprov.io.atomic import atomic_write_bytes
+    from agentprov.io.replace_retry import atomic_write_bytes_retrying
 
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"openrouter-{fetched.isoformat()}.json"
     doc = {"format": PRICES_FORMAT, "source": OPENROUTER_URL, "as_of": fetched.isoformat(),
            "raw_sha256": raw_sha256, "rows": [r.to_json() for r in rows]}
-    atomic_write_bytes(path, _dump(doc))
+    atomic_write_bytes_retrying(path, _dump(doc))
     return path
 
 
@@ -429,8 +429,8 @@ def check_override(endpoint: str, model: str, row: Mapping[str, Any]) -> Price:
 
 
 def _write_overrides(home: Path, change: Callable[[dict[str, Any]], None]) -> None:
-    from agentprov.io.atomic import atomic_write_bytes
     from agentprov.io.locks import ResourceLock
+    from agentprov.io.replace_retry import atomic_write_bytes_retrying
 
     path = _overrides_path(home)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -439,7 +439,7 @@ def _write_overrides(home: Path, change: Callable[[dict[str, Any]], None]) -> No
         change(values)
         if len(values) > MAX_OVERRIDES:
             raise PriceError(f"more than {MAX_OVERRIDES} overrides")
-        atomic_write_bytes(path, _dump({"format": OVERRIDES_FORMAT, "overrides": dict(sorted(values.items()))}))
+        atomic_write_bytes_retrying(path, _dump({"format": OVERRIDES_FORMAT, "overrides": dict(sorted(values.items()))}))
 
 
 def set_override(home: Path, endpoint: str, model: str, *, input: str, output: str,  # noqa: A002 - the field name

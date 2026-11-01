@@ -68,6 +68,118 @@ def _pick(seeds: list[bytes]) -> st.SearchStrategy[bytes]:
 
 
 @pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+def test_a_turn_without_a_role_is_malformed_not_a_mapper_defect() -> None:
+    """The fuzz finding of the first public CI run (2026-11-01, D-1011): a turn whose "role" key is damaged ("sole")
+    mapped to a message with role null, which the AER writer refused (aer.schema.pattern at /role). The mapper now
+    refuses such a turn as a malformed artefact, as it does a turn whose content is not a string."""
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+
+    seed = next(s for s in ADPROV if b'"role": "system"' in s)
+    blob = seed.replace(b'"role": "system"', b'"sole": "system"', 1)
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    aer_bytes(result)  # the writer accepts what the mapper yields
+    assert not any(isinstance(r, dict) and r.get("k") == "message" and r.get("role") is None for r in result.records)
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+@pytest.mark.parametrize("key", ["agentdojo_version", "benchmark_version", "model_id", "suite", "user_task_id",
+                                 "attack_type", "injection_task_id"])
+@pytest.mark.parametrize("placeholder", ["", "unknown", "-"])
+def test_a_placeholder_in_meta_never_reaches_a_typed_field(key: str, placeholder: str) -> None:
+    """The thorough fuzz profile's finding of 2026-11-01 (D-1011): two deleted bytes emptied meta.agentdojo_version, and
+    the mapper wrote the empty string as /code/dist_version, which the AER writer refused (aer.sentinel, AER-V17). A
+    version or model id holding a placeholder is now not recorded, and a task identity holding one is malformed."""
+    import json as _json
+
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+    from agentprov.aer.writer import AerWriteError
+
+    seed = next(s for s in ADPROV if b'"injection_task_id": "' in s)
+    doc = _json.loads(seed)
+    doc["meta"][key] = placeholder
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    result, _unit = map_artefact(_json.dumps(doc, indent=2).encode(), origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    try:
+        aer_bytes(result)
+    except AerWriteError as exc:  # the stated exception: a degenerate header that cannot name its task
+        assert key == "user_task_id" and result.degenerate
+        assert {(f.code, f.pointer) for f in exc.findings} == {("aer.schema.required", "/task/task_id")}
+    else:
+        assert result.degenerate == (key in ("suite", "attack_type", "injection_task_id"))
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+def test_a_tool_turn_that_ends_before_it_starts_is_malformed_not_a_mapper_defect() -> None:
+    """The thorough fuzz profile's finding of 2026-11-01 (D-1011): a tool turn whose ended_at precedes its started_at
+    (one flipped digit) reached the AER writer, which refused it (aer.order.time, AER-V19). The mapper now refuses the
+    contradiction as malformed and never repairs a time (invariant 2)."""
+    import re as _re
+
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+
+    seed = next(s for s in ADPROV if b'"ended_at": "20' in s and b'"role": "tool"' in s)
+    starts = list(_re.finditer(rb'"started_at": "(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)', seed))
+    tool = next(m for m in starts if seed.rfind(b'"role": "tool"', 0, m.start()) > seed.rfind(b'"role": "assistant"', 0, m.start()))
+    end = _re.compile(rb'"ended_at": "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d').search(seed, tool.end())
+    assert end is not None
+    blob = seed[:end.start()] + b'"ended_at": "2000-01-01T00:00:00' + seed[end.end():]  # before every start
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    aer_bytes(result)  # the writer accepts what the mapper yields
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+def test_a_time_outside_the_aer_ranges_is_malformed_not_a_mapper_defect() -> None:
+    """The thorough fuzz profile's finding of 2026-11-01 (D-1011): an ended_at with month 16 matched the mapper's time
+    shape and reached the AER writer, which refused it (aer.schema.pattern at /t/end)."""
+    import re as _re
+
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+
+    seed = next(s for s in ADPROV if _re.search(rb'"ended_at": "\d{4}-\d\d-', s))
+    match = _re.search(rb'"ended_at": "(\d{4})-\d\d-', seed)
+    assert match is not None
+    blob = seed[:match.start()] + b'"ended_at": "' + match.group(1) + b"-16-" + seed[match.end():]
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    aer_bytes(result)
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+def test_counts_beyond_the_aer_integer_range_neither_break_the_record_nor_run_away() -> None:
+    """The thorough fuzz profile's finding of 2026-11-01 (D-1011): 30 nines spliced into a usage count reached the typed
+    usage field (aer.schema.pattern at /usage/input_tokens). Such a count is now kept verbatim in ext, as other unusable
+    values are; and an n_llm_calls that large, which would have meant one lost-call record per unit, is refused at once."""
+    import re as _re
+    import time
+
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    seed = next(s for s in ADPROV if _re.search(rb'"usage": \{', s))
+    huge = b"9" * 30
+    count = _re.compile(rb'("(?!n_llm_calls)[a-z_]*tokens?[a-z_]*": )(\d+)')
+    match = count.search(seed, seed.index(b'"usage": {'))
+    assert match is not None
+    blob = seed[:match.start(2)] + huge + seed[match.end(2):]
+    result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    aer_bytes(result)
+    calls = _re.compile(rb'("n_llm_calls": )(\d+)').search(seed)
+    if calls is not None:
+        blob = seed[:calls.start(2)] + huge + seed[calls.end(2):]
+        started = time.monotonic()
+        result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+        assert result.error_code != "adapter.defect" and time.monotonic() - started < 10
+        aer_bytes(result)
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
 @budget(120, deadline=None)
 @given(st.data())
 def test_adprov_reader_is_total_and_its_items_map_to_a_sealed_aer(data: st.DataObject) -> None:

@@ -1,11 +1,11 @@
 <h1 align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/agentprov-wordmark-on-dark.svg"><img src="docs/images/brand/agentprov-wordmark.svg" alt="AgentPROV" width="440"></picture></h1>
 
 <p align="center">
-  <a href="https://doi.org/10.5281/zenodo.23786079"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23786079.svg" alt="Software DOI on Zenodo"></a>
+  <a href="https://doi.org/10.5281/zenodo.23848609"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23848609.svg" alt="Software DOI on Zenodo"></a>
   <a href="https://w3id.org/agentprov/#corpora"><img src="https://img.shields.io/badge/corpora-Zenodo-1682D4" alt="Corpora on Zenodo"></a>
   <a href="https://w3id.org/agentprov/#cite"><img src="https://img.shields.io/badge/paper-in%20preparation-lightgrey" alt="Paper: in preparation"></a>
   <a href="https://w3id.org/agentprov/docs/"><img src="https://img.shields.io/badge/docs-user%20guide-0A7BBB" alt="User guide"></a>
-  <a href="https://github.com/nickjones39/AgentPROV/releases/tag/v0.1.0"><img src="https://img.shields.io/badge/release-v0.1.0-2EA043" alt="Release v0.1.0"></a>
+  <a href="https://github.com/nickjones39/AgentPROV/releases/tag/v0.1.1"><img src="https://img.shields.io/badge/release-v0.1.1-2EA043" alt="Release v0.1.1"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-yellow" alt="Licence: MIT"></a>
   <a href="https://www.w3.org/TR/prov-overview/"><img src="https://img.shields.io/badge/W3C-PROV-005A9C" alt="W3C PROV"></a>
 </p>
@@ -19,12 +19,6 @@ from that record. The executions can be captured live or released by other resea
 statement names its evidence class, the rule that produced it, and the field of the record that justifies it. Corpora
 are hash-chained from the original raw bytes to the final graph. You can verify and recompute them without
 re-running any model.
-
-> **Status: the v0.1.0 release.** The design is specified in
-> [`docs/architecture/`](docs/architecture/). The README describes what is on `main`. The decisions are in
-> [`DECISIONS.md`](docs/architecture/DECISIONS.md). A source counts as **supported** only after its full pinned
-> snapshot has been imported through `agentprov import` with zero crashes and the counts are recorded in
-> `docs/reports/`.
 
 **Documentation:** the [user guide](docs/user-guide/README.md) explains installation, every command with worked
 examples, the desktop app, safety and troubleshooting. Read it on the website, <https://w3id.org/agentprov/docs/>, or
@@ -203,8 +197,20 @@ from](docs/user-guide/14-corpora.md).
 
 ## Quick start
 
-AgentPROV uses [uv](https://docs.astral.sh/uv/) (0.12.22 or later). The core needs Python ≥ 3.14; release builds that
-ingest archives need 3.14.8 or later.
+**From PyPI.** The command-line program and library, with the capture library (Python 3.14.8 or later; the
+draft-only Zenodo uploader comes with the `zenodo` extra, `pip install "agentprov[zenodo]"`):
+
+```bash
+pip install agentprov        # or: uv tool install agentprov
+agentprov info               # versions, the source registry, extras, host isolation grade
+```
+
+Live runs and the desktop app from source need the repository checkout below: the benchmark backends are separate uv
+projects that the package does not contain. The desktop app is also a download on the
+[releases page](https://github.com/nickjones39/AgentPROV/releases/latest).
+
+**From a checkout.** AgentPROV uses [uv](https://docs.astral.sh/uv/) (0.12.22 or later). The core needs Python ≥ 3.14;
+release builds that ingest archives need 3.14.8 or later.
 
 ```bash
 uv sync --frozen --group docs   # core, dev tools and the docs group, exactly as locked
@@ -222,11 +228,12 @@ Corpora, the fetch cache and backend environments live under `AGENTPROV_HOME` (d
 repository. The [user guide](docs/user-guide/README.md) walks through each step on a small demo corpus;
 [chapter 11](docs/user-guide/11-cli-reference.md) has every command's `--help`.
 
-**Platforms.** Developed and used on macOS on Apple silicon. The test suite last ran on Linux (x86_64 and arm64) and
-Windows in GitHub Actions on 2026-10-08, against early code; CI has not run since (D-431: manual dispatch only). In the
-clean-machine tests (G5), bundles built from `main` pass on clean Ubuntu 24.04 (aarch64) and Windows 11 ARM64 machines,
-and under emulation on Ubuntu 22.04 x86_64 and Windows x86_64; Windows has no live runs (D-867). Cross-platform use is
-not guaranteed. See [Installing AgentPROV](docs/user-guide/01-install.md).
+**Platforms.** Developed and used on macOS on Apple silicon. CI runs the full test suite on Linux (x86_64 and arm64), macOS and Windows in GitHub Actions on the public
+repository before each release (D-1011). The release bundles are built natively, each on a GitHub-hosted runner of its
+own operating system and architecture. Before 0.1.1, bundles built from `main` passed the clean-machine tests (G5) on
+clean Ubuntu 24.04 (aarch64) and Windows 11 ARM64 machines, and under emulation on Ubuntu 22.04 x86_64 and Windows
+x86_64; Windows has no live runs (D-867). Cross-platform use is not guaranteed. See
+[Installing AgentPROV](docs/user-guide/01-install.md).
 
 ## Live backends
 
@@ -249,11 +256,12 @@ takes `--defence NAME` (ten registered defences); the others run undefended. See
 `gui/` holds a desktop viewer and job runner (`agentprov-gui`, PySide6). It is a separate uv project that never writes a
 corpus itself: every write runs as an `agentprov` command it shows you first. Corpus content stays hidden until you ask
 for it. Live runs and packaging start from the same job runner; the draft-only Zenodo uploader runs in a terminal pane
-of the Package page's Create Zenodo drafts dialog. The v0.1.0 release carries bundles for macOS (Apple silicon, signed
-ad hoc), Windows (ARM64 and x64) and Linux (aarch64 and x86_64), each with its `bundle-report.json`; see the [release
-notes](docs/release-notes/v0.1.0.md). The macOS bundle was tested on the development Mac, and the bundles built for the
-clean-machine tests from `main` passed them: Linux aarch64 and Windows ARM64 on clean machines, Linux and Windows x86_64
-under emulation (D-750, G5).
+of the Package page's Create Zenodo drafts dialog. Help › Docs shows this user guide, and Help › Assistant answers
+how-to questions with a model you choose, local or an API provider (`agentprov assist`, D-1010). The v0.1.1 release
+carries bundles for macOS (Apple silicon and Intel, signed ad hoc), Windows (ARM64 and x64) and Linux (aarch64 and
+x86_64), each built natively on its own GitHub-hosted runner with its `bundle-report.json` (D-1011); see the [release
+notes](docs/release-notes/v0.1.1.md). The v0.1.0 bundles were tested on clean machines (Linux aarch64, Windows ARM64)
+and under emulation (Linux and Windows x86_64) (D-750, G5).
 
 ```bash
 uv sync --project gui
@@ -362,7 +370,7 @@ Please cite the software as below. [`CITATION.cff`](CITATION.cff) holds the same
 @software{jones_agentprov_2026,
   author  = {Jones, Nicholas},
   title   = {AgentPROV: execution provenance for LLM-agent security research},
-  version = {0.1.0},
+  version = {0.1.1},
   year    = {2026},
   license = {MIT},
   url     = {https://github.com/nickjones39/AgentPROV}

@@ -8,7 +8,10 @@ out of descriptors reports ``worker.input.nofile``, never ``worker.input.missing
 from __future__ import annotations
 
 import io
+import sys
 import zipfile
+
+import pytest
 
 from agentprov.ingest.limits import IngestLimits
 from agentprov.io.workers import WorkerLimits, WorkerPool
@@ -43,6 +46,7 @@ def test_a_split_archive_at_the_part_limit_expands_in_a_real_worker(tmp_path):
     assert [(r.label, r.disposition) for r in out.rows] == [("logs/a.json", "selected")], out.events
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="RLIMIT_NOFILE is POSIX: Windows sets no descriptor limit")
 def test_running_out_of_descriptors_is_reported_as_such(tmp_path):
     n = WorkerLimits().nofile + 4  # only reachable with a raised part limit
     out = _expand(tmp_path, n, IngestLimits(max_split_parts=n))

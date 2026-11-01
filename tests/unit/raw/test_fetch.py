@@ -678,7 +678,7 @@ def test_a_download_without_allow_network_is_refused_and_the_transport_is_never_
 
 def _purged(cache: Path, digest: str) -> None:
     cache.mkdir(parents=True, exist_ok=True)
-    (cache / "tombstones.jsonl").write_text(f'{{"date":"2026-10-12","reason":"secret","sha256":"sha256:{digest}"}}\n')
+    (cache / "tombstones.jsonl").write_text(f'{{"date":"2026-10-12","reason":"secret","sha256":"sha256:{digest}"}}\n', newline="\n")
 
 
 def test_a_purged_pinned_download_is_refused_before_the_network(tmp_path):
@@ -1027,11 +1027,11 @@ def test_an_acquisitions_row_with_an_absolute_store_under_the_cache_still_counts
     log = cache / ACQUISITIONS_NAME
     (row,) = [json.loads(line) for line in log.read_text().splitlines()]
     store = up.recipe().cache_path(cache)
-    log.write_text(json.dumps({**row, "store": str(store.resolve())}) + "\n")  # as the 2026-10-08 rows are
+    log.write_text(json.dumps({**row, "store": str(store.resolve())}) + "\n", newline="\n")  # as the 2026-10-08 rows are
     assert up.fetcher(cache).plan(up.recipe()).cached  # before: not cached, and offline fetch refused
     assert not up.fetcher(cache).fetch(up.recipe()).network_used
     outside = tmp_path / "elsewhere" / store.name  # the same bare-store name, outside the cache root
-    log.write_text(json.dumps({**row, "store": str(outside)}) + "\n")
+    log.write_text(json.dumps({**row, "store": str(outside)}) + "\n", newline="\n")
     assert not up.fetcher(cache).plan(up.recipe()).cached
-    log.write_text(json.dumps({**row, "store": str(store.parent)}) + "\n")  # inside the cache, but not this store
+    log.write_text(json.dumps({**row, "store": str(store.parent)}) + "\n", newline="\n")  # inside the cache, but not this store
     assert not up.fetcher(cache).plan(up.recipe()).cached

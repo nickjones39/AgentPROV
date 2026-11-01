@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 
 from agentprov_gui import text as T
 from agentprov_gui.jobs.manager import JobManager
-from agentprov_gui.ui.safe import SafeLabel
+from agentprov_gui.ui.safe import SafeLabel, help_tooltip, is_tooltip_role, set_control_tooltip
 
 __all__ = ["LogModel", "LogsPage"]
 
@@ -38,6 +38,8 @@ LEVELS: Final = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 class LogModel(QAbstractTableModel):
     HEADERS: Final = ("ts", "level", "logger", "ex", "message")
+    TIPS: Final = ("When the record was written", "DEBUG, INFO, WARNING or ERROR", "The part of agentprov that wrote it",
+                   "The execution it is about, when it names one", "The message (escaped and redacted by the CLI)")
 
     def __init__(self) -> None:
         super().__init__()
@@ -71,8 +73,12 @@ class LogModel(QAbstractTableModel):
         return None
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.ItemDataRole.DisplayRole) -> Any:
-        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
+        if orientation != Qt.Orientation.Horizontal:
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
             return self.HEADERS[section]
+        if is_tooltip_role(role):
+            return help_tooltip(self.TIPS[section])
         return None
 
 
@@ -90,11 +96,14 @@ class LogsPage(QWidget):
         self.job = QComboBox(self)
         self.job.setAccessibleName("Job")
         self.job.currentIndexChanged.connect(self._job_changed)
+        set_control_tooltip(self.job, "The job whose log is shown: its label and the start of its id")
         bar.addWidget(self.job, 2)
         self.source = QComboBox(self)
         self.source.setAccessibleName("Log source")
         self.source.addItems(["log.jsonl", "stderr.txt"])
         self.source.currentIndexChanged.connect(self._job_changed)
+        set_control_tooltip(self.source, "log.jsonl: the job's structured log (escaped and redacted by the CLI). "
+                                         "stderr.txt: its standard error, as plain lines.")
         bar.addWidget(self.source)
         self.level_boxes: dict[str, QCheckBox] = {}
         for level in LEVELS:
@@ -102,28 +111,36 @@ class LogsPage(QWidget):
             cb.setAccessibleName(f"Show {level.lower()} records")
             cb.setChecked(level != "DEBUG")
             cb.toggled.connect(self._refilter)
+            set_control_tooltip(cb, f"Show the {level} records")
             self.level_boxes[level] = cb
             bar.addWidget(cb)
         self.search = QLineEdit(self)
         self.search.setAccessibleName("Search the log")
         self.search.setPlaceholderText("search")
         self.search.textChanged.connect(self._refilter)
+        set_control_tooltip(self.search, "Show only the records whose message or logger contains this text (any case)")
         bar.addWidget(self.search, 2)
         self.ex = QLineEdit(self)
         self.ex.setAccessibleName("Only this execution")
         self.ex.setPlaceholderText("only ex_…")
         self.ex.textChanged.connect(self._refilter)
+        set_control_tooltip(self.ex, "Show only the records of this execution (its exact id)")
         bar.addWidget(self.ex, 1)
         self.follow = QCheckBox("follow", self)
         self.follow.setAccessibleName("Follow the end of the log")
         self.follow.setChecked(True)
+        set_control_tooltip(self.follow, "Keep the newest record in view as the log grows. Off: the view stays put while "
+                                         "the log is still read.")
         bar.addWidget(self.follow)
         copy = QPushButton("Copy", self)
         copy.setAccessibleName("Copy the selected rows")
         copy.clicked.connect(self.copy)
+        set_control_tooltip(copy, "Copy the selected rows as tab-separated text, as shown (escaped) (⌘C)")
         bar.addWidget(copy)
         lay.addLayout(bar)
         self.banner = SafeLabel("", name="Log buffer facts", parent=self)
+        set_control_tooltip(self.banner, "The records held in memory. The oldest leave the buffer when it is full; the "
+                                         "whole log stays in the job's folder on disk.")
         lay.addWidget(self.banner)
         self.model = LogModel()
         self.view = QTableView(self)

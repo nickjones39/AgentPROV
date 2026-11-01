@@ -26,7 +26,11 @@ def _alarm(_signum: int, _frame: object) -> None:
 
 @pytest.fixture
 def guard() -> Iterator[None]:
-    """Turn a hang into a failure: ``_Hang`` is raised 3 s in."""
+    """Turn a hang into a failure: ``_Hang`` is raised 3 s in. Windows has no SIGALRM: there the test runs unguarded and
+    the core leg's faulthandler timeout catches a hang instead."""
+    if not hasattr(signal, "SIGALRM"):
+        yield
+        return
     old = signal.signal(signal.SIGALRM, _alarm)
     signal.alarm(3)
     try:

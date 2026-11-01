@@ -155,3 +155,26 @@ def test_the_summary_reads_each_parts_jobs(tmp_path: Path) -> None:
     (row,) = summarise(jobs)
     assert row.import_outcome == "ok" and row.counters["degenerate"] == 1 and row.issues_top == [("map.x", 3)]
     assert row.validate_outcome == "ok" and row.recompute_counters == {"differences": 0}
+
+
+def test_the_summary_reports_each_step_s_time(tmp_path: Path) -> None:
+    """Review UC-29: the time was ended.json's mtime minus job.json's ctime, and the supervisor rewrites job.json last,
+    so the difference was negative and dropped; it is now measured from the job's recorded start."""
+    import calendar
+    import time
+
+    from agentprov.devrun.plan import summarise
+
+    d = tmp_path / "import"
+    d.mkdir()
+    started = calendar.timegm(time.strptime("2026-11-01T10:00:00Z", "%Y-%m-%dT%H:%M:%SZ"))
+    (d / "ended.json").write_text("{}")
+    os.utime(d / "ended.json", (started + 42.25, started + 42.25))
+    (d / "job.json").write_text("{}")  # rewritten after ended.json, as the supervisor does
+    job = SimpleNamespace(record={"command": "import", "extra": {"part": "a/p1"}, "created": "2026-11-01T10:00:00Z"},
+                          command="import", outcome="ok", file=lambda name: d / name)
+    (row,) = summarise([job])
+    assert row.seconds == {"import": 42.2}
+    job.record["created"] = "not a time"
+    (row,) = summarise([job])
+    assert row.seconds == {}

@@ -60,6 +60,7 @@ from agentprov.errors import AgentProvError, IngestError
 from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.loaders import iter_jsonl
 from agentprov.ingest.paths import open_evidence
+from agentprov.io import remove
 from agentprov.io.atomic import LockFile, _fsync_dir, atomic_write_bytes
 from agentprov.io.canonical import is_sha256_hex, jcs_bytes
 from agentprov.raw.members import MemberRow
@@ -446,7 +447,7 @@ def _unlink_object(root: Path, label: str, *, prune: bool = False) -> None:
     path = root.joinpath(*label.split("/"))
     if not stat.S_ISREG(os.lstat(path).st_mode):
         raise PurgeError("the stored object is not a regular file", code="purge.object.invalid")
-    os.unlink(path)
+    remove.unlink(path)  # a read-only (0444) object, which Windows deletes only once the bit is cleared
     _fsync_dir(path.parent)
     if not prune:
         return

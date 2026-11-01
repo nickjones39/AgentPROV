@@ -193,7 +193,9 @@ class ReleaseArgs:
         elif self.source_date_epoch is not None:
             if not 0 <= self.source_date_epoch <= MAX_SOURCE_DATE_EPOCH:
                 raise ReleaseDateError("SOURCE_DATE_EPOCH lies outside 1970-01-01T00:00:00Z..9999-12-31T23:59:59Z")
-            created = datetime.datetime.fromtimestamp(self.source_date_epoch, datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            # the epoch plus a timedelta: Windows refuses datetime.fromtimestamp after 3000-12-31 (EINVAL)
+            created = (datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC) + datetime.timedelta(seconds=self.source_date_epoch)
+                       ).strftime("%Y-%m-%dT%H:%M:%SZ")
         return {"concept_doi": self.concept_doi, "created": created,
                 "previous": None if self.previous is None else dict(self.previous),
                 "source_date_epoch": self.source_date_epoch, "status": "sealed", "version_doi": self.version_doi}  # fmt: skip

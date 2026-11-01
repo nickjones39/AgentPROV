@@ -1,8 +1,8 @@
 [project]
 name = "agentprov"
-version = "0.1.0"
+version = "0.1.1"
 description = "AgentPROV: an execution-provenance framework for LLM-agent security research — source-preserving, evidence-qualified execution records and defensible W3C PROV, with benchmark/framework adapters"
-readme = "README.md"
+readme = "docs/pypi/agentprov.md"  # the PyPI page: absolute links; README.md is the repository's
 requires-python = ">=3.14"          # stdlib zstd (PEP 784), tar 'data' filter default, 2025-26 archive CVE fixes; see docs/architecture
 license = "MIT"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
@@ -26,6 +26,11 @@ dependencies = [
     "keyring>=25.6,<26",      # D-702: `agentprov keys` and `run --keychain`; imported only by agentprov.keys.helper
     "psutil>=7.2,<9",         # D-704: job identity (pid + create time) and process trees; agentprov.jobs only
 ]
+
+[project.urls]
+Homepage = "https://w3id.org/agentprov/"
+Documentation = "https://w3id.org/agentprov/docs/"
+Source = "https://github.com/nickjones39/AgentPROV"
 
 [project.optional-dependencies]
 live = ["python-dotenv>=1.2.2"]   # read .env at the live CLI entry only
@@ -63,6 +68,9 @@ build-backend = "uv_build"
 [tool.uv]
 required-version = ">=0.12.22"     # can install CPython 3.14.8 (release-mode floor); raised 2026-10-08 per G.7.1(1)
 exclude-newer = "2026-10-07T00:00:00Z"
+# D-1011: the security releases osv-scanner asked for (the first public CI run, 2026-11-01); only these
+# packages may be newer than the cutoff above, every other one stays where it was
+exclude-newer-package = { certifi = "2026-11-01T00:00:00Z" }
 default-groups = ["dev"]
 
 [tool.uv.workspace]

@@ -179,6 +179,7 @@ def test_truncation_corruption_trailing_data_and_checksum_have_codes():
     assert code_of(bytes(flipped)) == "ingest.archive.crc"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="measures memory with the resource module (POSIX)")
 def test_a_declared_content_size_is_never_preallocated(tmp_path):
     """CVE-2026-15310 shape: a frame declares 1 GiB and carries 1 KiB; peak RSS of a fresh process stays small."""
     real = zstd_stream(tar_bytes([("a.json", b"x" * 512)]), checksum=False)
@@ -269,9 +270,10 @@ def test_expand_reads_a_top_level_tar_zst_and_its_nested_eval_at_level_2(tmp_pat
     assert top == [("selected", 0), ("not_selected", 0)]
     level2 = [(r.label, r.disposition) for r in first.rows if r.container != sha]
     assert level2 == [("header.json", "not_selected"), ("samples/1_epoch_1.json", "selected")]
-    assert all(p == "raw" or p.startswith("raw/") for p in (str(q.relative_to(sandbox)) for q in sandbox.rglob("*")))
+    assert all(p == "raw" or p.startswith("raw/") for p in (q.relative_to(sandbox).as_posix() for q in sandbox.rglob("*")))
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="measures memory with the resource module (POSIX)")
 @pytest.mark.slow
 def test_reading_many_large_members_keeps_memory_flat(tmp_path):
     """D-245 regression: pass 2 once grew by one member size per member (a growing bytearray's abandoned regions stayed

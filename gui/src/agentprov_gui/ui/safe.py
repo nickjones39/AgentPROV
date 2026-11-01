@@ -12,30 +12,42 @@ Every widget made here needs an accessible name (D-446).
 
 from __future__ import annotations
 
-from PySide6.QtCore import QAbstractItemModel, QModelIndex, Qt
-from PySide6.QtGui import QPixmap
+from collections.abc import Callable, Sequence
+from pathlib import Path
+
+from PySide6.QtCore import QAbstractItemModel, QEvent, QModelIndex, QObject, Qt, QUrl
+from PySide6.QtGui import QHelpEvent, QImage, QPixmap, QTextDocument
 from PySide6.QtGui import Qt as QtGuiNs
 from PySide6.QtWidgets import (
+    QApplication,
     QFormLayout,
     QLabel,
     QMessageBox,
     QPlainTextEdit,
+    QTableWidget,
+    QTextBrowser,
+    QTreeWidget,
     QWidget,
 )
 
 from agentprov_gui import text as T
 
 __all__ = [
+    "DocView",
     "ReadOnlyText",
     "SafeForm",
     "SafeImage",
     "SafeLabel",
+    "help_tooltip",
     "is_tooltip_role",
     "safe_message_box",
     "safe_tooltip",
     "set_combo_item_tooltip",
+    "set_control_tooltip",
+    "set_header_tooltips",
     "set_item_tooltip",
     "set_list_item_tooltip",
+    "set_setting_tooltip",
     "set_tab_tooltip",
     "set_tooltip",
     "tab_text",
@@ -82,6 +94,62 @@ def set_tooltip(widget: QWidget, value: object) -> None:
     widget.setToolTip(safe_tooltip(value))
 
 
+def help_tooltip(value: object) -> str:
+    """Explanatory text for a tooltip: escaped like :func:`safe_tooltip` but with ordinary spaces, so a long
+    explanation wraps."""
+    return str(QtGuiNs.convertFromPlainText(T.line(value, 500), Qt.WhiteSpaceMode.WhiteSpaceNormal))
+
+
+class _SettingTipGate(QObject):
+    """Swallows a tooltip event unless the setting is in use (Qt shows tooltips on disabled widgets too)."""
+
+    def __init__(self, owner: QWidget, subject: QWidget, active: Callable[[], bool] | None) -> None:
+        super().__init__(owner)
+        self.subject, self.active = subject, active
+
+    def in_use(self, pointer: QWidget | None = None) -> bool:
+        """The subject is enabled, the widget under the pointer (a disabled part of a row) too, and ``active()``."""
+        return (self.subject.isEnabled() and (pointer is None or pointer.isEnabled())
+                and (self.active is None or bool(self.active())))
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() != QEvent.Type.ToolTip:
+            return False
+        pointer = QApplication.widgetAt(event.globalPos()) if isinstance(event, QHelpEvent) else None
+        if self.in_use(pointer):
+            return False
+        event.accept()  # the event stops here: no ancestor's tooltip is shown instead
+        return True
+
+
+def set_setting_tooltip(widget: QWidget, value: object, *, subject: QWidget | None = None,
+                        active: Callable[[], bool] | None = None) -> None:
+    """What a setting does, as ``widget``'s tooltip, shown only while the setting is in use: ``subject`` (default
+    ``widget``) is enabled, so is the widget under the pointer, and ``active()`` (when given) is true. A greyed-out
+    setting, or one that does not apply to the current choice, shows none. The text is :func:`help_tooltip`'s."""
+    widget.setToolTip(help_tooltip(value))
+    widget.installEventFilter(_SettingTipGate(widget, subject or widget, active))
+
+
+def set_control_tooltip(widget: QWidget, value: object, *, active: Callable[[], bool] | None = None) -> None:
+    """What a control (a button, a filter, a switch, a status line) does, shown like a setting's: only while it is
+    enabled and ``active()`` (when given) is true (:func:`set_setting_tooltip`)."""
+    set_setting_tooltip(widget, value, active=active)
+
+
+def set_header_tooltips(view: QTableWidget | QTreeWidget, tips: Sequence[str]) -> None:
+    """What each column of a ``QTableWidget`` or ``QTreeWidget`` holds, as its header's tooltip (in column order)."""
+    if isinstance(view, QTreeWidget):
+        header = view.headerItem()
+        for column, tip in enumerate(tips):
+            header.setToolTip(column, help_tooltip(tip))
+        return
+    for column, tip in enumerate(tips):
+        item = view.horizontalHeaderItem(column)
+        if item is not None:
+            item.setToolTip(help_tooltip(tip))
+
+
 def set_list_item_tooltip(item: object, value: object) -> None:
     """A tooltip on a ``QListWidgetItem`` (one column)."""
     item.setToolTip(safe_tooltip(value))  # type: ignore[attr-defined]
@@ -97,9 +165,9 @@ def set_item_tooltip(item: object, column: int, value: object) -> None:
     item.setToolTip(column, safe_tooltip(value))  # type: ignore[attr-defined]
 
 
-def set_tab_tooltip(tabs: object, index: int, value: object) -> None:
-    """A tooltip on one tab of a ``QTabWidget`` (D-840)."""
-    tabs.setTabToolTip(index, safe_tooltip(value))  # type: ignore[attr-defined]
+def set_tab_tooltip(tabs: object, index: int, value: object, *, wrap: bool = False) -> None:
+    """A tooltip on one tab of a ``QTabWidget`` (D-840); ``wrap``: explanatory text (:func:`help_tooltip`)."""
+    tabs.setTabToolTip(index, help_tooltip(value) if wrap else safe_tooltip(value))  # type: ignore[attr-defined]
 
 
 def tab_text(text: str) -> str:
@@ -208,13 +276,60 @@ class SafeForm(QFormLayout):
         super().__init__(parent)
         self.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
 
-    def add(self, label: str, field: QWidget) -> SafeLabel:
+    def add(self, label: str, field: QWidget, tip: str | None = None, *, subject: QWidget | None = None,
+            active: Callable[[], bool] | None = None) -> SafeLabel:
+        """A row. ``tip`` says what the setting does; the row's label and its field show it only while the setting
+        is in use (:func:`set_setting_tooltip`; ``subject`` is the input inside a composite ``field``)."""
         lab = SafeLabel(label, name=label, selectable=False)
         lab.setBuddy(field)
         if not field.accessibleName():
             field.setAccessibleName(label)
         super().addRow(lab, field)
+        if tip:
+            for widget in dict.fromkeys((lab, field, subject or field)):
+                set_setting_tooltip(widget, tip, subject=subject or field, active=active)
         return lab
+
+
+class DocView(QTextBrowser):
+    """The Help › Docs reader (D-1010): the checkout's own user guide, which is first-party Markdown and never data.
+
+    Corpus text, CLI output and model replies never reach this widget; they stay in plain-text panes. Links are never
+    followed by the widget: ``anchorClicked`` hands each one to the page, which opens guide chapters itself and copies
+    a web address instead of opening it. Images load only from files under the guide's folder, scaled to the view."""
+
+    MAX_IMAGE_WIDTH = 900
+
+    def __init__(self, *, name: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setOpenLinks(False)
+        self.setOpenExternalLinks(False)
+        self.setReadOnly(True)
+        self.setAccessibleName(name)
+        self.root: Path | None = None
+
+    def show_markdown(self, text: str, root: Path) -> None:
+        """Show ``text`` (a guide chapter); relative image paths resolve under ``root``."""
+        self.root = root.resolve()
+        self.document().setBaseUrl(QUrl.fromLocalFile(str(self.root) + "/"))
+        self.setMarkdown(text)
+
+    def loadResource(self, kind: int, url: QUrl | str) -> object:
+        """Local image files under the guide only; anything else (a web address, a file elsewhere) loads nothing."""
+        if kind != QTextDocument.ResourceType.ImageResource.value or self.root is None:
+            return None
+        qurl = url if isinstance(url, QUrl) else QUrl(url)
+        if qurl.scheme() not in ("", "file"):
+            return None
+        path = Path(qurl.toLocalFile() if qurl.isLocalFile() else str(self.root / qurl.path())).resolve()
+        if not path.is_relative_to(self.root) or not path.is_file():
+            return None
+        image = QImage(str(path))
+        if image.isNull():
+            return None
+        width = min(self.MAX_IMAGE_WIDTH, max(200, self.viewport().width() - 40))
+        return image.scaledToWidth(width, Qt.TransformationMode.SmoothTransformation) if image.width() > width \
+            else image
 
 
 WARNING = QMessageBox.Icon.Warning

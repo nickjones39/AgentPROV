@@ -7,6 +7,7 @@ code. Generic ``activity``/``artefact`` ``type`` labels must be declared in the 
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,7 @@ def test_sec21_identity_comes_from_the_path_not_from_a_hostile_pipeline_name(poi
     assert models and all("etc/passwd" not in m and "../" not in m and ESC not in m for m in models)
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the hostile directory name cannot be created on Windows")
 def test_sec21_a_hostile_directory_name_is_a_rejected_label_not_a_path(tmp_path: Path) -> None:
     doc = ad.base_log()
     hostile_dirs = {"ansi": f"runs/gpt-4o-2024-05-13/bank{ESC}[2Jing/user_task_1/none/none.json",

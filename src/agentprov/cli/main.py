@@ -33,6 +33,7 @@ from agentprov.cli import keys as keys_cmd  # D-702
 from agentprov.cli import prices as prices_cmd  # D-701
 from agentprov.cli import settings_cmd  # D-703
 from agentprov.cli import verify as verify_cmd
+from agentprov.cli import assist as assist_cmd  # D-1010
 from agentprov.cli.common import (
     CliArgumentParser,
     CliUsageError,
@@ -68,6 +69,7 @@ __all__ = ["COMMANDS", "build_parser", "main"]
 COMMANDS = (
     "info", "validate", "import", "fetch", "run", "backends", "migrate", "render", "inspect", "purge", "stats", "package",
     "derive", "recompute", "verify", "models", "settings", "keys", "prices", "estimate", "jobs", "batch", "devrun",
+    "assist",
 )
 
 _LOG = logging.getLogger("agentprov.cli")
@@ -106,6 +108,7 @@ def build_parser() -> CliArgumentParser:
     jobs_cmd.register(sub, shared)
     batch_cmd.register(sub, shared)
     devrun_cmd.register(sub, shared)
+    assist_cmd.register(sub, shared)
     return parser
 
 

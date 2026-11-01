@@ -7,6 +7,8 @@
   and every long option on it exists for that command (global options included). Commands are the lines of a
   ``bash`` block that start with ``agentprov`` or ``uv run agentprov``, and the ``$ agentprov …`` lines of any block.
 * The generated CLI reference is current (``tools/gen_user_guide_cli.py --check``).
+* The core package's copy of the guide (``src/agentprov/docs/user-guide/``, what ``agentprov assist`` answers from when
+  installed from PyPI; D-1030) has the same chapters with the same bytes (``tools/sync_user_guide.py --check``).
 * Images are small (at most 300 KB each).
 """
 
@@ -199,6 +201,30 @@ def test_the_generated_cli_reference_is_current() -> None:
     proc = subprocess.run([sys.executable, str(REPO / "tools" / "gen_user_guide_cli.py"), "--check"], cwd=REPO,
                           capture_output=True, text=True, check=False, timeout=600)
     assert proc.returncode == 0, proc.stderr or proc.stdout
+
+
+def test_the_packaged_copy_of_the_guide_is_the_guide() -> None:
+    proc = subprocess.run([sys.executable, str(REPO / "tools" / "sync_user_guide.py"), "--check"], cwd=REPO,
+                          capture_output=True, text=True, check=False, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+
+
+def test_the_packaged_copy_check_finds_a_missing_a_changed_and_an_extra_chapter(tmp_path: Path) -> None:
+    sys.path.insert(0, str(REPO / "tools"))
+    try:
+        import sync_user_guide as sync
+    finally:
+        sys.path.pop(0)
+    guide, copy = tmp_path / "guide", tmp_path / "copy"
+    guide.mkdir()
+    for name, text in (("01-a.md", "# A\n"), ("02-b.md", "# B\n"), ("_checklist.md", "internal\n")):
+        (guide / name).write_text(text, encoding="utf-8")
+    sync.write(guide, copy)
+    assert sorted(p.name for p in copy.iterdir()) == ["01-a.md", "02-b.md"] and sync.differences(guide, copy) == []
+    (guide / "01-a.md").write_text("# A, edited\n", encoding="utf-8")
+    (guide / "02-b.md").unlink()
+    (guide / "03-c.md").write_text("# C\n", encoding="utf-8")
+    assert sync.differences(guide, copy) == ["missing: 03-c.md", "changed: 01-a.md", "extra: 02-b.md"]
 
 
 @pytest.mark.parametrize("image", sorted((GUIDE / "images").rglob("*.*")), ids=lambda p: p.name)

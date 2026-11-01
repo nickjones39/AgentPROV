@@ -407,6 +407,8 @@ def _killed_seal(corpus: Path, step: str) -> None:
     killer or a power loss would) at ``step``: after ``corpus.json`` says ``sealed: true`` and before the swap."""
     import agentprov.corpus.package as package
 
+    if not hasattr(os, "fork"):
+        pytest.skip("the seal is killed in a forked child: os.fork is POSIX only")
     pid = os.fork()
     if pid == 0:  # pragma: no cover - the child never returns into pytest
         try:

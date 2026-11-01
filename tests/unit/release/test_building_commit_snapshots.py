@@ -287,7 +287,8 @@ def test_build_checks_every_digest_and_leaves_out_the_copyleft_fixtures(repo, tm
     for kept in ("ah/open.json", "ah/made.json", "ah/SOURCE.json", "unk/SOURCE.json", "free/sub/x.json"):
         assert prefix + "tests/fixtures/" + kept in names
     assert not any("fixtures/cop" in n or "cop-GPL" in n for n in names)
-    assert modes[prefix + "tools/run.sh"] & 0o111
+    if os.name == "posix":  # a Windows checkout records no exec bit, so git archives the script 0644
+        assert modes[prefix + "tools/run.sh"] & 0o111
 
 
 def test_rebuild_is_byte_identical_and_verify_passes(repo, tmp_path, capsys):

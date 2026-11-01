@@ -407,6 +407,9 @@ def test_preflight_only_on_an_api_endpoint_needs_no_caps_and_passes_none(qapp: A
     dlg.max_calls.setValue(200)
     dlg.max_cost.setValue(5)
     dlg._gate()
+    assert "Waiting for the estimate of this selection" in dlg.error.text() and dlg.preflight_btn.isEnabled()
+    dlg.refresh_estimate()  # Start waits for this selection's estimate (review UC-9); a preflight needs none
+    wait(qapp, lambda: dlg.current_estimate() is not None)
     assert dlg.start_btn.isEnabled() and dlg.preflight_btn.isEnabled()
     probe = preflight_settings(dlg.settings())
     argv = job_spec(probe, consent=True).argv
@@ -498,3 +501,129 @@ def test_the_gui_keychain_client_calls_agentprov_keys(tmp_path: Path) -> None:
     assert json.loads(store.read_text()) == {}
     with pytest.raises(keychain.KeychainError):
         keychain.status(CliLocator(None, ()))
+
+
+def test_a_changed_selection_never_gates_on_the_previous_estimate(qapp: Any, tmp_path: Path,
+                                                                  monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review UC-9: after the selection changes, the old estimate neither passes the dev run's cost cap nor fills the
+    consent's attempt count, while the new one is pending and after it fails."""
+    from agentprov_gui.live import keychain
+    from agentprov_gui.live.plan import ENDPOINTS_REL
+    from agentprov_gui.live.runspec import RunSettings
+    from agentprov_gui.ui.runlive import RunLiveDialog
+
+    repo = tmp_path / "repo"
+    path = repo / ENDPOINTS_REL
+    path.parent.mkdir(parents=True)
+    path.write_text('[endpoints.openrouter]\nbase_url = "https://openrouter.ai/api/v1"\napi_key_env = "OPENROUTER_API_KEY"\n'
+                    'local = false\n')
+    monkeypatch.setattr(keychain, "status", lambda cli: keychain.KeychainStatus(True, "FakeRing"))
+    monkeypatch.setattr(keychain, "present", lambda cli, names: dict.fromkeys(names, True))
+    base = fake_run([])
+    estimates: list[list[str]] = []
+
+    def run(manager: Any, argv: list[str], **kw: Any) -> tuple[int, bytes, bytes]:
+        if argv[0] == "info":
+            return 0, json.dumps({"source_id": argv[1], "parts": [{"live": "supported"}]}).encode(), b""
+        if argv[0] == "estimate":
+            estimates.append(list(argv))
+            if "--user-tasks" in argv:  # the wider selection's estimate fails
+                return 2, b"", b"agentprov: error [estimate.timeout]: planning took too long"
+        return base(manager, argv, **kw)
+
+    m = JobManager(tmp_path / "home", CliLocator(None, (sys.executable, str(FAKE))))
+    preset = RunSettings(campaign="t", scripted=False, model="openrouter", model_id="vendor/m", suites=("banking",),
+                         attacks=("direct",), containment="vm")
+    dlg = RunLiveDialog(m, home=tmp_path / "home", checkout=repo, preset=preset, run=run, dev_run=True, cost_cap=1.0)
+    wait(qapp, lambda: dlg.prices is not None and "agentdojo" in dlg.live_status)
+    dlg.refresh_estimate()
+    wait(qapp, lambda: dlg.current_estimate() is not None)
+    assert dlg._gate() is None and dlg.start_btn.isEnabled()
+    dlg.user_tasks.setText("0-99")
+    dlg.repeats.setValue(50)
+    assert dlg.current_estimate() is None and not dlg.start_btn.isEnabled()  # pending: the old one no longer counts
+    assert "Waiting for the estimate" in (dlg._gate() or "") or "needs an estimate" in (dlg._gate() or "")
+    n = len(estimates)
+    dlg.refresh_estimate()
+    wait(qapp, lambda: len(estimates) > n and "exit 2" in dlg.headline.text())
+    assert dlg.estimate_result is None and dlg.current_estimate() is None
+    assert not dlg.start_btn.isEnabled()
+    dlg.timer.stop()
+    dlg.close()
+
+
+def test_the_call_cap_counts_from_the_heartbeat_after_a_reattach_and_survives_resume(
+        qapp: Any, tmp_path: Path) -> None:
+    """Review UC-32: a follower that attaches at the last heartbeat folds no earlier step lines, so the cap counts the
+    heartbeat's absolute model_call count plus the steps after it; Resume keeps the cap (and the steps level)."""
+    from agentprov.jobs.follow import ProgressState
+    from PySide6.QtCore import QSettings
+
+    from agentprov_gui.settings import Settings
+    from agentprov_gui.ui.runs import RunsPage
+
+    state = ProgressState()
+    state.apply({"event": "heartbeat", "stages": {"model_call": {"state": "running", "done": 4, "failed": 1}}})
+    state.apply({"event": "step", "stage": "model_call"})
+    assert state.steps["model_call"] == 1 and state.step_count("model_call") == 6
+    state.apply({"event": "heartbeat", "stages": {"model_call": {"done": 7, "failed": 0}}})
+    assert state.step_count("model_call") == 7
+    fresh = ProgressState()
+    fresh.apply({"event": "step", "stage": "model_call"})
+    assert fresh.step_count("model_call") == 1  # no heartbeat yet: the folded steps
+
+    m = JobManager(tmp_path / "home", CliLocator(None, (sys.executable, str(FAKE))))
+    page = RunsPage(m, Settings(QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)))
+
+    class Follower:
+        pass
+
+    job = m.spawn(JobSpec("run", ("run", "--units", "1", "agentdojo"), "R1", "dev",
+                          extra={"call_cap": 5, "progress_level": "steps", "devrun": "d1"}))
+    f = Follower()
+    f.state = state  # type: ignore[attr-defined]
+    requested: list[str] = []
+    m.request = lambda j, what: requested.append(what) or True  # type: ignore[method-assign]
+    page._enforce_call_cap(job, f)  # type: ignore[arg-type]
+    assert job.job_id in page._capped and requested == ["drain"]  # 7 >= 5, although only one step line was folded
+    extra = page._resume_extra(job)
+    assert extra["call_cap"] == 5 and extra["progress_level"] == "steps" and extra["devrun"] == "d1"
+    _wait(m, job.job_id)
+    page.close()
+
+
+def test_slow_cli_calls_run_off_the_ui_thread(qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review UC-36: Tune (up to 120 s), the --help probes, settings list, devrun plan/start and the Zenodo settings
+    read ran on the UI thread and could freeze the window; each now runs in the pool while the window keeps painting,
+    and the page is disabled meanwhile."""
+    from PySide6.QtCore import QSettings, QThread
+
+    from agentprov_gui.settings import Settings
+    from agentprov_gui.ui import package, runs
+    from agentprov_gui.ui.runs import RunsPage
+    from agentprov_gui.ui.worker import run_off_ui
+
+    ui = QThread.currentThread()
+    seen: list[tuple[str, bool]] = []
+
+    def call(name: str, value: Any) -> Any:
+        seen.append((name, QThread.currentThread() is not ui))
+        return value
+
+    m = JobManager(tmp_path / "home", CliLocator(None, (sys.executable, str(FAKE))))
+    page = RunsPage(m, Settings(QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)))
+    monkeypatch.setattr(runs, "cli_options", lambda cli, words: call("help", frozenset({"--x"})))
+    monkeypatch.setattr(m, "call", lambda argv, **kw: call(argv[0], (1, b"", b"")))
+    assert page.options_for(("run",)) == frozenset({"--x"})
+    page.dev_settings()
+    from agentprov_gui import settings_client
+
+    monkeypatch.setattr(settings_client, "read", lambda cli, prefix: call("zenodo", {"zenodo.x": 1}))
+    pkg = package.PackagePage(lambda spec: None, None)
+    assert pkg._zenodo_settings()[1] == {"zenodo.x": 1}
+    assert seen == [("help", True), ("settings", True), ("zenodo", True)], seen
+    with pytest.raises(KeyError):  # an error in the call is raised on the UI thread
+        run_off_ui(page, lambda: {}["missing"])
+    assert page.isEnabled()
+    pkg.deleteLater()
+    page.close()

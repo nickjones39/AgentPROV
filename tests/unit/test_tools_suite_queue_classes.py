@@ -20,6 +20,9 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 TOOL = REPO / "tools" / "suite_queue.py"
 
+#: tools/suite_queue.py locks with fcntl and runs on macOS and Linux only, like the queue it serves (D-1011)
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="tools/suite_queue.py needs fcntl")
+
 CHILD = ("import os, sys, time; p, g, n = sys.argv[1:4]\n"
          "open(p, 'a').write(f'start {n}\\n')\n"
          "while not os.path.exists(g + n): time.sleep(0.05)\n"
@@ -385,7 +388,9 @@ def test_a_priority_ticket_overtakes_a_budget_blocked_head(tmp_path: Path) -> No
     p = _job(q, log, "p", "--cpu", "1", "--before-head", "--reason", "gate-integrity fix", env=env)  # 3 + 1 fits
     _wait_for(lambda: _started(log, "p"))
     assert "start h" not in log.read_text()
-    assert not list((q / "jobs" / "waiting").glob("*.json"))  # h is no longer a head and holds nobody back
+    # h is no longer a head and holds nobody back: it drops its waiting record on its next poll, so wait for that
+    # (an immediate check raced the poll on a loaded macOS runner, release CI round 15)
+    _wait_for(lambda: not list((q / "jobs" / "waiting").glob("*.json")))
     _release(log, "p")
     p.communicate(timeout=120)
     time.sleep(0.5)

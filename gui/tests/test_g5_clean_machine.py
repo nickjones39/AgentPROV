@@ -255,3 +255,13 @@ def test_linux_x86_64_is_an_emulated_qemu_guest_on_the_22_04_floor() -> None:
     assert "vmType: qemu" in text and "arch: x86_64" in text
     assert pin["glibc_floor"] == "2.35" and "jammy" in pin["image"] and float(pin["timeout_factor"]) > 1
     assert "vmType: vz" in d.lima_config(d.platform_pin(d.load_pins(), "linux-arm64"), Path("/images/y.img"))
+
+
+def test_windows_duplicate_lifts_the_apple_event_timeout() -> None:
+    """A UTM copy of the Windows base can outlast AppleScript's 120 s Apple event limit (the v0.1.0 builds, -1712)."""
+    w = _windows()
+    script = w.duplicate_script("BASE-ID", "agentprov-g5-b1", '{"name": "agentprov-g5-b1"}')
+    lines = script.strip().splitlines()
+    assert lines[0] == f"with timeout of {w.DUPLICATE_TIMEOUT} seconds" and lines[-1] == "end timeout"
+    assert w.DUPLICATE_TIMEOUT >= 1800 and "duplicate vm with properties {configuration:c}" in script
+    assert 'virtual machine id "BASE-ID"' in script and 'set name of c to "agentprov-g5-b1"' in script

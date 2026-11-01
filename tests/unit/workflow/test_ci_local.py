@@ -36,7 +36,8 @@ def test_the_lockfile_lists_match_ci(workflow: dict) -> None:
     assert projects and tuple(projects.group(1).split()) == cl.LOCK_PROJECTS
     osv = " ".join(str(s.get("with", {}).get("scan-args", "")) for s in workflow["jobs"]["dependencies"]["steps"])
     assert tuple(re.findall(r"--lockfile=(\S+)", osv)) == cl.OSV_LOCKFILES
-    ci_markers = [str(s.get("run", "")) for s in workflow["jobs"]["core"]["steps"] if "pytest -m" in str(s.get("run"))]
+    ci_markers = [str(s.get("run", "")) for s in workflow["jobs"]["core"]["steps"]
+                  if re.search(r"pytest\b.* -m ", str(s.get("run")))]  # the core step may pass -n first (D-1011)
     assert ci_markers and cl.CORE_MARKERS in ci_markers[0]
 
 

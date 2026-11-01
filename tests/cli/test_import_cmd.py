@@ -7,6 +7,8 @@ with a local repository (the test seam of ``raw.fetch``, no network) and point t
 
 from __future__ import annotations
 
+from agentprov.versions import __version__
+
 import json
 import sys
 from pathlib import Path
@@ -77,7 +79,7 @@ def test_fetch_imports_the_cached_pin_end_to_end(cli, tmp_path, seeded, check_su
     derivation = json.loads((partial / "derivation.json").read_text())
     stages = {s["stage"]: s for s in derivation["stages"]}
     assert set(stages) == {"aer", "sem", "prov", "validation"}
-    assert stages["prov"]["engine"] == "agentprov@0.1.0" and stages["prov"]["engine_code_sha256"].startswith("sha256:")
+    assert stages["prov"]["engine"] == f"agentprov@{__version__}" and stages["prov"]["engine_code_sha256"].startswith("sha256:")
     assert all(s["fn_digest"].startswith("sha256:") for s in derivation["stages"])
     manifest = json.loads((partial / "corpus.json").read_text())
     assert manifest["sealed"] is False and manifest["partial"] is False and manifest["counts"]["executions"] == 4

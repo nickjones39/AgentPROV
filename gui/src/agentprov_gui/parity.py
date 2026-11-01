@@ -5,7 +5,7 @@ button and menu action against this registry and the CLI's own parser; anything 
 * **Settings** (the Settings dialog): each pane declares ``KEYS``, an input widget's attribute (``name``, or
   ``name.key`` for a widget held in a dict attribute) to its ``agentprov settings`` key (``*`` for a family such
   as ``devrun.override.*``). The dialog's own fields are :data:`SETTINGS_EXCLUDED`, each with its reason: the
-  presentational ones and the checkout whose CLI the GUI runs.
+  presentational ones, and the checkout or installed program whose CLI the GUI runs.
 * **Run Live** (the ``run`` dialog): an input whose attribute, or ``more_inputs`` key, is a field of
   ``FORMS["run"]`` is that field's option (forward parity, D-654, checks the option); the others are
   :data:`RUN_LIVE_INPUTS` (the ``run`` option they decide). A read-only widget only shows a value.
@@ -24,6 +24,7 @@ __all__ = ["ACTIONS", "OUTSIDE_CLI", "PRESENTATIONAL", "RUN_LIVE_INPUTS", "SETTI
 #: Settings dialog fields that are not ``agentprov settings`` keys (D-700's exclusions)
 SETTINGS_EXCLUDED: Final[dict[str, str]] = {
     "checkout": "the checkout whose CLI the GUI runs (the CLI is that checkout itself)",
+    "cli_program": "the program installed from PyPI that the GUI runs without a checkout (the CLI is that program itself; D-1030)",
     "roots": "the Viewer's corpus roots (where the GUI looks; every command takes its corpus explicitly)",
     "theme": "presentational: light, dark or follow the system",
     "graph_colours": "presentational: the graph palette",
@@ -55,6 +56,8 @@ ACTIONS: Final[dict[str, tuple[str, ...]]] = {
     "Confirm the held steps of the selected batch": ("batch", "resume"),
     "Stop the job": ("jobs", "stop"), "Force kill the job": ("jobs", "kill"), "Pause the job": ("jobs", "drain"),
     "Resume the job as a new job": ("jobs", "resume"), "Open the job log": ("jobs", "follow"),  # --log
+    "Send the message to the Assistant": ("assist",),  # D-1010: the conversation on stdin
+    "Refresh the server's model list": ("assist",),  # --list-models
     "Copy the job command": ("jobs", "show"), "Open the live preview (off by default)": ("jobs", "follow"),
     "Open the written corpus in the viewer": ("inspect",),
     # Package (each step starts a FORMS job)
@@ -80,7 +83,14 @@ ACTIONS: Final[dict[str, tuple[str, ...]]] = {
 #: buttons and menu actions that only navigate or change how data is shown
 PRESENTATIONAL: Final[dict[str, str]] = {
     **{page: "navigation: shows a page of the window" for page in
-       ("Viewer", "Runs", "Logs", "System", "Licences", "Package")},
+       ("Viewer", "Runs", "Logs", "System", "Licences", "Package", "Docs", "Assistant")},
+    # Help (D-1010): reading the checkout's user guide is not a command; the Assistant's Send is (ACTIONS)
+    "AgentPROV Help": "navigation: shows the Docs page", "Ask the Assistant": "navigation: shows the Assistant page",
+    "Back to the previous chapter": "navigation: the Docs page's previous chapter",
+    "Open Settings to set the AgentPROV checkout": "opens the Settings dialog (each setting is mapped there)",
+    "Open Settings to set up the Assistant": "opens the Settings dialog on its Assistant pane (assistant.* settings)",
+    "Clear the chat and start a new one": "presentational: forgets the conversation the GUI holds (agentprov assist "
+                                          "keeps none; each call carries its conversation on stdin)",
     "Settings…": "opens the Settings dialog (each setting is mapped there)",
     "Browse for the model's folder": "a folder picker: fills the Folder field (the local_models model_dir setting)",
     "Cancel": "closes a dialog without running anything",

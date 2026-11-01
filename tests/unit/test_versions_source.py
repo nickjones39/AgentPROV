@@ -36,3 +36,19 @@ def test_every_recorded_software_version_agrees():
     assert declared == metadata.version("agentprov") == versions.__version__ == versions.VERSIONS["software"]
     assert members._engine_version() == versions.__version__
     assert versions._UNINSTALLED_VERSION == declared
+
+
+def test_every_package_version_literal_equals_its_pyproject():
+    """v0.1.1: the pyproject bump left ``__version__ = "0.1.0"`` in agentprov-capture, agentprov-backend and the GUI, so
+    About and new capture logs named the old version. A package that keeps a literal keeps it equal to its pyproject."""
+    import re
+
+    root = PYPROJECT.parent
+    packages = {"capture": "capture/src/agentprov_capture/__init__.py",
+                "backends/shared": "backends/shared/src/agentprov_backend/__init__.py",
+                "backends/inspect": "backends/inspect/src/agentprov_backend_inspect/__init__.py",
+                "gui": "gui/src/agentprov_gui/__init__.py"}
+    for project, init in packages.items():
+        declared = tomllib.loads((root / project / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+        literal = re.search(r'^__version__ = "([^"]+)"', (root / init).read_text(encoding="utf-8"), re.M)
+        assert literal is not None and literal.group(1) == declared, project

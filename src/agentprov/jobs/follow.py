@@ -149,6 +149,10 @@ class ProgressState:
     statuses: Counter[str] = field(default_factory=Counter)
     codes: Counter[str] = field(default_factory=Counter)
     steps: Counter[str] = field(default_factory=Counter)
+    #: the ``step`` events folded since the last heartbeat (all of them before the first): with the heartbeat's
+    #: absolute ``stages`` counts they give a stage's absolute step count after a re-attach (:meth:`step_count`)
+    steps_since_heartbeat: Counter[str] = field(default_factory=Counter)
+    heartbeat_seen: bool = False
     stages: dict[str, dict[str, Any]] = field(default_factory=dict)  # 0.2 heartbeat
     workers: dict[str, Any] = field(default_factory=dict)  # 0.2 heartbeat
     ended: bool = False
@@ -201,6 +205,7 @@ class ProgressState:
             stage = ev.get("stage")
             if isinstance(stage, str):
                 self.steps[stage] += 1
+                self.steps_since_heartbeat[stage] += 1
         elif kind == "session":
             session, phase = ev.get("session"), ev.get("phase")
             if isinstance(session, str) and len(session) <= 64 and len(self.sessions) < 100_000:
@@ -230,6 +235,8 @@ class ProgressState:
         stages = ev.get("stages")
         if isinstance(stages, dict):
             self.stages = {str(k): v for k, v in stages.items() if isinstance(v, dict)}
+            self.heartbeat_seen = True
+            self.steps_since_heartbeat.clear()
         counts = ev.get("counts")
         if isinstance(counts, dict):
             self.statuses = Counter({str(k): int(n) for k, n in counts.items() if isinstance(n, int)})
@@ -243,6 +250,17 @@ class ProgressState:
         dropped = ev.get("dropped")
         if isinstance(dropped, int):
             self.dropped = dropped
+
+    def step_count(self, stage: str) -> int:
+        """The absolute number of ``stage`` steps the CLI has counted: the last heartbeat's ``done + failed`` plus the
+        steps folded after it (a reader that attached at a heartbeat never saw the earlier step lines), else the steps
+        folded. A step the CLI counted before a heartbeat but wrote after it is counted twice: never fewer."""
+        if not self.heartbeat_seen:
+            return self.steps[stage]
+        entry = self.stages.get(stage) or {}
+        absolute = sum(v for k in ("done", "failed") if isinstance(v := entry.get(k), int) and not isinstance(v, bool)
+                       and v > 0)
+        return absolute + self.steps_since_heartbeat[stage]
 
     @property
     def fraction(self) -> float | None:

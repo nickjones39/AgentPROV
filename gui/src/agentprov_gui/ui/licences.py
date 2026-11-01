@@ -28,7 +28,13 @@ from PySide6.QtWidgets import QAbstractItemView, QSplitter, QTableWidget, QTabWi
 
 from agentprov_gui import text as T
 from agentprov_gui.ui.detail import fill_rows
-from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel
+from agentprov_gui.ui.safe import (
+    ReadOnlyText,
+    SafeLabel,
+    set_control_tooltip,
+    set_header_tooltips,
+    set_tab_tooltip,
+)
 
 __all__ = ["LicencesPage", "flags_of", "search_records"]
 
@@ -36,6 +42,28 @@ COPYLEFT: Final = re.compile(r"^(A?GPL|LGPL)-[0-9.]+(-only|-or-later)?$", re.IGN
 NC: Final = re.compile(r"(^|-)NC(-|$)", re.IGNORECASE)
 RECORDS: Final = Path("docs/reports/systematic-search/records-merged.csv")
 MAX_CSV_BYTES: Final = 16 * 1024 * 1024
+INCLUDED_TIPS: Final = (
+    "The source's id in the AgentPROV source registry.",
+    "The SPDX licence id of the source; — when the registry records none.",
+    "The registry licence policy: include (raw bytes stored in the corpus), reference (listed by digest and pinned "
+    "origin, not stored), nc_partition (only in a separately licensed non-commercial corpus) or forbidden (withheld).",
+    "An explicit licence for the source's data, if any: none when there is no separate data licence; — when the "
+    "registry records nothing.",
+    "copyleft (a GPL-family SPDX id), NC (a non-commercial term) and restricted (the registry lists restrictions). The "
+    "details below give the rule behind each flag.",
+    "Each part of the source with its import status (else its live status): supported, partial, planned or "
+    "not_possible.",
+    "The decision of the matching systematic-search record, joined by name or URL; unmatched when none matches (never "
+    "guessed).",
+)
+EXCLUDED_TIPS: Final = (
+    "The record's id in the systematic search.",
+    "The name of the excluded source.",
+    "The licence the systematic search recorded for it.",
+    "The exclusion criterion code that excluded it (for example EX-NOLOG or EX-LIC-1).",
+    "Other exclusion codes that also apply.",
+    "The systematic search's notes on the record.",
+)
 
 
 def flags_of(source: SourceRegistration) -> list[tuple[str, str]]:
@@ -90,19 +118,32 @@ class LicencesPage(QWidget):
         inc = QSplitter(Qt.Orientation.Vertical, tabs)
         self.included = _table(["source", "SPDX", "policy", "data licence", "flags", "parts", "search record"],
                                "Included sources", inc)
+        set_header_tooltips(self.included, INCLUDED_TIPS)
+        set_control_tooltip(self.included, "Every source in the registry; select one to show its licence details "
+                                           "below. Click a column header to sort.")
         self.included.currentCellChanged.connect(self._detail)
         self.detail = ReadOnlyText(name="Licence details", parent=inc, wrap=True)
+        set_control_tooltip(self.detail, "The selected source's licence: SPDX id, policy, basis, holders, "
+                                         "restrictions, attribution, what is unassessed, and the rule behind each "
+                                         "flag.")
         inc.addWidget(self.included)
         inc.addWidget(self.detail)
         tabs.addTab(inc, "Included")
+        set_tab_tooltip(tabs, 0, "Every registered source with its SPDX id, licence policy, data licence, flags and "
+                                 "parts (agentprov info SOURCE).", wrap=True)
         exc = QWidget(tabs)
         el = QVBoxLayout(exc)
         self.excluded_info = SafeLabel("", name="Excluded facts", parent=exc)
         el.addWidget(self.excluded_info)
         self.excluded = _table(["record", "name", "licence", "exclusion code", "other codes", "notes"],
                                "Excluded records", exc)
+        set_header_tooltips(self.excluded, EXCLUDED_TIPS)
+        set_control_tooltip(self.excluded, "The systematic search's excluded records, from records-merged.csv in the "
+                                           "checkout. Click a column header to sort.")
         el.addWidget(self.excluded)
         tabs.addTab(exc, "Excluded")
+        set_tab_tooltip(tabs, 1, "The records the systematic search excluded, with their exclusion codes (from the "
+                                 "checkout's docs/reports/systematic-search/records-merged.csv).", wrap=True)
         self.reload()
 
     def reload(self) -> None:

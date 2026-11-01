@@ -43,7 +43,8 @@ def test_every_action_is_pinned_by_a_full_sha() -> None:
 
 def test_the_d750_runners() -> None:
     legs = _workflow()["jobs"]["bundle"]["strategy"]["matrix"]["include"]
-    assert {leg["os"] for leg in legs} == {"ubuntu-22.04", "ubuntu-24.04-arm", "windows-latest"}
+    assert {leg["os"] for leg in legs} == {"ubuntu-22.04", "ubuntu-24.04-arm", "windows-latest", "windows-11-arm",
+                                          "macos-15", "macos-15-intel"}  # D-1011: every bundle native, none emulated
     assert {leg["os"]: leg["glibc_floor"] for leg in legs}["ubuntu-24.04-arm"] == "2.39"
 
 

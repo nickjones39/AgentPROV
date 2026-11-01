@@ -19,6 +19,11 @@ for _path in (_TESTS / "unit" / "aer", _TESTS / "adapters", _TESTS / "adapters" 
     if str(_path) not in sys.path:
         sys.path.insert(0, str(_path))
 
+#: ``test_expand_budget.py`` measures the expansion budget against ``resource`` limits (RLIMIT_AS), which exist on macOS
+#: and Linux only; Windows bounds a worker with a Job Object instead (D-1011: not collected on the core CI's Windows leg).
+if sys.platform == "win32":
+    collect_ignore = ["test_expand_budget.py"]
+
 
 @pytest.fixture
 def cwd_guard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

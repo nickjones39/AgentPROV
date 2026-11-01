@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import json
 from pathlib import Path
 
@@ -78,7 +79,8 @@ def test_the_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest
     code, out = run("list", "--schema", "--format", "json")
     assert code == 0 and json.loads(out)["format"] == "agentprov-settings-schema/0.1"
     assert run("unset", "devrun.live.call_cap")[0] == 0 and run("list", "--format", "json")[1].count("call_cap") == 0
-    assert oct((tmp_path / "settings.json").stat().st_mode & 0o777) == "0o600"
+    if os.name == "posix":  # Windows keeps no POSIX mode bits (its ACLs govern access)
+        assert oct((tmp_path / "settings.json").stat().st_mode & 0o777) == "0o600"
 
 
 def test_the_zenodo_keys_prefill_only_and_validate(tmp_path: Path) -> None:

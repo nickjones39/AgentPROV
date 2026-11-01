@@ -17,6 +17,8 @@ def test_probe_writes_its_target(tmp_path):
     elif mode == "mkdir-parents":  # BF-4: a regenerator makes its output's directory first
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("probe", encoding="utf-8")
+    elif mode == "mkdir":  # a fresh checkout's first import makes a package's "__pycache__" directory
+        target.mkdir()
     elif mode == "remove-symlink":  # removing a symlink in tmp that points outside touches only the link
         link = tmp_path / "link"
         link.symlink_to(target)

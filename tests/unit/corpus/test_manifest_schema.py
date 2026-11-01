@@ -48,12 +48,12 @@ def docs(tmp_path_factory) -> dict[str, Any]:
     if not _DOCS:
         root = ss.working_corpus(tmp_path_factory, tmp_path_factory.mktemp("schema") / "mini")
         seal(root, corpus_version="0.1.0", inputs=ss.inputs())
-        read = lambda label: [json.loads(x) for x in (root / label).read_text().splitlines()]  # noqa: E731
+        read = lambda label: [json.loads(x) for x in (root / label).read_text(encoding="utf-8").splitlines()]  # noqa: E731
         _DOCS.update(
-            manifest=json.loads((root / "corpus.json").read_text()),
+            manifest=json.loads((root / "corpus.json").read_text(encoding="utf-8")),
             index_row=read("executions.jsonl"),
             register_entry=read("register.jsonl"),
-            derivation=json.loads((root / "derivation.json").read_text()),
+            derivation=json.loads((root / "derivation.json").read_text(encoding="utf-8")),
         )
         _DOCS["members_row"] = [
             {"container": "sha256:" + "a" * 64, "crc32": "0a1b2c3d", "disposition": "selected", "fn_digest": "sha256:" + "b" * 64,

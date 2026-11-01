@@ -3,6 +3,8 @@ and the public Python API ``agentprov.api`` (MN M.6, ``test_public_api``)."""
 
 from __future__ import annotations
 
+import tomllib
+
 import argparse
 import subprocess
 import sys
@@ -18,6 +20,9 @@ import stats_support as ss  # noqa: E402
 
 from agentprov import api  # noqa: E402
 from agentprov.cli.main import COMMANDS, build_parser, main  # noqa: E402
+
+#: the software version under test: pyproject.toml's, which versions._UNINSTALLED_VERSION is pinned to
+VERSION = tomllib.loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 from agentprov.testing import fs_guard  # noqa: E402
 
 #: The fifteen commands of MN N.2 (phase 11 as built).
@@ -27,7 +32,7 @@ N2_COMMANDS = {
 }  # fmt: skip
 N2_ALIASES = {"convert": "import", "sources": "info"}
 #: Application commands added after N.2's fifteen by later decisions (MN N.2.17; reverse CLI parity D-700).
-APP_COMMANDS = {"settings", "models", "keys", "prices", "estimate", "jobs", "batch", "devrun"}  # D-703; D-691; D-702; D-701; D-704
+APP_COMMANDS = {"settings", "models", "keys", "prices", "estimate", "jobs", "batch", "devrun", "assist"}  # D-703; D-691; D-702; D-701; D-704
 
 #: Every option of the N.1.2 table.
 GLOBAL_OPTIONS = {
@@ -166,7 +171,7 @@ def test_version_text(cli):
     run = cli("--version")
     assert run.code == 0
     lines = run.out.splitlines()
-    assert lines[0] == "agentprov 0.1.0"
+    assert lines[0] == f"agentprov {VERSION}"
     for token in ("aer/0.2", "sem/0.1", "capture/0.1", "agentprov-prov/0.1", "apv 0.2.0", "agentprov-corpus/0.2"):
         assert token in lines[1]
     assert lines[2].startswith("python ") and "interpreter_advisory:" in lines[2]
@@ -174,7 +179,7 @@ def test_version_text(cli):
 
 
 def test_version_after_a_subcommand(cli):
-    assert cli("info", "--version").out.startswith("agentprov 0.1.0")
+    assert cli("info", "--version").out.startswith(f"agentprov {VERSION}")
 
 
 def test_version_reports_the_interpreter_advisory(cli, monkeypatch):
@@ -186,7 +191,7 @@ def test_version_reports_the_interpreter_advisory(cli, monkeypatch):
 def test_python_dash_m_agentprov_matches_the_console_entry():
     done = subprocess.run([sys.executable, "-m", "agentprov", "--version"], capture_output=True, text=True, timeout=60)
     assert done.returncode == 0
-    assert done.stdout.startswith("agentprov 0.1.0\nformats: aer/0.2")
+    assert done.stdout.startswith(f"agentprov {VERSION}\nformats: aer/0.2")
     assert done.stderr == ""
 
 
@@ -254,7 +259,7 @@ def test_public_api():
     for name in api.__all__:
         assert hasattr(api, name), name
     assert api.FRAME_NAMES == ("executions", "statements", "field_status", "validation", "profiles", "lineage")
-    assert "agentprov-stats/0.1" in api.FORMATS and api.__version__ == "0.1.0"
+    assert "agentprov-stats/0.1" in api.FORMATS and api.__version__ == VERSION
 
 
 def test_api_imports_only_core():

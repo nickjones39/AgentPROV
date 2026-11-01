@@ -38,7 +38,8 @@ def test_the_tree_goes_under_agentprov_home_when_it_shares_the_corpus_volume(hom
     tree = scratch_tree("agentprov-recompute-", corpus)
     try:
         assert tree.parent == home / "tmp" and tree.name.startswith("agentprov-recompute-")
-        assert stat.S_IMODE(tree.stat().st_mode) == 0o700
+        if os.name == "posix":  # Windows keeps no POSIX mode bits
+            assert stat.S_IMODE(tree.stat().st_mode) == 0o700
     finally:
         tree.rmdir()
 

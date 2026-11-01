@@ -177,3 +177,21 @@ def test_uuid7():
         u = uuid.UUID(v)
         assert u.version == 7 and u.variant == uuid.RFC_4122 and str(u) == v
     assert len(set(values)) == 50
+
+
+def test_a_plan_too_large_for_one_line_is_refused_with_that_reason():
+    """Review UC-13: plan_ok carries every cell in one protocol line; above about 4,500 cells it exceeded 1 MiB, the
+    worker sent fatal and the parent reported backend.unavailable without saying why."""
+    from agentprov_backend.worker import plan_reply
+
+    cell = {"cell_key": "agentdojo/v1.2.2/banking/user_task_0/important_instructions/injection_task_0",
+            "suite": "banking", "user_task": "user_task_0", "attack": "important_instructions",
+            "injection_task": "injection_task_0"}
+    small = {"format": "agentprov-run-plan-expanded/0.1", "plan_sha256": "0" * 64, "cells": [cell] * 10}
+    ok = decode_message(plan_reply("plan", small))
+    assert ok["op"] == "plan_ok" and len(ok["plan"]["cells"]) == 10
+    big = {**small, "cells": [cell] * (2 * MAX_LINE // len(json.dumps(cell)))}  # about 9,000 cells
+    line = plan_reply("plan", big)
+    refused = decode_message(line)
+    assert refused["op"] == "plan_refused" and refused["req"] == "plan" and len(line) < 1024
+    assert refused["error"]["type"] == "PlanTooLarge" and "plan too large" in refused["error"]["message"]

@@ -64,6 +64,15 @@ def test_deposits_parse_with_root_digests_and_the_first_is_the_umbrella(tmp_path
         Z.parse_communities("Upper")
 
 
+def test_a_relative_or_dash_led_deposit_dir_is_refused(tmp_path: Path) -> None:
+    """Review UC-35: a relative DEPOSIT_DIR was resolved against the GUI's cwd for the receipt status, but the uploader
+    runs with the checkout as its cwd, and a dash-led one became an option."""
+    for bad in (f"deposits/u {ROOT}", f"-u {ROOT}", f"--resume {ROOT}", f"./u {ROOT}"):
+        with pytest.raises(ValueError, match="absolute path"):
+            Z.parse_deposits(bad)
+    assert Z.parse_deposits(f"~/u {ROOT}")[0].directory == Path("~/u").expanduser()
+
+
 def test_an_index_umbrella_is_named_alone_on_the_first_line(tmp_path: Path) -> None:
     """D-947: an index-only umbrella (``package --index``) holds no corpus, so it takes no root digest; only the first
     line may be one, and a corpus deposit still needs its digests."""
@@ -245,7 +254,7 @@ def test_the_zenodo_pane_shows_and_saves_only_changes(qapp: Any) -> None:
     pane = ZenodoPane(None, cli=cli)
     QThreadPool.globalInstance().waitForDone(30_000)
     qapp.processEvents()
-    assert pane.isEnabled() and pane.communities.text() == "agentprov, ai-safety"
+    assert pane.body.isEnabled() and pane.communities.text() == "agentprov, ai-safety"
     assert pane.creators.toPlainText() == "Doe, Jane; 0000-0002-1694-233X\nRoe, Rob; ; Lab"
     assert pane.values() == STORED
     pane.creators.setPlainText("Doe, Jane; 0000-0002-1694-233X")

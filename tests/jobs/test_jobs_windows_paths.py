@@ -104,7 +104,7 @@ def test_kill_on_windows_terminates_the_tree_without_killpg(windows: None, tmp_p
     leader = Fake(100, [Fake(101), Fake(102)])
     monkeypatch.setattr(psutil, "Process", lambda pid: leader)
     monkeypatch.setattr(psutil, "wait_procs", lambda procs, timeout=None: ([], []))
-    monkeypatch.setattr(mod, "same_process", lambda pid, ct: True)
+    monkeypatch.setattr(mod, "same_supervisor", lambda job: True)
     monkeypatch.setattr(mod.os, "killpg", lambda *a: pytest.fail("killpg on Windows"), raising=False)
     job = types.SimpleNamespace(supervisor_pid=100, record={"supervisor_create_time": 1.0},
                                 file=lambda name: tmp_path / name)
@@ -163,3 +163,28 @@ def test_a_record_write_gives_up_after_its_retries_and_never_retries_off_windows
     with pytest.raises(PermissionError):
         mod.atomic_write_json(tmp_path / "job.json", {})
     assert len(calls) == mod._REPLACE_RETRIES
+
+
+def test_settings_and_price_writes_retry_while_a_reader_holds_the_file_on_windows(tmp_path: Path,
+                                                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review UC-30: the settings and price-override writes had no retry of the Windows rename race that job.json's
+    write retries (``agentprov.io.atomic`` itself is in the aer stage scope and unchanged)."""
+    from agentprov import settings
+    from agentprov.estimate import prices
+    from agentprov.io import atomic, replace_retry
+
+    real, calls = atomic.atomic_write_bytes, []
+
+    def busy_twice(path: Path, data: bytes, **kw: Any) -> None:
+        calls.append(path)
+        if len(calls) % 3:
+            raise PermissionError(5, "Access is denied")
+        real(path, data, **kw)
+
+    monkeypatch.setattr(atomic, "atomic_write_bytes", busy_twice)
+    monkeypatch.setattr(replace_retry, "_windows", lambda: True)
+    monkeypatch.setattr(replace_retry.time, "sleep", lambda s: None)
+    settings.set("jobs.retention", 70, home=tmp_path)
+    assert settings.items("jobs.", home=tmp_path)["jobs.retention"] == 70 and len(calls) == 3
+    prices.set_override(tmp_path, "openai", "gpt-4o", input="2.5", output="10")
+    assert len(calls) == 6 and "openai:gpt-4o" in prices.load_overrides(tmp_path)

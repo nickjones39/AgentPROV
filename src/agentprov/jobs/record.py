@@ -33,8 +33,12 @@ __all__ = [
     "jobs_dir",
     "list_jobs",
     "load_job",
+    "process_start_time",
     "read_json",
+    "same_cli",
     "same_process",
+    "same_supervisor",
+    "start_ticks",
     "tail_bytes",
     "valid_pid",
 ]
@@ -79,17 +83,82 @@ def valid_pid(pid: object) -> int | None:
     return pid if isinstance(pid, int) and not isinstance(pid, bool) and 0 < pid <= _MAX_PID else None
 
 
-def same_process(pid: int | None, create_time: object) -> bool:
-    """Whether ``pid`` is still the process created at ``create_time`` (and not a zombie)."""
+#: Linux's process start time is a tick count since boot plus ``/proc/stat``'s ``btime``, which the kernel re-estimates
+#: in whole seconds when the wall clock is adjusted (a CI runner's clock sync): the same process can then read up to this
+#: many whole seconds apart, with the same sub-second part (D-1011).
+BOOT_TIME_DRIFT_S: Final = 2
+
+
+def same_start(observed: float, recorded: float, *, linux: bool) -> bool:
+    """Whether two start times name the same process: within 0.01 s, or on Linux a whole number of seconds apart (at most
+    :data:`BOOT_TIME_DRIFT_S`) with the same sub-second part, which only a ``btime`` re-estimate produces."""
+    delta = observed - recorded
+    if abs(delta) < 0.01:
+        return True
+    return linux and abs(delta) <= BOOT_TIME_DRIFT_S + 0.01 and abs(delta - round(delta)) < 0.01
+
+
+def _linux() -> bool:
+    import sys
+
+    return sys.platform.startswith("linux")
+
+
+def start_ticks(pid: int) -> int | None:
+    """Linux: the process's start time in clock ticks since boot (``/proc/<pid>/stat`` field 22), which no wall-clock
+    step moves, unlike psutil's ``create_time`` (ticks plus the current ``btime``). ``None`` elsewhere or unreadable."""
+    if not _linux():
+        return None
+    try:
+        with open(f"/proc/{int(pid)}/stat", "rb") as fh:
+            data = fh.read(4096)
+    except (OSError, ValueError):
+        return None
+    fields = data[data.rfind(b")") + 1:].split()  # field 2 (comm) is parenthesised and may hold spaces
+    try:
+        ticks = int(fields[19])  # field 3 is fields[0], so field 22 is fields[19]
+    except (IndexError, ValueError):
+        return None
+    return ticks if ticks >= 0 else None
+
+
+def process_start_time(pid: int) -> float | None:
+    """``pid``'s start time as psutil reports it (epoch seconds), or ``None``."""
+    import psutil
+
+    try:
+        return float(psutil.Process(pid).create_time())
+    except (psutil.Error, ValueError):
+        return None
+
+
+def same_process(pid: int | None, create_time: object, ticks: object = None) -> bool:
+    """Whether ``pid`` is still the process created at ``create_time`` (and not a zombie). On Linux a recorded
+    ``ticks`` (:func:`start_ticks`) decides instead, exactly: a wall-clock step of any size moves ``create_time``."""
     import psutil
 
     if pid is None or not isinstance(create_time, int | float) or isinstance(create_time, bool):
         return False
     try:
         proc = psutil.Process(pid)
-        return bool(abs(proc.create_time() - float(create_time)) < 0.01 and proc.status() != psutil.STATUS_ZOMBIE)
+        if _linux() and isinstance(ticks, int) and not isinstance(ticks, bool):
+            same = start_ticks(pid) == ticks
+        else:
+            same = same_start(proc.create_time(), float(create_time), linux=_linux())
+        return bool(same and proc.status() != psutil.STATUS_ZOMBIE)
     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError):
         return False
+
+
+def same_supervisor(job: Job) -> bool:
+    """Whether the job's supervisor still runs (its recorded identity)."""
+    r = job.record
+    return same_process(job.supervisor_pid, r.get("supervisor_create_time"), r.get("supervisor_start_ticks"))
+
+
+def same_cli(job: Job) -> bool:
+    """Whether the job's CLI process still runs (its recorded identity)."""
+    return same_process(job.pid, job.record.get("pid_create_time"), job.record.get("pid_start_ticks"))
 
 
 def utc_seconds(stamp: object) -> int | None:
@@ -173,10 +242,10 @@ def observe(job: Job) -> Job:
         job.outcome = str(ended["outcome"]) if ended.get("outcome") is not None else None
         job.ended_how = str(ended.get("how"))
         return job
-    if same_process(job.supervisor_pid, job.record.get("supervisor_create_time")) or (
+    if same_supervisor(job) or same_cli(job) or (
             job.record.get("supervisor_pid") is None and job.record.get("state") == "starting"
             and (utc_seconds(job.record.get("created")) or 0) > time.time() - 60):
-        job.state = "running"  # the supervisor waits for the CLI (or is being started)
+        job.state = "running"  # the supervisor waits for the CLI (or is being started), or the CLI still runs
         return job
     summary = read_json(job.file("summary.json"))
     code = summary.get("exit_code") if summary is not None else None

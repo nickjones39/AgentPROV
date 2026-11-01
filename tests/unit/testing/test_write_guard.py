@@ -83,3 +83,15 @@ def test_bf4_an_allowed_files_parents_may_be_made_existing_or_not(tmp_path: Path
     sibling_dir = tmp_path / "outside" / "elsewhere" / "pin.txt"  # parents of a file that is not allowed: refused
     done = _probe(tmp_path, sibling_dir, GUARD_PROBE_MODE="mkdir-parents", AGENTPROV_TEST_WRITE_ALLOW=str(nested))
     assert done.returncode == 1 and not sibling_dir.parent.exists()
+
+
+def test_a_fresh_checkouts_bytecode_cache_directory_may_be_made(tmp_path: Path) -> None:
+    """On a CI runner no ``__pycache__`` exists yet, so the first import inside a test makes one; that is not a write
+    the guard protects against. A name that only contains ``__pycache__`` is still refused."""
+    package = tmp_path / "outside" / "pkg"
+    package.mkdir(parents=True)
+    done = _probe(tmp_path, package / "__pycache__", GUARD_PROBE_MODE="mkdir")
+    assert done.returncode == 0 and (package / "__pycache__").is_dir(), done.stdout[-2000:]
+    lookalike = package / "__pycache__x"
+    done = _probe(tmp_path, lookalike, GUARD_PROBE_MODE="mkdir")
+    assert done.returncode == 1 and not lookalike.exists(), done.stdout[-2000:]

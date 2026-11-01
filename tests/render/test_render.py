@@ -337,7 +337,7 @@ def test_dry_run_builds_the_text_and_writes_nothing(doc, tmp_path):
 def test_output_is_refused_inside_a_corpus_and_the_default_is_beside_it(corpus, tmp_path):
     root = corpus["root"]
     assert default_output_dir(root) == root.with_name("corpus-rendered")
-    assert default_output_dir(Path("/x/rope.partial")) == Path("/x/rope-rendered")
+    assert default_output_dir(Path("/x/rope.partial")) == Path("/x/rope-rendered").resolve()  # Windows adds a drive
     assert assert_output_allowed(tmp_path / "elsewhere", root) == (tmp_path / "elsewhere").resolve()
     for inside in (root, root / "prov", root / "new" / "dir"):
         with pytest.raises(RenderOutputRefusedError) as caught:

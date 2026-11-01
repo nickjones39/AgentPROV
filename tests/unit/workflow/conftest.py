@@ -21,6 +21,17 @@ for _p in (_HERE, str(TOOLS)):
 
 from wf_support import commit, git, write  # noqa: E402
 
+#: The workflow tools that lock files with ``fcntl`` (``merge_train``, ``regen_pins``, ``reserve_id``, ``session_status``
+#: and its client ``queue_status``, ``suite_queue``) run on macOS and Linux only, like the merge train and the queue
+#: they serve; on Windows their tests are not collected (the core CI's Windows leg, D-1011).
+if sys.platform == "win32":
+    collect_ignore = ["test_merge_train.py", "test_queue_status.py", "test_regen_pins.py", "test_reserve_id.py",
+                      "test_session_status.py", "test_spec_labels.py", "test_tool_arguments.py", "test_queue_slots.py",
+                      "test_suite_headroom.py", "test_suite_queue_signals.py",
+                      # tools/gen_docs.py writes the decision log on the development machines (macOS, Linux): its tests
+                      # compare POSIX paths and LF bytes
+                      "test_gen_docs.py"]
+
 
 @pytest.fixture(autouse=True)
 def isolated_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:

@@ -29,7 +29,7 @@ import tempfile
 import time
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from xml.sax.saxutils import escape
 
 import driver as d
@@ -226,18 +226,30 @@ def status(vid: str) -> str:
     return str(jxa("return JSON.stringify(utm.virtualMachines.byId(A.id).status());", {"id": vid}))
 
 
-def duplicate(base: str, name: str, notes: str) -> str:
-    """A per-run copy of the stopped base, named ``name``, with the run marker in its notes (D-862). AppleScript, not
-    JXA: JXA cannot hand UTM's configuration record back ("Can't convert types")."""
+#: Seconds UTM may take to copy the Windows base. The ``with timeout`` block lifts AppleScript's own 120 s Apple event
+#: limit, which the subprocess timeout does not: the v0.1.0 builds (2026-10-30) failed with -1712 on a slow copy.
+DUPLICATE_TIMEOUT: Final = 1800
+
+
+def duplicate_script(base: str, name: str, notes: str) -> str:
+    """The AppleScript of :func:`duplicate`, its Apple event allowed :data:`DUPLICATE_TIMEOUT` seconds."""
     q = json.dumps  # an AppleScript string literal is a JSON string without escapes beyond \" and \\
-    osascript(f"""tell application "UTM"
+    return f"""with timeout of {DUPLICATE_TIMEOUT} seconds
+tell application "UTM"
   set vm to virtual machine id {q(base)}
   set c to configuration of vm
   set name of c to {q(name)}
   set «class NoTe» of c to {q(notes)}
   duplicate vm with properties {{configuration:c}}
 end tell
-""", timeout=1800)
+end timeout
+"""
+
+
+def duplicate(base: str, name: str, notes: str) -> str:
+    """A per-run copy of the stopped base, named ``name``, with the run marker in its notes (D-862). AppleScript, not
+    JXA: JXA cannot hand UTM's configuration record back ("Can't convert types")."""
+    osascript(duplicate_script(base, name, notes), timeout=DUPLICATE_TIMEOUT + 60)
     new = vm_id(name)
     if new is None:
         raise SystemExit(f"UTM did not create {name}")

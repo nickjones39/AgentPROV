@@ -65,6 +65,7 @@ _VALID: dict[str, dict[str, object]] = {
     "batch_run": {"batch_id": "01a1"}, "batch_stop": {"batch_id": "01a1"}, "batch_list": {},
     "batch_show": {"batch_id": "01a1"},
     "devrun_plan": {}, "devrun_start": {}, "devrun_list": {}, "devrun_prune": {},
+    "assist": {"question": "how do I verify a corpus?"},
 }
 
 

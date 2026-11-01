@@ -35,9 +35,9 @@ from PySide6.QtWidgets import (
 
 from agentprov_gui import text as T
 from agentprov_gui.jobs.commands import GLOBAL_FIELDS, CommandForm, Field, FormError, JobSpec, build_spec
-from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, choose, set_tooltip
+from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, choose, set_control_tooltip, set_tooltip
 
-__all__ = ["CONFORMANCE_WARNING", "JobDialog", "confirm", "conformance_warning"]
+__all__ = ["CONFORMANCE_TIP", "CONFORMANCE_WARNING", "JobDialog", "confirm", "conformance_warning", "field_tip"]
 
 CONFORMANCE_WARNING: Final = (
     "Not advisable. The PROV bundles of this run will not be checked against the W3C PROV constraints. The corpus will "
@@ -46,6 +46,32 @@ CONFORMANCE_WARNING: Final = (
     "not be reported."
 )
 TIER_TEXT: Final = {"R0": "R0 · read-only", "R1": "R1 · writes local data", "R2": "R2 · network or paid calls"}
+CONFORMANCE_TIP: Final = (
+    "On (default): the PROV this job generates is checked against the W3C PROV constraints (validation tier 4). "
+    "Unticking it, after a warning, adds --skip-prov-conformance: the corpus is marked unvalidated and cannot be "
+    "sealed until a full recompute validates it into a new corpus."
+)
+
+
+def field_tip(f: Field) -> str:
+    """A form field's tooltip: its help, then the option it sets (or that it is positional) and whether it is
+    required."""
+    if f.option is None:
+        sets = "Given as a positional argument" + ("s (separated by spaces)" if f.kind == "list" else "")
+    elif f.kind == "bool":
+        sets = f"Ticked: adds {f.option}"
+    elif f.kind == "multi":
+        sets = f"Sets {f.option} once per value (separated by spaces)"
+    elif f.kind == "list":
+        sets = f"Sets {f.option} (values separated by spaces)"
+    else:
+        sets = f"Sets {f.option}"
+    if f.kind in ("path", "dir"):
+        sets += "; an absolute path"
+    text = f"{f.help} ({sets[0].lower()}{sets[1:]})." if f.help else f"{sets}."
+    if f.kind == "choice" and "" in f.choices:
+        text += " Blank: the option is left out."
+    return text + (" Required." if f.required else "")
 
 
 def conformance_warning(parent: QWidget | None) -> bool:
@@ -81,6 +107,7 @@ def confirm(parent: QWidget | None, spec: JobSpec, argv_preview: str) -> JobSpec
     if spec.tier == "R2":
         tick = QCheckBox("I understand this job uses the network (and may download large files or cost money)", dlg)
         tick.setAccessibleName("Network consent")
+        set_control_tooltip(tick, "An R2 job (network, downloads or paid calls) starts only once this is ticked.")
         lay.addWidget(tick)
     if spec.destructive:
         digest = next((a for a in spec.argv if a.startswith("sha256:")), "")
@@ -88,6 +115,8 @@ def confirm(parent: QWidget | None, spec: JobSpec, argv_preview: str) -> JobSpec
                                 name="Purge warning", parent=dlg))
         typed = QLineEdit(dlg)
         typed.setAccessibleName("First 8 hex digits of the object")
+        set_control_tooltip(typed, "The first 8 hex digits of the object's sha256. Start is enabled only when they "
+                                   "match; --yes is then added to the purge.")
         lay.addWidget(typed)
         expected = digest.removeprefix("sha256:")[:8]
     else:
@@ -140,6 +169,9 @@ class JobDialog(QDialog):
         self.more.setText("More Options")
         self.more.setCheckable(True)
         self.more.setAccessibleName("Show more options")
+        set_control_tooltip(self.more, "Shows or hides the rest of this command's options" + (
+            ", including the global options (logging, progress, the summary's failure list, stale locks)."
+            if form.tool is None else "."))
         column.addWidget(self.more)
         extra_box = QWidget(body)
         more_form = SafeForm(extra_box)
@@ -181,14 +213,14 @@ class JobDialog(QDialog):
                 line.textChanged.connect(self._refresh)
                 w = line
             w.setAccessibleName(f.label)
-            if f.help:
-                set_tooltip(w, f.help)
             self.inputs[f.key] = w
-            (more_form if f.advanced else fl).add(f.label + (" *" if f.required else ""), w)
+            (more_form if f.advanced else fl).add(f.label + (" *" if f.required else ""), w, field_tip(f))
         self.extra = QLineEdit(body)
         self.extra.setPlaceholderText("additional options (argv; no shell)")
         self.extra.textChanged.connect(self._refresh)
-        fl.add("Additional options", self.extra)
+        fl.add("Additional options", self.extra,
+               "Any other options, added to the command as typed: split like a shell line, but no shell runs. Paths "
+               "must be absolute, and an option that has a field here is set in its field.")
         self.conformance = QCheckBox("Run the W3C PROV conformance check (tier 4)", body)
         self.conformance.setAccessibleName("Run the W3C PROV conformance check")
         self.conformance.setChecked(True)
@@ -197,10 +229,15 @@ class JobDialog(QDialog):
             self.conformance.setEnabled(False)
             set_tooltip(self.conformance, "This CLI cannot skip the check yet (G2c-5): the check always runs.")
         self.conformance.clicked.connect(self._conformance_clicked)
-        fl.add("Conformance", self.conformance)
+        # a disabled box keeps its explanation above (a gated tip would hide it)
+        fl.add("Conformance", self.conformance,
+               CONFORMANCE_TIP if form.prov_generating and conformance_option is not None else None)
         scroll.setWidget(body)
         outer.addWidget(scroll, 1)
         self.tier = SafeLabel("", name="Risk tier", parent=self)
+        set_control_tooltip(self.tier, "The job's risk tier, which sets the confirmation: R0 read-only (none), R1 "
+                                       "writes local data (lists what is written), R2 network, downloads or paid "
+                                       "calls (a tick box).")
         outer.addWidget(self.tier)
         self.preview = ReadOnlyText(name="Command preview", parent=self, wrap=True)
         self.preview.setMaximumHeight(110)
@@ -210,6 +247,9 @@ class JobDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         self.ok = buttons.button(QDialogButtonBox.StandardButton.Ok)
         self.ok.setText("Continue…")
+        set_control_tooltip(self.ok, "Shows the tier's confirmation (none for a read-only job), then starts the "
+                                     "command shown as a job.")
+        set_control_tooltip(buttons.button(QDialogButtonBox.StandardButton.Cancel), "Closes the form; nothing starts.")
         buttons.accepted.connect(self._accept)
         buttons.rejected.connect(self.reject)
         outer.addWidget(buttons)

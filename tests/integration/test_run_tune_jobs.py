@@ -19,6 +19,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from live_fake import make_fake_env, repo_root  # noqa: E402
 
+
+@pytest.fixture(autouse=True)
+def _mac_studio_memory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ``m5ultra`` preset's memory terms are calibrated for the Mac Studio's 256 GiB, and the plan is sized from the
+    host probe's memory (N.2.1a(5)). The probe here reports that memory, so the plans do not depend on the machine the
+    tests run on (a 7 to 16 GB CI runner fits no model; D-1011); everything else the probe reports is the real host's."""
+    import dataclasses
+
+    from agentprov import host
+
+    real = host.detect_host
+    monkeypatch.setattr(host, "detect_host", lambda **kw: dataclasses.replace(
+        real(**kw), memory_bytes=256 * 2**30, memory_how="synthetic (the Mac Studio's 256 GiB, for the m5ultra preset)"))
+
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="the fake environment uses a POSIX venv layout")
 
 FACTS = ("--model-size-gb", "10", "--active-params-b", "3")

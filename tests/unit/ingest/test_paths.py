@@ -118,6 +118,8 @@ def test_open_descriptors_grow_with_depth_not_width(tmp_path, monkeypatch):
         return scandir(ref)
 
     paths._prim()  # probe the host first: the probe must see the real os.scandir
+    if not os.path.isdir("/dev/fd"):
+        pytest.skip("counts open descriptors in /dev/fd (macOS, Linux)")
     baseline = len(os.listdir("/dev/fd"))
     monkeypatch.setattr(os, "scandir", counting_scandir)
     found = discover(tmp_path)

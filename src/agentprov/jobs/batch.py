@@ -48,6 +48,9 @@ FALLBACK_NOTE: Final = ("fallback: this part's reader cannot draw this sample (e
                         "first-N used")
 SKIPPED_NOTE: Final = "skipped: this part's import failed"
 STATES: Final = ("pending", "held", "running", "done", "failed", "blocked", "skipped")
+#: A running step whose job record no longer exists (pruned): its outcome is unknown, so it is failed, never left running
+#: holding its slot.
+GONE_NOTE: Final = "failed: its job record no longer exists (pruned); its outcome is unknown"
 
 
 @dataclass(slots=True)
@@ -249,7 +252,10 @@ def advance(batch: Batch, manager: JobManager, *, validate: Callable[[Sequence[s
     jobs = {j.job_id: j for j in list_jobs(manager.home)}
     changed = False
     for step in list(batch.steps):
-        if step.state == "running" and step.job_id in jobs:
+        if step.state == "running" and step.job_id not in jobs:  # its job directory was pruned (or never written)
+            step.state, step.exit_code, step.note = "failed", None, GONE_NOTE
+            changed = True
+        elif step.state == "running" and step.job_id is not None:
             job = jobs[step.job_id]
             if job.state != "running":
                 step.exit_code = job.exit_code

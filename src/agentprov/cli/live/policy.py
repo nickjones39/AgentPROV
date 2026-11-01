@@ -13,11 +13,13 @@ only) runs first and is unchanged.
   caps.
 
 **Budget** (D-725). T0 counts the billed calls (every ``llm.response`` with an HTTP 2xx status: kept and discarded
-replies alike) and their recorded ``usage`` in each attempt's capture log, plus one call per preflight probe. Before a
+replies alike) and their recorded ``usage`` in each attempt's capture log, plus one call per preflight probe (counted in
+``live.caps.probe_calls``, so a resumed campaign charges the earlier probes too; no probe is sent unless it fits the
+caps). Before a
 cell starts it checks that the spend so far plus the worst case of every in-flight cell and of the new one fits both
 caps; otherwise no further cell starts (``cap_reached``). The worst case of a cell is its call bound
-(``Budget.cell_calls``: :data:`CELL_CALL_BOUND` for an AgentDojo-family cell, the bound T0 computes from the plan for an
-Inspect cell, D-740) billed calls, each at the per-call token bound: input :data:`CALL_INPUT_BOUND` or the largest input seen in the campaign,
+(``Budget.cell_calls``: :data:`CELL_CALL_BOUND` for an AgentDojo-family cell, raised by a defence's declared calls,
+:func:`defence_cell_calls`; the bound T0 computes from the plan for an Inspect cell, D-740) billed calls, each at the per-call token bound: input :data:`CALL_INPUT_BOUND` or the largest input seen in the campaign,
 output the transmitted ``max_tokens`` or :data:`CALL_OUTPUT_BOUND`, or the largest output seen. The spend is priced
 conservatively: every input-side token (``input_tokens + cache_read_tokens + cache_write_tokens``, which counts an
 OpenAI-convention cached part twice) at ``--price-in``, output at ``--price-out``; a billed reply without ``usage`` is
@@ -41,19 +43,25 @@ __all__ = [
     "CALL_INPUT_BOUND",
     "CALL_OUTPUT_BOUND",
     "CELL_CALL_BOUND",
+    "CELL_PASSES",
+    "PASS_STEPS",
     "Budget",
     "Caps",
     "EndpointClass",
     "LogBilling",
+    "defence_cell_calls",
     "endpoint_class",
     "log_billing",
 ]
 
 EndpointClass = Literal["local", "api"]
 LOOPBACK_HOSTS: Final = frozenset({"127.0.0.1", "::1", "localhost"})
-#: Billed model calls of one AgentDojo-family cell at most: up to 3 passes (``TaskSuite.run_task_with_pipeline``
-#: re-runs on an empty final reply; D.10.9 A1), each one LLM call plus ``ToolsExecutionLoop(max_iters=15)``.
-CELL_CALL_BOUND: Final = 3 * (1 + 15)
+#: Passes of one AgentDojo-family cell at most (``TaskSuite.run_task_with_pipeline`` re-runs on an empty final reply;
+#: D.10.9 A1), and model steps of one pass: one LLM call plus ``ToolsExecutionLoop(max_iters=15)``.
+CELL_PASSES: Final = 3
+PASS_STEPS: Final = 1 + 15
+#: Billed model calls of one AgentDojo-family cell at most, undefended.
+CELL_CALL_BOUND: Final = CELL_PASSES * PASS_STEPS
 #: The assumed input tokens of one call until a larger one is seen (a request's whole context).
 CALL_INPUT_BOUND: Final = 32_000
 #: The assumed output tokens of one call when no ``max_tokens`` is transmitted, until a larger one is seen.
@@ -70,6 +78,29 @@ def endpoint_class(*, local_entry: bool, base_url: str | None) -> EndpointClass:
     except ValueError:
         return "api"
     return "local" if host in LOOPBACK_HOSTS else "api"
+
+
+def defence_cell_calls(cost: Any) -> int | None:
+    """The billed-call bound of one AgentDojo-family cell under a defence, from its registry entry's ``cost`` table
+    (``extra_calls_per_step``, ``embedding_calls_per_step``, ``extra_calls_per_pass``; every one is recorded as an
+    ``llm.response``): :data:`CELL_CALL_BOUND` plus each ``*_per_step`` count at every model step of every pass and each
+    ``*_per_pass`` count at every pass, rounded up. ``None`` when the table holds a member the bound cannot use (a
+    count that is not a finite non-negative number, or another key): the caps cannot bound such a cell."""
+    if cost is None:
+        return CELL_CALL_BOUND
+    if not isinstance(cost, Mapping):
+        return None
+    extra = 0.0
+    for key, value in cost.items():
+        if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value) or value < 0:
+            return None
+        if str(key).endswith("_per_step"):
+            extra += value * CELL_PASSES * PASS_STEPS
+        elif str(key).endswith("_per_pass"):
+            extra += value * CELL_PASSES
+        else:
+            return None
+    return CELL_CALL_BOUND + math.ceil(extra - 1e-9)
 
 
 @dataclass(frozen=True)
@@ -182,6 +213,7 @@ class Budget:
     max_call_input: int = 0
     max_call_output: int = 0
     exceeded_bound: list[str] = field(default_factory=list)
+    probe_calls: int = 0  # preflight probe calls, this invocation's and (resume) the earlier ones recorded in live.caps
 
     def _call_bound(self) -> tuple[int, int]:
         tokens_in = max(CALL_INPUT_BOUND, self.max_call_input)
@@ -199,10 +231,23 @@ class Budget:
         """The worst case of one cell: billed calls and USD."""
         return self.cell_calls, self.cell_calls * self.call_bound_usd()
 
-    def charge_probe(self) -> None:
-        """One preflight probe: one call at the per-call bound (its session is never stored)."""
-        self.calls += 1
-        self.cost_usd += self.call_bound_usd()
+    def charge_probe(self, count: int = 1) -> None:
+        """``count`` preflight probes: one call each at the per-call bound (a probe's session is never stored, so the
+        earlier invocations' probes of a resumed campaign are charged from ``live.caps.probe_calls``)."""
+        self.calls += count
+        self.cost_usd += count * self.call_bound_usd()
+        self.probe_calls += count
+
+    def probe_refusal(self) -> str | None:
+        """Why no preflight probe may be sent now (``None``: it may): the probe is a paid call, so it must fit what is
+        left of both caps at the per-call bound, and a campaign at its caps sends no probe either."""
+        if self.caps.max_calls is not None and self.calls + 1 > self.caps.max_calls:
+            return f"cap_reached: --max-calls {self.caps.max_calls}: {self.calls} billed call(s) so far"
+        if self.caps.max_cost_usd is not None and \
+                self.cost_usd + self.call_bound_usd() > self.caps.max_cost_usd + 1e-12:
+            return (f"cap_reached: --max-cost-usd {_decimal(self.caps.max_cost_usd)}: about ${_usd(self.cost_usd)} "
+                    f"spent so far, and a probe call may cost up to ${_usd(self.call_bound_usd())}")
+        return None
 
     def charge(self, billing: LogBilling, *, label: str = "") -> None:
         """One attempt's capture log (stored or quarantined alike: a quarantined session was still billed). Without a
@@ -248,6 +293,8 @@ class Budget:
         out = self.caps.record()
         out["cell_call_bound"] = self.cell_calls  # the bound this campaign reserved (D-740: an Inspect cell's own)
         out["billed_calls"] = self.calls
+        if self.probe_calls:  # kept across invocations (resume): a probe leaves no capture log to charge again
+            out["probe_calls"] = self.probe_calls
         if self.caps.max_cost_usd is not None:
             out["spend_upper_bound_usd"] = _usd(self.cost_usd)
         return out

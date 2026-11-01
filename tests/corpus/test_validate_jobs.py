@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import functools
 import json
+import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -117,10 +119,17 @@ def test_jobs_get_the_verified_buffer_not_the_file_read_again(sealed: Path, monk
     assert report_bytes(sealed, jobs=2, mode="release") == baseline
 
 
-def test_a_killed_worker_fails_its_row_with_the_worker_check(sealed: Path) -> None:
-    """A ``validate`` job over its RSS cap (forced to the 64 MiB floor here) is stopped; the row fails with
-    ``validate.worker``, the limit code goes to a notice, and the run's exit is a failure, never a silent pass."""
-    limits = WorkerLimits(kind_rss_bytes={"prov": 4 << 30, "validate": 64 << 20})
+@pytest.mark.skipif(os.name == "nt" and sys.prefix != sys.base_prefix,
+                    reason="a Windows venv python.exe is a launcher: the RSS sampler sees it, not the worker (D-1011)")
+def test_a_killed_worker_fails_its_row_with_the_worker_check(sealed: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``validate`` job over its RSS cap is stopped; the row fails with ``validate.worker``, the limit code goes to a
+    notice, and the run's exit is a failure, never a silent pass. The cap is 8 MiB, below the 64 MiB floor (lowered for
+    this test), so every worker is over it: at the floor a small validate worker stays under on Linux, where an enforced
+    RLIMIT_AS leaves the watchdog no margin (the CI runners, D-1011)."""
+    from agentprov.io import workers
+
+    monkeypatch.setattr(workers, "RSS_CAP_FLOOR", 1 << 20)
+    limits = WorkerLimits(kind_rss_bytes={"prov": 4 << 30, "validate": 8 << 20})
     outcome = validate_corpus(CorpusReader.open(sealed), jobs=1, mode="release", limits=limits)
     assert not outcome.ok
     for row in outcome.rows:

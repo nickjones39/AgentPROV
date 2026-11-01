@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+import agentprov_backend
 from agentprov_backend.runner import PROBE_KEY
 from agentprov_backend.testing.scenarios import SCENARIOS
 from agentprov_backend.worker import PROTOCOL
@@ -82,7 +83,7 @@ def test_hello_plan_run_cell_shutdown(staging):
     assert ident["distribution"] == "agentdojo" and ident["version_reported"] == "0.1.35"
     assert len(ident["record_digest"]) == 64 and len(ident["lock_sha256"]) == 64
     assert "agentdojo.agent_pipeline.tool_execution.ToolsExecutor.query" in ident["guarded_sources"]
-    assert out[0]["worker"]["agentprov_backend_version"] == "0.1.0"
+    assert out[0]["worker"]["agentprov_backend_version"] == agentprov_backend.__version__
     assert ops[1:3] == ["plan_ok", "plan_refused"]
     assert out[1]["plan"]["cells"][0]["cell_key"] == "banking/user_task_1/none/none"
     done = [m for m in out if m["op"] == "cell_done"]

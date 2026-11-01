@@ -20,10 +20,12 @@ import functools
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import pytest
 from fetch_support import REPO_URL
 
 _ENV = {
@@ -56,6 +58,8 @@ class History:
 def make_history(root: Path) -> History:
     """The history above, built once per process (about 57 git calls; every commit date is fixed, so the ids are too)
     and copied for each caller."""
+    if sys.platform == "win32":
+        pytest.skip("the history holds runs/:odd.json, a name Windows cannot check out")
     template = _template()
     repo = root / "history-upstream"
     shutil.copytree(template.path, repo, symlinks=True)

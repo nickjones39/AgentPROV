@@ -39,12 +39,30 @@ from agentprov_gui.readmodel.executions import ExecutionTable, read_row
 from agentprov_gui.ui import theme
 from agentprov_gui.ui.detail import AerTab, ProvJsonTab, RegisterTab, SemTab, ValidationTab, fill_rows
 from agentprov_gui.ui.graphview import GraphTab
-from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, set_tooltip
+from agentprov_gui.ui.safe import (
+    ReadOnlyText,
+    SafeLabel,
+    set_control_tooltip,
+    set_header_tooltips,
+    set_tab_tooltip,
+)
 from agentprov_gui.ui.worker import JobSignals, submit
 
 __all__ = ["CorpusSource", "ExecutionPane"]
 
 GRAPH_PROV: Final = "Graph + PROV-JSON"
+#: what each detail tab shows (tab tooltips)
+TAB_TIPS: Final = {
+    "Graph": "The execution's W3C PROV graph: the core bundle, with the inference and assessment bundles as overlays",
+    "PROV-JSON": "The PROV documents as a tree of bundles, sections and statements; Show content adds the raw text",
+    GRAPH_PROV: "The PROV graph and its PROV-JSON side by side; selecting a statement in one selects it in the other",
+    "AER": "The AgentPROV Execution Record: the canonical records of the execution, grouped by kind, and its seal",
+    "SEM": "The semantic annotations on the AER records, per semantics profile",
+    "Register": "The register entries (issues) recorded for this execution",
+    "Validation": "The validation checks run on this execution and their results",
+    "Raw": "The raw source artefacts behind this execution, by digest",
+    "Index Row": "This execution's row of the corpus index (executions.jsonl), as JSON",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,19 +108,20 @@ class ExecutionPane(QWidget):
         if self.compact:
             self.open_btn = QPushButton("Open in New Tab", self)
             self.open_btn.setAccessibleName("Open this execution in a new Viewer tab")
-            set_tooltip(self.open_btn, "Open in a tab of its own (double-click or Return in the table)")
+            set_control_tooltip(self.open_btn, "Open in a tab of its own (double-click or Return in the table)")
             self.open_btn.setEnabled(False)
             self.open_btn.clicked.connect(self.open_requested)
             title_row.addWidget(self.open_btn)
         else:
             self.reveal_btn = QPushButton("Show in Corpora", self)
             self.reveal_btn.setAccessibleName("Show this execution in the Corpora tab")
-            set_tooltip(self.reveal_btn, "Select this execution's row in the Corpora tab")
+            set_control_tooltip(self.reveal_btn, "Select this execution's row in the Corpora tab")
             self.reveal_btn.clicked.connect(self.reveal_requested)
             title_row.addWidget(self.reveal_btn)
         self.render_btn = QPushButton("Export Graph…", self)
         self.render_btn.setAccessibleName("Export this execution's graph with agentprov render")
-        set_tooltip(self.render_btn, "agentprov render --corpus … --ex … (SVG, PNG, PDF or DOT), as a job")
+        set_control_tooltip(self.render_btn, "Export this execution's graph as SVG, PNG, PDF or DOT: agentprov render "
+                                            "--corpus … --ex …, run as a job")
         self.render_btn.setEnabled(False)
         self.render_btn.clicked.connect(self._request_render)
         title_row.addWidget(self.render_btn)
@@ -121,6 +140,11 @@ class ExecutionPane(QWidget):
         self.raw.setHorizontalHeaderLabels(["role", "sha256", "included", "note"])
         self.raw.verticalHeader().setVisible(False)
         self.raw.horizontalHeader().setStretchLastSection(True)
+        set_header_tooltips(self.raw, [
+            "The artefact's role: primary (the source file), capture log, native log or supporting",
+            "The SHA-256 digest of the artefact's bytes in the raw store",
+            "yes: the bytes are in the corpus; no: the artefact is only referenced",
+            "A note on the artefact"])
         self.row_json = ReadOnlyText(name="Index row JSON", parent=self.tabs)
         if self.compact:
             first: list[tuple[QWidget, str]] = [(self.graph, "Graph"), (self.prov, "PROV-JSON")]
@@ -137,7 +161,7 @@ class ExecutionPane(QWidget):
             first = [(self.graph_prov, GRAPH_PROV)]
         for w, title in (*first, (self.aer, "AER"), (self.sem, "SEM"), (self.register, "Register"),
                          (self.validation, "Validation"), (self.raw, "Raw"), (self.row_json, "Index Row")):
-            self.tabs.addTab(w, title)
+            set_tab_tooltip(self.tabs, self.tabs.addTab(w, title), TAB_TIPS[title], wrap=True)
         self.graph.open_in_prov.connect(self._reveal_in_prov)
         self.prov.statement_selected.connect(lambda key: self.graph.select(key, centre=False))
         if not self.compact:

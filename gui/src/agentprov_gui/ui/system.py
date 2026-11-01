@@ -24,13 +24,20 @@ from PySide6.QtWidgets import QGridLayout, QSizePolicy, QTableWidget, QVBoxLayou
 
 from agentprov_gui import text as T
 from agentprov_gui.ui.detail import fill_rows
-from agentprov_gui.ui.safe import SafeLabel
+from agentprov_gui.ui.safe import SafeLabel, set_control_tooltip, set_header_tooltips
 from agentprov_gui.ui.worker import submit
 
 __all__ = ["Sampler", "Sparkline", "SystemPage"]
 
 HISTORY: Final = 120
 TREE_REFRESH_S: Final = 10.0
+PROCESS_TIPS: Final = (
+    "The process id.",
+    "The process name.",
+    "CPU use since the previous sample; above 100 % when it uses more than one core.",
+    "Resident memory (RSS) in MiB.",
+    "The number of threads.",
+)
 
 
 class Sparkline(QWidget):
@@ -111,6 +118,9 @@ class SystemPage(QWidget):
         self.setAccessibleName("System")
         lay = QVBoxLayout(self)
         self.summary = SafeLabel("", name="System summary", parent=self)
+        set_control_tooltip(self.summary, "Mean CPU use over all cores, memory and swap in use, the free space "
+                                          "under AGENTPROV_HOME and the temperatures (Linux only), sampled once a "
+                                          "second while this page is shown.")
         lay.addWidget(self.summary)
         from agentprov_gui.platform.windows import long_path_warning
 
@@ -123,12 +133,14 @@ class SystemPage(QWidget):
         self.cores: list[Sparkline] = []
         for i in range(psutil.cpu_count() or 1):
             spark = Sparkline(f"CPU core {i + 1}", self)
+            set_control_tooltip(spark, f"CPU use of core {i + 1} over the last {HISTORY} seconds, from 0 to 100 %.")
             self.cores.append(spark)
             grid.addWidget(SafeLabel(f"core {i + 1}", name=f"core {i + 1} label", parent=self, selectable=False),
                            i // 4, (i % 4) * 2)
             grid.addWidget(spark, i // 4, (i % 4) * 2 + 1)
         lay.addLayout(grid)
         self.memory = Sparkline("Memory used", self)
+        set_control_tooltip(self.memory, f"Memory in use, as a share of the total, over the last {HISTORY} seconds.")
         lay.addWidget(SafeLabel("memory used", name="memory label", parent=self, selectable=False))
         lay.addWidget(self.memory)
         self.procs = QTableWidget(0, 5, self)
@@ -136,6 +148,9 @@ class SystemPage(QWidget):
         self.procs.setHorizontalHeaderLabels(["pid", "name", "CPU %", "RSS MiB", "threads"])
         self.procs.verticalHeader().setVisible(False)
         self.procs.horizontalHeader().setStretchLastSection(True)
+        set_header_tooltips(self.procs, PROCESS_TIPS)
+        set_control_tooltip(self.procs, "The processes of the running job selected in Runs: its agentprov process "
+                                        "and its child processes. The process tree is read again every 10 seconds.")
         lay.addWidget(SafeLabel("processes of the selected job (Runs)", name="processes label", parent=self))
         lay.addWidget(self.procs, 1)
         self.sampler = Sampler(home)

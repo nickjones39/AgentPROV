@@ -31,12 +31,19 @@ uv run --project gui agentprov-gui [CORPUS]     # optionally open a corpus direc
 ```
 
 Only one copy runs at a time ("AgentPROV is already running"), because the app drives the job queue. At start it asks
-the configured checkout's CLI for its version (`agentprov --version`). With no checkout, or a CLI whose record formats
-differ from the app's own library, it runs as a viewer only and says why in the status bar.
+the configured checkout's CLI, or without a checkout the installed one (below), for its version (`agentprov
+--version`). With neither, or a CLI whose record formats differ from the app's own library, it runs as a viewer only
+and says why in the status bar.
 
 **Bundles.** `uv run --project gui python gui/tools/build_bundle.py` builds a one-folder application outside the
-repository. The app still runs the `agentprov` CLI of the checkout named in Settings › General, so a bundle does not
-replace a checkout.
+repository. It carries this user guide (the chapters and their pictures, as they were when it was built), which
+Help › Docs shows when no checkout is set. A bundle has no `agentprov` command of its own: with a checkout set in
+Settings › General the app runs that checkout's CLI; without one it runs the `agentprov` installed with
+`pip install agentprov` (Python 3.14 or later; [Installation](01-install.md)), the one named in Settings › General ›
+*agentprov program*, else the first on `PATH`, then in `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin` (an app
+started from the Finder or a desktop menu does not see your shell's `PATH`). That is enough for Help › Assistant, the
+Settings panes and the jobs of the commands the package has. Live runs and the repository's own tools (Dev Runs, local
+CI, the job queue) still need a checkout, since the backend projects are not in the package (D-1030).
 
 | Platform | Bundle | State |
 |---|---|---|
@@ -52,11 +59,11 @@ emulation.
 
 ## The window
 
-The sidebar has three sections: **Corpora** (Viewer), **Jobs** (Runs, Logs, System) and **Release** (Licences,
-Package). The menus repeat every action: File (Open Corpus… ⌘O, Reload ⌘R, Run Live… ⌘L, New Job… ⌘N, Dev Run…,
+The sidebar has four sections: **Corpora** (Viewer), **Jobs** (Runs, Logs, System), **Release** (Licences,
+Package) and **Help** (Docs, Assistant). The menus repeat every action: File (Open Corpus… ⌘O, Reload ⌘R, Run Live… ⌘L, New Job… ⌘N, Dev Run…,
 Open in New Tab, Close Tab ⌘W, Close Other Tabs ⌥⌘W, Close Window ⇧⌘W), Edit (Settings… ⌘,), View (Toggle Sidebar
-⌃⌘S; Text Size: Bigger ⌥⌘=, Smaller ⌥⌘−, Default ⌥⌘0), Go (⌘1 to ⌘6 for the six pages; Corpora, Next Tab ⌘⇧],
-Previous Tab ⌘⇧[), Window (macOS) and Help (About AgentPROV, Keyboard Shortcuts). On macOS, Settings… and About
+⌃⌘S; Text Size: Bigger ⌥⌘=, Smaller ⌥⌘−, Default ⌥⌘0), Go (⌘1 to ⌘8 for the eight pages; Corpora, Next Tab ⌘⇧],
+Previous Tab ⌘⇧[), Window (macOS) and Help (About AgentPROV, AgentPROV Help ⌘?, Ask the Assistant, Keyboard Shortcuts). On macOS, Settings… and About
 AgentPROV sit in the AgentPROV menu; on Windows and Linux, ⌘ is Ctrl. On macOS the native toolbar holds Toggle Sidebar,
 Open Corpus, Reload, New Job, Dev Run, the job count and a search field that filters the Viewer by execution id;
 elsewhere a Qt toolbar holds the same actions and the search field, and the job count is at the right of the status
@@ -460,13 +467,14 @@ last line is a reminder that nothing is published.
 
 ## Settings
 
-Settings… (⌘, on macOS) has twelve panes. General, Appearance and Viewer are the app's own preferences. Every other value
+Settings… (⌘, on macOS) has thirteen panes. General, Appearance and Viewer are the app's own preferences. Every other value
 is an `agentprov settings` key, read and written through the CLI (`agentprov settings list|get|set|unset`), so the CLI
 and the app share one store (`$AGENTPROV_HOME/settings.json`; never a key).
 
 ![Settings, General](images/gui/settings-general.png)
 
-*General: the AgentPROV checkout the app runs the CLI from, and the corpus roots the Viewer scans.*
+*General: the AgentPROV checkout the app runs the CLI from; the agentprov program it runs when no checkout is set (empty:
+found on `PATH`), with the CLI in use shown below it; and the corpus roots the Viewer scans.*
 
 ![Settings, Appearance](images/gui/settings-appearance.png)
 
@@ -548,6 +556,44 @@ saved.*
 | Keys | the OS keychain (service `agentprov`) | `agentprov keys status`, `list`, `set`, `delete` |
 | Zenodo | `agentprov settings` keys `zenodo.*` (D-880) | `agentprov settings set zenodo.communities agentprov` |
 | Prices | price overrides | `agentprov prices list`, `get`, `set`, `unset`, `refresh` |
+| Assistant | `agentprov settings` keys `assistant.endpoint`, `assistant.model` (D-1010) | `agentprov settings set assistant.endpoint openai`; `agentprov assist --question TEXT` |
+
+A pane that runs `agentprov` and cannot read its settings keeps its fields greyed out and says above them why and what to
+set: with no checkout and no installed `agentprov`, set one of them in Settings › General, press OK and open Settings
+again; for a CLI that fails, the pane shows its exit code and its reason (D-1030).
+
+## Help: Docs and Assistant
+
+**Docs** shows this user guide: the chapters on the left, the chapter on the right, *Find in this chapter* and *Back*.
+It reads the guide of the checkout set in Settings › General; with no checkout (or one without `docs/user-guide`) it
+shows the copy that came with the app, the guide as it was when the bundle was built. The line above the chapters says
+which one you are reading (D-1030). A link to another chapter opens it at its heading. A web address is copied to the
+clipboard instead of opened: the app opens no web pages. When there is neither (the app run from source without a
+checkout), the page says where to set one; the guide is also online at <https://w3id.org/agentprov/docs/>.
+
+**Assistant** is a chat with a model you choose, to ask how to do something in AgentPROV. There is one conversation;
+*New Chat* clears it. Until a model is set up the page says so, with *Open Settings…* for **Settings › Assistant**:
+
+- **Server** is a local model server (oMLX, MLX `mlx_lm.server`, LM Studio, Ollama, Splash, Strata, llama.cpp, vLLM,
+  or Other for any OpenAI-compatible one) or *API provider*. A local server fills **Base URL** with its usual address
+  (Splash `http://127.0.0.1:8003/v1`, oMLX `:8000`, LM Studio `:1234`, Ollama `:11434`); change it if yours listens
+  elsewhere, and type it for Strata and Other. Only loopback addresses are accepted. A local server needs no key.
+- **Provider** (for an API provider) is `openai`, `anthropic`, `openrouter`, `deepseek`, …; store its key in Settings ›
+  Keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …).
+- **Model**: *Refresh* asks the local server which models it serves (`agentprov assist --list-models --server splash`)
+  and lists the loaded one first, marked *(loaded)*, and chooses it: Splash, Ollama and LM Studio say which model is
+  loaded; the others list what they serve. For a server that runs one model at a time, such as Splash, choose the
+  loaded one. You can also type a model id.
+
+Each message runs `agentprov assist` (CLI equivalent: `agentprov assist --question "How do I verify a corpus?"`), so the
+app itself opens no connection and never holds the key. It is the checkout's CLI, or without a checkout the
+`agentprov` installed with `pip install agentprov` (see *Bundles* above); until there is one the page says what to set
+in Settings › General. The command picks the passages of this guide, the `README`, the `--help` of every `agentprov`
+command and the code's module descriptions that best match the question, and sends them with the conversation (an
+installed CLI outside a checkout uses the copy of this guide in its package and the installed code's descriptions); the answer lists the files it drew on under *Sources*. `agentprov assist --question TEXT
+--show-context` prints that selection without calling a model. Nothing from a corpus is sent. For an API provider the
+messages and passages leave this machine and the provider bills the tokens; the page says so under the message field.
+Answers are model output: check them against the guide before you rely on them.
 
 ## About
 

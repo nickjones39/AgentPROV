@@ -66,6 +66,16 @@ def test_a_request_left_by_an_earlier_invocation_is_never_acted_on(tmp_path, wat
     assert stops == [] and events.events == []
 
 
+def test_a_request_issued_after_this_process_started_is_acted_on_although_it_predates_the_watcher(watcher):
+    """Review UC-11: a job manager writes stop or drain as soon as the job's pid is recorded, while the CLI is still
+    starting; that request is this run's (a job has a new directory), not an earlier invocation's."""
+    w, stops, events = watcher
+    _write(w.path, "stop", issued=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+    w.start()
+    w.poll()
+    assert stops == [1] and [e.fields["effect"] for e in events.events] == ["stop"]
+
+
 def test_stop_interrupts_once_and_is_acknowledged(watcher):
     w, stops, events = watcher
     w.start()

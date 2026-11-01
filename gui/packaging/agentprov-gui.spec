@@ -2,15 +2,22 @@
 # (LGPL relinking). Build with gui/tools/build_bundle.py, which also runs the bundle checks.
 # -*- mode: python -*-
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 HERE = Path(SPECPATH)  # noqa: F821 - injected by PyInstaller
 GUI = HERE.parent
-VERSION = "0.1.0"
+#: agentprov_gui.__version__, read from the source (the one version the app shows; tests/test_version.py)
+VERSION = next(line.split('"')[1] for line in (GUI / "src" / "agentprov_gui" / "__init__.py").read_text(encoding="utf-8")
+               .splitlines() if line.startswith("__version__ = "))
 #: rendered from docs/images/brand/ by gui/tools/make_icons.py (brand note: docs/reports/gui/logo/brand.md)
 ICONS = HERE / "icons"
+#: Help › Docs without a checkout (D-1030): the guide's chapters and the images they show, taken from docs/user-guide at
+#: build time into agentprov_gui/data/user-guide (agentprov_gui.guide.BUNDLED); build_bundle.py checks the bytes
+GUIDE = GUI.parent / "docs" / "user-guide"
+sys.path.insert(0, str(GUI / "src"))
+from agentprov_gui.guide import bundle_files  # noqa: E402 - stdlib only
 
 #: design §13: never bundled (a build check also fails on any of their libraries)
 EXCLUDED = [
@@ -24,7 +31,11 @@ datas = [
     (str(GUI / "src" / "agentprov_gui" / "data"), "agentprov_gui/data"),
     (str(HERE / "licenses"), "licenses"),
     (str(GUI / "THIRD_PARTY_NOTICES.md"), "."),
-    *collect_data_files("agentprov"),  # the core's package data (profiles, schemas, rule catalogues): read-only
+    # the core's package data (profiles, schemas, rule catalogues): read-only. Not its copy of the guide, which is the
+    # pip-installed CLI's (agentprov assist); the app has its own below
+    *collect_data_files("agentprov", excludes=["docs/**"]),
+    *((str(GUIDE / name), str(PurePosixPath("agentprov_gui/data/user-guide", name).parent))
+      for name in bundle_files(GUIDE)),
 ]
 if sys.platform.startswith("linux"):  # the desktop entry's icons (install-desktop-entry.sh copies them)
     datas.append((str(ICONS / "hicolor"), "share/icons/hicolor"))

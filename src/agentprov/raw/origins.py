@@ -401,11 +401,32 @@ def encode_origins(rows: Iterable[OriginRow]) -> bytes:
     return b"".join(unique[key].line() for key in sorted(unique))
 
 
+def _lone_surrogate(value: Any) -> bool:
+    """Whether a decoded row holds a string (key or value) that has no UTF-8 encoding: JCS, and so the row's sort key
+    and its line, cannot represent it (a thorough-fuzz finding of 2026-11-01)."""
+    stack = [value]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            stack.extend(node.keys())
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+        elif isinstance(node, str) and not node.isascii():
+            try:
+                node.encode("utf-8")
+            except UnicodeEncodeError:
+                return True
+    return False
+
+
 def decode_origins(data: bytes, limits: IngestLimits | None = None) -> list[OriginRow]:
     """Parse ``raw/origins.jsonl`` strictly (fails closed on any framing finding, and on unsorted or repeated rows)."""
     rows: list[OriginRow] = []
     try:
         for _, _, value in iter_jsonl(io.BytesIO(data), limits):
+            if _lone_surrogate(value):  # strict JSON admits the escape, but no canonical origin holds one (D-1011)
+                raise OriginError("raw/origins.jsonl holds a string with an escaped lone surrogate")
             rows.append(OriginRow.from_json(value))
     except IngestError as exc:
         raise OriginError(f"raw/origins.jsonl is not strict JSONL ({exc.code})") from None

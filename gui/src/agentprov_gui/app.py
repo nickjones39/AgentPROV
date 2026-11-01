@@ -176,7 +176,9 @@ def main(argv: list[str] | None = None) -> int:
         app.exec()
         lock.unlock()
         return 0
-    log.info("start gui=%s", "0.1.0")
+    from agentprov_gui import __version__
+
+    log.info("start gui=%s", __version__)
     if args.corpus:
         window.viewer.open_path(Path(args.corpus))
     code = app.exec()

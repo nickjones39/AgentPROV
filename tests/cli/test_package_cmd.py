@@ -31,9 +31,9 @@ def setup(tmp_path_factory, tmp_path, monkeypatch):
     corpus = ss.working_corpus(tmp_path_factory, tmp_path / "work" / "mini")
     spec_dir = tmp_path / "corpora" / "mini-agentdojo"
     spec_dir.mkdir(parents=True)
-    (spec_dir / "corpus-spec.toml").write_text(ss.SPEC)
-    (spec_dir / "CARD.md").write_text(ss.CARD)
-    (spec_dir / "CHANGES.toml").write_text(ss.CHANGES)
+    (spec_dir / "corpus-spec.toml").write_text(ss.SPEC, newline="\n")  # LF on every host: the card is read byte for byte
+    (spec_dir / "CARD.md").write_text(ss.CARD, newline="\n")
+    (spec_dir / "CHANGES.toml").write_text(ss.CHANGES, newline="\n")
     shutil.copy(ss.REPO / "corpora" / "datasheet-statements.toml", tmp_path / "corpora" / "datasheet-statements.toml")
     licence = tmp_path / "LICENSE.txt"
     licence.write_bytes(b"test licence text\n")
@@ -61,11 +61,12 @@ def test_the_summary_writes_a_corpus_under_home_as_home(cli, setup, tmp_path, mo
     # CC-21: corpus.root used to be the literal path while options.corpus was written "<home>/..." (N.1.12(7))
     corpus, spec, licence = setup
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() on Windows
     run = cli("package", "--corpus", str(corpus), "--corpus-version", "0.1.0", "--spec", str(spec),
               "--licence-file", f"LICENSE={licence}", "--json", *(["--dry-run"] if dry_run else []))
     assert run.code == 0, run.err
     assert str(tmp_path) not in run.out and str(tmp_path) not in run.err
-    assert run.json()["corpus"]["root"] == "<home>/work/mini"
+    assert run.json()["corpus"]["root"].replace("\\", "/") == "<home>/work/mini"  # Windows writes its own separator
 
 
 def test_package_dry_run_writes_nothing(cli, setup):
@@ -118,6 +119,8 @@ def test_rerunning_package_resumes_a_seal_killed_before_the_swap(cli, setup):
     corpus, spec, licence = setup
     argv = ("package", "--corpus", str(corpus), "--corpus-version", "0.1.0", "--spec", str(spec), "--licence-file",
             f"LICENSE={licence}", "--json")
+    if not hasattr(os, "fork"):
+        pytest.skip("the seal is killed in a forked child: os.fork is POSIX only")
     pid = os.fork()
     if pid == 0:  # pragma: no cover - the child never returns into pytest
         try:

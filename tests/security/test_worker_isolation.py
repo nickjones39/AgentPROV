@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 import time
 
 import pytest
@@ -155,7 +156,10 @@ def test_rlimits_are_applied_before_any_job(info):
         soft, hard = r["cpu"]
         assert 300 < soft <= 300 + 5 and hard == 540 * 64 + 60  # soft = CPU used so far + the 300 s budget
     if CAPS.hard_memory_cap.value == "rlimit_as":
-        assert r["as"] == [4 << 30, 4 << 30]
+        # the pool's default (max(4 GiB, the largest RSS cap + 1 GiB): 5 GiB with prov's 4 GiB cap), never below this
+        # host's floor (start-up footprint + headroom)
+        expected = constants_for(HOST).as_limit_for(WorkerLimits().effective_as_bytes)
+        assert r["as"] == [expected, expected]
     elif "as" in r:
         assert r["as"][0] != 4 << 30  # not applied where the kernel does not enforce it
 
@@ -200,6 +204,8 @@ def test_memory_hog_is_killed_before_it_holds_its_allocation():
     assert not process_group_alive(r.worker_pid)
 
 
+@pytest.mark.skipif(os.name == "nt" and sys.prefix != sys.base_prefix,
+                    reason="a Windows venv python.exe is a launcher: the RSS sampler sees it, not the worker (D-1011)")
 @needs_memory_control
 @pytest.mark.slow
 def test_sec22_a_job_kind_with_a_declared_cap_runs_past_the_default_cap_and_is_still_bounded():
@@ -336,6 +342,43 @@ def test_audit_hook_blocks_network_events_in_the_worker(event):
 def test_audit_hook_blocks_subprocess_events_in_the_worker(event):
     r = run("test.spawn", event=event)
     assert r.error is not None and r.error.code == "worker.audit.blocked", r.error
+
+
+_NO_POSIXSUBPROCESS = r"""
+import sys
+
+from agentprov.io.workers import AuditBlockedError, install_audit_hook  # subprocess loads the helper on POSIX
+
+sys.modules.pop("_posixsubprocess", None)
+
+
+class _Absent:  # a platform without the module, as Windows: the import searches and finds nothing
+    @staticmethod
+    def find_spec(name, path=None, target=None):
+        if name == "_posixsubprocess":
+            raise ModuleNotFoundError(name)
+        return None
+
+
+sys.meta_path.insert(0, _Absent)
+install_audit_hook()  # review UC-3: this raised AuditBlockedError, so every worker on Windows died at start-up
+try:
+    import _posixsubprocess  # noqa: F401 - the V-4 rule still refuses a fresh import once the hook is in
+except AuditBlockedError:
+    print("installed; fresh import refused")
+"""
+
+
+def test_the_audit_hook_installs_where_there_is_no_posixsubprocess():
+    """D-1011 (review UC-3): the V-4 rule refuses the import event of ``_posixsubprocess`` when it is not loaded yet,
+    and on Windows it never is, so the probe that ran after the hook killed every T1 worker. The probe now runs first.
+    Simulated here in a child interpreter, where the module cannot be found (the hook cannot be removed again)."""
+    import subprocess
+    import sys
+
+    done = subprocess.run([sys.executable, "-c", _NO_POSIXSUBPROCESS], capture_output=True, text=True, timeout=60,
+                          check=False)
+    assert done.returncode == 0 and done.stdout.strip() == "installed; fresh import refused", done.stderr[-2000:]
 
 
 def test_audit_hook_is_not_installed_in_the_parent_process():

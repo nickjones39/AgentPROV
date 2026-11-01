@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from agentprov.jobs.record import JOB_FORMAT, OUTCOMES, read_json
+from agentprov.jobs.record import JOB_FORMAT, OUTCOMES, read_json, start_ticks
 
 
 def _create_time(pid: int) -> float | None:
@@ -41,7 +41,8 @@ def supervise(directory: Path) -> int:
         return 2
     argv = [str(a) for a in record["argv"]]
     cwd = str(record.get("cwd") or directory)
-    record.update(supervisor_pid=os.getpid(), supervisor_create_time=_create_time(os.getpid()))
+    record.update(supervisor_pid=os.getpid(), supervisor_create_time=_create_time(os.getpid()),
+                  supervisor_start_ticks=start_ticks(os.getpid()))
     atomic_write_json(directory / "job.json", record)
     child: subprocess.Popen[bytes] | None = None
 
@@ -60,7 +61,8 @@ def supervise(directory: Path) -> int:
         record["state"] = "ended"
         atomic_write_json(directory / "job.json", record)
         return 1
-    record.update(state="running", pid=child.pid, pid_create_time=_create_time(child.pid))
+    record.update(state="running", pid=child.pid, pid_create_time=_create_time(child.pid),
+                  pid_start_ticks=start_ticks(child.pid))
     atomic_write_json(directory / "job.json", record)
     while True:
         try:

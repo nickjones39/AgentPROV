@@ -226,8 +226,10 @@ def _old_vs_new(ctx: Context) -> list[Step]:
         Step("C6 producer", ("uv", "run", "--no-sync", "--project", "backends/agentdojo", "pytest",
                              "backends/agentdojo/tests/test_c6_old_vs_new.py", "-m", "old_package"), env=env),
         Step("core environment (shacl)", ("uv", "sync", "--locked", "--extra", "shacl"), env=unset, sync=True),
+        # the comparer writes its summary into the C6 work directory on purpose: the D-402 guard's declared output
         Step("C6 comparer", ("uv", "run", "--no-sync", "pytest", "tests/migration/test_c6_old_vs_new.py", "-m",
-                             "old_package"), env=(*env, *unset)),
+                             "old_package"),
+             env=(*env, *unset, ("AGENTPROV_TEST_WRITE_ALLOW", str(work / "c6" / "c6-summary.json")))),
         Step("C2 (golden scope)", ("uv", "run", "--no-sync", "python", "tools/migration/gate_c2.py", "--scope", "golden",
                                    "--work", str(work / "gates" / "c2"), "--report", str(work / "gates" / "C2.json")),
              env=(*env, *unset)),

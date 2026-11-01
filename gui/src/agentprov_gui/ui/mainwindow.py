@@ -1,6 +1,7 @@
 """The main window (design §6; macos-design §3.1–3.4; D-442).
 
-A sidebar with sections (Corpora: Viewer; Jobs and Release arrive with G2) | the active page. On macOS, About and
+A sidebar with sections (Corpora: Viewer; Jobs and Release arrive with G2; Help: Docs and Assistant, D-1010) | the
+active page. On macOS, About and
 Settings… sit in the App menu (Qt's ``AboutRole``/``PreferencesRole`` move them there) and Settings opens with ⌘,;
 elsewhere they are in the Help and Edit menus. Every action has a menu item; the Go menu switches pages (⌘1 …).
 """
@@ -29,10 +30,11 @@ from PySide6.QtWidgets import (
 
 from agentprov_gui import text as T
 from agentprov_gui.paths import agentprov_home, layout_cache_dir
+from agentprov_gui.platform import ACTIVITY_TIP, SEARCH_TIP, TOOLBAR_TIPS
 from agentprov_gui.settings import Settings
 from agentprov_gui.ui import theme
 from agentprov_gui.ui.dialogs import AboutDialog, SettingsDialog
-from agentprov_gui.ui.safe import SafeLabel
+from agentprov_gui.ui.safe import SafeLabel, set_control_tooltip, set_list_item_tooltip
 from agentprov_gui.ui.viewer import ViewerPage
 
 __all__ = ["MainWindow"]
@@ -40,6 +42,17 @@ __all__ = ["MainWindow"]
 #: The CLI's closed outcome vocabulary; anything else in ended.json/summary.json shows as "ended" (S15).
 _OUTCOMES = frozenset({"ok", "failures", "usage", "environment", "refused", "unsupported", "internal", "interrupted",
                        "signal"})
+#: what each sidebar page holds (its tooltip)
+PAGE_TIPS = {
+    "Viewer": "Browse corpora, their executions and the PROV graph of each execution (read-only).",
+    "Runs": "Start and follow jobs: live runs, New Job forms and dev runs.",
+    "Logs": "Read a job's log records or stderr, filtered by level, text or execution.",
+    "System": "CPU, memory, swap, free disk space and the processes of the job selected in Runs.",
+    "Licences": "The licence facts of every registered source, and the systematic search's exclusions (read-only).",
+    "Package": "Seal a working corpus, verify it and build a deposit draft, in nine steps. Nothing is uploaded.",
+    "Docs": "The user guide of the AgentPROV checkout set in Settings › General.",
+    "Assistant": "Ask a model how to do something in AgentPROV (agentprov assist).",
+}
 
 
 class MainWindow(QMainWindow):
@@ -47,6 +60,9 @@ class MainWindow(QMainWindow):
                  jobs: bool = True) -> None:
         super().__init__()
         self.settings = settings
+        from agentprov_gui.jobs.manager import set_installed_program
+
+        set_installed_program(settings.cli_program)  # the CLI without a checkout (D-1030)
         self._base_point_size: float | None = None
         self.setWindowTitle("AgentPROV")
         self.setAccessibleName("AgentPROV main window")
@@ -76,6 +92,7 @@ class MainWindow(QMainWindow):
         self.runs: Any = None
         if jobs:
             self._jobs_pages(home or agentprov_home())
+        self._help_pages()
         self.sidebar.currentRowChanged.connect(self._nav)
         self.sidebar.setCurrentRow(1)
         self.action_map: dict[str, QAction] = {}
@@ -116,8 +133,24 @@ class MainWindow(QMainWindow):
         self.runs.jobs_changed.connect(self._jobs_changed)
         self.runs.view.selectionModel().currentRowChanged.connect(self._job_selected)
         self.activity = SafeLabel("", name="Job activity", parent=self)
+        set_control_tooltip(self.activity, ACTIVITY_TIP)
         self.statusBar().addPermanentWidget(self.activity)
         self._version_check()
+
+    def _help_pages(self) -> None:
+        """Help › Docs and Assistant (D-1010): the checkout's user guide (else the app's own copy), and a chat through
+        ``agentprov assist`` (the checkout's CLI, else the installed one; D-1030)."""
+        from agentprov_gui.jobs.manager import CliLocator
+        from agentprov_gui.ui.help import AssistantPage, DocsPage
+
+        self.docs = DocsPage(self.settings.checkout, self)
+        self.assistant = AssistantPage(CliLocator.for_checkout(self.settings.checkout), self)
+        self.docs.status_message.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
+        self.docs.settings_requested.connect(self.open_settings)
+        self.assistant.settings_requested.connect(self.open_settings)
+        self._add_section("Help")
+        self._add_page("Docs", self.docs)
+        self._add_page("Assistant", self.assistant)
 
     def _verified(self, corpus: Path) -> str | None:
         """The last successful ``verify`` job of the GUI on ``corpus`` (design §6.1 "verified status")."""
@@ -196,7 +229,8 @@ class MainWindow(QMainWindow):
 
         cli = self.manager.cli
         if not cli.available:
-            self.statusBar().showMessage("Viewer only: no AgentPROV checkout with a CLI is configured.")
+            self.statusBar().showMessage("Viewer only: no AgentPROV checkout with a CLI and no installed agentprov "
+                                         "(Settings › General).")
             self.runs.new_btn.setEnabled(False)
             return
 
@@ -233,6 +267,8 @@ class MainWindow(QMainWindow):
     def _add_page(self, title: str, page: QWidget) -> None:
         item = QListWidgetItem(title)
         item.setData(Qt.ItemDataRole.UserRole, self.pages.addWidget(page))
+        if title in PAGE_TIPS:
+            set_list_item_tooltip(item, PAGE_TIPS[title])
         self.sidebar.addItem(item)
 
     def _nav(self, row: int) -> None:
@@ -296,7 +332,7 @@ class MainWindow(QMainWindow):
         size_menu.addAction(self._action("Smaller", lambda: self.scale_text(1 / 1.1), "Ctrl+Alt+-"))
         size_menu.addAction(self._action("Default", lambda: self.scale_text(None), "Ctrl+Alt+0"))
         go_menu = bar.addMenu("&Go")
-        for i, page in enumerate(("Viewer", "Runs", "Logs", "System", "Licences", "Package"), 1):
+        for i, page in enumerate(("Viewer", "Runs", "Logs", "System", "Licences", "Package", "Docs", "Assistant"), 1):
             go_menu.addAction(self._action(page, partial(self.go, page), f"Ctrl+{i}"))
         go_menu.addSeparator()
         self.action_map["corporaTab"] = self._action("Corpora", self._corpora_tab)
@@ -315,6 +351,8 @@ class MainWindow(QMainWindow):
             bar.addMenu("Window")  # filled by the native layer (NSApp.windowsMenu), else left to the system
         help_menu = bar.addMenu("&Help")
         help_menu.addAction(self._action("About AgentPROV", self._about, None, QAction.MenuRole.AboutRole))
+        help_menu.addAction(self._action("AgentPROV Help", partial(self.go, "Docs"), "Ctrl+?"))
+        help_menu.addAction(self._action("Ask the Assistant", partial(self.go, "Assistant")))
         help_menu.addAction(self._action("Keyboard Shortcuts", self._shortcuts))
 
     # ------------------------------------------------------------------------------------------ Viewer tabs (D-845)
@@ -379,9 +417,13 @@ class MainWindow(QMainWindow):
         for key in ("toggleSidebar", "openCorpus", "reload", "newJob", "devRun"):
             if key in self.action_map:
                 bar.addAction(self.action_map[key])
+                button = bar.widgetForAction(self.action_map[key])
+                if button is not None:  # the action's own tooltip is only its name
+                    set_control_tooltip(button, TOOLBAR_TIPS[key])
         search = QLineEdit(bar)
         search.setAccessibleName("Search execution ids")
         search.setPlaceholderText("Search ids")
+        set_control_tooltip(search, SEARCH_TIP + " (press Return).")
         search.setMaximumWidth(260)
         search.returnPressed.connect(lambda: self._search(search.text()))
         bar.addWidget(search)
@@ -398,15 +440,25 @@ class MainWindow(QMainWindow):
             self.viewer.open_path(Path(path))
 
     def _settings(self) -> None:
-        dlg = SettingsDialog(self.settings, self)
+        self.open_settings(None)
+
+    def open_settings(self, pane: str | None) -> None:
+        """The Settings dialog, on ``pane`` when given (Help › Assistant opens its own pane)."""
+        dlg = SettingsDialog(self.settings, self, pane=pane)
         if dlg.exec():
             theme.apply_scheme(self.settings.theme)
             self.viewer.roots = self.settings.corpus_roots
             self.viewer.set_show_content_limit(self.settings.content_limit)
             self.viewer.set_exact_palette(self.settings.graph_palette == "exact")
             self.viewer.refresh()
+            from agentprov_gui.jobs.manager import CliLocator, set_installed_program
+
+            set_installed_program(self.settings.cli_program)
             if self.runs is not None:
                 self._apply_job_settings()
+            self.docs.set_checkout(self.settings.checkout)
+            self.assistant.cli = CliLocator.for_checkout(self.settings.checkout)
+            self.assistant.reload()
 
     def _apply_job_settings(self) -> None:
         """New jobs use the checkout and the settings just saved (GR-32); running jobs keep their recorded argv."""
@@ -474,7 +526,8 @@ class MainWindow(QMainWindow):
 SHORTCUTS = (
     "⌘O / Ctrl+O  Open corpus\n"
     "⌘R / F5      Reload the corpora list\n"
-    "⌘1           Viewer\n"
+    "⌘1           Viewer (⌘2 to ⌘8: Runs, Logs, System, Licences, Package, Docs, Assistant)\n"
+    "⌘?           AgentPROV Help (the Docs page); in the Assistant, ⌘↩ sends\n"
     "Viewer tabs: Return or double-click opens an execution in a new tab; ⌘W closes it (on Corpora: the window), "
     "⌥⌘W closes the other tabs, ⇧⌘W closes the window, ⌘⇧] ⌘⇧[ next and previous tab (Ctrl+PgDown, Ctrl+PgUp "
     "elsewhere), ⌃Tab ⌃⇧Tab the sub-tabs, middle-click closes a tab\n"

@@ -154,3 +154,18 @@ def test_provisioning_follows_no_symlink(tmp_path, where):
     with pytest.raises(BackendUnavailable):
         envs.provision_dataset(env, project, {"AGENTPROV_UPSTREAM_CACHE": str(cache)})
     assert sorted(p.name for p in outside.iterdir()) == ["x.json"]  # nothing written outside the environment
+
+
+@pytest.mark.parametrize("backend", ["agentdojo", "autodojo", "agentdyn", "inspect-agentharm"])
+def test_the_sync_passes_every_exclude_newer_exception(backend: str) -> None:
+    """D-1011: ``--no-config`` drops ``[tool.uv]``, so the per-package exceptions of ``exclude-newer`` are passed on the
+    command line as the cutoff is; without them ``--locked`` finds the lock stale (the first public CI run's
+    ``backends build`` failures)."""
+    import tomllib
+
+    project = envs.backend_project(backend, envs.repository_root())
+    declared = tomllib.loads((project.project / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["uv"]
+    expected = sorted(f"{k}={v}" for k, v in declared.get("exclude-newer-package", {}).items())
+    argv = envs.uv_sync_argv(project, offline=True)
+    passed = sorted(argv[i + 1] for i, a in enumerate(argv) if a == "--exclude-newer-package")
+    assert passed == expected and expected  # every backend has the security exceptions of 2026-11-01

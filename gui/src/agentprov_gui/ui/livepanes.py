@@ -14,7 +14,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import datetime as dt
 from pathlib import Path
 from typing import Any, ClassVar, Final
@@ -37,7 +36,7 @@ from agentprov_gui.jobs.manager import CliLocator
 from agentprov_gui.live import keychain
 from agentprov_gui.live.cli import call, last_line
 from agentprov_gui.live.plan import PlanError, PriceTable, load_endpoints, parse_prices
-from agentprov_gui.ui.safe import SafeForm, SafeLabel, safe_message_box
+from agentprov_gui.ui.safe import SafeForm, SafeLabel, ask, safe_message_box, set_setting_tooltip
 from agentprov_gui.ui.worker import submit
 
 __all__ = ["EstimatePane", "KeysPane", "PricesPane", "StoreKeyDialog"]
@@ -87,11 +86,14 @@ class KeysPane(QWidget):
         self.cli = CliLocator.for_checkout(checkout)  # D-702: agentprov keys of the configured checkout
         lay = QVBoxLayout(self)
         self.status = SafeLabel("Keychain: not checked yet", name="Keychain status", parent=self)
+        self.status.setWordWrap(True)
         lay.addWidget(self.status)
         self.table = QTableWidget(0, 3, self)
         self.table.setHorizontalHeaderLabels(["endpoint", "key variable", "stored"])
         self.table.setAccessibleName("Endpoint keys")
         self.table.horizontalHeader().setStretchLastSection(True)
+        set_setting_tooltip(self.table, "Each endpoint's key variable and whether it is stored in the OS keychain "
+                            "(— until Check Keychain). Select a row to store or delete its key.")
         lay.addWidget(self.table)
         row = QHBoxLayout()
         self.check = QPushButton("Check Keychain", self)
@@ -103,12 +105,22 @@ class KeysPane(QWidget):
         self.delete_btn = QPushButton("Delete Key", self)
         self.delete_btn.setAccessibleName("Delete the selected key")
         self.delete_btn.clicked.connect(self.delete_selected)
-        for b in (self.check, self.store_btn, self.delete_btn):
+        for b, tip in ((self.check, "Asks the OS keychain which keys are stored (agentprov keys status, then keys "
+                                    "list). Only key names are read, never a value."),
+                       (self.store_btn, "Stores a value for the selected key variable in the OS keychain (service "
+                                        "agentprov). The app never shows it again."),
+                       (self.delete_btn, "Deletes the selected key from the OS keychain.")):
+            set_setting_tooltip(b, tip)
             row.addWidget(b)
         row.addStretch(1)
         lay.addLayout(row)
         self.names: list[str] = []
         self._fill({})
+        if not self.cli.available:  # nothing to ask: say what to set
+            from agentprov_gui.settings_client import NO_CLI
+
+            self.status.set_plain(f"Keychain: not checked. {NO_CLI}")
+            self.store_btn.setEnabled(False)
 
     def _fill(self, present: dict[str, bool]) -> None:
         eps = [e for e in load_endpoints(self.checkout).values() if e.api_key_env]
@@ -129,7 +141,10 @@ class KeysPane(QWidget):
         try:
             st = keychain.status(self.cli)
         except keychain.KeychainError as exc:
-            self.status.set_plain(f"Keychain: the helper failed ({T.line(exc.code, 60)})")
+            from agentprov_gui.settings_client import NO_CLI
+
+            self.status.set_plain(f"Keychain: not checked. {NO_CLI}" if not self.cli.available else
+                                  f"Keychain: the helper failed ({T.line(exc.code, 60)})")
             return
         if not st.allowed:
             self.status.set_plain(NO_KEYCHAIN + (f" ({T.line(st.reason, 300)})" if st.reason else ""))
@@ -165,11 +180,17 @@ class KeysPane(QWidget):
         self.refresh()
 
     def delete_selected(self) -> None:
+        """``keys delete --yes`` only after the GUI's own confirmation (D-654); a failure is reported, never hidden."""
         name = self._selected()
         if name is None:
             return
-        with contextlib.suppress(keychain.KeychainError):
+        if not ask(self, "Delete Key", f"Delete {T.line(name, 64)} from the OS keychain?",
+                   "Runs that need this key cannot start until it is stored again. Its value is not shown or kept."):
+            return
+        try:
             keychain.delete(self.cli, name)
+        except keychain.KeychainError as exc:
+            safe_message_box(self, "Key not deleted", "The key was not deleted.", informative=T.line(exc.code, 60)).exec()
         self.refresh()
 
     def save(self) -> None:
@@ -190,6 +211,8 @@ class PricesPane(QWidget):
         self.table = QTableWidget(0, len(self.COLUMNS), self)
         self.table.setHorizontalHeaderLabels(list(self.COLUMNS))
         self.table.setAccessibleName("Price overrides")
+        set_setting_tooltip(self.table, "Your per-model prices in USD per million tokens, each with the date it is "
+                            "from. An override wins over the shipped and refreshed prices.")
         lay.addWidget(self.table)
         row = QHBoxLayout()
         self.add_btn = QPushButton("Add Override", self)
@@ -198,6 +221,9 @@ class PricesPane(QWidget):
         remove = QPushButton("Remove Override", self)
         remove.setAccessibleName("Remove the selected override")
         remove.clicked.connect(lambda: self.table.removeRow(self.table.currentRow()))
+        set_setting_tooltip(self.add_btn, "Adds an override row: endpoint:model, the prices and the date. OK stores it "
+                            "(agentprov prices set).")
+        set_setting_tooltip(remove, "Removes the selected override; OK unsets it (agentprov prices unset).")
         row.addWidget(self.add_btn)
         row.addWidget(remove)
         row.addStretch(1)
@@ -214,8 +240,9 @@ class PricesPane(QWidget):
         except PlanError:
             table = None
         if table is None:
-            self.sources.set_plain(f"Prices: agentprov prices list ended with exit {code}: "
-                                   f"{T.line(last_line(err), 200)}")
+            from agentprov_gui.settings_client import unavailable
+
+            self.sources.set_plain(f"Prices: {T.line(unavailable('prices list', code, err), 400)}")
             return
         self.fill(table)
 
@@ -302,7 +329,10 @@ class EstimatePane(QWidget):
                 spin.setDecimals(0)
                 spin.setValue(float(default))
                 self.spins[f"{key}_{q}"] = spin
-                form.add(f"{label} ({q})", spin)
+                form.add(f"{label} ({q})", spin,
+                         f"The {'median' if q == 'p50' else '90th-percentile'} {label[0].lower()}{label[1:]} that "
+                         "agentprov estimate assumes where neither an opened corpus nor the shipped priors cover a "
+                         f"suite and attack ({ESTIMATE_PREFIX}{key}_{q}).")
         self.status = SafeLabel("Loading the stored defaults (agentprov settings)…", name="Estimate defaults status",
                                 parent=self)
         form.add("Used", SafeLabel("where neither an opened corpus nor the shipped priors cover a suite and attack "
@@ -323,7 +353,9 @@ class EstimatePane(QWidget):
             doc = None
         stored = doc.get("values") if isinstance(doc, dict) else None
         if not isinstance(stored, dict):
-            self.status.set_plain(f"agentprov settings ended with exit {code}: {T.line(last_line(err), 200)}")
+            from agentprov_gui.settings_client import unavailable
+
+            self.status.set_plain(T.line(unavailable("settings list", code, err), 400))
             return
         for name, spin in self.spins.items():
             value = stored.get(ESTIMATE_PREFIX + name)

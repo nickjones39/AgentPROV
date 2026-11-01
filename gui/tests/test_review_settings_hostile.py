@@ -75,7 +75,7 @@ def test_fallbacks_and_clamps(qapp: Any) -> None:
     assert jobs.retention.value() == 200
     assert compute.jobs["import"].value() == 512 and compute.jobs["derive"].value() == 0
     assert compute.queue_cpu.value() == 256
-    assert jobs.loaded is None and not jobs.isEnabled()  # no CLI: nothing read, so nothing would be saved
+    assert jobs.loaded is None and not jobs.body.isEnabled()  # no CLI: nothing read, so nothing would be saved
     jobs.deleteLater()
     compute.deleteLater()
 
@@ -90,7 +90,7 @@ def test_typed_superscript_digit_is_dropped_and_every_pane_saves(qapp: Any, tmp_
     dlg = SettingsDialog(settings)
     _settle(qapp)
     jobs, compute, ci, dev = dlg.panes[:4]
-    assert all(p.loaded == {} and p.isEnabled() for p in (jobs, compute, ci, dev))  # read through the CLI
+    assert all(p.loaded == {} and p.body.isEnabled() for p in (jobs, compute, ci, dev))  # read through the CLI
     jobs.retention.setValue(777)
     compute.cpu_budget.setText(SUP2)
     compute.stagger.setText("1.5")

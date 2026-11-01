@@ -729,3 +729,67 @@ def test_an_error_in_one_root_is_raised_and_the_scratch_store_is_removed(monkeyp
     with pytest.raises(RuntimeError, match="member scan failed"):
         scan_archives(objects, _stream(files), POLICY.byte_rules, release=False, workers=4, member_scan=member_scan)
     assert list((tmp_path / "home" / "tmp").iterdir()) == []
+
+
+def test_a_failed_member_scan_closes_the_member_file_at_once(monkeypatch, tmp_path):
+    """Windows CI hung here (2026-11-01): the member's file stayed open while the error lived, so the reader's clean-up
+    could not remove it. The chunks are closed as soon as the scan fails."""
+    monkeypatch.setenv("AGENTPROV_HOME", str(tmp_path / "home"))
+    objects, files = _store((fs.zip_bytes([("m.json", CLEAN)]), "zip"))
+    seen = []
+
+    def member_scan(root: str, locator: str, part: str, chunks: Iterable[bytes]) -> frozenset[str]:
+        if part == "data":
+            seen.append(chunks)
+            next(iter(chunks))  # the member's file is open now
+            raise RuntimeError("member scan failed")
+        return frozenset()
+
+    with pytest.raises(RuntimeError, match="member scan failed"):
+        scan_archives(objects, _stream(files), POLICY.byte_rules, release=False, workers=1, member_scan=member_scan)
+    assert len(seen) == 1 and seen[0].gi_frame is None
+
+
+def test_a_failed_clean_up_never_loses_a_reader(monkeypatch, tmp_path):
+    """A reader whose scratch store cannot be emptied goes back to the queue, so the error is raised instead of every
+    later root waiting for a reader forever."""
+    import threading
+
+    from agentprov.corpus import withhold_scan as ws
+
+    monkeypatch.setenv("AGENTPROV_HOME", str(tmp_path / "home"))
+    objects, files = _store(*((fs.zip_bytes([(f"m{i}.json", CLEAN)]), "zip") for i in range(6)))
+    real_rmtree = ws.remove.rmtree
+
+    def rmtree(path, *, ignore_errors=False):
+        if not ignore_errors:  # a reader's clean-up; the scratch directory's own removal is left alone
+            raise PermissionError("in use")
+        return real_rmtree(path, ignore_errors=True)
+
+    monkeypatch.setattr(ws.remove, "rmtree", rmtree)
+    outcome: list[BaseException | None] = []
+
+    def scan() -> None:
+        try:
+            scan_archives(objects, _stream(files), POLICY.byte_rules, release=False, workers=4)
+            outcome.append(None)
+        except BaseException as exc:  # noqa: BLE001 - the test reads it
+            outcome.append(exc)
+
+    worker = threading.Thread(target=scan, daemon=True)
+    worker.start()
+    worker.join(120)
+    assert not worker.is_alive(), "the scan waited forever for a reader"
+    assert isinstance(outcome[0], PermissionError)
+
+
+def test_the_scratch_store_is_emptied_where_the_host_refuses_to_delete_a_read_only_object(monkeypatch, tmp_path,
+                                                                                            windows_read_only):
+    """Windows CI round 7 (2026-11-01): every stored object is 0444 and Windows will not delete it, so each root's
+    clean-up failed. Nested archives (a member stored, then dropped) and several roots on several readers."""
+    monkeypatch.setenv("AGENTPROV_HOME", str(tmp_path / "home"))
+    inner = fs.zip_bytes([("inner.json", CLEAN)])
+    objects, files = _store(*((fs.zip_bytes([(f"m{i}.json", CLEAN), (f"n{i}.zip", inner)]), "zip") for i in range(4)))
+    scan = scan_archives(objects, _stream(files), POLICY.byte_rules, release=False, workers=2)
+    assert scan.unscanned == {}
+    assert list((tmp_path / "home" / "tmp").iterdir()) == []

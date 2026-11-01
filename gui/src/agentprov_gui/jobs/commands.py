@@ -69,6 +69,7 @@ MANAGED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
     "estimate": {"--keychain": "Run Live: the estimate's dry plan with the model's key, when the keychain holds it "
                               "and the live part admits real runs (D-701, D-702)"},
     "models": {"--keychain": "Run Live's model picker: the CLI reads the provider key from the OS keychain (D-702, D-730)"},
+    "assist": {"--keychain": "Help › Assistant: the CLI reads the endpoint key from the OS keychain itself (D-702, D-1010)"},
     "keys set": {"--stdin": "Settings › Keys: the value goes on stdin from the password field (never argv)"},
     "jobs kill": {"--yes": "Runs › Force Kill: after the GUI's own confirmation"},
     "jobs prune": {"--yes": "Settings › Jobs: after the user confirms the listed jobs"},
@@ -90,6 +91,7 @@ EXCLUDED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
     "models": {"--env-file": "S7: the GUI never reads or passes .env (keys come from the keychain)",  # S7: refused
                "--env-stdin": "for clients holding keys themselves; the GUI passes --keychain instead (D-702)"},
     "backends build": {"--env-file": "S7: the GUI never reads or passes .env (not read by the build)"},  # S7: refused
+    "assist": {"--env-file": "S7: the GUI never reads or passes .env (keys come from the keychain)"},  # S7: refused
 }
 #: D-654: argparse aliases of a command the GUI reaches under its other name.
 ALIASES: Final[Mapping[str, str]] = {"sources": "info", "convert": "import"}
@@ -337,6 +339,20 @@ FORMS: Final[Mapping[str, CommandForm]] = {
             F("must_not_claim", "Must-not-claim items", "bool", "--must-not-claim", advanced=True),
             F("format", "Format", "choice", "--format", choices=("text", "json", "markdown"), default="json"),
         )),
+        # D-1010: Help › Assistant runs it with the conversation on stdin; as a job it answers one --question
+        CommandForm("assist", ("assist",), "Ask the Assistant (Help › Assistant)", "R0", (
+            F("question", "Question", "text", "--question"),
+            F("endpoint", "Endpoint", "text", "--endpoint"),
+            F("model_id", "Model id", "text", "--model-id"),
+            F("base_url", "Local server base URL (loopback)", "text", "--base-url"),
+            F("server", "Local server kind", "choice", "--server",
+              choices=("", "llamacpp", "lmstudio", "mlx_lm", "ollama", "omlx", "other", "splash", "strata", "vllm")),
+            F("list_models", "List the local server's models (no model is called)", "bool", "--list-models"),
+            F("allow_network", "Allow the request to an API provider (network)", "bool", "--allow-network", tier="R2"),
+            F("context_chars", "Characters of documentation sent", "int", "--context-chars", advanced=True),
+            F("show_context", "Print the passages only (no model is called)", "bool", "--show-context", advanced=True),
+            F("format", "Format", "choice", "--format", choices=("text", "json"), default="text"),
+        ), menu=False),
         CommandForm("models", ("models",), "Model lists (local servers and API providers)", "R0", (
             F("endpoint", "Endpoint", "choice", "--endpoint",
               choices=("", "anthropic", "deepseek", "gemini", "glm", "llama", "openai", "openrouter", "qwen",

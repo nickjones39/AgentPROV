@@ -38,6 +38,8 @@ class FakeZenodo:
         self.metadata_bodies: list[dict[str, Any]] = []
         self.md5_override: dict[str, str] = {}
         self.fail_put_after: int | None = None
+        #: The next bucket PUTs fail in order: an HTTP status, or "drop" (the connection closes with no answer).
+        self.put_failures: list[int | str] = []
         self.redirect_create = False
         self.foreign_bucket = False
         self.echo_token_on_metadata = False
@@ -194,6 +196,13 @@ class FakeZenodo:
                 m = re.fullmatch(r"/api/files/([0-9a-f-]{36})/([A-Za-z0-9][A-Za-z0-9._-]*)", path)
                 if method == "PUT" and m and m.group(1) in fake.buckets:
                     fake._puts += 1
+                    if fake.put_failures:
+                        failure = fake.put_failures.pop(0)
+                        if failure == "drop":
+                            self.close_connection = True
+                            return
+                        self._send(int(failure), {"message": "transient trouble", "status": failure})
+                        return
                     if fake.fail_put_after is not None and fake._puts > fake.fail_put_after:
                         self._send(500, {"message": "storage hiccup", "status": 500})
                         return

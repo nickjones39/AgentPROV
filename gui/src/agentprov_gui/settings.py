@@ -112,3 +112,20 @@ class Settings:
         if value is not None and not _path_ok(str(value)):
             return
         self.store.setValue("paths/checkout", os.path.abspath(value.expanduser()) if value else "")
+
+    @property
+    def cli_program(self) -> Path | None:
+        """Settings › General's "agentprov program": the ``agentprov`` of ``pip install agentprov``, used when no
+        checkout is set (D-1030). ``None``: look on PATH. Absolute, and a control character drops it, as for the
+        checkout (GR-51, GR-66)."""
+        v = self._get("paths/cli_program", "")
+        if not _path_ok(v):
+            _log.warning("stored agentprov program holds a control character; ignoring it")
+            v = ""
+        return Path(os.path.abspath(Path(v).expanduser())) if v else None
+
+    @cli_program.setter
+    def cli_program(self, value: Path | None) -> None:
+        if value is not None and not _path_ok(str(value)):
+            return
+        self.store.setValue("paths/cli_program", os.path.abspath(value.expanduser()) if value else "")

@@ -1,0 +1,85 @@
+name: pypi
+# D-1012: publish agentprov-capture, agentprov and agentprov-zenodo to PyPI from a release tag, on manual dispatch only
+# (never push, pull_request or a schedule). Trusted publishing (OIDC): PyPI's pending publishers name this repository,
+# this workflow file and the environment `pypi`; no API token exists anywhere. The `pypi` environment requires the
+# maintainer's approval, so nothing is uploaded until the maintainer approves the run in the Actions tab. The packages
+# are built from the tag, never from a branch, and uploaded in dependency order (capture before agentprov before
+# zenodo). A version on PyPI can never be uploaded again: dispatch it once per release, after the GitHub Release.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "the release tag to publish (vX.Y.Z)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (sdists and wheels from the tag)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: The input is a release tag name
+        env:
+          TAG: ${{ inputs.tag }}
+        run: '[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "not a release tag: $TAG"; exit 1; }'
+      # refs/tags/: an unqualified ref resolves a branch of the same name first (review UC-45)
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - name: The checked-out commit is the tag's, and the tag names the packages' version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          [ "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$TAG^{commit}")" ] \
+            || { echo "HEAD is not the commit of tag $TAG"; exit 1; }
+          [ "$(git describe --tags --exact-match HEAD)" = "$TAG" ] || { echo "HEAD is not exactly tag $TAG"; exit 1; }
+          for f in pyproject.toml capture/pyproject.toml zenodo/pyproject.toml; do
+            grep -qx "version = \"$version\"" "$f" || { echo "$f is not version $version"; exit 1; }
+          done
+      - name: Build
+        run: |
+          uv build --package agentprov-capture --out-dir dist/1-capture
+          uv build --package agentprov --out-dir dist/2-agentprov
+          uv build --package agentprov-zenodo --out-dir dist/3-zenodo
+      - name: Check the metadata
+        run: uvx twine@6.2.0 check --strict dist/*/*
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pypi-dist
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    name: publish (after the maintainer's approval)
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/agentprov/
+    permissions:
+      id-token: write  # trusted publishing; nothing else
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: pypi-dist
+          path: dist/
+      - name: agentprov-capture
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/1-capture/
+      - name: agentprov
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/2-agentprov/
+      - name: agentprov-zenodo
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/3-zenodo/

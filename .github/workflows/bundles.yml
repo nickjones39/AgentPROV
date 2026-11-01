@@ -1,9 +1,11 @@
 name: bundles
-# D-750: the GUI desktop bundles for Linux and Windows, one runner per OS, on manual dispatch only (never push,
+# D-750: the GUI desktop bundles, one runner per OS and architecture, on manual dispatch only (never push,
 # pull_request or a schedule). Each leg runs gui/tools/build_bundle.py (the build-time checks and an automated --smoke
 # start of the GUI and the preview helper) and uploads its package and bundle-report.json as an artifact. Nothing is
-# released here: the bundles are labelled "not tested on a clean machine" (D-750). macOS arm64 is built on the
-# development Mac. Not dispatched while private-repository Actions billing fails.
+# released here: the bundles are labelled "not tested on a clean machine" (D-750). D-1011 (v0.1.1): all five legs run
+# on GitHub-hosted runners of the public repository (free for a public repository; the private one's Actions billing
+# still fails), each natively on its own architecture: Windows ARM64 on windows-11-arm, macOS arm64 on macos-15 and macOS
+# x86_64 (Intel) on macos-15-intel join the three D-750 legs, so no bundle is built under emulation.
 on:
   workflow_dispatch:
 
@@ -26,6 +28,12 @@ jobs:
             glibc_floor: "2.39"
           - os: windows-latest      # Windows x86_64, unsigned (SmartScreen: More info, then Run anyway)
             glibc_floor: "2.35"
+          - os: windows-11-arm      # Windows ARM64, unsigned (D-1011)
+            glibc_floor: "2.35"
+          - os: macos-15            # macOS arm64 (Apple silicon), ad hoc signed, a .dmg (D-1011)
+            glibc_floor: "2.35"
+          - os: macos-15-intel      # macOS x86_64 (Intel), ad hoc signed, a .dmg (D-1011; the user, 2026-11-01)
+            glibc_floor: "2.35"
     defaults:
       run:
         shell: bash
@@ -34,6 +42,13 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+      - name: The desktop libraries a Linux user installs, for the smoke start (user guide chapter 8; pins.toml)
+        # D-1011: the runner image lacks libEGL and the xcb libraries Qt's xcb plugin loads; the clean-machine VMs had
+        # them as prerequisites (gui/tools/clean_machine/pins.toml), and the bundle does not ship them.
+        if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends
+          libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxkbcommon-x11-0 libegl1 libfontconfig1 fonts-dejavu-core
       - name: GUI environment (locked; CPython 3.14.8, PySide6, PyInstaller)
         # explicit, as gui/.python-version: uv --project gui ignores the root .python-version (G5 clean-machine report)
         run: uv sync --locked --project gui --python 3.14.8

@@ -102,6 +102,14 @@ def test_apply_removes_the_object_and_writes_tombstone_and_register(tmp_path):
     assert not (c["root"] / ".agentprov.lock").exists()  # the lock is released
 
 
+def test_apply_removes_a_read_only_object_where_the_host_refuses_to_delete_one(tmp_path, windows_read_only):
+    """Windows CI round 7 (2026-11-01): the object is 0444, and Windows will not delete a read-only file."""
+    c = ps.build_working(tmp_path / "c.partial")
+    result = purge.apply(purge.plan_corpus(c["root"], c["leak"], "secret", today=_today))
+    assert result.removed
+    assert not list(c["root"].joinpath("raw", "objects", c["leak"][:2]).glob(f"{c['leak']}.*"))
+
+
 def test_apply_prunes_the_emptied_shard_directory_and_the_tree_stays_closed_world(tmp_path):
     from agentprov.corpus.layout import iter_tree
 

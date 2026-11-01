@@ -125,7 +125,7 @@ def test_report_markdown_escapes_the_model_id(tmp_path: Path) -> None:
     text = tune.report_markdown(doc)
     assert "evil\\|'id'" in text and "\u202e" not in text and "skipped (memory)" in text
     js, md = tune.write_report(tmp_path, doc)
-    assert json.loads(js.read_text())["format"] == tune.TUNE_FORMAT and md.read_text() == text
+    assert json.loads(js.read_text(encoding="utf-8"))["format"] == tune.TUNE_FORMAT and md.read_text(encoding="utf-8") == text
 
 
 def test_arm_files_resume_only_for_the_same_configuration(tmp_path: Path) -> None:

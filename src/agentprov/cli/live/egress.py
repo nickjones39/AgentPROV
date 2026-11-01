@@ -50,12 +50,15 @@ from collections.abc import Iterable, Iterator
 from typing import Any, Final
 
 __all__ = ["EgressProxy", "LOOPBACK_HOSTS", "MAX_HEAD_BYTES", "allow_pair", "endpoint_target", "forward_pairs",
-           "loopback_listeners"]
+           "loopback_listeners", "tunnel_cap"]
 
 MAX_HEAD_BYTES: Final = 8 * 1024
 HEAD_TIMEOUT_S: Final = 10.0
 CONNECT_TIMEOUT_S: Final = 30.0
+#: The least tunnel cap; a campaign's cap grows with its concurrency (:func:`tunnel_cap`).
 MAX_TUNNELS: Final = 64
+#: Tunnels one concurrent connection may hold: the one in use and one that replaces it before the old one closes.
+TUNNELS_PER_CONNECTION: Final = 2
 #: The closed refusal kinds of :meth:`EgressProxy.summary` (R1-7: no worker-chosen text is ever recorded).
 REFUSAL_KINDS: Final = ("not_allowed", "allowed_host_other_port", "method", "malformed", "oversize", "busy")
 #: Distinct refused targets are counted up to this many (memory bound); the summary says when the count saturated.
@@ -152,6 +155,13 @@ def _is_ip_literal(host: str) -> bool:
 _FORWARD_METHODS: Final = frozenset({b"GET", b"POST", b"HEAD", b"OPTIONS"})
 #: Hop-by-hop headers (RFC 9110 7.6.1) the forward mode drops; it sends its own ``Connection: close``.
 _HOP_BY_HOP: Final = frozenset({b"connection", b"keep-alive", b"te", b"trailer", b"upgrade", b"proxy-connection"})
+
+
+def tunnel_cap(jobs: int, targets: int, connections: int = 1) -> int:
+    """The proxy's concurrent tunnel cap for ``jobs`` workers, each reaching ``targets`` endpoints with up to
+    ``connections`` concurrent model calls (an Inspect cell's ``max_connections``): never below :data:`MAX_TUNNELS`,
+    so a campaign the host allows (``--jobs``) is not refused by its own proxy (``busy``, 503)."""
+    return max(MAX_TUNNELS, max(1, jobs) * max(1, targets) * max(1, connections) * TUNNELS_PER_CONNECTION)
 
 
 class EgressProxy:

@@ -116,7 +116,8 @@ among them). Leaving out `.claude/` therefore needs that test to accept its abse
     `--tags`). `main` holds the two commits of steps 9 and 11.
 15. Repository settings: secret scanning and push protection on; Dependabot alerts on; Actions with read-only
     `GITHUB_TOKEN` (the workflows already declare `contents: read`; `pages.yml` adds only `pages: write` and
-    `id-token: write`); a branch protection rule on `main`. Pages is enabled at step 19, after the repository is public
+    `id-token: write`, on its deploy job; review UC-47); the `pypi` environment limited to `v*` tags (review UC-45); a
+    branch protection rule on `main`. Pages is enabled at step 19, after the repository is public
     (P-9, D-1000).
     The About box: the description the development repository carries since 2026-10-30 ("Execution provenance for
     LLM-agent security research: converts live and released agent runs into evidence-qualified W3C PROV, with

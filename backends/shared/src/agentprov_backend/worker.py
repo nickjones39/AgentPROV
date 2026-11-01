@@ -125,6 +125,21 @@ def encode_message(op: str, **fields: Any) -> bytes:
     return data
 
 
+def plan_reply(req: Any, plan: Mapping[str, Any]) -> bytes:
+    """``plan_ok`` with the expanded plan, or, when its cells do not fit one protocol line (about 4,500 cells at about
+    230 bytes each), ``plan_refused`` saying so: the run then stops with that reason, not as a dead worker
+    (``backend.unavailable``)."""
+    try:
+        return encode_message("plan_ok", req=req, plan=plan)
+    except ProtocolError:
+        cells = plan.get("cells")
+        count = len(cells) if isinstance(cells, list) else 0
+        return encode_message("plan_refused", req=req, error={
+            "type": "PlanTooLarge",
+            "message": f"plan too large: its {count:,} cells exceed the 1 MiB protocol line; split it into smaller "
+                       "plans (fewer suites, user tasks or attacks per run)"})
+
+
 def _escape(text: str) -> str:
     from agentprov_backend._jsonval import escape_text
 
@@ -261,7 +276,7 @@ class Worker:
         except ValueError as exc:
             self.send("plan_refused", req=req, error={"type": type(exc).__name__, "message": _escape(str(exc))})
             return
-        self.send("plan_ok", req=req, plan=plan.to_json())
+        self.outbox.put(plan_reply(req, plan.to_json()), droppable=False)
 
     def op_catalogue(self, msg: Mapping[str, Any]) -> None:
         from agentprov_backend.runner import select_backend

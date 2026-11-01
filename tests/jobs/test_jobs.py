@@ -274,3 +274,96 @@ def test_the_queue_budget_comes_from_the_settings_unless_the_environment_has_it(
     assert env["AGENTPROV_JOB_CPU_BUDGET"] == "6" and env["AGENTPROV_JOB_MEM_GIB_BUDGET"] == "12.5"
     manager.environ["AGENTPROV_JOB_CPU_BUDGET"] = "3"
     assert manager.child_env()["AGENTPROV_JOB_CPU_BUDGET"] == "3"
+
+
+def test_a_linux_boot_time_re_estimate_keeps_a_job_running() -> None:
+    """D-1011: on a CI runner the kernel re-estimated ``btime`` by a whole second while a job ran, so ``same_process``
+    read the supervisor as gone, the job as ``unobserved`` and, for a moment, as prunable (the arm64 runner's
+    ``test_prune_lists_without_yes``). A whole-second shift with the same sub-second part is the same process on Linux;
+    anything else, and any shift elsewhere, is not."""
+    from agentprov.jobs.record import same_start
+
+    started = 1_761_955_894.37
+    assert same_start(started, started, linux=False) and same_start(started + 0.004, started, linux=False)
+    for shift in (1.0, -1.0, 2.0, -2.0):
+        assert same_start(started + shift, started, linux=True)
+        assert not same_start(started + shift, started, linux=False)
+    for other in (0.5, 1.2, 3.0, -2.5, 60.0):
+        assert not same_start(started + other, started, linux=True)
+
+
+def test_a_linux_wall_clock_step_keeps_a_job_running(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Review UC-10: psutil's create_time moves by the whole size of a wall-clock step (an NTP step after a resume, a
+    host without an RTC), beyond D-1011's 2 s tolerance; on Linux the recorded boot-relative start ticks decide, and a
+    job whose supervisor no longer passes its check still runs while its CLI passes its own."""
+    import psutil
+
+    from agentprov.jobs import record
+    from agentprov.jobs.record import Job, observe, same_process
+
+    me = os.getpid()
+    created = psutil.Process(me).create_time()
+    monkeypatch.setattr(record, "_linux", lambda: True)
+    monkeypatch.setattr(record, "start_ticks", lambda pid: 123_456 if pid == me else None)
+    stepped = created - 30.0  # what the supervisor recorded before the clock stepped 30 s forward
+    assert same_process(me, stepped, 123_456)
+    assert not same_process(me, stepped, 123_457)  # another process at that pid
+    assert not same_process(me, stepped) and same_process(me, created)  # without ticks: the D-1011 rule, as before
+
+    dead = Job("j", tmp_path, {"supervisor_pid": 2**31 - 2, "supervisor_create_time": 1.0, "pid": me,
+                               "pid_create_time": stepped, "pid_start_ticks": 123_456})
+    assert observe(dead).state == "running"
+    gone = Job("k", tmp_path, {"supervisor_pid": 2**31 - 2, "supervisor_create_time": 1.0, "pid": me,
+                               "pid_create_time": stepped, "pid_start_ticks": 1})
+    assert observe(gone).state == "unobserved"
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="/proc is Linux only")
+def test_start_ticks_reads_this_process_s_start() -> None:
+    from agentprov.jobs.record import start_ticks
+
+    ticks = start_ticks(os.getpid())
+    assert isinstance(ticks, int) and ticks >= 0 and start_ticks(os.getpid()) == ticks
+
+
+def test_two_concurrent_starts_of_one_slot_cannot_both_pass_the_check(manager: JobManager,
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    """Review UC-30: check() and the job.json write were check-then-act, so two ``--slot network`` starts could both
+    pass before either record existed. The first start is held between its check and its record; the second must then
+    see it."""
+    import threading
+
+    from agentprov.jobs import manager as mod
+
+    real = mod.atomic_write_json
+    entered, release = threading.Event(), threading.Event()
+
+    def slow_first_record(path: Path, obj: dict) -> None:
+        if path.name == "job.json" and obj.get("state") == "starting" and not entered.is_set():
+            entered.set()
+            release.wait(10)
+        real(path, obj)
+
+    monkeypatch.setattr(mod, "atomic_write_json", slow_first_record)
+    first: list[object] = []
+    t = threading.Thread(target=lambda: first.append(manager.spawn(JobRequest(("x", "y", "30"), tool="tools/sleeper.py",
+                                                                               slot="network"))))
+    t.start()
+    assert entered.wait(10)
+    second: list[object] = []
+
+    def start_second() -> None:
+        try:
+            second.append(manager.spawn(JobRequest(("x", "y", "30"), tool="tools/sleeper.py", slot="network")))
+        except SpawnRefused as exc:
+            second.append(exc.code)
+
+    t2 = threading.Thread(target=start_second)
+    t2.start()
+    time.sleep(0.3)  # the second start waits on the first one's check-and-record
+    release.set()
+    t.join(30)
+    t2.join(30)
+    assert second == ["jobs.slot.busy"], second
+    job = first[0]
+    assert manager.kill(job)  # type: ignore[arg-type]

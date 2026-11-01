@@ -68,6 +68,8 @@ def test_a_full_batch_rolled_to_disk_holds_one_descriptor(tmp_path: Path) -> Non
     def open_fds() -> int:
         return len(os.listdir("/dev/fd"))
 
+    if not os.path.isdir("/dev/fd"):
+        pytest.skip("counts open descriptors in /dev/fd (macOS, Linux)")
     before = open_fds()
     results = run(tmp_path, 256, 0, texts=SMALL)
     try:
@@ -119,6 +121,8 @@ def test_a_consumer_that_raises_mid_batch_leaks_nothing(tmp_path: Path, monkeypa
             finally:
                 result.close()
 
+    if not os.path.isdir("/dev/fd"):
+        pytest.skip("counts open descriptors in /dev/fd (macOS, Linux)")
     before = len(os.listdir("/dev/fd"))
     with pytest.raises(RuntimeError):
         consume()
@@ -136,3 +140,28 @@ def test_a_batch_that_spills_nothing_opens_no_file(tmp_path: Path) -> None:
         for r in results:
             r.close()
     assert list(tmp_path.iterdir()) == []
+
+
+def test_the_spool_reads_and_writes_without_pread(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows has no os.pread or os.pwrite (CI round 7, 2026-11-01: every spilled import failed there): the spool seeks
+    and reads or writes under its lock instead, with the same bytes and interleaved reads still correct."""
+    expected = run(tmp_path, 2, 1 << 40)
+    monkeypatch.setattr(workers, "_POSITIONAL", False)
+    monkeypatch.delattr(os, "pread", raising=False)
+    monkeypatch.delattr(os, "pwrite", raising=False)
+    results = run(tmp_path, 2, 0)
+    try:
+        assert read_all(results) == read_all(expected)
+        a, b = results[0].members[1], results[1].members[1]
+        assert a._batch is not None
+        ia, ib = a.iter_chunks(chunk_size=4096), b.iter_chunks(chunk_size=4096)
+        got_a, got_b = [], []
+        for chunk_a, chunk_b in zip(ia, ib, strict=False):
+            got_a.append(chunk_a)
+            got_b.append(chunk_b)
+        got_a.extend(ia)
+        got_b.extend(ib)
+        assert b"".join(got_a) == a.read_bytes() and b"".join(got_b) == b.read_bytes()
+    finally:
+        for r in (*results, *expected):
+            r.close()

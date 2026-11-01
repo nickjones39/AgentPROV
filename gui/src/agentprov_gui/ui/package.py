@@ -52,7 +52,7 @@ from agentprov_gui.about import git_commit
 from agentprov_gui.jobs.commands import FORMS, FormError, JobSpec, build_spec
 from agentprov_gui.jobs.manager import Job, read_json, tail_bytes
 from agentprov_gui.readmodel.corpus import summarise
-from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel
+from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, set_control_tooltip
 
 __all__ = ["FINISH_TEXT", "PackagePage", "root_digest_of"]
 
@@ -76,6 +76,18 @@ _ROOT: Final = re.compile(r"root digest (sha256:[0-9a-f]{64})")
 _JOB_STEPS: Final = frozenset({0, 4, 5, 7})
 #: DATASHEET.md is shown up to this many characters, read as at most four bytes each (GR-23)
 _DATASHEET_CHARS: Final = 200_000
+#: what each step's action does (its button's tooltip)
+_ACTION_TIPS: Final = {
+    0: "Runs package --dry-run on the working corpus as a job, after you confirm the command: it checks everything the "
+       "seal would and writes nothing.",
+    4: "Seals the working corpus into a corpus version (package --corpus DIR --corpus-version X.Y.Z with the spec, "
+       "licence file and release date above), after you confirm the command. For a corpus that skipped the PROV "
+       "conformance check it opens a full recompute into a new corpus instead.",
+    5: "Runs verify --corpus DIR --level chain --release as a job, with the root digest the seal printed on this page "
+       "in this session.",
+    7: "Builds a deposit draft in the deposit output directory from the sealed corpus and release.toml (package "
+       "--deposit), after you confirm the command, then verifies its .meta.zip. Nothing is uploaded.",
+}
 
 
 def root_digest_of(job: Job) -> str | None:
@@ -151,25 +163,38 @@ class PackagePage(QWidget):
         self.steps = QListWidget(self)
         self.steps.setAccessibleName("Package steps")
         self.steps.addItems(list(STEPS))
+        set_control_tooltip(self.steps, "The nine steps from a working corpus to a deposit draft; choose one to show "
+                                        "it.")
         self.steps.setMaximumWidth(220)
         lay.addWidget(self.steps)
         right = QVBoxLayout()
         lay.addLayout(right, 1)
         form = SafeForm()
         self.corpus = QLineEdit(self)
-        form.add("Working corpus (DIR or DIR.partial)", self.corpus)
+        form.add("Working corpus (DIR or DIR.partial)", self.corpus,
+                 "The corpus folder every step reads and acts on, with or without its .partial suffix (--corpus).")
         self.version = QLineEdit("0.1.0", self)
-        form.add("Corpus version", self.version)
+        form.add("Corpus version", self.version,
+                 "The version the seal gives the corpus, as X.Y.Z: the version of the corpus spec (--corpus-version).")
         self.spec = QLineEdit(self)
-        form.add("Corpus spec (corpus-spec.toml)", self.spec)
+        form.add("Corpus spec (corpus-spec.toml)", self.spec,
+                 "The corpus-spec.toml to seal with, with CARD.md and CHANGES.toml beside it (--spec). Leave it empty "
+                 "for the checkout's corpora/<name>/corpus-spec.toml, <name> being the corpus folder's name.")
         self.licence = QLineEdit(self)
-        form.add("Licence file (NAME=PATH)", self.licence)
+        form.add("Licence file (NAME=PATH)", self.licence,
+                 "An upstream licence file the spec names that the corpus does not store, as NAME=PATH "
+                 "(--licence-file).")
         self.release_date = QLineEdit(self)
-        form.add("Release date (YYYY-MM-DD)", self.release_date)
+        form.add("Release date (YYYY-MM-DD)", self.release_date,
+                 "The seal records it as the release date (if empty: SOURCE_DATE_EPOCH, else none); Build Deposit… "
+                 "needs it for the archive timestamps (--release-date).")
         self.deposit = QLineEdit(self)
-        form.add("Deposit output directory", self.deposit)
+        form.add("Deposit output directory", self.deposit,
+                 "Where Build Deposit… writes the deposit draft (package --deposit OUT); Finish lists its archives.")
         self.metadata = QLineEdit(self)
-        form.add("release.toml", self.metadata)
+        form.add("release.toml", self.metadata,
+                 "The deposit's metadata file: title, creators, keywords, description preamble and DOIs (--metadata). "
+                 "Write release.toml from the Zenodo settings… writes a template here.")
         right.addLayout(form)
         self.pages = QStackedWidget(self)
         self.pages.setAccessibleName("Package step")
@@ -191,6 +216,7 @@ class PackagePage(QWidget):
                 button = QPushButton(label, page)
                 button.setAccessibleName(label)
                 button.clicked.connect(slot)
+                set_control_tooltip(button, _ACTION_TIPS[i])
                 pl.addWidget(button)
             self.texts.append(text)
             self.buttons.append(button)
@@ -201,9 +227,16 @@ class PackagePage(QWidget):
         self.release_toml_btn = QPushButton("Write release.toml from the Zenodo settings…", self)
         self.release_toml_btn.setAccessibleName("Write release.toml from the Zenodo settings…")
         self.release_toml_btn.clicked.connect(self.write_release_toml)
+        set_control_tooltip(self.release_toml_btn,
+                            "Writes a release.toml template to the path above from Settings › Zenodo (the creators "
+                            "and the concept DOI). It never overwrites a file; fill in the title, description and "
+                            "keywords.")
         self.zenodo_btn = QPushButton("Create Zenodo drafts…", self)
         self.zenodo_btn.setAccessibleName("Create Zenodo drafts…")
         self.zenodo_btn.clicked.connect(self.create_zenodo_drafts)
+        set_control_tooltip(self.zenodo_btn,
+                            "Opens the dialog that runs the draft-only Zenodo uploader for the deposits you list. It "
+                            "makes unpublished drafts only; you publish each one on Zenodo's website.")
         finish.addWidget(self.release_toml_btn)
         finish.addWidget(self.zenodo_btn)
         right.addWidget(self.pages, 1)
@@ -211,9 +244,11 @@ class PackagePage(QWidget):
         back = QPushButton("Back", self)
         back.setAccessibleName("Previous step")
         back.clicked.connect(lambda: self.steps.setCurrentRow(max(0, self.steps.currentRow() - 1)))
+        set_control_tooltip(back, "Shows the previous step.")
         cont = QPushButton("Continue", self)
         cont.setAccessibleName("Next step")
         cont.clicked.connect(lambda: self.steps.setCurrentRow(min(len(STEPS) - 1, self.steps.currentRow() + 1)))
+        set_control_tooltip(cont, "Shows the next step; it starts nothing.")
         nav.addStretch(1)
         nav.addWidget(back)
         nav.addWidget(cont)
@@ -325,9 +360,10 @@ class PackagePage(QWidget):
     def _zenodo_settings(self) -> tuple[Any, dict[str, Any]]:
         from agentprov_gui import settings_client
         from agentprov_gui.jobs.manager import CliLocator
+        from agentprov_gui.ui.worker import run_off_ui
 
         cli = CliLocator.for_checkout(self._checkout)
-        return cli, settings_client.read(cli, "zenodo.") or {}
+        return cli, run_off_ui(self, lambda: settings_client.read(cli, "zenodo.")) or {}
 
     def write_release_toml(self) -> None:
         """A release.toml template from Settings › Zenodo (D-880), only where no file exists; the user fills it in."""

@@ -33,7 +33,7 @@ import json
 import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Final
 
 from agentprov.errors import AgentProvError
@@ -77,7 +77,8 @@ def rfc3339_utc(epoch: int) -> str:
     """A git committer timestamp (seconds since the epoch) as ``YYYY-MM-DDTHH:MM:SSZ`` in UTC."""
     if not 0 <= epoch < _MAX_EPOCH:
         raise HistoryError("a commit timestamp is out of range", code="raw.history.date")
-    return datetime.fromtimestamp(epoch, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # the epoch plus a timedelta, not datetime.fromtimestamp: Windows refuses a time after 3000-12-31 there (EINVAL)
+    return (datetime(1970, 1, 1, tzinfo=UTC) + timedelta(seconds=epoch)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # --------------------------------------------------------------------------------------------------------------

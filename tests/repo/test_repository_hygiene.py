@@ -214,21 +214,51 @@ def test_ci_triggers_are_dispatch_plus_push_and_pull_request_behind_a_variable()
     assert dispatch_only == {"old-vs-new", "backend-autodojo", "fuzz-thorough"}
 
 
+#: A pull request from a fork never runs on the self-hosted runner (review UC-46): the machine holds AGENTPROV_HOME and
+#: keychain tokens.
+NOT_A_FORK = ("(github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == "
+              "github.repository)")
+
+
 def test_ci_runner_variable_never_moves_the_windows_leg() -> None:
-    """CI_RUNNER (a self-hosted label) takes every job except core's Windows leg, which stays GitHub-hosted."""
+    """CI_RUNNER (a self-hosted label) takes every job except core's Windows leg, which stays GitHub-hosted, and except
+    a fork's pull request, which always runs GitHub-hosted."""
     jobs = _workflow()["jobs"]
     core = jobs["core"]
     assert core["runs-on"] == "${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }}"
-    matrix = core["strategy"]["matrix"]["os"]
-    assert "'[\"self-hosted\", \"windows-latest\"]'" in matrix and "windows-latest\"]')" in matrix
+    matrix = core["strategy"]["matrix"]["include"]
+    assert matrix.startswith(f"${{{{ fromJSON((vars.CI_RUNNER && {NOT_A_FORK}) && '[") and matrix.endswith("]') }}")
+    self_hosted, hosted = (json.loads(legs) for legs in re.findall(r"'(\[.*?\])'", matrix))
+    assert {leg["os"] for leg in self_hosted} == {"self-hosted", "windows-latest"}
+    assert {leg["os"] for leg in hosted} == {"ubuntu-latest", "ubuntu-24.04-arm", "macos-latest", "windows-latest"}
+    assert [leg for leg in self_hosted if leg["os"] == "windows-latest"] == [
+        leg for leg in hosted if leg["os"] == "windows-latest"]
+    # D-1020: the shards of a leg are 1..n, each once, so together they run the whole suite
+    for legs in (self_hosted, hosted):
+        for os_ in {leg["os"] for leg in legs}:
+            shards = sorted((leg["shard"], leg["shards"]) for leg in legs if leg["os"] == os_)
+            assert shards == [(i, len(shards)) for i in range(1, len(shards) + 1)], (os_, shards)
+    steps = [step for step in core["steps"] if "pytest" in str(step.get("run", ""))]
+    assert [step.get("env") for step in steps] == [{"AGENTPROV_SHARD": "${{ matrix.shard }}",
+                                                    "AGENTPROV_SHARDS": "${{ matrix.shards }}"}]
     for job, spec in jobs.items():
         if job != "core":
-            assert spec["runs-on"] == "${{ vars.CI_RUNNER || 'ubuntu-latest' }}", job
+            assert spec["runs-on"] == f"${{{{ (vars.CI_RUNNER && {NOT_A_FORK}) && vars.CI_RUNNER || 'ubuntu-latest' }}}}", job
+
+
+def test_a_fork_pull_request_never_reaches_the_self_hosted_runner() -> None:
+    """Review UC-46: every expression that names CI_RUNNER carries the fork guard."""
+    text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    uses = [line for line in text.splitlines() if "vars.CI_RUNNER" in line and not line.lstrip().startswith("#")]
+    guarded = [line for line in uses if NOT_A_FORK in line]
+    # core's runs-on and name read matrix.os, which is "self-hosted" only when the guarded matrix chose it
+    unguarded = [line for line in uses if line not in guarded and "matrix.os == 'self-hosted'" not in line]
+    assert guarded and unguarded == [], unguarded
 
 
 def test_ci_scans_every_lockfile_and_checks_every_lock_and_the_interpreter_floor() -> None:
     jobs = _workflow()["jobs"]
-    locks = sorted(str(p.relative_to(ROOT)) for p in ROOT.glob("**/uv.lock") if ".venv" not in p.parts
+    locks = sorted(p.relative_to(ROOT).as_posix() for p in ROOT.glob("**/uv.lock") if ".venv" not in p.parts
                    and "worktrees" not in p.parts)
     osv = " ".join(str(step.get("with", {}).get("scan-args", "")) for step in jobs["dependencies"]["steps"])
     assert all(f"--lockfile={lock}" in osv for lock in locks), locks

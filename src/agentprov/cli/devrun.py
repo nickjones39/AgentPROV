@@ -116,15 +116,17 @@ def busy_runs(home: Path) -> set[Path]:
             if rel.parts:
                 busy.add(root / rel.parts[0])
 
-    for job in list_jobs(home):
+    jobs = list_jobs(home)
+    known = {job.job_id for job in jobs}
+    for job in jobs:
         if job.state == "running":
             run = job.meta.get("devrun")
             mark([*job.writes, *(job.record.get("reads") or []), *((root / run,) if isinstance(run, str) and run
                                                                      else ())])
     for batch in Batch.load_all(home):
         for step in batch.steps:
-            if step.state in ("pending", "held", "running"):
-                run = step.request.extra.get("devrun")
+            if step.state in ("pending", "held") or (step.state == "running" and step.job_id in known):
+                run = step.request.extra.get("devrun")  # a running step whose job was pruned holds nothing (UC-26)
                 mark([*step.request.writes, *step.request.reads,
                       *((root / run,) if isinstance(run, str) and run else ())])
     return busy

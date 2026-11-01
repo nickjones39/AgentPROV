@@ -18,7 +18,7 @@ from typing import Any
 from agentprov.errors import AgentProvError
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
-__all__ = ["JobSignals", "submit"]
+__all__ = ["JobSignals", "run_off_ui", "submit"]
 
 
 class JobSignals(QObject):
@@ -75,3 +75,30 @@ def submit(
         signals.progress.connect(progress)
     (pool or QThreadPool.globalInstance()).start(_Runnable(fn, signals))
     return signals
+
+
+def run_off_ui[T](owner: Any, fn: Callable[[], T]) -> T:
+    """``fn()`` (a CLI call that may take a minute or two) in the pool, while a local event loop keeps the window
+    painting and responsive (review UC-36). ``owner`` (a widget) is disabled meanwhile, so no second action starts from
+    it. Returns ``fn``'s result; its exception is raised here, on the UI thread."""
+    from PySide6.QtCore import QEventLoop
+
+    box: dict[str, Any] = {}
+
+    def work(_signals: JobSignals) -> None:
+        try:
+            box["result"] = fn()
+        except BaseException as exc:  # re-raised below, on the UI thread
+            box["error"] = exc
+
+    loop = QEventLoop()
+    enabled = owner.isEnabled()
+    owner.setEnabled(False)
+    try:
+        submit(owner, work, lambda _r: loop.quit(), lambda _code: loop.quit())  # queued: delivered inside exec()
+        loop.exec()
+    finally:
+        owner.setEnabled(enabled)
+    if "error" in box:
+        raise box["error"]
+    return box["result"]  # type: ignore[no-any-return]

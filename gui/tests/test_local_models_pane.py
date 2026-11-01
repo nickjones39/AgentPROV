@@ -63,7 +63,7 @@ def pane(qapp: Any) -> Any:
 
 
 def test_stored_values_show_and_edits_are_kept_across_models(pane: Any, qapp: Any) -> None:
-    assert pane.isEnabled() and "omlx" in [pane.endpoint.itemText(i) for i in range(pane.endpoint.count())]
+    assert pane.body.isEnabled() and "omlx" in [pane.endpoint.itemText(i) for i in range(pane.endpoint.count())]
     pane.model.setEditText(ALIAS)
     assert (pane.active.text(), pane.folder.text()) == ("13", "/models/deepseek")
     pane.active.setText("21.5")

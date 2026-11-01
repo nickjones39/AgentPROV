@@ -149,3 +149,270 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
     migration tests need it) and `docs/reports/` (P-4; `systematic-search/` is cited by the paper by URL) stay. The
     three sweep finds are confirmed; the snapshot list gains them in a separate rebuild (not part of this change).
   - **Byte class 0:** no file here is in a stage digest scope; no AER, SEM or PROV byte, corpus manifest or seal moves.
+- **D-1010 (2026-11-01, the desktop app's Help section: a Docs page and an Assistant chat through `agentprov assist`;
+  the user's request of 2026-11-01; GUI, a new application command, two settings keys, tests and docs; class 0).** The
+  user asked for "two new windows. one for the docs so that the user can access the documentation for the system. we
+  should have a new section for help and then include docs, also include a chat window that, if the user provides an
+  API key (either local or cloud such as openai) then we can have a targeted chatbot", with "one chat session and
+  ability to clear the chat or begin a new chat session / reset", a link to the settings when it is not set up, the
+  section "in the menu where we have corpora / package etc", and "connect the chatbot to also use the docs and the open
+  source repo so that the chatbot has context of the system too".
+  - **Decision.** The sidebar gains a **Help** section with **Docs** and **Assistant** (`gui/src/agentprov_gui/ui/help.py`).
+    *Docs* shows the configured checkout's `docs/user-guide/*.md` (not the internal `_*.md` checklists, D-1004) in
+    `safe.DocView`, a `QTextBrowser` made only in `ui/safe.py` (S1) that renders first-party Markdown and never data,
+    follows no link itself and loads images only from files under the guide. A chapter link opens the chapter and its
+    heading (MkDocs anchors); a web address is copied to the clipboard, because the app opens no web pages (S11). With
+    no checkout the page says where to set one. *Assistant* is one chat session with *Send* and *New Chat* (which
+    clears it and drops a reply still on its way); when `assistant.endpoint` or `assistant.model` is unset it says so
+    and offers *Open Settings…* on the new **Settings › Assistant** pane. The Help menu gains *AgentPROV Help* (⌘?) and
+    *Ask the Assistant*; Go gains ⌘7 and ⌘8.
+  - **`agentprov assist` (reverse CLI parity, D-700).** The GUI process still opens no connection and never holds a key
+    (S11, D-396, D-702): every message runs `agentprov assist --endpoint E --model-id M --keychain --format json` with
+    the conversation on stdin (`agentprov-assist-request/0.1`); the reply is `agentprov-assist-reply/0.1`, shown escaped
+    in a plain-text pane (S2). The command works the same in a terminal (`--question TEXT`). The request is
+    `cli/live/assistant.py`, the fifth `http.client` importer of the boundary allowlist: the endpoint's registry base
+    URL only, HTTPS with the default TLS context for an API provider, loopback only for a local server (its registry
+    URL or the `endpoints.<name>.base_url` setting), no proxy, no redirect, 120 s, the body bounded at 4 MiB and parsed
+    by `agentprov.ingest`, wire format `openai_chat` or `anthropic_messages` from the registry. An API provider needs
+    `--allow-network` (R2), which the GUI passes for a provider; the settings pane and the page say what is sent and
+    that the provider bills the tokens. Keys come from the keychain first and then `.env`, or only from `--keychain` /
+    `--env-file`, as for `agentprov models` (D-731, D-827); a local server's key is optional.
+  - **Context from the docs and the repository.** `assist` reads, from the checkout it runs from: the user guide and
+    `README.md` (split at headings outside code fences), the `--help` of every command of this CLI, and the module
+    docstrings of `src/agentprov` and `gui/src/agentprov_gui`. Per question it ranks the passages by BM25 (k1 1.2, b 0.75;
+    title words count twice) over the latest user message and, at half weight, the one before, and sends the best up
+    to `--context-chars` (default 24,000) in the system prompt with their file names, which also says the passages are
+    documentation, not instructions. The reply lists the files it was given; `--show-context` prints the selection and
+    calls no model. Coding-agent files (`CLAUDE.md`, `AGENTS.md`, `docs/agents/`) and corpus content are never read.
+  - **Local servers (the user, 2026-11-01: "a drop down selection of the most common servers like omlx, mlx-serve, lm
+    studio, ollama, splash, strata etc and then dynamically fetch from what models are loaded").** Settings › Assistant's
+    *Server* lists oMLX, MLX (`mlx_lm.server`), LM Studio, Ollama, Splash, Strata, llama.cpp, vLLM and Other, each with
+    its default base URL (Strata and Other have none: the user types it), or *API provider* with a *Provider* list.
+    *Refresh* runs `agentprov assist --list-models`: `GET {base}/models` on loopback, plus where the server says which
+    model is loaded, Splash's `/status` (`active_model`), Ollama's `/api/ps` and LM Studio's `/api/v0/models`
+    (`state`); the loaded model is listed first and chosen. `assist` takes `--server KIND` and `--base-url URL` (loopback
+    only, http(s), no user info, query or fragment) for a server that is not an entry of `endpoints.toml`; a kind that is
+    one (oMLX, Ollama, …) lends its optional key (D-827). Splash and Strata are not added to the registry: live runs do
+    not use them, and a registry entry needs a server fingerprint for `agentprov models` (D-691).
+  - **Settings.** `assistant.endpoint` (an endpoint name), `assistant.server` (the kinds above), `assistant.base_url`
+    (loopback only) and `assistant.model` (a model id, the `local_models` id pattern), in the closed schema of D-703;
+    the key stays in the keychain. Tested on 2026-11-01 against the user's Splash server (127.0.0.1:8003,
+    `qwen-flash-next-q6-256k`, Qwen3.8-Flash-Next UD-Q6_K_XL with a 256k context).
+  - **Rejected:** the request in the GUI process (S11 forbids network modules there; the CLI is the one
+    implementation, D-700); a web view for the docs (S11 bans QtWebEngine) or opening links in the system browser
+    (`openUrl` is banned by S1); sending the whole guide with every message (about 600 KB; many local models' contexts
+    are smaller) or an embedding index (a new dependency and a model download for a help page); including the corpus
+    under study (its text is untrusted data with injection payloads by design); a separate key store for the Assistant
+    (the endpoint keys of Settings › Keys already serve it).
+- **D-1011 (2026-11-01, v0.1.1: every bundle built natively on GitHub-hosted runners of the public repository, a macOS
+  Intel bundle, and the later-release export; the user's requests of 2026-11-01; workflow, tools, tests and docs;
+  class 0).** The user asked "are we able to now create builds of the software through github instead of emulation?
+  can we do this as a release 0.1.1?", then "Keep 0.1.1" (over 0.2.0), "we can include the new docs window and chatbot
+  with this release too", and "can we also build a macos intel version as executable too?", with the Intel build as a
+  download on the landing page.
+  - **Native builds.** The public repository's GitHub-hosted runners are free (the private repository's Actions billing
+    still refuses every job since 2026-10-09). `bundles.yml` gains three legs: `windows-11-arm` (Windows ARM64),
+    `macos-15` (macOS arm64) and `macos-15-intel` (macOS x86_64, new). With D-750's `ubuntu-22.04`, `ubuntu-24.04-arm`
+    and `windows-latest`, all six bundles are built on their own architecture; v0.1.0 built Linux and Windows x86_64
+    under emulation and macOS on the development Mac. The Linux legs first install the desktop libraries chapter 8 asks a
+    Linux user for (`pins.toml`'s prerequisites): the runner image lacks `libEGL.so.1`, and the bundle's smoke start
+    failed without it (trial run 41250130488, 2026-11-01; the macOS and Windows legs passed). The Intel bundle's
+    `Info.plist` names macOS 15.0 as its minimum, as the arm64 one does. The G5 clean-machine runs are not repeated for
+    v0.1.1; the release notes say so, and the bundles keep D-750's label.
+  - **The later-release export (P-10).** `tools/public_export.py export --onto CLONE` writes R minus `EXCL` into a
+    clean clone of the public repository on `main` and makes one commit on top, so the public history stays one commit
+    per release; the public `.gitleaksignore` is kept (its fingerprints name public commits), and the equality proof
+    records the parent. A gitleaks finding in the new commit needs a new decision before the tag.
+  - **CI on GitHub-hosted runners (the user, 2026-11-01: "Yes, fix them first").** The first full `ci.yml` run on the
+    public repository (run 41249802128, v0.1.0's code) failed in every core leg and five other jobs; none of it had run
+    since the private repository's billing block of 2026-10-09. The fixes: the D-402 write guard admits the creation of
+    a `__pycache__` directory (a fresh checkout has none, so the first import in a test made one and was refused); the
+    test files of the `fcntl` workflow tools and the `resource`-based expansion-budget test are not collected on
+    Windows; the `m5ultra` plan tests give the host probe the Mac Studio's 256 GiB, the `RLIMIT_AS` test expects the
+    host's floor (`as_limit_for`), the admission test builds its reader with the host profile as production does, and
+    the validate kill test sets an 8 MiB cap under a lowered floor, so none depends on the runner's memory; the C6
+    summary is the comparer's declared output (`AGENTPROV_TEST_WRITE_ALLOW`); the `secrets` job pins gitleaks 8.30.1,
+    the version the public `.gitleaksignore` was fingerprinted with (8.24.3 reads the DTap tool-name lists as Atlassian
+    tokens); the core leg runs `pytest -n auto --dist loadgroup` (serially it took about 50 minutes per leg). One real
+    defect: the `adprov` mapper wrote a message with role null for a turn without a role (a fuzz finding, reproduced as
+    `test_a_turn_without_a_role_is_malformed_not_a_mapper_defect`); it now refuses such a turn as malformed, as it does
+    a turn whose content is not a string (valid transcripts map byte for byte as before; the compat and golden gates
+    pass). osv-scanner found 118 advisories in 21 package versions across the seven lockfiles; each project's
+    `exclude-newer` cutoff now has an `exclude-newer-package` exception for exactly the affected packages (certifi
+    2026.10.23 everywhere, setuptools 84.2.1, filelock 4.2.6, dnspython 2.9.1, pyasn1 0.6.5, nltk 3.10.4, pillow
+    13.0.0), and every other locked version is unchanged. nltk 3.10.4 fixes GHSA-8mgp-746c-j5xp, so the advisory the
+    user accepted on 2026-10-11 is no longer accepted.
+  - **The fuzz findings of the thorough profile (2026-11-01).** All in input the importers must refuse cleanly, none in a
+    real file: the adprov mapper refuses as malformed a turn without a role, a tool turn or run that ends before it
+    starts (AER-V19), and a time outside the AER's field ranges (month 16); a usage count beyond the I-JSON integer
+    range stays verbatim in `ext` instead of the typed field; an `n_llm_calls` beyond that range, or one implying more
+    than `MAX_LOST_CALLS` (4,096) lost calls, is refused instead of mapping one record per lost call. A scan of the
+    35,691 released v2.3 transcripts finds at most 48 calls, 32 lost and a usage value of 1,574,169, so every real file
+    maps byte for byte as before (the compat and golden gates pass). A placeholder in a meta string (`""`,
+    `unknown`, `-`: AER-V17's list, read as the agentdojo mapper reads it; two deleted bytes emptied
+    `agentdojo_version` in CI round 7) is not recorded in a version or the model id and makes a task identity
+    malformed, instead of reaching a typed field the writer refuses; none of the 35,691 transcripts holds one, and
+    3,000 of them map to the same bytes before and after. `raw/origins.jsonl` refuses a row holding an
+    escaped lone surrogate as `raw.origin.invalid`. Gate C2's golden scope had failed since D-621 (2026-10-22), unseen
+    while CI could not run: the bundle placement rule is AgentPROV's own format, registered as
+    `XD-C2-D621-bundle-specialization`. `same_process` accepts Linux's whole-second `btime` re-estimates (at most 2 s,
+    the same sub-second part), so a running job never reads as unobserved and prunable on a clock-synced runner.
+  - **T1 workers on Windows (review UC-3; the user, 2026-11-01: "yes fix it").** `install_audit_hook` ran its
+    `import _posixsubprocess` probe after installing the hook whose V-4 rule refuses that import event for a module not
+    yet loaded; on Windows the module never exists, so every T1 worker died at start-up and `import`, `derive` and
+    `validate` failed there without `--in-process`. The probe now runs before the hook (the V-4 rule and the
+    `fork_exec` replacement are unchanged; `test_the_audit_hook_installs_where_there_is_no_posixsubprocess` simulates
+    the platform). `io/workers.py` is in the `aer` stage's `AER_CLOSURE`, so the `aer` stage `engine_code_sha256` moves
+    on a re-import; no record byte, count or statement changes, and no sealed corpus is re-derived (recorded, as every
+    digest-only change, by the review's corpus-impact table, `docs/reports/review-uncovered/findings.md` on branch
+    `review-uncovered`).
+  - **The Windows hang of the withhold scan (CI rounds 2 to 4, 2026-11-01).** Every Windows core leg stopped at 99 %:
+    the faulthandler dump named `test_an_error_in_one_root_is_raised_and_the_scratch_store_is_removed`. A member scan
+    that raised left the member's file open (the chunk generator lived as long as the error), Windows refused the
+    reader's clean-up, the failed clean-up skipped returning the reader, and the other roots waited for a reader
+    forever. The chunks are now closed as soon as the scan returns or raises, and a reader goes back to the queue even
+    when its clean-up fails (`test_a_failed_member_scan_closes_the_member_file_at_once`,
+    `test_a_failed_clean_up_never_loses_a_reader`; both fail without the fix). `corpus/withhold_scan.py` lies outside
+    every stage scope and a scan that ends normally reads the same bytes, so no digest, withheld item or count moves.
+    The core leg also sets `faulthandler_exit_on_timeout`, so a test stuck past 20 minutes ends its worker and the run
+    still prints its summary.
+  - **Windows defects of the program found by CI round 7 (2026-11-01).** The batch spool of `io/workers.py` wrote and
+    read with `os.pwrite` and `os.pread`, which Windows lacks, so every import that spilled to disk failed there; it now
+    seeks and writes or reads under its lock where they are missing (the bytes are the same; `io/workers.py` is in the
+    `aer` closure, already moved by UC-3). Every stored raw object is read-only (0444) and Windows refuses to delete a
+    read-only file: the withhold scan's scratch store, `purge`, and the scratch trees of `derive`, `recompute
+    --dry-run`, `verify`'s re-derivation and `import --dry-run --artefacts` now delete through `io/remove.py` (outside
+    every stage scope). On Windows it deletes with `FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE`, which leaves the
+    attribute alone: the scratch trees hard-link the source corpus's objects, and Windows keeps one read-only attribute
+    per file, so clearing it (as the importer's scratch clean-up does for its private copies) would make the source's
+    object writable. Only where that call is refused is the bit cleared. `datetime.fromtimestamp` refuses a time after 3000 on Windows: `package` (SOURCE_DATE_EPOCH)
+    and the history index render the epoch plus a timedelta, the same string for every time in range. Tests that write
+    a JSONL fixture write LF on every platform. `purge.py`, `withhold_scan.py`, `package.py`, `derive.py`, `verify.py`, `import_.py`
+    and `raw/history.py` lie outside every stage scope. The building-commit snapshot archive is made with
+    `core.autocrlf` off, so a Windows git cannot convert it. Tests that need what Windows lacks are skipped there with
+    the reason (`os.fork`, `SIGKILL`, `os.mkfifo`, `/dev/fd`, `resource`, a file name with `:`, executable shell
+    scripts, POSIX mode bits), as are the tests of the macOS and Linux developer tools (the `fcntl` queue,
+    `gen_docs`, `public_export`, `release_scan`); tests that read a UTF-8 file name its encoding. **Known limitation:**
+    in a Windows virtual environment `python.exe` is a launcher that starts the interpreter as its child, so the worker
+    watchdog's RSS sampler reads the launcher and a worker's memory cap is not enforced there (the job object still
+    stops the tree on a wall-clock or CPU kill); `test_sec22_...` is skipped on such an interpreter. Measuring the
+    worker's process tree is left for a later release (psutil stays in `agentprov.jobs`, D-704).
+  - **Version.** `0.1.1` for `agentprov`, `agentprov-capture`, `agentprov-zenodo`, `agentprov-gui` and
+    `agentprov-backend`; no format, spec axis or corpus changes (`docs/reports/release/v0.1.1-plan.md`). The
+    pyproject bump had left `__version__ = "0.1.0"` in `agentprov-capture`, `agentprov-backend` and the GUI (whose
+    About box, start-up log line and bundle `Info.plist` showed it, and whose capture logs would have named it as
+    their writer and harness): each literal is now 0.1.1, the bundle spec reads the GUI's, and
+    `test_every_package_version_literal_equals_its_pyproject` keeps them equal. The committed AutoDojo capture
+    fixtures (`tests/fixtures/capture/autodojo/`, checked by `make_capture_fixtures.py --check`) are regenerated, so
+    their writer and harness read 0.1.1. Sealed corpora keep the versions they recorded.
+  - **Rejected:** 0.2.0 (the user kept 0.1.1); building on the development Mac and the VMs again (emulation for
+    x86_64, and slower); bundling libEGL and the xcb libraries into the Linux bundle (they are the desktop's own, and
+    chapter 8 already lists them); a universal2 macOS bundle (one PyInstaller build per architecture is what the
+    checks cover).
+- **D-1012 (2026-11-01, `agentprov`, `agentprov-capture` and `agentprov-zenodo` on PyPI from v0.1.1, by trusted
+  publishing; the user's requests of 2026-11-01, "can we also add a published release of the command line on PyPI" and
+  "I have created a https://pypi.org/ account. what do i need to do now?"; workflow, packaging metadata and docs;
+  class 0).** v0.1.0 was not on PyPI (README, the manuscript's section 4.3). All three names were free on 2026-11-01.
+  - **Decision.** `.github/workflows/pypi.yml`, manual dispatch with the release tag as input: a `build` job checks out
+    the tag, checks that it names the three packages' version, builds the sdists and wheels with `uv build`, runs
+    `twine check --strict` and uploads them as one artifact; a `publish` job in the environment `pypi` (the maintainer
+    is its required reviewer, so nothing is uploaded before the maintainer approves the run) uploads them with
+    `pypa/gh-action-pypi-publish` in dependency order: `agentprov-capture`, `agentprov`, `agentprov-zenodo`. Trusted
+    publishing (OIDC, `id-token: write` on that job only): PyPI's pending publishers name `nickjones39/AgentPROV`,
+    `pypi.yml` and `pypi`, so no API token exists. Every action is pinned by commit. It is dispatched once per release,
+    after the GitHub Release, because a version on PyPI can never be uploaded again.
+  - **Metadata.** `agentprov-capture` and `agentprov-zenodo` declare their README (the capture one rewritten for PyPI,
+    without a relative link), and all three name the website, the user guide and the source repository.
+  - **What a PyPI install gives.** The `agentprov` command and library (Python 3.14 or later); live runs still need a
+    checkout, since the backend projects are not in the wheel (`envs.repository_root`), as for the v0.1.0 wheel.
+  - **Rejected:** an API token in a repository secret (a long-lived credential; trusted publishing needs none);
+    uploading by hand with `twine` from this Mac (not reproducible from the tag, and the token would sit on a disk);
+    publishing on every tag push (a published version cannot be replaced, so a person approves each one).
+- **D-1020 (2026-11-01, the `ci.yml` core job splits each GitHub-hosted leg's tests over several runners; the user's
+  question of 2026-11-01, relayed by the release session, whether CI could be faster with the Mac Studio; workflow,
+  tests and `tools/slow_tests.py` only; class 0; in v0.1.1 at the user's request).** Each core
+  leg ran the whole suite in one job with `pytest -n auto` on a hosted runner, and every round waited on Windows: on
+  the release's run 41285222490 (`trial/v0.1.1-ci11`) the legs took 34.6 minutes (windows-latest), 30.2
+  (ubuntu-latest), 26.1 (macos-latest) and 15.6 (ubuntu-24.04-arm). A self-hosted Mac Studio runner (`CI_RUNNER`)
+  would not have helped: it replaces the Linux and macOS legs and leaves Windows, the slowest, GitHub-hosted.
+  - **Shards.** `tests/conftest.py` reads `AGENTPROV_SHARDS=n` and `AGENTPROV_SHARD=i` (1..n) and, after `-m`
+    deselection, keeps the i-th of n parts of the collected tests and deselects the rest. A part is chosen by file; an
+    `XDIST_GROUPS` group (`serial`) is one unit, so its tests stay in one shard and still run on one worker. The
+    host-sized `pools` groups are not units: they only bound how many worker pools one machine starts at once, and
+    splitting them over machines starts fewer. Units go heaviest first to the lightest shard, weighed by each file's
+    measured seconds in `tests/shard_seconds.txt`; a file the list lacks counts 0.1 s a test (5 s a `slow` one). The
+    split depends only on the collected tests and the committed lists, never on the collection order or the host; no
+    plugin and no lockfile change. The run takes both variables out of the environment (its xdist workers get the
+    shard through `workerinput`), so a pytest that a test starts collects its own tests whole: the first trial failed
+    eleven such tests (pytester and subprocess runs that inherited the variables). With neither variable set nothing
+    is deselected, so `tools/ci_local.py`'s `core` job (the merge gate) is unchanged.
+  - **The seconds list.** `tools/slow_tests.py --shard-seconds <logs>` rewrites `tests/shard_seconds.txt` from the
+    `--durations=0` logs of every shard of every leg of one CI run (GitHub's timestamp prefix accepted): a test's
+    seconds are the mean over the logs that time it, so each OS counts once. The committed list comes from trial run
+    41287239414. It goes stale as tests change; that only unbalances the shards, never changes what runs, so it is
+    regenerated when a leg's shards drift apart. Weighing by test count alone (the first two trials) left the shards
+    of a leg up to 2.2 times apart in test seconds (ubuntu-latest 815, 1394 and 638 s).
+  - **Matrix.** `core`'s matrix becomes an `include` list of `{os, shard, shards}`: windows-latest over 4,
+    ubuntu-latest over 3, ubuntu-24.04-arm and macos-latest over 2 (11 jobs, free on the public repository). With
+    `CI_RUNNER` set it is the self-hosted runner whole (one shard) plus the same four Windows shards, behind the same
+    fork guard (UC-46). Job names gain `, i/n`; job ids are unchanged, so `tools/ci_local.py` is too.
+  - **Tests.** `tests/unit/testing/test_shards.py`: the variables are parsed and a bad pair refused, and no test sees
+    them; the assignment is deterministic, complete and within one unit of the ideal share; the seconds list parses
+    and the generator averages over the legs; and, end to end, the shards of the widest leg in `ci.yml` collect
+    disjoint sets whose union is the whole collection, with each file and each group in one shard.
+    `tests/repo/test_repository_hygiene.py` checks the matrix: the self-hosted and hosted branches, the shards of each
+    leg are 1..n once each, and the test step passes both variables.
+  - **Measured** (minutes from a job's first step to its last, on the public repository's trial branches, each the
+    release's `trial/v0.1.1-ci11` code plus this change): run 41289569701 (`trial/ci-shard-3`, this commit's weights):
+    windows-latest 14.1, 10.6, 15.4 and 14.2; ubuntu-latest 10.6, 8.4 and 9.3; ubuntu-24.04-arm 8.5 and 7.6;
+    macos-latest 13.6 and 14.1. The slowest core shard took 15.4 minutes against ci11's 34.6-minute Windows leg. Run
+    41287239414 (`trial/ci-shard-2`, test-count weights): slowest shard 17.9 minutes (windows-latest 1/4). Two
+    failures on the trials are not the sharding's and also occur unsharded: `test_a_priority_ticket_overtakes_a_budget_blocked_head`
+    (`tests/unit/test_tools_suite_queue_classes.py`, macOS; it checks the waiting record before the waiter's next
+    poll removes it) and `tests/corpus/test_validate_cache.py` on Windows (entries counted `unstorable`; also in the
+    release's run 41282687779); a rerun of each failed job passed.
+  - **Rejected:** `pytest-split` or `pytest-shard` (a new locked dependency under `exclude-newer` for what one hook
+    does); splitting by a hash of the file name (deterministic, but it balances nothing); test count alone (above);
+    timing every test (a list of about 12,000 node ids, where 640 files are enough to balance).
+- **D-1030 (2026-11-01, Help › Docs, Help › Assistant and the CLI-backed Settings panes without an AgentPROV checkout;
+  the user's report of 2026-11-01 on the downloaded `.dmg`; in v0.1.1 at the user's request; GUI, the core package,
+  a tool, tests and docs; class 0).** Run from the `.dmg` or `.zip` alone, the app's Settings panes were greyed out with
+  no reason given, and Docs and the Assistant worked only once a checkout (a clone with its `.venv`) was set in
+  Settings › General: the bundle carried neither the guide nor the `agentprov` command, and the `agentprov` wheel on
+  PyPI carried no guide for `agentprov assist` to answer from.
+  - **Decision: Docs.** The bundle takes the guide from `docs/user-guide/` at build time: the chapters (`*.md` without
+    the internal `_*.md` checklists, D-1004) and every local image a chapter shows (`agentprov_gui.guide.bundle_files`),
+    into `agentprov_gui/data/user-guide/` (`gui/packaging/agentprov-gui.spec`). The copy is never committed, so it
+    cannot drift; `gui/tools/build_bundle.py` fails a bundle whose copy is missing a file, has one with other bytes
+    than the guide's, or has an extra one (check 5). The core's own copy (below) is left out of the bundle. *Docs*
+    reads the configured checkout's guide when it has one, else the bundled copy, and the line above the chapters says
+    which (with the app's version for the bundled copy).
+  - **Decision: the CLI without a checkout.** `CliLocator.for_checkout(None)` now gives the `agentprov` that
+    `pip install agentprov` installed: the program named in Settings › General's new *agentprov program* field
+    (QSettings `paths/cli_program`; one that is not an executable file gives no CLI rather than another one), else the
+    first `agentprov` on `PATH`, then in `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`, because an app started
+    from the Finder or a desktop menu gets a short `PATH`. The frozen app's own executable is never taken (Windows
+    matches `agentprov.exe` to `AgentPROV.exe`). It has no interpreter, so the repository tools, the job queue and the
+    Zenodo uploader still need a checkout, as before. A configured checkout always wins. Settings › General shows the
+    *CLI in use* for the fields as typed (file checks only; nothing runs). Every page and pane that already ran the
+    checkout's CLI (Assistant, the Settings panes, Runs and its version check) gets the installed one through the same
+    locator. S11 is unchanged: the GUI process still opens no connection, and `agentprov assist` reads the key from
+    the keychain (`--keychain`, D-702), as the checkout's CLI does.
+  - **Decision: `agentprov assist` from PyPI.** The wheel had no guide (checked on the v0.1.1 wheel: 781 files, no
+    `.md` but the licence notices). `src/agentprov/docs/user-guide/` now holds the guide's chapters byte for byte, with
+    no images (+157 KB in the wheel). `docs/user-guide/` stays the one that is edited: `tools/sync_user_guide.py
+    --write` refreshes the copy, and `tests/repo/test_user_guide.py` fails while it differs (`--check`). `assist` uses
+    the checkout it runs from, else the one around the working directory, else the packaged copy, with the `--help`
+    texts and the installed core's docstrings (named `agentprov/...`); `README.md` and the desktop app's docstrings are
+    not in the wheel and are left out there.
+  - **Decision: greyed-out panes say why.** A `CliSettingsPane` keeps its fields in a body that is disabled until the
+    values arrive, and a notice above it, not greyed, says why they did not: no CLI (set the checkout or the
+    `agentprov program` in Settings › General, press OK and open Settings again), a CLI that cannot be started, or a
+    CLI's exit code and reason line (`settings_client.read_or_reason`, `unavailable`). Keys, Prices and Estimate say the
+    same in their status lines.
+  - **Rejected:** a committed copy of the guide inside the GUI package (a second copy to keep in step, where the build
+    can take the original); the guide's images in the wheel (3.8 MB the command line never shows); the bundle's own
+    `agentprov` command (a second frozen program to build, sign and keep in step with the wheel, where PyPI already
+    ships it); falling back to the installed CLI when a configured checkout has none (the checkout the user named
+    would be silently ignored); reading `README.md` from the wheel's metadata for `assist` (it is the long description,
+    not a file the package can rely on).

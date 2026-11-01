@@ -68,7 +68,11 @@ def _interactive() -> bool:
 def _read_value(from_stdin: bool) -> str:
     if from_stdin:
         raw = sys.stdin.buffer.readline(MAX_VALUE + 1) if hasattr(sys.stdin, "buffer") else sys.stdin.readline().encode()
-        text = raw.decode("utf-8", "strict").rstrip("\r\n") if isinstance(raw, bytes) else str(raw).rstrip("\r\n")
+        try:
+            text = raw.decode("utf-8", "strict").rstrip("\r\n") if isinstance(raw, bytes) else str(raw).rstrip("\r\n")
+        except UnicodeDecodeError:  # its arguments hold the raw line, the unregistered key (review UC-8): never shown
+            raise CliUsageError("agentprov keys set: the value on stdin is not UTF-8 (a UTF-16 file? save it as "
+                                "UTF-8)") from None
     elif _interactive():
         text = getpass.getpass("value (not echoed): ")
     else:

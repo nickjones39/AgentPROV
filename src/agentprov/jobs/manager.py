@@ -32,13 +32,14 @@ import sys
 import time
 import tomllib
 import uuid
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final
 
 from agentprov.errors import AgentProvError
-from agentprov.jobs.record import JOB_FORMAT, Job, jobs_dir, list_jobs, load_job, read_json, same_process
+from agentprov.io.replace_retry import REPLACE_RETRIES
+from agentprov.jobs.record import JOB_FORMAT, Job, jobs_dir, list_jobs, load_job, read_json, same_cli, same_supervisor
 from agentprov.jobs.tiers import REPO_COMMANDS, split_index, tier_of_argv
 
 __all__ = ["ENV_ALLOWLIST", "JobManager", "JobRequest", "SpawnRefused", "allowlisted_env", "atomic_write_json",
@@ -83,25 +84,21 @@ def new_job_id() -> str:
     return str(uuid.uuid7())
 
 
-#: Windows refuses to rename over a file another process has open (``WinError 5``), and the manager, the GUI and
-#: ``jobs list`` read ``job.json`` while the supervisor rewrites it. A reader holds the file for microseconds, so the
-#: write is retried for up to about a second (G5 clean-machine run, Windows x64: every supervisor crashed on this race).
-_REPLACE_RETRIES: Final = 50
-_REPLACE_PAUSE_S: Final = 0.02
+_REPLACE_RETRIES: Final = REPLACE_RETRIES
+#: How long :meth:`JobManager.spawn` waits for another process's spawn to record its job.
+SPAWN_LOCK_WAIT_S: Final = 10.0
 
 
 def atomic_write_json(path: Path, obj: Mapping[str, Any]) -> None:
-    from agentprov.io.atomic import atomic_write_bytes
+    """``job.json`` and its siblings. Windows refuses to rename over a file another process has open, and the manager,
+    the GUI and ``jobs list`` read ``job.json`` while the supervisor rewrites it, so the write is retried (G5
+    clean-machine run, Windows x64: every supervisor crashed on this race; :mod:`agentprov.io.replace_retry`)."""
+    from agentprov.io.replace_retry import atomic_write_bytes_retrying
 
-    data = json.dumps(dict(obj), sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
-    for attempt in range(_REPLACE_RETRIES):
-        try:
-            atomic_write_bytes(path, data)
-            return
-        except PermissionError:
-            if not on_windows() or attempt == _REPLACE_RETRIES - 1:
-                raise
-            time.sleep(_REPLACE_PAUSE_S)
+    # allow_nan=False: a non-finite number is a ValueError here, never an Infinity the strict loader then refuses
+    data = json.dumps(dict(obj), sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+                      allow_nan=False).encode("utf-8") + b"\n"
+    atomic_write_bytes_retrying(path, data, windows=on_windows)
 
 
 def allowlisted_env(environ: Mapping[str, str], start_cwd: str | None) -> dict[str, str]:
@@ -313,6 +310,42 @@ class JobManager:
         ``agentprov`` job always gets a control file: there is no SIGTERM, so it is the only graceful stop (G5 P-2)."""
         if on_windows() and req.tool is None and not req.control_file:
             req = replace(req, control_file=True)
+        with self._spawn_lock():  # the writer and slot checks and the record they read are one step (review UC-30)
+            directory, supervisor = self._start(req, job_id)
+        deadline = time.monotonic() + wait_s
+        while time.monotonic() < deadline:
+            rec = read_json(directory / "job.json") or {}
+            if rec.get("pid") is not None or (directory / "ended.json").exists() or supervisor.poll() is not None:
+                break
+            time.sleep(0.02)
+        job = load_job(directory)
+        assert job is not None
+        return job
+
+    @contextlib.contextmanager
+    def _spawn_lock(self) -> Iterator[None]:
+        """Serialises :meth:`check` and the new ``job.json`` across processes: without it two ``--slot network`` starts
+        (or two writers of one corpus) can both pass the check before either record exists. The lock never waits on
+        its own, so it is retried for up to :data:`SPAWN_LOCK_WAIT_S` (a spawn holds it for milliseconds)."""
+        from agentprov.io.locks import ResourceBusyError, ResourceLock
+
+        lock = ResourceLock(self.jobs_dir.parent / "jobs.spawn.lock", what="the job starter", command="jobs start")
+        deadline = time.monotonic() + SPAWN_LOCK_WAIT_S
+        while True:
+            try:
+                lock.acquire()
+                break
+            except ResourceBusyError:
+                if time.monotonic() > deadline:
+                    raise SpawnRefused("another job is being started; try again", "jobs.spawn.busy") from None
+                time.sleep(0.02)
+        try:
+            yield
+        finally:
+            lock.release()
+
+    def _start(self, req: JobRequest, job_id: str | None) -> tuple[Path, subprocess.Popen[bytes]]:
+        """Check ``req``, write its ``job.json`` and start its supervisor (under :meth:`_spawn_lock`)."""
         self.check(req)
         job_id = job_id or new_job_id()
         directory = self.jobs_dir / job_id
@@ -331,7 +364,8 @@ class JobManager:
                 "control_file": req.control_file, "queue_cpu": req.queue_cpu, "progress_level": req.progress_level,
                 "tool": req.tool, "batch_id": req.batch_id, "conformance_skipped": req.conformance_skipped,
                 "extra": dict(req.extra), "platform": sys.platform, "pid": None, "pid_create_time": None,
-                "supervisor_pid": None, "supervisor_create_time": None,
+                "pid_start_ticks": None, "supervisor_pid": None, "supervisor_create_time": None,
+                "supervisor_start_ticks": None,
             }  # fmt: skip
             atomic_write_json(directory / "job.json", record)
             with open(directory / "supervisor.txt", "wb") as err:
@@ -342,15 +376,7 @@ class JobManager:
         except SpawnRefused:
             shutil.rmtree(directory, ignore_errors=True)
             raise
-        deadline = time.monotonic() + wait_s
-        while time.monotonic() < deadline:
-            rec = read_json(directory / "job.json") or {}
-            if rec.get("pid") is not None or (directory / "ended.json").exists() or supervisor.poll() is not None:
-                break
-            time.sleep(0.02)
-        job = load_job(directory)
-        assert job is not None
-        return job
+        return directory, supervisor
 
     # ------------------------------------------------------------------------------------------ control
     @staticmethod
@@ -378,7 +404,7 @@ class JobManager:
         CLI (POSIX). On Windows without a control file only :meth:`kill` exists."""
         if self.request(job, "stop"):
             return True
-        if on_windows() or job.pid is None or not same_process(job.pid, job.record.get("pid_create_time")):
+        if on_windows() or job.pid is None or not same_cli(job):
             return False
         os.kill(job.pid, signal.SIGTERM)
         return True
@@ -389,7 +415,7 @@ class JobManager:
         import psutil
 
         leader_pid = job.supervisor_pid
-        if leader_pid is None or not same_process(leader_pid, job.record.get("supervisor_create_time")):
+        if leader_pid is None or not same_supervisor(job):
             return False
         try:
             leader = psutil.Process(leader_pid)

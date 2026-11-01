@@ -148,3 +148,30 @@ def test_inspect_and_cell_options_never_mix():
     with pytest.raises(CliUsageError, match="ROLE=MODEL"):
         _plan_document(_args(task="t", samples="1-1", judge=["Refusal=x"]), SCRIPTED_AGENT, backend="inspect-agentharm")
 
+
+
+OPENAI_AGENT = {"model_requested": "gpt-4o", "provider": "openai_compatible", "endpoint": "openai",
+                "api_key_env": "OPENAI_API_KEY", "params": {}, "llm_element": "native", "transport": "http",
+                "script": None, "base_url": "https://api.openai.com/v1"}
+
+
+def test_plan_file_judges_use_the_agent_s_endpoint_and_key(tmp_path):
+    """Review UC-6: a --plan judge table is rebuilt from the agent table; one that names its own base URL (plain http to
+    any host, which G.9.2 never checked), key variable or transport is refused."""
+    from agentprov.cli.common import CliUsageError
+    from agentprov.cli.run import _plan_document
+
+    head = '[plan]\n[inspect]\ntask = "inspect_evals/agentharm"\nsamples = { limit = 1 }\n'
+    plan = tmp_path / "plan.toml"
+    plan.write_text(head + '[judges.refusal_judge]\nmodel_requested = "gpt-4o-mini"\n', encoding="utf-8")
+    doc = _plan_document(_args(plan=str(plan)), OPENAI_AGENT, backend="inspect-agentharm")
+    agent_table = {k: v for k, v in OPENAI_AGENT.items() if v is not None}
+    assert doc["judges"] == {"refusal_judge": {**agent_table, "model_requested": "gpt-4o-mini"}}
+    for member in ('base_url = "http://198.51.100.7/v1"', 'api_key_env = "OTHER_API_KEY"', 'transport = "scripted"',
+                   'endpoint = "deepseek"'):
+        plan.write_text(head + f'[judges.refusal_judge]\nmodel_requested = "gpt-4o-mini"\n{member}\n', encoding="utf-8")
+        with pytest.raises(CliUsageError, match="other than the agent's"):
+            _plan_document(_args(plan=str(plan)), OPENAI_AGENT, backend="inspect-agentharm")
+    plan.write_text(head + '[judges.refusal_judge]\nbase_url = "https://api.openai.com/v1"\n', encoding="utf-8")
+    with pytest.raises(CliUsageError, match="needs model_requested"):
+        _plan_document(_args(plan=str(plan)), OPENAI_AGENT, backend="inspect-agentharm")

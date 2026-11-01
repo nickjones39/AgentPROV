@@ -28,7 +28,10 @@ What it does, in order:
    is refused. The allowlist holds no publish, edit, discard or delete request, so none can be made. A new AgentPROV
    version may use ``actions/newversion`` only on the concept DOI the deposit metadata records.
 4. **Integrity.** After each upload the md5 Zenodo returns must equal the manifest's; after the last, the draft's file
-   list is read back and compared with the manifest. A mismatch stops the run and is reported; nothing is deleted.
+   list is read back and compared with the manifest. A mismatch stops the run and is reported; nothing is deleted. A file
+   upload that fails in transit (the connection drops, the socket times out, or Zenodo answers HTTP 429 or 5xx) is sent
+   again from its start, up to :data:`UPLOAD_ATTEMPTS` times with a doubling pause, inside the same run; any other answer
+   stops the run at once.
 5. **A receipt** ``<deposit dir name>.zenodo-<target>-draft-receipt.json`` beside (never inside) the deposit directory.
    A second create is refused while it exists; ``--resume`` uploads only the missing files to the recorded draft.
 
@@ -80,6 +83,7 @@ import re
 import ssl
 import stat
 import sys
+import time
 import urllib.parse
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -163,7 +167,11 @@ _DOI: Final = re.compile(r"10\.[0-9]{4,9}/[A-Za-z0-9._;()/:-]+")
 _COMMUNITY: Final = re.compile(r"[a-z0-9][a-z0-9_-]{0,99}")
 _CHUNK: Final = 1 << 20
 _MAX_RESPONSE: Final = 4 << 20
-_TIMEOUT: Final = 120.0
+#: Socket timeout per request: a slow transatlantic upload can stall for minutes and still finish.
+_TIMEOUT: Final = 600.0
+#: Attempts per file upload (the first and the retries), and the pause before the first retry (doubled each time).
+UPLOAD_ATTEMPTS: Final = 5
+_RETRY_PAUSE: Final = 30.0
 _API_LIMITS: Final = IngestLimits()
 
 #: Every request this script may send: ``(method, fullmatch pattern of the path)``. Anything else is refused before a
@@ -638,6 +646,7 @@ class Context:
     target: Target
     receipt: Receipt
     now: Callable[[], datetime]
+    sleep: Callable[[float], None] = time.sleep
 
 
 def _stamp(now: datetime) -> str:
@@ -787,7 +796,7 @@ def _upload(ctx: Context, bucket: str, present: Mapping[str, tuple[int, str]], *
             raise ToolError(f"{planned.name} is in the draft with other bytes or md5 than the manifest; stopping, nothing "
                             "deleted. Check the draft in the web UI", EXIT_FAILED)
         ctx.out.line(f"[{index}/{total}] uploading {planned.name} ({planned.bytes} bytes)")
-        answer = ctx.client.request("PUT", f"{bucket}/{planned.name}", upload=ctx.plan.directory / planned.name)
+        answer = _put_file(ctx, f"{bucket}/{planned.name}", ctx.plan.directory / planned.name, f"[{index}/{total}]")
         got = str((answer or {}).get("checksum") or "").removeprefix("md5:") if isinstance(answer, dict) else ""
         size = answer.get("size") if isinstance(answer, dict) else None
         if got != planned.md5 or size != planned.bytes:
@@ -795,6 +804,29 @@ def _upload(ctx: Context, bucket: str, present: Mapping[str, tuple[int, str]], *
             raise ToolError(f"{planned.name}: Zenodo reports md5 {got or 'none'}, size {size}; the manifest says md5 "
                             f"{planned.md5}, size {planned.bytes}. Stopping; nothing was deleted", EXIT_FAILED)
         _mark(ctx, planned.name)
+
+
+def _transient(exc: ToolError) -> bool:
+    """A failure in transit: the server could not be reached or dropped the request, or answered HTTP 429 or 5xx."""
+    if isinstance(exc, ApiError):
+        return exc.status == 429 or exc.status >= 500
+    return type(exc) is ToolError and exc.exit_code == EXIT_UNAVAILABLE
+
+
+def _put_file(ctx: Context, path: str, source: Path, label: str) -> Any:
+    """``PUT`` one file, sending it again from its start after a transient failure (:data:`UPLOAD_ATTEMPTS` in all)."""
+    pause = _RETRY_PAUSE
+    for attempt in range(1, UPLOAD_ATTEMPTS + 1):
+        try:
+            return ctx.client.request("PUT", path, upload=source)
+        except ToolError as exc:
+            if attempt == UPLOAD_ATTEMPTS or not _transient(exc):
+                raise
+            ctx.out.line(f"{label} {source.name}: {exc}; sending it again in {pause:.0f} s "
+                         f"(attempt {attempt + 1} of {UPLOAD_ATTEMPTS})")
+            ctx.sleep(pause)
+            pause *= 2
+    raise AssertionError("unreachable")
 
 
 def _mark(ctx: Context, name: str) -> None:
@@ -1103,6 +1135,7 @@ def run(
     stderr: TextIO | None = None,
     input_fn: Callable[[str], str] | None = None,
     now: Callable[[], datetime] | None = None,
+    sleep: Callable[[float], None] | None = None,
     test_base_url: str | None = None,
     release_verify: bool = True,
     interactive: Callable[[], bool] | None = None,
@@ -1113,6 +1146,7 @@ def run(
     out = Out(stdout or sys.stdout, stderr or sys.stderr)
     environ = os.environ if environ is None else environ
     clock = now or (lambda: datetime.now(UTC))
+    pause = sleep or time.sleep
     secret: Secret | None = None
     try:
         try:
@@ -1194,7 +1228,7 @@ def run(
         client = Client(target, secret, test_base_url=test_base_url)
         if args.resume:
             assert existing is not None
-            ctx = Context(out, client, plan, target, existing, clock)
+            ctx = Context(out, client, plan, target, existing, clock, pause)
             return resume_draft(ctx)
         receipt = Receipt.create(path, {
             "format": RECEIPT_FORMAT, "target": target.name, "host": target.host, "draft_dir": directory.name,
@@ -1205,7 +1239,7 @@ def run(
             "reserved_doi": None, "reserved_recid": None, "communities": list(plan.communities),
             "metadata": plan.metadata, "cross_links": None,
         })
-        return create_draft(Context(out, client, plan, target, receipt, clock), new_version_of=args.new_version_of)
+        return create_draft(Context(out, client, plan, target, receipt, clock, pause), new_version_of=args.new_version_of)
     except ToolError as exc:
         out.error(f"zenodo_draft: {exc}")
         return exc.exit_code

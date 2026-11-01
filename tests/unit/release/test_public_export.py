@@ -92,6 +92,7 @@ def _export(repo: Path, commit: str, out: Path) -> int:
     return pe.main(["export", "--repo", str(repo), "--commit", commit, "--out", str(out), "--email", EMAIL])
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the export keeps exec bits, which Windows files do not hold")
 def test_the_root_commit_is_r_minus_excl_with_the_no_reply_identity(dev, tmp_path, capsys):
     repo, commit = dev
     out = tmp_path / "public"
@@ -231,3 +232,105 @@ def test_gitignore_lines_that_hide_a_kept_file_or_carry_a_comment_are_refused(de
     assert _export(repo, commit, tmp_path / "p2") == 4
     commit = _commit_export_list(repo, GITIGNORE_TOML.replace('reason = "coding-agent files"\n', ""))
     assert _export(repo, commit, tmp_path / "p3") == 4
+
+
+def test_a_later_release_is_one_commit_on_top_and_keeps_the_public_fingerprints(dev, tmp_path, capsys):
+    """P-10 (D-1011): ``--onto`` puts R minus EXCL on the public main as one commit; the public ``.gitleaksignore``
+    (public commit ids) is kept, a file deleted in R is deleted, and the proof names the parent."""
+    repo, commit = dev
+    out = tmp_path / "public"
+    assert _export(repo, commit, out) == 0
+    _write(out, ".gitleaksignore", "# public fingerprints\nabc:docs/a.md:generic-api-key:4\n")
+    _git(out, "commit", "-q", "-am", "fingerprints", env={"GIT_AUTHOR_NAME": "p", "GIT_AUTHOR_EMAIL": EMAIL,
+                                                          "GIT_COMMITTER_NAME": "p", "GIT_COMMITTER_EMAIL": EMAIL})
+    parent = _git(out, "rev-parse", "HEAD").strip()
+    env = {"GIT_AUTHOR_NAME": "dev", "GIT_AUTHOR_EMAIL": "dev@example.invalid", "GIT_COMMITTER_NAME": "dev",
+           "GIT_COMMITTER_EMAIL": "dev@example.invalid"}
+    _write(repo, "README.md", "readme v0.1.1\n")
+    _write(repo, "docs/new.md", "new\n")
+    _git(repo, "rm", "-q", "src/tool.sh")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "next", env=env)
+    r2 = _git(repo, "rev-parse", "HEAD").strip()
+    assert pe.main(["export", "--repo", str(repo), "--commit", r2, "--onto", str(out), "--email", EMAIL,
+                    "--version", "v0.1.1"]) == 0
+    assert _git(out, "log", "-1", "--format=%P|%s").strip() == (
+        f"{parent}|AgentPROV v0.1.1, exported from agentprov-framework {r2}")
+    assert len(_git(out, "rev-list", "HEAD").split()) == 3
+    files = set(_git(out, "ls-files").split())
+    assert "docs/new.md" in files and "src/tool.sh" not in files and "CLAUDE.md" not in files
+    assert (out / "README.md").read_text(encoding="utf-8") == "readme v0.1.1\n"
+    assert _git(out, "show", "HEAD:.gitleaksignore").startswith("# public fingerprints")
+    proof = json.loads((tmp_path / "public.export-proof.json").read_bytes())
+    assert proof["parent_commit"] == parent and proof["development_commit"] == r2
+    assert _git(out, "status", "--porcelain") == ""
+
+
+def test_onto_refuses_a_dirty_clone_and_both_targets(dev, tmp_path):
+    repo, commit = dev
+    out = tmp_path / "public"
+    assert _export(repo, commit, out) == 0
+    (out / "stray.txt").write_text("x", encoding="utf-8")
+    assert pe.main(["export", "--repo", str(repo), "--commit", commit, "--onto", str(out), "--email", EMAIL]) == 4
+    assert pe.main(["export", "--repo", str(repo), "--commit", commit, "--onto", str(out), "--out", str(tmp_path / "x"),
+                    "--email", EMAIL]) == 4
+
+
+def _onto(repo: Path, commit: str, out: Path) -> int:
+    return pe.main(["export", "--repo", str(repo), "--commit", commit, "--onto", str(out), "--email", EMAIL,
+                    "--version", "v0.1.1"])
+
+
+def test_onto_refuses_an_ignored_file_and_commits_nothing(dev, tmp_path):
+    """Review UC-1: ``git status --porcelain`` hides ignored files, and ``add --force -A`` would commit them (``.env``
+    in the reviewer's repro). An ignored file in the clone is refused before anything is touched."""
+    repo, commit = dev
+    out = tmp_path / "public"
+    assert _export(repo, commit, out) == 0
+    head = _git(out, "rev-parse", "HEAD").strip()
+    (out / "local.aer.jsonl").write_text("secret\n", encoding="utf-8")  # matched by the public .gitignore
+    assert _onto(repo, commit, out) == 4
+    assert _git(out, "rev-parse", "HEAD").strip() == head and (out / "local.aer.jsonl").exists()
+
+
+def test_a_refusal_after_the_tree_is_written_leaves_the_clone_as_it_was(dev, tmp_path):
+    """Review UC-1: the equality proof and the [gitignore] check run before the commit; a refusal resets the clone, so
+    no refused tree is ever committed and a re-run cannot stack a clean commit on a bad one."""
+    repo, commit = dev
+    out = tmp_path / "public"
+    assert _export(repo, commit, out) == 0
+    head = _git(out, "rev-parse", "HEAD").strip()
+    bad = _commit_export_list(repo, GITIGNORE_TOML.replace('"/docs/agents/"]', '"/docs/agents/", "README.md"]'))
+    _write(repo, "README.md", "changed\n")
+    assert _onto(repo, bad, out) == 4
+    assert _git(out, "rev-parse", "HEAD").strip() == head
+    assert _git(out, "status", "--porcelain", "--ignored", "--untracked-files=all") == ""
+    assert (out / "README.md").read_text(encoding="utf-8") == "readme\n"
+
+
+def test_onto_refuses_the_development_repository(dev, tmp_path):
+    """Review UC-7: a clean clone of the development repository on main was accepted, and the export commit went on top
+    of its private history. Only a history whose single root commit is an export's root commit is accepted."""
+    repo, commit = dev
+    clone = tmp_path / "devclone"
+    subprocess.run(["git", "clone", "-q", str(repo), str(clone)], check=True, capture_output=True)
+    head = _git(clone, "rev-parse", "HEAD").strip()
+    assert _onto(repo, commit, clone) == 4
+    assert _git(clone, "rev-parse", "HEAD").strip() == head and (clone / "CLAUDE.md").exists()
+
+
+def test_onto_runs_no_hook_of_the_clone(dev, tmp_path):
+    """Review UC-7: ``--onto`` commits with hooks off, as ``--out`` does."""
+    repo, commit = dev
+    out = tmp_path / "public"
+    assert _export(repo, commit, out) == 0
+    _git(out, "config", "--unset", "core.hooksPath")  # a fresh clone of the public remote has hooks on
+    hook = out / ".git" / "hooks" / "pre-commit"
+    marker = tmp_path / "hook-ran"
+    hook.write_text(f"#!/bin/sh\ntouch '{marker}'\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)
+    _write(repo, "README.md", "readme v0.1.1\n")
+    _git(repo, "commit", "-q", "-am", "next", env={"GIT_AUTHOR_NAME": "d", "GIT_AUTHOR_EMAIL": "d@x.invalid",
+                                                   "GIT_COMMITTER_NAME": "d", "GIT_COMMITTER_EMAIL": "d@x.invalid"})
+    assert _onto(repo, _git(repo, "rev-parse", "HEAD").strip(), out) == 0
+    assert not marker.exists()

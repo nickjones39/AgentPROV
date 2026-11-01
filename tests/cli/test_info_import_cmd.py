@@ -5,6 +5,8 @@ The registry is rendered per part with its gated statuses (phase 6); ``test_impo
 
 from __future__ import annotations
 
+from agentprov.versions import __version__
+
 import json
 import subprocess
 import sys
@@ -69,7 +71,7 @@ def test_info_json_payload_is_canonical_and_holds_the_registry(cli, host_probe):
 
 def test_info_markdown_format(cli, host_probe):
     run = cli("info", "--format", "markdown")
-    assert run.code == 0 and run.out.startswith("# agentprov 0.1.0") and "\n## Host\n" in run.out
+    assert run.code == 0 and run.out.startswith(f"# agentprov {__version__}") and "\n## Host\n" in run.out
 
 
 def test_info_json_flag_puts_the_summary_on_stdout_and_the_rendering_on_stderr(cli, host_probe, check_summary):

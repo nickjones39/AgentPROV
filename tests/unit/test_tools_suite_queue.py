@@ -20,6 +20,9 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 TOOL = REPO / "tools" / "suite_queue.py"
 
+#: tools/suite_queue.py locks with fcntl and runs on macOS and Linux only, like the queue it serves (D-1011)
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="tools/suite_queue.py needs fcntl")
+
 
 @pytest.fixture(scope="module")
 def sq():

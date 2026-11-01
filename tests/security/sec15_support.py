@@ -154,6 +154,7 @@ def edit(root: Path, label: str, fmt: str) -> None:
 def remove(root: Path, label: str) -> None:
     """Delete the file and the shard directories it leaves empty (the attacker keeps the tree closed-world)."""
     path = root / label
+    path.chmod(0o644)  # a raw object is read-only (0444), which Windows will not delete
     path.unlink()
     for parent in path.parents:
         if parent == root or any(parent.iterdir()):

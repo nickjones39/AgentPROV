@@ -144,3 +144,56 @@ def test_the_record_holds_decimal_strings_and_an_upper_bound() -> None:
                       "price_out_usd_per_mtok": "0.5", "billed_calls": 1, "spend_upper_bound_usd": "0.001"}
     assert not any(isinstance(v, float) for v in record.values())
     assert Budget(Caps(max_calls=3)).record() == {"max_calls": 3, "cell_call_bound": 48, "billed_calls": 0}
+
+
+def test_no_probe_call_is_sent_at_the_caps_and_probes_are_kept_across_resume() -> None:
+    """Review UC-23: a probe is a paid call, so it is checked against the caps before it is sent; the probe count is recorded in live.caps, where a resumed campaign charges it again."""
+    from agentprov.cli.common import CommandResult
+    from agentprov.cli.run import LiveRefused, _prior_probe_calls, _probe
+
+    prior = Budget(Caps(max_calls=CELL_CALL_BOUND + 1))
+    prior.calls = CELL_CALL_BOUND
+    assert prior.probe_refusal() is None
+    prior.charge_probe()
+    assert (prior.probe_refusal() or "").startswith("cap_reached: --max-calls")
+    sent: list[int] = []
+    with pytest.raises(LiveRefused, match="no probe call is sent"):
+        _probe(lambda: sent.append(1) or {}, CommandResult(), Budget(prior.caps), prior)
+    assert sent == []  # nothing was sent at the cap
+
+    budget = Budget(Caps(max_calls=1000))
+    unconfirmed = {"reachable": True, "roles_accepted": False, "roles": "unconfirmed"}
+    _, calls = _probe(lambda: unconfirmed, CommandResult(), budget, Budget(budget.caps))
+    assert calls == 3 and budget.record()["probe_calls"] == 3 and budget.calls == 3
+    assert _prior_probe_calls({"caps": budget.record()}) == 3
+    resumed = Budget(budget.caps)
+    resumed.charge_probe(_prior_probe_calls({"caps": budget.record()}))
+    assert (resumed.calls, resumed.probe_calls) == (3, 3)
+    for bad in (None, {}, {"caps": {"probe_calls": -1}}, {"caps": {"probe_calls": True}}, {"caps": []}):
+        assert _prior_probe_calls(bad) == 0
+    assert "probe_calls" not in Budget(Caps(max_calls=3)).record()  # absent while no probe was charged
+
+
+def test_the_prior_spend_of_a_working_corpus_includes_its_recorded_probes(tmp_path) -> None:
+    import argparse
+    import json as _json
+
+    from agentprov.cli.run import _prior_budget
+    from agentprov.corpus.layout import CorpusLayout, partial_dir
+
+    partial = partial_dir(tmp_path / "corpus")
+    (partial / "raw" / "objects").mkdir(parents=True)
+    CorpusLayout(partial).manifest.write_text(_json.dumps({"live": {"caps": {"probe_calls": 2}}}), encoding="utf-8")
+    budget = Budget(Caps(max_calls=2))
+    prior = _prior_budget(argparse.Namespace(corpus=str(tmp_path / "corpus")), budget)
+    assert (prior.calls, prior.probe_calls) == (2, 2) and budget.calls == 0  # a copy: the campaign charges its own
+    assert prior.probe_refusal() is not None
+    assert _prior_budget(argparse.Namespace(corpus=str(tmp_path / "none")), budget).calls == 0
+    assert _prior_budget(argparse.Namespace(corpus=None), None) is None
+
+
+def test_a_probe_must_fit_the_cost_cap() -> None:
+    budget = Budget(_caps(max_calls=1000, max_cost_usd=0.03))
+    assert budget.probe_refusal() is None  # one call at the bound: 32,000 x 0.15 + 4,096 x 0.60 per Mtok
+    budget.cost_usd = 0.03 - budget.call_bound_usd() / 2
+    assert (budget.probe_refusal() or "").startswith("cap_reached: --max-cost-usd 0.03")
