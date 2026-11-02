@@ -10,6 +10,8 @@
   passages of the guide, the CLI help and the code docstrings that fit the question, makes the request and reads the
   key from the keychain, so the GUI process opens no connection and never holds a key (S11, D-702). The reply is model
   output: it is shown escaped in a plain-text pane (S2), never followed or run. *New Chat* clears the session.
+  The Assistant is a tab beside a page of the window (D-1040); each request names that page, from :data:`ASSIST_PAGES`
+  only (D-1041), and the line under the message field says so. Nothing the page shows is sent.
 """
 
 from __future__ import annotations
@@ -55,6 +57,8 @@ SEND_TURN_CHARS: Final = 20_000
 SEND_BYTES: Final = 1024 * 1024
 #: the CLI waits up to 120 s for the model; this leaves it room to start and to answer
 CALL_TIMEOUT_S: Final = 200.0
+#: D-1041: the pages a request may name (``agentprov.cli.assist.PAGES``); any other page is not named
+ASSIST_PAGES: Final = ("Viewer", "Runs", "Logs", "System", "Licences", "Package", "Docs")
 _H1: Final = re.compile(r"^#\s+(.+?)\s*#*\s*$", re.MULTILINE)
 
 
@@ -79,16 +83,20 @@ def chapters(guide: Path) -> list[tuple[str, Path]]:
     return out
 
 
-def request_bytes(messages: list[dict[str, str]]) -> bytes:
+def request_bytes(messages: list[dict[str, str]], page: str | None = None) -> bytes:
     """The ``agentprov assist`` request for ``messages``, within the CLI's limits: each earlier reply cut at
     :data:`SEND_TURN_CHARS`, then the oldest turns dropped (so the first one sent is the user's) until at most
-    :data:`SEND_MESSAGES` are left and the document fits in :data:`SEND_BYTES`. The newest question is always sent."""
+    :data:`SEND_MESSAGES` are left and the document fits in :data:`SEND_BYTES`. The newest question is always sent.
+    ``page`` (D-1041) is named only when it is one of :data:`ASSIST_PAGES`; a CLI older than D-1041 ignores it."""
+    head: dict[str, Any] = {"format": REQUEST_FORMAT}
+    if page in ASSIST_PAGES:
+        head["page"] = page
     turns = [{"role": m["role"], "content": m["content"] if m["role"] == "user" or len(m["content"]) <= SEND_TURN_CHARS
               else m["content"][:SEND_TURN_CHARS]} for m in messages]
     while True:
         while len(turns) > 1 and turns[0]["role"] != "user":
             turns.pop(0)
-        data = json.dumps({"format": REQUEST_FORMAT, "messages": turns}).encode("utf-8")
+        data = json.dumps({**head, "messages": turns}).encode("utf-8")
         if len(turns) <= 1 or (len(turns) <= SEND_MESSAGES and len(data) <= SEND_BYTES):
             return data
         turns.pop(0)
@@ -276,6 +284,7 @@ class AssistantPage(QWidget):
         self.loaded = False
         self.busy = False
         self.generation = 0  # a reply that arrives after New Chat belongs to the old session and is dropped
+        self.page: str | None = None  # the page beside the Assistant tab (D-1041; set by the main window)
         lay = QVBoxLayout(self)
         top = QHBoxLayout()
         self.status = SafeLabel("Reading the Assistant settings…", name="Assistant status", parent=self)
@@ -391,15 +400,22 @@ class AssistantPage(QWidget):
             self.status.set_plain(f"Model: {T.line(self.model, 120)} on {self.where}")
         self.settings_btn.setVisible(not self.ready)
         local = self.local
+        page = (f" With each one goes the name of the page beside this tab ({self.page}), nothing it shows."
+                if self.page in ASSIST_PAGES else "")
         self.privacy.set_plain(
             "" if not self.ready else
             "Your messages and the documentation passages chosen for them go to the local server on this machine."
-            if local else
+            + page if local else
             f"Your messages and the documentation passages chosen for them are sent to {T.line(self.endpoint, 40)}; "
-            "the provider bills the tokens.")
+            "the provider bills the tokens." + page)
         self.send_btn.setEnabled(self.ready and not self.busy)
         self.input.setEnabled(self.ready)
         self.new_btn.setEnabled(bool(self.messages) or self.busy)
+
+    def set_page(self, page: str | None) -> None:
+        """The page beside the Assistant tab (D-1041): its name goes with the next message."""
+        self.page = page if page in ASSIST_PAGES else None
+        self._refresh_controls()
 
     # ------------------------------------------------------------------------------------------ the chat
     def _render(self, pending: bool = False) -> None:
@@ -425,7 +441,7 @@ class AssistantPage(QWidget):
         self.busy = True
         self._render(pending=True)
         self._refresh_controls()
-        request = request_bytes(self.messages)
+        request = request_bytes(self.messages, self.page)
         argv = ["assist", "--model-id", str(self.model), "--keychain", "--format", "json"]
         for option, value in (("--endpoint", self.endpoint), ("--server", self.server), ("--base-url", self.base_url)):
             if value is not None:

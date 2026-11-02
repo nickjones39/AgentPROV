@@ -60,10 +60,11 @@ emulation.
 ## The window
 
 The sidebar has four sections: **Corpora** (Viewer), **Jobs** (Runs, Logs, System), **Release** (Licences,
-Package) and **Help** (Docs, Assistant). The menus repeat every action: File (Open Corpus… ⌘O, Reload ⌘R, Run Live… ⌘L, New Job… ⌘N, Dev Run…,
+Package) and **Help** (Docs, Assistant). A page fills the window; the Assistant opens as a tab beside it (see *Help:
+Docs and Assistant* below). The menus repeat every action: File (Open Corpus… ⌘O, Reload ⌘R, Run Live… ⌘L, New Job… ⌘N, Dev Run…,
 Open in New Tab, Close Tab ⌘W, Close Other Tabs ⌥⌘W, Close Window ⇧⌘W), Edit (Settings… ⌘,), View (Toggle Sidebar
-⌃⌘S; Text Size: Bigger ⌥⌘=, Smaller ⌥⌘−, Default ⌥⌘0), Go (⌘1 to ⌘8 for the eight pages; Corpora, Next Tab ⌘⇧],
-Previous Tab ⌘⇧[), Window (macOS) and Help (About AgentPROV, AgentPROV Help ⌘?, Ask the Assistant, Keyboard Shortcuts). On macOS, Settings… and About
+⌃⌘S; Text Size: Bigger ⌥⌘=, Smaller ⌥⌘−, Default ⌥⌘0), Go (⌘1 to ⌘7 for the seven pages and ⌘8 for the Assistant; Corpora, Next Tab ⌘⇧],
+Previous Tab ⌘⇧[; outside the Viewer they switch between the page and the Assistant tab), Window (macOS) and Help (About AgentPROV, AgentPROV Help ⌘?, Ask the Assistant, Keyboard Shortcuts). On macOS, Settings… and About
 AgentPROV sit in the AgentPROV menu; on Windows and Linux, ⌘ is Ctrl. On macOS the native toolbar holds Toggle Sidebar,
 Open Corpus, Reload, New Job, Dev Run, the job count and a search field that filters the Viewer by execution id;
 elsewhere a Qt toolbar holds the same actions and the search field, and the job count is at the right of the status
@@ -571,8 +572,19 @@ which one you are reading (D-1030). A link to another chapter opens it at its he
 clipboard instead of opened: the app opens no web pages. When there is neither (the app run from source without a
 checkout), the page says where to set one; the guide is also online at <https://w3id.org/agentprov/docs/>.
 
-**Assistant** is a chat with a model you choose, to ask how to do something in AgentPROV. There is one conversation;
-*New Chat* clears it. Until a model is set up the page says so, with *Open Settings…* for **Settings › Assistant**:
+**Assistant** is a chat with a model you choose, to ask how to do something in AgentPROV. It opens as a tab of its own
+beside the page you were on (Help › Ask the Assistant, the sidebar's *Assistant* or ⌘8), so the chat and that page are
+one click apart: the first tab keeps the page (Runs, Package, the Viewer, …) and follows the sidebar; the *Assistant*
+tab holds the chat. Asking for the Assistant again brings its tab to the front; there is never a second one. Its ×, or
+⌘W while it is in front, closes the tab; the conversation is kept and is there again when you reopen it, until *New
+Chat* clears it or the app quits. A reply that arrives while the tab is closed or in the background is added too.
+Outside the Viewer, ⌘⇧] and ⌘⇧[ switch between the page and the Assistant (D-1040).
+
+![The Assistant tab in front, with the Runs page in the tab beside it](images/gui/assistant-tab.png)
+
+![The Runs page in front, with the Assistant tab still open](images/gui/assistant-tab-runs.png)
+
+Until a model is set up the tab says so, with *Open Settings…* for **Settings › Assistant**:
 
 - **Server** is a local model server (oMLX, MLX `mlx_lm.server`, LM Studio, Ollama, Splash, Strata, llama.cpp, vLLM,
   or Other for any OpenAI-compatible one) or *API provider*. A local server fills **Base URL** with its usual address
@@ -587,13 +599,20 @@ checkout), the page says where to set one; the guide is also online at <https://
 
 Each message runs `agentprov assist` (CLI equivalent: `agentprov assist --question "How do I verify a corpus?"`), so the
 app itself opens no connection and never holds the key. It is the checkout's CLI, or without a checkout the
-`agentprov` installed with `pip install agentprov` (see *Bundles* above); until there is one the page says what to set
+`agentprov` installed with `pip install agentprov` (see *Bundles* above); until there is one the tab says what to set
 in Settings › General. The command picks the passages of this guide, the `README`, the `--help` of every `agentprov`
 command and the code's module descriptions that best match the question, and sends them with the conversation (an
 installed CLI outside a checkout uses the copy of this guide in its package and the installed code's descriptions); the answer lists the files it drew on under *Sources*. `agentprov assist --question TEXT
 --show-context` prints that selection without calling a model. Nothing from a corpus is sent. For an API provider the
-messages and passages leave this machine and the provider bills the tokens; the page says so under the message field.
+messages and passages leave this machine and the provider bills the tokens; the tab says so under the message field.
 Answers are model output: check them against the guide before you rely on them.
+
+The Assistant knows which page is in the tab beside it. Each message carries that page's name (Viewer, Runs, Logs,
+System, Licences, Package or Docs), so a question such as "what does this page do?" or "why is the button here greyed
+out?" is about that page, and the passages about it rank a little higher. Only the name goes, never anything the page
+shows (no corpus, job or log text); the line under the message field names the page that goes with your next message.
+In a terminal, `--page Runs` does the same: `agentprov assist --question "What is a tier?" --page Runs`. An
+`agentprov` older than this ignores the page and answers as before (D-1041).
 
 ## About
 

@@ -351,6 +351,8 @@ FORMS: Final[Mapping[str, CommandForm]] = {
             F("allow_network", "Allow the request to an API provider (network)", "bool", "--allow-network", tier="R2"),
             F("context_chars", "Characters of documentation sent", "int", "--context-chars", advanced=True),
             F("show_context", "Print the passages only (no model is called)", "bool", "--show-context", advanced=True),
+            F("page", "The app page the question is about (D-1041)", "choice", "--page",
+              choices=("", "Viewer", "Runs", "Logs", "System", "Licences", "Package", "Docs"), advanced=True),
             F("format", "Format", "choice", "--format", choices=("text", "json"), default="text"),
         ), menu=False),
         CommandForm("models", ("models",), "Model lists (local servers and API providers)", "R0", (

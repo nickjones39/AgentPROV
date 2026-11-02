@@ -1,7 +1,8 @@
 """The main window (design §6; macos-design §3.1–3.4; D-442).
 
 A sidebar with sections (Corpora: Viewer; Jobs and Release arrive with G2; Help: Docs and Assistant, D-1010) | the
-active page. On macOS, About and
+active page. The Assistant opens as a tab of its own beside the page (D-1040), so the chat and the page it is about are
+one click apart; the tab bar shows only while the Assistant tab is open. On macOS, About and
 Settings… sit in the App menu (Qt's ``AboutRole``/``PreferencesRole`` move them there) and Settings opens with ⌘,;
 elsewhere they are in the Help and Edit menus. Every action has a menu item; the Go menu switches pages (⌘1 …).
 """
@@ -25,6 +26,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QStackedWidget,
     QStatusBar,
+    QTabBar,
+    QTabWidget,
     QWidget,
 )
 
@@ -34,7 +37,7 @@ from agentprov_gui.platform import ACTIVITY_TIP, SEARCH_TIP, TOOLBAR_TIPS
 from agentprov_gui.settings import Settings
 from agentprov_gui.ui import theme
 from agentprov_gui.ui.dialogs import AboutDialog, SettingsDialog
-from agentprov_gui.ui.safe import SafeLabel, set_control_tooltip, set_list_item_tooltip
+from agentprov_gui.ui.safe import SafeLabel, set_control_tooltip, set_list_item_tooltip, set_tab_tooltip
 from agentprov_gui.ui.viewer import ViewerPage
 
 __all__ = ["MainWindow"]
@@ -51,8 +54,10 @@ PAGE_TIPS = {
     "Licences": "The licence facts of every registered source, and the systematic search's exclusions (read-only).",
     "Package": "Seal a working corpus, verify it and build a deposit draft, in nine steps. Nothing is uploaded.",
     "Docs": "The user guide of the AgentPROV checkout set in Settings › General.",
-    "Assistant": "Ask a model how to do something in AgentPROV (agentprov assist).",
+    "Assistant": "Ask a model how to do something in AgentPROV (agentprov assist), in a tab beside the page.",
 }
+#: the sidebar row of the Assistant: it opens the Assistant tab, not a page of the stack (D-1040)
+_ASSISTANT_ROW = "assistant-tab"
 
 
 class MainWindow(QMainWindow):
@@ -75,10 +80,21 @@ class MainWindow(QMainWindow):
         self.sidebar.setAccessibleName("Navigation")
         self.sidebar.setMaximumWidth(232)
         self.sidebar.setMinimumWidth(160)
-        self.pages = QStackedWidget(central)
+        # D-1040: tab 0 holds the page chosen in the sidebar; the Assistant opens as a second, closable tab
+        self.tabs = QTabWidget(central)
+        self.tabs.setAccessibleName("Window tabs")
+        self.tabs.setDocumentMode(True)
+        self.tabs.setTabsClosable(True)
+        self.tabs.setTabBarAutoHide(True)  # one tab (no Assistant): the window looks as it did
+        self.pages = QStackedWidget(self.tabs)
         self.pages.setAccessibleName("Pages")
+        self.tabs.addTab(self.pages, "")
+        bar = self.tabs.tabBar()
+        for side in (QTabBar.ButtonPosition.LeftSide, QTabBar.ButtonPosition.RightSide):
+            bar.setTabButton(0, side, None)  # the page tab cannot be closed
+        self.tabs.tabCloseRequested.connect(self._tab_close_requested)
         lay.addWidget(self.sidebar)
-        lay.addWidget(self.pages, 1)
+        lay.addWidget(self.tabs, 1)
         self.setCentralWidget(central)
         self.setStatusBar(QStatusBar(self))
         self.statusBar().setAccessibleName("Status")
@@ -94,6 +110,7 @@ class MainWindow(QMainWindow):
             self._jobs_pages(home or agentprov_home())
         self._help_pages()
         self.sidebar.currentRowChanged.connect(self._nav)
+        self.tabs.currentChanged.connect(self._tab_changed)
         self.sidebar.setCurrentRow(1)
         self.action_map: dict[str, QAction] = {}
         self.chrome: Any = None
@@ -145,12 +162,16 @@ class MainWindow(QMainWindow):
 
         self.docs = DocsPage(self.settings.checkout, self)
         self.assistant = AssistantPage(CliLocator.for_checkout(self.settings.checkout), self)
+        self.assistant.hide()  # a tab once opened (D-1040); until then not a loose child over the page
         self.docs.status_message.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
         self.docs.settings_requested.connect(self.open_settings)
         self.assistant.settings_requested.connect(self.open_settings)
         self._add_section("Help")
         self._add_page("Docs", self.docs)
-        self._add_page("Assistant", self.assistant)
+        item = QListWidgetItem("Assistant")  # not a page of the stack: it opens the Assistant tab (D-1040)
+        item.setData(Qt.ItemDataRole.UserRole, _ASSISTANT_ROW)
+        set_list_item_tooltip(item, PAGE_TIPS["Assistant"])
+        self.sidebar.addItem(item)
 
     def _verified(self, corpus: Path) -> str | None:
         """The last successful ``verify`` job of the GUI on ``corpus`` (design §6.1 "verified status")."""
@@ -274,13 +295,66 @@ class MainWindow(QMainWindow):
     def _nav(self, row: int) -> None:
         item = self.sidebar.item(row)
         index = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
-        if isinstance(index, int):
+        if index == _ASSISTANT_ROW:
+            self.open_assistant()
+        elif isinstance(index, int):
             self.pages.setCurrentIndex(index)
+            self.tabs.setTabText(0, item.text())
+            self.assistant.set_page(item.text())  # D-1041: the page the Assistant's next message is about
+            set_tab_tooltip(self.tabs, 0, f"{item.text()}: the page chosen in the sidebar (not closable)")
+            self.tabs.setCurrentIndex(0)
 
     def go(self, title: str) -> None:
+        if title == "Assistant":
+            self.open_assistant()
+            return
         for i in range(self.sidebar.count()):
             if self.sidebar.item(i).text() == title:
                 self.sidebar.setCurrentRow(i)
+                self.tabs.setCurrentIndex(0)  # the row may be current already, with the Assistant tab in front
+                return
+
+    # ------------------------------------------------------------------------------------------ the Assistant tab
+    def open_assistant(self) -> None:
+        """Help › Assistant (D-1040): open the Assistant tab beside the page, or bring it to the front. The page tab
+        keeps its page; the conversation lives in :attr:`assistant`, so it survives switching and closing the tab."""
+        index = self.tabs.indexOf(self.assistant)
+        if index < 0:
+            index = self.tabs.addTab(self.assistant, "Assistant")
+            self.tabs.tabBar().setAccessibleTabName(index, "Assistant chat")
+            set_tab_tooltip(self.tabs, index, "The Assistant chat. Closing the tab keeps the conversation; New Chat "
+                                              "clears it.")
+        self.tabs.setCurrentIndex(index)
+        if self.assistant.input.isEnabled():
+            self.assistant.input.setFocus()
+
+    def close_assistant(self) -> bool:
+        """Close the Assistant tab (its × or ⌘W); the conversation is kept for the next time it opens. ``False`` when
+        it is not open."""
+        index = self.tabs.indexOf(self.assistant)
+        if index < 0:
+            return False
+        self.tabs.removeTab(index)
+        return True
+
+    def _assistant_current(self) -> bool:
+        return self.tabs.currentWidget() is self.assistant
+
+    def _tab_close_requested(self, index: int) -> None:
+        if self.tabs.widget(index) is self.assistant:
+            self.close_assistant()
+
+    def _tab_changed(self, _index: int) -> None:
+        """The sidebar marks what is in front: the Assistant's row, or the row of the page in the page tab."""
+        if self._assistant_current():
+            target: object = _ASSISTANT_ROW
+        else:
+            target = self.pages.currentIndex()
+        for i in range(self.sidebar.count()):
+            if self.sidebar.item(i).data(Qt.ItemDataRole.UserRole) == target:
+                self.sidebar.blockSignals(True)
+                self.sidebar.setCurrentRow(i)
+                self.sidebar.blockSignals(False)
                 return
 
     # ------------------------------------------------------------------------------------------ menus
@@ -352,20 +426,23 @@ class MainWindow(QMainWindow):
         help_menu = bar.addMenu("&Help")
         help_menu.addAction(self._action("About AgentPROV", self._about, None, QAction.MenuRole.AboutRole))
         help_menu.addAction(self._action("AgentPROV Help", partial(self.go, "Docs"), "Ctrl+?"))
-        help_menu.addAction(self._action("Ask the Assistant", partial(self.go, "Assistant")))
+        help_menu.addAction(self._action("Ask the Assistant", self.open_assistant))
         help_menu.addAction(self._action("Keyboard Shortcuts", self._shortcuts))
 
     # ------------------------------------------------------------------------------------------ Viewer tabs (D-845)
     def _viewer_current(self) -> bool:
-        return self.pages.currentWidget() is self.viewer
+        return not self._assistant_current() and self.pages.currentWidget() is self.viewer
 
     def _open_in_tab(self) -> None:
         if self._viewer_current():
             self.viewer.open_current_in_tab()
 
     def _close_tab(self) -> None:
-        """⌘W: the current execution tab; the window when the Viewer shows its Corpora tab or another page is shown."""
-        if not (self._viewer_current() and self.viewer.close_current_tab()):
+        """⌘W: the Assistant tab when it is in front (D-1040); else the current execution tab; the window when the
+        Viewer shows its Corpora tab or another page is shown."""
+        if self._assistant_current():
+            self.close_assistant()
+        elif not (self._viewer_current() and self.viewer.close_current_tab()):
             self.close()
 
     def _close_other_tabs(self) -> None:
@@ -377,8 +454,12 @@ class MainWindow(QMainWindow):
         self.viewer.show_corpora()
 
     def _step_tab(self, step: int) -> None:
+        """The Viewer's execution tabs while the Viewer is in front; else the window's tabs, the page and the Assistant
+        (D-1040)."""
         if self._viewer_current():
             self.viewer.step_tab(step)
+        elif self.tabs.count() > 1:
+            self.tabs.setCurrentIndex((self.tabs.currentIndex() + step) % self.tabs.count())
 
     # ------------------------------------------------------------------------------------------ chrome (D-440)
     def _toggle_sidebar(self) -> None:
@@ -526,8 +607,10 @@ class MainWindow(QMainWindow):
 SHORTCUTS = (
     "⌘O / Ctrl+O  Open corpus\n"
     "⌘R / F5      Reload the corpora list\n"
-    "⌘1           Viewer (⌘2 to ⌘8: Runs, Logs, System, Licences, Package, Docs, Assistant)\n"
-    "⌘?           AgentPROV Help (the Docs page); in the Assistant, ⌘↩ sends\n"
+    "⌘1           Viewer (⌘2 to ⌘7: Runs, Logs, System, Licences, Package, Docs)\n"
+    "⌘8           the Assistant, in a tab beside the page; ⌘W closes the tab (the chat is kept), ⌘⇧] ⌘⇧[ switch "
+    "between it and the page; in the Assistant, ⌘↩ sends\n"
+    "⌘?           AgentPROV Help (the Docs page)\n"
     "Viewer tabs: Return or double-click opens an execution in a new tab; ⌘W closes it (on Corpora: the window), "
     "⌥⌘W closes the other tabs, ⇧⌘W closes the window, ⌘⇧] ⌘⇧[ next and previous tab (Ctrl+PgDown, Ctrl+PgUp "
     "elsewhere), ⌃Tab ⌃⇧Tab the sub-tabs, middle-click closes a tab\n"

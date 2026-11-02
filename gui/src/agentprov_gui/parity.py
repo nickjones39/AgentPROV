@@ -85,7 +85,7 @@ PRESENTATIONAL: Final[dict[str, str]] = {
     **{page: "navigation: shows a page of the window" for page in
        ("Viewer", "Runs", "Logs", "System", "Licences", "Package", "Docs", "Assistant")},
     # Help (D-1010): reading the checkout's user guide is not a command; the Assistant's Send is (ACTIONS)
-    "AgentPROV Help": "navigation: shows the Docs page", "Ask the Assistant": "navigation: shows the Assistant page",
+    "AgentPROV Help": "navigation: shows the Docs page", "Ask the Assistant": "navigation: opens or shows the Assistant tab (D-1040)",
     "Back to the previous chapter": "navigation: the Docs page's previous chapter",
     "Open Settings to set the AgentPROV checkout": "opens the Settings dialog (each setting is mapped there)",
     "Open Settings to set up the Assistant": "opens the Settings dialog on its Assistant pane (assistant.* settings)",

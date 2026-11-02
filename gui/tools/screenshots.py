@@ -2,7 +2,8 @@
 
 Usage (macOS, for the native chrome; elsewhere the Qt chrome is captured)::
 
-    QT_QPA_PLATFORM=cocoa uv run --project gui python gui/tools/screenshots.py [--max-width N] [OUT_DIR [SCENE ...]]
+    QT_QPA_PLATFORM=cocoa uv run --project gui python gui/tools/screenshots.py [--max-width N] [--scheme dark] \
+        [OUT_DIR [SCENE ...]]
 
 Each picture is a **scene** (:data:`SCENES`, one function each); without SCENE arguments every scene is taken. The
 user guide's pictures live in ``docs/user-guide/images/gui/`` (taken with ``--max-width 1200``); the README keeps only
@@ -18,7 +19,8 @@ user guide's pictures live in ``docs/user-guide/images/gui/`` (taken with ``--ma
   (``corpora``) so no home path appears. ``AGENTPROV_HOME`` is a temporary directory too. The work folder holding
   them is removed when the run ends, also on a guard refusal or an error (:func:`work_folder`).
 * The New Job preview shows the program as ``agentprov`` (on the PATH), never a checkout path.
-* Light appearance; content stays hidden (no Show content switch is turned on).
+* Light appearance (``--scheme dark`` for the dark one, D-1040); content stays hidden (no Show content switch is
+  turned on).
 * **Leak guard:** before each image is saved, every visible string (labels, buttons, group box titles, line edits,
   text panes, status bar messages, table cells and headers, tree rows at every depth (capped), tab titles, window
   titles, graph labels, and with the native chrome the NSWindow title, subtitle, activity and search field) is scanned
@@ -78,6 +80,8 @@ TREE_CAP = 5000  # model cells read per item view
 #: ``--max-width N``: after the guard passed and the image was saved, scale it down to at most N pixels wide (smooth)
 #: and re-save it with the strongest PNG compression, to keep documentation images small. ``None`` keeps the capture.
 MAX_WIDTH: int | None = None
+#: ``--scheme dark``: the colour scheme of the run (D-1040); the user guide's pictures are light
+SCHEME = "light"
 
 
 def _model_strings(model: Any) -> list[str]:
@@ -714,6 +718,49 @@ def scene_model_identity(s: Shots) -> None:
     dialog.close()
 
 
+#: the Assistant scene's stub answer (no model is called): what the guide says about verifying a corpus
+_ASSIST_REPLY: Final = (
+    "Run agentprov verify --corpus <corpus> --level chain. It checks the corpus's sha256 chain from the raw files "
+    "through AER, SEM and PROV, and exits 0 when every link holds.\n\nIn the app, Package › Verify (chain, release) "
+    "runs the same command as a job; Runs shows it, and Logs its records.")
+
+
+def scene_assistant_tab(s: Shots) -> None:
+    """Help › Assistant as a tab beside the Runs page (D-1040): the chat in front (``assistant-tab.png``), then the
+    page tab in front with the Assistant tab still open (``assistant-tab-runs.png``). The CLI is a stub that answers
+    from :data:`_ASSIST_REPLY`; no model is called and nothing leaves the machine."""
+    import json
+
+    from agentprov_gui.ui.help import REPLY_FORMAT
+
+    _start_jobs(s)
+    w = s.window
+    w.go("Runs")
+    _tab(w.runs.tabs, "Jobs")
+    w.runs.select(s.jobs[-1].job_id)
+    values = {"assistant.server": "omlx", "assistant.base_url": "http://127.0.0.1:8000/v1",
+              "assistant.model": "example-model"}
+
+    def stub(argv: list[str], _stdin: bytes | None) -> tuple[int, bytes, bytes]:
+        if argv[0] == "settings":
+            return 0, json.dumps({"values": values}).encode(), b""
+        return 0, json.dumps({"format": REPLY_FORMAT, "reply": _ASSIST_REPLY, "sources": [
+            "docs/user-guide/04-derive-recompute-validate-verify.md", "docs/user-guide/08-desktop-app.md"]}).encode(), b""
+
+    w.assistant.cli = stub
+    w.assistant.reload()
+    w.open_assistant()
+    pump(s.app, 10, lambda: w.assistant.ready)
+    w.assistant.input.setPlainText("How do I check that a corpus is intact?")
+    w.assistant.send()
+    pump(s.app, 10, lambda: not w.assistant.busy)
+    pump(s.app, 1.0)
+    capture(w, s.out / "assistant-tab.png")
+    w.tabs.setCurrentIndex(0)
+    pump(s.app, 1.0)
+    capture(w, s.out / "assistant-tab-runs.png")
+
+
 def scene_about(s: Shots) -> None:
     """About AgentPROV."""
     from agentprov_gui.ui.dialogs import AboutDialog
@@ -746,6 +793,7 @@ SCENES: dict[str, Any] = {
     "run-live-estimate": scene_run_live_estimate,
     "run-live-models": scene_run_live_models,
     "model-identity": scene_model_identity,
+    "assistant-tab": scene_assistant_tab,
     "about": scene_about,
 }
 
@@ -767,12 +815,19 @@ def work_folder() -> Iterator[Path]:
 
 
 def main(argv: list[str]) -> int:
-    global MAX_WIDTH
+    global MAX_WIDTH, SCHEME
     args = list(argv[1:])
     if "--max-width" in args:
         at = args.index("--max-width")
         MAX_WIDTH = int(args[at + 1])
         del args[at:at + 2]
+    if "--scheme" in args:
+        at = args.index("--scheme")
+        SCHEME = args[at + 1]
+        del args[at:at + 2]
+        if SCHEME not in ("light", "dark"):
+            print("--scheme is light or dark", file=sys.stderr)
+            return 2
     names = args[1:] or list(SCENES)
     unknown = [n for n in names if n not in SCENES]
     if unknown:
@@ -810,7 +865,7 @@ def _run(work: Path, out: Path, names: list[str]) -> int:
     from agentprov_gui.ui import theme
     from agentprov_gui.ui.mainwindow import MainWindow
 
-    theme.apply_scheme("light")
+    theme.apply_scheme(SCHEME)
     settings = Settings(QSettings(str(work / "settings.ini"), QSettings.Format.IniFormat))
     settings.corpus_roots = [Path("corpora")]
     settings.checkout = work / "checkout"  # the symlink: panes and dialogs show a temporary path, never a home path

@@ -189,8 +189,8 @@ def test_the_main_window_has_a_help_section(qapp: Any, tmp_path: Path) -> None:
     assert rows[-3:] == ["HELP", "Docs", "Assistant"]
     w.go("Docs")
     assert w.pages.currentWidget() is w.docs
-    w.go("Assistant")
-    assert w.pages.currentWidget() is w.assistant
+    w.go("Assistant")  # D-1040: a tab beside the page, not a page of the stack
+    assert w.tabs.currentWidget() is w.assistant and w.pages.currentWidget() is w.docs
     w.close()
 
 

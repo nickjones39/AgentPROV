@@ -351,3 +351,74 @@ def test_a_base_url_with_a_bad_port_is_refused_not_a_crash(tmp_path: Path, url: 
     with pytest.raises(M.AssistantError) as caught:
         M.local_target(url)
     assert caught.value.exit_code == 2
+
+
+# ---------------------------------------------------------------------------------------------- the page (D-1041)
+def _paged(page: Any, *turns: tuple[str, str]) -> bytes:
+    return json.dumps({"format": A.REQUEST_FORMAT, "page": page,
+                       "messages": [{"role": r, "content": c} for r, c in turns]}).encode()
+
+
+def test_a_request_may_name_the_page_beside_the_chat() -> None:
+    from agentprov.cli.common import CliUsageError
+
+    assert A.request_page(_paged("Runs", ("user", "q"))) == "Runs"
+    assert A.request_page(_request(("user", "q"))) is None
+    assert A.request_page(_paged("Nowhere", ("user", "q"))) is None, "a page this CLI does not know is left out"
+    assert A.parse_request(_paged("Runs", ("user", "q"))) == [{"role": "user", "content": "q"}]
+    with pytest.raises(CliUsageError, match="page"):
+        A.parse_request(_paged(["Runs"], ("user", "q")))
+
+
+def test_the_system_prompt_says_which_page_and_only_a_known_one() -> None:
+    chosen = [A.Passage("docs/x.md", "X", "body")]
+    prompt = A.system_prompt(chosen, "Package")
+    assert "beside the Package page" in prompt and A.PAGES["Package"] in prompt
+    assert prompt.index("beside the Package page") < prompt.index("Reference passages")
+    assert A.system_prompt(chosen, "Nowhere") == A.system_prompt(chosen)
+    assert "The user is asking from" not in A.system_prompt(chosen)
+    assert "beside the Runs page" in A.system_prompt([], "Runs")
+
+
+def _stdin(monkeypatch: pytest.MonkeyPatch, data: bytes) -> None:
+    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO(data)))
+
+
+def test_the_page_reaches_the_model_and_the_passages(cli: Run, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    home = Path(os.environ["AGENTPROV_HOME"])
+    S.set("assistant.endpoint", "lmstudio", home=home)
+    S.set("assistant.model", "m", home=home)
+    seen: list[str] = []
+    asked: list[list[tuple[str, float]]] = []
+    real_select = A.select
+
+    def fake_select(passages: Any, queries: Any, budget: int) -> Any:
+        asked.append(list(queries))
+        return real_select(passages, queries, budget)
+
+    def fake_chat(_t: M.Target, _model: str, system: str, _messages: Any, _key: Any, **_: Any) -> M.Reply:
+        seen.append(system)
+        return M.Reply("ok", 1, 1, False)
+
+    monkeypatch.setattr(A, "select", fake_select)
+    monkeypatch.setattr(M, "chat", fake_chat)
+    _stdin(monkeypatch, _paged("Runs", ("user", "What is a tier?")))
+    r = cli("assist", "--format", "json", "--progress", "off")
+    assert r.code == 0, r.err
+    assert "beside the Runs page" in seen[-1] and ("Runs", A.PAGE_QUERY_WEIGHT) in asked[-1]
+    _stdin(monkeypatch, _paged("Runs", ("user", "What is a tier?")))
+    r = cli("assist", "--format", "json", "--page", "Logs", "--progress", "off")  # --page wins
+    assert r.code == 0 and "beside the Logs page" in seen[-1] and "Runs" not in [q for q, _w in asked[-1]]
+    _stdin(monkeypatch, _paged("Nowhere", ("user", "What is a tier?")))
+    r = cli("assist", "--json", "--progress", "off")  # the summary carries the notices
+    assert r.code == 0 and "The user is asking from" not in seen[-1] and "not one this agentprov knows" in r.out
+    assert len(asked[-1]) == 1
+
+
+def test_show_context_names_the_page(cli: Run, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(M, "chat", lambda *a, **k: pytest.fail("no model call"))
+    r = cli("assist", "--question", "how do I seal?", "--page", "Package", "--show-context", "--progress", "off")
+    assert r.code == 0 and r.out.startswith("page: Package")
+    assert cli("assist", "--question", "q", "--page", "Nowhere", "--show-context", "--progress", "off").code == 2

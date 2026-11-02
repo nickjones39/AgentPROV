@@ -4298,10 +4298,10 @@ usage: agentprov assist [-h] [--version] [-v] [-q] [--log-format {text,json}] [-
                         [--progress-interval SECONDS] [--progress-max-bytes N]
                         [--control-file PATH] [--show-content] [--content-chars N] [--json]
                         [--summary-json PATH] [--max-listed N] [--no-colour] [--break-stale-lock]
-                        [--question TEXT] [--endpoint NAME] [--model-id ID] [--base-url URL]
-                        [--server KIND] [--list-models] [--allow-network] [--keychain]
-                        [--env-file PATH] [--context-chars N] [--show-context]
-                        [--format {text,json}]
+                        [--question TEXT] [--page {Viewer,Runs,Logs,System,Licences,Package,Docs}]
+                        [--endpoint NAME] [--model-id ID] [--base-url URL] [--server KIND]
+                        [--list-models] [--allow-network] [--keychain] [--env-file PATH]
+                        [--context-chars N] [--show-context] [--format {text,json}]
 
 The desktop app's Help > Assistant (D-1010). The conversation is read from stdin as JSON
 (agentprov-assist-request/0.1) or given with --question; the most relevant passages of the user
@@ -4314,6 +4314,9 @@ server is reached on loopback only. --show-context calls no model.
 options:
   -h, --help            show this help message and exit
   --question TEXT       one question (instead of a conversation on stdin)
+  --page {Viewer,Runs,Logs,System,Licences,Package,Docs}
+                        the desktop app's page the question is about (D-1041; the app's request
+                        names it): the answer is told which page that is
   --endpoint NAME       an endpoint of endpoints.toml (default: the setting assistant.endpoint)
   --model-id ID         the model id (default: the setting assistant.model)
   --base-url URL        a local OpenAI-compatible server on loopback, for one that is not an

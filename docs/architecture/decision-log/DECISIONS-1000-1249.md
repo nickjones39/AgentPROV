@@ -416,3 +416,55 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
     ships it); falling back to the installed CLI when a configured checkout has none (the checkout the user named
     would be silently ignored); reading `README.md` from the wheel's metadata for `assist` (it is the long description,
     not a file the package can rely on).
+- **D-1040 (2026-11-02, Help › Assistant opens as a tab of the main window beside the current page; the user's request
+  of 2026-11-02; GUI, a screenshot tool option, tests and docs; class 0).** Since D-1010 the Assistant was a page of
+  the sidebar's stack, so opening it replaced the page the question was about (Runs, Package, the Viewer, …). The user
+  asked that it "open up an assistant window in a new tab so it can switch between the assistant chat and the screen
+  such as runs or whatever that you are needing assistance with".
+  - **Decision.** The page area of the main window is a `QTabWidget` ("Window tabs", document mode). Tab 0 holds the
+    stack of sidebar pages; its title is the page in front, and it cannot be closed. The Assistant is no longer a page
+    of the stack: Help › Ask the Assistant, the sidebar's *Assistant* row and Go › Assistant (⌘8) open it as a second,
+    closable tab, or bring that tab to the front when it is open, so there is never a second one. Choosing any other
+    page shows it in tab 0 and brings tab 0 to the front; the Assistant tab stays open. The sidebar marks what is in
+    front (the Assistant row, or the row of tab 0's page). The tab bar hides itself while only tab 0 is open, so the
+    window looks as before until the Assistant is asked for.
+  - **Closing.** The tab's × closes it, and so does ⌘W while it is in front (before D-1040, ⌘W on any page but the
+    Viewer closed the window; it still does when the Assistant is not in front). Closing hides the tab: the
+    `AssistantPage` and its conversation, its unsent draft and a reply still on its way are kept, and reopening shows
+    them. Only *New Chat* or quitting the app ends the conversation, as before.
+  - **Switching.** A click on either tab, or Go › Next Tab / Previous Tab (⌘⇧] / ⌘⇧[): in the Viewer these still step
+    its execution tabs (D-845); on any other page or in the Assistant they step the window's tabs.
+  - **Unchanged.** The Assistant's behaviour and its safety rules (D-1010, D-1030): every message is one
+    `agentprov assist` call with the conversation on stdin, the reply is shown escaped in a plain-text pane, the GUI
+    opens no connection and never holds a key. The tab does not tell the Assistant which page the user came from.
+  - **Screenshots.** `gui/tools/screenshots.py` gains the `assistant-tab` scene (a stub CLI answers; no model is called)
+    and `--scheme dark` for the dark appearance; the guide's picture is light.
+  - **Rejected:** a separate window or a dialog (it covers the page or gets lost behind it, which the request is about);
+    a dock beside the page (both visible at once, but a narrow chat and a narrower page, and not what was asked); a
+    new Assistant tab on each request (several conversations, where D-1010 has one); clearing the conversation when
+    the tab closes (⌘W would lose a chat that *New Chat* exists to clear on purpose); keeping the Assistant in the stack
+    as well (two places showing one widget).
+- **D-1041 (2026-11-02, the Assistant knows the page beside its tab; the user's yes of 2026-11-02 to the follow-up that
+  D-1040 left out; GUI, `agentprov assist`, tests and docs; class 0).** With the Assistant a tab beside a page
+  (D-1040), "this page" or "here" in a question had no meaning to the model.
+  - **Decision: what goes.** The page's name only, from a closed list: Viewer, Runs, Logs, System, Licences, Package,
+    Docs (`agentprov.cli.assist.PAGES`; the GUI's `ASSIST_PAGES`, tested equal). It is the page in the window's first
+    tab when the message is sent, which follows the sidebar. Nothing the page shows goes (no corpus, job, log or
+    selection), so S2 and "nothing from a corpus is sent" (D-1010) hold. The line under the message field says which
+    page goes with the next message.
+  - **Decision: how it goes.** An optional `"page"` member of `agentprov-assist-request/0.1`, beside `"format"` and
+    `"messages"`. It is additive: a CLI older than D-1041 reads only those two and ignores it, so a newer app with the
+    `agentprov` 0.1.1 from PyPI (D-1030) still works, without the page. In a terminal, `--page NAME` (argparse choices;
+    it wins over the request's member); the job form has it as an advanced choice (D-654 parity). A `page` that is not
+    a string is a usage error; a string this CLI does not know is left out with a notice, so a newer app's page cannot
+    break an older CLI's answer.
+  - **Decision: what it changes.** The system prompt gains one sentence after the instructions: the user asks from the
+    Assistant tab beside that page, what the page shows (a fixed description per page), and that "this page", "here"
+    and "this screen" mean it. The page's name is a third passage query at weight 0.3 (the latest question 1.0, the one
+    before it 0.5), so the guide's section on that page ranks a little higher without crowding out the question.
+    `--show-context` prints `page: NAME` first. The reply format is unchanged.
+  - **Rejected:** writing the page into the user's message text (it changes what the user wrote, and the transcript
+    would show it); a new request format version (nothing removed or changed meaning; a version bump would break the
+    PyPI 0.1.1 CLI); sending what the page shows, such as the selected job or the corpus open (corpus and log text are
+    untrusted and are never sent, D-1010); probing `assist --help` for `--page` before each message (an extra CLI start
+    for what the additive member gives for free).

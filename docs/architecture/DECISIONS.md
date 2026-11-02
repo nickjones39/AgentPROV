@@ -391,5 +391,5 @@ The entries are kept in parts of 250 numbers each, generated from `docs/architec
 | [DECISIONS-0250-0499.md](decision-log/DECISIONS-0250-0499.md) | D-250–D-499 | 171 |
 | [DECISIONS-0500-0749.md](decision-log/DECISIONS-0500-0749.md) | D-500–D-749 | 117 |
 | [DECISIONS-0750-0999.md](decision-log/DECISIONS-0750-0999.md) | D-750–D-999 | 76 |
-| [DECISIONS-1000-1249.md](decision-log/DECISIONS-1000-1249.md) | D-1000–D-1249 | 10 |
+| [DECISIONS-1000-1249.md](decision-log/DECISIONS-1000-1249.md) | D-1000–D-1249 | 12 |
 <!-- END generated parts -->
