@@ -377,6 +377,11 @@ ul, ol { margin: 0; padding: 0; }
 .tab:focus-visible { outline-color: var(--band-accent); }
 .tour { display: grid; }
 .panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: clamp(1.5rem, 3vw, 3rem); align-items: start; }
+/* the CLI terminal sits right under the screenshot, as wide as it; the notes run down beside both, and the last row
+   takes any height the notes need beyond them, so the terminal never drops below a long list of points */
+.panel { grid-template-rows: auto auto 1fr; row-gap: 18px; }
+.panel > .notes { grid-column: 2; grid-row: 1 / -1; }
+.panel > .terminal { grid-column: 1; grid-row: 2; box-shadow: 0 0 0 1px var(--band-line); }
 .js .panel[hidden] { display: none; }
 .panel + .panel { margin-top: 4rem; }
 .js .panel + .panel { margin-top: 0; }
@@ -425,8 +430,6 @@ ul, ol { margin: 0; padding: 0; }
 .point:hover { background: var(--band-raised); }
 .point[aria-pressed="true"] { background: var(--band-raised); border-color: var(--band-line); }
 .point[aria-pressed="true"] .n { background: #b4530a; }
-.cli { display: grid; gap: 6px; font-size: 0.85rem; color: var(--band-ink-2); }
-.cli code { display: block; padding: 10px 12px; border-radius: 10px; background: rgba(5, 6, 20, 0.45); color: var(--band-ink); border: 1px solid var(--band-line); overflow-x: auto; white-space: nowrap; font-size: 0.82rem; }
 .tour-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 26px; }
 .stepper { display: flex; align-items: center; gap: 10px; color: var(--band-ink-2); font: 500 var(--step--1) / 1 var(--font-mono); }
 .stepper button {
@@ -438,6 +441,8 @@ ul, ol { margin: 0; padding: 0; }
 .tour-note { font-size: 0.82rem; color: var(--band-ink-2); max-width: 60ch; }
 @media (max-width: 980px) {
   .panel { grid-template-columns: minmax(0, 1fr); }
+  .panel { grid-template-rows: none; }
+  .panel > .notes, .panel > .terminal { grid-column: auto; grid-row: auto; }
   .spot { width: 22px; height: 22px; font-size: 11px; }
 }
 /* phones: the tabs wrap instead of running off the edge, the markers cover less of the small screenshot, and the
