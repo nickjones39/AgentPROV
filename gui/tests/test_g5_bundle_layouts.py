@@ -324,19 +324,40 @@ def test_the_regenerated_notices_never_make_the_tree_dirty(tmp_path: Path) -> No
 
 
 def test_a_busy_dmg_volume_is_detached_on_a_later_attempt(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """GitHub's macOS Intel runner failed the build at `hdiutil detach` twice in a row (the volume still busy)."""
+    """GitHub's macOS Intel runner failed the build at `hdiutil detach` (the volume still busy): detach is retried,
+    the last attempts forced on the device node; a volume that never detaches is a False, not an exception."""
     calls: list[list[str]] = []
     answers = [1, 1, 0]
 
     def sh(argv: list[str], **_k: object) -> subprocess.CompletedProcess[str]:
         calls.append(argv)
-        return subprocess.CompletedProcess(argv, answers.pop(0) if answers else 1, "", "")
+        return subprocess.CompletedProcess(argv, answers.pop(0) if answers else 1, "", "busy")
 
     monkeypatch.setattr(bb, "_sh", sh)
     monkeypatch.setattr(bb.time, "sleep", lambda _s: None)
-    bb._detach(tmp_path)
+    assert bb._detach(tmp_path, "/dev/disk9") is True
     assert len(calls) == 3 and all(c[:2] == ["hdiutil", "detach"] for c in calls) and "-force" not in calls[-1]
     calls.clear()
-    with pytest.raises(SystemExit):
-        bb._detach(tmp_path, attempts=3)
-    assert "-force" in calls[-1] and "-force" not in calls[0]
+    assert bb._detach(tmp_path, "/dev/disk9", attempts=3) is False
+    assert calls[-1][-2:] == ["-force", "/dev/disk9"] and calls[0][-1] == str(tmp_path)
+    plist = b"<?xml version='1.0'?><plist version='1.0'><dict><key>system-entities</key><array><dict><key>dev-entry</key>"
+    plist += b"<string>/dev/disk9s1</string></dict><dict><key>dev-entry</key><string>/dev/disk9</string></dict></array>"
+    plist += b"</dict></plist>"
+    assert bb._attached_device(plist.decode()) == "/dev/disk9" and bb._attached_device("") is None
+
+
+def test_a_dmg_whose_volume_never_detaches_is_made_from_the_folder(monkeypatch: pytest.MonkeyPatch,
+                                                                   tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def sh(argv: list[str], **_k: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 1 if argv[:2] == ["hdiutil", "detach"] else 0, "", "busy")
+
+    monkeypatch.setattr(bb, "_sh", sh)
+    monkeypatch.setattr(bb.time, "sleep", lambda _s: None)
+    app = _bundle(tmp_path, "darwin")
+    bb.make_dmg(app, tmp_path / "AgentPROV.dmg")
+    final = calls[-1]
+    assert final[:2] == ["hdiutil", "create"] and "UDZO" in final and final[-1] == str(tmp_path / "AgentPROV.dmg")
+    assert not any(c[:2] == ["hdiutil", "convert"] for c in calls)

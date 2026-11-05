@@ -254,13 +254,18 @@ def glibc_required(app: Path) -> tuple[int, int] | None:
 
 def make_dmg(app: Path, target: Path, icons: Path = ICONS) -> Path:
     """A compressed disk image: the app, a link to /Applications to drag it onto, and the app icon as the volume's
-    icon (``.VolumeIcon.icns`` plus the custom-icon Finder flag on the volume root, set while it is mounted)."""
+    icon (``.VolumeIcon.icns`` plus the custom-icon Finder flag on the volume root, set while it is mounted).
+
+    On GitHub's macOS Intel runners the mounted volume could stay busy past every detach attempt; the image is then
+    made straight from the staged folder without a mount: the same contents, and only the Finder volume icon flag
+    unset (a warning on stderr says so)."""
 
     def run(argv: list[str]) -> None:
-        if _sh(argv).returncode != 0:
-            raise SystemExit(f"build_bundle: {' '.join(argv[:2])} failed")
+        done = _sh(argv)
+        if done.returncode != 0:
+            raise SystemExit(f"build_bundle: {' '.join(argv[:2])} failed: {(done.stderr or '').strip()[-300:]}")
 
-    with tempfile.TemporaryDirectory(prefix="agentprov-dmg-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="agentprov-dmg-", ignore_cleanup_errors=True) as tmp:
         stage, mount, rw = Path(tmp) / "AgentPROV", Path(tmp) / "mnt", Path(tmp) / "rw.dmg"
         stage.mkdir()
         mount.mkdir()
@@ -269,24 +274,49 @@ def make_dmg(app: Path, target: Path, icons: Path = ICONS) -> Path:
         shutil.copyfile(icons / "AgentPROV.icns", stage / ".VolumeIcon.icns")
         run(["hdiutil", "create", "-quiet", "-ov", "-volname", "AgentPROV", "-fs", "HFS+", "-format", "UDRW",
              "-srcfolder", str(stage), str(rw)])
-        run(["hdiutil", "attach", "-quiet", "-nobrowse", "-noautoopen", "-mountpoint", str(mount), str(rw)])
+        attached = _sh(["hdiutil", "attach", "-plist", "-nobrowse", "-noautoopen", "-mountpoint", str(mount), str(rw)])
+        if attached.returncode != 0:
+            raise SystemExit(f"build_bundle: hdiutil attach failed: {(attached.stderr or '').strip()[-300:]}")
+        device = _attached_device(attached.stdout)
         try:
             run(["xattr", "-wx", "com.apple.FinderInfo", _CUSTOM_ICON, str(mount)])
         finally:
-            _detach(mount)
-        run(["hdiutil", "convert", "-quiet", "-ov", "-format", "UDZO", "-o", str(target), str(rw)])
+            detached = _detach(mount, device)
+        if detached:
+            run(["hdiutil", "convert", "-quiet", "-ov", "-format", "UDZO", "-o", str(target), str(rw)])
+        else:
+            print("build_bundle: warning: the dmg volume stayed busy; the image is made from the folder without its "
+                  "custom volume icon flag", file=sys.stderr)
+            run(["hdiutil", "create", "-quiet", "-ov", "-volname", "AgentPROV", "-fs", "HFS+", "-format", "UDZO",
+                 "-srcfolder", str(stage), str(target)])
     return target
 
 
-def _detach(mount: Path, attempts: int = 6, pause: float = 2.0) -> None:
-    """Unmount the image: on GitHub's macOS runners the volume is often still busy for a moment (Spotlight or
-    fseventsd), so ``hdiutil detach`` is retried with a growing pause, the last attempt with ``-force``."""
+def _attached_device(plist_text: str) -> str | None:
+    """The whole-disk device (``/dev/diskN``) of an ``hdiutil attach -plist`` answer, else ``None``."""
+    try:
+        entities = plistlib.loads(plist_text.encode()).get("system-entities", [])
+    except Exception:
+        return None
+    devices = sorted(str(e["dev-entry"]) for e in entities if isinstance(e, dict) and "dev-entry" in e)
+    return devices[0] if devices else None
+
+
+def _detach(mount: Path, device: str | None = None, attempts: int = 6, pause: float = 2.0) -> bool:
+    """Unmount the image: the volume is often still busy for a moment (Spotlight or fseventsd), so ``hdiutil detach``
+    is retried with a growing pause, the last attempts with ``-force`` and on the device node. Whether it detached;
+    the last refusal's message goes to stderr."""
+    last = ""
     for attempt in range(attempts):
-        force = ["-force"] if attempt == attempts - 1 else []
-        if _sh(["hdiutil", "detach", "-quiet", *force, str(mount)]).returncode == 0:
-            return
+        late = attempt >= attempts - 2
+        target = device if late and device else str(mount)
+        done = _sh(["hdiutil", "detach", "-quiet", *(["-force"] if late else []), target])
+        if done.returncode == 0:
+            return True
+        last = (done.stderr or "").strip()[-300:]
         time.sleep(pause * (attempt + 1))
-    raise SystemExit("build_bundle: hdiutil detach failed")
+    print(f"build_bundle: hdiutil detach failed after {attempts} attempts: {last}", file=sys.stderr)
+    return False
 
 
 def interpreter_arch() -> str:
