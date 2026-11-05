@@ -38,10 +38,15 @@ suite-perf proposals (D-400..D-409):
   a file it lacks by its test count). Unset, nothing is deselected. The run takes both variables out of the
   environment (xdist workers get the shard from the controller), so a pytest that a test starts collects its own
   tests whole.
+* **Short parameter ids.** A ``str`` / ``bytes`` parameter whose escaped form exceeds :data:`PARAM_ID_CHARS` gets an
+  abbreviated id (its start, its length, a digest): pytest puts the node id into ``PYTEST_CURRENT_TEST`` and Windows
+  refuses an environment variable over 32,767 characters (``tests/unit/testing/test_node_ids.py`` keeps every node id
+  under 1,000).
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import sys
@@ -66,6 +71,35 @@ hypothesis_settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE") or "gate")
 def pytest_assertrepr_compare(config: pytest.Config, op: str, left: object, right: object) -> list[str] | None:
     """Route every ``str`` / ``bytes`` operand of a failed comparison through the golden helpers' escaping (R-42)."""
     return golden.assertrepr_compare(op, left, right)
+
+
+# ------------------------------------------------------------------------------------------------ short parameter ids
+#: The longest escaped ``str`` / ``bytes`` parameter value pytest may use as (part of) a test id; a longer one is
+#: abbreviated by :func:`short_param_id`.
+PARAM_ID_CHARS = 256
+
+
+def short_param_id(val: object) -> str | None:
+    """A short id for a long ``str`` / ``bytes`` parameter, else None (pytest's own id).
+
+    pytest puts the node id into ``PYTEST_CURRENT_TEST`` for every phase of every test, and Windows refuses an
+    environment variable over 32,767 characters (``ValueError`` at setup and teardown), so a parameter of a megabyte
+    cannot be its own id. The abbreviation keeps the escaped start of the value, its length and a digest of it, so two
+    long values never share an id and the id is the same in every process (xdist workers compare collections)."""
+    if isinstance(val, str):
+        escaped, unit, data = val.encode("unicode_escape").decode("ascii"), "chars", val.encode("utf-8", "surrogatepass")
+    elif isinstance(val, bytes):
+        escaped, unit, data = repr(val)[2:-1], "bytes", val
+    else:
+        return None
+    if len(escaped) <= PARAM_ID_CHARS:
+        return None
+    return f"{escaped[:32]}...<{len(val)} {unit} sha256:{hashlib.sha256(data).hexdigest()[:12]}>"
+
+
+def pytest_make_parametrize_id(config: pytest.Config, val: object, argname: str) -> str | None:
+    """Abbreviate a long parameter value's id (:func:`short_param_id`); every other id is pytest's own."""
+    return short_param_id(val)
 
 
 @pytest.fixture(scope="session")

@@ -150,3 +150,17 @@ def simulate_host(monkeypatch: pytest.MonkeyPatch) -> Callable[[str, str], None]
         monkeypatch.setattr(sysconfig, "get_platform", lambda: plat)
 
     return simulate
+
+
+#: D-1064: on Windows `agentprov run` is refused (exit 4, platform.unsupported) before its own argument checks, stdin, a
+#: key or the host probe, so the tests of those checks hold only where live runs work. The tests of the refusal itself
+#: (their names say "windows": they simulate each Windows architecture) still run there.
+_RUN_ON_WINDOWS = pytest.mark.skip(reason="agentprov run is refused on Windows before its own checks (D-1064)")
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    if sys.platform != "win32":
+        return
+    for item in items:
+        if item.path.name == "test_run_cmd.py" and "windows" not in item.name:
+            item.add_marker(_RUN_ON_WINDOWS)

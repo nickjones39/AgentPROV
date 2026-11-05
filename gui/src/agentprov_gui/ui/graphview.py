@@ -484,6 +484,9 @@ class GraphTab(QWidget):
         set_control_tooltip(self.cb_collapse, "Full layout: fold the assessment's mentions onto the elements they "
                                               "mention instead of drawing them as nodes of their own")
         self.cb_collapse.setMinimumWidth(self.cb_collapse.sizeHint().width())  # never squeezed into a cut label
+        # the layout places it by its whole rect: macOS's layout rect leaves out 11 px of a check box's label side, so
+        # as the last control of a full line its label ran past the tab's edge and was cut there
+        self.cb_collapse.setAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
         place(self.cb_collapse)
         if isinstance(bar, QHBoxLayout):
             bar.addStretch(1)

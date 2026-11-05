@@ -286,5 +286,5 @@ def test_the_cli_switch_and_the_release_audit(cli, sealed: Path, tmp_path: Path)
     assert "stored 3" in cold.err and "hits 3" in warm.err
     release_off = cli("validate", "--corpus", str(sealed), "--release", "--report", "-", "--no-validation-cache")
     audit = cli("validate", "--corpus", str(sealed), "--release", "--report", "-")
-    assert audit.out == release_off.out and audit.code == release_off.code
-    assert "(audit)" in audit.err and "audited 3" in audit.err and "hits" not in audit.err
+    assert audit.out == release_off.out and audit.code == release_off.code, (audit.err, release_off.err)
+    assert "(audit)" in audit.err and "audited 3" in audit.err and "hits" not in audit.err, (audit.code, audit.err)

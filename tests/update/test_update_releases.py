@@ -206,6 +206,7 @@ def test_the_cache_round_trips_and_a_damaged_cache_is_no_check(home: Path) -> No
     assert R.read_cache(home) is None
 
 
+@pytest.mark.skipif(not hasattr(__import__('time'), 'tzset'), reason="time.tzset is POSIX only (Windows)")
 def test_once_a_day_in_local_time(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TZ", "Pacific/Auckland")
     __import__("time").tzset()

@@ -192,6 +192,7 @@ def test_run_keychain_without_the_key_names_the_variable(keychain_run: list[dict
     assert run.code == 3 and "DEEPSEEK_API_KEY is not in the keychain" in run.err and not keychain_run
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="agentprov run is refused on Windows before its own checks (D-1064)")
 @pytest.mark.parametrize("extra", [("--env-stdin",), ("--env-file", "/x.env")])
 def test_run_keychain_is_exclusive(stub: Path, cli: Callable[..., Run], extra: tuple[str, ...]) -> None:
     run = cli(*RUN, *extra, stdin=b"{}")

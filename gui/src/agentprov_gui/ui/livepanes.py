@@ -331,11 +331,12 @@ class PricesPane(QWidget):
         self.table.setHorizontalHeaderLabels(list(self.COLUMNS))
         self.table.setAccessibleName("Price overrides")
         self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setColumnWidth(0, 190)
         header = self.table.horizontalHeader()
-        for c in range(1, len(self.COLUMNS) - 1):  # wide enough for its header ("Cached input" was cut at 82 px)
+        for c in range(1, len(self.COLUMNS)):  # wide enough for its header ("Cached input" was cut at 82 px)
             self.table.setColumnWidth(c, max(82, header.sectionSizeFromContents(c).width() + 8))
+        # the model takes the width the price columns leave (190 px for it pushed As of past the table's edge once the
+        # price columns were sized to their headers)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.setMinimumHeight(200)
         set_setting_tooltip(self.table, "Your per-model prices in USD per million tokens, each with the date it is "
                             "from. An override wins over the shipped and refreshed prices.")

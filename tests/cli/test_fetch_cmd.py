@@ -317,6 +317,7 @@ def test_the_retry_hint_names_the_corpus_path_as_given_and_quoted(cli, tmp_path,
     up = local_upstream(tmp_path, monkeypatch)
     corpus = corpus_with(tmp_path / "with space", [reference_for(up, "runs/a/one.json", digest="0" * 64)])
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # the home directory on Windows (expanduser ignores HOME there)
     run = cli("fetch", "--corpus", str(corpus), "--allow-network", "--cache-dir", str(cache))
     assert run.code == 1
     hint = next(line for line in run.err.splitlines() if "to retry:" in line)

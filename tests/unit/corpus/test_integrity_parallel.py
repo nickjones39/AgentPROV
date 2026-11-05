@@ -75,7 +75,9 @@ def _corpus(root: Path) -> Path:
 
 
 def _labels(root: Path, prefix: str) -> list[str]:
-    return sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and str(p.relative_to(root)).startswith(prefix))
+    """The ``/``-joined labels of the files below ``prefix`` (``as_posix``: on Windows ``str`` joins with ``\\``)."""
+    return sorted(p.relative_to(root).as_posix() for p in root.rglob("*")
+                  if p.is_file() and p.relative_to(root).as_posix().startswith(prefix))
 
 
 class _PerLabel(TreeSource):
@@ -148,8 +150,9 @@ def _directory_for_file(root: Path, tmp: Path) -> None:
 
 
 def _unreadable_file(root: Path, tmp: Path) -> None:
-    if os.geteuid() == 0:
-        pytest.skip("root reads a mode-000 file")
+    if os.name != "posix" or os.geteuid() == 0:
+        pytest.skip("a mode-000 file is unreadable only on POSIX (Windows' chmod sets the read-only attribute alone), "
+                    "and root reads it")
     os.chmod(root / _labels(root, "raw/objects/")[5], 0)
 
 

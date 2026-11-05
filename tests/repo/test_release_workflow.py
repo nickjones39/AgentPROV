@@ -11,6 +11,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -138,8 +139,9 @@ def test_assemble_writes_the_release_files_and_their_sums(tmp_path: Path) -> Non
     from agentprov.update.verify import parse_sums
 
     assert set(parse_sums(sums.read_bytes())) == set(names)
-    done = subprocess.run(["shasum", "-a", "256", "-c", "SHA256SUMS"], cwd=out, capture_output=True, text=True)
-    assert done.returncode == 0 or "not found" in done.stderr  # shasum is optional on a test machine
+    if sys.platform != "win32" and shutil.which("shasum") is not None:  # optional; on Windows only Git's Perl script
+        done = subprocess.run(["shasum", "-a", "256", "-c", "SHA256SUMS"], cwd=out, capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
 
 
 @pytest.mark.parametrize(("change", "why"), [

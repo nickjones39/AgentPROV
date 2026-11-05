@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from collections import Counter, defaultdict
 
 KEYS = {
@@ -35,7 +36,7 @@ def main() -> int:
             for name, keys in KEYS.items():
                 if any(h.get(k) for k in keys):
                     per[m][name] += 1
-        out[path.rsplit("/", 1)[-1]] = {m: dict(c) for m, c in sorted(per.items())}
+        out[Path(path).name] = {m: dict(c) for m, c in sorted(per.items())}  # a file name on every OS
     print(json.dumps(out, indent=1, sort_keys=True))
     return 0
 

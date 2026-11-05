@@ -6,10 +6,12 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 import import_support as support
+import pytest
 from fetch_support import _ENV, REPO_URL, Upstream, git, needs_git
 
 from agentprov.adapters.runner.importer import LocalTree, import_source
@@ -118,6 +120,8 @@ def _ingest_rows(report: Any) -> list[tuple[str, str, str]]:
 
 
 @needs_git
+@pytest.mark.skipif(sys.platform == "win32", reason="Git for Windows (core.protectNTFS) does not keep a control-character "
+                    "path in the pinned tree, so the pin never offers the name")
 def test_a_fetched_name_with_a_control_character_is_one_candidate_s_ingest_name_invalid(tmp_path):
     """Before, the name reached Origin.git and raw.origin.invalid aborted the whole import with nothing stored."""
     bad = "runs/scripted-fake/banking/user_task_7/none/none\x1b[31m.json"

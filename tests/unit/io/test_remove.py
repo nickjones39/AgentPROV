@@ -113,9 +113,13 @@ def test_a_refused_unlink_of_a_writable_file_is_not_retried(tmp_path: Path, monk
         raise PermissionError(32, "The process cannot access the file", os.fsdecode(path))
 
     monkeypatch.setattr(os, "unlink", refuse)
+    # a sharing violation refuses Windows' read-only-ignoring delete too (the handle is opened for DELETE); a real one
+    # would delete the file here, so it is refused as the violation refuses it (on POSIX it already refuses)
+    monkeypatch.setattr(remove, "_delete_ignoring_read_only", lambda name: False)
+    before = path.stat().st_mode
     with pytest.raises(PermissionError):
         remove.unlink(path)
-    assert path.stat().st_mode & 0o777 == 0o640
+    assert path.stat().st_mode == before  # 0o640 on POSIX; Windows reports only the read-only attribute (0o666)
 
 
 @pytest.mark.parametrize("ignore_errors", [False, True])
@@ -125,6 +129,7 @@ def test_rmtree_keeps_the_refusal_of_a_symlink_and_never_touches_its_target(tmp_
     target.mkdir()
     (target / "f").write_bytes(b"x")
     os.chmod(target, 0o755)
+    before = target.stat().st_mode  # 0o755 on POSIX; a Windows directory always reads back as 0o777
     link = tmp_path / "link"
     try:
         link.symlink_to(target, target_is_directory=True)
@@ -136,7 +141,7 @@ def test_rmtree_keeps_the_refusal_of_a_symlink_and_never_touches_its_target(tmp_
         with pytest.raises(OSError):
             remove.rmtree(link)
     assert link.is_symlink() and (target / "f").exists()
-    assert target.stat().st_mode & 0o777 == 0o755
+    assert target.stat().st_mode == before
 
 
 @pytest.mark.skipif(os.name != "posix" or os.geteuid() == 0, reason="a mode-000 directory is POSIX, and root reads it")

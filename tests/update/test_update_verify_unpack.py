@@ -27,6 +27,9 @@ from agentprov.update.releases import UpdateError  # noqa: E402
 
 SSH_KEYGEN = shutil.which("ssh-keygen")
 needs_ssh_keygen = pytest.mark.skipif(SSH_KEYGEN is None, reason="OpenSSH ssh-keygen is not installed")
+#: A Linux or macOS bundle's modes (the executable bit, a cleared setuid bit) exist only on a POSIX file system: Windows
+#: reports 0o666/0o444 by the read-only attribute and executability by extension, and installs only its own zip bundle.
+posix_modes = pytest.mark.skipif(os.name != "posix", reason="POSIX file modes; Windows installs its zip bundle")
 
 
 # ---------------------------------------------------------------------------------------------- SHA256SUMS
@@ -147,6 +150,7 @@ def test_a_real_signature_verifies_and_a_wrong_one_is_refused(tmp_path: Path) ->
 # ---------------------------------------------------------------------------------------------- the extractor
 
 
+@posix_modes
 def test_a_linux_bundle_unpacks_with_its_executable_bit_and_relative_link(tmp_path: Path) -> None:
     archive = us.linux_tar(tmp_path / "AgentPROV-linux-x86_64.tar.gz")
     assert U.check_archive(archive, "linux-x86_64") == 5
@@ -196,6 +200,7 @@ def test_a_member_below_a_link_is_refused(tmp_path: Path) -> None:
         U.check_archive(us.linux_tar(tmp_path / "AgentPROV-linux-x86_64.tar.gz", extra=extra), "linux-x86_64")
 
 
+@posix_modes
 def test_setuid_bits_are_never_kept(tmp_path: Path) -> None:
     extra = [us.tar_entry("AgentPROV/suid", data=b"x", mode=0o4755)]
     top = U.unpack(us.linux_tar(tmp_path / "AgentPROV-linux-x86_64.tar.gz", extra=extra), tmp_path / "out",

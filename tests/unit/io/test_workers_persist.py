@@ -20,8 +20,14 @@ from agentprov.io.workers import FULL_PRELOAD, Job, Preload, WorkerPool, preload
 
 
 def process_group_alive(pgid: int | None) -> bool:
-    if pgid is None or not hasattr(os, "killpg"):
+    """Whether the worker's process group (POSIX: the worker leads its own session) is alive; on a host without process
+    groups (Windows, where a Job Object holds the tree) whether the worker process itself is."""
+    if pgid is None:
         return False
+    if not hasattr(os, "killpg"):
+        from agentprov.io.atomic import pid_alive
+
+        return pid_alive(pgid)  # undecided counts as alive, so a "stopped" assertion never passes on a guess
     try:
         os.killpg(pgid, 0)
     except ProcessLookupError:

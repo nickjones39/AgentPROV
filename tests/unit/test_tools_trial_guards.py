@@ -54,8 +54,9 @@ def test_guard_refuses_relative_symlinked_and_agentprov_home_paths(rel, tmp_path
     for corpora in (home / ".agentprov" / "corpora", custom / "corpora"):
         corpora.mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # what expanduser reads on Windows (it ignores HOME there)
     monkeypatch.setenv("AGENTPROV_HOME", str(custom))
-    (tmp_path / "link").symlink_to(custom / "corpora")
+    (tmp_path / "link").symlink_to(custom / "corpora", target_is_directory=True)  # a directory link on Windows
     monkeypatch.chdir(custom)
     for refused in (Path("corpora/trial"), tmp_path / "link" / "trial", custom / "corpora" / "x",
                     home / ".agentprov" / "corpora" / "y", Path("~/.agentprov/corpora/z")):

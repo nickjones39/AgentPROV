@@ -23,7 +23,8 @@ FILES = {
 
 
 def _digest(root: Path, dirs: list[str], exclude: tuple[str, ...] = ()) -> str:
-    """The importer's ``code_sha256`` over a working tree (an independent copy of the construction)."""
+    """The importer's ``code_sha256`` over a working tree (an independent copy of the construction, CRLF normalised as
+    ``stage_definitions.code_sha256`` normalises it: on Windows ``write_text`` writes ``\\r\\n``)."""
     pkg = root / PKG
     entries = []
     for d in dirs:
@@ -31,7 +32,7 @@ def _digest(root: Path, dirs: list[str], exclude: tuple[str, ...] = ()) -> str:
         for path in [base] if base.is_file() else sorted(p for p in base.rglob("*") if p.is_file()):
             rel = path.relative_to(pkg).as_posix()
             if path.suffix in (".py", ".toml", ".json", ".ttl") and not rel.startswith(exclude):
-                entries.append([rel, hashlib.sha256(path.read_bytes()).hexdigest()])
+                entries.append([rel, hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()])
     return "sha256:" + hashlib.sha256(json.dumps(sorted(entries), separators=(",", ":")).encode()).hexdigest()
 
 

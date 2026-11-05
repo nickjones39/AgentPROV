@@ -120,7 +120,6 @@ def test_a_first_signal_while_main_closes_the_sink_or_the_watcher_still_writes_t
     """AU-CLIA-8: the teardown joins can block; a first SIGINT landing there ends the run as 130 with the summary written
     and the progress file closed with its end line, instead of escaping main()."""
     import json
-    import os
 
     from agentprov.cli import control, feedback
 
@@ -131,7 +130,9 @@ def test_a_first_signal_while_main_closes_the_sink_or_the_watcher_still_writes_t
     def close(self, *args, **kwargs):
         if not fired:
             fired.append(1)
-            os.kill(os.getpid(), signal.SIGINT)  # the user's Ctrl-C / the job manager's SIGTERM arrives now
+            # the user's Ctrl-C / the job manager's SIGTERM arrives now; raise_signal, not os.kill: on Windows
+            # os.kill(pid, SIGINT) is TerminateProcess, which ended the pytest worker (0.2.0 Windows CI, shard 2)
+            signal.raise_signal(signal.SIGINT)
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(cls, name, close)

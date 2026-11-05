@@ -66,7 +66,10 @@ def write_fixture(root: Path, path: str, data: bytes) -> None:
         if current.is_symlink():
             raise SystemExit("refused: a symlink inside the fixture directory")
         current.mkdir(exist_ok=True)
-    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+    if target.is_symlink():  # the leaf too, where the host has no O_NOFOLLOW (Windows)
+        raise SystemExit("refused: a symlink inside the fixture directory")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+    fd = os.open(target, flags, 0o644)
     with os.fdopen(fd, "wb") as handle:
         handle.write(data)
 

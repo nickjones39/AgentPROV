@@ -9,6 +9,7 @@ import pytest
 
 from agentprov.host import GIB
 
+
 BASE = ("run", "agentdojo")
 RUN_CONTEXT = ("--corpus", "C", "--campaign", "k", "--suite", "workspace", "--llm-script")
 

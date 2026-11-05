@@ -189,6 +189,27 @@ def test_the_estimate_and_prices_cards_are_what_ok_runs(qapp: Any, monkeypatch: 
         w.deleteLater()
 
 
+def test_the_price_overrides_columns_fit_the_table_with_their_headers(qapp: Any,
+                                                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each price column (As of included) is as wide as its header, and the model column takes what they leave, so at
+    the Settings pane's width no header runs past the table's edge (As of did once the others were widened)."""
+    from agentprov_gui.ui import livepanes
+
+    monkeypatch.setattr(livepanes, "call", lambda *_a, **_k: (1, b"", b""))
+    monkeypatch.setattr(livepanes, "submit", lambda _o, fn, done, _f=None: done(fn(None)))
+    pane = livepanes.PricesPane(None)
+    pane.resize(700, 700)
+    pane.show()
+    qapp.processEvents()
+    header = pane.table.horizontalHeader()
+    widths = [header.sectionSize(c) for c in range(header.count())]
+    assert sum(widths) <= pane.table.viewport().width()
+    for c in range(1, header.count()):
+        assert widths[c] >= header.sectionSizeFromContents(c).width(), pane.COLUMNS[c]
+    assert widths[0] >= 120
+    pane.deleteLater()
+
+
 def test_the_keys_card_is_the_keychain_argv_and_never_holds_a_value(qapp: Any,
                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess

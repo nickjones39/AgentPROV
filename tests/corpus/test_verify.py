@@ -298,6 +298,8 @@ def test_p3_the_chain_report_is_the_per_label_walks(sealed, tmp_path, monkeypatc
     gives the report the per-label walk gave, byte for byte (findings, their order, counters, notices)."""
     import shutil
 
+    from agentprov.io import remove
+
     if damage == "raw_bytes":
         obj = _raw_object(sealed)
         obj.chmod(0o644)  # raw objects are stored read-only
@@ -310,7 +312,7 @@ def test_p3_the_chain_report_is_the_per_label_walks(sealed, tmp_path, monkeypatc
     elif damage == "raw_shard_link":
         shard = _raw_object(sealed).parent
         shutil.copytree(shard, tmp_path / "outside-shard")
-        shutil.rmtree(shard)
+        remove.rmtree(shard)  # its objects are read-only: Windows refuses shutil.rmtree there (WinError 5)
         shard.symlink_to(tmp_path / "outside-shard", target_is_directory=True)
     elif damage == "datasheet":
         (sealed / "DATASHEET.md").write_bytes(b"edited\n")

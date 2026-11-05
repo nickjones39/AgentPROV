@@ -301,3 +301,22 @@ def test_the_inspector_graph_tools_keep_search_in_view_and_overflow_the_rest(qap
     qapp.processEvents()
     assert bar.overflowed() == [] and bar.more.isHidden()
     tab.close()
+
+
+def test_a_viewer_tabs_graph_tools_line_keeps_collapse_mentions_inside_the_tab(qapp: Any) -> None:
+    """Beside the PROV-JSON pane (two rows) the graph tools' first line ends with Collapse mentions; the layout places
+    it by its whole rect, so at the tab's minimum width its label still ends inside the tab (macOS's layout rect left
+    11 px of it outside, where the splitter cut it)."""
+    from PySide6.QtCore import QPoint, Qt
+
+    from agentprov_gui.ui.graphview import GraphTab
+
+    tab = GraphTab(None, two_rows=True)
+    tab.resize(tab.minimumSizeHint().width(), 500)
+    tab.show()
+    qapp.processEvents()
+    cb = tab.cb_collapse
+    assert cb.testAttribute(Qt.WidgetAttribute.WA_LayoutUsesWidgetRect)
+    assert cb.mapTo(tab, QPoint(cb.width(), 0)).x() <= tab.width()
+    assert cb.width() >= cb.sizeHint().width()
+    tab.close()
