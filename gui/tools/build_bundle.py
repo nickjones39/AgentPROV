@@ -371,6 +371,10 @@ def smoke(app: Path) -> dict[str, object]:
     return {"gui": gui.returncode, "gui_stderr_tail": gui.stderr[-500:], "preview_helper": preview.returncode}
 
 
+#: The generated notices (repository-relative), regenerated per platform before a bundle build (bundles.yml)
+NOTICES_PATH = "gui/THIRD_PARTY_NOTICES.md"
+
+
 def build_source(archive: Path | None = None, repo: Path = GUI.parent) -> dict[str, object]:
     """The commit the bundle is built from: a ``git archive``'s pax comment (``--source-archive``), else the checkout's
     ``HEAD`` and whether its tree is clean, else unknown (``None``, never guessed)."""
@@ -382,7 +386,10 @@ def build_source(archive: Path | None = None, repo: Path = GUI.parent) -> dict[s
     head = _sh(["git", "-C", str(repo), "rev-parse", "--verify", "HEAD^{commit}"])
     if head.returncode != 0:
         return {"commit": None, "basis": "no git checkout", "tree_clean": None}
-    status = _sh(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=no"])
+    # bundles.yml regenerates THIRD_PARTY_NOTICES.md for the platform's own packages just before the build (each bundle
+    # lists what it ships; the committed copy is one platform's), so that one generated file never makes the tree dirty
+    status = _sh(["git", "-C", str(repo), "status", "--porcelain", "--untracked-files=no", "--", ".",
+                  f":(exclude){NOTICES_PATH}"])
     return {"commit": head.stdout.strip(), "basis": "checkout HEAD",
             "tree_clean": status.returncode == 0 and not status.stdout.strip()}
 

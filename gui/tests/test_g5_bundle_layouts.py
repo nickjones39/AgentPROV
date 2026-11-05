@@ -297,3 +297,27 @@ def test_the_package_is_named_for_the_interpreter_not_the_host(plat: str, arch: 
     os_name = "win32" if plat.startswith("win") else "linux"
     packed = bb.package(_bundle(tmp_path, os_name), tmp_path, os_name)
     assert packed.name.endswith(f"-{arch}.zip" if os_name == "win32" else f"-{arch}.tar.gz")
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="needs git")
+def test_the_regenerated_notices_never_make_the_tree_dirty(tmp_path: Path) -> None:
+    """bundles.yml regenerates gui/THIRD_PARTY_NOTICES.md for the platform it builds on, so a Linux or Windows bundle
+    saw its tree as dirty and release.yml refused it; any other tracked change still makes the tree dirty."""
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@example.invalid"}
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True, env=env)
+
+    git("init", "-q")
+    (tmp_path / "gui").mkdir()
+    notices, other = tmp_path / bb.NOTICES_PATH, tmp_path / "gui" / "pyproject.toml"
+    notices.write_text("macOS packages\n")
+    other.write_text("[project]\n")
+    git("add", ".")
+    git("commit", "-q", "-m", "c")
+    assert bb.build_source(repo=tmp_path)["tree_clean"] is True
+    notices.write_text("Linux packages\n")
+    assert bb.build_source(repo=tmp_path)["tree_clean"] is True
+    other.write_text("[project]\nname = 'x'\n")
+    assert bb.build_source(repo=tmp_path)["tree_clean"] is False
