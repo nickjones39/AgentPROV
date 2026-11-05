@@ -7,6 +7,8 @@ validated execution leaves one entry, and a later ``validate --corpus`` is serve
 
 from __future__ import annotations
 
+import sys
+
 import hashlib
 import json
 from pathlib import Path
@@ -21,6 +23,8 @@ from agentprov.corpus.reader import CorpusReader
 from agentprov.corpus.validation import validate_corpus
 from agentprov.corpus.writer import CorpusWriter
 from agentprov.validate.cache import DiskCache
+
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the tier-4 round-trip cache is not used on Windows in 0.2.0")
 
 SPEC = "agentprov-prov/0.1"
 

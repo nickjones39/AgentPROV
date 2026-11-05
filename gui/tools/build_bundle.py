@@ -67,6 +67,7 @@ import sys
 import sysconfig
 import tarfile
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 
@@ -272,9 +273,20 @@ def make_dmg(app: Path, target: Path, icons: Path = ICONS) -> Path:
         try:
             run(["xattr", "-wx", "com.apple.FinderInfo", _CUSTOM_ICON, str(mount)])
         finally:
-            run(["hdiutil", "detach", "-quiet", str(mount)])
+            _detach(mount)
         run(["hdiutil", "convert", "-quiet", "-ov", "-format", "UDZO", "-o", str(target), str(rw)])
     return target
+
+
+def _detach(mount: Path, attempts: int = 6, pause: float = 2.0) -> None:
+    """Unmount the image: on GitHub's macOS runners the volume is often still busy for a moment (Spotlight or
+    fseventsd), so ``hdiutil detach`` is retried with a growing pause, the last attempt with ``-force``."""
+    for attempt in range(attempts):
+        force = ["-force"] if attempt == attempts - 1 else []
+        if _sh(["hdiutil", "detach", "-quiet", *force, str(mount)]).returncode == 0:
+            return
+        time.sleep(pause * (attempt + 1))
+    raise SystemExit("build_bundle: hdiutil detach failed")
 
 
 def interpreter_arch() -> str:

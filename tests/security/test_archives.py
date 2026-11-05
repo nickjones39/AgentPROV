@@ -523,3 +523,14 @@ def test_sec07_interpreter_guard_refuses_before_the_object_is_opened_in_release_
         open_zip(Unreadable(), release=True)
     with pytest.raises(InterpreterUnpatchedError):
         open_archive(Unreadable(make_zip([("a", b"1")])), release=True)
+
+
+def test_sec07_an_end_record_claiming_more_entries_than_the_directory_holds_is_refused():
+    """Fuzz F-2 (2026-11-05): a reordered split zip ended in a record claiming 3 entries with a central directory size
+    of 0, which zipfile read as an empty archive; the reader imported it as "no members" instead of refusing it."""
+    data = make_zip([(f"m{i}", b"x") for i in range(3)])
+    eocd_at = eocd_offset(data)
+    short = bytearray(data)
+    struct.pack_into("<L", short, eocd_at + 12, 0)  # central directory size 0: zipfile reads no entry
+    assert archive_code(bytes(short)) == "ingest.archive.format"
+    assert len(decisions(data)) == 3  # the intact archive still reads

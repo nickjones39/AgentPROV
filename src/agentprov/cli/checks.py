@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
@@ -405,6 +406,13 @@ def validation_cache(ctx: Context, *, audit: bool = False, notices: list[str] | 
     is the ``compute.validation_cache_gib`` setting when set (D-894). The cap is advisory: a settings file that cannot be
     read leaves it at the cache's default, with a notice in ``notices``, and never stops the command (AU-CLIA-1)."""
     if getattr(ctx.args, "no_validation_cache", False):
+        return None
+    if sys.platform == "win32":
+        # 0.2.0: on Windows a worker's cache context could differ from the parent's, so entries were rejected or not
+        # stored at random (outcomes unaffected); the cache is a speed-up only, so Windows runs without it until 0.2.1
+        if notices is not None:
+            notices.append("the tier-4 round-trip cache is not used on Windows in this version (results are the same; "
+                           "validation takes longer)")
         return None
     from agentprov import settings
     from agentprov.validate.cache import DiskCache, default_root

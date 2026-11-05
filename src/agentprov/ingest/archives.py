@@ -417,6 +417,13 @@ def _open_zip(
                 f"{len(infos)} entries exceed the limit",
                 limit=limits.max_members,
             )
+        if len(infos) < precheck.entries:
+            # the end record claims more central-directory entries than zipfile found within the claimed directory size:
+            # a damaged or reordered archive (a directory size of 0, say) read as "no members" (fuzz F-2, 2026-11-05),
+            # so it is refused instead of imported as empty or short. A count below the real one stays tolerated: every
+            # real entry is read and capped (SEC-07)
+            raise _format(f"the end record claims {precheck.entries} entries but the central directory holds "
+                          f"{len(infos)}")
         findings: list[IngestFinding] = []
         if infos and min(i.header_offset for i in infos) != 0:
             raise IngestError("ingest.archive.prefix", "data before the first local header (polyglot or self-extractor)")

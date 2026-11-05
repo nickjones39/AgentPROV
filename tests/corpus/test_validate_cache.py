@@ -29,6 +29,8 @@ from agentprov.validate import roundtrip
 from agentprov.validate.cache import DiskCache, JobFidelity
 from agentprov.validate.tiers import CheckOutcome, Finding
 
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the tier-4 round-trip cache is not used on Windows in 0.2.0")
+
 SPEC = "agentprov-prov/0.1"
 
 

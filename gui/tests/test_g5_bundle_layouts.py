@@ -321,3 +321,22 @@ def test_the_regenerated_notices_never_make_the_tree_dirty(tmp_path: Path) -> No
     assert bb.build_source(repo=tmp_path)["tree_clean"] is True
     other.write_text("[project]\nname = 'x'\n")
     assert bb.build_source(repo=tmp_path)["tree_clean"] is False
+
+
+def test_a_busy_dmg_volume_is_detached_on_a_later_attempt(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """GitHub's macOS Intel runner failed the build at `hdiutil detach` twice in a row (the volume still busy)."""
+    calls: list[list[str]] = []
+    answers = [1, 1, 0]
+
+    def sh(argv: list[str], **_k: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, answers.pop(0) if answers else 1, "", "")
+
+    monkeypatch.setattr(bb, "_sh", sh)
+    monkeypatch.setattr(bb.time, "sleep", lambda _s: None)
+    bb._detach(tmp_path)
+    assert len(calls) == 3 and all(c[:2] == ["hdiutil", "detach"] for c in calls) and "-force" not in calls[-1]
+    calls.clear()
+    with pytest.raises(SystemExit):
+        bb._detach(tmp_path, attempts=3)
+    assert "-force" in calls[-1] and "-force" not in calls[0]
