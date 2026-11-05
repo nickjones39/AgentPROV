@@ -288,3 +288,37 @@ def test_the_cli_switch_and_the_release_audit(cli, sealed: Path, tmp_path: Path)
     audit = cli("validate", "--corpus", str(sealed), "--release", "--report", "-")
     assert audit.out == release_off.out and audit.code == release_off.code, (audit.err, release_off.err)
     assert "(audit)" in audit.err and "audited 3" in audit.err and "hits" not in audit.err, (audit.code, audit.err)
+
+
+def test_a_sharing_violation_is_retried_before_it_counts_as_an_error(monkeypatch: pytest.MonkeyPatch,
+                                                                     tmp_path: Path) -> None:
+    """Windows CI: a scanner holding a new entry open made os.replace (store) or open (read) raise a transient
+    PermissionError, so a run stored or audited fewer entries than it should (a lost speed-up, never a wrong outcome).
+    Both are retried briefly; a lasting refusal still counts as an error."""
+    import agentprov.validate.cache as cache_mod
+
+    monkeypatch.setattr(cache_mod, "_SHARING_RETRIES", 3)
+    monkeypatch.setattr(cache_mod, "_SHARING_PAUSE_S", 0.0)
+    real = os.replace
+    refusals = [PermissionError(13, "sharing violation")] * 2
+
+    def flaky(src: Any, dst: Any) -> None:
+        if refusals:
+            raise refusals.pop()
+        real(src, dst)
+
+    monkeypatch.setattr(cache_mod.os, "replace", flaky)
+    assert cache_mod._retry_sharing(lambda: "ok") == "ok"
+    calls: list[int] = []
+
+    def refuse() -> None:
+        calls.append(1)
+        raise PermissionError(13, "held open")
+
+    with pytest.raises(PermissionError):
+        cache_mod._retry_sharing(refuse)
+    assert len(calls) == 4  # the first attempt and three retries
+    tmp = tmp_path / "x.tmp"
+    tmp.write_bytes(b"1")
+    cache_mod._retry_sharing(lambda: cache_mod.os.replace(tmp, tmp_path / "x"))
+    assert (tmp_path / "x").read_bytes() == b"1" and not refusals

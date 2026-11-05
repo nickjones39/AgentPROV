@@ -49,7 +49,7 @@ import platform
 import secrets
 import sys
 import time
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
@@ -278,6 +278,29 @@ class CacheStats:
             setattr(self, k, getattr(self, k) + v)
 
 
+#: Windows refuses to open or replace a file another process holds open (a virus scanner, the indexer, a second reader
+#: of the same entry) with a transient PermissionError (a sharing violation); such a store or read is retried briefly
+#: before it counts as an error. Elsewhere one attempt is made.
+_SHARING_RETRIES: Final = 10 if sys.platform == "win32" else 0
+_SHARING_PAUSE_S: Final = 0.05
+
+
+def _retry_sharing[T](op: Callable[[], T]) -> T:
+    for attempt in range(_SHARING_RETRIES + 1):
+        try:
+            return op()
+        except PermissionError:
+            if attempt == _SHARING_RETRIES:
+                raise
+            time.sleep(_SHARING_PAUSE_S * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
+def _read_bytes(path: Path) -> bytes:
+    with open(path, "rb") as fh:
+        return fh.read(MAX_ENTRY_BYTES + 1)
+
+
 class DiskCache:
     """The parent's cache over a directory (module docstring). ``audit=True`` never serves an entry: every document is
     round-tripped, an existing entry is compared with the fresh outcome (a mismatch is counted and the entry replaced).
@@ -300,8 +323,7 @@ class DiskCache:
     def _read(self, doc_sha256: str) -> list[CheckOutcome] | None:
         path = self.path_for(doc_sha256)
         try:
-            with open(path, "rb") as fh:
-                data = fh.read(MAX_ENTRY_BYTES + 1)
+            data = _retry_sharing(lambda: _read_bytes(path))
         except FileNotFoundError:
             return None
         except OSError:
@@ -394,7 +416,7 @@ class DiskCache:
             path.parent.mkdir(parents=True, exist_ok=True)
             with open(tmp, "xb") as fh:
                 fh.write(data)
-            os.replace(tmp, path)
+            _retry_sharing(lambda: os.replace(tmp, path))
         except OSError:
             self.stats.errors += 1
             with contextlib.suppress(OSError):
