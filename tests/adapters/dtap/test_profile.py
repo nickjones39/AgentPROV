@@ -44,7 +44,7 @@ def test_registry_entry_is_supported_lazy_and_apache_without_restriction():
     reg = get_source("dtap")
     (part,) = reg.capabilities
     assert part.part == "head" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == "dtap-bench" and part.semantics == ("dtap.tools@3",) and part.corpus_id == "dtap-bench"
+    assert part.profile == "dtap-bench" and part.semantics == ("dtap.tools@4",) and part.corpus_id == "dtap-bench"
     assert reg.licence.spdx == "Apache-2.0" and reg.licence.restrictions == () and reg.licence.policy == "include"
     assert resolve_factory(READERS["dtap.trajectory"]).__name__ == "DtapTrajectoryReader"
     assert resolve_factory(MAPPERS["dtap.trajectory"]).__name__ == "DtapMapper"
@@ -58,7 +58,7 @@ def test_rate_exclusions_parse_and_name_declared_codes():
     from agentprov.aer.rules import load_catalogue
     from agentprov.aer.types import CORE_ISSUE_CODES
 
-    cat = load_catalogue("dtap", 3)
+    cat = load_catalogue("dtap", 4)
     ids = set()
     for entry in doc["exclusion"]:
         assert set(entry) == {"id", "profiles", "issue_codes", "judgement_origins", "rates", "basis"}

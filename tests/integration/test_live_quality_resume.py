@@ -58,3 +58,49 @@ def test_the_quality_report_covers_every_ledgered_session_across_invocations(hom
     third = _live(tmp_path)
     assert third["quality"] == second["quality"]
     capsys.readouterr()
+
+
+def test_the_quality_report_reads_each_session_once_and_equals_a_full_rebuild(home, tmp_path, capsys, monkeypatch):
+    """AU-RN-9: report() runs on every write of the documents; it reads each ledgered session's log and blobs once per
+    invocation and returns exactly what a rebuild from every stored log returns (so live.quality's bytes are unchanged).
+    Checked at every write of a three-session campaign and of its resume."""
+    from agentprov.cli.live import campaign as cm
+    from agentprov.cli.live.quality import quality_report
+    from agentprov.io.canonical import jcs_bytes
+    from agentprov.raw.store import RawObjectStore
+
+    reads = {"n": 0}
+    real_read = RawObjectStore.read_bytes
+
+    def counted(self, sha256):
+        reads["n"] += 1
+        return real_read(self, sha256)
+
+    monkeypatch.setattr(RawObjectStore, "read_bytes", counted)
+    real_report = cm.Campaign.report
+    checked: list[int] = []
+
+    def report(self):
+        first = real_report(self)
+        reads["n"] = 0
+        again = real_report(self)  # nothing new was ledgered in between: no stored object is read
+        assert reads["n"] == 0
+        per_cell: dict[str, int] = {}
+        for e in self.ledger.entries:
+            per_cell[f"{e['cell_key']}#{e['repeat']}"] = per_cell.get(f"{e['cell_key']}#{e['repeat']}", 0) + 1
+        rebuilt = quality_report([self._stored_quality(e)[0] for e in self.ledger.entries
+                                  if e.get("status") != "quarantined"], per_cell)  # the rule before AU-RN-9
+        assert jcs_bytes(first) == jcs_bytes(again) == jcs_bytes(rebuilt)
+        checked.append(len(self.ledger.entries))
+        return first
+
+    monkeypatch.setattr(cm.Campaign, "report", report)
+    make_fake_env(home, "ok")
+    script = tmp_path / "script.json"
+    script.write_text("[]")
+    assert _run(tmp_path, script, "3") in (0, 1)
+    assert _sessions_in_report(_live(tmp_path)) == 3 and max(checked) == 3
+    checked.clear()
+    assert _run(tmp_path, script, "4") in (0, 1)  # its first report reads the three earlier sessions and the new one
+    assert _sessions_in_report(_live(tmp_path)) == 4 and checked and set(checked) == {4}
+    capsys.readouterr()

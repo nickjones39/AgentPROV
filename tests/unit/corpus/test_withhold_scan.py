@@ -570,6 +570,60 @@ def test_an_entry_the_local_read_cannot_decode_keeps_the_archive_unscanned(flags
     assert _entry(plan, _sha(archive)).basis == "unscanned"  # D-454: withheld unread, never released
 
 
+class _LocalCtx:
+    """A minimal job context for ``job_zip_local``: one input, frames collected in order."""
+
+    def __init__(self, data: bytes, **limits: int) -> None:
+        import dataclasses
+        import io
+
+        from agentprov.ingest.limits import IngestLimits
+
+        self.params = {"limits": dataclasses.asdict(dataclasses.replace(IngestLimits(), **limits))}
+        self._data, self._io = data, io
+        self.frames: list[tuple[str, object]] = []
+
+    def open_input(self, n: int):
+        assert n == 0
+        return self._io.BytesIO(self._data)
+
+    def emit(self, obj: object) -> None:
+        self.frames.append(("emit", obj))
+
+    def member(self, header: object) -> None:
+        self.frames.append(("member", header))
+
+    def data(self, chunk: bytes) -> None:
+        self.frames.append(("data", len(chunk)))
+
+
+def _stored_sizes(archive: bytes, csize: int, usize: int) -> bytes:
+    data = bytearray(archive)
+    data[18:22], data[22:26] = csize.to_bytes(4, "little"), usize.to_bytes(4, "little")
+    return bytes(data)
+
+
+def test_a_stored_entry_whose_header_sizes_differ_is_not_read_past_the_member_bound():
+    """UC-44: a stored entry was read up to its compressed size while only its uncompressed size was checked against
+    ``max_member_bytes``; a forged header (usize 1, csize 50,000) gave a 50,000-byte member under a 1,000-byte bound.
+    A stored entry's two sizes are equal, so a mismatch is a format defect: not read, the archive stays unscanned."""
+    from agentprov.corpus.zip_local import job_zip_local
+
+    body = b"z" * 50_000
+    archive = _cut(fs.zip_bytes([("big.txt", body)], method=0))
+    forged = _stored_sizes(archive, 50_000, 1)
+    ctx = _LocalCtx(forged, max_member_bytes=1000)
+    counters = job_zip_local(ctx)  # type: ignore[arg-type]
+    assert counters["read"] == 0 and counters["not_read"] == 1
+    assert ctx.frames == [("emit", {"row": {"index": 0, "label": "big.txt", "code": "ingest.archive.format"}})]
+    _objects, scan = _scan((forged, "zip"))
+    assert scan.unscanned == {_sha(forged): "ingest.archive.format"} and scan.hits == {}
+    honest = _LocalCtx(archive, max_member_bytes=1000)  # equal sizes over the bound: refused by the bound, as before
+    with pytest.raises(Exception, match="member bound") as err:
+        job_zip_local(honest)  # type: ignore[arg-type]
+    assert getattr(err.value, "code", None) == "ingest.archive.size"
+
+
 def test_another_method_keeps_the_archive_unscanned():
     data = bytearray(_cut(fs.zip_bytes([("a.json", CLEAN)])))
     data[8:10] = (12).to_bytes(2, "little")  # bzip2 method

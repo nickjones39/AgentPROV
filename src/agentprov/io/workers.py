@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import dataclasses
 import errno
+import functools
 import hashlib
 import io
 import json
@@ -84,6 +85,7 @@ __all__ = [
     "RSS_CAP_FLOOR",
     "PROTOCOL",
     "AuditBlockedError",
+    "FULL_PRELOAD",
     "InProcessRefusedError",
     "IsolationDegradedWarning",
     "IsolationInsufficientError",
@@ -91,6 +93,7 @@ __all__ = [
     "JobContext",
     "JobResult",
     "MemberOutput",
+    "Preload",
     "WorkerCrashError",
     "WorkerError",
     "WorkerInputError",
@@ -103,9 +106,12 @@ __all__ = [
     "build_worker_env",
     "get_calibration",
     "install_audit_hook",
+    "preload_for",
     "resolve_worker_count",
     "result_fingerprint",
+    "set_worker_preload",
     "strict_loads",
+    "worker_preload",
 ]
 
 _LOG = logging.getLogger("agentprov.io.workers")
@@ -392,6 +398,79 @@ class Job:
                 raise ValueError("each input needs a lowercase hex 'sha256' and a string 'role'")
             normalised.append({"sha256": sha, "role": role})
         object.__setattr__(self, "inputs", tuple(normalised))
+
+
+# --------------------------------------------------------------------------------------------------------------
+# What a worker loads before its audit hook (G.4.4; D-1068 P2)
+# --------------------------------------------------------------------------------------------------------------
+
+#: A semantics profile reference a worker may be told to load (``<id>@<version>``, the grammar of the shipped profile
+#: directories, ``adapters/<family>/semantics/<id>-<version>/``). A ref outside it is never put on a worker's argv: the
+#: ``prov`` job cannot find it in any case, and the ``validate`` job resolves it on first use as before.
+PRELOAD_REF_RE: Final = re.compile(r"[a-z][a-z0-9_]{0,63}\.[a-z][a-z0-9_]{0,63}@[1-9][0-9]{0,8}")
+#: More distinct refs than this in one batch: the worker loads every shipped profile (no list on its argv).
+PRELOAD_MAX_REFS: Final = 64
+
+
+@dataclass(frozen=True)
+class Preload:
+    """What a T1 worker loads before its audit hook besides the modules of the job table (G.4.4; D-1068 P2).
+
+    ``semantics`` ``None`` loads every shipped semantics profile (the behaviour before D-1068, the default of a process
+    that was given no preload: the host probe, the ``--in-process`` parent); a set loads exactly the shipped profiles
+    among those refs. ``fidelity`` computes the D-550 round-trip cache context. The pool derives a batch's preload from
+    its jobs' params (:func:`preload_for`) and sends a job only to a worker whose preload covers it, so what a job finds
+    loaded never depends on which worker runs it."""
+
+    semantics: frozenset[str] | None = None
+    fidelity: bool = True
+
+    def covers(self, other: Preload) -> bool:
+        """Whether a worker started with this preload has everything ``other`` names loaded."""
+        if other.fidelity and not self.fidelity:
+            return False
+        if self.semantics is None:
+            return True
+        return other.semantics is not None and other.semantics <= self.semantics
+
+    def argv(self) -> list[str]:
+        """The worker argv flags; none for the full preload."""
+        if self.semantics is None:
+            return []
+        return ["--preload-semantics", ",".join(sorted(self.semantics)), *(["--preload-fidelity"] if self.fidelity else [])]
+
+
+#: Every shipped profile and the cache context: what a worker loaded at start-up before D-1068.
+FULL_PRELOAD: Final = Preload()
+
+
+def preload_for(jobs: Iterable[Job]) -> Preload:
+    """The preload ``jobs`` need: the grammar-conforming refs of their ``params["semantics"]`` and whether any carries
+    ``params["fidelity"]`` (the D-550 hint protocol). Above :data:`PRELOAD_MAX_REFS` refs: :data:`FULL_PRELOAD`."""
+    refs: set[str] = set()
+    fidelity = False
+    for job in jobs:
+        named = job.params.get("semantics")
+        if isinstance(named, list | tuple):
+            refs.update(r for r in named if isinstance(r, str) and PRELOAD_REF_RE.fullmatch(r))
+        fidelity = fidelity or "fidelity" in job.params
+    if len(refs) > PRELOAD_MAX_REFS:
+        return FULL_PRELOAD
+    return Preload(frozenset(refs), fidelity)
+
+
+_WORKER_PRELOAD: Preload | None = None
+
+
+def set_worker_preload(preload: Preload) -> None:
+    """Set by the worker entry from its argv before it imports the job table (:mod:`agentprov.worker`)."""
+    global _WORKER_PRELOAD
+    _WORKER_PRELOAD = preload
+
+
+def worker_preload() -> Preload:
+    """What this process's job modules load at import: the worker's argv preload, else :data:`FULL_PRELOAD`."""
+    return _WORKER_PRELOAD or FULL_PRELOAD
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -1427,8 +1506,12 @@ class _Tail:
 class _Worker:
     """One live T1 process and its supervision state. Created and torn down by one slot thread."""
 
-    def __init__(self, pool: WorkerPool) -> None:
-        self.pool = pool
+    def __init__(self, pool: WorkerPool, preload: Preload = FULL_PRELOAD) -> None:
+        # No reference to the pool is kept: an idle worker outlives the pool's batches (D-1068 P1), and the pool's
+        # finalizer must be able to run while one is parked.
+        self.constants = pool.constants
+        self.rss_sampler = pool.rss_sampler
+        self.preload = preload
         limits = pool.limits
         self.job_dir = tempfile.mkdtemp(prefix="agentprov-job-", dir=pool.work_dir)
         os.chmod(self.job_dir, 0o700)
@@ -1454,6 +1537,7 @@ class _Worker:
             argv += ["--store-root", os.fspath(pool.store_root)]
         if pool.test_kinds:
             argv.append("--test-kinds")
+        argv += preload.argv()
         try:
             self.proc = subprocess.Popen(
                 argv,
@@ -1485,11 +1569,14 @@ class _Worker:
         self.lock = threading.Lock()
         self.job_active = False
         self.deadline = math.inf
-        self.rss_trigger = pool.constants.trigger_for(limits.rss_bytes)
+        self.rss_trigger = self.constants.trigger_for(limits.rss_bytes)
         self.kill_reason: str | None = None
         self.peak_rss = 0
+        self.lifetime_rss = 0  # the largest per-job peak the watchdog saw over this worker's jobs (D-1068 P1)
         self.jobs_done = 0
         self.ticket: _Ticket | None = None  # D-554: the admission ticket of the running job
+        #: D-1068 P1: the latest result of a parked worker, which gets the complete stderr tail when it is torn down
+        self.last: weakref.ref[JobResult] | None = None
 
     def _drain_stderr(self) -> None:
         try:
@@ -1504,7 +1591,7 @@ class _Worker:
         with self.lock:
             self.kill_reason = None
             self.peak_rss = 0
-            self.rss_trigger = self.pool.constants.trigger_for(limits.rss_bytes)
+            self.rss_trigger = self.constants.trigger_for(limits.rss_bytes)
             self.deadline = time.monotonic() + limits.wall_s
             self.job_active = True
 
@@ -1536,7 +1623,7 @@ class _Worker:
         if expired:
             self.kill_for("wall")
             return
-        sample = self.pool.rss_sampler
+        sample = self.rss_sampler
         rss = sample(self.proc.pid) if sample is not None else None
         if rss is None:
             return
@@ -1591,6 +1678,34 @@ class _Worker:
         return self.tail.value()
 
 
+def _teardown_parked(worker: _Worker) -> None:
+    """Stop an idle (parked) worker: its stderr tail goes to its latest result, its pid leaves the admission controller."""
+    tail = worker.teardown(graceful=True)
+    admission = _ADMISSION
+    if admission is not None:
+        admission.unregister(worker.proc.pid)
+    result = worker.last() if worker.last is not None else None
+    if result is not None:
+        result.stderr_tail = tail
+
+
+class _IdleWorkers:
+    """The parked workers of one pool (D-1068 P1). Kept apart from the pool so that the pool's finalizer can stop them
+    (a ``weakref.finalize`` callback must not reference the pool)."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.workers: list[_Worker] = []
+        self.closed = False
+
+    def close(self) -> None:
+        with self.lock:
+            self.closed = True
+            idle, self.workers = self.workers, []
+        for worker in idle:
+            _teardown_parked(worker)
+
+
 class WorkerPool:
     """Runs jobs in T1 workers (or in-process for debugging) and returns results ordered by job key.
 
@@ -1603,6 +1718,13 @@ class WorkerPool:
     In release mode a grade below ``watchdog`` raises :class:`IsolationInsufficientError` (exit 3); in dev mode it
     warns (:class:`IsolationDegradedWarning`) and the grade is recorded. ``host`` and ``calibration`` may be injected
     (tests, replay); injected values are used as given.
+
+    Workers outlive a :meth:`run` (D-1068 P1): at the end of a batch a worker that may still serve jobs is parked and
+    the next batch's slots take it before they start new ones. A worker is parked only while its lifetime peak memory is
+    at most :data:`ADMISSION_RETIRE_PEAK` (the D-554 retirement bound) and it has served fewer than ``jobs_per_worker``
+    jobs, and at most ``workers`` are parked, so idle memory is bounded. A parked worker is the same process with the
+    same limits, audit hook and recycling count as one that runs the next job of a batch (G.4.7). :meth:`close` (or the
+    end of a ``with`` block, or the pool's collection, or the interpreter's exit) stops the parked workers.
     """
 
     def __init__(
@@ -1660,6 +1782,21 @@ class WorkerPool:
         self.calibration: Calibration
         self.constants: HostConstants
         self.rss_sampler: Callable[[int], int | None] | None = None
+        self._footprint: Callable[[int], Footprint | None] | None = None
+        #: D-1068 P1: parked workers, stopped by :meth:`close` or, at the latest, when the pool is collected
+        self._idle = _IdleWorkers()
+        self._finalizer = weakref.finalize(self, self._idle.close)
+
+    def close(self) -> None:
+        """Stop the parked workers and park none from now on: a later :meth:`run` starts its own workers and retires them
+        at its end, as a pool did before D-1068. A batch still running keeps its workers until it ends."""
+        self._idle.close()
+
+    def __enter__(self) -> WorkerPool:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self.close()
 
     def prepare(self) -> None:
         """Detect the host, calibrate if needed, derive constants and enforce the isolation grade (idempotent)."""
@@ -1692,6 +1829,7 @@ class WorkerPool:
                 )
             self.profile, self.calibration, self.constants = profile, calibration, constants
             self.rss_sampler = host_rss_sampler(profile)
+            self._footprint = footprint_reader(profile)
             self._prepared = True
 
     @property
@@ -1736,7 +1874,9 @@ class WorkerPool:
                 )
         numbered = list(enumerate(batch))
         results: dict[str, JobResult] = {}
-        spool = _BatchSpool(self._spool_directory) if numbered else None  # D-414: one spool file per batch, if needed
+        # D-414: one spool file per batch, if needed. Its directory callable must not hold the pool: a result keeps its
+        # batch's spool, and a pool kept alive by its results would keep its parked workers too (D-1068 P1).
+        spool = _BatchSpool(functools.partial(_spool_directory, self.spool_dir)) if numbered else None
         try:
             if self.in_process:
                 for number, job in numbered:
@@ -1748,15 +1888,6 @@ class WorkerPool:
             if spool is not None:
                 spool.release()  # the results that hold it keep it open; closed with the last of them
         return [results[k] for k in sorted(results)]
-
-    def _spool_directory(self) -> str:
-        """The pool's spool directory, else ``$AGENTPROV_HOME/tmp/spool`` (default ``~/.agentprov``), created 0700."""
-        if self.spool_dir is not None:
-            return self.spool_dir
-        home = os.environ.get("AGENTPROV_HOME") or os.path.join(os.path.expanduser("~"), ".agentprov")
-        directory = os.path.join(home, "tmp", "spool")
-        os.makedirs(directory, mode=0o700, exist_ok=True)
-        return directory
 
     def run_one(self, job: Job) -> JobResult:
         return self.run([job])[0]
@@ -1828,6 +1959,7 @@ class WorkerPool:
 
         admission = _admission(self.profile) if self.charge is not None else None
         self._admission = admission
+        batch_preload = preload_for(job for _number, job in numbered)  # D-1068 P2: what a new worker loads
 
         def take() -> tuple[int, Job, _Ticket | None] | None:
             """The next job, admitted (D-554: the wait is here, before any request is written)."""
@@ -1849,8 +1981,13 @@ class WorkerPool:
                 while (item := take()) is not None:
                     number, job, ticket = item
                     try:  # the ticket is released whatever happens after admission, a failed spawn included (D #12)
+                        if worker is not None and not worker.preload.covers(preload_for((job,))):
+                            self._retire(worker, graceful=True, result=last, final=True)  # D-1068 P2: never a job
+                            worker, last = None, None  # on a worker that lacks what it names
                         if worker is None:
-                            worker = _Worker(self)
+                            worker = self._checkout(batch_preload)
+                            if worker is None:
+                                worker = _Worker(self, batch_preload)
                             with self._active_lock:
                                 self._active.add(worker)
                             if admission is not None:
@@ -1875,7 +2012,7 @@ class WorkerPool:
                         self._retire(worker, graceful=False, result=result)
                         worker = None
                 if worker is not None:
-                    self._retire(worker, graceful=True, result=last, final=True)
+                    self._park(worker, last)  # D-1068 P1: the next batch takes it (or it is retired here)
                     worker = None
             except BaseException as exc:  # noqa: BLE001 - surfaced after join
                 errors.append(exc)
@@ -1925,6 +2062,47 @@ class WorkerPool:
                 _LOG.info("admission budget=%d stats=%s", admission.budget, jcs(admission.stats).decode("ascii"))
         if errors:
             raise errors[0]
+
+    def _checkout(self, preload: Preload) -> _Worker | None:
+        """A parked worker whose preload covers ``preload`` (D-1068 P1), else ``None``. Parked workers that do not cover
+        it, or that ended while idle, are stopped."""
+        found: _Worker | None = None
+        stale: list[_Worker] = []
+        with self._idle.lock:
+            while self._idle.workers:
+                candidate = self._idle.workers.pop()
+                if candidate.proc.poll() is None and candidate.preload.covers(preload):
+                    found = candidate
+                    break
+                stale.append(candidate)
+        for worker in stale:
+            _teardown_parked(worker)
+        if found is not None:
+            found.last = None
+        return found
+
+    def _lifetime_peak(self, worker: _Worker) -> int:
+        """The worker's largest memory so far: the kernel's lifetime maximum where the host has one, else its current
+        footprint, and never below the largest per-job peak the watchdog saw."""
+        fp = self._footprint(worker.proc.pid) if self._footprint is not None else None
+        kernel = (fp.lifetime_max or fp.current) if fp is not None else 0
+        return max(kernel, worker.lifetime_rss)
+
+    def _park(self, worker: _Worker, last: JobResult | None) -> None:
+        """End-of-batch: keep ``worker`` for the next batch (D-1068 P1) or retire it. Kept only while the pool is open,
+        fewer than ``workers`` are parked, the process is alive, it may serve more jobs and its lifetime peak is at most
+        :data:`ADMISSION_RETIRE_PEAK` (D-554: CPython rarely gives heap back, and an idle worker holding it would keep
+        that memory from every other job of the host)."""
+        with self._active_lock:
+            self._active.discard(worker)
+        fit = (worker.proc.poll() is None and worker.jobs_done < self.jobs_per_worker
+               and self._lifetime_peak(worker) <= ADMISSION_RETIRE_PEAK)
+        with self._idle.lock:
+            if fit and not self._idle.closed and len(self._idle.workers) < self.workers:
+                worker.last = weakref.ref(last) if last is not None else None
+                self._idle.workers.append(worker)
+                return
+        self._retire(worker, graceful=True, result=last, final=True)
 
     def _retire(self, worker: _Worker, *, graceful: bool, result: JobResult | None = None, final: bool = False) -> None:
         """Tear ``worker`` down; ``result`` (its latest) gets the stderr tail read after the drain thread is joined. A
@@ -1993,6 +2171,7 @@ class WorkerPool:
                         item.close()
             collected = None
         worker.jobs_done += 1
+        worker.lifetime_rss = max(worker.lifetime_rss, worker.peak_rss)
         result = JobResult(
             job.key,
             job.kind,
@@ -2009,6 +2188,16 @@ class WorkerPool:
         )
         keep = error is None and not kill_now and worker.jobs_done < self.jobs_per_worker
         return result, keep
+
+
+def _spool_directory(spool_dir: str | None) -> str:
+    """``spool_dir``, else ``$AGENTPROV_HOME/tmp/spool`` (default ``~/.agentprov``), created 0700."""
+    if spool_dir is not None:
+        return spool_dir
+    home = os.environ.get("AGENTPROV_HOME") or os.path.join(os.path.expanduser("~"), ".agentprov")
+    directory = os.path.join(home, "tmp", "spool")
+    os.makedirs(directory, mode=0o700, exist_ok=True)
+    return directory
 
 
 def _request_line(request: Mapping[str, Any]) -> bytes:

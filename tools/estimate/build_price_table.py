@@ -41,9 +41,13 @@ def direct_rows(path: Path) -> list[Price]:
             for row in block["rows"]:
                 pin, pout = _decimal(row["input"], per_token=False), _decimal(row["output"], per_token=False)
                 cached = None if row.get("cached_input") is None else _decimal(row["cached_input"], per_token=False)
-                if pin is None or pout is None:
-                    raise SystemExit(f"{provider} {row['model']}: a price is not a valid decimal")
                 write = None if row.get("cache_write") is None else _decimal(row["cache_write"], per_token=False)
+                # a cache price that is given but not valid is refused like the others: dropped, cached reads and
+                # cache writes would be billed at the input price
+                bad = [field for field, value in (("input", pin), ("output", pout), ("cached_input", cached),
+                                                  ("cache_write", write)) if value is None and row.get(field) is not None]
+                if pin is None or pout is None or bad:
+                    raise SystemExit(f"{provider} {row['model']}: a price is not a valid decimal ({', '.join(bad)})")
                 out.append(Price(provider, row["model"], pin, pout, cached, block["source"], as_of, row.get("note", ""),
                                  write))
     return out

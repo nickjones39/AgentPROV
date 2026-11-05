@@ -21,6 +21,10 @@ note?}``:
     salt being the profile id (the construction of D-476's ``{span12}``, :func:`span_label`). It takes the place of the
     ``span`` group only; the rest of the match (``/home/``, ``C:\\Users\\``) and whatever follows stay.
 
+A string the encoder wrote as ``{"$utf16": ...}`` (a lone surrogate, C.11.3) is decoded, redacted and encoded again at
+the same pointer (UC-37; a plain string when no lone surrogate is left); a member named ``$utf16`` inside a ``$lit``
+body is a source key, not that form.
+
 Pointers are redacted token by token (each JSON-Pointer token unescaped, redacted as a string, escaped again), so a
 renamed object key and the ``evf``/``unk`` keys, scoped rule citations and ``ext.lex`` pointers that name it stay in step;
 a pointer's own ``/`` never joins two tokens into a path. Source locators (``src``) keep pointing at the raw field, and the
@@ -34,6 +38,7 @@ different spans giving one listed label is a profile defect (:class:`~agentprov.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -174,6 +179,23 @@ class Redactor:
         rule, sep, ptr = value.partition("#")
         return rule + sep + self.pointer(ptr) if sep else value
 
+    def _utf16(self, payload: str) -> tuple[Any, str | None]:
+        """A ``{"$utf16": payload}`` value (C.11.3: a string holding a lone surrogate) redacted: decoded, rewritten and
+        encoded again (UC-37, as the openhands, agentops and credleak redactors do), or a plain string when the result
+        holds no lone surrogate any more; ``(None, None)`` when nothing listed is in it."""
+        try:
+            value = base64.b64decode(payload, validate=True).decode("utf-16-be", "surrogatepass")
+        except (ValueError, UnicodeDecodeError):  # not the encoder's form: left as it is (the writer judges it)
+            return None, None
+        new, rid = self.text(value)
+        if rid is None:
+            return None, None
+        try:
+            new.encode("utf-8")
+        except UnicodeEncodeError:
+            return {"$utf16": base64.b64encode(new.encode("utf-16-be", "surrogatepass")).decode("ascii")}, rid
+        return new, rid
+
     def apply(self, record: dict[str, Any], cite: Callable[[str], str]) -> list[tuple[str, str]]:
         """Redact one finished record in place; return ``(pointer, rule id)`` per redacted value or key. ``cite(pointer)``
         is the mapper's scoped citation of :data:`RULE`."""
@@ -184,13 +206,20 @@ class Redactor:
         def here(tokens: tuple[str, ...]) -> str:
             return "".join("/" + pointer_escape(t) for t in tokens)
 
-        def walk(node: Any, tokens: tuple[str, ...]) -> Any:
+        def walk(node: Any, tokens: tuple[str, ...], literal: bool = False) -> Any:
             if isinstance(node, str):
                 text, rid = self.text(node)
                 if rid is not None:
                     done.append((here(tokens), rid))
                 return text
             if isinstance(node, dict):
+                if not literal and set(node) == {"$utf16"} and isinstance(node["$utf16"], str):
+                    encoded, rid = self._utf16(node["$utf16"])
+                    if rid is None:
+                        return node
+                    done.append((here(tokens), rid))
+                    return encoded
+                wrapper = not literal and len(node) == 1 and "$lit" in node
                 out: dict[str, Any] = {}
                 for key, item in node.items():
                     new_key = key
@@ -198,7 +227,8 @@ class Redactor:
                         new_key, rid = self.text(key)
                         if rid is not None:
                             done.append((here((*tokens, new_key)), rid))
-                    out[new_key] = walk(item, (*tokens, new_key))
+                    # the body of a $lit wrapper is a literal object: a member named $utf16 there is a source key
+                    out[new_key] = walk(item, (*tokens, new_key), wrapper)
                 return out
             if isinstance(node, list):
                 return [walk(item, (*tokens, str(i))) for i, item in enumerate(node)]

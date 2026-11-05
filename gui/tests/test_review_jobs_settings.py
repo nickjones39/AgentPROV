@@ -55,9 +55,11 @@ def test_rows_say_what_the_settings_do(qapp: Any) -> None:
     jobs, ci = JobsPane(None), CiPane(None)
     try:
         def label_of(pane: Any, field: Any) -> str:
+            """The row's label, its grey caption and its tooltip (D-1060: the command moved to the tooltip)."""
             labels = [w for w in pane.findChildren(SafeLabel) if w.buddy() is field]
             assert len(labels) == 1
-            return str(labels[0].text())
+            row = labels[0].parentWidget().parentWidget()  # the label's column, then its FormRow
+            return " ".join((labels[0].text(), row.caption.text(), labels[0].toolTip()))
 
         assert "agentprov jobs prune" in label_of(jobs, jobs.retention)
         assert "not used yet" in label_of(ci, ci.target)

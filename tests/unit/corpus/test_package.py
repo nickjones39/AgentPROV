@@ -134,6 +134,128 @@ def test_a_sealed_corpus_refuses_writers_hl_t7(corpus):
     assert info.value.exit_code == 4
 
 
+_POSIX_USER = os.name == "posix" and os.geteuid() != 0
+_needs_posix_user = pytest.mark.skipif(not _POSIX_USER, reason="POSIX modes, and root ignores a missing write bit")
+
+
+def _modes(root: Path) -> dict[str, int]:
+    """The permission bits of ``root`` and everything below it, by path relative to ``root``."""
+    out = {".": root.stat().st_mode & 0o777}
+    for path in root.rglob("*"):
+        out[path.relative_to(root).as_posix()] = path.lstat().st_mode & 0o777
+    return out
+
+
+@_needs_posix_user
+def test_a_seal_leaves_the_tree_read_only_and_finder_cannot_write_into_it(corpus):
+    """User approval 2026-11-05: the sealed tree is read-only (every file and directory without a write bit), so macOS
+    Finder's ``.DS_Store`` cannot appear in it; nothing else about the seal changes."""
+    from agentprov.corpus.package import _verify_chain
+    from agentprov.corpus.protect import is_protected
+
+    report = seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    modes = _modes(corpus)
+    assert is_protected(corpus) and len(modes) > 40
+    assert all(not mode & 0o222 for mode in modes.values()), {k: oct(v) for k, v in modes.items() if v & 0o222}
+    assert all(mode & 0o500 == 0o500 for label, mode in modes.items() if (corpus / label).is_dir())  # still readable
+    for folder in (corpus, corpus / "aer", corpus / "raw" / "objects"):
+        with pytest.raises(PermissionError):
+            (folder / ".DS_Store").write_bytes(b"\0")  # what Finder does when it opens the folder
+        with pytest.raises(PermissionError):
+            (folder / "._corpus.json").write_bytes(b"\0")  # an AppleDouble file
+    with pytest.raises(PermissionError):
+        (corpus / "corpus.json").write_bytes(b"{}")
+    with pytest.raises(PermissionError):
+        (corpus / "DATASHEET.md").unlink()
+    assert verify_checksums(corpus).ok and not any("read-only" in notice for notice in report.notices)
+    _verify_chain(corpus)  # a read-only tree verifies; reading needs no write permission
+
+
+@_needs_posix_user
+def test_lifting_the_protection_gives_the_owner_write_back_but_keeps_raw_objects_read_only(corpus):
+    from agentprov.corpus.protect import is_protected, lift, protect
+
+    seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    lift(corpus)
+    assert not is_protected(corpus)
+    for label, mode in _modes(corpus).items():
+        if label.startswith("raw/objects/") and (corpus / label).is_file():
+            assert mode == 0o444, label  # the raw store's contract (a hard link may share the inode)
+        else:
+            assert mode & 0o200, label
+    (corpus / ".DS_Store").write_bytes(b"\0")
+    (corpus / ".DS_Store").unlink()
+    protect(corpus)
+    assert is_protected(corpus)
+
+
+def test_on_windows_only_files_get_the_read_only_attribute(tmp_path, monkeypatch):
+    """Windows (simulated): a directory's read-only attribute does not stop writes into it, so only files are changed;
+    ``os.chmod`` without the write bit is what sets the attribute there."""
+    import agentprov.corpus.protect as protect_module
+
+    monkeypatch.setattr(protect_module, "_WINDOWS", True)
+    root = tmp_path / "sealed"
+    (root / "raw" / "objects" / "ab").mkdir(parents=True)
+    (root / "corpus.json").write_bytes(b"{}")
+    (root / "raw" / "objects" / "ab" / "object.json").write_bytes(b"{}")
+    os.chmod(root / "raw" / "objects" / "ab" / "object.json", 0o444)
+    dirs = {p: p.stat().st_mode & 0o777 for p in (root, root / "raw", root / "raw" / "objects")}
+    protect_module.protect(root)
+    assert not (root / "corpus.json").stat().st_mode & 0o222 and protect_module.is_protected(root)
+    assert {p: p.stat().st_mode & 0o777 for p in dirs} == dirs  # directories untouched
+    protect_module.lift(root)
+    assert (root / "corpus.json").stat().st_mode & 0o200
+    assert (root / "raw" / "objects" / "ab" / "object.json").stat().st_mode & 0o777 == 0o444
+
+
+def test_a_refused_protection_is_a_notice_not_a_failed_seal(corpus, monkeypatch):
+    """The protection is applied after the swap; a refusal leaves a sealed, verified corpus and says so."""
+    import agentprov.corpus.package as package
+
+    def refuse(root):
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(package, "protect", refuse)
+    report = seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    assert corpus.is_dir() and _manifest(corpus)["sealed"] is True and verify_checksums(corpus).ok
+    assert any("could not be made read-only" in notice for notice in report.notices)
+
+
+@_needs_posix_user
+def test_a_sealed_tree_is_removed_by_io_remove_and_its_raw_objects_keep_their_mode(corpus, tmp_path):
+    from agentprov.io import remove
+
+    seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    obj = next(p for p in (corpus / "raw" / "objects").rglob("*") if p.is_file())
+    os.link(obj, tmp_path / "shared")  # as recompute --link-raw or a scratch tree shares it (D-32)
+    remove.rmtree(corpus)
+    assert not corpus.exists() and (tmp_path / "shared").stat().st_mode & 0o777 == 0o444
+
+
+@_needs_posix_user
+@pytest.mark.parametrize("command", ["recompute", "derive"])
+def test_derive_and_recompute_out_of_a_read_only_sealed_corpus_write_a_writable_tree(corpus, tmp_path, capsys, command):
+    """A copy made from a sealed corpus is new files: writable, apart from raw objects (``0444`` as always)."""
+    from agentprov.cli.main import main
+    from agentprov.corpus.protect import is_protected
+
+    seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    before = _modes(corpus)
+    new = tmp_path / "new"
+    extra = ["--stages", "sem,prov,validation"] if command == "recompute" else []
+    assert main([command, "--corpus", str(corpus), "--out", str(new), "--jobs", "1", "--link-raw", *extra,
+                 "--progress", "off"]) == 0
+    capsys.readouterr()
+    partial = new.with_name("new.partial")
+    for label, mode in _modes(partial).items():
+        if not (label.startswith("raw/objects/") and (partial / label).is_file()):
+            assert mode & 0o200, label
+    (partial / "views").mkdir(exist_ok=True)
+    (partial / "views").rmdir()
+    assert _modes(corpus) == before and is_protected(corpus)  # the source is not touched, its shared objects neither
+
+
 def test_a_dry_run_writes_nothing(corpus):
     partial = corpus.with_name("mini.partial")
     with fs_guard.unchanged(partial):
@@ -172,6 +294,31 @@ def _unverified(m):
 
 def _no_pin(m):
     m["sources"][0]["snapshots"][0]["pin"] = None
+
+
+def _derived_from_sealed(m):  # D-1051: what derive and recompute record over a sealed source (its snapshot has no pin)
+    m["derived_from"] = {"command": "recompute", "corpus_id": "mini-agentdojo", "corpus_version": "0.1.0",
+                         "fn_digests": {}, "manifest_sha256": "sha256:" + "0" * 64, "recomputed": ["sem", "prov"],
+                         "root_digest": "sha256:" + "1" * 64, "semantics": [], "state": "sealed"}
+    _no_pin(m)
+
+
+def _derived_twice(m):  # AU-FR-3: derived from a corpus that was itself derived from a sealed one; its source was working
+    _derived_from_sealed(m)
+    m["derived_from"]["state"] = "working"
+    del m["sources"][0]["snapshots"][0]["pin"]  # the sealed H.2.3 snapshot form, carried over by both derivations
+
+
+def _recomputed_unpinned_import(m):  # AU-NC-4: recomputed from a working import that never had a pin (D-33)
+    _derived_from_sealed(m)
+    m["derived_from"]["state"] = "working"  # the import's snapshot form: "pin": null
+
+
+def _derived_from_a_pinned_import(m):  # derived from a working import: the pins are kept, so nothing is refused for it
+    pin = m["sources"][0]["snapshots"][0]["pin"]
+    _derived_from_sealed(m)
+    m["derived_from"]["state"] = "working"
+    m["sources"][0]["snapshots"][0]["pin"] = pin
 
 
 def _context_trees(m):  # D.16.14 R2, as a manifest written before D-530 records a second tree: no pin
@@ -220,6 +367,12 @@ def _corpus_0_1_with_context(partial):  # NF-24: records sealed as agentprov-cor
     path.write_text(json.dumps(derivation, sort_keys=True, indent=2) + "\n", "utf-8")
 
 
+def _originless_object(partial):  # AU-IMP-7: an object an import killed before its final flush left with no origin row
+    from agentprov.raw.store import RawObjectStore
+
+    RawObjectStore(partial / "raw").put(b'{"left": "by a killed import"}', ext="json")
+
+
 @pytest.mark.parametrize(
     ("name", "damage", "changes", "code"),
     [
@@ -229,6 +382,14 @@ def _corpus_0_1_with_context(partial):  # NF-24: records sealed as agentprov-cor
         ("interpreter advisory", lambda p: _rewrite(p, _advisory), {}, "ingest.interpreter.unpatched"),
         ("unverified input", lambda p: _rewrite(p, _unverified), {}, "package.refused.unverified"),
         ("no pin", lambda p: _rewrite(p, _no_pin), {}, "package.refused.unpinned"),
+        ("derived from a sealed corpus (D-1051)", lambda p: _rewrite(p, _derived_from_sealed), {},
+         "package.refused.derived"),
+        ("derived from a corpus derived from a sealed one (AU-FR-3)", lambda p: _rewrite(p, _derived_twice), {},
+         "package.refused.derived"),
+        ("recomputed from an unpinned working import (AU-NC-4)", lambda p: _rewrite(p, _recomputed_unpinned_import), {},
+         "package.refused.unpinned"),
+        ("derived from a pinned import, then a later check", lambda p: _rewrite(p, _derived_from_a_pinned_import),
+         {"licence_files": {}}, "package.refused.licence_file"),
         ("context tree without a pin (D-221)", lambda p: _rewrite(p, _context_trees), {}, "package.refused.unpinned"),
         ("context tree not vouched for (D-221)", lambda p: _rewrite(p, _context_unverified), {}, "package.refused.unverified"),
         ("pinned object not stored (D-221)", lambda p: _rewrite(p, _pinned_objects), {}, "package.refused.pinned_object"),
@@ -244,6 +405,7 @@ def _corpus_0_1_with_context(partial):  # NF-24: records sealed as agentprov-cor
         ("other source profile", None, {"source_profile": ss.source_profile() + b"\n"}, "package.refused.profile"),
         ("stray file", lambda p: (p / ".DS_Store").write_bytes(b"x"), {}, "package.refused.closed_world"),
         ("lock held", lambda p: (p / ".agentprov.lock").write_bytes(b"{}"), {}, "package.refused.locked"),
+        ("raw object without an origin row", _originless_object, {}, "package.refused.raw_origin"),
         ("origin differs from the pin", None, {"spec": ss.SPEC.replace('subtree = "runs"', 'subtree = "other"').encode()},
          "package.refused.origin"),
         ("card of another mode", None, {"card": ss.CARD.replace("mode: import", "mode: live").encode()},
@@ -262,6 +424,54 @@ def test_every_precondition_refuses_with_exit_4_and_writes_nothing(corpus, name,
     assert info.value.code == code, name
     fs_guard.assert_unchanged(snapshot, fs_guard.snapshot(partial))
     assert not corpus.exists()
+
+
+@pytest.mark.parametrize("command", ["recompute", "derive"])
+def test_a_corpus_derived_from_a_sealed_corpus_is_refused_as_derived_d1051(corpus, tmp_path, capsys, command):
+    """D-1051 (AU-BND-2): a corpus written by ``recompute --out`` or ``derive --out`` from a sealed corpus is a working
+    corpus for comparison, never sealed: ``package`` names the cause (``package.refused.derived``), not a missing pin."""
+    from agentprov.cli.main import main
+
+    seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    new = tmp_path / "new"
+    extra = ["--stages", "sem,prov,validation"] if command == "recompute" else []
+    assert main([command, "--corpus", str(corpus), "--out", str(new), "--jobs", "1", *extra, "--progress", "off"]) == 0
+    capsys.readouterr()
+    partial = new.with_name("new.partial")
+    assert _manifest(partial)["derived_from"]["state"] == "sealed"
+    changes = ss.CHANGES + '\n[[change]]\nversion = "0.1.1"\nbump = "patch"\nsummary = "Re-derived."\n'
+    spec = ss.SPEC.replace('corpus_version = "0.1.0"', 'corpus_version = "0.1.1"')
+    snapshot = fs_guard.snapshot(partial)
+    with pytest.raises(PackageRefusedError) as info:
+        seal(new, corpus_version="0.1.1", inputs=ss.inputs(spec=spec.encode(), changes=changes.encode()))
+    assert info.value.exit_code == 4 and info.value.code == "package.refused.derived"
+    assert "re-import" in str(info.value) and "working corpus" in str(info.value)
+    fs_guard.assert_unchanged(snapshot, fs_guard.snapshot(partial))
+    assert not new.exists()
+
+
+def test_a_corpus_derived_from_a_derived_corpus_without_a_pin_is_refused_as_derived(corpus, tmp_path, capsys):
+    """AU-FR-3: ``derived_from.state`` is the immediate source's state, so a corpus recomputed from a corpus that was
+    itself recomputed from a sealed one records ``working``; it still carries no import pin and is refused as derived."""
+    from agentprov.cli.main import main
+
+    seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    first, second = tmp_path / "first", tmp_path / "second"
+    stages = ["--jobs", "1", "--stages", "sem,prov,validation", "--progress", "off"]
+    assert main(["recompute", "--corpus", str(corpus), "--out", str(first), *stages]) == 0
+    assert main(["recompute", "--corpus", str(first.with_name("first.partial")), "--out", str(second), *stages]) == 0
+    capsys.readouterr()
+    partial = second.with_name("second.partial")
+    assert _manifest(partial)["derived_from"]["state"] == "working"
+    assert "pin" not in _manifest(partial)["sources"][0]["snapshots"][0]  # the sealed H.2.3 form, carried over
+    changes = ss.CHANGES + '\n[[change]]\nversion = "0.1.1"\nbump = "patch"\nsummary = "Re-derived."\n'
+    spec = ss.SPEC.replace('corpus_version = "0.1.0"', 'corpus_version = "0.1.1"')
+    snapshot = fs_guard.snapshot(partial)
+    with pytest.raises(PackageRefusedError) as info:
+        seal(second, corpus_version="0.1.1", inputs=ss.inputs(spec=spec.encode(), changes=changes.encode()))
+    assert info.value.exit_code == 4 and info.value.code == "package.refused.derived"
+    fs_guard.assert_unchanged(snapshot, fs_guard.snapshot(partial))
+    assert not second.exists()
 
 
 def test_a_vouched_context_tree_and_a_skipped_role_are_sealed_in_corpus_0_2_d221(corpus):
@@ -402,7 +612,7 @@ def test_inputs_are_replaceable():
 
 
 # ------------------------------------------------------------------------------------------------ an interrupted seal (CB-9)
-def _killed_seal(corpus: Path, step: str) -> None:
+def _killed_seal(corpus: Path, step: str, inputs=None) -> None:
     """Run :func:`seal` in a forked child that dies with no Python exception (``os._exit(137)``, as SIGKILL, the OOM
     killer or a power loss would) at ``step``: after ``corpus.json`` says ``sealed: true`` and before the swap."""
     import agentprov.corpus.package as package
@@ -413,7 +623,7 @@ def _killed_seal(corpus: Path, step: str) -> None:
     if pid == 0:  # pragma: no cover - the child never returns into pytest
         try:
             setattr(package, step, lambda _root: os._exit(137))
-            seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+            seal(corpus, corpus_version="0.1.0", inputs=inputs or ss.inputs())
         finally:
             os._exit(1)
     _, status = os.waitpid(pid, 0)
@@ -465,6 +675,121 @@ def test_an_interrupted_seal_that_does_not_check_out_is_refused(corpus, damage, 
     assert info.value.code == "corpus.seal.interrupted" and info.value.exit_code == 4
     fs_guard.assert_unchanged(snapshot, fs_guard.snapshot(partial))
     assert not corpus.exists()
+
+
+def _link_the_manifest(partial: Path) -> None:  # the same sealed JSON, but behind a link the reader never follows
+    target = partial.parent / "elsewhere.json"
+    target.write_bytes((partial / "corpus.json").read_bytes())
+    (partial / "corpus.json").unlink()
+    (partial / "corpus.json").symlink_to(target)
+
+
+def _wrong_content_digest(partial: Path) -> None:
+    _rewrite(partial, lambda m: m.update(content_digest="sha256:" + "0" * 64))
+
+
+def _fill_raw_tmp(partial: Path) -> None:  # a non-empty raw/tmp/ cannot be removed
+    from agentprov.corpus.layout import CorpusLayout
+
+    tmp = CorpusLayout(partial).raw_tmp
+    tmp.mkdir(parents=True, exist_ok=True)
+    (tmp / "left-over").write_bytes(b"x")
+
+
+@pytest.mark.parametrize(
+    ("step", "damage", "version", "changes", "reason"),
+    [
+        ("_verify_chain", _link_the_manifest, "0.1.0", {}, "corpus.json cannot be read"),
+        ("_verify_chain", lambda p: _rewrite(p, lambda m: m.pop("counts")), "0.1.0", {}, "corpus.json does not validate"),
+        ("_verify_chain", None, "0.1.1", {}, "another corpus id or version"),
+        ("_verify_chain", None, "0.1.0", {"spec": ss.SPEC.replace('corpus_id = "mini-agentdojo"',
+                                                                  'corpus_id = "other-agentdojo"').encode()},
+         "another corpus id or version"),
+        # validate_manifest recomputes the content digest itself, so it refuses first (the resume's own recompute is
+        # the second guard: test_the_resume_recomputes_the_content_digest_itself)
+        ("_verify_chain", _wrong_content_digest, "0.1.0", {}, "corpus.json does not validate"),
+        ("_verify_chain", None, "0.1.0", {"spec": (ss.SPEC + "\n# another spec\n").encode()},
+         "corpus-spec.toml differs"),
+        ("_verify_chain", None, "0.1.0", {"changes": ss.inputs().changes + b"\n# another file\n"},
+         "CHANGES.toml differs"),
+        ("_verify_chain", lambda p: (p / "WITHHELD.json").write_bytes(b"not json"), "0.1.0", {},
+         "WITHHELD.json is not valid"),
+        ("write_checksums", _fill_raw_tmp, "0.1.0", {}, "the tree cannot be checksummed"),
+        ("_verify_chain", _tamper_aer, "0.1.0", {}, "fails its own checksums"),
+        # the run died before writing checksums.sha256, so the resume writes them over the tampered bytes: the chain
+        # check is what catches it
+        ("write_checksums", _tamper_aer, "0.1.0", {}, "fails verify --level chain"),
+    ],
+    ids=["manifest behind a link", "manifest invalid", "other version", "other corpus id", "content digest",
+         "other spec", "other changes", "WITHHELD.json invalid", "raw/tmp not empty", "checksums", "chain"],
+)
+def test_each_resume_refusal_is_reached_and_changes_nothing(corpus, step, damage, version, changes, reason):
+    """2026-11-05 (gap G4): every refusal of the CB-9 resume, each with its own reason, before the swap: a resumed seal
+    of a tampered or foreign ``DIR.partial`` never becomes ``DIR``."""
+    _killed_seal(corpus, step)
+    partial = corpus.with_name("mini.partial")
+    if damage is not None:
+        damage(partial)
+    snapshot = fs_guard.snapshot(partial)
+    with pytest.raises(PackageRefusedError) as info:
+        seal(corpus, corpus_version=version, inputs=ss.inputs(**changes))
+    assert info.value.code == "corpus.seal.interrupted" and info.value.exit_code == 4
+    assert reason in str(info.value) and "cannot be resumed" in str(info.value)
+    if step == "_verify_chain":  # nothing left to write: the tree is exactly as the killed run left it
+        fs_guard.assert_unchanged(snapshot, fs_guard.snapshot(partial))
+    assert not corpus.exists() and partial.is_dir() and _manifest(partial)["sealed"] is True
+
+
+@pytest.mark.parametrize("damage", [_wrong_content_digest, lambda p: _rewrite(p, lambda m: m.update(x=0.5))],
+                         ids=["wrong digest", "not corpus-layer JSON"])
+def test_the_resume_recomputes_the_content_digest_itself(corpus, monkeypatch, damage):
+    """The resume's own content-digest check holds even if the manifest validator let a wrong digest (or a manifest
+    whose digest cannot be computed, a float) through."""
+    import agentprov.corpus.package as package
+
+    _killed_seal(corpus, "_verify_chain")
+    partial = corpus.with_name("mini.partial")
+    damage(partial)
+    monkeypatch.setattr(package, "validate_manifest", lambda _manifest: [])
+    with pytest.raises(PackageRefusedError) as info:
+        seal(corpus, corpus_version="0.1.0", inputs=ss.inputs())
+    assert info.value.code == "corpus.seal.interrupted" and "content digest does not recompute" in str(info.value)
+    assert not corpus.exists()
+
+
+def test_a_dry_run_of_an_interrupted_seal_checks_and_writes_nothing(corpus):
+    _killed_seal(corpus, "write_checksums")
+    partial = corpus.with_name("mini.partial")
+    snapshot = fs_guard.snapshot(partial)
+    report = seal(corpus, corpus_version="0.1.0", inputs=ss.inputs(), dry_run=True)
+    assert report.dry_run and report.root_digest is None
+    assert report.content_digest == _manifest(partial)["content_digest"]
+    assert any("resumed an interrupted seal" in n for n in report.notices)
+    fs_guard.assert_unchanged(snapshot, fs_guard.snapshot(partial))
+    assert not corpus.exists() and not (partial / "checksums.sha256").exists()  # the dry run wrote no checksums
+    with pytest.raises(PackageRefusedError) as info:  # a dry run still refuses what the real run would refuse
+        seal(corpus, corpus_version="0.1.1", inputs=ss.inputs(), dry_run=True)
+    assert info.value.code == "corpus.seal.interrupted"
+
+
+def test_an_interrupted_seal_of_a_withholding_corpus_resumes_to_the_same_tree(tmp_path_factory, tmp_path):
+    """The ``WITHHELD.json`` branch of the resume: the withheld counts come back from the sealed sidecar document."""
+    from agentprov.corpus.package import _verify_chain
+
+    killed = ss.working_corpus(tmp_path_factory, tmp_path / "a" / "mini")
+    clean = ss.working_corpus(tmp_path_factory, tmp_path / "b" / "mini")
+    ex = json.loads((killed.with_name("mini.partial") / "executions.jsonl").read_bytes().split(b"\n")[0])["ex"]
+    inputs = ss.inputs(spec=(ss.SPEC + f'\n[withhold]\ndecided_by = "test"\nexecutions = ["{ex}"]\n').encode())
+    _killed_seal(killed, "_verify_chain", inputs)
+    assert (killed.with_name("mini.partial") / "WITHHELD.json").is_file()
+    report = seal(killed, corpus_version="0.1.0", inputs=inputs)
+    expected = seal(clean, corpus_version="0.1.0", inputs=inputs)
+    assert report.counters["withheld_executions"] == 1 and report.counters["withheld_objects"] >= 1
+    assert dict(report.counters) == dict(expected.counters)
+    assert expected.sidecar == clean.with_name("mini.withheld") and report.sidecar == killed.with_name("mini.withheld")
+    assert (report.root_digest, report.content_digest) == (expected.root_digest, expected.content_digest)
+    assert ss.tree_bytes(killed) == ss.tree_bytes(clean)
+    _verify_chain(killed)
 
 
 def test_a_sealed_tree_below_a_sealed_corpus_is_not_resumed(corpus):

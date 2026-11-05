@@ -51,7 +51,7 @@ REPO = Path(__file__).resolve().parents[2]
 README_OUT: Final = REPO / "docs" / "images" / "gui"
 README_SCENES: Final = ("agentprov-app", "viewer-graph")
 LEAKS = re.compile(
-    r"/Users/|/home/|C:\\\\Users|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|sk-[A-Za-z0-9_-]{10,}|"
+    r"/Users/|/home/|[A-Za-z]:\\+Users|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|sk-[A-Za-z0-9_-]{10,}|"
     r"AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abp]-|-----BEGIN|AIza[0-9A-Za-z_-]{35}|hf_[A-Za-z0-9]{30,}|"
     r"github_pat_[A-Za-z0-9_]{22,}|(?i:bearer)\s+[A-Za-z0-9._~+/=-]{16,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|"
     # an AWS secret access key: exactly 40 base64 characters with upper, lower and a digit (a hex sha1 or sha256 is
@@ -288,7 +288,8 @@ def _row_with(viewer: Any, header: str, value: str) -> int:
     model = viewer.exec_view.model()
     from PySide6.QtCore import Qt
 
-    cols = [c for c in range(model.columnCount()) if header in str(model.headerData(c, Qt.Orientation.Horizontal))]
+    cols = [c for c in range(model.columnCount())  # headers are in sentence case (D-1060)
+            if header.lower() in str(model.headerData(c, Qt.Orientation.Horizontal)).lower()]
     for r in range(model.rowCount()):
         if cols and value in str(model.data(model.index(r, cols[0]))):
             return r
@@ -305,7 +306,7 @@ def scene_viewer_outcomes(s: Shots) -> None:
     viewer.exec_view.selectRow(row)
     model = viewer.exec_view.model()
     cols = [c for c in range(model.columnCount())
-            if "attack succeeded" in str(model.headerData(c, Qt.Orientation.Horizontal))]
+            if "attack succeeded" in str(model.headerData(c, Qt.Orientation.Horizontal)).lower()]
     if cols:  # scroll the table so the outcome columns are in view
         viewer.exec_view.scrollTo(model.index(row, cols[0]))
     _tab(viewer.preview.tabs, "SEM")
@@ -314,12 +315,19 @@ def scene_viewer_outcomes(s: Shots) -> None:
 
 
 def scene_viewer_aer(s: Shots) -> None:
-    """The AER tab of one execution: records by kind with evidence class, attesting party and rules (content hidden)."""
+    """The AER view of one execution open in a tab of its own, so the record list has the width for its columns:
+    records by kind with evidence class, attesting party and rules (content hidden). The inspector at the side of the
+    Corpora tab is too narrow to show those columns."""
     viewer = _open(s, "agentdojo-derived")
-    viewer.exec_view.selectRow(0)
-    _tab(viewer.preview.tabs, "AER")
+    pane = viewer.open_row(0)
+    pump(s.app, 60, lambda: pane is not None and pane.state == "ready")
+    if pane is None:
+        raise SystemExit("the first execution of the derived corpus did not open in a tab")
+    _tab(pane.tabs, "AER")
     pump(s.app, 1.0)
     capture(s.window, s.out / "viewer-aer.png")
+    viewer.close_current_tab()
+    viewer.show_corpora()
 
 
 def _viewer_tabs(s: Shots, path: Path, *, busiest: bool = False) -> None:
@@ -363,9 +371,9 @@ def scene_agentprov_app(s: Shots) -> None:
 
 
 def scene_new_job(s: Shots) -> None:
-    """New Job: the import form with its command preview and tier, scrolled to the conformance box."""
-    from PySide6.QtWidgets import QScrollArea
-
+    """New Job: the import form in the form style (D-1060), two columns at its default size: its sections, the fetch
+    and First N choices with Download if not cached and N inline, Advanced collapsed; on the right What happens (the
+    tier badge and the sentence) and the command card."""
     from agentprov_gui.jobs.commands import FORMS
     from agentprov_gui.ui.jobdialog import JobDialog
 
@@ -376,12 +384,9 @@ def scene_new_job(s: Shots) -> None:
                        conformance_option="--skip-prov-conformance",
                        preset={"source": "agentdojo", "corpus": str(s.work / "corpora" / "agentdojo-dev"),
                                "snapshot": "2024-06", "fetch": True, "limit": 5})
-    dialog.resize(760, 720)
+    dialog.advanced.set_open(False)
     dialog.show()
-    pump(s.app, 0.5)
-    scroll = dialog.findChild(QScrollArea)
-    scroll.verticalScrollBar().setValue(scroll.verticalScrollBar().maximum())  # show the conformance box
-    pump(s.app, 0.5)
+    pump(s.app, 1.0)
     capture(dialog, s.out / "new-job.png")
     dialog.close()
 
@@ -506,7 +511,7 @@ def _settings_dialog(s: Shots) -> Any:
 
 
 SETTINGS_TABS: Final = ("General", "Appearance", "Viewer", "Jobs", "Compute", "CI", "Dev Runs", "Keys",
-                        "Local Models", "Prices", "Estimate", "Zenodo")
+                        "Local Models", "Prices", "Estimate", "Zenodo", "Assistant")
 
 
 def _local_models(s: Shots, prefs: Any) -> None:
@@ -549,13 +554,12 @@ SETTINGS_PREPARE: Final = {"Keys": _keys, "Local Models": _local_models, "Zenodo
 
 def _settings_scene(tab: str) -> Any:
     def scene(s: Shots) -> None:
-        from PySide6.QtWidgets import QTabWidget
-
         if s.prefs is None:  # one dialog for every Settings scene: the panes load once
             s.prefs = _settings_dialog(s)
         prefs = s.prefs
-        tabs = next(w for w in prefs.findChildren(QTabWidget) if w.parent() is prefs)
-        _tab(tabs, tab)
+        prefs.show_pane(tab)  # the sidebar's pane (D-1060)
+        if prefs.current_pane() != tab:
+            raise SystemExit(f"no Settings pane named {tab!r}")
         if tab in SETTINGS_PREPARE:
             SETTINGS_PREPARE[tab](s, prefs)
         prefs.raise_()
@@ -620,6 +624,27 @@ def _stub_run(_manager: Any, argv: list[str], *, stdin_fd: int | None = None, ti
         return 0, json.dumps(STUB_PRICES).encode(), b""
     if argv[0] == "models":
         return 0, json.dumps(_stub_models(argv[2], "--model-id" in argv)).encode(), b""
+    if argv[0] == "estimate" and "--llm-script" not in argv:  # a real model: the stub quote (D-1060)
+        attacks = argv[argv.index("--attack") + 1].split(",") if "--attack" in argv else []
+        suites = argv[argv.index("--suite") + 1].split(",") if "--suite" in argv else []
+        units = 30 * len(suites) * (1 + 3 * len(attacks))
+        doc = {"format": "agentprov-estimate/0.1", "units": units, "attempts_due": 3 * units, "cost_p50": "4.10",
+               "cost_p90": "9.80", "cost_worst": "31.00", "calls_p50": 8.0 * units, "calls_p90": 15.0 * units,
+               "seconds_p50": 20.0 * units / 4, "seconds_p90": 45.0 * units / 4, "price": STUB_PRICES["endpoints"][0]
+               ["models"][0], "planned_with": "stand-in", "plan": {"plan_sha256": "0" * 64}, "warnings": [],
+               "text": [f"≈ $4.10 (p90 $9.80) for {units} cell run(s) (stub estimate for the user guide).",
+                        f"Plan 0000…: {units} cells", "By suite: banking"],
+               "quote": {"usd_p50": "4.10", "usd_p90": "9.80", "calls_p50": 8.0 * units, "calls_p90": 15.0 * units,
+                         "tokens_in_p50": 9000.0 * units, "tokens_in_p90": 17000.0 * units,
+                         "tokens_out_p50": 300.0 * units, "tokens_out_p90": 700.0 * units,
+                         "seconds_p50": 20.0 * units / 4, "seconds_p90": 45.0 * units / 4, "cells": units,
+                         "jobs": 1, "p50_aggregation": "sum of per-cell medians",
+                         "p90_aggregation": "upper (sum of per-cell 90th percentiles)",
+                         "basis": {"priors": "shipped", "family_specific": False, "family": None,
+                                   "executions": 1285, "corpora": [], "token_basis": "chars/4",
+                                   "price_source": "openrouter", "price_as_of": "2026-10-21",
+                                   "discounts_assumed": False, "estimate_only": True}}}
+        return 0, json.dumps(doc).encode(), b""
     if argv[0] == "estimate":
         attacks = argv[argv.index("--attack") + 1].split(",") if "--attack" in argv else []
         units = 16 + 16 * 9 * len(attacks)
@@ -632,14 +657,14 @@ def _stub_run(_manager: Any, argv: list[str], *, stdin_fd: int | None = None, ti
     return 2, b"", b"not offered by the screenshot stub"
 
 
-def _run_live(s: Shots, *, endpoint: bool) -> Any:
+def _run_live(s: Shots, *, endpoint: bool, api: bool = False) -> Any:
     from agentprov_gui.live import keychain
     from agentprov_gui.live.plan import ENDPOINTS_REL
     from agentprov_gui.live.runspec import RunSettings
     from agentprov_gui.ui.runlive import DEV_SCRIPT, RunLiveDialog
 
     keychain.status = lambda cli: keychain.KeychainStatus(True, "stub")  # no keychain access in a screenshot
-    keychain.present = lambda cli, names: dict.fromkeys(names, False)
+    keychain.present = lambda cli, names: dict.fromkeys(names, api)
     checkout = None
     if endpoint:  # a two-endpoint endpoints.toml: one local server, one API provider (placeholder entries)
         checkout = s.work / "stub-repo"
@@ -651,12 +676,15 @@ def _run_live(s: Shots, *, endpoint: bool) -> Any:
     script = s.work / "scripted-dev.json"  # the shipped dev script, copied so its path is a temporary one
     if not script.exists():
         script.write_bytes(DEV_SCRIPT.read_bytes())
+    model = ("openrouter" if api else "lmstudio") if endpoint else ""
+    model_id = ("vendor/example-model" if api else "example-model") if endpoint else ""
     preset = RunSettings(campaign="guide", script=str(script), suites=("banking",),
                          attacks=("important_instructions",), scripted=not endpoint,
-                         model="lmstudio" if endpoint else "", model_id="example-model" if endpoint else "",
+                         model=model, model_id=model_id,
                          containment="vm" if endpoint else "", corpus=str(s.work / "corpora" / "agentdojo-live-guide"))
-    dialog = RunLiveDialog(s.window.manager, home=s.work / "apv-home", checkout=checkout, preset=preset, run=_stub_run, conformance_option="--skip-prov-conformance",
-                           parent=s.window)
+    caps = frozenset({"--max-calls", "--max-cost-usd", "--price-in", "--price-out"}) if api else frozenset()
+    dialog = RunLiveDialog(s.window.manager, home=s.work / "apv-home", checkout=checkout, preset=preset, run=_stub_run,
+                           conformance_option="--skip-prov-conformance", cli_options=caps, parent=s.window)
     dialog.resize(1150, 900)
     dialog.show()
     pump(s.app, 10, lambda: dialog.estimate_result is not None)
@@ -672,16 +700,34 @@ def scene_run_live(s: Shots) -> None:
     dialog.close()
 
 
+def scene_run_live_real(s: Shots) -> None:
+    """Run Live with a real model on an API endpoint (D-1060): the quote for this run, how it is worked out, the cost
+    and call limits and both terminal commands (stub answers; nothing runs, no network)."""
+    dialog = _run_live(s, endpoint=True, api=True)
+    pump(s.app, 5, lambda: dialog.current_estimate() is not None)
+    pump(s.app, 1.0)
+    capture(dialog, s.out / "run-live-real.png")
+    dialog.close()
+
+
 def scene_run_live_estimate(s: Shots) -> None:
-    """Run Live scrolled to its end: the attacks, the run settings and the estimate (stub answers; nothing runs)."""
+    """Run Live with its Advanced line open, scrolled down to that line: its Run section (concurrency, start stagger,
+    attempts, canary, cell timeout, the conformance check) with the summary still in view (stub answers; nothing runs).
+    Without the Advanced line the whole form fits, so the picture would repeat ``run-live``. The line is closed again
+    afterwards: the dialog remembers it, and the later scenes show it closed."""
+    from PySide6.QtCore import QPoint
     from PySide6.QtWidgets import QScrollArea
 
     dialog = _run_live(s, endpoint=False)
+    dialog.advanced.set_open(True)
+    pump(s.app, 0.5)
     scroll = dialog.findChild(QScrollArea)
-    if scroll is not None:
-        scroll.verticalScrollBar().setValue(scroll.verticalScrollBar().maximum())
+    if scroll is not None and scroll.widget() is not None:  # the Advanced line near the top, Save to above it
+        top = dialog.advanced.mapTo(scroll.widget(), QPoint(0, 0)).y()
+        scroll.verticalScrollBar().setValue(max(0, top - 160))
     pump(s.app, 1.0)
     capture(dialog, s.out / "run-live-estimate.png")
+    dialog.advanced.set_open(False)
     dialog.close()
 
 
@@ -791,6 +837,7 @@ SCENES: dict[str, Any] = {
     **{f"settings-{tab.lower().replace(' ', '-')}": _settings_scene(tab) for tab in SETTINGS_TABS},
     "run-live": scene_run_live,
     "run-live-estimate": scene_run_live_estimate,
+    "run-live-real": scene_run_live_real,
     "run-live-models": scene_run_live_models,
     "model-identity": scene_model_identity,
     "assistant-tab": scene_assistant_tab,
@@ -866,6 +913,7 @@ def _run(work: Path, out: Path, names: list[str]) -> int:
     from agentprov_gui.ui.mainwindow import MainWindow
 
     theme.apply_scheme(SCHEME)
+    theme.apply_style(app)  # D-1060: the app-wide style sheet, as app.py applies it
     settings = Settings(QSettings(str(work / "settings.ini"), QSettings.Format.IniFormat))
     settings.corpus_roots = [Path("corpora")]
     settings.checkout = work / "checkout"  # the symlink: panes and dialogs show a temporary path, never a home path

@@ -145,7 +145,7 @@ def map_files(label: str, runs_files: Mapping[str, bytes], supp_files: Mapping[s
     if sem or prov:
         from agentprov.sem.engine import annotate
 
-        profile = load_semantics_profile("qwencode.tools", 2)
+        profile = load_semantics_profile("qwencode.tools", 3)  # D-1063
         result.sem = annotate(doc, profile)
         if prov:
             from agentprov.prov.engine import derive

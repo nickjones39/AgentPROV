@@ -62,7 +62,7 @@ def test_profile_pin_licence_and_import_table(src: Source):
     assert data["licence"]["spdx"] == src.spdx and data["licence"]["policy"] == "include" and data["licence"]["attribution"]
     imp = data["import"]
     assert tuple(imp["variants"]) == src.variants and imp["dialect"] == imp["mapper"] == "agentdojo.tracelogger"
-    assert dict(imp["rules"]) == {"aer": 1, "agentdojo": 2}  # no source catalogue: generic rules only (D-100)
+    assert dict(imp["rules"]) == {"aer": 1, "agentdojo": 3}  # no source catalogue: generic rules only (D-100); 3: D-1063
     assert profile.version == src.version
 
 
@@ -294,8 +294,8 @@ def test_real_fixtures_annotate_under_suites_v2_citing_only_twins(src: Source):
     from agentprov.sem.engine import annotate
     from agentprov.sem.validate import validate_sem_document
 
-    assert src.semantics == ("agentdojo.suites@2",)
-    prof = load_semantics_profile("agentdojo.suites", 2)
+    assert src.semantics == ("agentdojo.suites@4",)  # @2 on catalogue agentdojo 3 (D-1063)
+    prof = load_semantics_profile("agentdojo.suites", 4)
     twins = {r.replace("@", "_unverified@") for r in TWINNED}
     cited: set[str] = set()
     for entry in fixture_entries(src):

@@ -60,7 +60,7 @@ def test_a_tool_output_path_is_redacted_and_a_model_command_is_not():
     assert NAME not in json.dumps(result)
     assert re.fullmatch(r"/home/acct-[0-9a-f]{12}/proj/a\.txt\n", text)
     assert result["evf"]["/parts/0/text"] == "D" and f"{RULE}#/parts/0/text" in result["rule"]
-    assert result["ext"]["credleak"]["redacted"] == [{"p": "/parts/0/text", "rule": "credleak-p15b@2#account_path"}]
+    assert result["ext"]["credleak"]["redacted"] == [{"p": "/parts/0/text", "rule": "credleak-p15b@3#account_path"}]
     (issue,) = [i for i in m.issues if i["code"] == ISSUE]
     assert (issue["ids"], issue["detail"], issue["rule"]) == (["exec"], "1", RULE)
     # model-authored text stays verbatim (D-604): the call's input, the execution's args and the assistant text
@@ -235,7 +235,7 @@ def _policy():
     from agentprov.corpus.withhold import policy_of_profile
 
     data = (support.REPO / "src/agentprov/adapters/credleak/profiles/credleak-p15b.profile.toml").read_bytes()
-    return policy_of_profile(data, profile_id="credleak-p15b", profile_version=2)
+    return policy_of_profile(data, profile_id="credleak-p15b", profile_version=3)
 
 
 def test_the_account_path_withhold_rules_hit_paths_but_never_a_redaction_label():

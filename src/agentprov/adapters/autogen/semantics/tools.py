@@ -1,4 +1,8 @@
-"""The semantics profile ``autogen.tools`` version 1 (docs/architecture D.19.8; C.14; EF E.7.1, E.7.3; DECISIONS D-306).
+"""The semantics profile ``autogen.tools`` versions 1 and 2 (docs/architecture D.19.8; C.14; EF E.7.1, E.7.3; D-306).
+
+Version 2 is version 1's tables on the autogen catalogue version 2 (D-1063: the lone-surrogate and not-inlined rules;
+H.2.5: one catalogue version per corpus); version 1 keeps reading the archived catalogue version 1 that the sealed
+corpus records.
 
 Data plus small pure functions over one AER. What the profile yields, per record in AER file order:
 
@@ -8,7 +12,8 @@ Data plus small pure functions over one AER. What the profile yields, per record
   text or a ``save_note`` argument; ``autogen.attacker_tool_called`` on a call of one of the case's attacker tools; the
   task message (``unknown`` when it carries the document, else ``trusted``) and the ingest turn (``untrusted``);
   tool results: ``integrity`` (``unknown`` when a guard replaced it, else the producing tool's label, fail-closed), one
-  ``injection_marker`` per payload fixture (verbatim search, located by ``at``/``span``) and, where a payload is present,
+  ``injection_marker`` per payload fixture (verbatim search, located by ``at``/``span``; from ``@2``, ``gap`` on a result
+  the mapper did not inline, ``autogen.payload_marker_not_inlined@1``, review AU-RC-3) and, where a payload is present,
   an ``author`` naming the attacker;
 - **tool_execution**: ``role``; **artefact** (memory content): ``integrity`` ``untrusted``;
 - **scope** ``run`` of a phase-10 run: ``autogen.keyword_stop`` (whether the text-mention termination ended it).
@@ -36,10 +41,13 @@ from agentprov.sem.types import INTEGRITY_VALUES, ROLE_VALUES, Annotation, Premi
 if TYPE_CHECKING:
     from agentprov.aer.reader import AerDocument
 
-__all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "AutoGenToolsProfile", "build"]
+__all__ = ["CITED_RULES", "DATA_FILES", "NOT_INLINED_RULES", "PROFILE_ID", "AutoGenToolsProfile", "build"]
 
 PROFILE_ID: Final = "autogen.tools"
-PROFILE_VERSION: Final = 1
+PROFILE_VERSION: Final = 2
+PROFILE_VERSIONS: Final = (1, 2)  # 2: version 1's tables on the autogen catalogue version 2 (D-1063)
+#: The ``autogen`` catalogue version each profile version declares (D-31; H.2.5): @1 reads the archived version 1.
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
 DATA_FILES: Final = ("profile.toml", "tools.toml")
 EVIDENCE: Final = ("observed", "code")
 KINDS: Final = ("harness", "injecagent_user", "injecagent_attacker")
@@ -60,9 +68,18 @@ R_CANARY: Final = "autogen.canary_match@1"
 R_ATTACKER: Final = "autogen.attacker_tool_call@1"
 R_KEYWORD: Final = "autogen.keyword_stop_reading@1"
 R_TAINT: Final = "autogen.taint_sink_untrusted@1"
+#: D-1063 (regen-batch row 182, review AU-RC-3): a result the mapper did not inline gets its markers as ``gap``
+R_GAP: Final = "autogen.payload_marker_not_inlined@1"
+R_NOT_INLINED: Final = "autogen.content_not_inlined@1"
+#: The first version that marks each payload ``gap`` on a result the mapper did not inline (before, such a result had no
+#: marker and every payload counted as absent for its integrity). ``@2`` is unreleased and no corpus records it; ``@1``
+#: keeps its behaviour for ``autogen-guard-placement-w2``.
+NOT_INLINED_SINCE: Final = 2
 
 CITED_RULES: Final = (R_TABLE, R_UNKNOWN, R_AGENT, R_FIXTURE, R_TASK, R_INGEST, R_WITHHELD, R_INJECTED, R_MEMORY,
                       R_MARKER, R_CANARY, R_ATTACKER, R_KEYWORD, R_TAINT, NORMALISER)
+#: Rules cited from :data:`NOT_INLINED_SINCE` on only (absent from the archived catalogue ``@1`` reads).
+NOT_INLINED_RULES: Final = (R_GAP,)
 NS: Final[Mapping[str, Json]] = MappingProxyType({
     "autogen.canary_present": {
         "type": "object", "additionalProperties": False, "required": ["fixture"],
@@ -123,7 +140,7 @@ def parse_tables(files: Mapping[str, bytes]) -> Tables:
     missing = [n for n in DATA_FILES if n not in files]
     extra = sorted(set(files) - set(DATA_FILES))
     if missing or extra:
-        raise ProfileDataError(f"autogen.tools@1 data files: missing {missing}, unexpected {extra}")
+        raise ProfileDataError(f"autogen.tools data files: missing {missing}, unexpected {extra}")
     doc = {name: tomllib.loads(files[name].decode("utf-8")) for name in DATA_FILES}
     tools: dict[str, tuple[tuple[str, ...], str, str]] = {}
     for entry in doc["tools.toml"].get("tool", []):
@@ -133,7 +150,7 @@ def parse_tables(files: Mapping[str, bytes]) -> Tables:
         tools[name] = _label(entry, f"tool {name!r}")
     prof = doc["profile.toml"]
     if prof.get("matcher", {}).get("normaliser") != NORMALISER:
-        raise ProfileDataError(f"autogen.tools@1 uses the normaliser {NORMALISER}")
+        raise ProfileDataError(f"autogen.tools uses the normaliser {NORMALISER}")
     taint = prof["taint"]
     policy = TaintPolicy(str(taint["rule"]), frozenset(_strings(taint["subject_roles"], "taint")),
                          frozenset(_strings(taint["object_integrity"], "taint")))
@@ -158,14 +175,14 @@ class _Run:
 
 @dataclass(frozen=True)
 class AutoGenToolsProfile:
-    """``autogen.tools`` at version 1 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
+    """``autogen.tools`` at version 1 or 2 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
 
     id: str
     version: int
     sha256: str
     tables: Tables
     classes: Mapping[str, str]
-    rules: Mapping[str, int] = field(default_factory=lambda: MappingProxyType({"autogen": 1}))
+    rules: Mapping[str, int]  # the catalogue version this profile version declares (CATALOGUE_OF); no default
     ns: Mapping[str, Json] = field(default_factory=lambda: NS)
     taint_policy: TaintPolicy | None = None
 
@@ -302,6 +319,11 @@ class AutoGenToolsProfile:
                 yield self._ann(run, pid, "injection_marker", value, (R_MARKER,),
                                 (Premise(mid, f"/parts/{k}/text"), Premise(fid, "/content")),
                                 at="/text" if span is not None else None, span=span)
+        elif self.version >= NOT_INLINED_SINCE and _not_inlined_at(record, k):  # AU-RC-3: the text is not here
+            for fid, _payload in run.payloads:
+                value = {"fixture": fid, "status": "gap", "normaliser": NORMALISER}
+                yield self._ann(run, pid, "injection_marker", value, (R_GAP,),
+                                (Premise(mid, f"/parts/{k}/value"), Premise(fid, "/content")))
         if present and "att" in run.actors:
             yield self._ann(run, pid, "author", {"actor": "att"}, (R_INJECTED,),
                             (Premise(mid, f"/parts/{k}/text"), Premise(present[0][0], "/content")))
@@ -328,16 +350,28 @@ class AutoGenToolsProfile:
                          (Premise("exec", "/ext/autogen/settings/stop_reason"),))
 
 
+def _not_inlined_at(record: Mapping[str, Any], k: int) -> bool:
+    """Whether the mapper replaced the value of part ``k``, or a string inside it, by its digest (it cites
+    :data:`R_NOT_INLINED` at that pointer, D-934 / D-1063)."""
+    at = f"/parts/{k}/value"
+    return any(isinstance(r, str) and r.startswith(R_NOT_INLINED + "#") and
+               (r.partition("#")[2] == at or r.partition("#")[2].startswith(at + "/")) for r in record.get("rule") or ())
+
+
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> AutoGenToolsProfile:
-    """Build ``autogen.tools@1`` from its data files (called by :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
-    if (profile_id, version) != (PROFILE_ID, PROFILE_VERSION):
-        raise ProfileDataError(f"this code builds {PROFILE_ID}@{PROFILE_VERSION}, not {profile_id}@{version}")
+    """Build ``autogen.tools`` at version 1 or 2 from its data files (called by
+    :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
+    if profile_id != PROFILE_ID or version not in PROFILE_VERSIONS:
+        raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, not "
+                               f"{profile_id}@{version}")
     tables = parse_tables(files)
-    catalogue = load_catalogue("autogen", 1)
+    declared = CATALOGUE_OF[version]
+    catalogue = load_catalogue("autogen", declared)
     classes: dict[str, str] = {}
-    for ref in CITED_RULES:
+    for ref in (*CITED_RULES, *(NOT_INLINED_RULES if version >= NOT_INLINED_SINCE else ())):
         entry = catalogue.get(ref)
         if entry is None or not entry.citable:
-            raise ProfileDataError(f"{ref} is not an active rule of the autogen catalogue v1")
+            raise ProfileDataError(f"{ref} is not an active rule of the autogen catalogue v{declared}")
         classes[ref] = entry.cls
-    return AutoGenToolsProfile(profile_id, version, sha256, tables, MappingProxyType(classes), taint_policy=tables.taint)
+    return AutoGenToolsProfile(profile_id, version, sha256, tables, MappingProxyType(classes),
+                               MappingProxyType({"autogen": declared}), taint_policy=tables.taint)

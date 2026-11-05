@@ -194,7 +194,7 @@ def test_profile_pins_licence_and_selection():
     assert owned["owner"] == "agent-security-tools-survey" and owned["owner_corpus"] == "ast-survey-agentharm"
     assert tuple(imp["context_artefacts"]) == ("agentdojo/results/runs_*/console_*.log", "agentdojo/results/timing_summary.csv",
                                                "agentdojo/run_full_benchmark.sh")
-    assert dict(imp["rules"]) == {ns: load_catalogue(ns).version for ns in imp["rules"]} == {"aer": 1, "agentdojo": 2, "survey": 1}
+    assert dict(imp["rules"]) == {ns: load_catalogue(ns).version for ns in imp["rules"]} == {"aer": 1, "agentdojo": 3, "survey": 1}
     assert tuple(data["family"]["agentdojo"]["harness"]["verified_code"]) == ()  # the patched fork is unpinned (D-24)
     agentharm = load_profile("survey-agentharm")
     assert agentharm.data["source"]["pins"][0]["commit"] == git["commit"]  # the shared pin

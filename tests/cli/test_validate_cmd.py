@@ -68,6 +68,16 @@ def test_release_implies_strict_and_requests_every_tier(cli, valid_aer):
     assert any("tier regression is not implemented" in n for n in document["notices"])
 
 
+def test_release_adds_every_tier_to_a_tiers_list(cli, valid_aer):
+    """AU-CLIA-14: N.2.5(1) says --release adds every applicable tier; with --tiers it ran the list alone."""
+    run = cli("validate", str(valid_aer), "--release", "--tiers", "aer", "--json")
+    document = run.json()
+    assert run.code == 1
+    assert any("tier shacl is not implemented" in n for n in document["notices"])
+    assert any("--release runs every applicable tier: added sem, prov, linkage, shacl, regression" in n
+               for n in document["notices"])
+
+
 def test_release_and_strict_are_mutually_exclusive(cli, valid_aer):
     assert cli("validate", str(valid_aer), "--release", "--strict").code == 2
 

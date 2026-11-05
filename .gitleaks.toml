@@ -2,13 +2,21 @@
 #
 # The redaction and secret-scan tests (capture/tests, backends/*/tests, tests/integration, tests/cli) need
 # key-shaped strings to prove that keys are redacted, flagged or quarantined (C.13.5, G.6.4, R-51). Every such
-# string is synthetic and carries one of the markers below. The allowlist matches only those markers inside the
-# detected secret, never whole paths, so a real key committed anywhere, tests included, is still reported.
+# string is synthetic and carries one of the markers below. The marker allowlist applies only inside the test trees
+# (condition AND: a test path and a marker inside the detected secret), so a key committed anywhere else is reported
+# whatever it contains, and a real key in a test file is reported unless it carries a marker. Scan with `gitleaks git`
+# (CI, tools/ci_local.py, the pre-commit hook): `gitleaks dir` 8.30.1 skips the paths named here without the AND.
 [extend]
 useDefault = true
 
-[allowlist]
-description = "synthetic key-shaped test values (redaction and secret-scan tests) and AgentPROV execution ids"
+[[allowlists]]
+description = "synthetic key-shaped test values (redaction and secret-scan tests), in the test trees only"
+condition = "AND"
+paths = [
+  '''^tests/''',
+  '''^capture/tests/''',
+  '''^backends/[^/]+/tests/''',
+]
 regexTarget = "secret"
 regexes = [
   '''(?i)sentinel''',
@@ -19,6 +27,12 @@ regexes = [
   '''0123456789''',
   '''1234567890''',
   '''MIIabc''',  # the body of the fake PEM block in capture/tests/test_redact.py
+]
+
+[[allowlists]]
+description = "AgentPROV execution ids"
+regexTarget = "secret"
+regexes = [
   # An AgentPROV execution id (aer/ids.py EXECUTION_ID_RE, base32 form): lists of ids in analysis records trip the generic
   # API-key rule when an id happens to contain "api" or "key" (docs/reports/analysis/dtap-sample-check-data, 2026-10-12).
   # Anchored to the whole secret, so a key that merely contains such a string is still reported.

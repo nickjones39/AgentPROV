@@ -81,7 +81,7 @@ def test_header_and_task():
     assert h["artifacts"][0]["prov_primary"] == "native"  # pinned publisher origin (D.6.5 Step 1)
     assert h["unk"] == {"/instrumentation": "not_recorded"} and h["unit"] == "agent_execution"
     assert h["ext"]["agentdojo"] == {"error": None, "pipeline_name": "gpt-4o-2024-05-13"}
-    assert h["rules"] == {"aer": 1, "agentdojo": 2}
+    assert h["rules"] == {"aer": 1, "agentdojo": 3}
     run = m.get("run")
     assert run["t"] == {"dur_clock": "wall", "dur_s": 3} and run["ext"]["lex"] == {"flt": ["/t/dur_s"]}
     pre = map_log(base_log(user_task_id="injection_task_3", attack_type=None, injection_task_id=None, injections={}))

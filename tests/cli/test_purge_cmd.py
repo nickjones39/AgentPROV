@@ -118,6 +118,17 @@ def test_purge_removes_tombstones_and_withholds(cli, work, check_summary):
     assert again.code == 0 and again.json()["counters"] == {"executions_withheld": 0, "objects_removed": 0, "tombstones_written": 0}
 
 
+def test_a_repeated_purge_does_not_say_removed(cli, work):
+    """AU-CLIA-3: the second purge of a digest finds the object gone; the text agrees with the counters."""
+    args = ("purge", digest_arg(work["leak"]), "--reason", "secret", "--corpus", str(work["final"]), "--yes")
+    first = cli(*args)
+    assert first.code == 0 and f"removed sha256:{work['leak']}" in first.err and "writing the tombstone" in first.err
+    again = cli(*args)
+    assert again.code == 0, again.err
+    assert "removed sha256:" not in again.err and f"sha256:{work['leak']} was already removed" in again.err
+    assert "the tombstone is already in" in again.err and "writing the tombstone" not in again.err
+
+
 def test_a_container_purge_lists_the_members_that_stay(cli, work):
     run = cli("purge", digest_arg(work["container"]), "--reason", "personal_data", "--corpus", str(work["final"]), "--yes")
     assert run.code == 0 and f"sha256:{work['member']}" in run.err and "stay stored" in run.err

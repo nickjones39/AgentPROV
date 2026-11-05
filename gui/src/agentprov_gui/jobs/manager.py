@@ -37,6 +37,7 @@ from agentprov.errors import IngestError
 from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.loaders import strict_json_loads
 
+from agentprov_gui import platform_limits
 from agentprov_gui.jobs.commands import JobSpec
 
 __all__ = [
@@ -354,8 +355,10 @@ class JobManager:
             raise SpawnRefused("No AgentPROV checkout with a CLI is configured (Settings › General).", "gui.cli.missing")
         if "--env-stdin" in spec.argv or "--env-file" in spec.argv:  # S7: refused (D-702: keys come from --keychain)
             raise SpawnRefused("The GUI never passes keys: a live run reads them with --keychain.", "gui.keys.refused")
+        # D-1064: where the CLI refuses the job queue, a job's CPU reservation stays a recorded fact
+        queue = self.cli.checkout is not None and platform_limits.current().get("job_queue") is None
         argv = job_start_argv(spec, control_file=control_file, batch_id=batch_id, extra_record=extra_record,
-                              queue=self.cli.checkout is not None)
+                              queue=queue)
         code, out, err = self.call(argv, timeout=60)
         if code in (124, 127) and not out:  # GR-18: the CLI itself could not be run (the reason names no path)
             raise SpawnRefused(f"The job could not be started ({err.decode('ascii', 'replace')[:40]}). Check the "

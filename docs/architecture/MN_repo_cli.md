@@ -1998,7 +1998,7 @@ with the hint `uv sync --extra live`).
 | `--model SHORTHAND` | — | `agentprov_capture/endpoints.toml` shorthands: `deepseek`, `openai`, `openrouter`, `gemini`, `llama`, `qwen`, `glm`, `ollama` (baseline set, `runtime.py:494-503`), plus `omlx` (N.2.1a) and the local servers `lmstudio`, `mlx_lm`, `llamacpp`, `vllm` (D-690). The model id comes from `--model-id` or from the shorthand's `*_MODEL` variable; if neither is set, exit 3 (for a local endpoint the message names the served ids, and a terminal offers a numbered pick, D-691). There are no default model ids (M.4; Q5 closed) |
 | `--endpoint NAME --model-id ID` | — | explicit endpoint (`deepseek`, `openai`, `openrouter`, `anthropic`, `local`, or any local shorthand of D-690) and model id → `AgentConfig.{endpoint_host, api_key_env, model_requested}`; an endpoint whose registry `api` is `anthropic_messages` sets `provider: anthropic` (D-656) |
 | `--base-url URL` | `.env` `*_BASE_URL`, then the setting `endpoints.<name>.base_url` (D-699), then the registry default | a local endpoint's base URL: loopback, or a literal private address with `--allow-lan-endpoint` (D-691, D-698); recorded |
-| `--allow-lan-endpoint` | off | a local endpoint on a private LAN address (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7; literal IPs only), per run; keyless; prompts and replies leave the machine over plain http; recorded (`network: "lan"`). Under `sandbox-exec` it needs the D-664 egress proxy's HTTP forward mode (D-698) |
+| `--allow-lan-endpoint` | off | a local endpoint on a private LAN address (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7; literal IPs only), per run; keyless; prompts and replies leave the machine over plain http; recorded (`network: "lan"`). Under `sandbox-exec` it needs the D-664 egress proxy's HTTP forward mode (D-698). The run is class `api`: the caps and API consent apply (D-1067) |
 | `--accept-served-model ID` | none | repeatable: a served model id that may differ from the requested one without the A12 canary stop (D-694); recorded as `live.accepted_served_models` |
 | `--no-hash-weights` | off | a local model's weight files are recorded by size only (`weights_hashed: false`; D-692) |
 | `--preflight-only` | — | run the D.10.9 preflight probes for the selected endpoint and model, print the result and exit |
@@ -2171,7 +2171,12 @@ with the hint `uv sync --extra live`).
      - **Above the server limit:** an arm above `J_server` runs and is flagged.
      - **Resume:** a finished arm writes `<out>/arms/jobs-<N>.json` and is reused on a re-run with the same
        configuration digest. An unfinished arm's corpus is renamed `*.interrupted-<stamp>` (never deleted) and run
-       again.
+       again. Before it renames anything, the sweep refuses an arm corpus whose lock a live writer holds (exit 4).
+     - **Drain:** a drain starts no further arm. An arm it cut short writes no arm file and is measured again on a
+       re-run. The arms not run are `skipped` (`drained`), the report's `recommendation` is `jobs: null` with
+       `drained: true`, and the exit is 0 (AU-RN-1).
+     - **Caps:** the warm-up and each arm record their own spend against `--max-calls` and the other caps in their
+       own corpus. The sweep's total is capped too: a cell starts only if both fit (AU-RN-2).
    - **Metrics.** They come from T0's clock (`wall_s`) and the stored capture logs (no prompt, reply or tool text):
      - traces per hour (conclusive cells ÷ hours) and seconds per cell (`wall_s × N ÷ conclusive`);
      - call latency p50/p90/max (`mono_ns`, `llm.request` → `llm.response`);
@@ -2248,7 +2253,11 @@ Phase 8 stream D built the parent (T0) side of live runs: `agentprov.cli.run` (o
    and `--tune-jobs` (D-823; before D-823 every preset live run), `--spec`, any `--defence` other than `none`.
 3a. **Endpoint classes and API caps (D-721, D-725, D-726; `agentprov.cli.live.policy`).** A real-model run is
    `local` when its `endpoints.toml` entry has `local = true` and the resolved base URL's host is loopback; every other
-   real-model run is `api` (a LAN address counts as `api` until the egress proxy forwards LAN traffic). The class is
+   real-model run is `api`. A keyless model server on a private LAN address (`--allow-lan-endpoint`, D-698) is `api`
+   although the egress proxy forwards to it (D-664): its prompts and replies leave the machine, so the caps and API
+   consent apply (D-1067, 2026-11-05, amending D-721; its refusals and notices say "a LAN model server is an API
+   endpoint", and Run Live shows the caps and API consent when its LAN opt-in is ticked or the base URL is off
+   loopback). The class is
    decided after the status gate and before consent, the preflight probe or any spawn, and is noted in the run's
    notices and recorded as `live.endpoint_class`.
    - **Consent.** `local`: interactive, `--i-consent-to-local-run` or `--i-consent-to-api-costs`. `api`: interactive or
@@ -2261,13 +2270,23 @@ Phase 8 stream D built the parent (T0) side of live runs: `agentprov.cli.run` (o
    - **Budget.** T0 counts the corpus's billed calls (every `llm.response` with an HTTP 2xx status) and their recorded
      `usage` in each attempt's capture log, earlier invocations included, plus one call per preflight probe. A cell
      starts only if the spend plus the worst case of every in-flight cell and of the new one fits both caps. The
-     worst case is 48 billed calls (3 passes × (1 + `max_iters` 15)), each at the per-call bound: input 32,000 tokens
+     worst case is 48 billed calls (3 passes × (1 + `max_iters` 15)) times the billed replies one step of the LLM
+     element may take (AU-LIVE-1: 8 for `gateway_compat`, whose declared `retry_malformed_tool_json@1` and
+     `retry_upstream_failure@1` re-ask on a 2xx reply; 3 for the AutoDojo fork's native element,
+     `fork_malformed_json_retry@1`; 1 for the stock native element), so 48, 144 or 384, plus a defence's declared
+     calls: MELON's masked model call each step goes through the same element and counts at the same per-step
+     replies, its two embeddings a step (the defence endpoint's client) and `tool_filter`'s one call a pass (a stock
+     client) count once, so a MELON cell (AgentDojo only) reserves 192, or 864 under `gateway_compat` (AU-FR-2); a preflight probe is charged at the same
+     per-step count. Each call is at the per-call bound: input 32,000 tokens
      or the largest seen; output the transmitted `max_tokens`, else 4,096, or the largest seen. Spend is an upper
      bound: every input-side token (input, cache read and cache write) at `--price-in`; a billed reply without usage at
      the per-call bound; a parent-ended attempt one more call; an attempt without a log a whole cell. A cap that stops
      the campaign is `cap_reached` (exit 1, `live.partial`). A cell that spends more than its bound is
      `cap_bound_exceeded`, and no further cell starts. `live.caps` records the caps, the bound, `billed_calls` and
-     `spend_upper_bound_usd` (decimal strings). The provider's own key or workspace limit is the backstop (U-10).
+     `spend_upper_bound_usd` (decimal strings). A cell is counted in `live.caps.unledgered_cells` (written before it
+     starts) until its attempt is ledgered; a resume charges each cell still counted there (killed in flight by an
+     aborting error, a second signal or a kill) a whole cell at the bound (AU-LIVE-3). The provider's own key or
+     workspace limit is the backstop (U-10).
    - **Inspect cells (D-740).** The worst case of an Inspect cell is `n × E × ((M − 1) × (1 + a) + j) × (1 + K)`
      billed calls. Here `n` is `--cell-size` (default 1 under caps), `E` the epochs, `M` the message limit, `a` and
      `j` the task's judge calls per agent call and per sample, and `K` the worker's fixed retries (1). T0 computes it
@@ -2595,8 +2614,8 @@ D.2.9 and its resolutions are in D.2.9's note.
    input or the fetch cache (exit 4); G3: the CLI may not run `git` (M.5.3), so an output inside a git work tree is refused
    (fail closed); G6 is the writer's lock.
 10. **`info`** renders the registry per part (D.3.5) through `adapters.registry.render`, and `info SOURCE` prints the parts,
-    profiles and pins, licence and evidence references. `--matrix` and `--must-not-claim` need the claims library of D.3.1,
-    which is not part of this build, and exit 5.
+    profiles and pins, licence and evidence references. `--matrix` and `--must-not-claim` exit 5: the claims library of D.3.1
+    ships (it lints corpus cards), but `info` does not render the matrix or the must-not-claim items yet.
 11. **Deferred** (each with a refusal or a usage message): `--spec` and the synthesised `rules/corpus-spec.toml`, the
     `rules/` byte copies, `--prov-spec adprov-v2.3-compat`, `--pipeline`, and the `git check-ignore` exception of G3.
     Sealing, `checksums.sha256`, the datasheet and `verify` stay phase 11. Archive `--input`, download pins with
@@ -2664,7 +2683,8 @@ is a T1-restricted job in `backends/agentdojo` with no keys and no network (R-34
    (and under its own context). A job that ran the round trip returns it for the parent to store. Outputs are identical
    with and without the cache. A job that skips tier 4 (G2c-5, `conformance: false`) never reads or returns an entry.
    `--no-validation-cache` turns it off. The same applies to `recompute` (N.2.4) and to `verify --level rederive`
-   (N.2.6), whose `--release` audits the cache and never reads it.
+   (N.2.6), whose `--release` audits the cache and never reads it. A `derive` or `recompute` of a release-mode corpus
+   audits it too (D-1068 P5): release mode never serves an entry.
 
 Counters: `selected`, `stages_run`, `reused`, `failed`. Exit 0, 1 or 2–5.
 
@@ -2700,7 +2720,10 @@ agentprov recompute --corpus DIR (--out NEWDIR | --dry-run) [--stages expand,aer
    changed file, escaped (N.1.13). For changed PROV files it adds the order-insensitive semantic diff of
    `agentprov.prov.diff.diff_documents` (B COR-21; HL H.8). The corpus diff command stays deferred (N.2.7).
 6. **`--out` result.** An unsealed corpus with `derived_from: {corpus_id, corpus_version, root_digest}`. Raw objects
-   are hard-linked on the same filesystem, else copied. Then `package` it as a new version.
+   are hard-linked on the same filesystem, else copied. A corpus derived from a working corpus can then be sealed with
+   `package`. One derived from a sealed corpus (directly, or through a corpus derived from it) stays a working corpus for comparison and is not sealed (`package`
+   refuses it, `package.refused.derived`, D-1051): a new version of a sealed corpus is made by re-importing the source
+   (D-31, D-430), and a sealed corpus is reproduced by recomputing at its building commit (F-8).
 
 Counters: `identical`, `changed_explained`, `unexplained_change`, `failed`, `unverified`.
 
@@ -2748,10 +2771,15 @@ agentprov validate (--corpus DIR | FILE…) [--tiers aer,sem,prov,linkage,shacl,
    - `--in-process` runs every tier in the CLI process. It is the AD-10 row 17 option, allowed with `--release` (G.4.9).
    - A job that is stopped (`worker.limit.*`) or crashes fails its row with the check id `validate.worker`. The limit
      code goes to a report notice, and the run exits 1.
+   - The parent streams `executions.jsonl` (pipeline performance review 2026-11-05, P8): a full run validates the rows
+     as it reads them, and `--sample N` keeps only the N sampled rows (one pass, the N smallest sample keys of N.1.7,
+     so the same executions as before). Of `validation/results.jsonl` it keeps only each needed row's validator
+     versions. The report, its order and the exit code do not change.
 9. **Round-trip cache (`--corpus`; D-550).** The tier-4 PROV-O round trip (the `pv.roundtrip.*` checks, E.5.5) of a
    document is kept under `$AGENTPROV_HOME/cache/tier4`, keyed by the PROV document's sha256 and the context that
-   decides its outcome: the `agentprov` source digest, the round-trip libraries' versions and file digests, the Python
-   build and the round-trip options. A later validation of the same bytes in the same context reuses the outcome
+   decides its outcome: the digest of the `agentprov` files in the import closure of `validate_prov` and of
+   `validate/cache.py` (derived from the source each time; D-1068 P5, format `agentprov-tier4-cache/2`; before, every
+   package file), the round-trip libraries' versions and file digests, the Python build and the round-trip options. A later validation of the same bytes in the same context reuses the outcome
    instead of round-tripping again. Every other check runs. The report, the rows and the exit code are the same with
    the cache off, cold or warm.
    - The parent does every cache read and write. A job gets the parent's entry for its document as an input and uses
@@ -2763,6 +2791,12 @@ agentprov validate (--corpus DIR | FILE…) [--tiers aer,sem,prov,linkage,shacl,
    - `--no-validation-cache` turns it off. `--release` never reads an entry. It recomputes every round trip, compares it
      with the entry it finds (the counts are reported on stderr, and a mismatch is an error message), and stores the
      fresh outcome. The cache's counters are diagnostics on stderr, never in the report.
+10. **Withheld raw objects (`--corpus`; D-1069).** A sealed corpus may withhold, at object level, raw bytes that a
+    released execution cites (H.4.5 item 2). An `aer.blob.missing` error that names an object the corpus's
+    `WITHHELD.json` lists becomes the AER skip "raw-store checks (V20, V21): a raw object this corpus version withholds
+    (WITHHELD.json)": skipped, not passed, so the row passes in dev mode and fails under `--strict` and `--release`. Such a
+    row is not compared with its stored row (made before sealing withheld the bytes); the counter `aer_withheld` and a
+    notice give the number. An absent object `WITHHELD.json` does not list stays `aer.blob.missing`.
 
 Exit 0 when all checks pass; 1 on any failure or a strict skip; 2–3 as N.1.3. The printed summary line names every
 requested tier that did not run, with its reason, as "skipped, not passed", and under `--strict` or `--release` says
@@ -2990,6 +3024,12 @@ agentprov package --corpus DIR --corpus-version X.Y.Z [--release-date YYYY-MM-DD
 *Preconditions* (each refuses with exit 4):
 
 - the working corpus exists and is not partial;
+- the working corpus was not derived from a sealed corpus (`derived_from.state: sealed`, or any `derived_from` with a
+  snapshot in the sealed H.2.3 form, which has no `pin` member at all: a corpus derived from one derived from a sealed
+  corpus, whose `derived_from.state` is `working`, since `derived_from` records only the immediate source;
+  `package.refused.derived`, D-1051, AU-FR-3): its snapshots carry the sealed origin, not a pin the import recorded
+  (D-33). An import's snapshot always has the member (`null` when nothing was pinned), so a recompute of a working
+  import that was never pinned is refused as `package.refused.unpinned`, its real cause (AU-NC-4);
 - no snapshot was imported with context trees or pinned objects (D.16.14 R2, R3): the sealed
   `agentprov-corpus/0.1` snapshot cannot hold `context` or `pinned_objects`, and a re-map of the sealed corpus would
   run without those joins. Such a corpus is refused (`package.refused.context`) until corpus/0.2 carries both (NF-24;
@@ -3252,7 +3292,8 @@ linkage; read-only, report `agentprov-validation-report/0.1` outside the corpus)
   `corpus.derive.version_drift`) before `NEW.partial` exists, with the reason in `summary.refusal`. Upgrading is a fresh
   re-import. When `--out` finishes with failures (outcome `failures`, exit 1), `NEW.partial` is kept as written: it is
   never the source, and it holds the failing executions' rows for inspection. Do not seal it: re-run the recompute
-  clean first (P-4; `package` does not check how a working corpus was produced).
+  clean first (P-4; `package` does not check how a working corpus was produced, except that it refuses one derived
+  from a sealed corpus, D-1051).
 - **N.2.8 `inspect`.** As built: `agentprov inspect TARGET [--corpus DIR] [--view V] [--record ID] [--bundle B]
   [--max-chars N] [--format {text,json}]`, with the global `--show-content` and `--json`. Views and `TARGET` kinds are as
   specified; without `--show-content` only structure is printed, and with it content passes `quote_untrusted`.
@@ -3270,7 +3311,9 @@ linkage; read-only, report `agentprov-validation-report/0.1` outside the corpus)
   members `source_id, profile, unit, status, mode, completeness, execution_observed, adapter, snapshot`, `issue` (any
   of a row's issue codes), `facet.<name>`, `cell.<member>` (a known H.7.4 cell member: `suite`, `task_id`, `attack_id`,
   `attack_target_id`, `defense_id`, `model`, `repeat`…; an unknown member never matches) and `outcome.<claim>=true|false|none`
-  (an `outcome` element with that SEM claim holds, does not hold, or none has a `holds`: not judged; D-706). These are the
+  (an `outcome` element with that SEM claim holds, does not hold, or none has a `holds`: not judged; D-706; when an
+  element of a `recomputed` judgement gives the claim, only those elements decide, so a corrected row matches its
+  corrected value, never both: D-29 item 5). These are the
   Viewer's filters (D-700). A working corpus is `verification: not_sealed`; `chain` and `rederive` raise exit 5 until U4 (D-48).
 - **N.2.13 `render`.** `--all` was **removed** and `--select` requires `--limit`; a bare `render --corpus DIR` is a usage
   error. Selections: `--ex ID...`, `--limit N`, or `--select ... --limit N` (D-45; K.5.12 item 3 follows).
@@ -3300,11 +3343,13 @@ for fetches).
 |---|---|---|
 | `settings list\|get\|set\|unset` | the shared user settings in `$AGENTPROV_HOME/settings.json` (`agentprov-settings/0.1`), a closed schema: dev-run defaults and caps, estimate defaults, compute defaults and the job queue's budget, the default CI target, job retention, local endpoint base URLs. A corrupt file is refused (exit 2) by the commands that read it | D-703 |
 | `keys status\|list\|set\|delete` | endpoint keys in the OS keychain through the keychain helper process (`agentprov.keys.helper`, the only importer of `keyring`; allowlisted back-ends only). `list` shows names and presence, never values; `set` reads the value from a no-echo prompt or one line on stdin (`--stdin`), never argv, and only for a key variable of `endpoints.toml`; `delete` needs `--yes` when not interactive. `run --keychain` reads the selected endpoint's key the same way (exclusive with `--env-file` and `--env-stdin`) | D-702 |
-| `prices list\|get\|set\|unset\|refresh` | the model prices the estimate uses (`agentprov.estimate.prices`): the shipped table, the newest refreshed OpenRouter snapshot (`$AGENTPROV_HOME/prices/`) and per-model overrides (`prices/overrides.json`), resolved per endpoint of `endpoints.toml`. `refresh` fetches one public URL and needs `--allow-network` (exit 4), or imports a saved response (`--from-file`); only ids and prices are kept | D-701 |
+| `prices list\|get\|set\|unset\|refresh\|status` | the model prices the estimate uses (`agentprov.estimate.prices`): the shipped table, the newest refreshed OpenRouter snapshot (`$AGENTPROV_HOME/prices/`) and per-model overrides (`prices/overrides.json`), resolved per endpoint of `endpoints.toml`. `refresh` fetches one public URL and needs `--allow-network` (exit 4), or imports a saved response (`--from-file`); only ids and prices are kept. A snapshot records when it was written (UTC) and how (`network` or `file`); `status` (`agentprov-prices-status/0.1`, R0) reports it and whether a daily refresh is due. `refresh --allow-network --if-stale` fetches only while the setting `prices.auto_refresh` is not false (unset: on) and no snapshot was written today in local time: the desktop app's daily refresh when Run Live opens | D-701, D-1062 |
 | `jobs start\|list\|show\|follow\|stop\|kill\|drain\|resume\|prune` | detached jobs in `$AGENTPROV_HOME/jobs/<id>/` (`agentprov.jobs`): `start -- ARGV` runs `agentprov ARGV` (or `--tool tools/<name>.py` of this checkout, resolved inside `tools/`, no symlink) under a supervisor that records the real exit code; relative paths of ARGV (path options, path positionals, `inspect TARGET` when it is a path; and `--writes`/`--reads`) are made absolute against the caller's cwd first, as `batch create` does for its steps (D-704 amendment). One writer per corpus and one job per slot are refused at start (exit 4); `stop` is one SIGTERM, `kill --yes` kills the process tree after the `(pid, create_time)` identity check, `drain` writes the D-394 control file, `follow` prints the progress records (`--log`: the log records) until the job ends, `prune` lists (and with `--yes` deletes) old ended jobs beyond `--keep` (default `jobs.retention`, else 200) or `--max-age-days` (default `jobs.retention_days`, else 90). `start` gives a queued job the budget `compute.cpu_budget` / `compute.mem_gib_budget` unless the environment sets one | D-704 |
 | `batch create\|start\|run\|resume\|stop\|list\|show` | ordered job lists in `$AGENTPROV_HOME/batches/<id>.json` (`agentprov.jobs.batch`), run as one driver job (`batch start` launches `batch run ID` through `jobs`). Steps are checked by the CLI's own parser at `create` and again before each starts (no job- or batch-starting step, no destructive step, no raised tier); R2 steps run only under a driver started with `--confirm-r2` (else exit 4 at `start`, `held` under a later driver); a changed checkout pin blocks the remaining steps; exit 4 or 70 blocks the rest unless `--continue-on-failure` (default: the setting `jobs.continue_on_failure`; `--no-continue-on-failure` overrides it) | D-704 |
 | `devrun plan\|start\|list\|prune` | dev runs (`agentprov.devrun`): a few samples of every chosen part imported into `$AGENTPROV_HOME/dev-runs/<stamp>/` and checked as one batch (import, validate, `recompute --dry-run` per part; never `--release`, never a stored corpus). Settings are `agentprov settings` `devrun.*`; `start` needs `--confirm-r2` (the imports read the fetch cache) and prunes old runs that nothing uses | D-705 |
-| `estimate SOURCE <run options>` | the cost and time of a live run before it starts: a dry plan (N.2.1 item 5) and the catalogue, cell statistics from `--stats-corpus` corpora, the shipped priors or `estimate.default.*`, priced by `prices`; p50/p90 cost and time, worst case, per suite and per attack (`--format json`: `agentprov-estimate/0.1`). Takes run's options less the run-only ones; no model call, nothing written. An Inspect plan is priced per sample × epoch, the agent's calls and the judges' calls apart, each judge at its model's price at the agent's endpoint, with D-740's bound of billed calls per sample | D-701, D-770 |
+| `estimate SOURCE <run options>` | the cost and time of a live run before it starts: a dry plan (N.2.1 item 5) and the catalogue, cell statistics from `--stats-corpus` corpora, the local priors (`priors build`) and the shipped priors (per benchmark: local family, shipped family, local any-model, shipped any-model) or `estimate.default.*`, priced by `prices`; the JSON document's `quote` gives the run's USD, calls, tokens and time at p50 and p90 (the p90 an upper figure: the sum of per-cell 90th percentiles) and what they rest on, marked an estimate only (D-1062); p50/p90 cost and time, worst case, per suite and per attack (`--format json`: `agentprov-estimate/0.1`). Takes run's options less the run-only ones; no model call, nothing written. An Inspect plan is priced per sample × epoch, the agent's calls and the judges' calls apart, each judge at its model's price at the agent's endpoint, with D-740's bound of billed calls per sample | D-701, D-770 |
+| `priors build\|show` | the estimate's local priors (`agentprov.estimate.localpriors`; the corpora are read in `agentprov.cli.priors_read`): `build` counts the executions of the user's sealed corpora (every one under `$AGENTPROV_HOME/corpora`, the highest version of each corpus id, or the `--corpus` ones) into `$AGENTPROV_HOME/estimate/priors-local.json`, atomically, in the shipped priors' format and with the shipped builder; working corpora, withheld executions and executions already counted are left out; nothing is written into a corpus (R1). `show` (R0) describes the local and shipped tables | D-1062 |
+| `update check\|status\|download\|install\|rollback` | Check for Updates (`agentprov.update`): `check --allow-network` (R2) reads the GitHub releases API of the public repository (`api.github.com` only, bounded, strict JSON, untrusted; drafts, pre-releases and tags other than `vX.Y.Z` ignored; asset addresses built from the tag and name, another host refused) and compares the newest release in PEP 440 order with the core and the app (`agentprov-update-check/0.1`), cached in `$AGENTPROV_HOME/update/check.json`; `--if-stale` fetches once a local day while the setting `update.auto_check` is not false (unset: on); `status` (R0) reads the cache. `download --allow-network` (R2) stages this platform's bundle, `SHA256SUMS` and `SHA256SUMS.sig` under `$AGENTPROV_HOME/update/staging/`: the signature first (`ssh-keygen -Y verify -n file` against the package's `update/data/allowed_signers`; a listed key makes a signature mandatory), then the sha256, then the archive's members; any mismatch refuses and keeps nothing. `install --confirm --bundle PATH` (R2) verifies again, unpacks beside the app with a checking extractor and swaps the folders, the previous kept in `.AgentPROV-previous` (macOS and Linux at once; Windows by a detached helper after the app has quit); without `--bundle` it prints the upgrade command of a package install. `rollback --yes --bundle PATH` (R1) swaps back | D-1065 |
 | `models [--endpoint NAME \| --base-url URL] [--model-id ID] [--allow-network \| --refresh-if-stale]` | the models a running local model server serves, and one model's observed identity (read-only, loopback or opted-in LAN; N.2.18); an API provider's dated model list, fetched with `--allow-network` (R2) or under `models.auto_refresh` (D-730..D-735); the GUI's model picker | D-691, D-730 |
 
 ### N.2.18 `models` — local model servers (D-691, D-692)

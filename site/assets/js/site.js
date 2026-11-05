@@ -55,7 +55,8 @@
   }
 
   // The point (in % of the stage) that a hotspot sits on: its own position, or for a dialog its position mapped
-  // through the dialog's box (92 % of the stage height, centred, with the dialog's own aspect ratio).
+  // through the dialog's box (92 % of the stage height, or its own --h for a wide dialog, centred, with the dialog's
+  // own aspect ratio).
   function origin(spot) {
     var x = parseFloat(spot.style.getPropertyValue("--x"));
     var y = parseFloat(spot.style.getPropertyValue("--y"));
@@ -63,7 +64,7 @@
     if (!dlg) return [x, y];
     var parts = dlg.style.getPropertyValue("--ar").split("/");
     var ar = parseFloat(parts[0]) / parseFloat(parts[1]);
-    var h = 92;
+    var h = parseFloat(dlg.style.getPropertyValue("--h")) || 92;
     var w = h * ar * STAGE_RATIO;
     return [50 - w / 2 + (x * w) / 100, (100 - h) / 2 + (y * h) / 100];
   }

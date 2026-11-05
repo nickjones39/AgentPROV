@@ -222,7 +222,7 @@ def test_header_task_and_benchmark():
     assert task == {"benchmark": "agentdojo", "suite": "banking", "task_id": "user_task_0", "attack_id": "tool_knowledge",
                     "attack_target_id": "injection_task_1", "defense_id": None}
     assert m.header["adapter"]["id"] == "agentdojo.tracelogger" and m.header["dialect"]["id"] == DIALECT_ID
-    assert m.header["rules"]["rescont"] == 2  # D-31: version 2 since items 116 and 118 added issue codes
+    assert m.header["rules"]["rescont"] == 3  # D-31: version 2 since items 116 and 118 added issue codes; 3: D-1063
 
 
 def test_container_fields_reach_every_row():
@@ -298,9 +298,13 @@ def test_a_version_1_aer_validates_against_the_archived_catalogue_d31(monkeypatc
     files come from ``archive/``. The trial build is replayed by shipping ``rescont`` at version 1 to the mapper."""
     import agentprov.adapters.runner as runner  # noqa: PLC0415
 
+    import agentprov.adapters.agentdojo.results_mapper as results_mapper  # noqa: PLC0415
+
     real = runner.load_catalogue
     monkeypatch.setattr(runner, "load_catalogue",
                         lambda ns, version=None, **kw: real(ns, 1 if ns == "rescont" and version is None else version, **kw))
+    # the trial build's mapper cited the request reading at @1 (@2 since rescont 3, D-1063 finding AU-RA-6)
+    monkeypatch.setattr(results_mapper, "R_REQUEST", "rescont.request_built_from_messages@1")
     m = one(container(), profile=load_profile(PROFILE, 1))
     assert m.header["rules"]["rescont"] == 1 and m.header["profile"]["version"] == 1
     ok(m)
@@ -484,7 +488,7 @@ def test_redaction_covers_values_keys_and_pointers():
     assert _leaks(m.data) == []
     label = m.header["ext"]["rescont"]["container"]["model"]
     assert re.fullmatch(r"cluster:[0-9a-f]{12}/llama-70b", label)
-    assert {"p": "/ext/rescont/container/model", "rule": f"{PROFILE}@2#cluster_scratch"} in m.header["ext"]["rescont"]["redacted"]
+    assert {"p": "/ext/rescont/container/model", "rule": f"{PROFILE}@3#cluster_scratch"} in m.header["ext"]["rescont"]["redacted"]
     assert m.header["evf"]["/ext/rescont/container/model"] == "D" and f"{RULE}#/ext/rescont/container/model" in m.header["rule"]
     assert "rescont.value_redacted" in m.codes
     assert m.header["src"].count({"a": "a0", "p": "/model"}) == 1  # the locator stays on the raw field

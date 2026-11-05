@@ -12,7 +12,8 @@ the annotation order):
   (``trusted``; ``untrusted`` when a prompt payload is present) and, for a present payload, an ``author`` naming the
   attacker (I); agent output (actor ``agent``): ``integrity`` ``trusted`` and, on a ``tool_call`` part, its ``role``;
   tool results: ``integrity`` (the producing tool's label: ``untrusted`` or ``unknown``, fail-closed) and one core
-  ``injection_marker`` per ``environment``/``skill`` payload fixture;
+  ``injection_marker`` per ``environment``/``skill`` payload fixture (from ``@4``, ``gap`` where the result is not inlined
+  and the payload is not found in what it still holds, ``dtap.marker_not_inlined@1``, review AU-RC-3);
 - **tool_execution**: ``role``; **artefact** of a harness type: ``integrity`` ``trusted``;
 - **judgement**: ``outcome`` (never for ``harness_default``, which gets ``dtap.non_informative`` instead);
 - at the end: ``dtap.agent_output_marker`` for a payload found only in agent output, and one ``dtap.exposure`` per payload
@@ -44,15 +45,20 @@ from agentprov.sem.types import INTEGRITY_VALUES, ROLE_VALUES, Annotation, Premi
 if TYPE_CHECKING:
     from agentprov.aer.reader import AerDocument
 
-__all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "DtapToolsProfile", "build"]
+__all__ = ["CITED_RULES", "DATA_FILES", "NOT_INLINED_RULES", "PROFILE_ID", "DtapToolsProfile", "build"]
 
 PROFILE_ID: Final = "dtap.tools"
-PROFILE_VERSION: Final = 3
+PROFILE_VERSION: Final = 4
 #: The ``dtap`` catalogue version each profile version declares (D-31: version 1 is archived; ``@1`` reads it).
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3})  # 3: version 2's tables on catalogue dtap 3 (D-934)
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3, 4: 4})  # 3: @2's tables on dtap 3 (D-934); 4: on dtap 4 (UC-40)
 #: The first version with regen item 54's handling of a payload with no recorded vector or content (the step type as
 #: channel; ``/kind`` premises). ``@1`` keeps its behaviour as before item 54 (D-31 owner ruling 2026-10-21; D-607).
 ITEM_54_SINCE: Final = 2
+#: The first version that does not search a tool result the mapper did not inline as if it were whole (review AU-RC-3,
+#: D-1063): a payload not found in what such a part still holds is marked ``gap`` there, and an exposure whose only
+#: unsearched location is such a part is ``unmatchable``, never ``logged_absent`` (``dtap.marker_not_inlined@1``). ``@4``
+#: is unreleased and no corpus records it; ``@1`` to ``@3`` keep their reading (``dtap-bench-w2c`` records ``@3``).
+NOT_INLINED_SINCE: Final = 4
 DATA_FILES: Final = ("builtins.toml", "domains.toml", "labels.toml", "profile.toml", "servers.toml")
 #: The evidence a label may rest on (D.16.9), strongest first: the logged tool description, the logged arguments and
 #: results, the task configurations. A label needs one of the first two; ``config`` only corroborates.
@@ -84,6 +90,8 @@ R_ATTACK: Final = "dtap.attack_success_polarity@1"
 R_CONTROL: Final = "dtap.control_attack_judgement@1"
 R_NON_INFORMATIVE: Final = "dtap.non_informative@1"
 R_TAINT: Final = "dtap.taint_sink_untrusted@1"
+R_GAP: Final = "dtap.marker_not_inlined@1"
+R_NOT_INLINED: Final = "dtap.content_not_inlined@1"
 
 #: Every rule this profile cites (the catalogue test checks each exists, is active and has the class its annotations
 #: need).
@@ -92,6 +100,8 @@ CITED_RULES: Final = (
     R_WINDOW, R_DESCRIPTION, R_PROMPT, R_AGENT_OUT, R_CLASS, R_CONFIGURED, R_AUTHOR, R_TASK, R_ATTACK, R_CONTROL,
     R_NON_INFORMATIVE, R_TAINT, NORMALISER,
 )
+#: Rules cited from :data:`NOT_INLINED_SINCE` on only (absent from the archived catalogues the older versions read).
+NOT_INLINED_RULES: Final = (R_GAP,)
 _STATUSES: Final[list[Json]] = ["present", "absent", "ambiguous", "gap"]
 _MARKER: Final[dict[str, Json]] = {
     "type": "object", "additionalProperties": False, "required": ["fixture", "status", "normaliser"],
@@ -224,6 +234,7 @@ class _Run:
     # per payload: location kind -> list of (target, status, premise pointer record id, pointer)
     found: dict[str, dict[str, list[tuple[str, str, str, str]]]] = field(default_factory=dict)
     tool_parts: list[tuple[str, str]] = field(default_factory=list)  # (message id, pointer) of every tool result
+    hidden: set[str] = field(default_factory=set)  # part ids of the tool results the mapper did not inline (AU-RC-3)
     user_parts: list[tuple[str, str]] = field(default_factory=list)
 
 
@@ -338,6 +349,8 @@ class DtapToolsProfile:
                     pid = f"{record['id']}#{k}"
                     if part.get("t") == "tool_result":
                         run.tool_parts.append((str(record["id"]), f"/parts/{k}"))
+                        if self.version >= NOT_INLINED_SINCE and _not_inlined_at(record, k):
+                            run.hidden.add(pid)
                         run.norm[pid] = normalise(serialise(part.get("text", part.get("value"))))
                     elif record.get("role") == "user":
                         run.user_parts.append((str(record["id"]), f"/parts/{k}"))
@@ -490,9 +503,12 @@ class DtapToolsProfile:
             if payload.channel not in ("environment", "skill"):
                 continue
             status = self._status(payload, self._match(payload, text) if payload.needles else "none")
+            rules = self._marker_rules(status, R_ENV)
+            if status == "absent" and pid in run.hidden:  # AU-RC-3: the rest of this output is not in the AER
+                status, rules = "gap", (R_GAP,)
             run.found[payload.fid].setdefault("tool_output", []).append((pid, status, mid, f"/parts/{k}"))
             value: dict[str, Json] = {"fixture": payload.fid, "status": status, "normaliser": NORMALISER}
-            yield self._ann(run, pid, "injection_marker", value, self._marker_rules(status, R_ENV),
+            yield self._ann(run, pid, "injection_marker", value, rules,
                             (Premise(mid, text_pointer), Premise(payload.fid, "/content")))
 
     def _execution(self, run: _Run, record: Mapping[str, Any]) -> Annotation:
@@ -588,6 +604,9 @@ class DtapToolsProfile:
                 cls, rules, premises = "agent_output_only", (R_CLASS,), [content, Premise(agent[2], agent[3])]
             elif agent := next((r for r in rows.get("agent", []) if r[1] == "ambiguous"), None):
                 cls, rules, premises = "partial_match", (R_WINDOW,), [content, Premise(agent[2], agent[3])]
+            elif hidden := [(m, p) for m, p in run.tool_parts if "tool_output" in located and f"{m}#{p.rsplit('/', 1)[1]}" in run.hidden]:
+                # AU-RC-3: not seen where it was logged, but a tool output the mapper did not inline was not searched
+                cls, rules, premises = "unmatchable", (R_GAP,), [content, *(Premise(m, f"{p}/value") for m, p in hidden)]
             else:
                 logged: list[Premise] = []
                 if "tool_output" in located:
@@ -605,15 +624,23 @@ class DtapToolsProfile:
             yield self._ann(run, "run", "dtap.exposure", value, rules, premises)
 
 
+def _not_inlined_at(record: Mapping[str, Any], k: int) -> bool:
+    """Whether the mapper replaced the value of part ``k``, or a string inside it, by its digest (it cites
+    :data:`R_NOT_INLINED` at that pointer, D-934)."""
+    at = f"/parts/{k}/value"
+    return any(isinstance(r, str) and r.startswith(R_NOT_INLINED + "#") and
+               (r.partition("#")[2] == at or r.partition("#")[2].startswith(at + "/")) for r in record.get("rule") or ())
+
+
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> DtapToolsProfile:
-    """Build ``dtap.tools@1``, ``@2`` or ``@3`` from its data files (called by :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
+    """Build ``dtap.tools@1`` to ``@4`` from its data files (called by :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
     if profile_id != PROFILE_ID or version not in CATALOGUE_OF:
         raise ProfileDataError(f"this code builds {PROFILE_ID}@{sorted(CATALOGUE_OF)}, not {profile_id}@{version}")
     tables = parse_tables(files)
     declared = CATALOGUE_OF[version]
     catalogue = load_catalogue("dtap", declared)
     classes: dict[str, str] = {}
-    for ref in CITED_RULES:
+    for ref in (*CITED_RULES, *(NOT_INLINED_RULES if version >= NOT_INLINED_SINCE else ())):
         entry = catalogue.get(ref)
         if entry is None or not entry.citable:
             raise ProfileDataError(f"{ref} is not an active rule of the dtap catalogue v{declared}")

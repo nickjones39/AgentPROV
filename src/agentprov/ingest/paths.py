@@ -38,7 +38,7 @@ import os
 import stat
 import unicodedata
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import IO, Any, Final
 
@@ -365,6 +365,32 @@ def _is_apple_junk(name: str) -> bool:
     return name == ".DS_Store" or name.startswith("._")
 
 
+def sibling_verdicts(
+    names: Sequence[str], same_entry: Callable[[str, str], bool]
+) -> Iterator[tuple[str, str, PathRejection | None]]:
+    """The per-name checks of one directory's entries (G.3.6), shared by :func:`discover` and the ``--fetch`` git tree
+    (AU-NC-1): ``(name, its NFC form, a rejection or None)`` per name, in the given order. ``PathRejection.label`` is the
+    NFC name alone; the caller prefixes it with the directory's label.
+
+    * D-1: siblings whose names collide on a case- or normalisation-insensitive file system (equal
+      :func:`collision_key` of their NFC forms) are all ``ingest.path.duplicate`` (``.DS_Store`` and AppleDouble names
+      take no part);
+    * a name not in NFC is ``ingest.name.invalid`` unless ``same_entry(name, nfc)`` says its NFC form names the same
+      entry (a normalisation-insensitive file system such as APFS; never for a git tree, whose paths are bytes). The NFC
+      name is the label.
+    """
+    keys = Counter(collision_key(unicodedata.normalize("NFC", n)) for n in names if not _is_apple_junk(n))
+    for name in names:
+        nfc = unicodedata.normalize("NFC", name)
+        if not _is_apple_junk(name) and keys[collision_key(nfc)] > 1:
+            yield name, nfc, PathRejection(nfc, "ingest.path.duplicate", "names collide (case or normalisation)")
+        elif nfc != name and not same_entry(name, nfc):
+            # the NFC label would open another file, or none (a normalisation-sensitive file system)
+            yield name, nfc, PathRejection(nfc, "ingest.name.invalid", "name not in NFC, and its NFC form is not it")
+        else:
+            yield name, nfc, None
+
+
 class _OpenDir:
     """A directory descriptor of the ``native`` walk, shared by the subdirectories still pending below it."""
 
@@ -441,17 +467,11 @@ def _iter_tree(
                     entries = sorted(it, key=lambda e: e.name)
                 # D-1 (pre-round review): siblings whose names collide on a case- or normalisation-insensitive file
                 # system are all rejected, as archive members are (G.3.6); the NFC name is the label
-                keys = Counter(collision_key(unicodedata.normalize("NFC", e.name)) for e in entries
-                               if not _is_apple_junk(e.name))
-                for entry in entries:
-                    nfc = unicodedata.normalize("NFC", entry.name)
+                verdicts = sibling_verdicts([e.name for e in entries], functools.partial(_same_entry, ref))
+                for entry, (_name, nfc, rejection) in zip(entries, verdicts, strict=True):
                     label = prefix + nfc
-                    if not _is_apple_junk(entry.name) and keys[collision_key(nfc)] > 1:
-                        yield PathRejection(label, "ingest.path.duplicate", "names collide (case or normalisation)")
-                        continue
-                    if nfc != entry.name and not _same_entry(ref, entry.name, nfc):
-                        # the NFC label would open another file, or none (a normalisation-sensitive file system)
-                        yield PathRejection(label, "ingest.name.invalid", "name not in NFC, and its NFC form is not it")
+                    if rejection is not None:
+                        yield PathRejection(label, rejection.code, rejection.detail)
                         continue
                     st: os.stat_result | None = None
                     if verify:

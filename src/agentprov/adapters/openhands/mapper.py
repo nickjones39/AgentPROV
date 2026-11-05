@@ -19,7 +19,9 @@ One trajectory file is one execution (content-addressed id). Records, in order (
 
 A post-pass applies the profile's ``[[family.openhands.redact]]`` rules to the finished tool messages (D-604, D-606;
 :mod:`agentprov.adapters.openhands.redact`): third-party account segments in tool output become salted labels, with one
-info issue ``openhands.value_redacted``. Model-authored text is never redacted.
+info issue ``openhands.value_redacted``. Model-authored text is never redacted. Before it, the D-378 pass
+(:mod:`agentprov.adapters.surrogates`; D-1063, review UC-40) replaces every lone UTF-16 surrogate in a typed string
+field or an object key by U+FFFD, citing ``openhands.lone_surrogate_replaced@1``, with one info issue.
 
 The D rules that rest on OpenHands behaviour are cited at D only where the profile's ``verified_code`` names a commit
 their catalogue entry cites, else through their ``_unverified`` twins (:mod:`agentprov.adapters.openhands.citation`).
@@ -37,12 +39,14 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.openhands import ADAPTER_ID, DIALECT_ID, NAMESPACE, VARIANT_OH15, VARIANTS
 from agentprov.adapters.openhands.citation import citations
 from agentprov.adapters.openhands.dialect import OAS, PathFacets, event_kind, parse_path
 from agentprov.adapters.openhands.redact import RULE as R_REDACTED
 from agentprov.adapters.openhands.redact import Redactor, parse_redact_rules
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -56,6 +60,9 @@ ADAPTER_VERSION: Final = "0.1.0"
 CATALOGUES: Final = ("aer", NAMESPACE)
 NAMESPACES: Final = {NAMESPACE: "https://w3id.org/agentprov/ns/openhands#"}
 MIB: Final = 1 << 20
+#: the AER's integer domain (I-JSON, C.11.3): a typed count beyond it cannot be stored as one (D-1063, review UC-39;
+#: as D-1011 for adprov); such a count stays verbatim in ``ext.openhands.usage_raw``
+_MAX_COUNT: Final = 2**53 - 1
 #: Placeholder values a typed field never holds (C.7.3): the validator's list (aer.validate) and this family's extras
 #: (regen item 34, bug pass BF-23: "0" and "-" were missing, so such a name turned the run into an adapter_defect).
 _SENTINELS: Final = frozenset({"", "0", "unknown", "none", "null", "n/a", "na", "-", "undefined", "nan"})
@@ -349,7 +356,10 @@ class _Build:
             raise MalformedArtefact("the located item is not an OpenHands event list")
         if not all(isinstance(e, dict) for e in item.value):
             raise MalformedArtefact("an OpenHands event is not an object")
-        self.events: list[dict[str, Any]] = item.value
+        # D-1063 (review UC-40; the D-378 pass): an object key cannot be $utf16-wrapped, so a lone surrogate in a key is
+        # replaced before mapping; surrogates() discloses it
+        events, self.surrogate_keys = scrub_keys(item.value)
+        self.events: list[dict[str, Any]] = events
         self.variant = item.variant
         facets, self.origin_key = _facets_of(item.artefact)
         if facets is None:
@@ -435,7 +445,11 @@ class _Build:
         if raw is None:
             return None
         try:
-            return strict_json_loads(raw, self.limits)
+            # D-1063 (review AU-NC-305): the auxiliary JSON is copied into judgements and ext, so its keys are scrubbed
+            # like the event list's (the D-378 pass; a key cannot be $utf16-wrapped)
+            value, keys = scrub_keys(strict_json_loads(raw, self.limits))
+            self.surrogate_keys |= keys
+            return value
         except IngestError:
             self._add(role, None)
             self.issue("openhands.join_unverified", ["exec"], self._join_rule(role), detail=f"{role}: not strict JSON")
@@ -515,9 +529,14 @@ class _Build:
         body += self._fixtures()
         body += self._stream()
         body += self._judgements()
+        header = self._header()
+        surrogates(self, [header, *body], NAMESPACE)  # D-1063 (review UC-40): the D-378 pass, before the redaction
         self._redact(body)
+        # D-1063 (review AU-NC-308; the D-934 pattern, UC-38's form): a string over 1 MiB the family's own handling does
+        # not reach (a user or reply text, a model's tool-call arguments) is not inlined; same rule, same issue
+        self.not_inlined += not_inlined([header, *body], NAMESPACE, lambda p: self.R(R_NOT_INLINED, p))
         self._issues()
-        yield self._header()
+        yield header
         yield from body
 
     def _prescan(self) -> None:
@@ -977,6 +996,8 @@ class _Build:
             if isinstance(raw, str):
                 try:
                     args, decoded = strict_json_loads(raw.encode("utf-8", "surrogatepass"), self.limits), True
+                    args, keys = scrub_keys(args)  # D-1063 (review UC-40): keys of the decoded arguments too
+                    self.surrogate_keys |= keys
                 except (IngestError, UnicodeEncodeError):
                     args = None
             elif isinstance(raw, dict):
@@ -1318,12 +1339,13 @@ class _Build:
 
 
 def _usage(value: object) -> dict[str, int]:
-    """The C.3.12 ``Usage`` of a provider usage object (``openhands.usage_fields@1``); only non-negative integers."""
+    """The C.3.12 ``Usage`` of a provider usage object (``openhands.usage_fields@1``); only integers in the AER's range
+    (0 to 2^53-1, D-1063); the object stays verbatim in ``ext.openhands.usage_raw``."""
     usage = _dict(value)
     out: dict[str, int] = {}
 
     def put(name: str, raw: object) -> None:
-        if isinstance(raw, int) and not isinstance(raw, bool) and raw >= 0 and name not in out:
+        if isinstance(raw, int) and not isinstance(raw, bool) and 0 <= raw <= _MAX_COUNT and name not in out:
             out[name] = raw
 
     put("input_tokens", usage.get("prompt_tokens"))

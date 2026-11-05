@@ -186,9 +186,9 @@ object and keeps `raw/tombstones.jsonl` in the sealed tree. `verify --level chai
 **Private sidecar `DIR.withheld/` (D-231).** When a seal withholds anything, the files that leave the corpus are
 renamed, never deleted, into the sibling directory `DIR.withheld/` (mode 0700). It holds the files of the withheld
 executions under their corpus-relative paths (`aer/`, `sem/`, `prov/`, `views/`), the stored withheld objects
-(`raw/objects/`), the withheld index rows (`executions.jsonl`), their validation rows (`validation/results.jsonl`) and
-a copy of `WITHHELD.json`. The sidecar is not a corpus, has no checksums, is never deposited, and is never
-overwritten. Deleting it, and with it the private copies of a leaked value, is the user's decision.
+(`raw/objects/`), the withheld index rows (`executions.jsonl`), their validation rows (`validation/results.jsonl`),
+their register entries the sealed register does not keep (`register.jsonl`, H.4.5; AU-BND-4) and a copy of
+`WITHHELD.json`. The sidecar is not a corpus, has no checksums, is never deposited, and is never overwritten. Deleting it, and with it the private copies of a leaked value, is the user's decision.
 
 Not in a v0.1 corpus (AD-10): stored TriG (`.prov.trig`; produced on demand by `agentprov derive --trig DIR`
 outside the sealed tree, row 3), the flattened core `.prov-core.json` (row 4), per-execution lineage documents
@@ -256,10 +256,25 @@ C.13) apply only there. At ingest, staged bytes become objects under `raw/object
    directory contains a `corpus.json` with `"sealed": true`. This replaces the name-based release-root guard
    [audit/legacy_replay.md §5].
 3. A sealed corpus is never modified. Re-derivation writes a new tree (H.8.5). A correction is a new corpus version
-   (H.6.1 R4).
+   (H.6.1 R4), built by re-importing the source; a tree derived from a sealed corpus is a working corpus for comparison
+   and is not sealed (D-1051). The sealed tree is read-only on disk (user approval 2026-11-05): after the swap,
+   `package` clears the write bits of user, group and other on every file and directory, directories bottom-up and
+   `<DIR>` last (`agentprov.corpus.protect`); on Windows it sets the read-only attribute on files only, since a
+   directory's attribute does not stop writes into it there. A file that already has no write bit (a raw object) is
+   left as it is. This keeps the operating system out of the closed world of item 4: macOS Finder creates `.DS_Store`
+   in every folder it opens, and 53 such files had made `verify --level chain` fail with `corpus.tree.stray` on every
+   corpus sealed before. Permissions are not part of any digest (H.5), so the protection changes no output byte. No
+   AgentPROV command writes into a sealed tree, so none lifts the protection; copies made from a sealed corpus
+   (`derive`/`recompute --out`, `verify --level rederive`, `package --deposit`) are new, writable files.
+   `agentprov.io.remove.rmtree` removes a protected tree. A person lifts it deliberately with `chmod -R u+w <DIR>`
+   (needed to delete the corpus or move it to another directory); any change inside the tree then fails `verify`. A
+   refused protection does not fail the seal (the corpus is sealed and verified by then); it is reported as a notice.
+   The `corpus.tree.stray` finding for an operating-system metadata file (`.DS_Store`, AppleDouble `._*`,
+   `Thumbs.db`, `desktop.ini`) names the cleanup (`find <DIR> -name .DS_Store -delete`).
 4. The tree is closed-world. The builder MUST refuse stray files, including dotfiles such as `.DS_Store`, which sit
    unhashed inside the baseline release [baseline/BASELINE.md §8.6]. `verify` MUST fail on any file that is not
-   listed in `checksums.sha256`.
+   listed in `checksums.sha256`. The builder MUST also refuse a stored raw object that no `raw/origins.jsonl` row
+   names (K.5.7(1); `package.refused.raw_origin`; an import killed before its final flush leaves such objects).
 5. The builder MUST refuse an output directory inside a git work tree unless the path is git-ignored
    (D9: exported corpora never in Git). Corpora are written under `$AGENTPROV_HOME` by default (MN M.1.6).
 6. **Consumers never write into a corpus.** `agentprov stats` and `agentprov render` (Addendum B AD-10) open a
@@ -558,7 +573,9 @@ All values are integers:
 Counts are taken over all index rows. In a corpus that withholds (H.4.5; D-231) the index holds only the released
 executions, so every count, including `records_by_kind`, `models` and `framework_identities`, covers the released
 set. The withheld executions are counted in `WITHHELD.json`, in `issues_by_code["release.withheld"]` and in the
-datasheet. `executions` counts AER documents of every `unit`; a claim about agent
+datasheet, and in one more place: a withheld execution's register entry with the code of an issue rule of the
+withholding policy stays in the released register (the evidence `chain` checks, D-311; H.4.5 item 1), so
+`issues_by_code` under that code counts it too (AU-NC-5). `executions` counts AER documents of every `unit`; a claim about agent
 executions uses rows with `unit == "agent_execution"` and `execution_observed == true` (R-28; NC-ALL-13). Unknown is
 never folded into false: tri-states are kept separate, as the baseline's tallies did
 [audit/corpus.md §3.1.2 rule 8].
@@ -931,8 +948,16 @@ fragment of it.
 
 1. **What a sealed corpus is.** The sealed tree is what is released. A withheld object's bytes and a withheld
    execution's index row, validation row and AER, SEM, PROV and view files are not in it. Sealing renames them into the
-   private sidecar `DIR.withheld/` (H.1.2). The register keeps every entry of a withheld execution, and
-   `raw/origins.jsonl`, `raw/members.jsonl` and `raw/tombstones.jsonl` keep their rows.
+   private sidecar `DIR.withheld/` (H.1.2). The register keeps a withheld execution's `release.withheld` entry and an
+   entry with the code of an issue rule of the policy (the evidence `chain` checks for an issue-rule finding, D-311);
+   its other entries (map, SEM, PROV, validation) go to the sidecar's `register.jsonl` with its index row, so
+   `counts.issues_by_code` and the datasheet's register table count the released executions' entries, the withheld
+   executions' `release.withheld` entries and their issue-rule entries, and no other entry of a withheld execution
+   (H.2.9; AU-BND-4, 0.2.0; corpora sealed before keep every entry in the register). The issue-rule entries stay in the
+   released register because they are the evidence `chain` checks for the finding that withheld the execution (D-311),
+   so the count under an issue rule's code includes the withheld executions it found (`mcphunt-w2b`: 4,595
+   `map.mcphunt.canary_flagged` entries, AU-NC-5). `raw/origins.jsonl`, `raw/members.jsonl` and
+   `raw/tombstones.jsonl` keep their rows.
 2. **The format.** `{format, entries, executions, policies}`, a corpus-layer single document (H.1.4(2)) with the
    published schema `schemas/withheld-0.1.schema.json`. A sealed corpus that holds `WITHHELD.json` also holds a copy of
    that schema. **`agentprov-withheld/0.2`** (D-312) differs only in admitting the rule kind `issue` in `policies`; a
@@ -1076,14 +1101,33 @@ The command is `agentprov verify --corpus ROOT --level {checksums,chain,rederive
 | Level | Checks | Needs |
 |---|---|---|
 | `checksums` | Every listed file matches. No unlisted file (closed world) | stdlib only |
-| `chain` | `checksums`, plus: manifest schema; `content_digest`; `digests.*` recomputed from files; index paths recomputed; every AER seal re-hashed; included raw objects re-hashed and AER `artifacts[].sha256` matched; a referenced (not stored) object only for a snapshot whose declared raw policy is `reference` (`raw.reference.not_permitted`, failed; D-160); **each member object's CRC32 and size checked against `raw/members.jsonl`** (AD-12); SEM and PROV input digests matched; index facets re-derived from AER/SEM; every execution file present under `aer/`, `sem/`, `prov/` named by an index row (`index.orphan`, sealed corpora; P-1, D-162); register ↔ index ↔ counts reconciliation (H.6.1 R5), including every snapshot id a row names declared in `sources[].snapshots` (`index.snapshot.undeclared`) a row's `n_origins` equal to the `raw/origins.jsonl` lines of its primary artefact (`index.n_origins`; H.7.2(1)), and a row's `status` equal to the one its stages and its issues' register severities give (`index.status`; H.3.2(1), CB-11); snapshot `candidates == executions + not_imported`; `rules/**` digests compared with the installed package's catalogues at the recorded versions (`rules.mismatch`, `rules.unavailable`); `schemas/**` compared byte for byte with the package's published schemas (`schemas.mismatch`, `schemas.unavailable`), `WITHHELD.json` declared in `files` (`withheld.undeclared`), `raw/REFERENCES.json` declared in `files` (`references.undeclared`; D-237) and every `views/` file backed by a `views` stage and an index row (`views.undeclared`) (sealed corpora; P-2, D-163); **withholding** (sealed corpora; H.4.5; D-230..D-236): `WITHHELD.json` valid (`withheld.invalid`) with its schema copy, a tombstoned or otherwise absent object accepted exactly when `WITHHELD.json` lists it, no listed object or file of a listed execution in the tree (`withheld.present`), no index row for a listed execution (`withheld.row`), a `release.withheld` entry for each listed execution (`withheld.unregistered`) and a listed execution for each such entry (`withheld.unlisted`), each entry's origins equal to its `raw/origins.jsonl` origins (`withheld.origins`), no row of a `withhold` snapshot (`withheld.policy`), and no released file outside `rules/**` and `schemas/**` matching a rule of the source profile's `[withhold]` policy (`withheld.rule_hit`; `withheld.policy_invalid`); for an issue rule, no released execution carrying its code in its index row, a register entry or its AER seal (`withheld.issue_released`), and every finding of the rule naming an execution the register records with the code (`withheld.issue_unsupported`; D-314); nothing the corpus spec's `[withhold]` table lists released, neither an
+| `chain` | `checksums`, plus: manifest schema; `content_digest`; `digests.*` recomputed from files; index paths recomputed; every AER seal re-hashed; included raw objects re-hashed and AER `artifacts[].sha256` matched; a referenced (not stored) object only for a snapshot whose declared raw policy is `reference` (`raw.reference.not_permitted`, failed; D-160); **each member object's CRC32 and size checked against `raw/members.jsonl`** (AD-12); every stored object named by a `raw/origins.jsonl` row (`raw.origin.missing`, failed; K.5.7(1)); SEM and PROV input digests matched; index facets re-derived from AER/SEM; every execution file present under `aer/`, `sem/`, `prov/` named by an index row (`index.orphan`, sealed corpora; P-1, D-162); register ↔ index ↔ counts reconciliation (H.6.1 R5), including every snapshot id a row names declared in `sources[].snapshots` (`index.snapshot.undeclared`) a row's `n_origins` equal to the `raw/origins.jsonl` lines of its primary artefact (`index.n_origins`; H.7.2(1)), and a row's `status` equal to the one its stages and its issues' register severities give (`index.status`; H.3.2(1), CB-11); snapshot `candidates == executions + not_imported`; `rules/**` digests compared with the installed package's catalogues at the recorded versions (`rules.mismatch`, `rules.unavailable`); `schemas/**` compared byte for byte with the package's published schemas (`schemas.mismatch`, `schemas.unavailable`), `WITHHELD.json` declared in `files` (`withheld.undeclared`), `raw/REFERENCES.json` declared in `files` (`references.undeclared`; D-237) and every `views/` file backed by a `views` stage and an index row (`views.undeclared`) (sealed corpora; P-2, D-163); **withholding** (sealed corpora; H.4.5; D-230..D-236): `WITHHELD.json` valid (`withheld.invalid`) with its schema copy, a tombstoned or otherwise absent object accepted exactly when `WITHHELD.json` lists it, no listed object or file of a listed execution in the tree (`withheld.present`), no index row for a listed execution (`withheld.row`), a `release.withheld` entry for each listed execution (`withheld.unregistered`) and a listed execution for each such entry (`withheld.unlisted`), each entry's origins equal to its `raw/origins.jsonl` origins (`withheld.origins`), no row of a `withhold` snapshot (`withheld.policy`), and no released file outside `rules/**` and `schemas/**` matching a rule of the source profile's `[withhold]` policy (`withheld.rule_hit`; `withheld.policy_invalid`); for an issue rule, no released execution carrying its code in its index row, a register entry or its AER seal (`withheld.issue_released`), and every finding of the rule naming an execution the register records with the code (`withheld.issue_unsupported`; D-314); nothing the corpus spec's `[withhold]` table lists released, neither an
 object among the files nor an execution in the index (`withheld.listed_released`; D-964); a split descriptor and its parts listed all or none (`withheld.split_part`), and a carved blob and its source likewise (`withheld.carved`; D-315); no container of a withheld object, at any level of `raw/members.jsonl`, released (`withheld.container`; AD-12, D-461); every released stored archive read decoded by the rule rescan, and one it cannot read failed (`withheld.unscanned`; D-450) | core deps only (D10) |
 | `rederive` | `chain`, plus re-running every stage from raw (H.8.5) and requiring identical digests; on a sealed corpus, index rows that differ from the re-derivation outside their outputs (status, issues, completeness) are `rederive.index_refreshed` (failed, or unverified when a declared version differs; CB-11). Executions that need an object the corpus accounts for as absent (tombstoned, withheld, referenced) are `unverified`, not refused (H.4.5(6); BF-20, CB-6). It re-runs `expand` in T1 and requires identical member digests (AD-12). It loads profiles and catalogues **only from package resources** at the recorded version; the corpus `rules/` copy is never loaded (AD-14). The package ships every released catalogue version; an absent version is `rules.unavailable` | core deps; referenced objects must already be in the fetch cache (`agentprov fetch`), otherwise reported `unverified` (not passed) |
 
 Inputs are opened safely (R-44):
 
 - **Tree mode.** Every relpath is validated with `logical_name` and the H.1.3 grammar before it is opened
-  (no-follow, `S_ISREG`; G.3.6).
+  (no-follow, `S_ISREG`; G.3.6). The `checksums` read runs on a few threads (the host's CPU count, at most 8; it
+  changes timing only and is recorded nowhere) and reads each listed file once: a file is opened relative to a
+  descriptor of its directory, reached from the root's descriptor one component at a time by the `ingest.paths`
+  component opener, so a link in any component and a special file are refused exactly as the per-label walk refuses
+  them, with the same codes. The outcomes are taken in the order of `checksums.sha256`; the findings and counters do
+  not depend on the thread count. A member object's CRC-32 is computed in that same read, so `chain` does not read it
+  again (`raw_rehashed` still counts it), and the rule rescan of the withholding checks opens files through the same
+  root and directory descriptors (pipeline performance review 2026-11-05, P3).
+- **Sampled `rederive`.** With `--sample`, the re-derivation re-hashes and stages only the raw closure of the sampled
+  executions: their `raw` objects, every container of a member object (`raw/members.jsonl`, transitively), and each
+  split descriptor with its byte parts and each carved blob with its source (D-315 groups, both directions). Every
+  other listed object is still checked to be present (an absence is counted, or refused, as before); its bytes were
+  re-hashed by `chain`, which runs first. The findings and notices are those of staging every object; only the
+  staging counters `rederive_raw_verified`, `rederive_raw_linked` and `rederive_raw_copied` count the closure (P4).
+  One case differs by design: an object outside the closure whose bytes no longer match its address is reported by
+  `chain` (`raw.digest.mismatch`, failed) and no longer also stops the sampled re-derivation.
+- **Memory.** `chain` keeps the index rows without their facet members (the corpus-wide checks read none); a checked
+  row's full form is kept for a sampled row, or read again beside the others when every row is checked (a row that
+  reads differently the second time is `index.invalid`). Of `validation/results.jsonl` it keeps only the JCS digest
+  of each checked row's entry. Findings and their order do not change (P8).
 - **Archive mode.** `verify` reads deposit archives directly, extraction-free, in T1 (G.3.5). Member labels are
   checked against the closed-world `checksums.sha256`; nothing is written to the filesystem.
 
@@ -1192,6 +1236,7 @@ Severity is `info|warning|error`. The core register codes form a closed set:
 | `raw.reference.unpinned_origin` † | ingest | error | not_imported | A `REFERENCES.json` origin matches no in-package profile origin; it is never contacted (R-43; G.7.5) |
 | `raw.origin.unpinned` † | ingest | error | — | A git origin names a branch, a tag or nothing instead of a 40-hex commit; the command refuses (exit 3) (G.7.5) |
 | `raw.origin.blob_mismatch` † | ingest | error | failed | An object does not match its pinned git blob id or digest (`verify --against-pins`; G T-14) |
+| `raw.origin.missing` † | ingest | error | failed | A stored raw object has no `raw/origins.jsonl` row (`verify` chain; K.5.7(1)) |
 
 † These codes arise before a build, or during `verify`, `recompute` or `fetch` on an existing corpus. They are
 reported in the command summary (`agentprov-cli-summary/0.1`) and, for `recompute --out`, in the new tree's
@@ -1252,7 +1297,13 @@ function as C's and K's execution-id KATs.
    execution row lists every snapshot in `snapshot_ids`, and every origin appears in `raw/origins.jsonl`. As built
    (D-202): the AER records the origin of the snapshot imported first; the manifest keeps the snapshots in import order,
    which `recompute` replays, so a re-map is byte-identical.
-2. A `dedup.collapsed` info entry records the collapse.
+2. A `dedup.collapsed` info entry records the collapse. It is written only for a copy of a file that is an execution
+   (sealed, degenerate or resumed). A byte-identical copy of a file that is not one (not of the dialect, a variant of
+   another part, a multi-execution file or a container with no execution, a container the expansion refuses) gets
+   that file's own code with disposition `not_imported`,
+   so it counts among the snapshot's candidates and `not_imported` (AU-RP-4). The copy's entry waits until the first
+   file's map job has decided. A copy whose first file is not mapped in the run (`--until raw`, a limit or a drain) is
+   still collapsed.
 3. For example, the 14,182 AgentDojo files that are byte-identical at the June-2024 and HEAD commits are 14,182
    executions with two origins each in a corpus holding both snapshots [sources/agentdojo.md §5.1]. The released
    layout for `agentdojo-upstream` is two corpora (D-35), where they are one execution in each.
@@ -1454,12 +1505,13 @@ They MUST NOT be keyed by a hand-bumped version number or column presence [audit
    commits differ in the manifest's `producer` (the building commit, D-780) and nowhere else this item covers.
 2. **Bump discipline.** If an output digest changes while the stage's *declared versions* (adapter, profile, rule
    ids, spec, format) are unchanged, `recompute` (and `verify --level rederive`) MUST report `unexplained_change`
-   and exit 1. This holds even if the code digest changed. An intended change requires a visible version bump
-   (D9). If the code digest changes and every output is identical, the change is a refactor and passes. The
-   `fn_digest` that each `raw/members.jsonl` row records labels the function, and is not an output. Rows that differ
-   only in it, for an expansion that pairs one to one by declared identity with the source's (a code or limits
-   change), compare as identical, with a notice. Any other difference of a row is still unexplained (HL-T14;
-   integration review P-2).
+   and exit 1. This holds even if the code digest changed, and even if the software version a stage records
+   (`engine`, `agentprov@X`, which every release changes) differs: it is not a declared version (D-1050). An intended
+   change requires a visible version bump (D9). If the code digest changes and every output is identical, the change is
+   a refactor and passes. The `fn_digest` that each `raw/members.jsonl` row records labels the function, and is not an
+   output. Rows that differ only in it, for an expansion that pairs one to one by declared identity with the source's
+   (a code or limits change), compare as identical, with a notice. Any other difference of a row is still unexplained
+   (HL-T14; integration review P-2).
 3. **Comparison.** `rederive` compares canonical bytes, never parsed-object equality. The baseline's
    `old_doc == new_doc` (`recompute.py:151-152`) could not see `True`→`1`→`1.0` or serialiser drift
    [audit/corpus.md §3.3 R2]. Semantic diffs are reported in addition (`recompute --show-diff N`), through the
@@ -1577,7 +1629,9 @@ itself. Being a derived node, it is covered by `checksums.sha256`.
      computation as the information-loss table of `agentprov stats` (Addendum B AD-10), so the datasheet and the
      paper cannot disagree. If any execution cannot be read or evaluated for this table, `package` refuses
      (`stats.datasheet.failures`, exit 1, listing the failure codes and counts) instead of sealing an incomplete
-     table. Counts of `activity` and `artefact` records by `type`, and of the PROV statements that
+     table. The table covers the released set (H.2.9): an execution the seal withholds is left out, although the
+     working tree still holds it when the datasheet is rendered (AU-BND-6). Its coverage and observed share are
+     computed from the integer columns and rounded once, half to even, to four decimals (AU-MSR-2). Counts of `activity` and `artefact` records by `type`, and of the PROV statements that
      EF's generic rules G-ACT, G-USE, G-GEN and G-ASSOC produced, are listed here as disclosed extensions
      (Addendum B AD-15).
    - **Integrity and verification.** `content_digest`, the verify commands, version axes (L.1), the interpreter
@@ -2338,7 +2392,8 @@ Decisions: DECISIONS D-30 to D-49.
    `compat` entries are separate from `prov`, so the importer's resume check (by stage name) is unaffected.
 4. **H.8.4 (comparison classes).** As built: `identical`, `changed_explained`, `unexplained_change`, `failed`,
    `unverified`, plus `index_refreshed` counted apart. The *declared identity* of a stage is its definition minus
-   `fn_digest`, `engine_code_sha256`, `adapter_code_sha256` and the digests beside an integer version (D-30, D-31).
+   `fn_digest`, `engine_code_sha256`, `adapter_code_sha256`, the software version `engine` (D-1050) and the digests
+   beside an integer version (D-30, D-31).
 5. **H.3.1 / H.3.3 (index).** Facets are the core facets only; `x.*` facets and `--pipeline` are deferred (D-34).
    `logical_key` is `null` when a cell member is unrecorded.
 6. **H.10.2 / H.10.4 (deposit).** The default and maximum `--max-archive-bytes` is `2**31 - 1`, because the archives carry

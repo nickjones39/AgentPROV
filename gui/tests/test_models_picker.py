@@ -204,3 +204,28 @@ def test_refresh_is_confirmed_and_fetches_with_the_keychain(qapp: Any, dialog: A
     fetched = next(c for c in dialog.calls if "--allow-network" in c)
     assert fetched == ["models", "--endpoint", "anthropic", "--allow-network", "--keychain", "--format", "json"]
     wait(qapp, lambda: "network" in dialog.models_status.text())
+
+
+def test_a_superseded_model_list_is_neither_kept_nor_shown(qapp: Any, dialog: Any,
+                                                          monkeypatch: pytest.MonkeyPatch) -> None:
+    """A model-list read that a newer one replaced (the endpoint changed, or the keychain state arrived) lands too
+    late: its result is dropped, so ``model_lists`` never holds a list the combo was not filled from (the refresh test
+    above waited on such a list and found an empty combo)."""
+    from agentprov_gui.ui import runlive
+
+    wait(qapp, lambda: "ollama" in dialog.model_lists and dialog.keys_present)
+    pending: list[tuple[Any, Any]] = []
+    monkeypatch.setattr(runlive, "submit", lambda owner, work, done, fail: pending.append((work, done)))
+    dialog.endpoint.blockSignals(True)
+    dialog.endpoint.setCurrentText("anthropic")
+    dialog.endpoint.blockSignals(False)
+    dialog.model_lists.pop("anthropic", None)
+    dialog._load_model_list()
+    dialog._load_model_list()
+    (old_work, old_done), (new_work, new_done) = pending
+    old_done(old_work(None))  # the superseded read answers first: nothing is kept or shown
+    assert "anthropic" not in dialog.model_lists
+    new_done(new_work(None))
+    assert [dialog.model_id.itemText(i) for i in range(dialog.model_id.count())] == ["claude-opus-5-5",
+                                                                                     "claude-sonnet-5-5"]
+    assert "anthropic" in dialog.model_lists

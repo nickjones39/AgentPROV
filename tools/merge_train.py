@@ -15,7 +15,8 @@ Usage::
    lists them).
 2. Admits each branch only if its session's status file (``tools/session_status.py``) records a green suite on the
    branch's exact head (``--allow-unverified`` turns the refusal into a recorded warning). ``review/*`` and
-   ``review-base/*`` are always refused.
+   ``review-base/*`` are always refused, judged by the full ref name (so ``refs/heads/review/x`` too), as is a bare
+   commit at the tip of one.
 3. Merges the branches in order with ``git merge --no-ff``. A conflict stops the train (``--skip-conflicting`` drops
    that branch and goes on), except a conflict confined to *generated* files: those are resolved by running their
    generator (``tools/gen_docs.py --write``, ``tools/regen_pins.py --write --attribute``, when the merged tree has
@@ -23,6 +24,9 @@ Usage::
    ``tools/gen_readme_corpora.py --write`` for the generated blocks, after merging README's hand-written
    parts normally), never by hand. The cheap
    generators also run after every merge, folded into that merge commit, so drift is fixed before the gate. A generator that fails, or refuses an unattributed pin move, stops the train.
+   Generators and gates run as ``uv run --frozen`` (resolvers also with ``UV_FROZEN=1``), so no run relocks
+   ``uv.lock``; only the files a generator owns or writes are staged, and a run that changed any other tracked file
+   stops the train.
 4. Runs the gate on the merged head: the full suite through ``tools/suite_queue.py`` (when the merged tree has it),
    ruff, mypy, the Unicode check and the ``--check`` modes of the generators. ``--gate`` replaces the list.
 5. Green and ``--push``: checks that ``origin/main`` still equals the base (after a fetch when ``--fetch``), then
@@ -65,6 +69,10 @@ from session_status import load as load_status  # noqa: E402
 from session_status import sessions_dir  # noqa: E402
 
 REFUSED_PREFIXES = ("review/", "review-base/")
+#: How the train runs a tool in the merged tree. ``--frozen``: a plain ``uv run`` re-resolves a ``uv.lock`` that is stale
+#: for the merged ``pyproject.toml`` and rewrites it, and the rewrite would be folded into a merge commit that no branch
+#: made (and pass the gate's ``uv lock --check``). Resolvers also run with ``UV_FROZEN=1``, for the ``uv run`` they start.
+UV_RUN = ("uv", "run", "--frozen")
 EXIT_GREEN, EXIT_RED, EXIT_REFUSED, EXIT_MOVED = 0, 1, 2, 3
 
 
@@ -93,6 +101,9 @@ class Resolver:
     adopt: tuple[str, ...] | None = None
     #: directories whose new files the command may create (a target's parts, D-1003): staged with ``add -A``
     outputs: tuple[str, ...] = ()
+    #: further files (globs) the command may rewrite without owning their conflicts: staged with its own files; a
+    #: change to any file the resolver neither owns nor writes stops the train (AU-TWF-10)
+    writes: tuple[str, ...] = ()
 
 
 def _pin_patterns() -> tuple[str, ...]:
@@ -106,13 +117,20 @@ def _pin_patterns() -> tuple[str, ...]:
                  if pin not in (C_SPEC, "README.md"))
 
 
+def _pin_writes() -> tuple[str, ...]:
+    """Every file ``tools/regen_pins.py --write`` may rewrite, whole or in part (its families' pins)."""
+    from regen_pins import FAMILIES
+
+    return tuple(dict.fromkeys(pin for f in FAMILIES if f.write for pin in f.pins))
+
+
 def _gen_docs(target: str, path: str, ready: str, parts: str | None = None) -> Resolver:
     """A split doc: ``--write`` regenerates it from the fragments. A branch from before the split added its entries to
     the generated file only, so ``--write`` alone would drop them: ``--adopt`` first moves them into fragments.
     ``parts``: the directory of the file's generated parts (D-1003), owned and staged with it."""
     return Resolver(f"generated docs ({target})", "tools/gen_docs.py", (path, *([f"{parts}/*.md"] if parts else [])),
-                    ("uv", "run", "python", "tools/gen_docs.py", "--write", target), after_merge=True, ready=ready,
-                    adopt=("uv", "run", "python", "tools/gen_docs.py", "--adopt", target),
+                    (*UV_RUN, "python", "tools/gen_docs.py", "--write", target), after_merge=True, ready=ready,
+                    adopt=(*UV_RUN, "python", "tools/gen_docs.py", "--adopt", target),
                     outputs=(parts,) if parts else ())
 
 
@@ -122,27 +140,41 @@ RESOLVERS: tuple[Resolver, ...] = (
     _gen_docs("regen-batch", "docs/reports/analysis/regen-batch.md", "docs/reports/analysis/regen-batch"),
     _gen_docs("agents", "AGENTS.md", "docs/agents"),
     Resolver("spec labels", "tools/spec_labels.py", ("docs/architecture/item-labels.json",),
-             ("uv", "run", "python", "tools/spec_labels.py", "--write"), ready="docs/architecture/item-labels.json"),
+             (*UV_RUN, "python", "tools/spec_labels.py", "--write"), ready="docs/architecture/item-labels.json"),
     Resolver("registry lists", "tools/gen_registry.py",
              ("src/agentprov/adapters/registry/_sources.py", "src/agentprov/adapters/registry/_factories.py"),
-             ("uv", "run", "python", "tools/gen_registry.py", "--write"), after_merge=True,
+             (*UV_RUN, "python", "tools/gen_registry.py", "--write"), after_merge=True,
              ready="src/agentprov/adapters/registry/_legacy_order.py"),
     Resolver("README generated blocks", "tools/gen_readme_sources.py", ("README.md",),
-             ("uv", "run", "python", "tools/gen_readme_sources.py", "--write"),
+             (*UV_RUN, "python", "tools/gen_readme_sources.py", "--write"),
              block=("<!-- BEGIN generated: sources (tools/gen_readme_sources.py --write) -->",
                     "<!-- END generated: sources -->"), after_merge=True),
     # The corpus listing moved from README.md to the user guide on 2026-10-22; each guide page holds one block.
     Resolver("user guide corpus listing", "tools/gen_readme_corpora.py", ("docs/user-guide/14-corpora.md",),
-             ("uv", "run", "python", "tools/gen_readme_corpora.py", "--write"),
+             (*UV_RUN, "python", "tools/gen_readme_corpora.py", "--write"),
              block=("<!-- BEGIN generated: corpora (tools/gen_readme_corpora.py --write) -->",
                     "<!-- END generated: corpora -->"), after_merge=True),
     Resolver("user guide CLI reference", "tools/gen_user_guide_cli.py", ("docs/user-guide/11-cli-reference.md",),
-             ("uv", "run", "python", "tools/gen_user_guide_cli.py", "--write"),
+             (*UV_RUN, "python", "tools/gen_user_guide_cli.py", "--write"),
              block=("<!-- BEGIN generated: cli (tools/gen_user_guide_cli.py --write) -->",
                     "<!-- END generated: cli -->"), after_merge=True),
     Resolver("test pins", "tools/regen_pins.py", _pin_patterns(),
-             ("uv", "run", "python", "tools/regen_pins.py", "--write", "--attribute", "{base}", "{branches}")),
+             (*UV_RUN, "python", "tools/regen_pins.py", "--write", "--attribute", "{base}", "{branches}"),
+             writes=_pin_writes()),
 )
+
+
+def _owns(resolver: Resolver, path: str) -> bool:
+    """``path`` is a file the resolver generates or may rewrite, or under its output or fragment directories."""
+    globs = (*resolver.patterns, *resolver.writes)
+    return (any(fnmatch.fnmatch(path, pat) or ("**" in pat and path.startswith(pat.split("**", 1)[0]))
+                for pat in globs)
+            or any(path.startswith(f"{d}/") for d in (*resolver.outputs, *([resolver.ready] if resolver.ready else []))))
+
+
+def _frozen_env() -> dict[str, str]:
+    """The environment of a resolver run: ``UV_FROZEN=1``, so no ``uv run`` it starts relocks ``uv.lock``."""
+    return dict(os.environ, UV_FROZEN="1")
 
 
 def train_root() -> Path:
@@ -155,17 +187,17 @@ def default_gates(tree: Path, run_id: str) -> list[list[str]]:
     With ``tools/ci_local.py`` in the tree (D-462) that is one command: the local CI's default jobs (the full suite
     through the queue, capture, the backend jobs offline, the secrets scan, the generated-file and pin checks)."""
     if (tree / "tools" / "ci_local.py").is_file():
-        return [["uv", "run", "python", "tools/ci_local.py", "--label", f"merge-train {run_id}"]]
+        return [[*UV_RUN, "python", "tools/ci_local.py", "--label", f"merge-train {run_id}"]]
     if (tree / "tools" / "suite_queue.py").is_file():
-        suite = ["uv", "run", "python", "tools/suite_queue.py", "--label", f"merge-train {run_id}", "--",
+        suite = [*UV_RUN, "python", "tools/suite_queue.py", "--label", f"merge-train {run_id}", "--",
                  "pytest", "-n", "10", "--dist", "loadgroup", "-p", "no:randomly"]
     else:
-        suite = ["uv", "run", "pytest"]
-    gates = [suite, ["uv", "run", "ruff", "check", "."], ["uv", "run", "mypy"],
-             ["uv", "run", "python", "tools/check_unicode.py"]]
+        suite = [*UV_RUN, "pytest"]
+    gates = [suite, [*UV_RUN, "ruff", "check", "."], [*UV_RUN, "mypy"],
+             [*UV_RUN, "python", "tools/check_unicode.py"]]
     for tool in ("tools/regen_pins.py", "tools/gen_docs.py", "tools/gen_registry.py", "tools/gen_readme_sources.py"):
         if (tree / tool).is_file():
-            gates.append(["uv", "run", "python", tool, "--check"])
+            gates.append([*UV_RUN, "python", tool, "--check"])
     return gates
 
 
@@ -183,15 +215,34 @@ def branch_status(name: str, sha: str, sdir: Path) -> dict[str, Any] | None:
     return best
 
 
+def is_review(repo: Path, name: str, sha: str) -> bool:
+    """``name`` is a ``review/*`` or ``review-base/*`` branch however it is spelled (``refs/heads/review/x``,
+    ``heads/review/x``, ``origin/review/x``), or a bare commit at the tip of one."""
+    full = git_ok(["rev-parse", "--symbolic-full-name", name], repo) or ""
+    if full.startswith("refs/heads/"):
+        short = full.removeprefix("refs/heads/")
+    elif full.startswith("refs/remotes/"):
+        short = full.removeprefix("refs/remotes/").partition("/")[2]
+    else:
+        short = name
+    if name.startswith(REFUSED_PREFIXES) or short.startswith(REFUSED_PREFIXES):
+        return True
+    if full:
+        return False  # another branch or ref, which may share a commit with a review branch
+    tips = git_ok(["for-each-ref", "--points-at", sha, "--format=%(refname)",
+                   *(f"refs/heads/{p}" for p in REFUSED_PREFIXES)], repo)
+    return bool(tips)
+
+
 def admit(repo: Path, branches: Sequence[str], sdir: Path, allow_unverified: bool
           ) -> tuple[list[dict[str, Any]], list[str]]:
     """Resolve each branch to a commit and check it; returns the admitted entries and the refusals."""
     admitted, refusals = [], []
     for name in branches:
-        if name.startswith(REFUSED_PREFIXES):
+        sha = git_ok(["rev-parse", "--verify", "--quiet", f"{name}^{{commit}}"], repo)
+        if name.startswith(REFUSED_PREFIXES) or (sha and is_review(repo, name, sha)):
             refusals.append(f"{name}: review branches are never merged by the train")
             continue
-        sha = git_ok(["rev-parse", "--verify", "--quiet", f"{name}^{{commit}}"], repo)
         if not sha:
             refusals.append(f"{name}: no such branch or commit")
             continue
@@ -278,17 +329,22 @@ class Train:
                             cmd += [*self.merged_shas, entry["sha"]]
                         else:
                             cmd.append(c.replace("{base}", self.base_sha))
-                    res = subprocess.run(cmd, cwd=self.wt, capture_output=True, text=True)
+                    res = subprocess.run(cmd, cwd=self.wt, capture_output=True, text=True, env=_frozen_env())
                     entry.setdefault("resolved_by", []).append({"resolver": resolver.name, "files": files,
                                                                 "command": cmd, "exit": res.returncode,
                                                                 "output": (res.stdout + res.stderr)[-4000:]})
                     if res.returncode != 0:
                         self.g("merge", "--abort", check=False)
                         return "conflict"
-            # The generators may rewrite more generated files than the conflicted ones: stage every tracked change,
-            # and the new files of a resolver's output directories.
+            # The generators may rewrite more generated files than the conflicted ones: stage every change to a file
+            # the resolvers own, and the new files of their output directories; a change to any other file stops here.
             self.g("add", "--", *conflicted)
-            self.g("add", "-u")
+            try:
+                self.stage_owned([r for r, _files in plan])
+            except RuntimeError as exc:
+                entry["error"] = str(exc)
+                self.g("merge", "--abort", check=False)
+                return "conflict"
             self.stage_outputs([r for r, _files in plan])
             if not [p for p in self.g("diff", "--name-only", "--diff-filter=U").splitlines() if p]:
                 self.g("commit", "--no-edit", "--quiet", "-m", msg + " [generated files regenerated]")
@@ -348,7 +404,7 @@ class Train:
                 resolver, sha) else []
             staged = set(self.g("diff", "--cached", "--name-only").splitlines())
             for command in [*first, *self.commands(resolver)]:
-                res = subprocess.run(list(command), cwd=self.wt, capture_output=True, text=True)
+                res = subprocess.run(list(command), cwd=self.wt, capture_output=True, text=True, env=_frozen_env())
                 if res.returncode != 0:
                     raise RuntimeError(f"{resolver.name}: {(res.stdout + res.stderr).strip()[-1500:]}")
             if first and resolver.ready is not None:
@@ -356,11 +412,24 @@ class Train:
             self.stage_outputs([resolver])  # a new part file is a new file too
             # changed in the worktree, or fragments just staged, and not yet staged by an earlier generator
             if self.g("diff", "--name-only") or set(self.g("diff", "--cached", "--name-only").splitlines()) - staged:
-                self.g("add", "-u")
+                self.stage_owned([resolver])
                 changed.append(resolver.name)
         if changed:
             self.g("commit", "--amend", "--no-edit", "--quiet")
         return changed
+
+    def stage_owned(self, resolvers: list[Resolver]) -> None:
+        """Stage the tracked files the resolvers changed that they own (their patterns, output directories and
+        fragment directory); RuntimeError naming any other changed file (``uv.lock`` relocked by a ``uv run``, a
+        generator writing outside its files), which is never folded into a merge commit."""
+        changed = [p for p in self.g("diff", "--name-only").splitlines() if p]
+        owned = [p for p in changed if any(_owns(r, p) for r in resolvers)]
+        stray = [p for p in changed if p not in owned]
+        if stray:
+            raise RuntimeError(f"{', '.join(r.name for r in resolvers)}: the run changed files it does not own: "
+                               f"{', '.join(stray[:10])}; nothing of it is committed")
+        if owned:
+            self.g("add", "--", *owned)
 
     def stage_outputs(self, resolvers: list[Resolver]) -> None:
         """Stage every change, new files included, under the resolvers' output directories."""

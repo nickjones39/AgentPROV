@@ -61,7 +61,7 @@ def analyse(rows: list[dict[str, Any]]) -> dict[str, Any]:
     out["completeness"] = dict(Counter(r["completeness"] for r in rows))
     vc = [r for r in rows if r["completeness"] == "verified_complete"]
     out["verified_complete_composition"] = dict(Counter(
-        f"unit={r['unit']}|run_error={r['run_error']}|n_msgs={'0' if not r['n_messages'] else '>0'}|assistant={r['roles'].get('assistant', 0) > 0}"
+        f"unit={r['unit']}|run_error={r['run_error']}|n_msgs={'0' if not r['n_messages'] else '>0'}|assistant={group_counts(r['roles']).get('assistant', 0) > 0}"
         for r in vc))
     out["verified_complete_examples"] = ex_examples(vc)
     out["unit"] = dict(Counter(r["unit"] for r in rows))

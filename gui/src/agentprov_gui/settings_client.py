@@ -16,7 +16,7 @@ from typing import Any
 from agentprov_gui.jobs.manager import CliLocator
 from agentprov_gui.live.cli import call, last_line
 
-__all__ = ["NO_CLI", "Caller", "read", "read_or_reason", "text", "unavailable", "write"]
+__all__ = ["NO_CLI", "Caller", "list_argv", "plan", "read", "read_or_reason", "text", "unavailable", "write"]
 
 #: why a pane that runs ``agentprov`` cannot be used, and what to set (D-1030)
 NO_CLI = ("No agentprov program to run: set the AgentPROV checkout, or the agentprov installed with pip install "
@@ -43,10 +43,15 @@ def unavailable(command: str, code: int, err: bytes) -> str:
         "" if code else " (its answer was not a settings list: is the CLI older than this app?)")
 
 
+def list_argv(prefix: str) -> list[str]:
+    """``settings list`` for the keys under ``prefix`` (what a pane reads, and its terminal command)."""
+    return ["settings", "list", "--prefix", prefix, "--format", "json"]
+
+
 def read_or_reason(cli: Caller, prefix: str) -> dict[str, Any] | str:
     """The stored values under ``prefix`` (already checked by the schema), or why they cannot be read
     (:func:`unavailable`)."""
-    code, out, err = _run(cli, ["settings", "list", "--prefix", prefix, "--format", "json"])
+    code, out, err = _run(cli, list_argv(prefix))
     if code != 0:
         return unavailable("settings list", code, err)
     try:
@@ -71,18 +76,21 @@ def text(value: Any) -> str:
     return str(value)
 
 
+def plan(old: Mapping[str, Any], new: Mapping[str, Any]) -> list[list[str]]:
+    """The commands that take the stored ``old`` to ``new``: ``settings unset`` for keys in ``old`` but not in ``new``,
+    then ``settings set`` for new or changed keys. :func:`write` runs exactly these; Settings shows them as the
+    terminal command of the pending changes."""
+    out = [["settings", "unset", key] for key in sorted(set(old) - set(new))]
+    out += [["settings", "set", key, text(value)] for key, value in sorted(new.items())
+            if not (key in old and old[key] == value)]
+    return out
+
+
 def write(cli: Caller, old: Mapping[str, Any], new: Mapping[str, Any]) -> list[str]:
-    """``settings unset`` for keys in ``old`` but not in ``new`` and ``settings set`` for new or changed keys;
-    returns the refusals (``key: reason``)."""
+    """Run :func:`plan`'s commands, one CLI process per changed key; returns the refusals (``key: reason``)."""
     refused: list[str] = []
-    for key in sorted(set(old) - set(new)):
-        code, _out, err = _run(cli, ["settings", "unset", key])
+    for argv in plan(old, new):
+        code, _out, err = _run(cli, argv)
         if code != 0:
-            refused.append(f"{key}: {last_line(err)}")
-    for key, value in sorted(new.items()):
-        if key in old and old[key] == value:
-            continue
-        code, _out, err = _run(cli, ["settings", "set", key, text(value)])
-        if code != 0:
-            refused.append(f"{key}: {last_line(err)}")
+            refused.append(f"{argv[2]}: {last_line(err)}")
     return refused

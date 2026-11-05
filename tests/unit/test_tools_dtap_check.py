@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -87,3 +88,66 @@ def test_scan_of_the_imported_fixtures_is_clean(dc, tmp_path: Path) -> None:
     summary = dc.summary(rows)
     assert summary["executions"] == len(imported.rows)
     assert summary["counters"].get("dt08|prov_time_attributes", 0) == 0
+
+
+def _dt07(dc, link: dict[str, object], recs: list[dict[str, object]]) -> list[str]:
+    header = {"unit": "agent_execution", "ext": {"dtap": {"judge_link": {**link, "judge_sha256": "a" * 64}}}}
+    out = dc.Row("ex_x")
+    dc.quality_check(out, header, recs, {"issues": []}, Counter(), None, {"task_success": True, "attack_success": False},
+                     None, "benign", b"")
+    return out.fail.get("DT07", [])
+
+
+@pytest.mark.parametrize("link", [{"method": "colocation", "resolved": True, "group_size": 1},
+                                  {"method": "content", "resolved": True, "group_size": 2}])
+def test_dt07_fails_when_the_linked_attempt_lost_its_judgements(dc, link) -> None:
+    """AU-TRS-4: the judgement comparison ran only when the AER had a judgement, so losing all of them passed DT07."""
+    assert "judgements_missing" in _dt07(dc, link, [])
+    judged = [{"k": "judgement", "id": "j0", "name": "task_success", "value": True, "origin": "checker"},
+              {"k": "judgement", "id": "j1", "name": "attack_success", "value": False, "origin": "checker"}]
+    assert "judgements_missing" not in _dt07(dc, link, judged)
+
+
+@pytest.mark.parametrize(("before", "after", "result"), [(1, 1, "baseline_hit"), (0, 1, "detected"), (0, 0, "missed")])
+def test_calibrate_dt01_requires_a_clean_unmutated_copy(dc, tmp_path, monkeypatch, before, after, result) -> None:
+    """AU-TRS-10: a DT01 fault counted as detected without checking that the unmutated copy had no hit."""
+    sys.path.insert(0, str(TOOLS))
+    try:
+        import dtap_calibrate as cal
+    finally:
+        sys.path.remove(str(TOOLS))
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    row = {"ex": "ex_1", "paths": {"aer": "aer/ex_1.aer.jsonl", "sem": {"p": "sem/ex_1.jsonl"}}}
+    (corpus / "executions.jsonl").write_text(json.dumps(row) + "\n")
+    rows = tmp_path / "rows.jsonl"
+    rows.write_text(json.dumps({"ex": "ex_1", "fail": {}, "c": {"a03|agent_messages": 1}, "info": {}}) + "\n")
+    calls: list[str] = []
+
+    def copy(_root: Path, _row: dict[str, object], work: Path) -> Path:
+        (work / "aer").mkdir(parents=True)
+        (work / "sem").mkdir()
+        agent = {"k": "message", "role": "agent", "parts": [{"t": "text", "text": "x"}]}
+        (work / "aer" / "ex_1.aer.jsonl").write_text(json.dumps({"k": "execution"}) + "\n" + json.dumps(agent) + "\n")
+        (work / "sem" / "ex_1.jsonl").write_text(json.dumps({"k": "h"}) + "\n" + json.dumps({"k": "a"}) + "\n")
+        calls.append("copy")
+        return work
+
+    def envvars(*_args: object) -> dict[str, object]:
+        n = before if calls[-1] == "copy" else after
+        calls.append("env")
+        return {"values": {"counts": {"v|not_in_own_raw": n}}, "key_literal": {"counts": {}}}
+
+    monkeypatch.setattr(cal, "copy_execution", copy)
+    monkeypatch.setattr(cal.dc, "envvars", envvars)
+    monkeypatch.setattr(cal.dc, "env_values", lambda _tasks: ({}, {}, {"s" * 16}))
+    out = tmp_path / "out.json"
+    cal.main(["--corpus", str(corpus), "--rows", str(rows), "--tasks", str(tmp_path), "--work", str(tmp_path / "w"),
+              "--out", str(out)])
+    dt01 = [r for r in json.loads(out.read_text())["results"] if r["check"] == "DT01"]
+    assert [r["result"] for r in dt01] == [result, result]
+
+
+def test_dt07_an_attempt_whose_judge_resolved_to_another_has_none(dc) -> None:
+    link = {"method": "content", "resolved": True, "group_size": 2, "resolved_to": "ex_y"}
+    assert "judgements_missing" not in _dt07(dc, link, [])

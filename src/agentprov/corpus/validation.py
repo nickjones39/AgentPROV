@@ -8,7 +8,11 @@ Tiers (N.2.5; D8):
 
 * ``aer`` (tier 2): :class:`agentprov.aer.validate.AerValidator` over the AER bytes, with the corpus raw store (read-only,
   objects re-hashed on read) for the locator and artefact checks, the package catalogues and the source profile digest;
-  the row member ``aer`` and the check ``aer.validator``, as the importer and ``derive`` record them;
+  the row member ``aer`` and the check ``aer.validator``, as the importer and ``derive`` record them; a raw object that
+  the sealed corpus version withholds (listed in ``WITHHELD.json`` and absent; H.4.5 item 2, object-level withholding)
+  is accounted for, never missing: the checks that need its bytes are skipped, not passed (:data:`WITHHELD_SKIP`), so
+  the row passes in dev mode and fails under ``--strict``/``--release`` (D8), and its stored row, which was made before
+  sealing withheld the bytes, is not compared (counter ``aer_withheld``);
 * ``sem`` (tier 3): :func:`agentprov.sem.validate.validate_sem_document` of each stored SEM document against its AER and
   the package profile at the recorded version (checks ``<profile>@<n>:<id>``);
 * ``prov`` and ``linkage`` (tier 4): :func:`agentprov.validate.validate_prov` of the stored ``agentprov-prov/0.1`` file;
@@ -28,7 +32,8 @@ The tier-3 and tier-4 row parts are re-implemented here from ``adapters/runner/p
 from __future__ import annotations
 
 import contextlib
-import os
+import dataclasses
+import itertools
 import shutil
 import tempfile
 from collections import Counter
@@ -38,30 +43,36 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
+from agentprov.aer.locators import pointer_get
 from agentprov.aer.reader import AerDocument, load_aer_bytes
 from agentprov.aer.rules import RuleRegistry
-from agentprov.aer.validate import AerValidator
+from agentprov.aer.validate import AerValidator, ValidationReport
 from agentprov.corpus.authority import DRIFT, DRIFT_DETAIL, catalogue_drift
 from agentprov.corpus.index import IndexRow
+from agentprov.corpus.layout import EXECUTIONS, WITHHELD
 from agentprov.corpus.manifest import CORPUS_FORMATS, LINKAGE_PREFIX, validation_summary
 from agentprov.corpus.reader import CorpusReader
 from agentprov.corpus.stages import stage_map
-from agentprov.corpus.verify import sample_executions
+from agentprov.corpus.verify import sample_rows
+from agentprov.corpus.withheld import decode_withheld
 from agentprov.corpus.writer import validation_summary as results_summary
 from agentprov.errors import AgentProvError
+from agentprov.io import remove
 from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.io.workers import KIND_RSS_BYTES, Job, JobResult, WorkerLimits, WorkerPool, prov_charge
 from agentprov.progress import NULL_PROGRESS, Progress, ProgressEvent
 from agentprov.raw.store import RawObjectStore
 from agentprov.sem.types import SemDocument
 
-__all__ = ["DEFAULT_TIERS", "REPORT_FORMAT", "TIERS", "WORKER_CHECK", "CorpusValidation", "default_semantics_profile",
-           "tier3_checks", "tier4_row", "validate_corpus", "validate_documents"]
+__all__ = ["DEFAULT_TIERS", "REPORT_FORMAT", "TIERS", "WITHHELD_SKIP", "WORKER_CHECK", "CorpusValidation",
+           "default_semantics_profile", "tier3_checks", "tier4_row", "validate_corpus", "validate_documents"]
 
 TIERS: Final = ("aer", "sem", "prov", "linkage")
 DEFAULT_TIERS: Final = TIERS
 SPEC: Final = "agentprov-prov/0.1"
 REPORT_FORMAT: Final = "agentprov-validation-report/0.1"
+#: The AER-tier skip of a check that needs the bytes of a raw object the sealed corpus version withholds (H.4.5).
+WITHHELD_SKIP: Final = "raw-store checks (V20, V21): a raw object this corpus version withholds (WITHHELD.json)"
 
 
 def tier4_row(report: Any, *, strict: bool) -> dict[str, Any]:
@@ -117,6 +128,23 @@ def _semantics(stage: Mapping[str, Any], rows: Iterable[IndexRow]) -> list[str]:
     return refs or sorted({p for r in rows for p in (r.sem or {})})
 
 
+def _shared(seen: dict[Any, Any], value: Any) -> Any:
+    """``value`` (a stored row's ``versions``), one object per distinct value: the rows of a corpus share a few (P8)."""
+    if not isinstance(value, Mapping) or not all(isinstance(k, str) and isinstance(v, str) for k, v in value.items()):
+        return value
+    return seen.setdefault(tuple(sorted(value.items())), value)
+
+
+def _index_lines(reader: CorpusReader) -> int:
+    """The rows of ``executions.jsonl`` by its line count, read in chunks (the progress total of a streamed full run;
+    the rows themselves are checked as they are read)."""
+    count = 0
+    with reader.open_file(EXECUTIONS) as stream:
+        while chunk := stream.read(1 << 20):
+            count += chunk.count(b"\n")
+    return count
+
+
 def validate_corpus(
     reader: CorpusReader,
     *,
@@ -159,29 +187,38 @@ def validate_corpus(
 
     wanted = tuple(t for t in TIERS if t in tiers)
     result = CorpusValidation(mode=mode, tiers=wanted)
-    rows = reader.index()
+    # P8: the index is streamed, never held whole: a sample keeps its own rows only (one pass, the n smallest sample
+    # keys), a full run reads the rows as it validates them
+    rows: Iterable[IndexRow]
+    chosen: set[str] | None = None
     if sample is not None:
-        chosen = set(sample_executions([r.ex for r in rows], sample, str(seed)))
-        result.sample = {"n": len(chosen), "of": len(rows), "seed": str(seed)}
-        rows = [r for r in rows if r.ex in chosen]
+        sampled, total = sample_rows(reader.iter_index(), sample, str(seed))
+        result.sample = {"n": len(sampled), "of": total, "seed": str(seed)}
+        rows, count, chosen = sampled, len(sampled), {r.ex for r in sampled}
+    else:
+        rows, count = reader.iter_index(), _index_lines(reader)
     stage = _stage(reader)
     drift = catalogue_drift(stage_map(reader.derivation()))
     for ns, version in drift.items():  # D-460: one finding per namespace; the rows that declare it are gated below
         result.notices.append(f"{DRIFT}: catalogue {ns}@{version}: " + DRIFT_DETAIL.format(version=version))
     counters_drift = len(drift)
     stored_mode = stage.get("mode")
-    semantics = _semantics(stage, rows)
+    semantics = _semantics(stage, rows if chosen is not None else reader.iter_index())
     comparable = wanted == TIERS and stored_mode == mode
     if not comparable:
         result.notices.append("the stored validation results are compared only when every default tier runs in the "
                               f"corpus's own validation mode ({stored_mode or 'none recorded'})")
-    stored = {r["ex"]: r for r in reader.validation_results()}
+    # P8: of each stored row only its validator versions are needed (a differing row's explanation), shared when equal
+    versions: dict[Any, Any] = {}
+    stored: dict[str, Any] = {r["ex"]: _shared(versions, r.get("versions")) for r in reader.iter_validation_results()
+                              if chosen is None or r["ex"] in chosen}
     registry = RuleRegistry.default()
     store: RawObjectStore | None = None
     try:
         store = RawObjectStore(reader.root / "raw", limits=reader.limits, create=False, verify_on_read=True)
     except (AgentProvError, OSError):
         result.notices.append("the corpus has no readable raw store: the AER locator checks are skipped")
+    withheld = _withheld_objects(reader, result.notices)
     profiles: dict[str, Any] = {}
 
     def profile_of(ref: str) -> Any:
@@ -201,13 +238,13 @@ def validate_corpus(
     scratch: Path | None = None
     if jobs is not None and not injected:
         scratch = Path(tempfile.mkdtemp(prefix="agentprov-validate-"))  # 0700; removed below
-        staging = RawObjectStore(scratch / "inputs")
+        staging = RawObjectStore(scratch / "inputs", durable=False)  # D-1068 P7: T1 inputs, removed below
         charges: dict[str, int] = {}  # D-554: AER digest -> the job's memory charge (timing only, never outputs)
         cap = (limits or VALIDATE_LIMITS).for_kind("validate").rss_bytes
         pool = WorkerPool(store_root=staging.objects_dir, workers=jobs, limits=limits or VALIDATE_LIMITS,
                           release=mode == "release",
                           charge=lambda job, _root: charges.get(str(job.inputs[0]["sha256"]), cap))
-    progress.emit(ProgressEvent("start", total=len(rows), fields={"command": "validate", "plan": ",".join(wanted),
+    progress.emit(ProgressEvent("start", total=count, fields={"command": "validate", "plan": ",".join(wanted),
                                                                   "workers": pool.workers if pool is not None else 1}))
 
     def record(row: IndexRow, out: dict[str, Any], failing: list[str]) -> None:
@@ -219,13 +256,15 @@ def validate_corpus(
         else:
             counters["failed"] += 1
             result.failures.append({"checks": failing, "code": "validate.failed", "ex": row.ex})
-        if comparable and row.validation is not None and row.validation.digest is not None:
+        withheld_row = WITHHELD_SKIP in ((out.get("aer") or {}).get("skipped") or ())
+        if withheld_row:  # H.4.5: its stored row was made before sealing withheld the bytes; it cannot be reproduced
+            counters["aer_withheld"] = counters.get("aer_withheld", 0) + 1
+        if comparable and not withheld_row and row.validation is not None and row.validation.digest is not None:
             if sha256_hex(jcs_bytes(out)) == row.validation.digest:
                 counters["results_reproduced"] += 1
             else:
                 counters["results_differ"] += 1
-                before = stored.get(row.ex) or {}
-                if before.get("versions") == out.get("versions"):
+                if stored.get(row.ex) == out.get("versions"):  # the stored row's versions (None: no row, or none)
                     result.failures.append({"checks": [], "code": "validate.results.differ", "ex": row.ex})
                 else:
                     result.notices.append("a stored validation row differs and was made by other validator versions")
@@ -237,16 +276,25 @@ def validate_corpus(
         if pool is None:
             for row in rows:
                 progress.emit(ProgressEvent("unit_start", unit=row.ex))
-                read = _read_row(reader, row, wanted, mode, semantics, registry, store, source_profile_sha256, drift)
+                read = _read_row(reader, row, wanted, mode, semantics, registry, store, source_profile_sha256, drift,
+                                 withheld=withheld)
                 if read.failing is None:
                     read.out["checks"].update(_documents_part(read, wanted, mode, semantics, profile_of, cache))
                 record(row, *_finish_row(read, wanted, mode))
         else:
             _validate_pooled(pool, staging, rows, reader, wanted, mode, semantics, registry, store, source_profile_sha256,
-                             profile_of, result, record, progress, drift, charges, cap, cache)
+                             profile_of, result, record, progress, drift, charges, cap, cache, withheld=withheld)
     finally:
+        if pool is not None:
+            pool.close()  # D-1068 P1: the workers it kept across batches
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
+    if counters.get("aer_withheld"):
+        result.notices.append(
+            f"{counters['aer_withheld']} execution(s) cite raw objects this corpus version withholds (WITHHELD.json; "
+            "H.4.5): the AER checks that need those bytes were skipped, not passed"
+            + ("; a skipped check fails --strict and --release, and their stored validation rows, made before the "
+               "bytes were withheld, were not compared" if mode == "release" else ""))
     result.notices = list(dict.fromkeys(result.notices))
     result.summary = results_summary(result.rows)
     from agentprov.corpus.derive import validation_stage_definition
@@ -270,6 +318,56 @@ def default_semantics_profile(ref: str) -> Any:
     return load_semantics_profile(*parse_profile_ref(ref))
 
 
+def _withheld_objects(reader: CorpusReader, notices: list[str]) -> frozenset[str]:
+    """The raw objects (bare hex) a sealed corpus version withholds: the entries of its ``WITHHELD.json`` (H.4.5), read
+    with the authoritative decoder. A document that does not decode accounts for nothing (fail closed: the absences
+    stay ``aer.blob.missing``), with a notice. ``verify --level chain`` checks the ledger itself."""
+    if not reader.sealed or not reader.exists(WITHHELD):
+        return frozenset()
+    try:
+        return frozenset(decode_withheld(reader.read_bytes(WITHHELD), reader.limits).objects)
+    except AgentProvError as exc:
+        notices.append(f"WITHHELD.json does not decode ({exc.code}): no absent raw object is accounted for as withheld "
+                       "(verify --level chain checks the ledger)")
+        return frozenset()
+
+
+def _missing_object(aer: AerDocument, line: int | None, pointer: str) -> str | None:
+    """The raw object (bare hex) an ``aer.blob.missing`` finding of record ``line`` names: a header artefact
+    (``/artifacts/<k>``), a locator's blob or artefact (``/src/<k>``) or a ``$blob`` reference; ``None`` when the
+    finding names none of these."""
+    if line is None or not 0 <= line < len(aer.records):
+        return None
+    try:
+        target = pointer_get(aer.records[line], pointer)
+    except KeyError:
+        return None
+    if not isinstance(target, Mapping):
+        return None
+    if pointer.startswith("/artifacts/"):
+        ref = target.get("sha256")
+    elif pointer.startswith("/src/"):
+        ref = target.get("blob")
+        if ref is None:
+            artefacts = aer.header.get("artifacts")
+            ref = next((a.get("sha256") for a in artefacts if isinstance(a, Mapping) and a.get("id") == target.get("a")),
+                       None) if isinstance(artefacts, list) else None
+    else:
+        ref = target.get("$blob")
+    return ref.removeprefix("sha256:") if isinstance(ref, str) else None
+
+
+def _account_withheld(report: ValidationReport, aer: AerDocument, withheld: frozenset[str]) -> ValidationReport:
+    """``report`` with every ``aer.blob.missing`` error that names a withheld object replaced by the skip
+    :data:`WITHHELD_SKIP` (H.4.5 item 2): those bytes left the sealed tree on purpose, so the check cannot run, and
+    it neither passes nor fails. Every other finding stays."""
+    kept = tuple(f for f in report.findings
+                 if not (f.code == "aer.blob.missing" and _missing_object(aer, f.line, f.pointer) in withheld))
+    if len(kept) == len(report.findings):
+        return report
+    return dataclasses.replace(report, findings=kept, skipped=tuple(sorted({*report.skipped, WITHHELD_SKIP})))
+
+
 @dataclass
 class _Read:
     """What the parent read and checked for one row (D-413): the row so far (the AER tier), the documents, and the read
@@ -290,9 +388,13 @@ class _Read:
 
 def _read_row(reader: CorpusReader, row: IndexRow, tiers: Sequence[str], mode: str, semantics: Sequence[str],
               registry: RuleRegistry, store: RawObjectStore | None,
-              source_profile_sha256: Callable[[str, int], str | None], drift: Mapping[str, int] | None = None) -> _Read:
+              source_profile_sha256: Callable[[str, int], str | None], drift: Mapping[str, int] | None = None, *,
+              withheld: frozenset[str] = frozenset()) -> _Read:
     """The parent's part of a row: every read (verified, as the reader does) and the AER tier. The bytes kept are the
     exact buffers that were read and verified; nothing is read again for a job (D-413 §3.3).
+
+    ``withheld`` (H.4.5): the raw objects the sealed corpus version withholds (:func:`_withheld_objects`); an
+    ``aer.blob.missing`` error that names one of them becomes the skip :data:`WITHHELD_SKIP`.
 
     ``drift`` (D-460, :func:`agentprov.corpus.authority.catalogue_drift`): a row whose AER declares a drifted catalogue
     version is finished here with the one check ``aer.rules.drift``. Its rule-dependent checks (AER rules, tier 4
@@ -323,6 +425,8 @@ def _read_row(reader: CorpusReader, row: IndexRow, tiers: Sequence[str], mode: s
         for line in data.splitlines(keepends=True):
             validator.feed(line)
         report = validator.finish()
+        if withheld:
+            report = _account_withheld(report, aer, withheld)
         aer_ok = bool(report.passed if release else report.ok)
         out["aer"] = {"errors": sorted({f.code for f in report.errors}), "mode": mode,
                       "skipped": sorted(report.skipped), "verdict": "pass" if aer_ok else "fail"}
@@ -416,26 +520,6 @@ def _finish_row(read: _Read, tiers: Sequence[str], mode: str) -> tuple[dict[str,
     return out, failing
 
 
-def _validate_row(reader: CorpusReader, row: IndexRow, tiers: Sequence[str], mode: str, semantics: Sequence[str],
-                  registry: RuleRegistry, store: RawObjectStore | None, profiles: dict[str, Any],
-                  semantics_profile: Callable[[str], Any], source_profile_sha256: Callable[[str, int], str | None],
-                  ) -> tuple[dict[str, Any], list[str]]:
-    """One row in this process: the parent's reads and AER tier, tiers 3 and 4, the verdict."""
-
-    def profile_of(ref: str) -> Any:
-        if ref not in profiles:
-            try:
-                profiles[ref] = semantics_profile(ref)
-            except (AgentProvError, ValueError):
-                profiles[ref] = None
-        return profiles[ref]
-
-    read = _read_row(reader, row, tiers, mode, semantics, registry, store, source_profile_sha256)
-    if read.failing is None:
-        read.out["checks"].update(_documents_part(read, tiers, mode, semantics, profile_of))
-    return _finish_row(read, tiers, mode)
-
-
 #: The validate pool's limits: tier 4 grows like the ``prov`` job's (D-55), so a ``validate`` job gets the ``prov`` cap. Set
 #: on this pool only; the global KIND_RSS_BYTES (and every other pool's recorded caps) stay as they are.
 VALIDATE_LIMITS: Final = WorkerLimits(kind_rss_bytes={**KIND_RSS_BYTES, "validate": KIND_RSS_BYTES["prov"]})
@@ -446,13 +530,14 @@ POOL_BATCH: Final = 256
 WORKER_CHECK: Final = "validate.worker"
 
 
-def _validate_pooled(pool: WorkerPool, staging: RawObjectStore, rows: Sequence[IndexRow], reader: CorpusReader,
+def _validate_pooled(pool: WorkerPool, staging: RawObjectStore, rows: Iterable[IndexRow], reader: CorpusReader,
                      tiers: Sequence[str], mode: str, semantics: Sequence[str], registry: RuleRegistry,
                      store: RawObjectStore | None, source_profile_sha256: Callable[[str, int], str | None],
                      profile_of: Callable[[str], Any], result: CorpusValidation,
                      record: Callable[[IndexRow, dict[str, Any], list[str]], None], progress: Progress,
                      drift: Mapping[str, int] | None = None,
-                     charges: dict[str, int] | None = None, cap: int | None = None, cache: Any = None) -> None:
+                     charges: dict[str, int] | None = None, cap: int | None = None, cache: Any = None, *,
+                     withheld: frozenset[str] = frozenset()) -> None:
     """Tiers 3 and 4 in T1 ``validate`` jobs (D-413). The parent reads, verifies and runs the AER tier for each row, puts
     the exact verified buffers in ``staging`` (the pool's private store root), and records the rows in index order. A
     job that is stopped or crashes makes its row fail with :data:`WORKER_CHECK`.
@@ -479,7 +564,8 @@ def _validate_pooled(pool: WorkerPool, staging: RawObjectStore, rows: Sequence[I
         slots: list[int | None] = []
         for row in batch:
             progress.emit(ProgressEvent("unit_start", unit=row.ex))
-            read = _read_row(reader, row, tiers, mode, semantics, registry, store, source_profile_sha256, drift)
+            read = _read_row(reader, row, tiers, mode, semantics, registry, store, source_profile_sha256, drift,
+                             withheld=withheld)
             reads.append(read)
             if read.failing is not None or not (("sem" in tiers and read.sems) or read.prov_bytes is not None):
                 slots.append(None)  # tiers 3 and 4 have nothing to run: the row is finished here, as in process
@@ -541,8 +627,7 @@ def _validate_pooled(pool: WorkerPool, staging: RawObjectStore, rows: Sequence[I
 
     with ThreadPoolExecutor(max_workers=1, thread_name_prefix="agentprov-validate") as background:
         pending: tuple[Sequence[IndexRow], list[_Read], list[int | None], Future[list[JobResult]] | None] | None = None
-        for start in range(0, len(rows), POOL_BATCH):
-            batch = rows[start : start + POOL_BATCH]
+        for batch in itertools.batched(rows, POOL_BATCH, strict=False):
             reads, jobs, slots = stage(batch)
             running = background.submit(pool.run, jobs) if jobs else None
             if pending is not None:
@@ -553,8 +638,8 @@ def _validate_pooled(pool: WorkerPool, staging: RawObjectStore, rows: Sequence[I
 
 
 def _drop(store: RawObjectStore, sha: str) -> None:
+    """Remove a staged copy: one ``unlink`` per name; the read-only bit is cleared only where the host refuses (Windows,
+    :func:`agentprov.io.remove.unlink`; D-1068 P7: it was a ``chmod`` and an ``unlink`` per name)."""
     for ext in ("jsonl", "json"):
-        path = store.path_for(sha, ext)
         with contextlib.suppress(OSError):
-            os.chmod(path, 0o600)
-            path.unlink()
+            remove.unlink(store.path_for(sha, ext))

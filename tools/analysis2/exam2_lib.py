@@ -75,7 +75,7 @@ def strict_parse(data: bytes, flags: Counter) -> Any:
     except UnicodeDecodeError:
         raise StrictError("utf8_invalid") from None
     try:
-        return make_parser(flags)(text)
+        obj = make_parser(flags)(text)
     except StrictError:
         raise
     except RecursionError:
@@ -87,6 +87,25 @@ def strict_parse(data: bytes, flags: Counter) -> Any:
         if "Invalid control character" in msg:
             raise StrictError("raw_control_char") from None
         raise StrictError("json_syntax") from None
+    # json.loads decodes an escaped lone surrogate silently (an escaped pair becomes one astral character), and strict
+    # UTF-8 has none, so a surrogate left in a decoded key or string is a lone one; only a text with such an escape is walked
+    if _ESC_SURR_TEXT.search(text):
+        stack = [obj]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                if any(_SURR_CHAR.search(k) for k in node):
+                    raise StrictError("lone_surrogate")
+                stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+            elif isinstance(node, str) and _SURR_CHAR.search(node):
+                raise StrictError("lone_surrogate")
+    return obj
+
+
+_ESC_SURR_TEXT = re.compile(r"\\u[dD][89a-fA-F]")
+_SURR_CHAR = re.compile(r"[\ud800-\udfff]")
 
 
 # ============================================================================================ second JCS (X02)
@@ -243,6 +262,7 @@ G = {
     "backslash": (re.compile(rb"\\\\"), ("LIT_ESC", "LIT_ESC_2X", "LIT_U_SURR", "YAML_DQ_ESC", "ESC_TEXT", "WINPATH_OK", "PY_BYTES", "ABS_PATH")),
     "ctrl": (re.compile(rb"\\u00[01]|\\[bf]|\x7f|\xc2[\x80-\x9f]"), ("C0_C1", "NUL", "ESC_SEQ", "WINPATH_CTRL")),
     "cr": (re.compile(rb"\\r"), ("CR",)),
+    "surr": (re.compile(rb"\\u[dD][89a-fA-F]"), ("SURROGATE",)),  # strict UTF-8 holds none: only an escape decodes to one
     "sep": (re.compile(rb"\xe2\x80[\xa8\xa9]|\xc2\x85"), ("SEPARATORS", "WINPATH_CTRL")),
     "nbsp": (re.compile(rb"\xc2\xa0"), ("WINPATH_CTRL",)),
     "uni": (re.compile(

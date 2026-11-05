@@ -53,7 +53,7 @@ def test_claims_are_specific_to_the_entry(mapped):
 
 
 def test_reserved_detectors_are_never_cited(mapped):
-    rules = load_rules("geminicli", 1, package="agentprov.adapters.geminicli").rules
+    rules = load_rules("geminicli", 2, package="agentprov.adapters.geminicli").rules  # current since D-1063
     reserved = {rid for rid, rule in rules.items() if rule.status == "reserved"}
     assert reserved == {"geminicli.scope_selection@1", "geminicli.no_stream_rollout@1", "geminicli.leaked_credential@1",
                         "geminicli.hidden_retries@1", "geminicli.derived_harness_atoms@1", "geminicli.missing_route_config@1"}

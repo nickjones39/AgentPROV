@@ -211,6 +211,21 @@ def test_weights_are_provisioned_from_the_fetch_cache_and_verified(tmp_path):
     assert "differs" in check_environment(env, entry, ROOT)[1]
 
 
+def test_the_hub_ref_must_name_the_pinned_revision(tmp_path):
+    # UC-18: the stock detector loads refs/main offline; a ref naming another snapshot is not the pinned weights
+    entry, cache = _fake_weights_entry(tmp_path)
+    env = _env_with_registry(tmp_path / "e", registry_path(ROOT).read_bytes())
+    for module in ("torch", "transformers"):
+        (env / "lib" / "python3.12" / "site-packages" / module).mkdir()
+    defences.provision_weights(env, entry, cache_dir=cache, allow_network=False)
+    ref = defences.hf_cache_dir(env) / "models--example--fake-model" / "refs" / "main"
+    assert check_environment(env, entry, ROOT) == (None, None)
+    ref.write_text("b" * 40, encoding="ascii")
+    assert "refs/main" in check_environment(env, entry, ROOT)[1]
+    ref.unlink()
+    assert "refs/main" in check_environment(env, entry, ROOT)[1]
+
+
 def test_uncached_weights_need_the_network_flag(tmp_path):
     entry, _cache = _fake_weights_entry(tmp_path)
     with pytest.raises(ValueError, match="--allow-network"):

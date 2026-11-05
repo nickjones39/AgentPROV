@@ -18,7 +18,8 @@ from typing import Any, Final
 
 from agentprov_gui.jobs.manager import CliLocator, allowlisted_env
 
-__all__ = ["KeychainError", "KeychainStatus", "delete", "present", "status", "store"]
+__all__ = ["KeychainError", "KeychainStatus", "delete", "delete_argv", "present", "status", "status_argv", "store",
+           "store_argv"]
 
 TIMEOUT_S: Final = 60.0
 #: what the Linux Secret Service and KWallet need to reach the session bus (the helper's own allowlist keeps them)
@@ -66,8 +67,23 @@ def _json(done: subprocess.CompletedProcess[bytes]) -> Any:
         raise KeychainError(f"keychain.exit_{done.returncode}") from None
 
 
+def status_argv() -> list[str]:
+    """``keys status`` (what :func:`status` runs, after ``agentprov keys``; also Settings › Keys' terminal command)."""
+    return ["status", "--format", "json"]
+
+
+def store_argv(name: str) -> list[str]:
+    """``keys set NAME --stdin``: the value is read from standard input, never an argument."""
+    return ["set", name, "--stdin"]
+
+
+def delete_argv(name: str) -> list[str]:
+    """``keys delete NAME --yes`` (the GUI asks first)."""
+    return ["delete", name, "--yes"]
+
+
 def status(cli: CliLocator) -> KeychainStatus:
-    doc = _json(_run(cli, ["status", "--format", "json"]))
+    doc = _json(_run(cli, status_argv()))
     backend = doc.get("backend") if isinstance(doc, dict) else None
     reason = doc.get("reason") if isinstance(doc, dict) else None
     return KeychainStatus(bool(isinstance(doc, dict) and doc.get("allowed")),
@@ -85,12 +101,12 @@ def present(cli: CliLocator, names: Sequence[str]) -> dict[str, bool]:
 
 
 def store(cli: CliLocator, name: str, value: str) -> None:
-    done = _run(cli, ["set", name, "--stdin"], stdin=value.encode("utf-8") + b"\n")
+    done = _run(cli, store_argv(name), stdin=value.encode("utf-8") + b"\n")
     if done.returncode != 0:
         raise KeychainError(f"keychain.exit_{done.returncode}")
 
 
 def delete(cli: CliLocator, name: str) -> None:
-    done = _run(cli, ["delete", name, "--yes"])
+    done = _run(cli, delete_argv(name))
     if done.returncode != 0:
         raise KeychainError(f"keychain.exit_{done.returncode}")

@@ -35,7 +35,9 @@ from typing import Any, Final
 
 from agentprov.adapters.geminicli import ADAPTER_ID, DIALECT_ID, NAMESPACE, VARIANT
 from agentprov.adapters.geminicli.dialect import LabelFacets, parse_label
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -85,6 +87,11 @@ R_SEED: Final = "geminicli.workspace_seed_unverified@1"
 R_UNMAPPED: Final = "geminicli.unmapped_event@1"
 R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
+#: D-1063 (review UC-41): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as D-934
+R_NOT_INLINED: Final = "geminicli.content_not_inlined@1"
+#: the AER's integer domain (I-JSON, C.11.3): an accounting value outside 0..2^53-1 cannot be stored as a count
+#: (D-1063, the review UC-39 flaw class; as D-1011 for adprov)
+_MAX_COUNT: Final = 2**53 - 1
 
 
 def _p(*tokens: str | int) -> str:
@@ -97,6 +104,11 @@ def _dict(value: object) -> dict[str, Any]:
 
 def _int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _count(value: object) -> bool:
+    """An integer the AER can hold as a count (D-1063, review UC-39)."""
+    return _int(value) and 0 <= value <= _MAX_COUNT  # type: ignore[operator]
 
 
 class _Rec:
@@ -271,7 +283,10 @@ class _Build:
         value = item.value
         if not isinstance(value, dict) or not isinstance(value.get("events"), list):
             raise MalformedArtefact("the located item is not a parsed gemini-cli stream")
-        self.events: list[tuple[int, Mapping[str, Any]]] = [(int(e["line"]), e["event"]) for e in value["events"]]
+        # D-1063 (review UC-40; the D-378 pass): a key cannot be $utf16-wrapped, so lone surrogates in keys are replaced
+        events, self.surrogate_keys = scrub_keys([e["event"] for e in value["events"]])
+        self.events: list[tuple[int, Mapping[str, Any]]] = [(int(e["line"]), ev) for e, ev in zip(value["events"], events,
+                                                                                                 strict=True)]
         if not self.events or self.events[0][1].get("type") != "init":
             raise MalformedArtefact("the stream does not start with an init event")
         facets, self.origin_key = _facets_of(item.artefact)
@@ -363,7 +378,8 @@ class _Build:
             value: Any = None
             if role in ("verdict", "meta", "fs_before"):
                 try:
-                    value = strict_json_loads(raw, self.limits)
+                    value, keys = scrub_keys(strict_json_loads(raw, self.limits))  # D-1063 (UC-40): sidecar keys
+                    self.surrogate_keys |= keys
                 except IngestError:
                     self.issue("geminicli.sidecar_unparseable", ["exec"], R_SIBLINGS, detail=role)
             elif role == "manifest":
@@ -393,8 +409,21 @@ class _Build:
         body += self._stream()
         body += self._judgements()
         self._checks()
-        yield self._header()
-        yield from body
+        records = [self._header(), *body]
+        surrogates(self, records, NAMESPACE)  # D-1063 (review UC-40): the D-378 pass
+        yield from self._not_inlined(records)
+
+    def _not_inlined(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """D-1063 (review UC-41; the D-934 pattern): every string over 1 MiB becomes ``{"not_inlined": {sha256, bytes}}``
+        of its UTF-8 bytes (C.2.1(6)). A tool result's text becomes the part's value; any other part's text an ``other``
+        part of its source type. Each such pointer is DERIVED under ``geminicli.content_not_inlined@1``; one info issue
+        names the records."""
+        # AU-RC-1/AU-RC-2 (D-1063): the shared pass, which also moves every citation, unk key and ext.<ns>.redacted
+        # entry naming a moved pointer (UC-38) and digests a $utf16 value over its decoded text
+        ids = not_inlined(records, "geminicli", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("geminicli.content_not_inlined", ids, R_NOT_INLINED, severity="info")
+        return records
 
     # ---------------------------------------------------------------------------------------------- header
     def _header(self) -> dict[str, Any]:
@@ -823,9 +852,10 @@ class _Build:
         observed = {"tool_use": used, "tool_result_linked": answered}
         stats = _dict(self.result.get("stats")) if self.result is not None else {}
         reported = stats.get("tool_calls")
-        if not _int(reported):
+        if not _count(reported):  # D-1063 (the UC-39 flaw class): a value outside the AER's integer domain is no count
+            reason = "counters_not_recorded" if not _int(reported) else "counters_out_of_range"
             self.ctx.check(R_COUNTERS, scope="att0", verdict="unverifiable", observed=observed,
-                           reason="no_result_event" if self.result is None else "counters_not_recorded")
+                           reason="no_result_event" if self.result is None else reason)
             return
         assert isinstance(reported, int)
         observed = {**observed, "reported_tool_calls": reported}

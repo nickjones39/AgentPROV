@@ -150,7 +150,7 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
     stage.add_argument("--until", choices=_UNTIL, help="stop after this stage (default: validation)")
     stage.add_argument("--prov-spec", action="append", default=[], metavar="SPEC", help=f"PROV spec (repeatable; default {SPEC_ID})")
     mode = p.add_argument_group("mode")
-    mode.add_argument("--retry-failed", action="store_true", help="re-process units whose row has status failed")
+    mode.add_argument("--retry-failed", action="store_true", help="re-process units whose row has status failed (all of them: no --limit or --sample)")
     mode.add_argument("--release", action="store_true", help="release mode: strict checks, no filters, no --limit, no --in-process")
     mode.add_argument("--skip-prov-conformance", action="store_true",
                       help="dev mode only, not advisable: skip the W3C PROV conformance check (tier 4); the corpus is "
@@ -196,6 +196,11 @@ def _check_options(args: argparse.Namespace) -> None:
             raise CliUsageError("agentprov import: --release forbids --sample (a sample is a partial corpus, never released)")
     if args.sample is not None and args.limit is not None:
         raise CliUsageError("agentprov import: --sample and --limit are exclusive")
+    if args.retry_failed and (args.limit is not None or args.sample is not None):
+        # AU-IMP-1: a retry drops every failed row before re-mapping, so a cap would leave the rows past it with no
+        # index row or register entry while the snapshot is recorded whole
+        raise CliUsageError("agentprov import: --retry-failed re-processes every failed unit and cannot be combined "
+                            f"with {'--limit' if args.limit is not None else '--sample'}; run it without the cap")
     if args.sample is None and (args.sample_mode is not None or args.seed is not None):
         raise CliUsageError("agentprov import: --sample-mode and --seed go with --sample N")
     if (args.sample_mode == "random") != (args.seed is not None):
@@ -411,7 +416,7 @@ def _fetcher(args: argparse.Namespace, ctx: Context) -> Any:
                    large_download_consent=large, env=ctx.env)
 
 
-def _cached_tree(fetcher: Any, recipe: Any, args: argparse.Namespace, result: CommandResult, why: str
+def _cached_tree(fetcher: Any, recipe: Any, args: argparse.Namespace, result: CommandResult, why: str, profile_id: str
                  ) -> tuple[bool, Any]:
     """Make the pinned commit available: ``(True, fetch result)`` when this call fetched it, ``(True, None)`` when it was
     already cached, ``(False, None)`` in a dry run that would fetch. Without ``--allow-network`` the cache is the only
@@ -427,7 +432,7 @@ def _cached_tree(fetcher: Any, recipe: Any, args: argparse.Namespace, result: Co
     if not args.allow_network:
         raise NotCachedError(
             f"{why}: {safe_text(recipe.origin_label(), 200)} is not in the fetch cache and the network is not allowed; rerun "
-            f"with --allow-network or run 'agentprov fetch --profile <id> --pin {safe_text(recipe.role, 40)} "
+            f"with --allow-network or run 'agentprov fetch --profile {profile_id} --pin {safe_text(recipe.role, 40)} "
             "--allow-network' first (N.1.11)", exit_code=4)
     return True, fetcher.fetch(recipe)
 
@@ -463,10 +468,10 @@ def _tree(args: argparse.Namespace, ctx: Context, profile: Any, pin: dict[str, A
                 "Fetch others with 'agentprov fetch --profile ID --pin ROLE' and import with --input.",
             ))
         if download and _is_split(pin):
-            return _fetched_split(args, ctx, pin, limits, result), None
+            return _fetched_split(args, ctx, pin, limits, result, profile.id), None
         recipe = _recipe(profile, pin)
         fetcher = _fetcher(args, ctx)
-        available, fetched = _cached_tree(fetcher, recipe, args, result, "--fetch")
+        available, fetched = _cached_tree(fetcher, recipe, args, result, "--fetch", profile.id)
         if not available:
             return None, None
         outcome = _note_fetch(result, recipe, fetched if fetched is not None else fetcher.fetch(recipe))
@@ -505,7 +510,7 @@ def _tree(args: argparse.Namespace, ctx: Context, profile: Any, pin: dict[str, A
         raise UnpinnedInputError("--verify-against-pin: the pin is neither a git tree nor a tree-listing digest")
     recipe = _recipe(profile, pin)
     fetcher = _fetcher(args, ctx)
-    available, fetched = _cached_tree(fetcher, recipe, args, result, "--verify-against-pin")
+    available, fetched = _cached_tree(fetcher, recipe, args, result, "--verify-against-pin", profile.id)
     if not available:
         return None, None
     if fetched is not None:
@@ -563,7 +568,7 @@ def _per_unit_inputs(args: argparse.Namespace, ctx: Context, profile: Any, prima
                                      "cannot vouch for an imported object")
         fetcher = _fetcher(args, ctx)
         available, fetched = _cached_tree(fetcher, recipe, args, result,
-                                          f"the LFS object of {safe_text(str(pin.get('file')), 120)}")
+                                          f"the LFS object of {safe_text(str(pin.get('file')), 120)}", profile.id)
         if not available:
             return None
         outcome = _note_fetch(result, recipe, fetched if fetched is not None else fetcher.fetch(recipe))
@@ -603,7 +608,7 @@ def _context_tree(args: argparse.Namespace, ctx: Context, profile: Any, pin: dic
                 sha256, _md5, size = verify_download(handle, resolved.name, recipe)
             return ArchiveTree(resolved, pin=pin, sha256=sha256, size=size, limits=limits), None
         fetcher = _fetcher(args, ctx)
-        available, fetched = _cached_tree(fetcher, recipe, args, result, why)
+        available, fetched = _cached_tree(fetcher, recipe, args, result, why, profile.id)
         if not available:
             return None
         outcome = _note_fetch(result, recipe, fetched if fetched is not None else fetcher.fetch(recipe))
@@ -611,7 +616,7 @@ def _context_tree(args: argparse.Namespace, ctx: Context, profile: Any, pin: dic
         return ArchiveTree(outcome.path, pin=pin, sha256=str(outcome.sha256), size=int(outcome.bytes or 0), limits=limits,
                            retrieved_at=getattr(outcome, "retrieved_at", None)), None
     fetcher = _fetcher(args, ctx)
-    available, fetched = _cached_tree(fetcher, recipe, args, result, why)
+    available, fetched = _cached_tree(fetcher, recipe, args, result, why, profile.id)
     if not available:
         return None
     if fetched is not None:
@@ -643,7 +648,8 @@ def _is_split(pin: dict[str, Any] | None) -> bool:
     return is_split_pin(pin)
 
 
-def _fetched_split(args: argparse.Namespace, ctx: Context, pin: dict[str, Any], limits: Any, result: CommandResult) -> Any:
+def _fetched_split(args: argparse.Namespace, ctx: Context, pin: dict[str, Any], limits: Any, result: CommandResult,
+                   profile_id: str) -> Any:
     """``--fetch`` of a split download pin (D-249): every part from the verified cache (fetched with ``--allow-network``),
     in the pin's order; U-07's consent counts the total of the parts (``require_split_consent``)."""
     from agentprov.adapters.runner.importer import ArchiveTree, UnpinnedInputError
@@ -655,7 +661,7 @@ def _fetched_split(args: argparse.Namespace, ctx: Context, pin: dict[str, Any], 
         require_split_consent(recipes, bool(getattr(args, "i_consent_to_large_download", False)))
     parts = []
     for recipe in recipes:
-        available, fetched = _cached_tree(fetcher, recipe, args, result, "--fetch")
+        available, fetched = _cached_tree(fetcher, recipe, args, result, "--fetch", profile_id)
         if not available:
             return None
         outcome = _note_fetch(result, recipe, fetched if fetched is not None else fetcher.fetch(recipe))
@@ -782,7 +788,13 @@ def run_import(ctx: Context) -> CommandResult:
         limits = limits.replace(max_artefact_bytes=args.max_file_bytes)
     if args.max_json_depth:
         limits = limits.replace(max_json_depth=args.max_json_depth)
+    # AU-IMP-2: --max-json-depth governs the inputs; the corpus's own documents (corpus.json, executions.jsonl rows)
+    # nest deeper than a typical input, so the writer and the readers of a corpus never take a depth below the default
+    corpus_limits = limits.replace(max_json_depth=max(limits.max_json_depth, IngestLimits().max_json_depth))
     pin = _pin(profile, args, part)
+    final = _final_dir(args.corpus)
+    partial = partial_dir(final)
+    _output_guards(args, ctx, final, partial)  # before any pin is read or fetched (AU-CLIA-12)
     tree, pin_check = _tree(args, ctx, profile, pin, limits, result)
     if tree is None:  # a dry run without the pin in the cache: the plan was printed, nothing maps
         result.counters = {"seen": 0}
@@ -793,23 +805,19 @@ def run_import(ctx: Context) -> CommandResult:
         result.counters = {"seen": 0}
         result.notices.append("dry run: a context pin or LFS object is not cached, so nothing was mapped (N.1.6)")
         return result
-    final = _final_dir(args.corpus)
-    partial = partial_dir(final)
     inputs = [Path(args.input), *per_unit[2]] if args.input else list(per_unit[2])
     if args.fetch or args.verify_against_pin or per_unit[0] or per_unit[1]:
         from agentprov.raw.fetch import resolve_cache_dir
 
         inputs.append(resolve_cache_dir(args.cache_dir, ctx.env))
-    _disjoint(partial, inputs)
-    if args.dry_run:
-        _dry_run_guards(final, partial)
+    _disjoint(partial, inputs)  # again, with the per-unit inputs the acquisition found
     if args.in_process:
         result.notices.append("--in-process: expand, map and prov ran in the CLI process (debugging only; G.4.9)")
 
     from agentprov.adapters.runner.importer import import_source
     from agentprov.cli.checks import finish_validation_cache, validation_cache
 
-    cache = validation_cache(ctx)
+    cache = validation_cache(ctx, notices=result.notices)
     common: dict[str, Any] = dict(
         profile_id=profile.id, filters=filters, limit=args.limit, mode="release" if args.release else "dev", part=part,
         snapshot_id=snapshot, corpus_id=corpus_id, until=args.until or "validation", prov_specs=specs,
@@ -824,7 +832,7 @@ def run_import(ctx: Context) -> CommandResult:
 
         common["sample"] = ImportSample(args.sample, args.sample_mode or "first", args.seed)
     if args.dry_run and args.artefacts:
-        report, table_rows, scanned = _import_and_scan(source, tree, common, limits, args, result)
+        report, table_rows, scanned = _import_and_scan(source, tree, common, corpus_limits, args, result)
         _result(result, report, args, corpus_id, partial)
         _artefact_table(result, table_rows, scanned, args)
         finish_validation_cache(result, cache)
@@ -832,15 +840,15 @@ def run_import(ctx: Context) -> CommandResult:
     from agentprov.io import workers as worker_pool
 
     if args.size_hints:  # D-554: the pools of this import charge jobs by the previous version's PROV sizes
-        worker_pool.set_default_charge_policy(_size_hint_policy(Path(args.size_hints), limits))
+        worker_pool.set_default_charge_policy(_size_hint_policy(Path(args.size_hints), corpus_limits))
     try:
         if args.dry_run:
             resume = None
             if partial.is_dir() and CorpusLayout(partial).executions.exists():
-                resume = IndexLog.load(CorpusLayout(partial).executions, CorpusLayout(partial), limits)
+                resume = IndexLog.load(CorpusLayout(partial).executions, CorpusLayout(partial), corpus_limits)
             report = import_source(source, tree, corpus=None, dry_run=True, resume_index=resume, **common)
         else:
-            with CorpusWriter(final, limits=limits, release=bool(args.release), command="import",
+            with CorpusWriter(final, limits=corpus_limits, release=bool(args.release), command="import",
                               break_stale_lock=bool(args.break_stale_lock), build_step=gitinfo.build_step("import")) as writer:
                 report = import_source(source, tree, corpus=writer, **common)
     finally:
@@ -887,6 +895,21 @@ def _size_hint_policy(previous: Path, limits: Any) -> Any:
         return cap if size is None else prov_charge(size, cap=cap)
 
     return charge
+
+
+def _output_guards(args: argparse.Namespace, ctx: Context, final: Path, partial: Path) -> None:
+    """The read-only output guards, run before any pin is acquired (AU-CLIA-12): G2 against the inputs the options name
+    (``--input``, each ``--context`` path, the fetch cache with ``--fetch`` or ``--verify-against-pin``), then the guards
+    of :func:`_dry_run_guards`, in a real run too. A dry run with an uncached pin returned exit 0 ("would fetch") for a
+    ``--corpus`` the real run refuses, and a real ``--fetch --allow-network`` downloaded the whole pin before refusing."""
+    named = [Path(args.input)] if args.input else []
+    named += [Path(path) for _role, sep, path in (str(e).partition("=") for e in args.context) if sep and path]
+    if args.fetch or args.verify_against_pin:
+        from agentprov.raw.fetch import resolve_cache_dir
+
+        named.append(resolve_cache_dir(args.cache_dir, ctx.env))
+    _disjoint(partial, named)
+    _dry_run_guards(final, partial)
 
 
 def _dry_run_guards(final: Path, partial: Path) -> None:

@@ -19,6 +19,10 @@ first R2 step (``held``) until ``batch resume ID --confirm-r2``.
 **The checkout pin** (GR-70): the checkout's path, commit and a digest of its uncommitted diff, recorded at
 creation. A changed pin blocks every remaining step, so one batch never mixes CLI versions.
 
+**Stopping** (``batch stop``): the batch records when it was stopped (``stopped``), and :func:`advance` then starts no
+step; it still records the steps whose jobs ended. ``batch start`` and ``batch resume`` clear the mark, so a stopped
+batch resumes where it stopped: its pending steps run, a step that was stopped stays failed (exit 130).
+
 **Dev runs** (D-544, D-529): a step with ``extra.part`` whose import ends with exit 5 and
 ``import.sample.unsupported`` gets a first-N import of that part inserted after it; a part whose import failed
 otherwise has its later steps skipped.
@@ -36,7 +40,7 @@ from agentprov.jobs.manager import JobManager, JobRequest, SpawnRefused, atomic_
 from agentprov.jobs.record import batches_dir, list_jobs, read_json
 from agentprov.jobs.tiers import TIERS, is_destructive, tier_of_argv
 
-__all__ = ["BATCH_FORMAT", "Batch", "BatchStep", "advance", "first_n_argv", "sample_unsupported"]
+__all__ = ["BATCH_FORMAT", "STOPPED_NOTE", "Batch", "BatchStep", "advance", "first_n_argv", "sample_unsupported"]
 
 BATCH_FORMAT: Final = "agentprov-batch/0.1"
 BLOCKING_EXITS: Final = (4, 70)
@@ -51,6 +55,8 @@ STATES: Final = ("pending", "held", "running", "done", "failed", "blocked", "ski
 #: A running step whose job record no longer exists (pruned): its outcome is unknown, so it is failed, never left running
 #: holding its slot.
 GONE_NOTE: Final = "failed: its job record no longer exists (pruned); its outcome is unknown"
+#: A running step whose job ``batch stop --steps`` stopped.
+STOPPED_NOTE: Final = "stopped: by 'agentprov batch stop --steps'"
 
 
 @dataclass(slots=True)
@@ -116,6 +122,7 @@ class Batch:
     pin: dict[str, str] | None = None
     driver_job_id: str | None = None  # the job running `batch run` (the last one started)
     r2_confirmed_by: str | None = None  # the driver job id that was started with --confirm-r2
+    stopped: str | None = None  # when `batch stop` stopped it (UTC); cleared by `batch start` and `batch resume`
 
     @classmethod
     def new(cls, home: Path, label: str, steps: Sequence[BatchStep], *, concurrency: int = 1,
@@ -130,7 +137,7 @@ class Batch:
         return {"format": BATCH_FORMAT, "batch_id": self.batch_id, "label": self.label, "created": self.created,
                 "concurrency": self.concurrency, "continue_on_failure": self.continue_on_failure,
                 "steps": [s.to_json() for s in self.steps], "pin": self.pin, "driver_job_id": self.driver_job_id,
-                "r2_confirmed_by": self.r2_confirmed_by}
+                "r2_confirmed_by": self.r2_confirmed_by, "stopped": self.stopped}
 
     def save(self) -> None:
         assert self.path is not None
@@ -153,7 +160,7 @@ class Batch:
 
             return cls(str(obj["batch_id"]), str(obj.get("label", "")), steps, max(1, int(obj.get("concurrency", 1))),
                        bool(obj.get("continue_on_failure")), str(obj.get("created", "")), path, pin,
-                       opt("driver_job_id"), opt("r2_confirmed_by"))
+                       opt("driver_job_id"), opt("r2_confirmed_by"), opt("stopped"))
         except (KeyError, TypeError, ValueError, AttributeError):
             return None
 
@@ -248,7 +255,8 @@ def check_step(step: BatchStep, validate: Callable[[Sequence[str]], str | None])
 
 def advance(batch: Batch, manager: JobManager, *, validate: Callable[[Sequence[str]], str | None],
             pin_now: Callable[[], dict[str, str] | None], driver_job_id: str | None) -> list[str]:
-    """Update running steps from their jobs and start what may start now; returns the job ids started."""
+    """Update running steps from their jobs and start what may start now; returns the job ids started. A stopped
+    batch (``batch.stopped``) starts nothing."""
     jobs = {j.job_id: j for j in list_jobs(manager.home)}
     changed = False
     for step in list(batch.steps):
@@ -263,6 +271,10 @@ def advance(batch: Batch, manager: JobManager, *, validate: Callable[[Sequence[s
                 if step.state == "failed":
                     _devrun_followup(batch, batch.steps.index(step), read_json(job.file("summary.json")))
                 changed = True
+    if batch.stopped is not None:
+        if changed:
+            batch.save()
+        return []
     blocked = (not batch.continue_on_failure) and any(
         s.state == "failed" and s.exit_code in BLOCKING_EXITS for s in batch.steps)
     started: list[str] = []
@@ -299,7 +311,8 @@ def advance(batch: Batch, manager: JobManager, *, validate: Callable[[Sequence[s
         try:
             job = manager.spawn(replace(step.request, batch_id=batch.batch_id))
         except SpawnRefused as exc:
-            if exc.code in ("jobs.spawn.failed", "jobs.tool.path", "jobs.argv.recursive", "jobs.queue.unavailable"):
+            if exc.code in ("jobs.spawn.failed", "jobs.tool.path", "jobs.argv.recursive", "jobs.queue.unavailable",
+                            "platform.unsupported"):
                 step.state, step.note = "failed", exc.code  # retrying each tick never helps
                 changed = True
                 continue

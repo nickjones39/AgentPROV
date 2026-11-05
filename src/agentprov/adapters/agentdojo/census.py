@@ -18,7 +18,7 @@ present locally.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Final
 
 from agentprov.adapters.agentdojo.profile import FamilyTable
@@ -221,10 +221,3 @@ def compare(table: FamilyTable, part: str, measured: Mapping[str, Mapping[str, i
             elif measured.get(quirk, {}).get(key, 0) != value:
                 problems.append(f"{quirk}.{key}: declared {value}, measured {measured.get(quirk, {}).get(key, 0)}")
     return problems
-
-
-def totals_of(files: Iterable[CensusFile]) -> dict[str, dict[str, int]]:
-    totals: dict[str, dict[str, int]] = {}
-    for cf in files:
-        add(totals, census_file(cf))
-    return totals

@@ -6,9 +6,16 @@ D-653, D-656; reverse CLI parity D-700).
 It takes the options of ``agentprov run`` (less the ones of :data:`agentprov.cli.run.ESTIMATE_OMITS`), plans the
 cells with a dry run (``run --dry-run --plan-json``, D-651: hello and plan only, no model call, nothing written) and
 reads the backend catalogue (D-652) for the tool-definition sizes. Then, per suite × attack, it takes calls, tokens and
-time from the ``--stats-corpus`` corpora (sampled; counts only), else the shipped priors, else the
-``estimate.default.*`` settings, and prices them with ``agentprov prices``. It prints p50 and p90 cost and time, the
-breakdown per suite and per attack, the worst case and every assumption it made. Nothing is charged.
+time from the ``--stats-corpus`` corpora (sampled; counts only), else the local priors built from your sealed corpora
+(``agentprov priors build``, D-1062) and the shipped priors (this model family's rows first, local before shipped),
+else the ``estimate.default.*`` settings, and prices them with ``agentprov prices``. It prints p50 and p90 cost and
+time, the breakdown per suite and per attack, the worst case and every assumption it made. Nothing is charged.
+
+D-1062: the JSON document also carries ``quote``: the run's USD cost, calls, tokens and time at p50 and p90 and what
+they rest on (``quote.basis``: which priors, whether the rows were this model family's, how many recorded executions,
+the token basis, the price's source and date, ``estimate_only: true``). The p90 figures are "upper (sum of per-cell
+90th percentiles)" (:mod:`agentprov.estimate.cost`), not a quantile of the run's total. The text form ends its cost
+line with "Estimate only: actual cost can differ (…)".
 
 An Inspect plan (D-770) is priced per sample × epoch: the agent's calls and the scorer's judge calls, each judge
 role at its model's price at the agent's endpoint (a capped run's judges must use the agent's model, D-740, which the
@@ -187,6 +194,7 @@ def run_estimate(ctx: Context) -> CommandResult:
     from agentprov.estimate.cost import estimate
     from agentprov.estimate.plan import parse_plan
     from agentprov.estimate.prices import Price
+    from agentprov.estimate.localpriors import corpora_of, local_priors_path
     from agentprov.estimate.priors import StatsSource, load_priors
 
     args = ctx.args
@@ -228,9 +236,11 @@ def run_estimate(ctx: Context) -> CommandResult:
     # ``<benchmark>-live``, so that is their backend label too
     benchmark = plan.backend[len(INSPECT_PREFIX):] if inspect_backend else \
         "agentdyn" if plan.backend == "agentdyn" else "agentdojo"
+    local_header, local_rows = load_priors(local_priors_path(home))  # D-1062: agentprov priors build
     stats = StatsSource(benchmark=benchmark, model=model_id,
                         backend=(benchmark if inspect_backend else plan.backend) or None, corpus=corpus_stats,
-                        priors=load_priors()[1], defaults=defaults, tool_chars=tool_chars)
+                        priors=load_priors()[1], defaults=defaults, tool_chars=tool_chars, local=local_rows,
+                        local_corpora=tuple(c["corpus_id"] for c in corpora_of(local_header) if c["corpus_id"]))
     stats_for: Any = stats
     measured = _local_time_basis(str(endpoint), model_id) if real and endpoint and model_id else None
     if measured is not None:  # D-826: a calibrated preset's measured seconds per cell replace the priors' time
@@ -269,7 +279,7 @@ def run_estimate(ctx: Context) -> CommandResult:
     doc = {"format": ESTIMATE_FORMAT, "source": safe_text(str(args.source), 40),
            "transport": "http" if real else "scripted", "endpoint": endpoint, "model": model_id,
            "planned_with": "model" if keyed or not real else "stand-in", "jobs": jobs, "plan": plan.to_json(),
-           "stats_corpora": read, **body}
+           "stats_corpora": read, **body, "quote": quote(e, stats.basis(), price, jobs)}
     if plan.inspect is not None:
         doc["plan"]["inspect"]["calls_bound_per_sample"] = _sample_call_bound(plan.backend, plan.inspect)
         doc["judge_price"] = None if judge_price is None else judge_price.to_json()
@@ -284,6 +294,53 @@ def run_estimate(ctx: Context) -> CommandResult:
         for line in doc["text"]:
             result.output(line)
     return result
+
+
+#: Price.provider → quote.basis.price_source (D-1062)
+_PRICE_SOURCE: Final = {"override": "override", "openrouter": "openrouter", "openai": "direct", "deepseek": "direct",
+                        "anthropic": "direct", "local": "local"}
+P50_AGGREGATION: Final = "sum of per-cell medians"
+P90_AGGREGATION: Final = "upper (sum of per-cell 90th percentiles)"
+
+
+def quote(e: Any, basis: dict[str, Any], price: Any, jobs: int) -> dict[str, Any]:
+    """The ``quote`` object (D-1062): the run's USD cost, calls, tokens and time at p50 and p90, and what they rest on.
+    Additive: every other key of the document keeps its meaning. An estimate only, never a bill."""
+    from agentprov.estimate.prices import plain
+
+    def usd(v: Decimal | None) -> str | None:
+        return None if v is None else plain(v)
+
+    discounts = bool(basis["cached_input"] and price is not None and price.cached_input is not None
+                     and price.cached_input < price.input)
+    return {
+        "usd_p50": usd(e.cost_p50), "usd_p90": usd(e.cost_p90),
+        "calls_p50": round(e.calls_p50, 3), "calls_p90": round(e.calls_p90, 3),
+        "tokens_in_p50": round(e.tokens_in_p50), "tokens_in_p90": round(e.tokens_in_p90),
+        "tokens_out_p50": round(e.tokens_out_p50), "tokens_out_p90": round(e.tokens_out_p90),
+        "seconds_p50": round(e.seconds_p50, 3), "seconds_p90": round(e.seconds_p90, 3), "jobs": jobs,
+        "seconds_serial_p50": round(e.seconds_serial_p50, 3), "seconds_serial_p90": round(e.seconds_serial_p90, 3),
+        "cells": e.units, "p50_aggregation": P50_AGGREGATION, "p90_aggregation": P90_AGGREGATION,
+        "basis": {
+            "priors": basis["priors"], "family_specific": basis["family_specific"], "family": basis["family"],
+            "executions": basis["executions"], "corpora": basis["corpora"], "token_basis": basis["token_basis"],
+            "price_source": None if price is None else _PRICE_SOURCE.get(price.provider),
+            "price_as_of": None if price is None else price.as_of.isoformat(),
+            "discounts_assumed": discounts, "estimate_only": True,
+        },
+    }  # fmt: skip
+
+
+def estimate_only_line(q: dict[str, Any]) -> str:
+    """The text form's caveat (D-1062), worded from what the quote rests on."""
+    b = q["basis"]
+    tokens = {"usage": "token counts are the usage recorded in past runs",
+              "mixed": "token counts are partly approximated as characters / 4",
+              None: "token counts are your default assumptions"}.get(b["token_basis"],
+                                                                    "token counts are approximated as characters / 4")
+    discounts = ("cached input is priced at the cache rate where past runs recorded cache reads; batch discounts are "
+                 "not assumed") if b["discounts_assumed"] else "batch and cache discounts are not assumed"
+    return f"Estimate only: actual cost can differ ({tokens}; {discounts})."
 
 
 def text_lines(doc: dict[str, Any]) -> list[str]:
@@ -313,6 +370,8 @@ def text_lines(doc: dict[str, Any]) -> list[str]:
         lines.append(f"Cost: p50 {_money(doc['cost_p50'])}, p90 {_money(doc['cost_p90'])}, worst case (every due "
                      f"attempt at p90) {_money(doc['cost_worst'] or doc['cost_p90'])}; model calls p50 "
                      f"{doc['calls_p50']:,.0f}, p90 {doc['calls_p90']:,.0f}.")
+    if not scripted and doc.get("quote") is not None:
+        lines.append(estimate_only_line(doc["quote"]))
     for title, rows in (("By suite", doc["by_suite"]), ("By attack", doc["by_attack"])):
         lines += ["", f"{title}:"]
         for g in rows:

@@ -7,7 +7,8 @@ Copies, byte-identical, the trajectory, judge and configuration files of the cen
 ``_N`` attempt, X04 byte-identical ``(1)`` copies), each at its dataset path below ``runs/`` or ``tasks/``. A
 configuration with sandbox ``env_vars`` is never copied: its derived copy (``tools/dtap/derive_fixture_config.py``,
 transformation ``drop_env_vars``) goes below ``derived/tasks/`` with ``derived_from`` in SOURCE.json. Every copied file
-is scanned with the census secret patterns and the attacker-token marker; a hit refuses the build. Prints counts only.
+is scanned with the census secret patterns and the attacker-token marker; a hit refuses the build before any file is
+written (the files are held in memory until every one has been scanned). Prints counts only.
 
 The committed F16 trajectory was edited afterwards (fixture scrub 2026-10-21): one third-party host-like account token
 replaced by ``user``, recorded in SOURCE.json (``modified``, ``derived_from``). A rebuild copies the original bytes again,
@@ -102,15 +103,14 @@ def main(argv: list[str] | None = None) -> int:
     for fid, (directory, purpose) in EXTRA.items():
         dirs[directory] = (fid, purpose)
     entries: list[dict[str, object]] = []
+    staged: list[tuple[str, bytes]] = []  # written only after every file has been scanned clean
     hits: dict[str, int] = {}
     env_configs = 0
 
     def record(sample: str, data: bytes, repo: str, commit: str, original: str, fid: str, purpose: str, **extra: object) -> None:
         for name in scan(data):
             hits[name] = hits.get(name, 0) + 1
-        target = args.out / sample
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+        staged.append((sample, data))
         entry: dict[str, object] = {
             "sample_file": sample, "url": f"{repo}/blob/{commit}/{original}", "repository": repo,
             "commit_or_revision": commit, "original_path": original, "sha256": hashlib.sha256(data).hexdigest(),
@@ -160,13 +160,17 @@ def main(argv: list[str] | None = None) -> int:
     if hits:
         print(json.dumps({"refused_secret_pattern_hits": hits}), file=sys.stderr)
         return 1
+    text = args.licence.read_bytes() if args.licence is not None else None
+    if text is not None and hashlib.sha256(text).hexdigest() != LICENCE_SHA256:
+        print("refused: the licence text is not the pinned upstream LICENSE", file=sys.stderr)
+        return 1
+    for sample, data in staged:
+        target = args.out / sample
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
     licences = args.out.parent / "LICENSES"
     licences.mkdir(parents=True, exist_ok=True)
-    if args.licence is not None:
-        text = args.licence.read_bytes()
-        if hashlib.sha256(text).hexdigest() != LICENCE_SHA256:
-            print("refused: the licence text is not the pinned upstream LICENSE", file=sys.stderr)
-            return 1
+    if text is not None:
         (licences / "DTap-Bench-Apache-2.0.txt").write_bytes(text)
     (licences / "DTap-Bench-ATTRIBUTION.txt").write_text(ATTRIBUTION, encoding="utf-8")
     entries.sort(key=lambda e: str(e["sample_file"]))

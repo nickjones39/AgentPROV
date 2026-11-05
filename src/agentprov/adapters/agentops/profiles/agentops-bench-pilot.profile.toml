@@ -7,6 +7,8 @@
 # version 2 because no corpus records version 2); version 1 ships under archive/ with the bytes the stored corpora recorded. The [family.agentops] table is checked against
 # ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10i census of every member of the
 # pinned archives, read in memory (docs/reports/phase10i/agentops-bench.census.json).
+# Version 3 (D-1063, regen-batch row 176): catalogue agentops 3 and agentops.tools@3 (the lone-surrogate and not-inlined
+# rules); version 2, which the sealed corpus agentops-bench-w2 records, ships under archive/.
 #
 # Scope (D-143, D-191): the corpus counts the prompt-injection condition and the safety tasks: 2,400 adversarial runs
 # plus the 960 clean and noisy safety runs = 3,360 of 7,200 cells. The other 3,840 cells (3,842 files, adding the two
@@ -20,7 +22,7 @@
 
 [profile]
 id = "agentops-bench-pilot"
-version = 2
+version = 3
 format = "agentprov-source-profile/0.1"
 source_id = "agentops-bench"
 family = "agentops"
@@ -104,7 +106,7 @@ content_dedup = "never"
 dialect = "agentops.trace"
 mapper = "agentops.trace"
 variants = ["v1"]
-rules = { aer = 1, agentops = 2 }
+rules = { aer = 1, agentops = 3 }
 # `[!.]`: the deposit's 2,400 AppleDouble `adversarial/._*_run*.json` members are never selected, so never decompressed
 # or stored (R-40); the runner skips them as strays either way (version 2, phase 10i trial).
 include = [
@@ -149,7 +151,7 @@ in_scope = { conditions = ["adversarial"], domains = ["safety"] }
 tools = ["calculate", "get_current_time", "get_stock_price", "get_weather", "query_database", "read_file", "run_python", "send_email", "web_search", "write_file"]
 pairing = "agentops.pair_by_index_unverified@1"
 task_table = { file = "tables/task_files.toml", rows = 100 }
-semantics_profile = { id = "agentops.tools", version = 2 }
+semantics_profile = { id = "agentops.tools", version = 3 }
 
 # D-608: the account path in tool output. Structure only: `/Users/<name>` before a `/`, where <name> is not one of the
 # generic names of the release scan's allowlist (D-457); the whole `/Users/<name>` becomes the label, so no AER byte

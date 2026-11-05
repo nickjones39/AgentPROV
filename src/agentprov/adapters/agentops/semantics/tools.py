@@ -8,8 +8,9 @@ the annotation order):
 - **message**, per part: agent output (actor ``agent``): ``integrity`` ``trusted`` and, on a ``tool_call`` part, its
   ``role``; tool results: ``integrity`` (``unknown`` for a result the failure injector fabricated, ``untrusted`` where a
   payload is present, else the producing tool's label, fail-closed), one ``injection_marker`` per payload fixture of the
-  run (verbatim search, located by ``at``/``span`` when present) and, where a payload is present, an ``author`` naming
-  the attacker;
+  run (verbatim search, located by ``at``/``span`` when present; from ``@3``, ``gap`` for a payload not found in a
+  result the mapper did not inline, ``agentops.payload_marker_not_inlined@1``, review AU-RC-3) and, where a payload is
+  present, an ``author`` naming the attacker;
 - **tool_execution**: ``role``;
 - **judgement**: ``outcome`` for ``completion`` (``user_task_solved`` with a score) and ``safety``
   (``agentops.injection_resistance``, a regex heuristic), never for a ``harness_default`` judgement.
@@ -36,13 +37,13 @@ from agentprov.sem.types import INTEGRITY_VALUES, ROLE_VALUES, Annotation, Premi
 if TYPE_CHECKING:
     from agentprov.aer.reader import AerDocument
 
-__all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "AgentOpsToolsProfile", "build"]
+__all__ = ["CITED_RULES", "DATA_FILES", "NOT_INLINED_RULES", "PROFILE_ID", "AgentOpsToolsProfile", "build"]
 
 PROFILE_ID: Final = "agentops.tools"
 PROFILE_VERSION: Final = 1
-PROFILE_VERSIONS: Final = (1, 2)  # 2: version 1's tables on the agentops catalogue version 2 (D-31 bump, regen items 34-37)
+PROFILE_VERSIONS: Final = (1, 2, 3)  # 2: version 1's tables on the agentops catalogue version 2 (D-31 bump, regen items 34-37)
 #: The ``agentops`` catalogue version each profile version declares (D-31; H.2.5): @1 reads the archived version 1.
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3})  # 3: version 2's tables on catalogue agentops 3 (D-1063)
 DATA_FILES: Final = ("profile.toml", "tools.toml")
 EVIDENCE: Final = ("observed", "code")
 FAULT_SUBTYPE: Final = "agentops.fault_injection"
@@ -60,11 +61,20 @@ R_MARKER: Final = "agentops.payload_marker@1"
 R_COMPLETION: Final = "agentops.completion_meaning@1"
 R_SAFETY: Final = "agentops.safety_meaning@1"
 R_TAINT: Final = "agentops.taint_sink_untrusted@1"
+#: D-1063 (regen-batch row 182, review AU-RC-3): a result the mapper did not inline is not searched as if it were whole
+R_GAP: Final = "agentops.payload_marker_not_inlined@1"
+R_NOT_INLINED: Final = "agentops.content_not_inlined@1"
+#: The first version that marks a payload not found in a not-inlined result ``gap`` under :data:`R_GAP` (before, the
+#: digest object's JSON was searched and the payload marked ``absent`` at D). ``@3`` is unreleased and no corpus records
+#: it; ``@1`` and ``@2`` keep their behaviour for the corpora that record them.
+NOT_INLINED_SINCE: Final = 3
 
 #: Every rule this profile cites (the catalogue test checks each exists, is active and has the class its annotations
 #: need).
 CITED_RULES: Final = (R_TABLE, R_UNKNOWN, R_AGENT, R_FIXTURE, R_PROMPT, R_TRUTH, R_FAULT, R_INJECTED, R_MARKER,
                       R_COMPLETION, R_SAFETY, R_TAINT, NORMALISER)
+#: Rules cited from :data:`NOT_INLINED_SINCE` on only (absent from the archived catalogues the older versions read).
+NOT_INLINED_RULES: Final = (R_GAP,)
 NS: Final[Mapping[str, Json]] = MappingProxyType({})
 
 
@@ -235,10 +245,11 @@ class AgentOpsToolsProfile:
         haystack = text if isinstance(text, str) else json.dumps(part.get("value"), ensure_ascii=False,
                                                                  separators=(",", ":"), sort_keys=False)
         markers: list[tuple[str, str, tuple[int, int] | None]] = []  # (fixture, status, span)
+        hidden = self.version >= NOT_INLINED_SINCE and _not_inlined_at(record, k)  # AU-RC-3: not all of it is here
         for fid, payload in run.payloads:
             at = haystack.find(payload) if payload else -1
             if at < 0:
-                markers.append((fid, "absent", None))
+                markers.append((fid, "gap" if hidden else "absent", None))
             else:
                 markers.append((fid, "present", (at, at + len(payload)) if isinstance(text, str) else None))
         present = [m for m in markers if m[1] == "present"]
@@ -255,7 +266,7 @@ class AgentOpsToolsProfile:
             yield self._ann(run, pid, "integrity", integrity, rules, premises)
         for fid, status, span in markers:
             value: dict[str, Json] = {"fixture": fid, "status": status, "normaliser": NORMALISER}
-            yield self._ann(run, pid, "injection_marker", value, (R_MARKER,),
+            yield self._ann(run, pid, "injection_marker", value, (R_GAP,) if hidden and status != "present" else (R_MARKER,),
                             (Premise(mid, text_pointer), Premise(fid, "/content")),
                             at="/text" if span is not None else None, span=span)
         if present and "att" in run.actors:
@@ -291,8 +302,16 @@ class AgentOpsToolsProfile:
         return None
 
 
+def _not_inlined_at(record: Mapping[str, Any], k: int) -> bool:
+    """Whether the mapper replaced the value of part ``k``, or a string inside it, by its digest (it cites
+    :data:`R_NOT_INLINED` at that pointer, D-934 / D-1063)."""
+    at = f"/parts/{k}/value"
+    return any(isinstance(r, str) and r.startswith(R_NOT_INLINED + "#") and
+               (r.partition("#")[2] == at or r.partition("#")[2].startswith(at + "/")) for r in record.get("rule") or ())
+
+
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> AgentOpsToolsProfile:
-    """Build ``agentops.tools`` at version 1 or 2 from its data files (called by
+    """Build ``agentops.tools`` at version 1, 2 or 3 from its data files (called by
     :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
     if profile_id != PROFILE_ID or version not in PROFILE_VERSIONS:
         raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, not "
@@ -301,7 +320,7 @@ def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str
     declared = CATALOGUE_OF[version]
     catalogue = load_catalogue("agentops", declared)
     classes: dict[str, str] = {}
-    for ref in CITED_RULES:
+    for ref in (*CITED_RULES, *(NOT_INLINED_RULES if version >= NOT_INLINED_SINCE else ())):
         entry = catalogue.get(ref)
         if entry is None or not entry.citable:
             raise ProfileDataError(f"{ref} is not an active rule of the agentops catalogue v{declared}")

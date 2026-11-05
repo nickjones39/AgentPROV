@@ -7,7 +7,7 @@ Each campaign goes into its own corpus (the campaign is part of the corpus id).
 
 * the catalogue: 7 suites (AgentDojo's four and AgentDyn's shopping, github, dailylife), 17 attacks;
 * S1 (shopping, benign) and S2 (github x important_instructions): mapped under ``agentdyn-live``, ``task.benchmark`` is
-  ``agentdyn`` (the suite map), SEM ``agentdojo.suites@3``, valid at every tier, no issue;
+  ``agentdyn`` (the suite map), SEM ``agentdojo.suites@5``, valid at every tier, no issue;
 * S3 (workspace, benign): AgentDyn's copy of an AgentDojo suite keeps the benchmark label ``agentdojo``;
 * hello and the catalogue in the real worker under the real-model ``sandbox-exec`` profile (macOS): AgentDyn's
   package ships ``agentdojo/defenses/camel/.env.example``, a file the profile denies even a stat of;
@@ -122,7 +122,7 @@ def test_a_scripted_agentdyn_cell_maps_clean(live_home: Path, tmp_path: Path, ca
     assert summary["counters"]["conclusive"] == 1 and summary["issues_by_code"] == {}
     row, header = _record(partial)
     assert row["status"] == "ok" and row["stages"]["validation"] == "ok"
-    assert row["stages"]["sem"] == {"agentdojo.suites@3": "ok"}
+    assert row["stages"]["sem"] == {"agentdojo.suites@5": "ok"}  # @3 on catalogue agentdojo 3 (D-1063)
     assert row["stages"]["prov"] == {"agentprov-prov/0.1": "ok"}
     assert header["profile"]["id"] == "agentdyn-live" and header["task"]["benchmark"] == benchmark
 
@@ -155,7 +155,7 @@ def test_a_dropped_malformed_tool_call_is_listed_and_the_reply_still_links(s4: d
     row, header, records, call, reply = s4["row"], s4["header"], s4["records"], s4["call"], s4["reply"]
     assert s4["summary"]["issues_by_code"] == {}
     assert row["status"] == "ok" and row["stages"]["validation"] == "ok"
-    assert header["task"]["benchmark"] == "agentdyn" and header["rules"]["agentdyn"] == 2
+    assert header["task"]["benchmark"] == "agentdyn" and header["rules"]["agentdyn"] == 3
     assert reply["generated_by"] == call["id"]
     assert [p["t"] for p in reply["parts"]] == ["text"]
     (dropped,) = reply["ext"]["agentdojo"]["dropped_calls"]

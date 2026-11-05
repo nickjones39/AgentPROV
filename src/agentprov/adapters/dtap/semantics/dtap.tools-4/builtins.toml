@@ -1,0 +1,132 @@
+# Semantics profile dtap.tools@1: harness tools logged with server "unknown" (docs/architecture D.16.9). Reviewed by hand.
+#
+# claudesdk logs the Claude Agent SDK built-ins with server "unknown", and openaisdk and googleadk log their skill loaders
+# the same way; they are looked up here by name (dtap.tool_table@1, class I: the reading of each tool is the documented
+# behaviour of the SDK built-ins and the observed arguments and results, not verified against the harness version, which
+# is not recorded). A name not listed is fail-closed (dtap.unknown_tool@1): role ["unknown"], output integrity "unknown".
+# That includes Agent and Task (a sub-agent can do anything), AskUserQuestion, and the MCP tool names that openaisdk logs
+# with server "unknown" when an MCP call fails (the server is named only in the error text).
+#
+# Output integrity is "unknown" for every entry: the claudesdk built-ins act on the harness host (the observed paths are
+# host paths, not sandbox paths), so who wrote a file or page they return is not decidable from the configuration.
+# `evidence` lists the evidence the entry rests on, strongest first (D.16.9): `observed` = the tool's logged arguments and
+# results in the runs. Only tools that occur in the runs are listed.
+
+[[builtin]]
+name = "Bash"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "runs a shell command"
+
+[[builtin]]
+name = "Write"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "writes a file"
+
+[[builtin]]
+name = "Edit"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "edits a file in place"
+
+[[builtin]]
+name = "NotebookEdit"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "edits a notebook cell"
+
+[[builtin]]
+name = "Read"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the content of a file"
+
+[[builtin]]
+name = "Glob"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns file paths matching a pattern"
+
+[[builtin]]
+name = "Grep"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns file lines matching a pattern"
+
+[[builtin]]
+name = "WebFetch"
+roles = ["egress_read"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "fetches a web page from outside the sandbox"
+
+[[builtin]]
+name = "WebSearch"
+roles = ["egress_read"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns web search results from outside the sandbox"
+
+[[builtin]]
+name = "TodoWrite"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "updates the agent's own task list"
+
+[[builtin]]
+name = "ToolSearch"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns references to tool names (tool discovery); no tool is executed"
+
+[[builtin]]
+name = "Skill"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "config"]
+reason = "loads a skill's instructions into the context; configured skill injections create or append skill files"
+
+[[builtin]]
+name = "ListMcpResourcesTool"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the MCP servers' resource list"
+
+[[builtin]]
+name = "ReadMcpResourceTool"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns an MCP resource's content"
+
+[[builtin]]
+name = "load_skill"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "config"]
+reason = "openaisdk and googleadk skill loader: returns a skill's instructions; configured skill injections create or append skill files"
+
+[[builtin]]
+name = "load_skill_resource"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "config"]
+reason = "googleadk skill loader: returns a file of a skill"
+
+[[builtin]]
+name = "list_skills"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "config"]
+reason = "googleadk skill loader: returns the available skills with their descriptions"

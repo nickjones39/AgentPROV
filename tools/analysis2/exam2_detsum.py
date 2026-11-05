@@ -24,6 +24,7 @@ def main() -> int:
     for name, rows in sorted(configs.items()):
         c: Counter = Counter()
         bad = []
+        both_equal = 0  # executions whose SEM and PROV are both equal (a failure of either fails the execution)
         for r in rows:
             c["n"] += 1
             if "error" in r:
@@ -34,6 +35,7 @@ def main() -> int:
             ok_prov = r.get("prov", {}).get("equal", False)
             c["sem_equal"] += ok_sem
             c["prov_equal"] += ok_prov
+            both_equal += ok_sem and ok_prov
             if not (ok_sem and ok_prov):
                 bad.append(r["ex"])
             if "validation_equal" in r:
@@ -42,7 +44,7 @@ def main() -> int:
             shas[(r["corpus"], r["ex"])].add((json.dumps(r.get("sem"), sort_keys=True), json.dumps(r.get("prov"), sort_keys=True)))
             c[f"corpus|{r['corpus']}"] += 1
         n = c["n"] - c["errors"]
-        k_fail = n - min(c["sem_equal"], c["prov_equal"])
+        k_fail = n - both_equal
         out["configs"][name] = {**dict(c), "mismatching_ex": bad[:10],
                                 "upper95_if_zero": round(cp_upper_zero(n), 5) if k_fail == 0 else None,
                                 "wilson95": [round(x, 5) for x in wilson(k_fail, n)]}

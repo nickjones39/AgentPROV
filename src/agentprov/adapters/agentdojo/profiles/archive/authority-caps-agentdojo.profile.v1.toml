@@ -1,0 +1,191 @@
+# Source profile `authority-caps-agentdojo`: the AgentDojo 0.1.35 run logs of the agent-authority-caps deposit (Zenodo
+# concept 22973265, record 23138310, v2.1.0): GPT-6 Luna, GPT-6 Sol, Claude Haiku 4.5, gpt-4o-mini and gpt-3.5-turbo on
+# AgentDojo v1 under enforced authority caps (A3, A4), a no-egress filter, auto-confirmation and repetitions, with the
+# new `authority_notice` attack and eight further AgentDojo attacks (phase 10j; D-250; docs/reports/phase10j/census.md §2).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The `[family.agentdojo]` part is checked against the closed
+# schema `family.schema.json` of this family (D.4.1). The quirks' `observed` counts are the phase-10j census of every
+# selected log of the pinned zip (tools/agentdojo/phase10j_profiles.py census), reconciled with the independent byte
+# census (tools/agentdojo/phase10j_census.py).
+#
+# Input: the zip is an archive input (D-200). 2,813 logs are level-1 members (original-study/experiments/{current_models,
+# pilot}/runs/); 19,186 are members of three nested gzip tars, declared below (D-57, D-382), whose own members are
+# runs/<pipeline dir>/... . 21,999 logs hold 18,739 distinct byte strings: the authors re-packed some runs into several
+# experiments (gpt-4o-mini-2024-07-18 in exp4, exp5 and exp7; the current_models arms again inside exp5), and the importer
+# collapses each copy into its first execution (dedup.collapsed, H.7.2). Record 22973266 (v1.0) is wholly contained.
+
+[profile]
+id = "authority-caps-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "authority-caps-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "agent-authority-caps: AgentDojo 0.1.35 logs of GPT-6 Luna/Sol, Claude Haiku 4.5, gpt-4o-mini and gpt-3.5-turbo under enforced authority caps (Zenodo 23138310)"
+evidence = ["docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md §2 row 5", "docs/reports/phase10j/census.md §2"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.22973265"
+paper = "Evaluating AI agent permission caps under prompt injection with reference scoring and enforced execution (Chang and Chiu; deposit README)"
+package = { name = "agentdojo", requirement = "agentdojo 0.1.35 per the logs; source-snapshots/ holds the locally available function dispatcher", version_identifies_code = false }
+
+# The pin is the deposit file of record 23138310 (v2.1.0, 2026-10-04): the same zip as record 22996368 (v2.0.0); the
+# record adds supplementary PDF, DOCX, CSV and PY files that hold no runs. 22,250 zip and tar members.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.23138310"
+record = 23138310
+version = "2.1.0"
+file = "agent-authority-caps-v2.0.0.zip"
+sha256 = "1dce0380c98598926dac4ff16ed1123c9a2b26bb39bb9eb055ed51babd3c05bf"
+md5 = "3fba80315a4879d381fb3b14fd386ace"
+size = 40160657
+date = "2026-10-04"
+note = "fetched 2026-10-11 (phase 10c, user-approved); the md5 equals the record's checksum"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["Liang-Cheng Chang (dataset creator)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "README and original-study/LICENSE-DATA: data, codebook and results under CC-BY-4.0, fields derived from AgentDojo logs keep the MIT licence; original-study/LICENSE-CODE: code under MIT, (c) 2026 Liang-Cheng Chang; record licence cc-by-4.0"
+attribution = [
+  "Chang, L.-C., agent-authority-caps, Zenodo 10.5281/zenodo.23138310 (v2.1.0; concept 10.5281/zenodo.22973265), CC-BY-4.0",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo 0.1.35 (per the logs; not verified, D-24)"]
+vendored = []
+duplicates = []
+cited_by = ["Zenodo 22973266 (v1.0 of the same concept): all 2,813 logs are byte-identical members of this zip (census §2)"]
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+# level 1 (original-study/experiments/*/runs/...) and the members of the nested tars (runs/...), each matched by its
+# own member label (D-380)
+include = ["original-study/experiments/*/runs/*/*/*/*/*.json", "runs/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+nested = [
+  { id = "exp4", pattern = "original-study/experiments/reexecuted_caps/runs_exp4.tar.gz", note = "exp4: re-executed caps A3/A4 (6,024 logs)" },
+  { id = "exp5", pattern = "original-study/experiments/templates_and_autoconfirm/runs_exp5.tar.gz", note = "exp5: attack templates and autoconfirm (10,684 logs)" },
+  { id = "exp7", pattern = "raw-additions/runs_exp7.tar.gz", note = "exp7: no-egress and repeated runs (2,478 logs)" },
+]
+layout = "{model_dir?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = [
+  "README.md", "CITATION.cff", "original-study/README.md", "original-study/LICENSE-CODE", "original-study/LICENSE-DATA",
+  "original-study/experiments/current_models/RESULTS_new_models.md", "source-snapshots/run_new_models.py",
+  "source-snapshots/AGENTDOJO_LICENSE",
+]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/authority_caps_pipeline_dirs.toml", sha256 = "8297ab6d76623967843381ed6151daddacaa7dd71d1264f695392385c1c21934" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# agentdojo 0.1.35 per the logs; the deposit's runners (original-study/code/replication/, source-snapshots/) were not
+# verified against the runs (D-24), so every D rule is cited through its `_unverified` twin
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 2908, origin_rule_applied = 2898 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 741 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 85 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 126, logs = 104 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 21799 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 100082, present_and_null = 100082 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 5, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { head = { null_ids = 0, logs_with_null_ids = 0, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["agentdojo.run_error_imposed_outcome@1"]
+# AgentDojo's runner writes utility false and security true when the run raised (every log with an error string)
+params = { utility = false, security = true }
+observed = { head = { files = 51 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

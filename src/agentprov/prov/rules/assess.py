@@ -152,7 +152,7 @@ class _Builder:
         self.ctx.val(f.rid, f.ptr)  # prov.unresolved_pointer when it does not resolve
         return f
 
-    def sem_class(self, ann: Mapping[str, Any]) -> tuple[EvidenceClass, frozenset[str]]:
+    def sem_class(self, ann: Mapping[str, Any], unknown: frozenset[str] = frozenset()) -> tuple[EvidenceClass, frozenset[str]]:
         ev = ann.get("ev")
         if ev not in LETTER:
             raise self.fail(f"annotation {ann.get('id')} has no evidence class")
@@ -165,16 +165,20 @@ class _Builder:
         )
         # An annotation INFERRED by propagation (C.6.5 rule 3: an I premise under a D rule, e.g. an outcome over a judgement
         # whose origin rests on an _unverified twin, D.5.4) names no I rule of its own: its method set is its premises',
-        # which every caller passes as the statement's fields and premise statements. If none of them is INFERRED either,
-        # the classifier refuses the statement (prov.method_set_empty), as before.
-        return c, methods
+        # which every caller passes as the statement's fields and premise statements, except the fields declared unknown
+        # that premises() leaves uncited (D-930): their I-class rules are passed here as ``unknown`` and stay the
+        # annotation's method set (UC-16). If none of them is INFERRED either, the classifier refuses the statement
+        # (prov.method_set_empty), as before.
+        return c, methods or unknown
 
-    def premises(self, ann: Mapping[str, Any]) -> tuple[list[Field], list[Stmt]]:
-        """The annotation's AER premise fields (its target first) and the statements of the earlier annotations it
-        names (C.14.2 ``premises``). A premise field declared unknown in its record is not cited and is counted
-        (``premise_field_unknown``): SEM may rest a label on it (SEM-V06), PROV may not (E.1.5 item 1, NE-12; D-930)."""
+    def premises(self, ann: Mapping[str, Any]) -> tuple[list[Field], list[Stmt], frozenset[str]]:
+        """The annotation's AER premise fields (its target first), the statements of the earlier annotations it names
+        (C.14.2 ``premises``) and the I-class rules of its uncited premise fields. A premise field declared unknown in
+        its record is not cited and is counted (``premise_field_unknown``): SEM may rest a label on it (SEM-V06), PROV
+        may not (E.1.5 item 1, NE-12; D-930). An INFERRED one keeps its methods for :meth:`sem_class` (UC-16)."""
         fields = [self.target_field(str(ann["target"]))]
         stmts: list[Stmt] = []
+        unknown: set[str] = set()
         own = self.order[str(ann["id"])]
         for p in ann["premises"]:
             if not isinstance(p, dict) or not isinstance(p.get("id"), str) or not isinstance(p.get("p", ""), str):
@@ -184,6 +188,7 @@ class _Builder:
                 f = self.premise_field(pid, ptr)
                 if self.ctx.unk_reason(f.rid, f.ptr) is not None:
                     self.counts["premise_field_unknown"] += 1
+                    unknown |= self.unknown_methods(f)
                 else:
                     fields.append(f)
             elif pid in self.order and self.order[pid] < own:
@@ -194,7 +199,19 @@ class _Builder:
             else:
                 raise self.fail(f"annotation {ann['id']} names {pid}, neither an AER id nor an earlier annotation",
                                 "prov.unresolved_reference")
-        return list(dict.fromkeys(fields)), list(dict.fromkeys(stmts))
+        return list(dict.fromkeys(fields)), list(dict.fromkeys(stmts)), frozenset(unknown)
+
+    def unknown_methods(self, f: Field) -> frozenset[str]:
+        """The I-class rules of an uncited INFERRED premise field; none for another class or a field that cites no I
+        rule (it is not a premise of the statement, so it cannot refuse it)."""
+        from agentprov.prov.engine import ProvDerivationError
+
+        if self.ctx.field_class(f) != I:
+            return frozenset()
+        try:
+            return self.classifier.methods_of_field(f)
+        except ProvDerivationError:
+            return frozenset()
 
     def stmt(self, rule: str, *, fields: Sequence[Field] = (), nodes: Sequence[str], prem: Sequence[Stmt] = (),
              sem: Sequence[tuple[EvidenceClass, frozenset[str]]] = (), path: str | None = None) -> Stmt:
@@ -322,8 +339,8 @@ class _Builder:
         if found is None:
             return
         name, node = found
-        fields, prem = self.premises(ann)
-        sem = [self.sem_class(ann)]
+        fields, prem, unknown = self.premises(ann)
+        sem = [self.sem_class(ann, unknown)]
         self.counts["labels"] += 1
         if node.section == "entity":
             s = self.stmt(RULE_LABEL, fields=fields, nodes=[name], prem=prem, sem=sem)
@@ -390,10 +407,10 @@ class _Builder:
             # apv:adapterAssumption (apv 0.2.0, D-501).
             raise self.fail(f"ambiguous injection marker {ann['id']} cites no rule that declares its assumption (E.7.3)",
                             "prov.sem_invalid")
-        fields, prem = self.premises(ann)
+        fields, prem, unknown = self.premises(ann)
         path = "ambiguous" if status == "ambiguous" else None
         s = self.stmt(RULE_PAYLOAD, fields=fields, nodes=[name, fx], prem=[node, fx_node, *prem],
-                      sem=[self.sem_class(ann)], path=path)
+                      sem=[self.sem_class(ann, unknown)], path=path)
         props: dict[str, Any] = {}
         if status == "ambiguous":
             props["apv:markerStatus"] = q("apv:Ambiguous")
@@ -438,8 +455,8 @@ class _Builder:
         name, node = found
         if node.section != "entity":
             raise self.fail(f"author annotation {ann['id']} targets an activity or agent")
-        fields, prem = self.premises(ann)
-        sem = [self.sem_class(ann)]
+        fields, prem, unknown = self.premises(ann)
+        sem = [self.sem_class(ann, unknown)]
         mention = self.stmt(RULE_AUTHOR, fields=fields, nodes=[name], prem=prem, sem=sem)
         self.mention(mention, ann, name, {"apv:declaredSender": sender})
         obj: str | None = None

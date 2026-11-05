@@ -28,8 +28,10 @@ def test_profile_pin_licence_and_import_table():
     imp = data["import"]
     assert imp["dialect"] == imp["mapper"] == "autogen.runs" and imp["variants"] == ["condition", "defense", "injecagent", "team"]
     assert "exclude" not in imp  # D-300 with D-321: phases 7-9 are registered row by row by the reader, not as files
-    assert profile.version == 2 and profile.parts == ("v1.0",)  # D-603: [withhold] added; v1 archived (D-31)
+    assert profile.version == 3 and profile.parts == ("v1.0",)  # D-1063: autogen.tools@2; v1 (D-603) and v2 archived
     assert load_profile(support.PROFILE, 1).sha256.startswith("1a7573f4e88a")  # the scratch corpora's recorded bytes
+    # the bytes the sealed corpus autogen-guard-placement-w2 records (derivation.json aer profile_sha256)
+    assert load_profile(support.PROFILE, 2).sha256 == "0f3469c8b4fb7b81b40e14593033ec47386ad88e9a68d212d327eafb22ff9480"
 
 
 def test_family_table_conforms_to_the_closed_schema():
@@ -48,7 +50,7 @@ def test_registry_part_is_supported_with_its_own_corpus_and_semantics():
     (part,) = registration.capabilities
     assert part.profile == "autogen-guard-placement" and part.corpus_id == "autogen-guard-placement" and part.part == "v1.0"
     assert part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.semantics == ("autogen.tools@1",) and registration.family == "autogen"
+    assert part.semantics == ("autogen.tools@2",) and registration.family == "autogen"
     assert registration.licence.spdx == "CC-BY-4.0"
 
 

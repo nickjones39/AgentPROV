@@ -99,3 +99,11 @@ def test_the_zenodo_keys_prefill_only_and_validate(tmp_path: Path) -> None:
         with pytest.raises(S.SettingsError):
             S.set(key, bad, home=tmp_path)
     assert not any("zenodo" in k.pattern and "token" in k.pattern for k in S.SCHEMA)
+
+
+def test_settings_list_with_the_global_json_writes_one_document_to_stdout(cli) -> None:
+    """AU-CLIA-11: the summary is the one document on stdout; the settings payload goes to stderr."""
+    run = cli("settings", "list", "--format", "json", "--json", "--progress", "off")
+    assert run.code == 0, run.err
+    assert json.loads(run.out)["command"] == "settings" and run.out.count("\n") == 1
+    assert '"format":"agentprov-settings' in run.err.replace(" ", "")

@@ -8,6 +8,7 @@ changes one works on a copy, and every command runs under ``testing.fs_guard`` t
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import re
@@ -100,6 +101,31 @@ def test_recompute_dry_run_reports_zero_differences(capsys, corpora, family, sta
     assert result.summary["dry_run"] is True
 
 
+def test_a_dry_run_that_fails_in_setup_leaves_no_scratch_tree(capsys, corpora, monkeypatch):
+    """AU-CLIA-2: the dry run's private tree was made before the try whose finally removes it, so a failure in between
+    (the round-trip cache's setup) left ``agentprov-recompute-*`` behind under ``$AGENTPROV_HOME/tmp``."""
+    from agentprov.cli import checks, derive
+    from agentprov.errors import AgentProvError
+
+    made: list[Path] = []
+    real = derive.scratch_tree
+
+    def scratch(prefix: str, near: Any) -> Path:
+        made.append(real(prefix, near))
+        return made[-1]
+
+    def broken(ctx: Any, **_kw: Any) -> Any:
+        raise AgentProvError("cache setup failed", code="test.cache_setup", exit_code=2)
+
+    monkeypatch.setattr(derive, "scratch_tree", scratch)
+    monkeypatch.setattr(checks, "validation_cache", broken)
+    result = run(capsys, "recompute", "--corpus", str(corpora["agentdojo"]), "--dry-run", "--in-process")
+    assert result.code == 2
+    assert not any(p.exists() for p in made)
+    home_tmp = Path(os.environ["AGENTPROV_HOME"]) / "tmp"
+    assert not (home_tmp.is_dir() and any(home_tmp.iterdir()))
+
+
 @pytest.mark.parametrize("family", ["agentdojo", "adprov", "inspect"])
 def test_a_remap_from_the_stored_raw_gives_byte_identical_aer(capsys, request, tmp_path, family):
     """D-30 acceptance: re-mapping each fixture family from its stored raw objects (no network) gives the same AER bytes,
@@ -153,7 +179,7 @@ def test_derivation_versions_are_recorded(capsys, corpora, tmp_path):
     stages = {s["stage"]: s for s in derivation["stages"]}
     assert set(stages) == {"aer", "sem", "prov", "validation"}
     aer = stages["aer"]
-    assert re.fullmatch(r"[a-z.]+@\d+\.\d+\.\d+", aer["adapter"]) and aer["profile"] == "agentdojo-upstream@2"
+    assert re.fullmatch(r"[a-z.]+@\d+\.\d+\.\d+", aer["adapter"]) and aer["profile"] == "agentdojo-upstream@3"
     assert all(isinstance(v, int) for v in aer["rules"].values()) and set(aer["rules_sha256"]) == set(aer["rules"])
     assert stages["prov"]["spec"] == "agentprov-prov/0.1" and set(stages["prov"]["serialisers"]) == {"prov", "rdflib"}
     assert all(s["fn_digest"].startswith("sha256:") for s in stages.values())
@@ -237,6 +263,29 @@ def test_a_declared_version_change_explains_the_difference(capsys, corpora, tmp_
     result = run(capsys, "recompute", "--corpus", str(src), "--dry-run", "--in-process", "--stages", "sem,prov,validation")
     assert result.code == 0, result.err
     assert result.counters["changed_explained"] == 1 and result.counters["unexplained_change"] == 0
+
+
+@pytest.mark.parametrize("tamper", [False, True], ids=["identical", "changed"])
+def test_the_software_version_is_not_a_declared_version(capsys, corpora, tmp_path, tamper):
+    """D-1050 (H.8.4(2)): stages recorded under another software version (``engine: agentprov@X``, which every release
+    bump changes) explain no output difference; a changed output is ``unexplained_change`` (exit 1), an unchanged one
+    still passes."""
+    src = copy_corpus(corpora["agentdojo"], tmp_path / "src")
+    if tamper:
+        _tamper_prov(src)
+    derivation_path = ds.partial(src) / "derivation.json"
+    derivation = json.loads(derivation_path.read_text())
+    for stage in derivation["stages"]:
+        if "engine" in stage:
+            stage["engine"] = "agentprov@0.0.1"
+    derivation_path.write_text(json.dumps(derivation, indent=2, sort_keys=True) + "\n")
+    result = run(capsys, "recompute", "--corpus", str(src), "--dry-run", "--in-process", "--stages", "sem,prov,validation")
+    if tamper:
+        assert result.code == 1, result.err
+        assert result.counters["unexplained_change"] == 1 and result.counters["changed_explained"] == 0
+    else:
+        assert result.code == 0, result.err
+        assert result.counters["identical"] == result.counters["selected"]
 
 
 def test_a_code_digest_only_change_with_identical_outputs_passes(capsys, corpora, tmp_path):
@@ -331,6 +380,22 @@ def test_batch_size_follows_the_worker_count_within_bounds():
     from agentprov.corpus.derive import DEFAULT_BATCH, MAX_BATCH, batch_for
 
     assert [batch_for(n) for n in (0, 1, 4, 8, 16, 36)] == [DEFAULT_BATCH, 256, 256, 512, 1024, MAX_BATCH]
+
+
+@pytest.mark.parametrize(("sealed", "stage_changed", "strict", "expected"), [
+    (True, False, False, 1),   # unexplained: failed, as verify --level rederive reports it (CB-11)
+    (True, True, False, 0),    # a declared version differs: unverified, a failure only under --strict
+    (True, True, True, 1),
+    (False, False, False, 0),  # a working source: its rows are refreshed by design
+])
+def test_au_bnd5_an_index_refresh_of_a_sealed_source_sets_the_exit_code(sealed, stage_changed, strict, expected):
+    """AU-BND-5: the exit status of recompute follows verify's verdict on ``index_refreshed`` (H.8.4)."""
+    from agentprov.corpus.derive import RederiveReport
+
+    report = RederiveReport(command="recompute", corpus_id="c", counters={"identical": 2, "index_refreshed": 1},
+                            stage_changes={"sem": stage_changed, "prov": False}, strict=strict, sealed=sealed)
+    assert report.exit_code == expected
+    assert dataclasses.replace(report, counters={"identical": 2, "index_refreshed": 0}).exit_code == 0
 
 
 @pytest.mark.parametrize("stages", ["sem,prov,validation", None])

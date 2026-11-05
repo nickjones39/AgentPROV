@@ -452,6 +452,18 @@ def test_a_member_row_field_of_the_wrong_type_is_members_error_not_type_error(ch
         decode_members(json.dumps(row).encode() + b"\n")
 
 
+@pytest.mark.parametrize("label", ["\\ud800", "a\\udfffb"])
+def test_an_escaped_lone_surrogate_is_refused_like_in_origins(label):
+    """UC-43: strict JSON admits an escaped lone surrogate, which ``decode_origins`` refuses (D-1011) and JCS cannot
+    encode. ``decode_members`` refuses it the same way (typed ``MembersError``), so re-encoding never meets it."""
+    line = ('{"container":"sha256:' + "1" * 64 + '","crc32":"0000000a","disposition":"selected","fn_digest":"sha256:'
+            + "3" * 64 + '","label":"' + label + '","method":8,"sha256":"sha256:' + "2" * 64 + '","size":1}\n')
+    with pytest.raises(MembersError) as err:
+        decode_members(line.encode())
+    assert err.value.code == "raw.members.invalid"
+    assert decode_members(sel_row(label="é").line())[0].label == "é"  # a plain non-ASCII label still decodes
+
+
 def test_file_is_sorted_by_container_and_keeps_member_order():
     a = [sel_row("a" * 64, "z"), sel_row("a" * 64, "a")]
     b = [sel_row("1" * 64, "m")]

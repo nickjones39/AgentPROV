@@ -8,6 +8,7 @@ fragments at run time (K.4.2), so no hostile text sits in a source file as one p
 
 from __future__ import annotations
 
+import gc
 import os
 import sys
 from collections.abc import Iterator
@@ -30,6 +31,60 @@ def _seal_support() -> Any:
     return seal_support
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _collector_off() -> Iterator[None]:
+    """Python's cyclic garbage collector runs only between tests (:func:`_collect_between_tests`). A test leaves its
+    windows and dialogs to Python; collected at a random moment, one could be deleted from a worker thread or while
+    Qt walks its widget list (re-styling the application, firing timers), which crashes the process."""
+    enabled = gc.isenabled()
+    gc.disable()
+    yield
+    if enabled:
+        gc.enable()
+
+
+@pytest.fixture(autouse=True)
+def _collect_between_tests(_collector_off: None) -> Iterator[None]:
+    yield
+    gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def _delete_leftover_windows(_collect_between_tests: None) -> Iterator[None]:
+    """Delete the windows a test leaves behind (2026-11-05). Tests build main windows, pages and dialogs and leave them
+    to Python, and the session ``qapp`` kept them alive: about 96,000 widgets by ``test_theme.py``, so re-styling the
+    application there took 40 to 63 s instead of milliseconds. After each test, every parentless window it created is
+    hidden and deleted (``deleteLater``, then the deferred deletes are sent), which takes its children, menus and
+    pop-ups with it. Windows that existed before the test are kept. No ``close()``: a close event could ask a question.
+    Runs before the garbage collection of :func:`_collect_between_tests`."""
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    before = _window_keys(app) if app is not None else set()
+    yield
+    app = QApplication.instance()
+    if app is None:
+        return
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    leftover = [w for w in app.topLevelWidgets() if w.parent() is None and _key(w) not in before]
+    for widget in leftover:
+        widget.hide()
+        widget.deleteLater()
+    if leftover:
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def _key(widget: Any) -> int:
+    import shiboken6
+
+    return int(shiboken6.getCppPointer(widget)[0])
+
+
+def _window_keys(app: Any) -> set[int]:
+    return {_key(w) for w in app.topLevelWidgets()}
+
+
 @pytest.fixture(autouse=True)
 def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     home = tmp_path / "agentprov-home"
@@ -48,6 +103,19 @@ def _no_installed_cli(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(manager, "installed_program", lambda program=None, environ=None:
                         real(program, environ) if program is not None or environ is not None else None)
     monkeypatch.setattr(manager, "_installed_setting", None)  # restored after a test whose window set it
+
+
+@pytest.fixture(autouse=True)
+def _platform_unknown(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """D-1064: no platform limits are known when a test starts or after it ends, and a main window does not ask its
+    CLI (``agentprov info`` of a real checkout runs for seconds and would outlive the test); ``test_platform_limits``
+    simulates platforms through the fake CLI with the real :func:`platform_limits.fetch`."""
+    from agentprov_gui import platform_limits
+
+    monkeypatch.setattr(platform_limits, "fetch", lambda cli: None)
+    platform_limits.set_current(None)
+    yield
+    platform_limits.set_current(None)
 
 
 @pytest.fixture

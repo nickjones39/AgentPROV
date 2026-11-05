@@ -1,0 +1,173 @@
+# Source profile `bookkeeper-agentdojo`: the AgentDojo runs of sricursion/bookkeeper (Munim), 570 TraceLogger banking
+# logs of glm-5.3-flash, gpt-oss-120b and one llama-3.1-8b run, with the Munim money gate and without (phase 10d;
+# shortlist row 21; sources/agentdojo-format-candidates.md §3.23). GPL-3.0-or-later: its own corpus (D-94).
+# benchmark_version is null in every log: not_recorded. Munim's refusals and holds ('Declined by the account's money
+# gate.') are defence decisions (quirk agentdojo.defence_denial_message, routing R1, D-113).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/bookkeeper@0fe09bb6e8c0.*).
+
+[profile]
+id = "bookkeeper-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "bookkeeper-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "Munim (bookkeeper): AgentDojo 0.1.35 banking logs of a deterministic money gate (sricursion/bookkeeper)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/sricursion/bookkeeper"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", requirement = "not declared for the runs", version_identifies_code = false }
+
+# The pin covers the repository root (1,020 files, 5,937,000 bytes; all fetched): the runs and their summaries, the
+# Munim package, the evaluation corpus and the documents.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "0fe09bb6e8c0c864cee5daa9451f2647c2c846be"
+date = "2026-09-05"
+expected_files = 1020
+expected_bytes = 5937000
+note = "the default branch at 2026-10-11 (phase 10c); 570 logs under runs/agentdojo/{munim,none}/"
+
+[licence]
+spdx = "GPL-3.0-or-later"
+holders = ["sricursion (repository owner; the LICENSE carries no copyright line of its own)"]
+data_licence = "none"
+policy = "include"
+basis = "README section License: GNU General Public License v3.0 or later; LICENSE the GPL v3 text; the logs embed AgentDojo benchmark text (MIT)"
+restrictions = ["GPL-3.0-or-later: a corpus holding these logs is conveyed under the GPL (corresponding source, the same licence for derived works); kept in its own corpus (D-94)"]
+attribution = [
+  "sricursion/bookkeeper (GPL-3.0-or-later), commit 0fe09bb6e8c0c864cee5daa9451f2647c2c846be",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; installation not declared)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs/agentdojo/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "runs/agentdojo/{arm}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the Munim gate, the run
+# summaries and the documents.
+context_artefacts = ["LICENSE", "README.md", "pyproject.toml", "munim/*.py", "runs/agentdojo/*/results_*.json"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/bookkeeper_pipeline_dirs.toml", sha256 = "a4c3b7cc1dc7c41d3e434bc1b82de15b707f7033a6ee0f45033b4021a1cfdd67" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no AgentDojo installation is declared for the runs; the logs record only the distribution version string
+# (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log, recognised by its upstream digest.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 100, origin_rule_applied = 99 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 100 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 1, logs = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 565 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 1347, present_and_null = 1347 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 4, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# Routing R1 (D-113): the money gate's 'DENIED:' refusals and 'HELD:' holds (a held payout was not made; mapped as deny,
+# the text is the reason).
+params = { denials = [
+  { defences = ["munim*"], error_prefix = ["Declined by the account's money gate. "] },
+] }
+observed = { head = { denials = 180 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

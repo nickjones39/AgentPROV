@@ -59,7 +59,7 @@ def test_c16_2_vector_is_reproduced(golden_pairs, v1):
     item = next(reader.parse(raw, artefact, limits=IngestLimits()))
     data, info = aer_bytes(map_unit(ExecutionUnit(item), mapper, profile))
     golden.assert_bytes_equal(C16_2.read_bytes(), data, what="C.16.2 vector")
-    assert info.execution_digest == "8280aee77cd80a9b7748599bba7f7b5ca501a948fc1a977121c6e0d3ac9d61a1"  # aer/0.2 (C.21)
+    assert info.execution_digest == "fc4646c6076c6444852e2f1a70f2639d36c56a18472a453d4f94d0595eb2b247"  # aer/0.2 (C.21)
 
 
 # ------------------------------------------------------------------------------------------------ header
@@ -202,7 +202,8 @@ def test_unexecuted_trailing_calls(v1):
     doc["meta"]["model_config"]["finish_reasons"] = ["tool_calls"]
     m = v1.map(v1.dump(doc))
     issue = next(i for i in m.info.issues if i["code"] == "unexecuted_tool_call")
-    assert issue["ids"] == ["m2#1"] and issue["rule"] == "agentdojo.unexecuted_trailing_calls@1"
+    # a released transcript reads the June-2024 rule through its twin (AU-RB-2, D-1063)
+    assert issue["ids"] == ["m2#1"] and issue["rule"] == "agentdojo.unexecuted_trailing_calls_unverified@1"
     assert not m.of_kind("tool_execution")
     _assert_round_trip(m)
 

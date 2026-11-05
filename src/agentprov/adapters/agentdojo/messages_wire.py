@@ -322,6 +322,12 @@ def _native_texts(native: Mapping[str, Any]) -> list[str] | None:
     return None
 
 
+def _seq_or_none(value: object) -> bool:
+    """A value the alignment may iterate as before: absent, falsy, or a list, string or object (review UC-42: an
+    integer or another scalar raised ``TypeError``)."""
+    return not value or isinstance(value, list | str | dict)
+
+
 def match_inputs(natives: Sequence[object], request: object) -> list[tuple[bool, list[str], Any]] | None:
     """For each native message, ``(faithful, transforms, unit)`` (module docstring); ``None`` when the request is not
     a Messages request or holds wire content the natives do not account for (then nothing is claimed)."""
@@ -358,6 +364,8 @@ def match_inputs(natives: Sequence[object], request: object) -> list[tuple[bool,
                 return None
             message = wire[mi]
             mi += 1
+            if not _seq_or_none(native.get("content")) or not _seq_or_none(native.get("tool_calls")):
+                return None  # UC-42: not a recorded message shape (iterating it raised); nothing is claimed
             expected = [_native_block(b) for b in (native.get("content") or [])]
             expected += [{"type": "tool_use", "id": c.get("id"), "name": c.get("function"), "input": c.get("args")}
                          for c in (native.get("tool_calls") or []) if isinstance(c, dict)]
@@ -372,6 +380,8 @@ def match_inputs(natives: Sequence[object], request: object) -> list[tuple[bool,
         if blocks is None:
             return None
         if role == "user":
+            if not _seq_or_none(native.get("content")):
+                return None  # UC-42: as for an assistant message
             native_blocks = native.get("content") or []
             take = blocks[bi:bi + len(native_blocks)]
             expected_user = [_native_block(b) for b in native_blocks]

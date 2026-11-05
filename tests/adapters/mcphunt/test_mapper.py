@@ -221,3 +221,45 @@ def test_judgements(mapped):
     assert all(j["origin"] == "checker" and j["by"] == "benchmark" for j in by_name.values())
     assert "mcphunt.labels_recorded_unverified@1" in _rules(by_name["outcome"])
     assert any(te["status"] == "error" for te in m.of("tool_execution"))
+
+
+def _after_stronger_than_its_link(m: support.Mapped) -> list[tuple[str, str, str, str]]:
+    """Records whose causal ``/after`` is stronger than the link it rests on (C.6.5 rule 1, D-87): ``(id, link,
+    link class, after class)``."""
+    from agentprov.aer.evidence import effective_tag, weakest
+
+    bad = []
+    for rec in m.records:
+        if not any(a["b"] == "causal" for a in rec.get("after", ())):
+            continue
+        after = effective_tag(rec, "/after")
+        for link in ("/generated_by", "/call", "/subject"):
+            if link[1:] in rec and weakest(after, effective_tag(rec, link)) != weakest(after):
+                bad.append((rec["id"], link, effective_tag(rec, link), after))
+    return bad
+
+
+def test_a_causal_after_is_never_stronger_than_its_link(mapped):
+    """AU-RC-4 (D-1063, regen-batch row 181): a tool execution paired by position (``/call`` I), its tool message
+    (``/generated_by`` I), a guard's decision (``/subject`` I) and a misaligned assistant message (``/generated_by`` I)
+    tag their causal ``/after`` I, as D-87 says; an aligned assistant message keeps ``/after`` D."""
+    for crit, m in mapped.items():
+        assert _after_stronger_than_its_link(m) == [], crit
+        for te in m.of("tool_execution"):
+            assert te["evf"]["/call"] == "I" and te["evf"]["/after"] == "I", crit
+    aligned = mapped["main_benign_success"]
+    assistants = [a for a in aligned.of("message") if a["role"] == "assistant" and a["evf"].get("/generated_by") == "D"]
+    assert assistants and all(a["evf"]["/after"] == "D" for a in assistants)
+
+    def guard(t: dict) -> None:
+        t["events"][0]["sanitized_args"] = {"redacted": True}
+
+    guarded = support.modified("live_guard_arm", guard)
+    (dc,) = guarded.of("decision")
+    assert dc["evf"]["/after"] == "I" and _after_stronger_than_its_link(guarded) == []
+
+    def misalign(t: dict) -> None:
+        t["turn_log"][0]["n_tool_calls"] = 99
+
+    misaligned = support.modified("main_benign_success", misalign)
+    assert "mcphunt.turn_misaligned" in misaligned.codes() and _after_stronger_than_its_link(misaligned) == []

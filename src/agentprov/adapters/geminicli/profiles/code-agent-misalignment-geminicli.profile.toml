@@ -16,10 +16,14 @@
 # Input: the rollouts are members of a top-level zstd tar, read as an archive input (D-200, D-240; RI-3). The profile's
 # `include` selects every gemini_cli member (the streams and their siblings), the other cells' verdicts and the
 # deposit's top-level files, so the `expand` stage stores exactly what the reader and the register need.
+#
+# Version 3 (D-1063, regen-batch row 176): catalogue geminicli 2 and semantics geminicli.tools@2 (the lone-surrogate
+# and not-inlined rules); version 2, which the sealed corpus code-agent-misalignment-w2 records, ships as
+# profiles/archive/code-agent-misalignment-geminicli.profile.v2.toml.
 
 [profile]
 id = "code-agent-misalignment-geminicli"
-version = 2
+version = 3
 format = "agentprov-source-profile/0.1"
 source_id = "code-agent-misalignment-geminicli"
 family = "geminicli"
@@ -70,7 +74,7 @@ content_dedup = "never"
 dialect = "geminicli.stream_json"
 mapper = "geminicli.stream_json"
 variants = ["v1"]
-rules = { aer = 1, geminicli = 1 }
+rules = { aer = 1, geminicli = 2 }
 include = [
   "RESULTS_build/cells/gemini_cli__*/*/*",
   "RESULTS_build/cells/claude_code__*/*/verdict.json",
@@ -130,7 +134,7 @@ models = ["MiniMax-M2", "claude-sonnet-4-6", "gemini-2.5-pro", "glm-4.7-probe", 
 excluded_scaffolds = ["claude_code", "codex_cli", "openhands"]
 tools = ["codebase_investigator", "glob", "google_web_search", "list_directory", "read_file", "read_many_files", "replace", "run_shell_command", "search_file_content", "write_file"]
 pairing = "geminicli.tool_id_link_unverified@1"
-semantics_profile = { id = "geminicli.tools", version = 1 }
+semantics_profile = { id = "geminicli.tools", version = 2 }
 
 [[family.geminicli.quirk]]
 id = "geminicli.empty_stream"

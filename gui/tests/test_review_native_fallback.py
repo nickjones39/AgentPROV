@@ -50,3 +50,7 @@ def test_control_keeps_the_native_toolbar(qapp: Any, monkeypatch: pytest.MonkeyP
     assert chrome is not None
     assert nswin.toolbar() == chrome.toolbar
     assert nswin.toolbar().delegate() is not None
+    chrome.set_search("ex_ab")  # AU-NG-5: the real search field follows the Viewer's id search
+    assert chrome.visible_text()[-1] == "ex_ab"
+    chrome.set_search("")
+    assert chrome.visible_text()[-1] == ""

@@ -48,6 +48,9 @@ from agentprov.adapters.agentdojo.citation import citations
 from agentprov.adapters.agentdojo.history_table import origin_introduced_under
 from agentprov.adapters.agentdojo.dialect import DIALECT_ID, FLAG_MALFORMED, MAPPED_VARIANTS
 from agentprov.adapters.agentdojo.identity import Identity, resolve
+from agentprov.adapters.agentdojo.not_inlined import ISSUE as I_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import RULE as R_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import not_inlined
 from agentprov.adapters.agentdojo.profile import FamilyTable, family_table
 from agentprov.adapters.agentdojo.redact import NAMESPACE as REDACT_NS
 from agentprov.adapters.agentdojo.redact import NAMESPACE_IRI as REDACT_NS_IRI
@@ -73,7 +76,7 @@ from agentprov.adapters.environment_load import environment_load
 from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.protocols import AerRecord, MappingContext
 from agentprov.adapters.types import ExecutionUnit
-from agentprov.aer.canon import LexHints, encode_value, json_pointer
+from agentprov.aer.canon import I_JSON_MAX, LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
 from agentprov.errors import MalformedArtefact, UnsupportedVariant
 
@@ -174,8 +177,9 @@ def content_block_parts(content: object, base: int, enc: Callable[[object, str],
 def run_duration(run: _Rec, duration: object) -> tuple[dict[str, Any], dict[str, str]]:
     """``(t, unk)`` of the run scope from the logged ``duration`` (a ``time.time()`` difference, wall clock).
     Regeneration-batch item 96 (R-10j-4): a negative value (the clock went backwards) is no duration (C.8.3 ``dur_s >= 0``):
-    it stays verbatim in ``t.raw.dur`` (its JSON lexical form), declared ``ambiguous``, so the log can still be sealed."""
-    if isinstance(duration, int | float) and not isinstance(duration, bool) and duration < 0:
+    it stays verbatim in ``t.raw.dur`` (its JSON lexical form), declared ``ambiguous``, so the log can still be sealed.
+    Review UC-39 (the D-1011 class): so does a value beyond the I-JSON range, which the AER cannot hold as a number."""
+    if isinstance(duration, int | float) and not isinstance(duration, bool) and not 0 <= duration <= I_JSON_MAX:
         return {"raw": {"dur": json.dumps(duration)}}, {"/t/dur_s": "ambiguous"}
     return {"dur_s": run.enc(duration, "/t/dur_s"), "dur_clock": "wall"}, {}
 
@@ -593,6 +597,13 @@ class _Build:
     def quirk_on(self, quirk_id: str) -> bool:
         return self.fam.applies(quirk_id, self.facets)
 
+    def _not_inlined(self, records: Sequence[dict[str, Any]]) -> None:
+        """D-1063 (review UC-41; the D-934 pattern), after the redaction and surrogate passes: a string over 1 MiB is
+        replaced by its digest (:mod:`agentprov.adapters.agentdojo.not_inlined`), cited as given."""
+        changed = not_inlined(records, lambda p: self.ctx.rule(R_NOT_INLINED, p))
+        if changed:
+            self.issue(I_NOT_INLINED, changed, R_NOT_INLINED, severity="info")
+
     def detect(self, quirk_id: str) -> bool:
         """Note a quirk seen in the data; ``True`` when the profile declares it for this file (then it is applied)."""
         self.detected.add(quirk_id)
@@ -664,6 +675,7 @@ class _Build:
         _ambiguous_tool_names(records)
         redact_records(self.redactor, self.ctx, head, records)
         surrogates(self, (head, *records), "agentdojo")
+        self._not_inlined((head, *records))
         for record in (head, *records):  # C.6.5 rule 1: no field stronger than an I rule (a twin) that justifies it
             weaken_to_rule_class(record)
         # C.3.1 ``rules``: every catalogue cited in the file (the mapper's own, plus those a quirk hook cites)
@@ -1825,7 +1837,10 @@ class _Build:
         if missing or null_outcome:
             self.detect("agentdojo.incomplete_run")
             code = "no_outcome_recorded" if not ids and not self.messages else "incomplete_run"
-            self.issue(code, ["run"], "agentdojo.incomplete_run@1")
+            # AU-RA-4 (D-1063): a loss issue cites its rule's reading (D.5.4), so an unverified harness infers the loss;
+            # no_outcome_recorded is no loss code and cites the rule as given
+            rule = self.cite.cite("agentdojo.incomplete_run@1") if code == "incomplete_run" else "agentdojo.incomplete_run@1"
+            self.issue(code, ["run"], rule)
         if self.unit_kind == "outcome_only":
             self.detect("agentdojo.empty_messages_with_outcome" if ids else "agentdojo.empty_messages_without_outcome")
             self.issue("no_execution_observed", ["exec"], "agentdojo.no_execution_observed@1")

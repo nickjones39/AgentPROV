@@ -28,10 +28,11 @@ refusal, its code and reason.
 | `[raw.fetch.not_cached] … is not in the fetch cache and the network is not allowed` | 4 | fill the cache with `agentprov fetch --profile ID --pin ROLE --allow-network` (a download), or point `--cache-dir` at a cache that holds the pin |
 | `source … has several importable parts (…); name one with --snapshot or --pin` | 2 | add `--snapshot` |
 | `cannot import '…': planned (part …)` | 5 | the part is not open for import on this build; read its caveat in `agentprov info` |
-| `[corpus.sealed] refusing to write inside a sealed corpus` | 4 | a sealed corpus is never changed; write a new version with `derive --out` or `recompute --out` |
+| `[corpus.sealed] refusing to write inside a sealed corpus` | 4 | a sealed corpus is never changed; `derive --out` or `recompute --out` writes a working copy to compare, and a new version is made by re-importing the source |
 | `[corpus.derive.out_exists]` | 4 | `--out` must name a new directory |
 | `[corpus.derive.version_drift]` | 4 | the corpus was built by another version; recompute it at its building commit, or re-import |
 | `[package.refused.git] … the producer commit must be known and its tree clean` | 4 | commit or stash your changes before sealing |
+| `[package.refused.derived] the working corpus was written by derive or recompute from a sealed corpus` | 4 | a corpus derived from a sealed corpus (directly or through another derived corpus) stays a working corpus for comparison; make a new version by re-importing the source ([chapter 3](03-sources-and-import.md)), or reproduce the sealed one by recomputing at its building commit |
 | `no corpus spec at '…'; name it with --spec` | 2 | give `--spec corpora/<id>/corpus-spec.toml` |
 | `corpora/datasheet-statements.toml is missing beside the corpora directory` | 2 | put the spec in `<dir>/<id>/` with `datasheet-statements.toml` in `<dir>/` |
 | `[release.refused.scan_missing]` | 4 | run `uv run python tools/release_scan.py DIR` and triage every finding |
@@ -108,7 +109,8 @@ needs the AgentPROV repository checkout`. The corpus you give them must still be
 | `cli.refused.api_caps` | 4 | an API endpoint needs `--max-calls`, `--max-cost-usd`, `--price-in` and `--price-out` |
 | `--max-cost-usd needs --price-in and --price-out` / `--price-in and --price-out price --max-cost-usd` | 2 | the two go together |
 | `cli.refused.consent` | 4 | no consent flag and no terminal; `--i-consent-to-local-run` is for local servers only |
-| `cli.refused.containment` | 4 | `--containment` is required; `sandbox-exec` needs macOS and a passed probe from the build |
+| `platform.unsupported` | 4 | a live run, a build of the AgentDojo-family backends on Windows ARM64, or `--queue-cpu`, on Windows: these work on macOS and Linux, and the message gives the reason ([Platforms](07-live-runs.md#platforms)) |
+| `cli.refused.containment` | 4 | `--containment` is required; `sandbox-exec` needs macOS (it is refused on Linux and Windows) and a passed probe from the build |
 | `cli.environment.credential` | 3 | no key in the keychain or `.env`: `agentprov keys set NAME` |
 | `cli.environment.live_extra` | 3 | `--env-file` needs `uv sync --frozen --group docs --extra live` |
 | `cli.refused.endpoint` | 4 | a refused base URL (not https, a user name in the URL, a host outside `endpoints.toml`, or a LAN address without `--allow-lan-endpoint`); `--allow-custom-endpoint` for a custom host |
@@ -150,7 +152,9 @@ and exits 130; press it twice and the run exits at once, leaving sessions in the
 
 Several imports, rehearsals and test suites on one machine compete for its CPUs and memory. The checkout's
 `tools/suite_queue.py` runs each heavy job when it fits; the desktop app uses it too (Settings › Compute, *Run heavy jobs
-through the shared job queue*), except on Windows. Run it from a checkout with `uv run python tools/suite_queue.py`:
+through the shared job queue*). The queue works on macOS and Linux; on Windows it is not available (it holds its slots
+with POSIX file locks, `fcntl`), and `--queue-cpu` is refused there (exit 4, `platform.unsupported`). Run it from a
+checkout with `uv run python tools/suite_queue.py`:
 
 ```bash
 uv run python tools/suite_queue.py --status                        # what runs, what waits and why

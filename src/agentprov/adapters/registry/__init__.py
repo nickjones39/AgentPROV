@@ -159,14 +159,14 @@ _FOOBENCH_CAVEAT: Final = (
 )
 
 _DTAP_CAVEAT: Final = (
-    "implemented in phase 10b step 3 (reader, mapper, profile dtap-bench, catalogue dtap v3, semantics dtap.tools@3 (D-934), "
+    "implemented in phase 10b step 3 (reader, mapper, profile dtap-bench, catalogue dtap v4, semantics dtap.tools@4 (UC-40), "
     "runner items R1-R3); one registered failed execution, ex_dwfig (778 calls), whose PROV is over the worker's output "
     "limit (the size limits of the D-935 addendum): its AER is kept, it has no PROV"
 )
 
 _OPENHANDS_CAVEAT: Final = (
     "implemented in phase 10g (reader openhands.events with variants oas-0.28 and oh-1.5, mapper, profiles "
-    "openagentsafety and redcode-exec-openhands, catalogue openhands v2, semantics openhands.tools@2); RedCode's "
+    "openagentsafety and redcode-exec-openhands, catalogue openhands v3, semantics openhands.tools@3 (D-1063)); RedCode's "
     "trajectories are deposit-zip members, imported as archive inputs (D-200, member origins D-204)"
 )
 
@@ -185,39 +185,39 @@ _INSPECT_CAVEAT: Final = (
 
 _GEMINICLI_CAVEAT: Final = (
     "phase 10o (D-330..D-337): reader geminicli.stream_json, mapper, profile code-agent-misalignment-geminicli, catalogue "
-    "geminicli v1, semantics geminicli.tools@1; the 2,182 non-empty gemini_cli streams of D-143 are counted; the claude_code, codex_cli and openhands cells are select.out_of_scope; one "
+    "geminicli v2, semantics geminicli.tools@2 (D-1063); the 2,182 non-empty gemini_cli streams of D-143 are counted; the claude_code, codex_cli and openhands cells are select.out_of_scope; one "
     "execution holding a credential-shaped value is withheld from release by the profile's [withhold] rule (D-336)"
 )
 
 _QWENCODE_CAVEAT: Final = (
-    "phase 10o part C (D-570..D-578): reader qwencode.json, mapper, profile redcode-exec-qwencode, catalogue qwencode v2, "
-    "semantics qwencode.tools@2; 3,300 Qwen Code runs of RedCode-Exec (Zenodo 23168099); the score records and requests "
+    "phase 10o part C (D-570..D-578): reader qwencode.json, mapper, profile redcode-exec-qwencode, catalogue qwencode v3, "
+    "semantics qwencode.tools@3 (D-1063); 3,300 Qwen Code runs of RedCode-Exec (Zenodo 23168099); the score records and requests "
     "are read from the deposit's supplementary zip, the context pin supp (D-530); 4 outputs cut at 64 KiB are salvaged "
     "(D-577)"
 )
 
 _AGENTOPS_CAVEAT: Final = (
-    "phase 10i (D-190..D-199): reader, mapper, profile agentops-bench-pilot, catalogue agentops v2, semantics "
-    "agentops.tools@2; the 3,360 in-scope runs of D-143, members of the deposit's top-level tar.gz, an archive input "
+    "phase 10i (D-190..D-199): reader, mapper, profile agentops-bench-pilot, catalogue agentops v3, semantics "
+    "agentops.tools@3 (D-1063); the 3,360 in-scope runs of D-143, members of the deposit's top-level tar.gz, an archive input "
     "(D-192, D-200), with the tasks/ tree at tag v1.0 as the context pin tasks (runner item R2); the other 3,840 cells "
     "are select.out_of_scope (D-191)"
 )
 
 _AUTOGEN_CAVEAT: Final = (
-    "phase 10n (D-300..D-306): reader autogen.runs, mapper, profile autogen-guard-placement, catalogue autogen v1, "
-    "semantics autogen.tools@1; the 1,080 run rows, one execution per JSONL line (D-301); the 190 non-run rows are "
+    "phase 10n (D-300..D-306): reader autogen.runs, mapper, profile autogen-guard-placement, catalogue autogen v2, "
+    "semantics autogen.tools@2 (D-1063); the 1,080 run rows, one execution per JSONL line (D-301); the 190 non-run rows are "
     "registered by file (phase 7 select.not_execution_artefact, phases 8-9 select.out_of_scope)"
 )
 
 _WIRELOG_CAVEAT: Final = (
     "phase 10m (D-280..D-285): reader wirelog.request_response (variants bedrock-converse and anthropic-messages), mapper "
-    "wirelog.run_dir, profile what-surrounds, catalogue wirelog v1, semantics wirelog.tools@1; the tools are synthetic "
+    "wirelog.run_dir, profile what-surrounds, catalogue wirelog v2, semantics wirelog.tools@2 (D-1063); the tools are synthetic "
     "by design (read_file answers from the harness, send_email sends nothing, D-284)"
 )
 
 _MCPHUNT_CAVEAT: Final = (
     "phase 10m (D-286..D-289): reader mcphunt.traces (streamed /traces, D-242), mapper mcphunt.trace, profile mcphunt, "
-    "catalogue mcphunt v2, semantics mcphunt.tools@2; one execution per streamed trace (D-323), the 64 MiB element "
+    "catalogue mcphunt v3, semantics mcphunt.tools@3 (D-1063); one execution per streamed trace (D-323), the 64 MiB element "
     "limit in [import] limits, tool results over 1 MiB carved by the trace's byte range (D-218); canary-flagged traces "
     "are withheld by the profile's issue rule (D-289, D-311); a recompute of the sealed corpus rebuilds its ingest-limit "
     "overrides from the recorded profile (D-1001)"
@@ -401,10 +401,11 @@ _AGENTDOJO_2024_06_CAVEAT: Final = (
 def _phase10d(source_id: str, name: str, caveat: str, licence: LicencePolicy, *, variants: tuple[str, ...] = ("v1.k14",),
               evidence: tuple[str, ...] = ("sources/agentdojo-format-candidates.md", "verify/agentdojo-format-candidates.md",
                                            "docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md"),
-              semantics: tuple[str, ...] = ("agentdojo.suites@2",)) -> SourceRegistration:
+              semantics: tuple[str, ...] = ("agentdojo.suites@4",)) -> SourceRegistration:
     """A phase-10d AgentDojo-format source (D-100): one ``head`` part, ``supported`` since its wave-2 import and seal, mapped
-    by the TraceLogger mapper with the profile and corpus of the source's own id (D-94), read with ``agentdojo.suites@2`` (R9,
-    D-115: the SEM rules' twins for unverified harnesses, D-86; CrAIBench's reviewed tables, D-110)."""
+    by the TraceLogger mapper with the profile and corpus of the source's own id (D-94), read with ``agentdojo.suites@4`` (R9,
+    D-115: the SEM rules' twins for unverified harnesses, D-86; CrAIBench's reviewed tables, D-110; ``@2`` on the
+    agentdojo catalogue version 3 since D-1063)."""
     return SourceRegistration(
         source_id=source_id,
         name=name,
@@ -451,7 +452,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="agentdojo-upstream",
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
                 corpus_id="agentdojo-upstream",
                 sealed=_sealed("agentdojo-upstream-head"),
             ),
@@ -467,7 +468,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="agentdojo-upstream",
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
                 corpus_id="agentdojo-upstream",
                 sealed=_sealed("agentdojo-upstream-2024-06"),
             ),
@@ -487,7 +488,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 backend="agentdojo",
                 profile="agentdojo-live",
                 requires=("backend:agentdojo",),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -520,7 +521,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="agentdyn",
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
                 corpus_id="agentdyn",
                 sealed=_sealed("agentdyn-a"),
             ),
@@ -539,7 +540,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="agentdyn",
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
                 corpus_id="agentdyn",
                 sealed=_sealed("agentdyn-b"),
             ),
@@ -558,7 +559,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="agentdyn",
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
                 corpus_id="agentdyn",
                 sealed=_sealed("agentdyn-c"),
             ),
@@ -588,7 +589,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="agentdyn",
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
                 corpus_id="agentdyn",
             ),
             # D.11.10 (D-684): the live part, AgentDyn run from its own pinned code. Gated value `partial`, promoted with
@@ -607,7 +608,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 backend="agentdyn",
                 profile="agentdyn-live",
                 requires=("backend:agentdyn",),
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
             ),
         ),
         licence=LicencePolicy(
@@ -644,7 +645,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 backend="autodojo",
                 profile="autodojo-live",
                 requires=("backend:autodojo",),
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
             ),
             # Phase 10 (D.4.4, D.6.13): the ROPE-hosted AutoDojo-attack slice, imported through source rope (via); the
             # profile autodojo-via-rope carries the payload-cache provenance the ROPE mapping consults.
@@ -664,7 +665,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 owner="rope",
                 corpus_id="rope",
                 sealed=_sealed("rope"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -698,7 +699,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["agentdojo.tracelogger"],
                 mapper=MAPPERS["agentdojo.tracelogger"],
                 profile="rope",
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
                 corpus_id="rope",
                 sealed=_sealed("rope"),
             ),
@@ -733,7 +734,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["adprov.transcript_v1"],
                 mapper=MAPPERS["adprov.transcript_v1"],
                 profile="adprov-v1",
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
                 corpus_id="adprov-v1",
                 sealed=_sealed("adprov-v1-release"),
             ),
@@ -750,7 +751,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 reader=READERS["adprov.transcript_v1"],
                 mapper=MAPPERS["adprov.transcript_v1"],
                 profile="adprov-v1",
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
                 owner="agentdojo",
             ),
         ),
@@ -802,7 +803,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="survey-runs",
                 corpus_id="ast-survey-agentdojo",
                 sealed=_sealed("ast-survey-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -839,7 +840,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="mandate-agentdojo-eval",
                 corpus_id="mandate-agentdojo-eval",
                 sealed=_sealed("mandate-agentdojo-eval"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -877,7 +878,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="dtap-bench",
                 corpus_id="dtap-bench",
                 sealed=_sealed("dtap-bench"),
-                semantics=("dtap.tools@3",),  # D-934: dtap.tools@2 on catalogue dtap 3 (D-607 pattern)
+                semantics=("dtap.tools@4",),  # UC-40: dtap.tools@3 on catalogue dtap 4 (D-607 pattern)
             ),
         ),
         licence=LicencePolicy(
@@ -914,7 +915,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="openagentsafety",
                 corpus_id="openagentsafety",
                 sealed=_sealed("openagentsafety"),
-                semantics=("openhands.tools@2",),
+                semantics=("openhands.tools@3",),
             ),
         ),
         licence=LicencePolicy(
@@ -948,7 +949,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="redcode-exec-openhands",
                 corpus_id="redcode-exec-openhands",
                 sealed=_sealed("redcode-exec-openhands"),
-                semantics=("openhands.tools@2",),
+                semantics=("openhands.tools@3",),
             ),
         ),
         licence=LicencePolicy(
@@ -1248,7 +1249,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="memo-ozdincer-agentdojo",
                 corpus_id="memo-ozdincer-agentdojo",
                 sealed=_sealed("memo-ozdincer-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -1388,7 +1389,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="seagent-agentdojo",
                 corpus_id="seagent-agentdojo",
                 sealed=_sealed("seagent-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -1551,7 +1552,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="agentops-bench-pilot",
                 corpus_id="agentops-bench",
                 sealed=_sealed("agentops-bench"),
-                semantics=("agentops.tools@2",),
+                semantics=("agentops.tools@3",),  # D-1063: @2 on catalogue agentops 3
             ),
         ),
         licence=LicencePolicy(
@@ -1591,7 +1592,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="drift",
                 corpus_id="drift",
                 sealed=_sealed("drift-head"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
             Capability(
                 part="history",
@@ -1640,7 +1641,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="credleak-p15b",
                 corpus_id="credleak-p15b",
                 sealed=_sealed("credleak-p15b"),
-                semantics=("credleak.tools@2",),  # D-605: version 2 reads the credleak catalogue version 2
+                semantics=("credleak.tools@3",),  # D-1063: version 3 reads the credleak catalogue version 3
             ),
         ),
         licence=LicencePolicy(
@@ -1832,7 +1833,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="autogen-guard-placement",
                 corpus_id="autogen-guard-placement",
                 sealed=_sealed("autogen-guard-placement"),
-                semantics=("autogen.tools@1",),
+                semantics=("autogen.tools@2",),  # D-1063: @1 on catalogue autogen 2
             ),
         ),
         licence=LicencePolicy(
@@ -1868,7 +1869,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="what-surrounds",
                 corpus_id="what-surrounds",
                 sealed=_sealed("what-surrounds"),
-                semantics=("wirelog.tools@1",),
+                semantics=("wirelog.tools@2",),  # D-1063: @1 on catalogue wirelog 2
             ),
         ),
         licence=LicencePolicy(
@@ -1904,7 +1905,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="mcphunt",
                 corpus_id="mcphunt",
                 sealed=_sealed("mcphunt"),
-                semantics=("mcphunt.tools@2",),
+                semantics=("mcphunt.tools@3",),  # D-1063: @2 on catalogue mcphunt 3
             ),
         ),
         licence=LicencePolicy(
@@ -1941,7 +1942,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="code-agent-misalignment-geminicli",
                 corpus_id="code-agent-misalignment",
                 sealed=_sealed("code-agent-misalignment"),
-                semantics=("geminicli.tools@1",),
+                semantics=("geminicli.tools@2",),  # D-1063: @1 on catalogue geminicli 2
             ),
         ),
         licence=LicencePolicy(
@@ -1980,7 +1981,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="authority-caps-agentdojo",
                 corpus_id="authority-caps-agentdojo",
                 sealed=_sealed("authority-caps-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -2016,7 +2017,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="ipi-defenses-agentdojo",
                 corpus_id="ipi-defenses-agentdojo",
                 sealed=_sealed("ipi-defenses-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -2052,7 +2053,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="dca-agentdojo",
                 corpus_id="dca-agentdojo",
                 sealed=_sealed("dca-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
             Capability(
                 part="drift",
@@ -2070,7 +2071,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="dca-agentdojo",
                 corpus_id="dca-agentdojo",
                 sealed=_sealed("dca-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -2107,7 +2108,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="kavach-agentdojo",
                 corpus_id="kavach-agentdojo",
                 sealed=_sealed("kavach-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
             Capability(
                 part="nav-fixer2",
@@ -2125,7 +2126,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="kavach-agentdojo",
                 corpus_id="kavach-agentdojo",
                 sealed=_sealed("kavach-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
             Capability(
                 part="rearch-forcedformat-fix",
@@ -2143,7 +2144,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="kavach-agentdojo",
                 corpus_id="kavach-agentdojo",
                 sealed=_sealed("kavach-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -2179,7 +2180,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="drift1-agentdojo",
                 corpus_id="drift1-agentdojo",
                 sealed=_sealed("drift1-agentdojo"),
-                semantics=("agentdojo.suites@2",),
+                semantics=("agentdojo.suites@4",),
             ),
         ),
         licence=LicencePolicy(
@@ -2215,7 +2216,7 @@ REGISTRY: Final[tuple[SourceRegistration, ...]] = (
                 profile="redcode-exec-qwencode",
                 corpus_id="redcode-exec-qwencode",
                 sealed=_sealed("redcode-exec-qwencode"),
-                semantics=("qwencode.tools@2",),
+                semantics=("qwencode.tools@3",),  # D-1063: @2 on catalogue qwencode 3
             ),
         ),
         licence=LicencePolicy(

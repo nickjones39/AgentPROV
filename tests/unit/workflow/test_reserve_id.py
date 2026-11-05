@@ -527,3 +527,56 @@ def test_reserve_a_section_number(repo: Path, isolated_env: Path, capsys: pytest
     assert _main(repo, *gate, "--require-reserved-sections") == 1
     out = capsys.readouterr().out
     assert "unreserved-new section D.6.23" in out and "D.6.22 " not in out and "D.6.22a" not in out
+
+
+def test_two_detached_worktrees_are_two_sessions(repo: Path, isolated_env: Path, tmp_path: Path,
+                                                 capsys: pytest.CaptureFixture[str]) -> None:
+    """AU-TWF-5: a detached worktree's default session is per worktree, so a second one cannot take its claim."""
+    _seed_repo(repo)
+    wt_a, wt_b = tmp_path / "wtA", tmp_path / "wtB"
+    for wt in (wt_a, wt_b):
+        git(repo, "worktree", "add", "-q", "--detach", str(wt), "main")
+    args = ["reserve", "decision", "--first", "2001", "--count", "3", "--purpose", "x", "--no-mirror"]
+    assert _main(wt_a, *args) == 0
+    assert capsys.readouterr().out.strip() == "D-2001–D-2003"
+    assert _main(wt_b, *args) == 2
+    assert "is reserved by detached-" in capsys.readouterr().err
+    assert _main(wt_a, *args) == 0  # the same worktree is still the same session
+    assert capsys.readouterr().out.strip() == "D-2001–D-2003 (already yours)"
+    (rec,) = ri.read_ledger(isolated_env / "ids" / "ledger.jsonl")[0]
+    assert rec["session"].startswith("detached-") and rec["branch"] == "(detached)"
+
+
+def test_a_legacy_detached_reservation_is_reported_under_its_old_name(repo: Path, isolated_env: Path, tmp_path: Path,
+                                                                      capsys: pytest.CaptureFixture[str]) -> None:
+    """AU-FR-5: before AU-TWF-5 every detached worktree's session was the plain ``detached``. Such a record is not
+    migrated and belongs to no default session now: ``list`` shows it under ``detached``, a detached worktree's claim
+    of its numbers is refused naming that session and the rid, and ``--session detached`` still acts as it."""
+    _seed_repo(repo)
+    legacy = {"rid": "legacy-detached-1", "kind": "decision", "scope": "", "first": 2101, "last": 2102,
+              "session": "detached", "branch": "(detached)", "purpose": "made before AU-TWF-5", "at": "2026-11-01T00:00:00Z",
+              "host": "h", "source": "claim"}
+    ri.append_records(isolated_env / "ids" / "ledger.jsonl", [legacy])
+    wt = tmp_path / "wt"
+    git(repo, "worktree", "add", "-q", "--detach", str(wt), "main")
+    capsys.readouterr()
+    assert _main(wt, "list", "--session", "detached") == 0
+    (line,) = capsys.readouterr().out.splitlines()
+    assert line.startswith("D-2101–D-2102") and " detached " in line
+    args = ["reserve", "decision", "--first", "2101", "--count", "2", "--purpose", "x", "--no-mirror"]
+    assert _main(wt, *args) == 2
+    assert "is reserved by detached (legacy-detached-1)" in capsys.readouterr().err
+    assert _main(wt, *args, "--session", "detached") == 0
+    assert capsys.readouterr().out.strip() == "D-2101–D-2102 (already yours)"
+
+
+@pytest.mark.parametrize("count", ["0", "-2"])
+def test_reserve_count_below_one_is_a_usage_error(repo: Path, isolated_env: Path, count: str,
+                                                  capsys: pytest.CaptureFixture[str]) -> None:
+    """AU-TWF-6: --count 0 (or negative) is refused with exit 2, not a traceback."""
+    _seed_repo(repo)
+    assert _main(repo, "reserve", "decision", "--count", count, "--purpose", "x", "--no-mirror") == 2
+    err = capsys.readouterr().err
+    assert err.startswith("reserve-id: ") and "at least 1" in err
+    assert not (isolated_env / "ids" / "ledger.jsonl").exists() or not ri.read_ledger(
+        isolated_env / "ids" / "ledger.jsonl")[0]

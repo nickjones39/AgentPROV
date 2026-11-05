@@ -275,7 +275,7 @@ def test_fixtures_map_validate_and_keep_their_aer_bytes():
             assert m.header["rules"]["drift"] == 1 and not m.issues("drift.quirk_hook_not_applied")
         else:
             assert m.header["artifacts"][0]["prov_primary"] == "native"
-            assert m.header["rules"]["agentdyn"] == 2  # D-31
+            assert m.header["rules"]["agentdyn"] == 3  # D-31; 3: D-1063
         assert not m.issues("agentdojo.undeclared_quirk"), (entry["original_path"], m.issues("agentdojo.undeclared_quirk"))
         produced[entry["original_path"]] = golden.sha256_hex(m.data)
     if os.environ.get(REGEN):
@@ -586,7 +586,7 @@ def test_an_orphan_result_outside_a_camel_pipeline_stays_ambiguous():
 
 # ------------------------------------------------------------------------------------------------ catalogue
 def test_the_catalogue_is_complete_and_classed_as_d54_says():
-    expected = {"variant_by_keyset": "D", "pipeline_dir_registry": "I", "last_assistant_content_none_max3": "D",
+    expected = {"pipeline_dir_registry": "I", "last_assistant_content_none_max3": "D",
                 "json_decode_error_imposed": "D", "drift_user_error_key": "D", "camel_orphan_tool_result": "I",
                 "progent_denial_pattern": "I", "variant_c_rekey": "I",
                 # the I twins the profile cites (D.5.4, D-24): the harness code is not verified for the logs
@@ -597,11 +597,13 @@ def test_the_catalogue_is_complete_and_classed_as_d54_says():
                 # regeneration-batch item 2 (B3, D-376): CaMeL's feedback and planner input, with their twins
                 "camel_interpreter_feedback": "D", "camel_planner_input_not_logged": "D",
                 "camel_interpreter_feedback_unverified": "I", "camel_planner_input_not_logged_unverified": "I",
-                # D-685 (b): the live capture's dropped tool calls (cited by the capture mapper directly, never through
-                # the family's Citations, so it needs no _unverified twin)
+                # D-685 (b): the live capture's dropped tool calls; the capture mapper cites through the family's
+                # Citations since D-1063 (AU-RA-1), and only agentdyn-live declares the quirk and verifies its code
                 "malformed_tool_call_dropped": "D"}
     catalogue = load_catalogue("agentdyn")
-    assert catalogue.version == 2 and {r.id for r in catalogue.rules.values()} == {f"agentdyn.{n}" for n in expected}
+    # D-1063 (catalogue 3, AU-RA-3): variant_by_keyset is reserved (no code, no twin, never cited)
+    assert catalogue.version == 3 and catalogue.get("agentdyn.variant_by_keyset@1").status == "reserved"
+    assert {r.id for r in catalogue.rules.values()} == {f"agentdyn.{n}" for n in expected} | {"agentdyn.variant_by_keyset"}
     for name, cls in expected.items():
         entry = catalogue.get(f"agentdyn.{name}@1")
         assert entry is not None and entry.cls == cls and entry.citable and not entry.verification, name
@@ -611,7 +613,9 @@ def test_the_catalogue_is_complete_and_classed_as_d54_says():
             file, _, test = node.partition("::")
             assert f"def {test}(" in (REPO / file).read_text(encoding="utf-8"), f"{rule['id']}: {node}"
         for code in rule.get("code", []):
-            assert re.fullmatch(r"[0-9a-f]{40}", code["commit"]) and code["commit"] == COMMIT, rule["id"]
+            # D-1063 (AU-RA-1): suite_benchmark also cites the AutoDojo fork's byte-identical suites (aa458794)
+            allowed = {COMMIT, "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc"} if rule["id"] == "agentdyn.suite_benchmark" else {COMMIT}
+            assert re.fullmatch(r"[0-9a-f]{40}", code["commit"]) and code["commit"] in allowed, rule["id"]
 
 
 def test_the_catalogue_is_cited_where_the_profile_says():

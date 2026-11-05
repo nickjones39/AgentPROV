@@ -69,7 +69,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _workflow import agentprov_home, git_ok, safe_name, safe_text, utc_now  # noqa: E402
+from _workflow import agentprov_home, detached_session, git_ok, safe_name, safe_text, utc_now  # noqa: E402
 
 KINDS = ("decision", "regen-item", "spec-item", "spec-section", "routing")
 DECISIONS = "docs/architecture/DECISIONS.md"
@@ -698,7 +698,7 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--list", help="spec-item: the list, e.g. D.2.9 (a second list in a section: D.9.5b); "
                                   "spec-section: the parent section, e.g. D.6 for D.6.22")
     r.add_argument("--prefix", help="routing: the prefix, e.g. R-10q")
-    r.add_argument("--session", help="default $AGENTPROV_SESSION_NAME, else the branch")
+    r.add_argument("--session", help="default $AGENTPROV_SESSION_NAME, else the branch (detached: detached-<hash of the worktree path>)")
     r.add_argument("--purpose", required=True)
     r.add_argument("--no-mirror", action="store_true", help="do not append to docs/workflow/id-ledger.jsonl")
     r.add_argument("--first", type=int, help="claim this explicit first number (with --count; default 1 number) "
@@ -706,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
     v = sub.add_parser("void", allow_abbrev=False, help="withdraw a reservation by its rid (append-only void record)")
     v.add_argument("rid")
     v.add_argument("--reason", required=True)
-    v.add_argument("--session", help="default $AGENTPROV_SESSION_NAME, else the branch")
+    v.add_argument("--session", help="default $AGENTPROV_SESSION_NAME, else the branch (detached: detached-<hash of the worktree path>)")
     v.add_argument("--no-mirror", action="store_true")
     ls = sub.add_parser("list", allow_abbrev=False, help="print reservations")
     ls.add_argument("--kind", choices=KINDS)
@@ -812,8 +812,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"reserve-id: seeded {len(records)} record(s) into {ledger_dir / 'ledger.jsonl'}")
         return 0
 
-    branch = git_ok(["symbolic-ref", "--quiet", "--short", "HEAD"], root) or "(detached)"
-    session = safe_name(a.session or os.environ.get("AGENTPROV_SESSION_NAME") or branch)
+    head_branch = git_ok(["symbolic-ref", "--quiet", "--short", "HEAD"], root)
+    branch = head_branch or "(detached)"
+    session = safe_name(a.session or os.environ.get("AGENTPROV_SESSION_NAME") or head_branch
+                        or detached_session(root))
     if a.cmd == "void":
         try:
             rec = void(rid=a.rid, reason=a.reason, session=session, ledger_dir=ledger_dir,
@@ -839,9 +841,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     count = a.count if a.count is not None else (10 if a.kind == "decision" else 1)
     align = a.align if a.align is not None else (10 if a.kind == "decision" else 1)
-    record = reserve(kind=a.kind, scope=scope, count=count, align=align, session=session, branch=branch,
-                     purpose=a.purpose, ledger_dir=ledger_dir, sv=sv,
-                     mirror=mirror_path(root, a.no_mirror))
+    try:
+        record = reserve(kind=a.kind, scope=scope, count=count, align=align, session=session, branch=branch,
+                         purpose=a.purpose, ledger_dir=ledger_dir, sv=sv,
+                         mirror=mirror_path(root, a.no_mirror))
+    except ValueError as exc:
+        print(f"reserve-id: {exc}", file=sys.stderr)
+        return 2
     print(span_label(a.kind, scope, record["first"], record["last"]))
     return 0
 

@@ -108,6 +108,38 @@ def test_a_purged_object_is_tombstoned_never_silently_missing(working):
     assert report.passed() and not report.passed(release=True)
 
 
+def _plant_object(root: Path, data: bytes = b'{"left": "by a killed import"}') -> str:
+    """A raw object stored with no ``raw/origins.jsonl`` row, as an import killed between store-first and the final
+    flush leaves one (AU-IMP-7)."""
+    import hashlib
+
+    sha = hashlib.sha256(data).hexdigest()
+    path = root / "raw" / "objects" / sha[:2] / f"{sha}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return sha
+
+
+def test_a_stored_object_no_origin_row_names_is_a_failure(working):
+    """AU-IMP-7 (K.5.7(1)): every stored object has an origin row. The corpus's own objects have theirs, so only the
+    planted object is reported."""
+    assert not [f for f in verify_corpus(working, level="chain").findings if f.code == "raw.origin.missing"]
+    sha = _plant_object(working)
+    report = verify_corpus(working, level="chain")
+    missing = [f for f in report.findings if f.code == "raw.origin.missing"]
+    assert [(f.status, f.subject) for f in missing] == [(FAILED, {"path": f"raw/objects/{sha[:2]}/{sha}.json"})]
+    assert not report.passed()
+
+
+def test_a_sealed_tree_with_an_object_no_origin_row_names_fails_the_chain(sealed):
+    """AU-IMP-7: the sealed tree a seal of such a working tree used to write (the object in the raw set digest and in
+    checksums.sha256) passed ``verify --level chain``."""
+    _plant_object(sealed)
+    vs.reforge(sealed)
+    report = verify_corpus(sealed, level="chain")
+    assert report.codes() == {"raw.origin.missing": 1} and not report.passed()
+
+
 # ------------------------------------------------------------------------------------------------ --against-pins
 def _listing(root: Path) -> dict[str, str]:
     out: dict[str, str] = {}
@@ -124,6 +156,19 @@ def test_against_pins_with_a_pinned_tree_listing(sealed):
     forged = {path: "f" * 40 for path in listing}
     report = verify_corpus(sealed, level="chain", against_pins=True, pin_listing=lambda repo, commit: forged)
     assert report.codes() == {"raw.origin.blob_mismatch": 3}
+
+
+@pytest.mark.parametrize("where", ["inside", "around"])
+def test_against_pins_refuses_a_fetch_cache_inside_or_around_the_corpus(cli, sealed, where):
+    """AU-CLIA-10: ``--against-pins --allow-network`` fetched into ``--cache-dir`` without fetch's guard, so a cache
+    inside the sealed corpus being verified gained stray files. The guard runs before any fetcher is built, with or
+    without ``--allow-network``; nothing is contacted (no pin of the test corpus is cached) and nothing is written."""
+    cache = sealed / "cache" if where == "inside" else sealed.parent
+    with fs_guard.unchanged(sealed.parent):
+        run = cli("verify", "--corpus", str(sealed), "--against-pins", "--allow-network", "--cache-dir", str(cache))
+    assert run.code == 4
+    if where == "around":
+        assert "raw.fetch.cache_in_corpus" in run.err
 
 
 def test_git_blob_id():
@@ -240,3 +285,134 @@ def test_render_reads_prov_under_the_prov_document_limit(tmp_path):
     (tmp_path / "big.prov.json").write_bytes(doc)
     source = CorpusSource(root=tmp_path, corpus_id=None, state="working", rows=(), used_partial=False)
     assert len(read_prov_document(source, "big.prov.json")["entity"]) == 64 * MIB + 1
+
+
+# ------------------------------------------------------------------------------------------------ P3: the parallel read
+def _raw_object(root: Path) -> Path:
+    return next(p for p in sorted((root / "raw" / "objects").rglob("*")) if p.is_file())
+
+
+@pytest.mark.parametrize("damage", ["none", "raw_bytes", "aer_link", "raw_shard_link", "datasheet"])
+def test_p3_the_chain_report_is_the_per_label_walks(sealed, tmp_path, monkeypatch, damage):
+    """P3: the threaded checksums read (directory descriptors kept, every file read once, member CRC-32s in the same read)
+    gives the report the per-label walk gave, byte for byte (findings, their order, counters, notices)."""
+    import shutil
+
+    if damage == "raw_bytes":
+        obj = _raw_object(sealed)
+        obj.chmod(0o644)  # raw objects are stored read-only
+        obj.write_bytes(b"tampered")
+    elif damage == "aer_link":
+        aer = vs.first_file(sealed, "aer")
+        (tmp_path / "outside.aer").write_bytes(aer.read_bytes())
+        aer.unlink()
+        aer.symlink_to(tmp_path / "outside.aer")
+    elif damage == "raw_shard_link":
+        shard = _raw_object(sealed).parent
+        shutil.copytree(shard, tmp_path / "outside-shard")
+        shutil.rmtree(shard)
+        shard.symlink_to(tmp_path / "outside-shard", target_is_directory=True)
+    elif damage == "datasheet":
+        (sealed / "DATASHEET.md").write_bytes(b"edited\n")
+    parallel = json.dumps(verify_corpus(sealed, level="chain").to_json(), sort_keys=True)
+    with monkeypatch.context() as patched:
+        vs.per_label_verify(patched)
+        reference = json.dumps(verify_corpus(sealed, level="chain").to_json(), sort_keys=True)
+    assert parallel == reference
+    assert (damage == "none") == json.loads(parallel)["ok"]
+
+
+# ------------------------------------------------------------------------------------------------ P8: streamed index
+def test_p8_a_streamed_sample_keeps_n_rows_and_chooses_what_sample_executions_chooses():
+    from types import SimpleNamespace
+
+    from agentprov.corpus.verify import sample_rows
+
+    ids = [f"ex_{i:026d}" for i in range(300)]
+    for n, seed in ((0, "a"), (1, "a"), (7, "b"), (50, "c"), (299, "d"), (300, "e"), (400, "f")):
+        rows, total = sample_rows((SimpleNamespace(ex=ex) for ex in ids), n, seed)
+        assert total == 300 and [r.ex for r in rows] == sample_executions(ids, n, seed)
+    with pytest.raises(ValueError):
+        sample_rows(iter(()), -1, "s")
+
+
+def test_p8_streamed_validation_results_fail_as_the_list_did(sealed):
+    from agentprov.corpus.reader import CorpusReader, CorpusReadError
+
+    path = sealed / "validation" / "results.jsonl"
+    lines = path.read_bytes().splitlines(keepends=True)
+    assert len(lines) >= 2
+    path.chmod(0o644)
+    path.write_bytes(b"".join(reversed(lines)))  # out of order: the error comes after the last row, as before
+    reader = CorpusReader.open(sealed)
+    seen: list[str] = []
+    with pytest.raises(CorpusReadError) as refused:
+        for row in reader.iter_validation_results():
+            seen.append(row["ex"])
+    assert refused.value.code == "corpus.read.validation" and len(seen) == len(lines)
+    with pytest.raises(CorpusReadError):
+        reader.validation_results()
+
+
+def _forge_facet(sealed: Path) -> str:
+    """A consistent forgery of one row's facets (index, manifest digests and checksums regenerated); its ex."""
+    import seal_support as ss
+
+    ss.writable(sealed)
+    first = vs.rows(sealed)[0]["ex"]
+
+    def edit(row: dict[str, Any]) -> None:
+        if row["ex"] == first:
+            row["facets"]["n.activities"] = row["facets"]["n.activities"] + 7
+
+    vs.reforge(sealed, index=edit)
+    return first
+
+
+@pytest.mark.parametrize("sample", [None, 3])
+def test_p8_a_forged_facet_is_found_from_the_full_row_whatever_the_sampling(sealed, sample):
+    """P8: the corpus-wide checks hold rows without their facet members; the execution checks still compare each
+    checked row's own facets, from the kept row (a sample) or from the index read again (every row)."""
+    ex = _forge_facet(sealed)
+    report = verify_corpus(sealed, level="chain", sample=sample, seed="s" if sample else None)
+    assert [f.subject for f in report.findings if f.code == "index.facets"] == [{"ex": ex}]
+    assert report.codes() == {"index.facets": 1}
+
+
+def test_p8_an_index_that_reads_differently_the_second_time_is_index_invalid(sealed, monkeypatch):
+    from agentprov.corpus.reader import CorpusReader
+
+    original = CorpusReader.iter_index
+    reads: list[int] = []
+
+    def iter_index(self: CorpusReader) -> Any:
+        reads.append(1)
+        rows = list(original(self))
+        return iter(rows if len(reads) == 1 else rows[1:])  # the second read lost a row
+
+    monkeypatch.setattr(CorpusReader, "iter_index", iter_index)
+    report = verify_corpus(sealed, level="chain")
+    assert len(reads) == 2 and "index.invalid" in report.codes() and not report.ok
+
+
+@pytest.mark.parametrize("data", [b"", b"x", b"a\n", b"a\nb\n", b"a\nb", b"\n" * 5, bytes(range(256)) * 9000])
+def test_p8_a_streamed_file_ref_is_file_ref(data):
+    import hashlib
+
+    from agentprov.corpus.manifest import file_ref
+    from agentprov.corpus.verify import _file_ref
+
+    stats = (len(data), data.count(b"\n"), hashlib.sha256(data).hexdigest())
+    for jsonl in (True, False):
+        assert _file_ref("register.jsonl", stats, jsonl=jsonl) == file_ref("register.jsonl", data, jsonl=jsonl)
+
+
+def test_p8_an_unreadable_results_file_gives_the_findings_the_list_read_gave(sealed):
+    """The validation results are read once by the execution checks; the manifest check reports the same error then."""
+    path = sealed / "validation" / "results.jsonl"
+    path.chmod(0o644)
+    path.write_bytes(path.read_bytes() + b"not json\n")
+    report = verify_corpus(sealed, level="chain")
+    found = {(f.code, f.detail) for f in report.findings if "validation" in f.code}
+    assert ("corpus.read.validation", "not valid (corpus.read.validation)") in found
+    assert ("manifest.validation", "validation cannot be recomputed (CorpusReadError)") in found

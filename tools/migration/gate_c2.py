@@ -88,6 +88,8 @@ def sample(baseline: Path) -> dict[str, dict[str, Any]]:
     for tree, directory in TREES.items():
         root = baseline / "corpus" / directory
         rels = _transcripts(root)
+        if not rels:  # a wrong --baseline walks nothing: the gate would validate the built-in fixture only (AU-TRG-8)
+            raise SystemExit(f"gate_c2: no transcript under {root} (check --baseline)")
         strata: dict[tuple[str, str], list[str]] = defaultdict(list)
         for rel in rels:
             parts = rel.split("/")

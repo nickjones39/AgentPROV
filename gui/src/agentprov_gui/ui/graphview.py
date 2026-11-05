@@ -7,6 +7,10 @@ until Show content, then fenced as data with their locator). Click selects and p
 bundle, class, degree) is the accessible view of the graph, synchronised with the selection.
 
 Model building and layout run in a worker thread; the scene is built on the UI thread from immutable results.
+
+In the Viewer's inspector (``narrow``, D-1060) the toolbar takes two lines: the search with Focus, then the other tools
+in an :class:`forms.OverflowBar`, whose groups that do not fit go behind More (the same widgets, so their tooltips and
+shortcuts stay); the side panel sits under the canvas and scrolls, so the pane never needs more width than it has.
 """
 
 from __future__ import annotations
@@ -51,6 +55,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QTableView,
     QTableWidget,
@@ -64,15 +69,20 @@ from agentprov_gui.graph.layout import LayoutResult, compute_layout
 from agentprov_gui.graph.scene import LOD_RASTER, GraphScene, lod_tier, paint_raster
 from agentprov_gui.graph.viewgraph import ViewGraph, attribute_rows, full_view, overlay_view
 from agentprov_gui.ui import theme
+from agentprov_gui.ui.detail import content_switch, field_tip, inline_caption, tidy_view
+from agentprov_gui.ui.forms import OverflowBar, caption, heading
 from agentprov_gui.ui.safe import (
     ReadOnlyText,
-    SafeLabel,
     help_tooltip,
     is_tooltip_role,
+    pointer_scale,
     safe_tooltip,
+    screen_rect,
     set_control_tooltip,
     set_header_tooltips,
     set_tooltip,
+    tip_position,
+    tooltips_shown,
 )
 from agentprov_gui.ui.worker import submit
 
@@ -270,9 +280,10 @@ class Popover(QFrame):
         self.resize(520, 260)
 
     def show_rows(self, rows: list[tuple[str, str]], at: QPoint) -> None:
+        """Show ``rows`` with the corner at the tooltips' offset from the pointer at ``at``, kept on its screen."""
         fill_table(self.table, rows)
         self.table.resizeRowsToContents()
-        self.move(at + QPoint(14, 14))
+        self.move(tip_position(at, self.size(), screen_rect(at, self), pointer_scale()))
         self.show()
         self.raise_()
 
@@ -288,10 +299,11 @@ def fill_table(table: QTableWidget, rows: list[tuple[str, str]]) -> None:
 
 # ----------------------------------------------------------------------------------------------- elements list
 class ElementsModel(QAbstractTableModel):
-    HEADERS: Final = ("id", "section", "bundle", "class", "degree", "folded")
+    HEADERS: Final = ("Element", "Section", "Bundle", "Evidence", "Edges", "Folded")
+    FIELDS: Final = ("id", "section", "bundle", "class", "degree", "folded")
     TIPS: Final = ("The element's id", "Its PROV section (entity, activity, agent, …)",
                    "The bundle it is declared in (core, inference, assessment), or outside the drawn bundles",
-                   "Its evidence class: O observed, D derived, I inferred", "The edges drawn at it",
+                   "Its evidence class: O observed, D derived, I inferred", "The edges drawn at it (its degree)",
                    "The elements folded onto it (the +n badge)")
 
     def __init__(self) -> None:
@@ -333,7 +345,7 @@ class ElementsModel(QAbstractTableModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return self.HEADERS[section]
         if is_tooltip_role(role):
-            return help_tooltip(self.TIPS[section])
+            return help_tooltip(field_tip(self.TIPS[section], self.FIELDS[section], "column"))
         return None
 
     def row_of(self, key: str) -> int:
@@ -350,11 +362,13 @@ class GraphTab(QWidget):
     open_in_prov = Signal(str)  # node key
 
     def __init__(self, cache_dir: Path | None, parent: QWidget | None = None, *,
-                 content_limit: int = T.CONTENT_CHARS_DEFAULT, two_rows: bool = False) -> None:
-        """``two_rows``: the toolbar takes two rows (beside the PROV-JSON pane in a Viewer tab, D-841)."""
+                 content_limit: int = T.CONTENT_CHARS_DEFAULT, two_rows: bool = False, narrow: bool = False) -> None:
+        """``two_rows``: the toolbar takes two rows (beside the PROV-JSON pane in a Viewer tab, D-841). ``narrow``: the
+        toolbar wraps and the side panel sits under the canvas (the Viewer's inspector)."""
         super().__init__(parent)
         self.setAccessibleName("Graph")
         self.two_rows = two_rows
+        self.narrow = narrow
         self.cache_dir = cache_dir
         self.pool = QThreadPool.globalInstance()
         self.doc: Any = None
@@ -381,54 +395,99 @@ class GraphTab(QWidget):
 
     def _build(self) -> None:
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        bar = QHBoxLayout()
+        outer.setContentsMargins(0, theme.SPACE, 0, 0)
+        tools: QWidget | None = None
+        line: QHBoxLayout | None = None
+        if self.narrow:  # the search line, then one line whose groups that do not fit go behind More
+            tools = QWidget(self)
+            tools.setAccessibleName("Graph tools")
+            lines = QVBoxLayout(tools)
+            lines.setContentsMargins(0, 0, 0, 0)
+            lines.setSpacing(6)
+            line = QHBoxLayout()
+            line.setSpacing(8)
+            lines.addLayout(line)
+            overflow = OverflowBar(
+                name="Graph tools", more_name="More graph tools", parent=tools,
+                more_tip="The graph tools the inspector has no room for: zoom, bundles, evidence, layout and Show "
+                         "content, as on a wider pane; widen the inspector to bring them back into the line")
+            lines.addWidget(overflow)
+            bar: QHBoxLayout | OverflowBar = overflow
+        else:
+            bar = QHBoxLayout()
+
+        def gap() -> None:
+            if isinstance(bar, QHBoxLayout):
+                bar.addSpacing(12)
+
+        def place(*widgets: QWidget) -> None:
+            """Add ``widgets`` to the toolbar; in the inspector as one group that wraps as a whole."""
+            if isinstance(bar, QHBoxLayout):
+                for w in widgets:
+                    bar.addWidget(w)
+                return
+            group = QWidget(bar)
+            group.setAccessibleName(" ".join(w.accessibleName() for w in widgets))
+            row = QHBoxLayout(group)
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(12)
+            for w in widgets:
+                row.addWidget(w)
+            bar.add(group)
+
         self.view = GraphView(self)
-        bar.addWidget(self._button("−", "Zoom out", lambda: self.view.zoom_by(1 / 1.25), "Zoom out (⌘−)"))
-        bar.addWidget(self._button("+", "Zoom in", lambda: self.view.zoom_by(1.25), "Zoom in (⌘+)"))
-        bar.addWidget(self._button("100 %", "Actual size", lambda: self.view.set_zoom(1.0), "Actual size (⌘0)"))
-        bar.addWidget(self._button("Fit", "Fit to window", self.view.fit, "Fit (⌘9)"))
-        bar.addSpacing(12)
-        self.cb_core = QCheckBox("core", self)
+        place(self._button("−", "Zoom out", lambda: self.view.zoom_by(1 / 1.25), "Zoom out (⌘−)"),
+              self._button("+", "Zoom in", lambda: self.view.zoom_by(1.25), "Zoom in (⌘+)"))
+        place(self._button("100 %", "Actual size", lambda: self.view.set_zoom(1.0), "Actual size (⌘0)"),
+              self._button("Fit", "Fit to window", self.view.fit, "Fit (⌘9)"))
+        gap()
+        bundles = inline_caption("Bundles", name="Bundles label", parent=self)
+        self.cb_core = QCheckBox("Core", self)
         self.cb_core.setChecked(True)
         self.cb_core.setEnabled(False)
         set_tooltip(self.cb_core, "The core bundle (the observed and derived statements) is always shown")
-        self.cb_inf = QCheckBox("inference", self)
+        self.cb_inf = QCheckBox("Inference", self)
         self.cb_inf.setChecked(True)
-        self.cb_assess = QCheckBox("assessment", self)
+        self.cb_assess = QCheckBox("Assessment", self)
         self.cb_assess.setChecked(False)
         set_control_tooltip(self.cb_inf, "Show the inference bundle: statements inferred by a method or heuristic")
         set_control_tooltip(self.cb_assess, "Show the assessment bundle: policy claims about the execution")
         for cb in (self.cb_core, self.cb_inf, self.cb_assess):
-            cb.setAccessibleName(f"Show {cb.text()} bundle")
-            bar.addWidget(cb)
+            cb.setAccessibleName(f"Show {cb.text().lower()} bundle")
+        if self.narrow:  # one group: behind More it is one line
+            place(bundles, self.cb_core, self.cb_inf, self.cb_assess)
+        else:
+            place(bundles, self.cb_core)
+            place(self.cb_inf, self.cb_assess)
         self.cb_inf.toggled.connect(self._bundles_changed)
         self.cb_assess.toggled.connect(self._bundles_changed)
-        bar.addSpacing(12)
+        gap()
         self.evidence = QComboBox(self)
         self.evidence.setAccessibleName("Evidence class filter")
-        self.evidence.addItems(["evidence: all", "only Observed", "only Derived", "only Inferred"])
+        self.evidence.addItems(["All evidence", "Observed only", "Derived only", "Inferred only"])
         self.evidence.currentIndexChanged.connect(self._evidence_changed)
         set_control_tooltip(self.evidence, "Dim every element that is not of the chosen evidence class: Observed (the "
                                            "source recorded it), Derived (computed by a rule) or Inferred")
-        bar.addWidget(self.evidence)
+        place(self.evidence)
         self.layout_choice = QComboBox(self)
         self.layout_choice.setAccessibleName("Layout")
-        self.layout_choice.addItems(["layout: core + overlays", "layout: full (layered)"])
+        self.layout_choice.addItems(["Layout: core + overlays", "Layout: full (layered)"])
         self.layout_choice.currentIndexChanged.connect(self._relayout)
         set_control_tooltip(self.layout_choice, "core + overlays: the core bundle is laid out and the other bundles' "
                                                 "elements are folded onto it (+n badges), their edges drawn over it. "
                                                 "full: every element laid out in layers.")
-        bar.addWidget(self.layout_choice)
-        self.cb_collapse = QCheckBox("collapse mentions", self)
+        place(self.layout_choice)
+        self.cb_collapse = QCheckBox("Collapse mentions", self)
         self.cb_collapse.setAccessibleName("Collapse assessment mentions")
         self.cb_collapse.setChecked(True)
         self.cb_collapse.toggled.connect(self._relayout)
         set_control_tooltip(self.cb_collapse, "Full layout: fold the assessment's mentions onto the elements they "
                                               "mention instead of drawing them as nodes of their own")
-        bar.addWidget(self.cb_collapse)
-        bar.addStretch(1)
-        if self.two_rows:
+        self.cb_collapse.setMinimumWidth(self.cb_collapse.sizeHint().width())  # never squeezed into a cut label
+        place(self.cb_collapse)
+        if isinstance(bar, QHBoxLayout):
+            bar.addStretch(1)
+        if self.two_rows and isinstance(bar, QHBoxLayout):
             outer.addLayout(bar)
             bar = QHBoxLayout()
         self.search = QLineEdit(self)
@@ -439,62 +498,76 @@ class GraphTab(QWidget):
         self.search.returnPressed.connect(self._search_enter)
         set_control_tooltip(self.search, "Find elements by id, PROV type or rule (and attribute values while Show content "
                                          "is on); Return selects the first match")
-        bar.addWidget(self.search, 1 if self.two_rows else 0)
+        if line is not None:
+            line.addWidget(self.search, 1)
+        elif isinstance(bar, QHBoxLayout):
+            bar.addWidget(self.search, 1 if self.two_rows else 0)
         self.hops = QComboBox(self)
         self.hops.setAccessibleName("Focus neighbourhood size")
-        self.hops.addItems(["k = 1", "k = 2", "k = 3"])
+        self.hops.addItems(["1 edge", "2 edges", "3 edges"])
         set_control_tooltip(self.hops, "How many edges away from the selection Focus keeps in view")
-        bar.addWidget(self.hops)
         self.focus_btn = self._button("Focus", "Focus on selection", self._focus, "Dim everything outside the k-hop "
                                       "neighbourhood of the selection")
         self.focus_btn.setCheckable(True)
-        bar.addWidget(self.focus_btn)
-        self.content_cb = QCheckBox("Show content", self)
-        self.content_cb.setAccessibleName("Show content in the graph popover and inspector")
-        self.content_cb.toggled.connect(lambda on: self.set_show_content(on, self.content_limit))
-        set_control_tooltip(self.content_cb, "Show data values in the hover popover and the inspector (escaped, fenced "
-                                             "as data, cut at the Settings limit); off again for each execution")
-        bar.addWidget(self.content_cb)
-        outer.addLayout(bar)
+        if line is not None:
+            line.addWidget(self.hops)
+            line.addWidget(self.focus_btn)
+        else:
+            place(self.hops, self.focus_btn)
+        self.content_row, self.content_cb = content_switch(
+            self, "Show content in the graph popover and inspector",
+            lambda on: self.set_show_content(on, self.content_limit),
+            tip="Show data values in the hover popover and the inspector (escaped, fenced as data, cut at the Settings "
+                "limit); off again for each execution", note_text="")
+        place(self.content_row)
+        if isinstance(bar, QHBoxLayout):
+            outer.addLayout(bar)
+        elif tools is not None:
+            outer.addWidget(tools)
 
-        split = QSplitter(Qt.Orientation.Horizontal, self)
+        split = QSplitter(Qt.Orientation.Vertical if self.narrow else Qt.Orientation.Horizontal, self)
         split.addWidget(self.view)
-        side = QWidget(split)
+        side = QWidget(self if self.narrow else split)
         sl = QVBoxLayout(side)
-        sl.setContentsMargins(4, 0, 0, 0)
+        sl.setContentsMargins(theme.SPACE, 0, 0, 0)
         self.results = QListWidget(side)
         self.results.setAccessibleName("Search results")
         self.results.setMaximumHeight(120)
         set_control_tooltip(self.results, "The elements that match the search; Return or a double-click selects one and "
                                           "centres it")
         self.results.itemActivated.connect(lambda item: self.select(item.data(Qt.ItemDataRole.UserRole), centre=True))
-        sl.addWidget(SafeLabel("Search results", name="Search results heading", parent=side, selectable=False))
+        self.results_heading = heading("Search results", name="Search results heading", parent=side)
+        sl.addWidget(self.results_heading)
         sl.addWidget(self.results)
-        sl.addWidget(SafeLabel("Elements", name="Elements heading", parent=side, selectable=False))
+        if self.narrow:  # the inspector: the search results take room only while there is a search
+            self.results_heading.hide()
+            self.results.hide()
+        sl.addWidget(heading("Elements", name="Elements heading", parent=side))
         self.elements = ElementsModel()
         self.elements_view = QTableView(side)
         self.elements_view.setAccessibleName("Graph elements list")
         self.elements_view.setModel(self.elements)
         self.elements_view.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.elements_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.elements_view.verticalHeader().setVisible(False)
         self.elements_view.horizontalHeader().setStretchLastSection(True)
+        tidy_view(self.elements_view)
         self.elements_view.selectionModel().currentRowChanged.connect(self._element_row)
         sl.addWidget(self.elements_view, 2)
-        sl.addWidget(SafeLabel("Inspector", name="Inspector heading", parent=side, selectable=False))
+        sl.addWidget(heading("Inspector", name="Inspector heading", parent=side))
         self.inspector = QTableWidget(0, 2, side)
         self.inspector.setAccessibleName("Selected element attributes")
-        self.inspector.setHorizontalHeaderLabels(["attribute", "value"])
-        set_header_tooltips(self.inspector, ["An attribute of the selected element",
+        self.inspector.setHorizontalHeaderLabels(["Attribute", "Value"])
+        set_header_tooltips(self.inspector, ["An attribute of the selected element (its PROV-JSON name)",
                                              "Its value (data hidden until Show content)"])
-        self.inspector.verticalHeader().setVisible(False)
         self.inspector.horizontalHeader().setStretchLastSection(True)
         self.inspector.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        tidy_view(self.inspector)
         sl.addWidget(self.inspector, 2)
         self.prov_btn = self._button("Show in PROV-JSON", "Show selection in PROV-JSON", self._show_in_prov,
                                      "Select this element in the PROV-JSON tree")
         sl.addWidget(self.prov_btn)
         legend = ReadOnlyText(name="Legend", parent=side, wrap=True)
+        legend.setFont(theme.scaled_font("caption"))
         legend.setPlainText(
             "⬭ entity   ▭ activity   ⌂ agent\n"
             "line style: solid = Observed, dashed = Derived, dotted = Inferred\n"
@@ -503,11 +576,25 @@ class GraphTab(QWidget):
         )
         legend.setMaximumHeight(90)
         sl.addWidget(legend)
-        split.addWidget(side)
-        split.setStretchFactor(0, 4)
-        split.setStretchFactor(1, 1)
+        if self.narrow:  # under the canvas: the side panel scrolls rather than squeezing the canvas
+            sl.setContentsMargins(0, theme.SPACE, 0, 0)
+            scroll = QScrollArea(split)
+            scroll.setAccessibleName("Graph side panel")
+            scroll.setWidgetResizable(True)
+            scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            scroll.setWidget(side)
+            side.setMinimumHeight(360)
+            split.addWidget(scroll)
+            split.setStretchFactor(0, 3)
+            split.setStretchFactor(1, 1)
+            split.setSizes([640, 220])  # the canvas first; the panel below scrolls
+        else:
+            split.addWidget(side)
+            split.setStretchFactor(0, 4)
+            split.setStretchFactor(1, 1)
         outer.addWidget(split, 1)
-        self.status = SafeLabel("", name="Graph status", parent=self)
+        self.status = caption("", name="Graph status", parent=self)
         outer.addWidget(self.status)
         self.popover = Popover(self)
         self.view.hovered.connect(self._hover)
@@ -687,7 +774,7 @@ class GraphTab(QWidget):
         return rows
 
     def _hover(self, key: str, at: QPoint) -> None:
-        if self.isVisible():
+        if self.isVisible() and tooltips_shown():  # Settings › Appearance › Show tooltips covers the popover too
             self.popover.show_rows(self._rows_for(key), at)
 
     def hideEvent(self, event: QHideEvent) -> None:
@@ -746,6 +833,9 @@ class GraphTab(QWidget):
     def _search(self, query: str) -> None:
         self.results.clear()
         q = query.strip().lower()
+        if self.narrow:
+            self.results_heading.setVisible(bool(q))
+            self.results.setVisible(bool(q))
         if not q or self.view_graph is None:
             return
         hits = 0

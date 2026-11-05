@@ -56,15 +56,17 @@ if TYPE_CHECKING:
 
 PROFILE_ID: Final = "agentdojo.suites"
 PROFILE_VERSION: Final = 1
-PROFILE_VERSIONS: Final = (1, 2, 3)  # 3: version 2 plus the reviewed AgentDyn tables (regeneration-batch item 27 (b))
+PROFILE_VERSIONS: Final = (1, 2, 3, 4, 5)  # 3: version 2 plus the reviewed AgentDyn tables (regeneration-batch item 27 (b))
 DATA_FILES: Final = ("labels.toml", "profile.toml", "suite_tools.toml")
 #: The data files per version (version 2 adds the reviewed tables, C.14.8).
 #: The ``agentdojo`` catalogue version each profile version declares (D-31 addendum, user decisions 2026-10-13): @1 stays
 #: on the archived catalogue version 1 (every stored corpus reads it); @2 and @3, read by no stored corpus, moved to 2 in
 #: place, and regenerated corpora read them (one catalogue version per corpus, H.2.5; item 1 applies through @2).
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 2})
+#: D-1063 (regen-batch row 179): @4 and @5 are @2 and @3 on the agentdojo catalogue version 3 (option B again).
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 2, 4: 3, 5: 3})
 DATA_FILES_OF: Final = MappingProxyType({1: DATA_FILES, 2: (*DATA_FILES, "reviewed_tables.toml"),
-                                          3: (*DATA_FILES, "reviewed_tables.toml")})
+                                          3: (*DATA_FILES, "reviewed_tables.toml"), 4: (*DATA_FILES, "reviewed_tables.toml"),
+                                          5: (*DATA_FILES, "reviewed_tables.toml")})
 
 # Rule ids cited by this profile (all in the ``agentdojo`` catalogue at version 1).
 R_TABLE: Final = "agentdojo.suite_tool_table@1"
@@ -126,7 +128,7 @@ _CITED_2: Final = (*CITED_RULES, R_REVIEWED_TABLE, R_REVIEWED_LABEL, R_UNESCAPE,
                    markers.YAML_NORM_STRICT, R_PARTIAL, R_HIDDEN)
 #: Version 3 cites exactly version 2's rules (it adds data only: the reviewed AgentDyn tables, item 27 (b)); items 4, 6
 #: and 8 (yaml_norm@2, the partial and hidden-success annotations) are version 2's and so version 3's.
-CITED_RULES_OF: Final = MappingProxyType({1: CITED_RULES, 2: _CITED_2, 3: _CITED_2})
+CITED_RULES_OF: Final = MappingProxyType({1: CITED_RULES, 2: _CITED_2, 3: _CITED_2, 4: _CITED_2, 5: _CITED_2})
 #: ``[marker]`` keys of version 2: the payload-side unescape and the ``cache_match`` forms that establish the escape.
 _UNESCAPE_MARKER: Final = {"payload_unescape": R_UNESCAPE, "payload_unescape_link": ["exact", "wrapped"]}
 #: The ``[selection]`` keys of the reviewed tables and the values version 2 requires (absent at version 1).
@@ -726,7 +728,7 @@ def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str
         raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, "
                                f"not {profile_id}@{version}")
     tables = parse_tables(files, version)
-    declared = CATALOGUE_OF[version]  # D-31: version 1 is archived; suites@1 reads it, @2/@3 read 2
+    declared = CATALOGUE_OF[version]  # D-31: suites@1 reads catalogue 1, @2/@3 read 2 (archived since D-1063), @4/@5 read 3
     catalogue = load_catalogue("agentdojo", declared)
     classes: dict[str, str] = {}
     for ref in CITED_RULES_OF[version]:

@@ -593,7 +593,8 @@ class Redactor:
     # -- blobs ------------------------------------------------------------------------------------------------
 
     def redact_blob(self, data: bytes, media: str, *, non_content: bool | None = None) -> BlobRedaction:
-        """Redact blob bytes. JSON media get JSON Pointers for each located string; anything else gets ``""``.
+        """Redact blob bytes. JSON media get JSON Pointers for each located string; anything else, and JSON nested
+        deeper than :data:`MAX_DEPTH` (AU-NC-202), gets ``""``.
 
         ``non_content``: ``None`` decides by media (:data:`NON_CONTENT_MEDIA`); ``True`` for a traceback or stderr dump.
 
@@ -628,13 +629,22 @@ class Redactor:
             except (ValueError, RecursionError):
                 parsed = None
         if parsed is not None:
-            for pointer, string in _iter_strings(parsed, lambda k: self._transform(k, non)[0]):
-                fixed, ks = self._transform(string, non)
-                for kind in ks:
-                    located_kinds.setdefault(kind, set()).add(pointer)
-                if not non:
-                    for pid in self._find_patterns(fixed):
-                        located_flags.setdefault(pid, set()).add(pointer)
+            try:
+                for pointer, string in _iter_strings(parsed, lambda k: self._transform(k, non)[0]):
+                    fixed, ks = self._transform(string, non)
+                    for kind in ks:
+                        located_kinds.setdefault(kind, set()).add(pointer)
+                    if not non:
+                        for pid in self._find_patterns(fixed):
+                            located_flags.setdefault(pid, set()).add(pointer)
+            except RedactionError as exc:
+                if exc.code != "cap.redact.depth":
+                    raise
+                # nested deeper than MAX_DEPTH (a UC-19 deep member stored as a blob): the bytes were redacted whole
+                # above, only the places cannot be located, so every entry and flag points at "" as for non-JSON
+                # media (AU-NC-202)
+                located_kinds.clear()
+                located_flags.clear()
         for kind in dict.fromkeys(kinds):
             pointers = sorted(located_kinds.get(kind, ())) or [""]
             if len(pointers) > MAX_POINTERS:

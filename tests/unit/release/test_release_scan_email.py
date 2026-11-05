@@ -107,7 +107,7 @@ def sealed(tmp_path_factory, tmp_path, name: str, personas: dict[str, bytes] | N
                          for n, b in sorted(personas.items()))
         scan = f"\n[scan]\npersonas = [{refs}]\n"
     seal(dest, corpus_version="0.1.0", inputs=ss.inputs(spec=(ss.SPEC + scan).encode(), persona_files=personas or {}))
-    return dest
+    return ss.writable(dest)  # the tests plant probe files in it
 
 
 def run_scan(root: Path):

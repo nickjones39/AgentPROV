@@ -15,8 +15,9 @@ replaces the round trip only when it names the digest of the PROV bytes read her
 ``collect``, a round trip that ran and completed is returned in a second frame, ``{"fidelity": ...}``, for the parent
 to store. The job reads no file besides its inputs.
 
-The validators and every shipped semantics profile are imported and loaded here at module level, so a worker loads them
-before its audit hook (G.4.4). A ref is resolved through the parent's default lookup
+The validators are imported here at module level, with the semantics profiles of
+:func:`agentprov.io.workers.worker_preload` (D-1068 P2: in a worker, the refs its pool's jobs name; elsewhere, every
+shipped profile), so a worker loads them before its audit hook (G.4.4). A ref is resolved through the parent's default lookup
 (:func:`~agentprov.corpus.validation.default_semantics_profile`), cached per worker: a pure function of package data
 (G.4.7).
 """
@@ -25,22 +26,26 @@ from __future__ import annotations
 
 from typing import Any, Final
 
-from agentprov.adapters.semantics_profiles import load_all_semantics_profiles
+from agentprov.adapters.semantics_profiles import load_all_semantics_profiles, load_named_semantics_profiles
 from agentprov.aer.reader import load_aer_bytes
 from agentprov.corpus.validation import default_semantics_profile, validate_documents
 from agentprov.errors import AgentProvError
+from agentprov.io.workers import worker_preload
 from agentprov.sem.reader import load_sem_bytes
 from agentprov.sem.validate import validate_sem_document  # noqa: F401 - loaded before the audit hook (G.4.4)
 from agentprov.validate import validate_prov  # noqa: F401 - loaded before the audit hook (G.4.4)
 from agentprov.validate.cache import JobFidelity, context_digest
 
-context_digest()  # the cache context reads the package and library files: before the audit hook (G.4.4)
+_PRELOAD: Final = worker_preload()
+if _PRELOAD.fidelity:
+    context_digest()  # the cache context reads the package and library files: before the audit hook (G.4.4)
 
 __all__ = ["job_validate"]
 
 #: Semantics profiles by ref, seeded with every shipped profile under its canonical ref; any other ref is resolved on
 #: first use through the parent's default lookup (``None`` when it does not resolve, as in the parent).
-_PROFILES: Final[dict[str, Any]] = dict(load_all_semantics_profiles())
+_PROFILES: Final[dict[str, Any]] = dict(
+    load_all_semantics_profiles() if _PRELOAD.semantics is None else load_named_semantics_profiles(_PRELOAD.semantics))
 
 
 def _profile_of(ref: str) -> Any:

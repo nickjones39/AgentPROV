@@ -7,7 +7,8 @@ Three sources, in this order of precedence for one ``(endpoint, model id)``:
 1. a **per-model override** (``agentprov prices set``; ``$AGENTPROV_HOME/prices/overrides.json``, with the date
    entered);
 2. the newest **refreshed OpenRouter snapshot** ``$AGENTPROV_HOME/prices/openrouter-<date>.json`` (written by a
-   confirmed ``agentprov prices refresh``; never automatic), for the endpoints that route through OpenRouter, and for an
+   confirmed ``agentprov prices refresh``, or by the desktop app once a day under the setting ``prices.auto_refresh``,
+   D-1062), for the endpoints that route through OpenRouter, and for an
    OpenAI or DeepSeek model the shipped direct table does not list;
 3. the **shipped table** ``data/prices.json`` (built by ``tools/estimate/build_price_table.py`` from a dated OpenRouter
    snapshot and the direct-provider rows in ``tools/estimate/price_direct.toml``).
@@ -52,7 +53,9 @@ __all__ = [
     "load_table",
     "parse_openrouter",
     "prices_dir",
+    "refresh_due",
     "set_override",
+    "snapshot_status",
     "stale",
     "unset_override",
     "write_snapshot",
@@ -87,6 +90,8 @@ SNAPSHOT_SUFFIX: Final = re.compile(r"-20\d{6}$")
 ALIAS_PRICED: Final = frozenset({"anthropic"})
 _PER_M: Final = Decimal(1_000_000)
 _LIMITS: Final = IngestLimits().replace(max_json_bytes=MAX_RESPONSE_BYTES, max_json_depth=32)
+#: how a refreshed snapshot's response came (D-1062)
+REFRESH_VIA: Final = ("network", "file")
 
 
 class PriceError(AgentProvError):
@@ -241,25 +246,78 @@ def _dump(doc: Mapping[str, Any]) -> bytes:
     return json.dumps(doc, sort_keys=True, separators=(",", ":")).encode("utf-8") + b"\n"
 
 
-def write_snapshot(directory: Path, rows: Sequence[Price], *, fetched: dt.date, raw_sha256: str) -> Path:
-    """A refreshed OpenRouter snapshot ``openrouter-<date>.json`` (atomic; the raw response is not kept)."""
+def _utc_text(moment: dt.datetime) -> str:
+    return moment.astimezone(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def write_snapshot(directory: Path, rows: Sequence[Price], *, fetched: dt.date, raw_sha256: str,
+                   written_at: dt.datetime | None = None, via: str | None = None) -> Path:
+    """A refreshed OpenRouter snapshot ``openrouter-<date>.json`` (atomic; the raw response is not kept). D-1062: it
+    records when it was written (``written_at``, UTC) and how the response came (``via``: ``network`` or ``file``), so
+    ``agentprov prices status`` can say when the prices were last refreshed."""
     from agentprov.io.replace_retry import atomic_write_bytes_retrying
 
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"openrouter-{fetched.isoformat()}.json"
-    doc = {"format": PRICES_FORMAT, "source": OPENROUTER_URL, "as_of": fetched.isoformat(),
-           "raw_sha256": raw_sha256, "rows": [r.to_json() for r in rows]}
+    doc: dict[str, Any] = {"format": PRICES_FORMAT, "source": OPENROUTER_URL, "as_of": fetched.isoformat(),
+                           "raw_sha256": raw_sha256, "rows": [r.to_json() for r in rows]}
+    if written_at is not None:
+        doc["written_at"] = _utc_text(written_at)
+    if via in REFRESH_VIA:
+        doc["via"] = via
     atomic_write_bytes_retrying(path, _dump(doc))
     return path
 
 
-def import_response(home: Path, data: bytes, *, fetched: dt.date) -> tuple[Path, int]:
+def import_response(home: Path, data: bytes, *, fetched: dt.date, written_at: dt.datetime | None = None,
+                    via: str | None = None) -> tuple[Path, int]:
     """Parse an OpenRouter response (strictly) into ``prices/openrouter-<date>.json``: the path and the row count."""
     rows = parse_openrouter(data, fetched=fetched)
     if not rows:
         raise PriceError("the response holds no usable prices")
-    return write_snapshot(prices_dir(home), rows, fetched=fetched, raw_sha256=hashlib.sha256(data).hexdigest()), \
-        len(rows)
+    return write_snapshot(prices_dir(home), rows, fetched=fetched, raw_sha256=hashlib.sha256(data).hexdigest(),
+                          written_at=written_at, via=via), len(rows)
+
+
+_UTC_TEXT: Final = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+
+
+def snapshot_status(home: Path) -> dict[str, Any] | None:
+    """The newest refreshed OpenRouter snapshot (D-1062): its file name, ``as_of`` date, row count, and when it was
+    written, in UTC (``written_at``; from the snapshot, else the file's modification time for a snapshot written before
+    D-1062, which ``written_at_from`` says), and ``via`` (``network``, ``file`` or ``None`` when not recorded).
+    ``None`` when there is no snapshot."""
+    snap = _newest_snapshot(prices_dir(home))
+    if snap is None:
+        return None
+    header, rows = load_table(snap)
+    recorded = header.get("written_at")
+    if isinstance(recorded, str) and _UTC_TEXT.fullmatch(recorded):
+        written, source = recorded, "snapshot"
+    else:
+        try:
+            written = _utc_text(dt.datetime.fromtimestamp(snap.stat().st_mtime, dt.UTC))
+        except OSError:
+            written = None
+        source = "file-mtime"
+    via = header.get("via")
+    as_of = header.get("as_of")
+    return {"file": snap.name, "as_of": as_of if isinstance(as_of, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of)
+            else None, "rows": len(rows), "written_at": written, "written_at_from": source,
+            "via": via if via in REFRESH_VIA else None}
+
+
+def refresh_due(status: Mapping[str, Any] | None, now: dt.datetime | None = None) -> bool:
+    """D-1062's "once a day": true when there is no refreshed snapshot, or the newest was written on an earlier day than
+    ``now``, both in this machine's local time zone (the user's day, not UTC's)."""
+    if status is None or not isinstance(status.get("written_at"), str):
+        return True
+    try:
+        written = dt.datetime.fromisoformat(str(status["written_at"]).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    current = now if now is not None else dt.datetime.now(dt.UTC)
+    return written.astimezone().date() < current.astimezone().date()
 
 
 def fetch_openrouter(transport: Any = None, *, url: str = OPENROUTER_URL,

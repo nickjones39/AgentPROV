@@ -7,10 +7,12 @@
 # `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
 # the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
 # census (~/.agentprov/migration-work/phase10c/census/hilarytorn@d71ab8bc2aa9.*).
+# Version 2 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 1 ships under profiles/archive/hilarytorn-trajectory-poisoning.profile.v1.toml.
 
 [profile]
 id = "hilarytorn-trajectory-poisoning"
-version = 1
+version = 2
 format = "agentprov-source-profile/0.1"
 source_id = "hilarytorn-trajectory-poisoning"
 family = "agentdojo"
@@ -58,7 +60,7 @@ content_dedup = "never"
 dialect = "agentdojo.tracelogger"
 mapper = "agentdojo.tracelogger"
 variants = ["v1.k14"]
-rules = { aer = 1, agentdojo = 2 }
+rules = { aer = 1, agentdojo = 3 }
 include = ["data/traces/*/*/*/*/*.json"]
 exclude = [
   { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
@@ -81,7 +83,7 @@ suites = { slack = "agentdojo" }
 version_field = "benchmark_version"
 version_label_semantics = "suite_version"
 dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
-semantics_profile = { id = "agentdojo.suites", version = 2 }
+semantics_profile = { id = "agentdojo.suites", version = 4 }
 
 [family.agentdojo.harness]
 # requirements.txt pins agentdojo 0.1.29 while every log records 0.1.35, so the code that wrote them is not

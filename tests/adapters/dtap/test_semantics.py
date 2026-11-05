@@ -12,7 +12,14 @@ from pathlib import Path
 import dtap_support as support
 
 from agentprov.adapters.dtap.matcher import match, needles, normalise, windows
-from agentprov.adapters.dtap.semantics.tools import CITED_RULES, CLASSES, DATA_FILES, ProfileDataError, parse_tables
+from agentprov.adapters.dtap.semantics.tools import (
+    CITED_RULES,
+    CLASSES,
+    DATA_FILES,
+    NOT_INLINED_RULES,
+    ProfileDataError,
+    parse_tables,
+)
 from agentprov.adapters.semantics_profiles import load_semantics_profile
 from agentprov.aer.rules import load_catalogue
 from agentprov.sem.validate import validate_sem_document
@@ -44,7 +51,7 @@ def test_matcher_is_the_census_normaliser():
 
 
 def test_every_fixture_document_validates_tier3(mapped):
-    profile = load_semantics_profile("dtap.tools", 3)  # D-934: the shipped profile
+    profile = load_semantics_profile("dtap.tools", 4)  # UC-40: the shipped profile
     for fid, m in mapped.items():
         report = validate_sem_document(m.sem, m.doc, mode="release", profile=profile)
         assert report.ok and not report.errors, fid
@@ -133,7 +140,7 @@ def test_tool_labels_are_fail_closed(mapped):
     assert ("execute_sink",) in set(map(tuple, roles.values()))  # terminal execute_command via the openclaw prefix split
     results = [a for a in m.annotations("integrity") if "#" in a["target"] and m.get(a["target"].split("#")[0])["role"] == "tool"]
     assert results and {a["value"] for a in results} == {"unknown"}
-    profile = load_semantics_profile("dtap.tools", 3)
+    profile = load_semantics_profile("dtap.tools", 4)
     assert profile.taint_policy is not None and "unknown" in profile.taint_policy.subject_roles
 
 
@@ -149,7 +156,7 @@ def test_partial_window_marker_is_ambiguous_and_declares_its_assumption():
     ambiguous = [a for a in m.annotations("injection_marker") if a["value"]["status"] == "ambiguous"]
     assert ambiguous and all(a["ev"] == "I" and a["rule"] == ["dtap.marker_partial_window@1"] for a in ambiguous)
     assert _exposure(m)[("environment", "partial_match")]["ev"] == "I"
-    assert load_catalogue("dtap", 3).get("dtap.marker_partial_window@1").assumptions == ("dtap:PartialWindowIsContainment",)
+    assert load_catalogue("dtap", 4).get("dtap.marker_partial_window@1").assumptions == ("dtap:PartialWindowIsContainment",)
 
 
 def test_agent_output_only_marker():
@@ -167,19 +174,73 @@ def test_agent_output_only_marker():
     assert _exposure(m)[("environment", "agent_output_only")]["ev"] == "D"
 
 
+BIG = "z" * ((1 << 20) + 10)
+
+
+def _big_tool_output(text: str):
+    def change(value):
+        step = next(s for s in value["trajectory"] if s["role"] == "tool" and isinstance(s.get("state"), str))
+        step["state"] = text
+    return change
+
+
+def test_a_result_not_inlined_is_a_gap_and_its_exposure_unmatchable():
+    """AU-RC-3 (D-1063, regen-batch row 182): a tool result over 1 MiB is a digest object in the AER
+    (dtap.content_not_inlined@1). @3 searched that object's JSON and marked the environment payload absent at D (seen in
+    dtap-bench-w2c: ex_fkfccvpk3k2yl7tyq45543yjyx), and the exposure could become logged_absent. From @4 the marker is
+    gap under dtap.marker_not_inlined@1 and an exposure seen nowhere while such a result was among its locations is
+    unmatchable."""
+    from agentprov.sem.engine import annotate
+
+    needle = support.payload("F03", "environment")
+    m = support.modified("F03", _big_tool_output(BIG + " " + needle))
+    tool = next(r for r in m.of("message") if r.get("role") == "tool" and "value" in r["parts"][0])
+    env = {a["value"]["fixture"] for a in m.annotations("dtap.exposure") if a["value"]["channel"] == "environment"}
+    hidden = [a for a in m.annotations("injection_marker") if a["target"] == f"{tool['id']}#0"
+              and a["value"]["fixture"] in env]
+    assert hidden and all(a["value"]["status"] == "gap" and a["rule"] == ["dtap.marker_not_inlined@1"] and a["ev"] == "D"
+                          for a in hidden)
+    exposures = _exposure(m)
+    if ("environment", "observed_tool_output") not in exposures:  # no other tool result of the run shows the payload
+        unmatchable = exposures[("environment", "unmatchable")]
+        assert unmatchable["rule"] == ["dtap.marker_not_inlined@1"]
+        assert {"id": tool["id"], "p": "/parts/0/value"} in unmatchable["premises"]
+    assert ("environment", "logged_absent") not in exposures
+    before = annotate(m.doc, load_semantics_profile("dtap.tools", 3))  # @3 keeps its reading (version-gated)
+    assert {a["value"]["status"] for a in before.annotations if a["type"] == "injection_marker"
+            and a["target"] == f"{tool['id']}#0" and a["value"]["fixture"] in env} == {"absent"}
+
+
+def test_a_payload_seen_in_another_result_stays_observed():
+    """A not-inlined result among the locations does not hide a payload another tool result shows."""
+    needle = support.payload("F03", "environment")
+
+    def change(value):
+        tools = [s for s in value["trajectory"] if s["role"] == "tool" and isinstance(s.get("state"), str)]
+        tools[0]["state"] = BIG
+        if len(tools) > 1:
+            tools[-1]["state"] = needle
+        else:
+            value["trajectory"].append({**tools[0], "state": needle})
+
+    m = support.modified("F03", change)
+    assert ("environment", "observed_tool_output") in _exposure(m)
+
+
 def test_every_sem_rule_is_cited(mapped):
-    catalogue = load_catalogue("dtap", 3)
-    for ref in CITED_RULES:
+    catalogue = load_catalogue("dtap", 4)
+    for ref in (*CITED_RULES, *NOT_INLINED_RULES):
         assert catalogue.get(ref) is not None and catalogue.get(ref).citable, ref
     docs = [m.sem for m in mapped.values()]
     docs.append(support.modified("F04", lambda v: v["trajectory"][-1]["metadata"].update(
         message=v["trajectory"][-1]["metadata"].get("message", "") + " " + support.payload("F04", "environment"))).sem)
     docs.append(support.modified("F01", _unknown_server).sem)  # dtap.unknown_server_domain_match@1 (no fixture logs it)
+    docs.append(support.modified("F03", _big_tool_output(BIG)).sem)  # dtap.marker_not_inlined@1 (AU-RC-3)
     cited = {r.split("#", 1)[0] for doc in docs for a in doc.annotations for r in a["rule"]}
     cited |= {a["value"]["normaliser"] for doc in docs for a in doc.annotations if isinstance(a["value"], dict) and "normaliser" in a["value"]}
-    profile = load_semantics_profile("dtap.tools", 3)
+    profile = load_semantics_profile("dtap.tools", 4)
     cited.add(profile.taint_policy.rule)  # the policy is cited by the engine's taint assessments, not by an annotation
-    assert set(CITED_RULES) <= cited
+    assert set(CITED_RULES) | set(NOT_INLINED_RULES) <= cited
 
 
 # ------------------------------------------------------------------------------------------------ tool tables (D.16.9)
@@ -298,7 +359,7 @@ _EXPECTED = {
 
 
 def test_representative_tool_labels():
-    profile = load_semantics_profile("dtap.tools", 3)
+    profile = load_semantics_profile("dtap.tools", 4)
     for (name, server), (roles, integrity) in _EXPECTED.items():
         got = profile.tool_label(name, server)
         assert got[:2] == (roles, integrity), (server, name, got)
@@ -307,7 +368,7 @@ def test_representative_tool_labels():
 
 
 def test_unlabelled_tools_are_fail_closed():
-    profile = load_semantics_profile("dtap.tools", 3)
+    profile = load_semantics_profile("dtap.tools", 4)
     unknown = (("unknown",), "unknown")
     for name, server in (("search_threads", "claude_ai_Gmail"), ("browser_run_code", "playwright"),
                          ("Agent", "unknown"), ("Task", "unknown"), ("analyze_document", "terminal"),
@@ -321,14 +382,14 @@ def test_unknown_server_resolves_by_domain_or_stays_unknown():
     """D.16.9: a call logged with server "unknown" (a failed MCP call) takes the label of the one server of the run's
     domain whose inventory holds the name (dtap.unknown_server_domain_match@1, I, the domain a premise); a name no
     domain server holds stays unknown, and a listed harness built-in is looked up first."""
-    profile = load_semantics_profile("dtap.tools", 3)
+    profile = load_semantics_profile("dtap.tools", 4)
     rules = ("dtap.tool_table@1", "dtap.unknown_server_domain_match@1")
     assert profile.tool_label("request_other_test", "unknown", "medical") == (("write_sink", "content_source"), "untrusted", rules)
     assert profile.tool_label("shell", "unknown", "windows") == (("execute_sink",), "unknown", rules)
     assert profile.tool_label("shell", "unknown", "code")[0] == ("unknown",)  # the code domain configures no shell
     assert profile.tool_label("shell", "unknown", None)[0] == ("unknown",)
     assert profile.tool_label("Bash", "unknown", "code")[2] == ("dtap.tool_table@1",)
-    entry = load_catalogue("dtap", 3).get("dtap.unknown_server_domain_match@1")
+    entry = load_catalogue("dtap", 4).get("dtap.unknown_server_domain_match@1")
     assert entry is not None and entry.cls == "I" and entry.assumptions == ("dtap:UnknownServerIsFailedMcpCall",)
     m = support.modified("F01", _unknown_server)  # domain code: terminal is the domain's only server
     roles = [a for a in m.annotations("role") if a["rule"] == list(rules)]
@@ -352,6 +413,14 @@ def test_version_1_stays_on_the_archived_catalogue_and_version_2_differs_only_in
     assert dict(v3.rules) == {"dtap": 3} and v3.tables == v2.tables and dict(v3.classes) == dict(v2.classes)
     assert all((root / "dtap.tools-2" / n).read_bytes() == (root / "dtap.tools-3" / n).read_bytes()
                for n in DATA_FILES if n != "profile.toml")
+    v4 = load_semantics_profile("dtap.tools", 4)  # UC-40: version 3's tables on catalogue dtap 4
+    assert dict(v4.rules) == {"dtap": 4} and v4.tables == v3.tables
+    # AU-RC-3 (row 182): @4 also cites dtap.marker_not_inlined@1, which the archived catalogue 3 lacks
+    assert {r: c for r, c in v4.classes.items() if r != "dtap.marker_not_inlined@1"} == dict(v3.classes)
+    assert all((root / "dtap.tools-3" / n).read_bytes() == (root / "dtap.tools-4" / n).read_bytes()
+               for n in DATA_FILES if n != "profile.toml")
+    # the sealed corpus dtap-bench-w2c records dtap.tools@3 at this digest (derivation.json, sem stage)
+    assert v3.sha256.removeprefix("sha256:") == "6ec3ab1bce149aaf390c017d2a1132da7f0abf80b0271c1cf29f62528ab7a538"
 
 
 def test_item_54_applies_only_under_version_2():

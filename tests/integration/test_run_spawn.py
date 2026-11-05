@@ -183,7 +183,7 @@ def test_a_reported_digest_that_does_not_verify_is_a_capture_error_and_the_attem
 
 def test_a_secret_in_a_staged_file_quarantines_the_session(home: Path, tmp_path: Path, cli, script: str,
                                                            monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FAKE_PROVIDER_API_KEY", SENTINEL)  # a secret T0 holds (never passed to T2)
+    monkeypatch.setenv("OPENAI_API_KEY", SENTINEL)  # a registry key variable T0 holds (never passed to T2; UC-22)
     make_fake_env(home, "secret")
     run = _run(cli, tmp_path, script)
     assert run.code == 1
@@ -197,12 +197,24 @@ def test_a_secret_in_a_staged_file_quarantines_the_session(home: Path, tmp_path:
         assert SENTINEL not in surface
 
 
+def test_a_public_parent_variable_matching_the_name_pattern_never_quarantines(home: Path, tmp_path: Path, cli,
+                                                                               script: str,
+                                                                               monkeypatch: pytest.MonkeyPatch) -> None:
+    """UC-22: T0 scans for the keys it passed to T2, the key source's secret values and the registry's key variables,
+    not for every parent variable whose name matches the scrub pattern (public configuration such as an API version)."""
+    monkeypatch.setenv("OPENAI_API_VERSION", SENTINEL)  # public configuration that T0 never passes to T2
+    make_fake_env(home, "secret")
+    run = _run(cli, tmp_path, script)
+    assert run.json()["counters"].get("quarantined", 0) == 0
+    assert not [r for r in _register(tmp_path) if r["code"] == "capture.quarantined"]
+
+
 def test_a_secret_in_a_reported_file_the_directory_walk_skips_still_quarantines(
     home: Path, tmp_path: Path, cli, script: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """CC-2: T0 scans the bytes it stores. A reported ``._*`` file holds the key; the directory walk of the re-scan skips
     such names, but the collected bytes are scanned too, so the session is quarantined and nothing is stored."""
-    monkeypatch.setenv("FAKE_PROVIDER_API_KEY", SENTINEL)
+    monkeypatch.setenv("OPENAI_API_KEY", SENTINEL)
     make_fake_env(home, "junksecret")
     run = _run(cli, tmp_path, script)
     assert run.json()["counters"]["quarantined"] == 1
@@ -599,3 +611,108 @@ def test_a_drained_campaign_starts_no_new_attempt(home: Path, tmp_path: Path, cl
     drain.reset()
     again = _run(cli, tmp_path, script)
     assert again.json()["counters"].get("attempted") == 1, again.err
+
+
+def test_corpus_refusals_come_before_consent_and_the_paid_probe(home: Path, tmp_path: Path, cli, script: str,
+                                                                real_model) -> None:
+    """AU-RN-5: the refusals that need only the working corpus (a scripted/real mix, another configuration, an existing
+    final directory, a held writer lock, the G2 overlap) are made before consent and the preflight probe, so no paid
+    probe call is sent that no corpus would record."""
+    from agentprov.io.atomic import LockFile
+
+    make_fake_env(home, "ok")
+
+    def real(corpus: Path, *extra: str) -> Run:
+        return cli("run", "agentdojo", "--model", "deepseek", "--containment", "vm", "--corpus", str(corpus),
+                   "--campaign", "t", "--suite", "banking", "--i-consent-to-api-costs", *API_CAPS, "--progress", "off",
+                   *extra)
+
+    assert _run(cli, tmp_path, script).code in (0, 1)  # a scripted (test_only) working corpus
+    run = real(tmp_path / "corpus", "--allow-mixed-config")
+    assert run.code == 4 and "never share a corpus" in run.err, run.err
+    manifest = tmp_path / "corpus.partial" / "corpus.json"
+    doc = json.loads(manifest.read_text())
+    doc["live"]["test_only"] = False  # as if a real-model run of another configuration had written it
+    manifest.write_text(json.dumps(doc))
+    run = real(tmp_path / "corpus")
+    assert run.code == 4 and "another live configuration" in run.err, run.err
+    (tmp_path / "sealed").mkdir()
+    run = real(tmp_path / "sealed")
+    assert run.code != 0 and "final corpus directory already exists" in run.err, run.err
+    (tmp_path / "busy.partial").mkdir()
+    with LockFile(tmp_path / "busy.partial" / ".agentprov.lock", command="run"):
+        run = real(tmp_path / "busy")
+    assert run.code == 4 and "held by another writer" in run.err, run.err
+    run = real(home / "staging" / "corpus")
+    assert run.code == 4 and "(G2)" in run.err, run.err
+    assert real_model == []  # no consent asked, no probe sent
+
+
+def test_an_interrupt_during_ingestion_leaves_the_attempt_ledgered_and_the_resume_runs_nothing(
+        home: Path, tmp_path: Path, cli, script: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-RN-7: the first signal lands just after the session is stored, mapped and indexed (inside Campaign._ingest):
+    the run exits 130 with that execution in live.sessions too, and the resume starts no second attempt."""
+    import signal
+
+    from agentprov.adapters.runner import session as smod
+
+    make_fake_env(home, "ok")
+    real = smod.LiveSessionPipeline.ingest
+    fired: list[bool] = []
+
+    def ingest(self: Any, *a: Any, **k: Any) -> Any:
+        out = real(self, *a, **k)
+        if not fired:
+            fired.append(True)
+            signal.raise_signal(signal.SIGINT)  # the first Ctrl-C (a jobs stop takes the same handler)
+        return out
+
+    monkeypatch.setattr(smod.LiveSessionPipeline, "ingest", ingest)
+    assert _run(cli, tmp_path, script).code == 130
+    rows = (tmp_path / "corpus.partial" / "executions.jsonl").read_text().splitlines()
+    assert len(rows) == 1 and len(_manifest(tmp_path)["live"]["sessions"]) == 1
+    resumed = _run(cli, tmp_path, script)
+    assert resumed.code == 0 and resumed.json()["counters"]["attempted"] == 0, resumed.err
+    assert len((tmp_path / "corpus.partial" / "executions.jsonl").read_text().splitlines()) == 1
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", '"x"', "true"])
+def test_a_plan_s_backend_repeats_must_be_a_positive_integer(home: Path, tmp_path: Path, cli, script: str,
+                                                             monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    """AU-RN-10: a --plan file's [backend] repeats is checked as --repeats is (exit 2, no worker spawned): -1 planned
+    no unit and exited 0, "x" exited 70."""
+    from agentprov.cli import run as run_mod
+
+    make_fake_env(home, "ok")
+    spawned: list[str] = []
+    real = run_mod._hello_and_plan
+    monkeypatch.setattr(run_mod, "_hello_and_plan", lambda *a, **k: spawned.append("plan") or real(*a, **k))
+    plan = tmp_path / "plan.toml"
+    plan.write_text('[plan]\nformat = "agentprov-run-plan/0.1"\nsuites = ["banking"]\n\n[backend]\nrepeats = '
+                    + value + "\n")
+    run = cli("run", "agentdojo", "--corpus", str(tmp_path / "corpus"), "--campaign", "t", "--plan", str(plan),
+              "--llm-script", script, "--progress", "off")
+    assert run.code == 2 and "[backend] repeats must be an integer from 1" in run.err, run.err
+    assert spawned == [] and not (tmp_path / "corpus.partial").exists()
+
+
+def test_a_plan_s_backend_repeats_plans_that_many_units(home: Path, tmp_path: Path, cli, script: str,
+                                                         monkeypatch: pytest.MonkeyPatch) -> None:
+    import tomllib
+
+    from agentprov.cli import run as run_mod
+
+    make_fake_env(home, "ok")
+    real = run_mod._hello_and_plan
+
+    def echo(*a: Any, **k: Any) -> Any:  # the real worker echoes [backend] as backend_config (runner.expand_plan)
+        hello, plan = real(*a, **k)
+        plan["backend_config"] = dict(tomllib.loads(a[5]).get("backend") or {})
+        return hello, plan
+
+    monkeypatch.setattr(run_mod, "_hello_and_plan", echo)
+    plan = tmp_path / "plan.toml"
+    plan.write_text('[plan]\nformat = "agentprov-run-plan/0.1"\nsuites = ["banking"]\n\n[backend]\nrepeats = 2\n')
+    run = cli("run", "agentdojo", "--corpus", str(tmp_path / "corpus"), "--campaign", "t", "--plan", str(plan),
+              "--llm-script", script, "--dry-run", "--json", "--progress", "off")
+    assert run.code == 0 and run.json()["counters"]["cells_planned"] == 2, run.err

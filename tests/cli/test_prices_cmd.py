@@ -165,3 +165,77 @@ def test_fetch_openrouter_fetches_nothing_else() -> None:
     big = _Transport(_Response(b" " * (P.MAX_RESPONSE_BYTES + 1)))
     with pytest.raises(P.PriceError, match="16 MiB"):
         P.fetch_openrouter(big)
+
+
+# ---------------------------------------------------------------------------------------- D-1062: status, --if-stale
+def _price(as_of: dt.date) -> P.Price:
+    from decimal import Decimal
+
+    return P.Price("openrouter", "vendor/m", Decimal(1), Decimal(2), None, "s", as_of)
+
+
+def test_status_reports_the_newest_snapshot_in_utc(cli: Callable[..., Run], home: Path) -> None:
+    doc = json.loads(cli("prices", "status", "--format", "json").out)
+    assert doc["format"] == "agentprov-prices-status/0.1" and doc["openrouter_snapshot"] is None
+    assert doc["shipped"]["rows"] > 0 and doc["shipped"]["as_of"] and doc["overrides"] == 0
+    assert doc["auto_refresh"] is True and doc["refresh_due"] is True and doc["refresh_would_fetch"] is True
+    written = dt.datetime(2026, 11, 4, 21, 5, 9, 123, tzinfo=dt.UTC)
+    P.write_snapshot(P.prices_dir(home), [_price(dt.date(2026, 11, 4))], fetched=dt.date(2026, 11, 4),
+                     raw_sha256="0" * 64, written_at=written, via="network")
+    snap = json.loads(cli("prices", "status", "--format", "json").out)["openrouter_snapshot"]
+    assert snap == {"file": "openrouter-2026-11-04.json", "as_of": "2026-11-04", "rows": 1,
+                    "written_at": "2026-11-04T21:05:09Z", "written_at_from": "snapshot", "via": "network"}
+    run = cli("prices", "status")
+    text = run.out + run.err
+    assert "written 2026-11-04T21:05:09Z UTC" in text and "daily refresh (prices.auto_refresh): on" in text
+
+
+def test_status_of_a_snapshot_written_before_d1062_uses_the_file_time(cli: Callable[..., Run], home: Path) -> None:
+    P.write_snapshot(P.prices_dir(home), [_price(dt.date(2026, 10, 1))], fetched=dt.date(2026, 10, 1),
+                     raw_sha256="0" * 64)
+    snap = json.loads(cli("prices", "status", "--format", "json").out)["openrouter_snapshot"]
+    assert snap["written_at_from"] == "file-mtime" and snap["via"] is None and snap["written_at"].endswith("Z")
+
+
+def test_refresh_due_is_by_the_local_calendar_day(monkeypatch: pytest.MonkeyPatch) -> None:
+    import time
+
+    if not hasattr(time, "tzset"):
+        pytest.skip("time.tzset is POSIX only")
+    monkeypatch.setenv("TZ", "Pacific/Auckland")
+    time.tzset()
+    try:
+        # 2026-11-04 21:05 UTC is 2026-11-05 10:05 NZDT: done today in Auckland, though its UTC date is the day before
+        status = {"written_at": "2026-11-04T21:05:09Z"}
+        assert not P.refresh_due(status, dt.datetime(2026, 11, 5, 3, 0, tzinfo=dt.UTC))  # 16:00 NZDT, the same day
+        assert P.refresh_due(status, dt.datetime(2026, 11, 5, 11, 30, tzinfo=dt.UTC))  # 00:30 NZDT the next day
+        assert P.refresh_due(None) and P.refresh_due({"written_at": None}) and P.refresh_due({"written_at": "x"})
+    finally:
+        monkeypatch.delenv("TZ")
+        time.tzset()
+
+
+def test_refresh_if_stale_fetches_once_a_day_under_the_setting(cli: Callable[..., Run], home: Path,
+                                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    from agentprov import settings
+
+    fake = _Transport(_Response(_response(_model("vendor/new"))))
+    monkeypatch.setattr(prices_cmd, "transport", lambda: fake)
+    assert cli("prices", "refresh", "--if-stale").code == 4  # still needs --allow-network
+    settings.set("prices.auto_refresh", False, home=home)
+    off = cli("prices", "refresh", "--allow-network", "--if-stale")
+    assert off.code == 0 and "prices.auto_refresh is off" in off.err + off.out and not fake.calls
+    assert json.loads(cli("prices", "status", "--format", "json").out)["refresh_would_fetch"] is False
+    settings.unset("prices.auto_refresh", home=home)  # unset: on (the user's default, 2026-11-05)
+    first = cli("prices", "refresh", "--allow-network", "--if-stale")
+    assert first.code == 0, first.err
+    assert len(fake.calls) == 1
+    (snap,) = (home / "prices").glob("openrouter-*.json")
+    doc = json.loads(snap.read_text())
+    assert doc["via"] == "network" and doc["written_at"].endswith("Z")
+    again = cli("prices", "refresh", "--allow-network", "--if-stale")
+    assert again.code == 0 and "already refreshed today" in again.err + again.out and len(fake.calls) == 1
+    assert cli("prices", "refresh", "--allow-network").code == 0 and len(fake.calls) == 2  # by hand: always fetches
+    saved = home / "saved.json"
+    saved.write_bytes(_response(_model("vendor/saved")))
+    assert cli("prices", "refresh", "--from-file", str(saved), "--if-stale").code == 2

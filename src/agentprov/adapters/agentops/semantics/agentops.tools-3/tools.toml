@@ -1,0 +1,82 @@
+# Semantics profile agentops.tools@1: the tool table (docs/architecture D.18.8). Reviewed by hand.
+#
+# The ten tools of the instrumented tool server of the deposit's code snapshot (tools.py get_sample_tool_definitions and
+# InstrumentedToolServer._dispatch; read, never run). The reading of each tool rests on that code (not verified for the
+# runs, D-193) and on the observed arguments and results of the census (agentops.tool_table@1, class I). A name not
+# listed is fail-closed (agentops.unknown_tool@1): role ["unknown"], output integrity "unknown".
+#
+# Output integrity is never "trusted": no tool code is verified, and in the adversarial condition the server may append
+# a payload to any tool's output (the injection markers then say where). get_weather, get_stock_price and web_search
+# replay third-party content from fixtures (AGENTOPS_LIVE=0): "untrusted". The rest return the harness's own sandbox
+# state or computation: "unknown". `evidence` lists what the entry rests on, strongest first: `observed` = the logged
+# arguments and results in the runs; `code` = the snapshot's tool implementation.
+
+[[tool]]
+name = "calculate"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "evaluates an arithmetic expression (AST-restricted) and returns the number"
+
+[[tool]]
+name = "get_current_time"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "returns the harness host's clock"
+
+[[tool]]
+name = "get_stock_price"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "code"]
+reason = "replays third-party market data from a fixture"
+
+[[tool]]
+name = "get_weather"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "code"]
+reason = "replays third-party weather data from a fixture"
+
+[[tool]]
+name = "query_database"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "runs a read-only SQL query over the harness's seeded SQLite database"
+
+[[tool]]
+name = "read_file"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "reads a file of the run's temporary workdir"
+
+[[tool]]
+name = "run_python"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "runs Python code in a subprocess in the run's workdir"
+
+[[tool]]
+name = "send_email"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["code"]
+reason = "mocked send of an e-mail (offered in one task, never called in the pilot)"
+
+[[tool]]
+name = "web_search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "code"]
+reason = "replays third-party web search results from a fixture"
+
+[[tool]]
+name = "write_file"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed", "code"]
+reason = "writes a file in the run's workdir"

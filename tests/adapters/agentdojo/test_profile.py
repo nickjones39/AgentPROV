@@ -28,7 +28,7 @@ FAMILY = REPO / "src" / "agentprov" / "adapters" / "agentdojo"
 
 def test_profile_is_package_data_with_a_digest_and_no_status():
     profile = load_profile("agentdojo-upstream")
-    assert profile.version == 2 and len(profile.sha256) == 64 and profile.family == "agentdojo"  # D-31
+    assert profile.version == 3 and len(profile.sha256) == 64 and profile.family == "agentdojo"  # D-31; 3: D-1063
     assert profile.parts == ("head", "2024-06") and "status" not in profile.data
     imp = profile.data["import"]
     assert imp["dialect"] == imp["mapper"] == "agentdojo.tracelogger"
@@ -44,7 +44,7 @@ def test_pins_match_j41():
 
 def test_catalogue_pin_matches_the_shipped_catalogues():
     pinned = dict(load_profile("agentdojo-upstream").data["import"]["rules"])
-    assert pinned == {ns: load_catalogue(ns).version for ns in pinned} == {"aer": 1, "agentdojo": 2}
+    assert pinned == {ns: load_catalogue(ns).version for ns in pinned} == {"aer": 1, "agentdojo": 3}
 
 
 def test_family_part_conforms_to_the_closed_schema_both_checkers():

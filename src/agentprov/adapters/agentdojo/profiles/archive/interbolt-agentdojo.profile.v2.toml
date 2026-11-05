@@ -1,0 +1,188 @@
+# Source profile `interbolt-agentdojo`: deconvolute-labs/interbolt-agentdojo, 2,016 AgentDojo 0.1.35 TraceLogger logs of
+# gpt-4o-mini-2024-07-18 on the banking and travel suites, undefended and under the Interbolt provenance gate with three
+# policies, two repeats per configuration (phase 10d; docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md
+# row 12; sources/agentdojo-format-candidates.md §3.13; verify/agentdojo-format-candidates.md).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18). Version 2 adds the [withhold] table (D-456); version 1 ships under archive/ with the bytes the
+# pre-check scratch corpora recorded (D-31 owner ruling 2026-10-15). The `[family.agentdojo]` part is checked against the closed
+# schema `family.schema.json` of this family (D.4.1). The quirks' `observed` counts are the phase-10d census over the full
+# pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c census
+# (~/.agentprov/migration-work/phase10c/census/interbolt@43e2b5fa3e7b.*).
+#
+# The 1,879 tool messages of the strict and targeted arms whose error is "Blocked by security policy." are Interbolt
+# denials of a call before it ran: defence decisions, not executions (quirk agentdojo.defence_denial_message, routing R1,
+# D-113). Other errors of these arms are tool errors. Interbolt's own decision log (runs/published/**/interbolt_events.jsonl) is stored as a supporting artefact.
+
+[profile]
+id = "interbolt-agentdojo"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "interbolt-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "Interbolt on AgentDojo: AgentDojo 0.1.35 logs of a provenance tool-call gate (deconvolute-labs/interbolt-agentdojo)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §3.13", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/deconvolute-labs/interbolt-agentdojo"
+paper = "none found; blog post linked from the README (not a paper)"
+package = { name = "agentdojo", requirement = "agentdojo==0.1.35", lock = "uv.lock (PyPI registry)", version_identifies_code = false }
+
+# The pin covers the repository root, so that the harness, policies and decision logs (context artefacts) are vouched for
+# by the same pinned listing as the logs. 2,254 files (39,836,058 bytes): the 2,016 logs, 24 run manifests and the
+# jsonl run records under runs/published/, analysis notebooks and outputs, the harness under src/, the policies, README,
+# LICENSE, pyproject.toml and uv.lock.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875"
+date = "2026-08-19"
+expected_files = 2254
+expected_bytes = 39836058
+note = "the default branch at 2026-10-11 (phase 10c); 2,016 logs under runs/published/<suite>/<experiment>/repeat_<n>/"
+
+[licence]
+spdx = "Apache-2.0"
+holders = ["deconvolute-labs (repository owner; the LICENSE carries no copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "Apache-2.0 LICENSE at the pin and the README licence badge; the logs embed AgentDojo benchmark text (MIT)"
+attribution = ["deconvolute-labs/interbolt-agentdojo (Apache-2.0), commit 43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875",
+               "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs"]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo==0.1.35 (PyPI, locked in uv.lock; the installed code is not verified, D-24)", "Interbolt 0.2.0 (README)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs/published/*/*/repeat_*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "runs/published/{suite_dir}/{experiment}/{repeat}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 8
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the harness and its policies, the run
+# manifests and Interbolt's own per-run records (decision events, call records, outcomes), and the repository documents.
+context_artefacts = [
+  "LICENSE", "README.md", "pyproject.toml", "uv.lock", "src/interbolt_agentdojo/*.py", "policies/*.yaml",
+  "runs/published/results.csv", "runs/published/*/run_manifest.json", "runs/published/*/interbolt_events.jsonl",
+  "runs/published/*/call_records.jsonl", "runs/published/*/run_outcomes.jsonl", "runs/published/*/run_index.jsonl",
+]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/interbolt_pipeline_dirs.toml", sha256 = "237cf6ff172fd1155716bf08092d12d4544ebf4f62585632a082ae4977a8fa51" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", travel = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# agentdojo==0.1.35 is locked from the PyPI registry in uv.lock, which identifies a distribution, not code that was read;
+# the logs record only the distribution version string (package_version_not_code_identity)
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in all 2,016 logs: the text of the `default` key of system_messages.yaml at the
+# upstream head pin (the digest the agentdojo-upstream profile pins); recognised by digest only.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 312, origin_rule_applied = 312 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 96 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 3, logs = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 1997 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 12730, present_and_null = 12730 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# Routing R1 (D-113): Interbolt's denial text, exactly; the allow_all policy logs none. Other errors stay tool errors.
+params = { denials = [
+  { defences = ["interbolt-*"], error_equals = ["Blocked by security policy."] },
+] }
+observed = { head = { denials = 1879 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]
+
+# D-456 (pre-check PC-05; user decision 2026-10-15): 24 run_manifest.json context artefacts and artifact_manifest.md of the
+# pinned snapshot hold a third-party workstation account path (one named account, not the operator's; 0 of the 2,016
+# logs hold one). Such an object is withheld at seal with its digest kept in WITHHELD.json (object scope: the executions
+# that cite it as context stay released). The pattern names no account; it matches any macOS account home path.
+[withhold]
+reason = "personal_data"
+public_note = "a workstation account path of a third party (a named macOS home directory); withheld, digest kept"
+
+[[withhold.rules]]
+id = "macos-account-path"
+pattern = "/Users/[A-Za-z0-9._\\-]{1,64}/"
+scope = "object"

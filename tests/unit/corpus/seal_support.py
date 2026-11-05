@@ -5,6 +5,9 @@ licence-cleared fixtures; their text is never printed) into a working corpus onc
 T1 worker, with a test pin that vouches for every file; each test gets its own copy. :func:`inputs` builds the
 :class:`~agentprov.corpus.package.SealInputs` of a small test spec (``mini-agentdojo``) whose card and changes are
 written here; the decided statements are the committed ``corpora/datasheet-statements.toml``.
+
+A sealed tree is read-only (:mod:`agentprov.corpus.protect`): a test that edits one, as an attacker or a damaged disk
+would, first calls :func:`writable` on it. That lifts the protection only; every check the test then makes is unchanged.
 """
 
 from __future__ import annotations
@@ -37,7 +40,7 @@ mode = "import"
 
 [[sources]]
 source_id = "agentdojo"
-profile = "agentdojo-upstream@2"
+profile = "agentdojo-upstream@3"
 parts = ["2024-06"]
 
 [[sources.snapshots]]
@@ -47,7 +50,7 @@ alt_origins = []
 raw_policy = "include"
 
 [derive]
-sem_profiles = ["agentdojo.suites@2"]
+sem_profiles = ["agentdojo.suites@4"]
 prov_specs = ["agentprov-prov/0.1"]
 views = []
 options = {{ context_encoding = "members" }}
@@ -117,7 +120,7 @@ def source_profile() -> bytes:
 def semantics_files() -> dict[str, bytes]:
     from importlib import resources
 
-    node = resources.files("agentprov").joinpath("adapters", "agentdojo", "semantics", "agentdojo.suites-2")
+    node = resources.files("agentprov").joinpath("adapters", "agentdojo", "semantics", "agentdojo.suites-4")
     return {child.name: child.read_bytes() for child in sorted(node.iterdir(), key=lambda c: c.name) if child.is_file()}
 
 
@@ -131,7 +134,7 @@ def inputs(**changes: Any) -> SealInputs:
         changes=CHANGES.encode(),
         statements=load_statements((REPO / "corpora" / "datasheet-statements.toml").read_bytes()),
         source_profile=source_profile(),
-        semantics_profiles={"agentdojo.suites@2": semantics_files()},
+        semantics_profiles={"agentdojo.suites@4": semantics_files()},
         licence_files={"LICENSE": LicenceFile(b"test licence text\n", "supplied at sealing (test)")},
         producer=ProducerFacts(git_commit=COMMIT, git_tree_clean=True, distributions_sha256="sha256:" + "0" * 64,
                                zlib_version="1.2.12"),
@@ -143,6 +146,15 @@ def inputs(**changes: Any) -> SealInputs:
 
 def tree_bytes(root: Path) -> dict[str, bytes]:
     return support.tree_bytes(root)
+
+
+def writable(root: Path) -> Path:
+    """Lift the read-only protection of the sealed tree ``root`` before a test edits it (the owner's write bit on every
+    directory and every file but the raw objects, which stay ``0444`` as stored); returns ``root``."""
+    from agentprov.corpus.protect import lift
+
+    lift(root)
+    return root
 
 
 def committed_spec(corpus_id: str) -> dict[str, Any]:

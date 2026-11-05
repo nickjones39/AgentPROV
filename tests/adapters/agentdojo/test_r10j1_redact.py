@@ -34,8 +34,8 @@ note = "test variant: a munged cluster home path"
 
 def _profile():
     text = PROFILE_PATH.read_text(encoding="utf-8")
-    assert "rules = { aer = 1, agentdojo = 2 }" in text
-    text = text.replace("rules = { aer = 1, agentdojo = 2 }", "rules = { aer = 1, agentdojo = 2, rescont = 1 }") + RULE_TABLE
+    assert "rules = { aer = 1, agentdojo = 3 }" in text
+    text = text.replace("rules = { aer = 1, agentdojo = 3 }", "rules = { aer = 1, agentdojo = 3, rescont = 1 }") + RULE_TABLE
     return parse_profile(text.encode("utf-8"), source="test-variant")
 
 

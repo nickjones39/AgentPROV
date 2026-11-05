@@ -83,13 +83,17 @@ def import_hooks() -> Any:
     return hooks()
 
 
-def _pin_listing(ctx: Context, args: argparse.Namespace, manifest: Mapping[str, Any] | None) -> Any:
-    """``(repo, commit) -> {path: blob id} | None`` from the fetch cache (the network only with ``--allow-network``)."""
+def _pin_listing(ctx: Context, args: argparse.Namespace, manifest: Mapping[str, Any] | None, root: Path) -> Any:
+    """``(repo, commit) -> {path: blob id} | None`` from the fetch cache (the network only with ``--allow-network``).
+    The cache passes fetch's guard first (AU-CLIA-10): a fetch writes it, and verify never writes the corpus at
+    ``root``, so a cache inside a sealed corpus (G1) or overlapping this one (G2) is refused (exit 4)."""
     from agentprov.adapters.profiles import load_profile
+    from agentprov.cli.fetch import guard_cache
     from agentprov.raw.fetch import Fetcher, Recipe, resolve_cache_dir
 
-    fetcher = Fetcher(resolve_cache_dir(args.cache_dir, ctx.env), allow_network=bool(args.allow_network),
-                      consent="--allow-network", env=ctx.env)
+    cache = resolve_cache_dir(args.cache_dir, ctx.env)
+    guard_cache(cache, str(root))
+    fetcher = Fetcher(cache, allow_network=bool(args.allow_network), consent="--allow-network", env=ctx.env)
     pins: list[tuple[dict[str, Any], str | None]] = []
     for source in (manifest or {}).get("sources") or ():
         profile = source.get("profile") if isinstance(source, Mapping) else None
@@ -174,20 +178,25 @@ def _tree(ctx: Context, args: argparse.Namespace) -> CommandResult:
     reader = CorpusReader.open(args.corpus)
     if args.in_process and args.release:
         raise CliUsageError("agentprov verify: --in-process is refused with --release (G.4.9)")
-    listing = _pin_listing(ctx, args, reader.manifest()) if args.against_pins else None
+    listing = _pin_listing(ctx, args, reader.manifest(), reader.root) if args.against_pins else None
     from agentprov.cli.checks import finish_validation_cache, validation_cache
 
-    cache = validation_cache(ctx, audit=bool(args.release)) if level == "rederive" else None
+    cache_notices: list[str] = []
+    cache = validation_cache(ctx, audit=bool(args.release), notices=cache_notices) if level == "rederive" else None
+    from agentprov.raw.store import transient_stores
+
     try:
-        report = verify_corpus(
-            level=level, reader=reader, jobs=args.jobs, sample=args.sample, seed=args.seed, release=bool(args.release),
-            root_digests=tuple(args.root_digest), against_pins=bool(args.against_pins), pin_listing=listing,
-            import_hooks=import_hooks() if level == "rederive" else None, in_process=bool(args.in_process),
-            progress=ctx.progress, validation_cache=cache,
-        )  # fmt: skip
+        with transient_stores():  # D-1068 P7: verify writes only private trees it removes (rederive), never a corpus
+            report = verify_corpus(
+                level=level, reader=reader, jobs=args.jobs, sample=args.sample, seed=args.seed, release=bool(args.release),
+                root_digests=tuple(args.root_digest), against_pins=bool(args.against_pins), pin_listing=listing,
+                import_hooks=import_hooks() if level == "rederive" else None, in_process=bool(args.in_process),
+                progress=ctx.progress, validation_cache=cache,
+            )  # fmt: skip
     except VerifyUsageError as exc:
         raise CliUsageError(f"agentprov verify: {exc}") from None
     result = CommandResult()
+    result.notices.extend(cache_notices)
     finish_validation_cache(result, cache)
     result.corpus = {"content_digest": report.content_digest, "corpus_id": report.corpus_id or "",
                      "root": redact_personal(str(reader.root)), "state": reader.state}

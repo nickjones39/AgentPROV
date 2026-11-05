@@ -17,7 +17,10 @@ with this interpreter. Nothing else can be started.
 
 **Stop** (§4.5): one ``SIGTERM`` to the job's CLI (it flushes, seals aborted live sessions and exits 130). **Kill**:
 ``SIGKILL`` to every process group of the job's tree, after the identity check. **Drain** (D-394): ``control.json``,
-only for a job started with ``--control-file``. A job never holds or deletes a corpus lock.
+only for a job started with ``--control-file``. **Cancel** (D-1061): the ``abandoned.json`` mark, then the graceful
+stop of a running job (only the mark when ``stop.json`` says its SIGTERM was already sent: a second SIGTERM is the
+CLI's hard abort); ``resume`` refuses a cancelled job. A job never holds or deletes a corpus lock, and cancelling
+deletes nothing (its working corpus stays).
 """
 
 from __future__ import annotations
@@ -32,18 +35,29 @@ import sys
 import time
 import tomllib
 import uuid
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final
 
 from agentprov.errors import AgentProvError
 from agentprov.io.replace_retry import REPLACE_RETRIES
-from agentprov.jobs.record import JOB_FORMAT, Job, jobs_dir, list_jobs, load_job, read_json, same_cli, same_supervisor
+from agentprov.jobs.record import (
+    ABANDONED,
+    ABANDONED_FORMAT,
+    JOB_FORMAT,
+    Job,
+    jobs_dir,
+    list_jobs,
+    load_job,
+    read_json,
+    same_cli,
+    same_supervisor,
+)
 from agentprov.jobs.tiers import REPO_COMMANDS, split_index, tier_of_argv
 
 __all__ = ["ENV_ALLOWLIST", "JobManager", "JobRequest", "SpawnRefused", "allowlisted_env", "atomic_write_json",
-           "checkout_root", "new_job_id", "on_windows", "queue_available", "resolve_tool"]
+           "check_queue_platform", "checkout_root", "new_job_id", "on_windows", "queue_available", "resolve_tool"]
 
 ENV_ALLOWLIST: Final = ("PATH", "HOME", "LANG", "TZ", "AGENTPROV_HOME", "AGENTPROV_UPSTREAM_CACHE",
                         "AGENTPROV_BASELINE_CORPUS", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot", "TMPDIR",
@@ -79,12 +93,24 @@ def queue_available(root: Path | None) -> bool:
     return not on_windows() and root is not None and (root / "tools" / "suite_queue.py").is_file()
 
 
+def check_queue_platform() -> None:
+    """D-1064: ``--queue-cpu`` on Windows is refused (exit 4, ``platform.unsupported``) with the platform table's
+    reason, before anything is written. Windows is :func:`on_windows` or the table's own host test."""
+    from agentprov.platforms import UNSUPPORTED_CODE, unavailable
+
+    hit = unavailable("job_queue", system="Windows" if on_windows() else None)
+    if hit is not None:
+        raise SpawnRefused(hit.message(), UNSUPPORTED_CODE)
+
+
 def new_job_id() -> str:
     """A UUIDv7 (time-ordered) as the job id."""
     return str(uuid.uuid7())
 
 
 _REPLACE_RETRIES: Final = REPLACE_RETRIES
+#: Written by :meth:`JobManager.stop` before its SIGTERM, so a later cancel does not send a second one (AU-NC-101).
+_STOP_SENT: Final = "stop.json"
 #: How long :meth:`JobManager.spawn` waits for another process's spawn to record its job.
 SPAWN_LOCK_WAIT_S: Final = 10.0
 
@@ -251,9 +277,7 @@ class JobManager:
         """The program, the subcommand words, the job's global options and the rest (GUI design Appendix A)."""
         prefix: list[str] = []
         if req.queue_cpu is not None:
-            if on_windows():
-                raise SpawnRefused("--queue-cpu: the machine-wide job queue (tools/suite_queue.py) runs on macOS and "
-                                   "Linux only", "jobs.queue.unavailable")
+            check_queue_platform()
             if self.root is None or not queue_available(self.root):
                 raise SpawnRefused("--queue-cpu needs tools/suite_queue.py of a repository checkout",
                                    "jobs.queue.unavailable")
@@ -406,6 +430,8 @@ class JobManager:
             return True
         if on_windows() or job.pid is None or not same_cli(job):
             return False
+        atomic_write_json(job.file(_STOP_SENT), {"signal": "SIGTERM",
+                                                 "sent": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
         os.kill(job.pid, signal.SIGTERM)
         return True
 
@@ -450,8 +476,27 @@ class JobManager:
                                                      "nonce": os.urandom(8).hex()})
         return True
 
+    def cancel(self, job: Job) -> bool:
+        """D-1061: mark ``job`` cancelled (``abandoned.json``, kept when it is already there), then, while it runs, the
+        graceful :meth:`stop`. Whether that stop was sent (``True`` for a job that no longer runs). Nothing is deleted.
+
+        A job that was already sent its SIGTERM (``jobs stop``) is only marked: the CLI takes a second SIGTERM as the
+        hard abort (``os._exit(130)``), which would cut short the teardown the first one started (AU-NC-101). A second
+        control-file ``stop`` is harmless (the watcher ignores it), so that path is sent again."""
+        if not job.abandoned:
+            atomic_write_json(job.file(ABANDONED), {"format": ABANDONED_FORMAT, "job_id": job.job_id, "state": job.state,
+                                                    "cancelled": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+            job.abandoned = True
+        if job.state != "running" or job.file(_STOP_SENT).exists():
+            return True
+        return self.stop(job)
+
     def resume(self, job: Job) -> Job:
-        """Start ``job``'s request again (the CLI's own resume rules decide what is redone)."""
+        """Start ``job``'s request again (the CLI's own resume rules decide what is redone). A cancelled job is refused
+        (D-1061)."""
+        if job.abandoned:
+            raise SpawnRefused("the job was cancelled (agentprov jobs cancel), so it is not resumed; to run the command "
+                               "again, start it as a new job (agentprov jobs start)", "jobs.resume.cancelled")
         return self.spawn(JobRequest.from_record(job.record))
 
     def prune_candidates(self, keep: int = 200, max_age_days: int = 90) -> list[Job]:
@@ -462,14 +507,31 @@ class JobManager:
         return sorted({j.job_id: j for j in [*ended[keep:], *old]}.values(), key=lambda j: j.job_id)
 
     def delete(self, jobs: Iterable[Job]) -> int:
-        """Delete ended job directories (only directly under the jobs directory). Returns how many."""
+        """Delete ended job directories (only directly under the jobs directory). Returns how many are gone: a job with
+        a file that cannot be removed (held open by another process on Windows) keeps its ``job.json``, so it stays
+        listed and a later prune deletes it."""
         n = 0
         for job in jobs:
             if job.state == "running" or job.directory.parent != self.jobs_dir or job.directory.is_symlink():
                 continue
-            shutil.rmtree(job.directory, ignore_errors=True)
-            n += 1
+            n += _delete_job_directory(job.directory)
         return n
+
+
+def _delete_job_directory(directory: Path) -> bool:
+    """Removes ``directory`` with its ``job.json`` last, and only once everything else is gone; whether it is gone."""
+    record = directory / "job.json"
+    with contextlib.suppress(OSError):
+        for entry in [p for p in directory.iterdir() if p != record]:
+            if entry.is_dir() and not entry.is_symlink():
+                shutil.rmtree(entry, ignore_errors=True)
+            else:
+                with contextlib.suppress(OSError):
+                    entry.unlink()
+        if not any(p != record for p in directory.iterdir()):
+            record.unlink(missing_ok=True)
+            directory.rmdir()
+    return not os.path.lexists(directory)
 
 
 def _mtime(job: Job) -> float:
@@ -487,7 +549,3 @@ def find(home: Path, job_id: str) -> Job | None:
         return exact[0]
     hits = [j for j in jobs if len(job_id) >= 8 and j.job_id.startswith(job_id)]
     return hits[0] if len(hits) == 1 else None
-
-
-def words_of(argv: Sequence[str]) -> str:
-    return " ".join(argv[: split_index(argv)])

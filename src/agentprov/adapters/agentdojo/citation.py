@@ -32,6 +32,13 @@ INDEPENDENT: Final = frozenset({
     # regeneration-batch items 8, 6 and 4: the strict YAML reading, a payload's longest run in the output, and a logged
     # success with no payload visible in any message part: text computations over the AER, like the normalisers
     "agentdojo.yaml_norm@2", "agentdojo.partial_payload@1", "agentdojo.success_without_visible_payload@1",
+    # D-1063 (review UC-41): a string over 1 MiB replaced by its digest, a transformation by AgentPROV (the D-934 pattern)
+    "agentdojo.content_not_inlined@1",
+    # D-1063 (finding AU-RA-1): the capture rules that read the capture/0.1 record itself, which AgentPROV's own writer
+    # made (C.13), never the harness's code: the session's status and fatal errors, a log with no pass, the redaction
+    # listing, the instrumentation items, the backend identity, and a discarded reply decoded from its response blob
+    "agentdojo.capture_status@1", "agentdojo.capture_no_pass@1", "agentdojo.capture_withheld@1",
+    "agentdojo.capture_instrumentation@1", "agentdojo.capture_backend_identity@1", "agentdojo.capture_discarded_reply@1",
 })
 
 

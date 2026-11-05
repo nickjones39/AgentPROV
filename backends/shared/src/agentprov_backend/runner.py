@@ -862,6 +862,19 @@ def _common_tail(agent: AgentConfig, backend_config: Mapping[str, Any]) -> list[
     return items
 
 
+def _anthropic_sent(params: Mapping[str, Any], built: BuiltLLM | None) -> tuple[Any, Any]:
+    """``(temperature, max_tokens)`` the stock ``AnthropicLLM`` sends: read from the built element when there is one,
+    else by the stock constructor's rule (``anthropic_llm.py``: a thinking budget forces ``temperature = 1`` and adds
+    itself to ``max_tokens``)."""
+    element = built.element if built is not None else None
+    if element is not None and hasattr(element, "_MAX_TOKENS"):
+        return getattr(element, "temperature", None), element._MAX_TOKENS
+    budget = params.get("thinking_budget_tokens")
+    if budget is not None:
+        return 1, (params.get("max_tokens") or 0) + budget
+    return params.get("temperature"), params.get("max_tokens")
+
+
 def _anthropic_items(agent: AgentConfig, built: BuiltLLM | None,
                      backend_config: Mapping[str, Any]) -> list[dict[str, Any]]:
     """The D.10.7 items of a provider-``anthropic`` session (D-656): the declared port of the stock ``AnthropicLLM`` on
@@ -875,6 +888,13 @@ def _anthropic_items(agent: AgentConfig, built: BuiltLLM | None,
     except ImportError:  # the element could not be built; the session records the setup error
         sdk_version, http_module = "unavailable", "unavailable"
     params = agent.params
+    budget = params.get("thinking_budget_tokens")
+    sent_temperature, sent_max_tokens = _anthropic_sent(params, built)
+    max_tokens_params: dict[str, Any] = {"max_tokens": params.get("max_tokens"), "mode": params.get("max_tokens_mode"),
+                                         "stock_default": ANTHROPIC_STOCK_MAX_TOKENS}
+    if budget is not None:  # UC-21: the stock element adds the budget to max_tokens and forces temperature 1
+        max_tokens_params["thinking_budget_tokens"] = budget
+        max_tokens_params["sent"] = {"max_tokens": sent_max_tokens, "temperature": sent_temperature}
     items = [
         _item("agentdojo.pass_recorder_wrap@1", "behaviour_preserving"),
         _item("agentdojo.executor_mirror@1", "behaviour_preserving"),
@@ -892,13 +912,12 @@ def _anthropic_items(agent: AgentConfig, built: BuiltLLM | None,
                       "change": "temperature sent through extra_body when set (the SDK has no temperature parameter)"},
               detail="the stock element raises TypeError on anthropic 1.x; the port sends the same request object "
                      "(member order may differ) and is otherwise the stock code, checked by AST (D-656)"),
-        _item("agentdojo.anthropic_max_tokens@1", "harness_policy",
-              params={"max_tokens": params.get("max_tokens"), "mode": params.get("max_tokens_mode"),
-                      "stock_default": ANTHROPIC_STOCK_MAX_TOKENS},
+        _item("agentdojo.anthropic_max_tokens@1", "harness_policy", params=max_tokens_params,
               detail="the run states max_tokens (explicit) or takes the harness default; AgentDojo's own default is "
-                     "not used (D-656)"),
+                     "not used (D-656)" + ("; with a thinking budget the stock element sends max_tokens plus the "
+                                          "budget and temperature 1 (sent)" if budget is not None else "")),
     ]
-    if params.get("temperature") is None:
+    if sent_temperature is None:
         items.append(_item("agentdojo.temperature_not_transmitted@1", "harness_policy",
                            params={"configured": None},
                            detail="agentdojo 0.1.35 AnthropicLLM sends temperature unless it is None; the harness "

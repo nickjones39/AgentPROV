@@ -81,6 +81,28 @@ in `schemas/`. The copies are a record only: `verify` and `recompute` load catal
 Sealing is deterministic: two seals of the same working tree with the same inputs give the same digests.
 `--release-date` fixes the release date (otherwise `SOURCE_DATE_EPOCH`, otherwise none).
 
+### A sealed corpus is read-only
+
+The last step of a seal removes write permission from every file and folder in `corpora/demo/` (on Windows, every
+file gets the read-only attribute). A sealed corpus never changes, and this makes that hold on disk as well. Without it
+the operating system writes into the tree: macOS Finder creates a `.DS_Store` file in every folder it opens, and a
+single one makes `agentprov verify --level chain` fail with `corpus.tree.stray`, because the tree is no longer the one
+`checksums.sha256` lists. Permissions are not part of any digest, so they change neither digest.
+
+Reading, verifying, deriving and depositing need no write permission. `derive --out` and `recompute --out` write a new,
+writable tree; its raw objects stay read-only, as raw objects always are. Corpora sealed before AgentPROV 0.2.0 are not
+read-only; a `corpus.tree.stray` finding names the cleanup, for example `find DIR -name .DS_Store -delete`.
+
+To change a sealed corpus's folder deliberately, for example to delete it or move it to another folder (macOS refuses
+to move a read-only folder to a new parent, the Trash included), give the write permission back first:
+
+```text
+$ chmod -R u+w corpora/demo
+$ rm -rf corpora/demo
+```
+
+Anything you change inside a sealed corpus makes `verify` fail. To correct a corpus, build a new version instead.
+
 ### The two digests
 
 - The **content digest** covers the corpus's contents.
@@ -481,4 +503,5 @@ version, and seal again. `--reason` is `secret` or `personal_data`.
 | `[package.refused.git]` (exit 4) | commit or stash your changes; `package` records a clean producer commit |
 | `[release.refused.scan_missing]` (exit 4) | run `tools/release_scan.py` on the sealed corpus and triage every finding |
 | `[corpus.sealed]` (exit 4) | sealed corpora are never modified; work on a new version |
+| `[package.refused.derived]` (exit 4) | the corpus was written by `derive --out` or `recompute --out` from a sealed corpus (or from a corpus derived from one); it stays a working corpus for comparison, and a new version is made by re-importing the source |
 | `[cli.refused.unconfirmed]` (exit 4) | `purge` needs `--yes` when it cannot ask |

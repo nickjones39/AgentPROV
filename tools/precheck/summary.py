@@ -54,7 +54,8 @@ def l1_09(corpus: str) -> dict[str, Any]:
 
 
 def code_idents(corpus: str) -> dict[str, Any]:
-    """Per part: the commit and the stage code digests of the Level-2 import (``code-<part>.json``, code_ident.py)."""
+    """Per part (``code-<part>.json``, code_ident.py): the commit the Level-2 check last ran at (not necessarily the
+    scratch import's) and the scratch import's stage code digests."""
     out = {}
     for path in sorted((PRE / "data" / corpus).glob("code-*.json")):
         d = _load(path)
@@ -135,9 +136,11 @@ def render(summary: Mapping[str, Any]) -> str:
         lines.append(f"| {dossier} | {r['wave'] or '—'} | {r['status']} | {parts} | {cls} | {sev} | {f.get('refuted', '—')} | "
                      f"{len(r['outcome_gap_flags'])} | {meta} | {r['readiness'] or 'pending'} |")  # fmt: skip
     lines += ["", "## Code identity per part (Level 2)", "",
-              "The commit each part's scratch import ran at, and the stage code digests (``code-<part>.json``). Parts with",
-              "equal stage digests ran the same mapping, SEM, PROV and validation code even where the commit differs (docs",
-              "or tool commits only).", "", "| Corpus | Part | Commit | aer | sem | prov | validation |", "|---|---|---|---|---|---|---|"]  # fmt: skip
+              "The commit each part's Level-2 check (`l2_check.py`) last ran at, and the stage code digests of the part's",
+              "scratch import (``code-<part>.json``). A check re-run on a kept import records its own commit, not the",
+              "import's. Parts with equal stage digests ran the same mapping, SEM, PROV and validation code even where the",
+              "commit differs (docs or tool commits only).", "",
+              "| Corpus | Part | Check commit | aer | sem | prov | validation |", "|---|---|---|---|---|---|---|"]  # fmt: skip
     for r in summary["rows"]:
         for part, c in r["code"].items():
             st = c["stages"]

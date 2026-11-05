@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -41,6 +42,33 @@ SENTINEL = "<Data omitted because a prompt injection was detected>"
 V1_KEYS = frozenset({"suite_name", "pipeline_name", "user_task_id", "injection_task_id", "attack_type", "injections", "messages",
                      "error", "utility", "security", "duration", "evaluation_timestamp", "benchmark_version",
                      "agentdojo_package_version"})
+
+
+def unsafe_tree_path(path: str) -> bool:
+    """True for an upstream tree path that is not a plain relative path: it is a label, never trusted as a path (an
+    absolute path, an empty, ``.``, ``..`` or ``.git`` component, a backslash or a NUL)."""
+    parts = path.split("/")
+    return (not path or "\\" in path or "\0" in path or path.startswith("/")
+            or any(part in ("", ".", "..") or part.lower() == ".git" for part in parts))
+
+
+def write_fixture(root: Path, path: str, data: bytes) -> None:
+    """Write ``data`` to ``root/path``: a plain relative path only, never through a symlink, and only inside ``root``."""
+    if unsafe_tree_path(path):
+        raise SystemExit("refused: an upstream tree path is not a plain relative path")
+    base = root.resolve()
+    target = base.joinpath(*path.split("/"))
+    if not target.resolve().is_relative_to(base):
+        raise SystemExit("refused: an upstream tree path resolves outside the fixture directory")
+    current = base
+    for part in path.split("/")[:-1]:
+        current = current / part
+        if current.is_symlink():
+            raise SystemExit("refused: a symlink inside the fixture directory")
+        current.mkdir(exist_ok=True)
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(data)
 
 
 def _criteria(doc: dict[str, Any], label: str, denials: tuple[str, ...]) -> set[str]:
@@ -91,6 +119,10 @@ def build(profile_id: str, cache: Path, name: str, licence: str, licence_file: s
     exclude = tuple(e["glob"] for e in profile.data["import"].get("exclude", ()))
     entries, _ = fetcher.git_tree(recipe)
     logs = [e for e in entries if e.is_blob and any(_match(e.path, g) for g in include) and not any(_match(e.path, g) for g in exclude)]
+    unsafe = sum(unsafe_tree_path(e.path) for e in logs)
+    if unsafe:  # upstream tree paths are labels: one that is not a plain relative path refuses the build before any write
+        raise SystemExit(f"refused: {unsafe} selected tree path(s) are not plain relative paths (absolute, '..', '.', "
+                         "empty or .git components, backslash or NUL)")
     best: dict[str, tuple[int, str, Any, bytes]] = {}
     secret_like = 0
     for blob in fetcher.iter_git_blobs(recipe, logs):
@@ -136,9 +168,8 @@ def build(profile_id: str, cache: Path, name: str, licence: str, licence_file: s
             "synthetic": False, "criteria": [],
         })
         row["criteria"].append(key)
-        target = root / path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+        root.mkdir(parents=True, exist_ok=True)
+        write_fixture(root, path, data)
     rows = sorted(chosen.values(), key=lambda r: r["sample_file"])
     (root / "SOURCE.json").write_text(json.dumps(rows, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lic = next(e for e in entries if e.path == licence)

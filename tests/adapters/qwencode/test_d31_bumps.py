@@ -5,6 +5,9 @@ Scratch trial corpora recorded main's bytes at 93c02c6f (before regen items 120-
 version 2 and its version 1 ships byte for byte: ``rules/archive/qwencode.rules.v1.toml``,
 ``profiles/archive/redcode-exec-qwencode.profile.v1.toml`` and the directory ``semantics/qwencode.tools-1/`` (unchanged,
 still on the catalogue version 1). ``qwencode.tools@2`` carries item 127 and declares the catalogue version 2.
+D-1063 (review UC-40/UC-41): catalogue, profile and semantics are at version 3; version 2 of the catalogue and the
+profile, which the sealed corpus redcode-exec-qwencode-w2 records, ships byte for byte under ``archive/``, and
+``qwencode.tools@3`` is ``@2``'s tables on the catalogue version 3.
 """
 
 from __future__ import annotations
@@ -24,8 +27,10 @@ PACKAGE = "agentprov.adapters.qwencode"
 #: The sha256 of the bytes the scratch trials recorded (git show 93c02c6f:<path>).
 RECORDED_CATALOGUE = "db5c7cd7533ab0347260cb961344ad05504347a52bc2f87abeb8bb55dafc6cce"
 RECORDED_PROFILE = "40e8732e01e71644af7f2fa933e79594bad722b2fd1e66ab53bbdda9c9c12927"
-#: The sha256 of profile version 2 as it lands (with D-602's [withhold], the D-578 amendment); a change needs a ruling
-CURRENT_PROFILE = "cd8895111ad7b139c5ea23139d19f03e6c92a1e9b4729a9e7ad770c21eb31b05"
+#: The sha256 of catalogue and profile version 2, which the sealed corpus redcode-exec-qwencode-w2 records
+#: (derivation.json); archived byte-exact when D-1063 (review UC-40/UC-41) bumped both to version 3.
+SEALED_CATALOGUE = "0366477b79d4c24507d47bc9b7da0e51f53cbbf72d92d3fbfcdb082d14873f2b"
+SEALED_PROFILE = "cd8895111ad7b139c5ea23139d19f03e6c92a1e9b4729a9e7ad770c21eb31b05"
 #: The profile digest (agentprov.sem.profiles.profile_digest) of semantics/qwencode.tools-1/ at 93c02c6f.
 TOOLS_1 = "34eb0b7958840fcc84f810b9077d0112e764ce78ad34f1cff39d69750be971d5"
 
@@ -34,19 +39,35 @@ def _bytes(*parts: str) -> bytes:
     return resources.files("agentprov").joinpath("adapters", "qwencode", *parts).read_bytes()
 
 
-def test_the_catalogue_is_at_version_2_and_ships_its_recorded_version_1():
-    assert load_catalogue("qwencode").version == 2 and load_catalogue("qwencode", 2).version == 2
+def test_the_catalogue_is_at_version_3_and_ships_its_recorded_versions_1_and_2():
+    assert load_catalogue("qwencode").version == 3 and load_catalogue("qwencode", 2).version == 2
     archived = load_catalogue("qwencode", 1)
     assert archived.version == 1 and archived.digest == RECORDED_CATALOGUE
     assert hashlib.sha256(_bytes("rules", "archive", "qwencode.rules.v1.toml")).hexdigest() == RECORDED_CATALOGUE
+    assert load_catalogue("qwencode", 2).digest == SEALED_CATALOGUE
+    assert hashlib.sha256(_bytes("rules", "archive", "qwencode.rules.v2.toml")).hexdigest() == SEALED_CATALOGUE
 
 
-def test_the_profile_is_at_version_2_and_ships_its_recorded_version_1():
+def test_version_3_keeps_every_version_2_rule_and_adds_the_d1063_rules():
+    v2, v3 = load_catalogue("qwencode", 2), load_catalogue("qwencode")
+    # row 182 (AU-RC-5): result_status@2 and no_result_message_unverified@1 join the unreleased version 3, and
+    # result_status@1 is superseded there (version 2, which the sealed corpus records, keeps it active)
+    assert set(v3.rules) - set(v2.rules) == {"qwencode.lone_surrogate_replaced@1", "qwencode.content_not_inlined@1",
+                                             "qwencode.result_status@2", "qwencode.no_result_message_unverified@1"}
+    assert all(v3.rules[rid] == rule for rid, rule in v2.rules.items() if rid != "qwencode.result_status@1")
+    old = v2.rules["qwencode.result_status@1"]
+    assert old.status == "active" and v3.rules["qwencode.result_status@1"].status == "superseded"
+    assert v3.issue_codes - v2.issue_codes == {"lone_surrogate_replaced", "content_not_inlined"}
+
+
+def test_the_profile_is_at_version_3_and_ships_its_recorded_versions_1_and_2():
     current = load_profile(support.PROFILE)
-    assert current.version == 2 and load_profile(support.PROFILE, 2).version == 2
-    assert hashlib.sha256(_bytes("profiles", f"{support.PROFILE}.profile.toml")).hexdigest() == CURRENT_PROFILE
-    assert current.data["import"]["rules"] == {"aer": 1, "qwencode": 2}
-    assert current.family_table()["semantics_profile"] == {"id": "qwencode.tools", "version": 2}
+    assert current.version == 3 and load_profile(support.PROFILE, 2).version == 2
+    assert current.data["import"]["rules"] == {"aer": 1, "qwencode": 3}
+    assert current.family_table()["semantics_profile"] == {"id": "qwencode.tools", "version": 3}
+    sealed = load_profile(support.PROFILE, 2)
+    assert sealed.sha256 == SEALED_PROFILE and sealed.data["import"]["rules"] == {"aer": 1, "qwencode": 2}
+    assert hashlib.sha256(_bytes("profiles", "archive", f"{support.PROFILE}.profile.v2.toml")).hexdigest() == SEALED_PROFILE
     archived = load_profile(support.PROFILE, 1)
     assert archived.version == 1 and archived.sha256 == RECORDED_PROFILE
     assert archived.data["import"]["rules"] == {"aer": 1, "qwencode": 1}
@@ -56,16 +77,20 @@ def test_the_profile_is_at_version_2_and_ships_its_recorded_version_1():
 
 def test_the_semantics_versions_declare_their_catalogue_versions():
     one, two = load_semantics_profile("qwencode.tools", 1), load_semantics_profile("qwencode.tools", 2)
+    three = load_semantics_profile("qwencode.tools", 3)
     assert one.sha256 == TOOLS_1  # unchanged: the scratch trials' bytes
-    assert (dict(one.rules), dict(two.rules)) == ({"qwencode": 1}, {"qwencode": 2})
+    assert (dict(one.rules), dict(two.rules), dict(three.rules)) == ({"qwencode": 1}, {"qwencode": 2}, {"qwencode": 3})
     assert two.tables.outcomes["non_informative"] == [1] and "non_informative" not in one.tables.outcomes
+    assert three.tables == two.tables and dict(three.classes) == dict(two.classes)  # D-1063: @2's tables
+    root = support.REPO / "src" / "agentprov" / "adapters" / "qwencode" / "semantics"
+    assert (root / "qwencode.tools-2" / "tools.toml").read_bytes() == (root / "qwencode.tools-3" / "tools.toml").read_bytes()
 
 
-def test_the_registry_selects_version_2():
+def test_the_registry_selects_version_3():
     from agentprov.adapters.registry import get_source
 
     (part,) = get_source(support.PROFILE).capabilities
-    assert part.semantics == ("qwencode.tools@2",)
+    assert part.semantics == ("qwencode.tools@3",)
 
 
 @pytest.mark.parametrize(("value", "one", "two"), [

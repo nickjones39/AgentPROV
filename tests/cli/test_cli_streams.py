@@ -51,6 +51,48 @@ def test_summary_json_into_a_missing_directory_is_a_usage_error(cli, valid_aer, 
     assert run.code == 2
 
 
+def test_json_keeps_its_stdout_summary_when_summary_json_names_a_missing_directory(cli, valid_aer, tmp_path, check_summary):
+    """AU-CLIA-6: the usage error (2) still reaches a --json caller as exactly one summary, and no second error line."""
+    run = cli("validate", str(valid_aer), "--json", "--summary-json", str(tmp_path / "missing" / "x.json"))
+    assert run.code == 2
+    document = json.loads(run.out)
+    check_summary(document)
+    assert document["exit_code"] == 2 and run.out.count("\n") == 1
+    assert "cannot write the summary" not in run.err and not (tmp_path / "missing").exists()
+
+
+def test_json_keeps_its_stdout_summary_when_the_summary_file_write_fails(cli, valid_aer, tmp_path, monkeypatch):
+    """AU-CLIA-6: --json writes its stdout copy even when the --summary-json file fails at the end."""
+    from agentprov.cli import main as main_mod
+
+    def failing(path, data):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(main_mod, "atomic_write_bytes", failing)
+    run = cli("validate", str(valid_aer), "--json", "--summary-json", str(tmp_path / "s.json"))
+    assert run.code == 70 and "cannot write the summary" in run.err
+    assert json.loads(run.out)["command"] == "validate"
+
+
+@pytest.mark.parametrize("argv", [
+    ("settings", "list", "--format", "json"),
+    ("settings", "get", "compute.preset", "--format", "json"),
+    ("batch", "list", "--format", "json"),
+    ("devrun", "list", "--format", "json"),
+    ("assist", "--question", "how do I verify a corpus?", "--show-context", "--context-chars", "2000"),
+])
+def test_with_json_a_command_payload_goes_to_stderr_and_stdout_is_one_document(cli, check_summary, argv):
+    """AU-CLIA-11 (N.1.4; CC-23): with --json stdout is exactly one JSON document, the summary, whatever the command's
+    payload; the payload is on stderr instead, as info, inspect and stats route theirs."""
+    run = cli("--progress", "off", *argv, "--json")
+    assert run.code == 0, run.err
+    document = json.loads(run.out)  # one document: "Extra data" when the payload also lands on stdout
+    check_summary(document)
+    assert document["command"] == argv[0] and run.out.count("\n") == 1
+    plain = cli("--progress", "off", *argv)
+    assert plain.code == 0 and plain.out and plain.out.strip() in run.err  # the payload itself is still shown
+
+
 def test_summary_for_a_failure_validates_and_lists_failures_sorted(cli, broken_aer, check_summary):
     run = cli("validate", str(broken_aer), "--json")
     document = run.json()

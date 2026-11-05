@@ -32,6 +32,8 @@ from agentprov.io.canonical import sha256_hex
 REPO = Path(__file__).resolve().parents[3]
 FIXTURES = REPO / "tests" / "fixtures" / "wirelog"
 PROFILE = "what-surrounds"
+#: The semantics profile version the current profile selects (2 since D-1063: @1's tables on catalogue wirelog 2).
+SEM_VERSION = 2
 ZIP_SHA256 = "08e60afd5ba0c0c044afd005c015cbc539428255240f1ea2a555feb800079454"
 
 
@@ -147,7 +149,7 @@ def map_label(label: str, *, data: bytes | None = None, aux: Mapping[str, bytes 
     if sem or prov:
         from agentprov.sem.engine import annotate
 
-        profile = load_semantics_profile("wirelog.tools", 1)
+        profile = load_semantics_profile("wirelog.tools", SEM_VERSION)
         result.sem = annotate(doc, profile)
         if prov:
             from agentprov.prov.engine import derive

@@ -86,6 +86,27 @@ def test_a_count_that_disagrees_with_its_evidence_is_refused(tmp_path):
         tool.check_entry({"source": "x", "part": "y"})
 
 
+def test_a_wrong_count_is_refused_even_where_the_evidence_states_that_number_elsewhere():
+    """AU-TWF-8: a text-evidence count is checked where its ``match`` anchors it, not anywhere in the file, so an
+    off-by-one (or x10) count that the same report happens to state for another corpus or column is refused."""
+    tool = _tool()
+    entries, _ = tool.load_data()
+    accepted = []
+    for entry in (e for e in entries.values() if "count" in e):
+        for wrong in {entry["count"] + 1, max(0, entry["count"] - 1), entry["count"] * 10 + 3} - {entry["count"]}:
+            try:
+                tool.check_entry({**entry, "count": wrong})
+            except tool.DataError:
+                continue
+            accepted.append((entry["source"], entry["part"], wrong))
+    assert accepted == []
+    texted = next(e for e in entries.values() if "count" in e and "pointer" not in e)
+    with pytest.raises(tool.DataError, match="match"):
+        tool.check_entry({k: v for k, v in texted.items() if k != "match"})
+    with pytest.raises(tool.DataError, match="match"):
+        tool.check_entry({**texted, "match": ["no placeholder"]})
+
+
 def test_the_inputs_are_repository_files_only():
     tree = ast.parse((REPO / "tools" / "gen_readme_corpora.py").read_text(encoding="utf-8"))
     modules = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}

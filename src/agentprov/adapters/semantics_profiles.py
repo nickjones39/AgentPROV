@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib
 import re
+from collections.abc import Iterable
 from importlib import resources
 from importlib.resources.abc import Traversable
 from typing import Final
@@ -23,7 +24,7 @@ from typing import Final
 from agentprov.sem.profiles import SemanticsProfileError, profile_digest
 from agentprov.sem.types import SemanticsProfile, sem_profile_dir
 
-__all__ = ["load_all_semantics_profiles", "load_semantics_profile", "semantics_families"]
+__all__ = ["load_all_semantics_profiles", "load_named_semantics_profiles", "load_semantics_profile", "semantics_families"]
 
 _ID_RE: Final = re.compile(r"[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*")
 _DIR_RE: Final = re.compile(r"(?P<id>[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*)-(?P<version>[1-9][0-9]*)")
@@ -94,3 +95,21 @@ def load_all_semantics_profiles() -> dict[str, SemanticsProfile]:
             if child.is_dir() and match is not None:
                 out[f"{match['id']}@{match['version']}"] = load_semantics_profile(match["id"], int(match["version"]))
     return dict(sorted(out.items()))
+
+
+def load_named_semantics_profiles(refs: Iterable[str]) -> dict[str, SemanticsProfile]:
+    """The entries of :func:`load_all_semantics_profiles` whose keys are among ``refs``, loaded alone (D-1068 P2: a T1
+    worker loads only the profiles its pool's jobs name). A ref that is not the key of a shipped profile is skipped, as
+    it would be absent from the full mapping; a shipped profile that fails to load raises as there."""
+    root = resources.files("agentprov").joinpath("adapters")
+    families = semantics_families()
+    out: dict[str, SemanticsProfile] = {}
+    for ref in sorted(set(refs)):
+        profile_id, _, version = ref.rpartition("@")
+        if _DIR_RE.fullmatch(f"{profile_id}-{version}") is None:
+            continue
+        dirname = f"{profile_id}-{version}"
+        if not any(root.joinpath(family, "semantics", dirname).is_dir() for family in families):
+            continue
+        out[ref] = load_semantics_profile(profile_id, int(version))
+    return out

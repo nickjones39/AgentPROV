@@ -11,6 +11,7 @@ repository's interpreter but never import ``agentprov``, so they keep working on
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import json
 import os
 import re
@@ -55,6 +56,20 @@ def git_ok(args: list[str], cwd: Path | str | None = None) -> str | None:
         return git(args, cwd)
     except (RuntimeError, OSError):
         return None
+
+
+def detached_session(top: Path | str) -> str:
+    """The default session name of a checkout on a detached HEAD: ``detached-`` and 8 hex digits of the worktree's path.
+
+    Every detached worktree once defaulted to the same name, so two of them shared one status file and each took the
+    other's reservations as its own; the path keeps them apart and stays the same for one worktree.
+
+    Records made under the old plain name ``detached`` are not migrated (AU-FR-5; none were in the ledger or the
+    sessions directory when the name changed): they belong to no default session now. ``reserve_id.py list`` shows them
+    under ``detached``, a claim of their numbers is refused naming that session, and ``reserve_id.py --session
+    detached`` or ``session_status.py --name detached`` still acts as it."""
+    digest = hashlib.sha256(str(Path(top).resolve()).encode("utf-8")).hexdigest()[:8]
+    return f"detached-{digest}"
 
 
 def write_json_atomic(path: Path, data: Any) -> None:

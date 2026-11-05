@@ -8,7 +8,9 @@ the job to itself with a pipe. So it writes ``{"format":"agentprov-control/0.1",
   changed file (size, mtime or inode) is read, at most 4 KiB, with the strict loader. A request already in the file
   when the command starts belongs to an earlier invocation (a drain is resumed by re-running the same argv) and is
   ignored, as is a nonce seen before, unless it was issued at or after this process started: a job manager may write
-  a stop or drain while the command's interpreter is still starting, and that request is this run's.
+  a stop or drain while the command's interpreter is still starting, and that request is this run's. In a job's own
+  control file (``AGENTPROV_JOB_ID`` names the job whose directory holds it) the bound is the job's creation instead:
+  a job queued with ``--queue-cpu`` starts its command only when it gets a slot, and every job has a new directory.
 * **``stop``** behaves like the first SIGTERM on every OS: the watcher simulates that signal in the main thread
   (``_thread.interrupt_main``), so the command takes the clean interrupt path (seal or roll back, release the lock,
   exit 130, N.1.10(2)).
@@ -130,7 +132,7 @@ class ControlWatcher:
             data = self._read()
             found = parse_request(data) if data is not None else None
             if isinstance(found, ControlRequest):
-                if _issued_since_start(found.issued):
+                if _issued_since_start(found.issued, self.path):
                     self._identity = None  # this run's request, written before the watcher started: the first poll acts
                 else:
                     self._seen.add(found.nonce)
@@ -201,19 +203,46 @@ def _process_start() -> float:
     return time.time() if started is None else started
 
 
-def _issued_since_start(issued: str) -> bool:
-    """Whether a request's ``issued`` time (RFC 3339; whole seconds as the job manager writes it) is not earlier than
-    this process's start; an unreadable time is earlier."""
-    import math
+def _epoch(text: object) -> float | None:
+    """An RFC 3339 time with its offset as epoch seconds, or ``None``."""
     from datetime import datetime
 
+    if not isinstance(text, str):
+        return None
     try:
-        when = datetime.fromisoformat(issued)
+        when = datetime.fromisoformat(text)
     except ValueError:
+        return None
+    return None if when.tzinfo is None else when.timestamp()
+
+
+def _job_created(path: Path) -> float | None:
+    """When the job whose own control file ``path`` is was created (its ``job.json``), or ``None`` when this command
+    is not that job's (``AGENTPROV_JOB_ID`` names the job; the jobs layer passes ``<jobs>/<id>/control.json``)."""
+    from agentprov.jobs.record import read_json
+
+    job_id = os.environ.get("AGENTPROV_JOB_ID")
+    if not job_id or path.name != "control.json" or path.parent.name != job_id:
+        return None
+    record = read_json(path.parent / "job.json")
+    if record is None or record.get("job_id") != job_id:
+        return None
+    return _epoch(record.get("created"))
+
+
+def _issued_since_start(issued: str, path: Path) -> bool:
+    """Whether a request's ``issued`` time (RFC 3339; whole seconds as the job manager writes it) is not earlier than
+    this process's start, or, in a job's own control file, than the job's creation; an unreadable time is earlier."""
+    import math
+
+    when = _epoch(issued)
+    if when is None:
         return False
-    if when.tzinfo is None:
-        return False
-    return when.timestamp() >= math.floor(_process_start())
+    not_before = float(math.floor(_process_start()))
+    created = _job_created(path)
+    if created is not None:
+        not_before = min(not_before, created)
+    return when >= not_before
 
 
 def _interrupt_main() -> None:

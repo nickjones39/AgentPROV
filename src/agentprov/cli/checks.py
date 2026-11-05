@@ -197,15 +197,7 @@ def _check_options(args: argparse.Namespace) -> tuple[list[str], list[str]]:
             )
     if not args.files and not args.aer:
         raise CliUsageError("agentprov validate: give FILE..., --aer PATH or --corpus DIR")
-    tiers = list(TIERS if args.release else DEFAULT_TIERS)
-    if args.tiers is not None:
-        tiers = [t.strip() for t in args.tiers.split(",") if t.strip()]
-        unknown = [t for t in tiers if t not in TIERS]
-        if unknown or not tiers:
-            raise CliUsageError(
-                f"agentprov validate: --tiers takes a comma list from {', '.join(TIERS)}"
-                + (f"; unknown: {', '.join(safe_text(t, 20) for t in unknown)}" if unknown else "")
-            )
+    tiers = _corpus_tiers(args)
     if args.store is not None and not os.path.isdir(args.store):
         raise CliUsageError("agentprov validate: --store is not a directory")
     return _classify(args), tiers
@@ -262,6 +254,7 @@ def run_validate(ctx: Context) -> CommandResult:
             fields={"command": "validate", "plan": f"tier aer, {mode} mode", "workers": 1},
         )
     )
+    result.notices.extend(_release_widened(args))
     for tier in not_run:
         result.notices.append(f"tier {tier} is not implemented in this build and was not run (skipped, not passed)")
     if "aer" not in tiers:
@@ -361,14 +354,28 @@ class ReportInsideCorpusError(AgentProvError):
 
 
 def _corpus_tiers(args: argparse.Namespace) -> list[str]:
-    tiers = list(TIERS if args.release else DEFAULT_TIERS)
+    """The requested tiers (file and corpus mode): ``--tiers`` or the default ones. ``--release`` adds every applicable
+    tier to either (N.2.5(1)): with ``--tiers`` it ran the list alone, so a release validation could pass with tiers
+    neither run nor reported skipped (AU-CLIA-14). Inapplicable tiers are dropped later, with a notice."""
+    tiers = list(DEFAULT_TIERS)
     if args.tiers is not None:
         tiers = [t.strip() for t in args.tiers.split(",") if t.strip()]
         unknown = [t for t in tiers if t not in TIERS]
         if unknown or not tiers:
             raise CliUsageError(f"agentprov validate: --tiers takes a comma list from {', '.join(TIERS)}"
                                 + (f"; unknown: {', '.join(safe_text(t, 20) for t in unknown)}" if unknown else ""))
+    if args.release:
+        tiers = list(TIERS)  # a superset of any valid --tiers list
     return list(dict.fromkeys(tiers))
+
+
+def _release_widened(args: argparse.Namespace) -> list[str]:
+    """The notice when ``--release`` added tiers to a ``--tiers`` list (N.2.5(1); AU-CLIA-14)."""
+    if not (args.release and args.tiers is not None):
+        return []
+    asked = {t.strip() for t in args.tiers.split(",")}
+    added = [t for t in TIERS if t not in asked]
+    return [f"--release runs every applicable tier: added {', '.join(added)} to --tiers"] if added else []
 
 
 def _report_path(args: argparse.Namespace, root: Path) -> Path | None:
@@ -392,17 +399,24 @@ def _report_path(args: argparse.Namespace, root: Path) -> Path | None:
 CACHE_CAP_SETTING: Final = "compute.validation_cache_gib"
 
 
-def validation_cache(ctx: Context, *, audit: bool = False) -> Any:
+def validation_cache(ctx: Context, *, audit: bool = False, notices: list[str] | None = None) -> Any:
     """The tier-4 round-trip cache of a corpus command (D-550): ``None`` with ``--no-validation-cache``; in ``audit``
     mode (``--release``) it never serves an entry, only compares the ones it finds with fresh round trips. Its size cap
-    is the ``compute.validation_cache_gib`` setting when set (D-894)."""
+    is the ``compute.validation_cache_gib`` setting when set (D-894). The cap is advisory: a settings file that cannot be
+    read leaves it at the cache's default, with a notice in ``notices``, and never stops the command (AU-CLIA-1)."""
     if getattr(ctx.args, "no_validation_cache", False):
         return None
     from agentprov import settings
     from agentprov.validate.cache import DiskCache, default_root
 
     root = default_root(ctx.env)
-    cap = settings.get(CACHE_CAP_SETTING, home=root.parents[1])  # D-894: $AGENTPROV_HOME/settings.json
+    try:
+        cap = settings.get(CACHE_CAP_SETTING, home=root.parents[1])  # D-894: $AGENTPROV_HOME/settings.json
+    except settings.SettingsError as exc:
+        cap = None
+        if notices is not None:
+            notices.append(f"{safe_text(str(exc), 200)}: {CACHE_CAP_SETTING} is not read; the tier-4 round-trip cache "
+                           "cap is left at its default")
     if isinstance(cap, int | float) and not isinstance(cap, bool):
         return DiskCache(root, audit=audit, max_bytes=int(cap * 1024**3))
     return DiskCache(root, audit=audit)
@@ -462,6 +476,7 @@ def run_corpus(ctx: Context) -> CommandResult:
     result = CommandResult(dry_run=bool(args.dry_run))
     sources = [str(s.get("source_id")) for s in manifest.get("sources") or () if isinstance(s, dict)]
     skipped: list[str] = []
+    result.notices.extend(_release_widened(args))
     for tier in not_run:
         if tier == "regression" and "adprov-v1" not in sources:
             result.notices.append("tier regression: not applicable (it is the v1 -> AER -> v1 round trip of adprov-v1 "
@@ -470,7 +485,7 @@ def run_corpus(ctx: Context) -> CommandResult:
         skipped.append(tier)
         result.notices.append(f"tier {tier} is not implemented in this build and was not run (skipped, not passed)")
     outcome = None
-    cache = validation_cache(ctx, audit=bool(args.release)) if run else None
+    cache = validation_cache(ctx, audit=bool(args.release), notices=result.notices) if run else None
     if run:
         outcome = validate_corpus(reader, tiers=run, mode=mode, sample=args.sample, seed=args.seed,
                                   progress=ctx.progress, jobs=None if args.in_process else args.jobs, cache=cache,

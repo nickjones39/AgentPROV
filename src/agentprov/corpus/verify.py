@@ -25,7 +25,9 @@ matches, nothing unlisted). A working tree has no ``checksums.sha256`` (it is wr
   matched and equals its address is not read again), every listed object is stored, tombstoned (``raw.tombstoned``,
   reported with its reason and date, never as silently missing) or referenced (``raw/REFERENCES.json``), and a
   referenced object must belong to a snapshot whose declared raw policy is ``reference`` (``raw.reference.not_permitted``,
-  failed; H.4.1; F-12C-01, D-160; a working manifest declares no raw policy, so the check is a sealed one); every selected
+  failed; H.4.1; F-12C-01, D-160; a working manifest declares no raw policy, so the check is a sealed one); every stored
+  object has a ``raw/origins.jsonl`` row (``raw.origin.missing``, K.5.7(1); member, split and carved objects have their
+  own rows; AU-IMP-7: an import killed before its final flush leaves objects without one); every selected
   member object's CRC-32 and size equal its ``raw/members.jsonl`` row (``raw.member.crc32`` / ``raw.member.size``,
   AD-12; HL-T14);
 * per execution: the AER seal re-hashed (``aer.seal.*``) and its execution digest equal to the index's; the header's
@@ -79,13 +81,15 @@ failed, or, in release mode, when anything is unverified or tombstoned (H.5.5; N
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
+import heapq
 import os
 import zlib
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Final
+from typing import IO, Any, Final
 
 from agentprov.aer.reader import load_aer_bytes
 from agentprov.corpus.authority import (
@@ -126,7 +130,6 @@ from agentprov.corpus.manifest import (
     corpus_counts,
     digests_of,
     duplicate_summary,
-    file_ref,
     raw_dispositions,
     rule_catalogue_refs,
     schema_resource,
@@ -140,7 +143,7 @@ from agentprov.corpus.scratch import scratch_tree
 from agentprov.corpus.stages import StageKey, stage_map
 from agentprov.corpus.withheld import SCHEMA_RESOURCE as WITHHELD_SCHEMA
 from agentprov.corpus.withheld import WithheldDocument, decode_withheld
-from agentprov.errors import AgentProvError
+from agentprov.errors import AgentProvError, IngestError
 from agentprov.io import remove
 from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.progress import NULL_PROGRESS, Progress
@@ -156,11 +159,11 @@ __all__ = [
     "UNVERIFIED",
     "Finding",
     "ImportHooks",
-    "VerifyError",
     "VerifyReport",
     "VerifyUsageError",
     "git_blob_sha1",
     "sample_executions",
+    "sample_rows",
     "verify_corpus",
 ]
 
@@ -173,17 +176,11 @@ REFERENCES: Final = "raw/REFERENCES.json"
 TOMBSTONES: Final = "raw/tombstones.jsonl"
 _CHUNK: Final = 1 << 20
 _SHA_REF: Final = "sha256:"
+_RAW_OBJECTS: Final = "raw/objects/"
 #: The published schemas every sealed corpus holds (``corpus.package.seal`` writes these two; H.1.2, AD-10 row 13).
 _SEALED_SCHEMAS: Final = ("aer-0.1.schema.json", "corpus-0.1.schema.json")
 #: Manifest members that need a pass over every AER (not compared under ``--sample``).
 _FULL_PASS_COUNTS: Final = ("records_by_kind", "generic_types")
-
-
-class VerifyError(AgentProvError):
-    """``verify`` could not run (exit 1)."""
-
-    code = "verify.failed"
-    exit_code = 1
 
 
 class VerifyUsageError(AgentProvError):
@@ -284,8 +281,33 @@ def sample_executions(exs: Iterable[str], n: int, seed: str) -> list[str]:
     not depend on Python's ``random`` implementation or the hash seed) and the first ``n`` are taken."""
     if n < 0:
         raise ValueError("a sample size is >= 0")
-    ordered = sorted(set(exs), key=lambda ex: (hashlib.sha256(f"agentprov-sample/1\n{seed}\n{ex}".encode()).digest(), ex))
+    ordered = sorted(set(exs), key=lambda ex: _sample_key(seed, ex))
     return sorted(ordered[:n], key=lambda ex: ex.encode("ascii"))
+
+
+def _sample_key(seed: str, ex: str) -> tuple[bytes, str]:
+    return hashlib.sha256(f"agentprov-sample/1\n{seed}\n{ex}".encode()).digest(), ex
+
+
+def sample_rows(rows: Iterable[IndexRow], n: int, seed: str) -> tuple[list[IndexRow], int]:
+    """:func:`sample_executions` over a stream of index rows (unique ids, as the index has them), keeping at most ``n``
+    rows (P8): the chosen rows in index order and how many rows the stream held. The same executions as
+    ``sample_executions`` of every id: the ``n`` smallest by the same seeded key."""
+    if n < 0:
+        raise ValueError("a sample size is >= 0")
+    total = 0
+
+    def counted() -> Iterator[IndexRow]:
+        nonlocal total
+        for row in rows:
+            total += 1
+            yield row
+
+    stream = counted()
+    chosen = heapq.nsmallest(n, stream, key=lambda row: _sample_key(seed, row.ex))
+    for _row in stream:  # every row is read (and so checked) and counted, whatever n is (nsmallest(0) reads none)
+        pass
+    return sorted(chosen, key=lambda row: row.ex.encode("ascii")), total
 
 
 def git_blob_sha1(stream_chunks: Iterable[bytes], size: int) -> str:
@@ -312,6 +334,12 @@ def _object_sha(label: str) -> str:
     return label.rsplit("/", 1)[-1].split(".", 1)[0]
 
 
+def _file_ref(path: str, stats: tuple[int, int, str], *, jsonl: bool) -> dict[str, Any]:
+    """:func:`agentprov.corpus.manifest.file_ref` from a streamed read's ``(size, LF count, sha256 hex)`` (P8)."""
+    size, lines, digest = stats
+    return {"bytes": size, "lines": lines if jsonl else None, "path": path, "sha256": _SHA_REF + digest}
+
+
 def _stages(derivation: Mapping[str, Any] | None) -> dict[StageKey, dict[str, Any]]:
     """The stage definitions by name; ``expand`` by ``("expand", fn_digest)`` (several expansions are all kept, D-380)."""
     return stage_map(derivation)
@@ -332,7 +360,10 @@ class _Verifier:
         self.counters = self.report.counters
         self.matched: dict[str, tuple[str, int]] = {}
         self.checksum_entries: list[str] = []
-        self.rows: list[IndexRow] = []
+        self.rows: list[IndexRow] = []  # without facet members (P8)
+        self._full: dict[str, IndexRow] = {}  # a sampled row, whole
+        self._stats: dict[str, tuple[int, int, str] | None] = {}  # label -> streamed (size, lines, sha256), P8
+        self._results_error: AgentProvError | None = None  # why validation/results.jsonl could not be read
         self.register: list[RegisterEntry] = []
         self.members: list[MemberRow] = []
         self.origins: list[OriginRow] = []
@@ -371,9 +402,17 @@ class _Verifier:
         reader = self.reader
         if reader.sealed and self.source is not None:
             def matched(path: str, digest: str, size: int) -> None:
-                self.matched[path] = (digest, size)
+                if path.startswith(_RAW_OBJECTS):  # only raw_objects() reuses a matched digest
+                    self.matched[path] = (digest, size)
 
-            report = verify_checksum_source(self.source, on_match=matched)
+            def crc32(path: str, value: str) -> None:
+                self._crc[_object_sha(path)] = value
+
+            # P3: a member object's CRC-32 (AD-12) is computed in the checksums read, so the chain need not read it again
+            members = self._member_objects() if self.level != "checksums" else frozenset()
+            report = verify_checksum_source(
+                self.source, on_match=matched, on_crc32=crc32,
+                crc32_of=(lambda path: path.startswith(_RAW_OBJECTS) and _object_sha(path) in members) if members else None)
             self.counters["files_listed"] = report.listed
             self.counters["files_matched"] = report.matched
             for f in report.findings:
@@ -413,6 +452,27 @@ class _Verifier:
         except (CorpusReadError, AgentProvError):
             return None
 
+    def _file_stats(self, label: str) -> tuple[int, int, str] | None:
+        """``(size, LF count, sha256 hex)`` of a corpus file read in chunks, or ``None`` where :meth:`_read` gives
+        ``None`` (absent or refused). P8: the ledgers ``manifest_members`` checks are never held whole. Kept per label:
+        ``executions.jsonl`` and ``register.jsonl`` are both a ``files`` entry and a digest."""
+        if label in self._stats:
+            return self._stats[label]
+        out: tuple[int, int, str] | None = None
+        try:
+            if self.reader.exists(label):
+                digest, lines, size = hashlib.sha256(), 0, 0
+                with self.reader.open_file(label, stored=True) as stream:
+                    while chunk := stream.read(_CHUNK):
+                        digest.update(chunk)
+                        lines += chunk.count(b"\n")
+                        size += len(chunk)
+                out = (size, lines, digest.hexdigest())
+        except (CorpusReadError, AgentProvError):
+            out = None
+        self._stats[label] = out
+        return out
+
     def identity(self) -> None:
         """The corpus id, version and recorded content digest (the ``checksums`` level reads nothing else)."""
         try:
@@ -444,10 +504,10 @@ class _Verifier:
         except AgentProvError as exc:
             self.add("corpus.read.derivation", "derivation.json", detail=f"derivation.json cannot be read ({exc.code})")
         try:
-            self.rows = list(reader.iter_index())
+            self.rows = self._slim_rows(reader.iter_index())
         except AgentProvError as exc:
             self.absent("index.invalid", EXECUTIONS, f"executions.jsonl is not a valid index ({exc.code})")
-            self.rows = []
+            self.rows, self._full = [], {}
         else:
             self.loaded.add(EXECUTIONS)
         self.counters["executions"] = len(self.rows)
@@ -485,6 +545,20 @@ class _Verifier:
                                                               f"document ({exc.code})")
         return True
 
+    def _slim_rows(self, rows: Iterable[IndexRow]) -> list[IndexRow]:
+        """Every index row without its facet members (P8: the corpus-wide checks read none of them, and they are most of
+        a row's memory); a sampled row is also kept whole (:attr:`_full`) for its execution checks."""
+        kept: dict[str, IndexRow] = {}
+        out: list[IndexRow] = []
+        for row in rows:
+            if row.facet_members is not None:
+                if self.sample is not None and row.ex in self.sample:
+                    kept[row.ex] = row
+                row = dataclasses.replace(row, facet_members=None)
+            out.append(row)
+        self._full = kept
+        return out
+
     def _withheld_object(self, sha: str) -> bool:
         return self.withheld is not None and sha in self.withheld.objects
 
@@ -494,10 +568,38 @@ class _Verifier:
         archives = getattr(self.reader, "archives", None)
         if archives is not None:
             return {label: archives.size(label) for label in archives.labels() if classify_relpath(label) == "raw_object"}
-        return {label: size for label, role, size in iter_tree(self.reader.root).files if role == "raw_object"}
+        scan = self.source.scan if isinstance(self.source, TreeSource) else None  # P3: the checksums level's own walk
+        return {label: size for label, role, size in (scan or iter_tree(self.reader.root)).files if role == "raw_object"}
+
+    def _member_objects(self) -> frozenset[str]:
+        """The member objects ``raw/members.jsonl`` names (read early, for the checksums read's CRC-32; P3). Nothing
+        when it is absent or invalid: :meth:`documents` reports that, and :meth:`raw_objects` then reads them itself."""
+        try:
+            if not self.reader.exists("raw/members.jsonl"):
+                return frozenset()
+            return frozenset(m.sha256 for m in self.reader.members() if m.sha256 is not None)
+        except AgentProvError:
+            return frozenset()
+
+    def _open_stored(self, label: str) -> IO[bytes]:
+        """``reader.open_file(label, stored=True)``, through the tree source's root and directory descriptors when the
+        corpus is a sealed tree (P3: no path resolution per open), with the same refusals and codes."""
+        source = self.source
+        if not isinstance(source, TreeSource):
+            return self.reader.open_file(label, stored=True)
+        if classify_relpath(label) is None:
+            raise CorpusReadError("not a file of the H.1.2 corpus tree", code="corpus.read.path")
+        try:
+            return source.open(label)
+        except FileNotFoundError:
+            raise CorpusReadError(f"{label}: missing", code="corpus.read.missing") from None
+        except IngestError as exc:
+            raise CorpusReadError(f"{label}: cannot be opened ({exc.code})", code="corpus.read.unreadable") from None
+        except OSError as exc:
+            raise CorpusReadError(f"{label}: cannot be opened ({type(exc).__name__})", code="corpus.read.unreadable") from None
 
     def _stream(self, label: str) -> Iterable[bytes]:
-        with self.reader.open_file(label, stored=True) as stream:
+        with self._open_stored(label) as stream:
             while chunk := stream.read(_CHUNK):
                 yield chunk
 
@@ -505,11 +607,13 @@ class _Verifier:
         for label in sorted(self._object_labels()):
             sha = _object_sha(label)
             known = self.matched.get(label)
-            if known is not None and sha not in member_objects:
+            if known is not None and (sha not in member_objects or sha in self._crc):
                 if known[0] != sha:
                     self.add("raw.digest.mismatch", label, detail="the object does not hash to its address")
                 self.objects[sha] = (label, known[1])
                 self.count("raw_objects")
+                if sha in member_objects:  # its bytes were read for the CRC-32 check, in the checksums read (P3)
+                    self.count("raw_rehashed")
                 continue
             digest, crc, n = hashlib.sha256(), 0, 0
             try:
@@ -585,6 +689,12 @@ class _Verifier:
     def raw_chain(self) -> None:
         member_objects = {m.sha256 for m in self.members if m.sha256 is not None}
         self.raw_objects(member_objects)
+        if "raw/origins.jsonl" in self.loaded:  # K.5.7(1); AU-IMP-7: stored -> listed, the converse is checked below
+            named = {o.sha256 for o in self.origins}
+            for sha in sorted(set(self.objects) - named):
+                self.add("raw.origin.missing", self.objects[sha][0],
+                         detail="no raw/origins.jsonl row names the stored object (K.5.7(1)), as an import killed before "
+                                "its final flush leaves one: re-run that import to record its origin, or purge the object")
         for sha, tomb in sorted(self.tombstones.items()):
             if self._withheld_object(sha):
                 self.count("tombstoned_withheld")  # P-3: the corpus version withheld it (WITHHELD.json)
@@ -711,13 +821,19 @@ class _Verifier:
             if ex is not None:
                 by_ex.setdefault(ex, set()).add(entry.code)
                 severities.setdefault(ex, []).append((entry.code, entry.severity))
-        validation_rows: dict[str, dict[str, Any]] = {}
+        # P8: the JCS digest of each checked execution's validation row is kept, never the rows
+        validation_rows: dict[str, str] = {}
         try:
-            validation_rows = {r["ex"]: r for r in self.reader.validation_results()}
+            validation_rows = {r["ex"]: sha256_hex(jcs_bytes(r)) for r in self.reader.iter_validation_results()
+                               if self.sample is None or r["ex"] in self.sample}
         except AgentProvError as exc:
+            self._results_error = exc
             self.add("corpus.read.validation", "validation/results.jsonl", detail=f"not valid ({exc.code})")
         declared = self._declared_snapshots()
         origin_lines = Counter(o.sha256 for o in self.origins) if "raw/origins.jsonl" in self.loaded else None
+        # P8: self.rows hold no facet members; a checked row's full form is the one documents() kept (a sample) or the
+        # index read again, one row at a time, beside them (every row)
+        full = self.reader.iter_index() if self.sample is None and self.rows else None
         for row in self.rows:
             missing = sorted(set(row.issues) - by_ex.get(row.ex, set()))
             if missing:
@@ -739,7 +855,25 @@ class _Verifier:
             if self.sample is not None and row.ex not in self.sample:
                 continue
             self.count("executions_checked")
-            self._execution(row, gate_reports, stats, validation_rows.get(row.ex))
+            self._execution(self._full_row(row, full), gate_reports, stats, validation_rows.get(row.ex))
+        close = getattr(full, "close", None)  # the second read of the index ends here, read to its end or not
+        if close is not None:
+            close()
+
+    def _full_row(self, row: IndexRow, full: Iterator[IndexRow] | None) -> IndexRow:
+        """The full form of ``row`` (with its facet members; P8): kept by :meth:`documents` for a sampled row, else the
+        next row of the index read again, which must be the same row (a corpus is read-only; a difference is
+        ``index.invalid``, and the row is checked without its facet members)."""
+        if full is None:
+            return self._full.get(row.ex, row)
+        try:
+            again = next(full)
+        except (StopIteration, AgentProvError):
+            again = None
+        if again is None or again.ex != row.ex or again.aer_digest != row.aer_digest:
+            self.add("index.invalid", EXECUTIONS, detail="executions.jsonl changed while it was verified")
+            return row
+        return again
 
     def _declared_snapshots(self) -> set[str] | None:
         """The snapshot ids ``corpus.json`` declares (``sources[].snapshots[].snapshot_id``), or ``None`` when it
@@ -749,7 +883,7 @@ class _Verifier:
         return ids or None
 
     def _execution(self, row: IndexRow, gate_reports: Mapping[str, str | None], stats: AerStats | None,
-                   validation_row: Mapping[str, Any] | None) -> None:
+                   validation_row: str | None) -> None:
         ex = {"ex": row.ex}
         reader = self.reader
         layout = reader.layout
@@ -805,7 +939,7 @@ class _Verifier:
         if row.validation is not None and row.validation.digest is not None:
             if validation_row is None:
                 self.absent("index.digest.validation", ex, "the row has a validation digest but no validation row")
-            elif sha256_hex(jcs_bytes(validation_row)) != row.validation.digest:
+            elif validation_row != row.validation.digest:  # the row's JCS digest (P8)
                 self.add("index.digest.validation", ex, detail="the validation row's JCS digest differs from the index")
         if row.facet_members is not None:
             try:
@@ -1114,18 +1248,19 @@ class _Verifier:
             if not isinstance(ref, Mapping) or not isinstance(ref.get("path"), str) or classify_relpath(ref["path"]) is None:
                 differs("files", f"files.{role} names no corpus file")
                 continue
-            data = self._read(ref["path"])
-            if data is None:
+            streamed = self._file_stats(ref["path"])
+            if streamed is None:
                 self.absent("manifest.files", {"path": ref["path"]}, f"files.{role} names an absent file")
-            elif file_ref(ref["path"], data, jsonl=ref.get("lines") is not None) != dict(ref):
+            elif _file_ref(ref["path"], streamed, jsonl=ref.get("lines") is not None) != dict(ref):
                 differs("files", f"files.{role} does not match its file")
-        index_bytes, register_bytes, members_bytes = (self._read(n) for n in (EXECUTIONS, REGISTER, "raw/members.jsonl"))
-        if index_bytes is not None and register_bytes is not None and members_bytes is not None:
+        index, register, members = (self._file_stats(n) for n in (EXECUTIONS, REGISTER, "raw/members.jsonl"))
+        if index is not None and register is not None and members is not None:
             labels = self.checksum_entries or list(self._object_labels())
             raw_objects = raw_dispositions([_object_sha(label) for label in labels if classify_relpath(label) == "raw_object"],
                                            self.withheld.objects if self.withheld else (), self.referenced)
-            recomputed = digests_of(self.rows, raw_objects, index_bytes=index_bytes, register_bytes=register_bytes,
-                                    members_bytes=members_bytes)
+            recomputed = digests_of(self.rows, raw_objects, index_bytes=b"", register_bytes=b"", members_bytes=b"")
+            # P8: the three files' digests come from one streamed read each (digests_of only hashes their bytes)
+            recomputed.update(index=_SHA_REF + index[2], register=_SHA_REF + register[2], members=_SHA_REF + members[2])
             recorded = _obj(manifest.get("digests"))
             for key in sorted(set(recomputed) | set(recorded)):
                 if recomputed.get(key) != recorded.get(key):
@@ -1164,7 +1299,9 @@ class _Verifier:
             differs("duplicates", "duplicates does not recompute (H.7)")
         try:
             summary = reader.validation_summary() or {}
-            results = reader.validation_results()
+            if self._results_error is not None:  # the read executions() made failed: the error the list read gave
+                raise self._results_error
+            results = reader.iter_validation_results()  # P8: streamed, as validation_summary reads it once
             computed = validation_summary(summary, self.stages.get("validation") or {}, results,
                                           aer_format=CORPUS_FORMATS.get(str(manifest.get("format")), "aer/0.2"))
         except (AgentProvError, KeyError, TypeError, ValueError) as exc:

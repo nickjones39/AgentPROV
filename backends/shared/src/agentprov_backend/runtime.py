@@ -49,9 +49,10 @@ class RecordingFunctionsRuntime(FunctionsRuntime):
         session = type(self).session
         gate = getattr(session, "gate", None) if session is not None else None
         if not raise_on_error and gate is not None and getattr(session, "current_occ", None) is None:
-            # a defence's own executor is running (defences.GateRecorder): this call is the next matching call of the
-            # batch; it is dispatched now, recorded as usual, and its result is reported back to the gate
-            occ = gate.begin(function)
+            # a defence's own executor is running (defences.GateRecorder): this call is matched to its batch call by
+            # identity (the arguments object, UC-2); it is dispatched now, recorded as usual, and its result is
+            # reported back to the gate
+            occ = gate.begin(function, kwargs)
             if occ is None:
                 return super().run_function(env, function, kwargs, raise_on_error)
             session.current_occ = occ

@@ -56,7 +56,7 @@ mode = "import"
 
 [[sources]]
 source_id = "credleak-p15b"
-profile = "credleak-p15b@2"
+profile = "credleak-p15b@3"
 parts = ["head"]
 
 [[sources.snapshots]]
@@ -66,7 +66,7 @@ alt_origins = []
 raw_policy = "include"
 
 [derive]
-sem_profiles = ["credleak.tools@2"]
+sem_profiles = ["credleak.tools@3"]
 prov_specs = ["agentprov-prov/0.1"]
 views = []
 options = {{ context_encoding = "members" }}
@@ -194,14 +194,14 @@ def _inputs() -> Any:
     from agentprov.corpus.package import LicenceFile, ProducerFacts, SealInputs
 
     package = resources.files("agentprov").joinpath("adapters", "credleak")
-    node = package.joinpath("semantics", "credleak.tools-2")
+    node = package.joinpath("semantics", "credleak.tools-3")
     return SealInputs(
         spec=SPEC.encode(),
         card=CARD.encode(),
         changes=CHANGES.encode(),
         statements=load_statements((_TESTS.parent / "corpora" / "datasheet-statements.toml").read_bytes()),
         source_profile=package.joinpath("profiles", "credleak-p15b.profile.toml").read_bytes(),
-        semantics_profiles={"credleak.tools@2": {c.name: c.read_bytes() for c in sorted(node.iterdir(), key=lambda c: c.name)
+        semantics_profiles={"credleak.tools@3": {c.name: c.read_bytes() for c in sorted(node.iterdir(), key=lambda c: c.name)
                                                  if c.is_file()}},
         licence_files={"LICENSE": LicenceFile(b"test licence text\n", "supplied at sealing (test)")},
         producer=ProducerFacts(git_commit="0123456789abcdef0123456789abcdef01234567", git_tree_clean=True,
@@ -233,7 +233,7 @@ def test_the_shipped_profile_withholds_the_sentinel_cells_and_their_runs(cli, wo
     for sha in working["planted"].values():
         entry = by_sha[sha]
         assert (entry.reason, entry.basis) == ("secret", "profile_rule")
-        assert entry.finding is not None and entry.finding.rule.startswith("credleak-p15b@2:")
+        assert entry.finding is not None and entry.finding.rule.startswith("credleak-p15b@3:")
     assert by_sha[working["container"]].basis == "container"
     assert [p.to_json()["rules"] for p in document.policies] == [[
         {"id": "account-path-home", "kind": "pattern", "scope": "object"},  # D-605 part 1 (no fixture cell hits it)
@@ -342,7 +342,7 @@ def test_a_tool_output_account_path_is_redacted_and_the_model_authored_one_is_wi
     for sha in digests.values():
         entry = by_sha[sha]
         assert (entry.reason, entry.basis) == ("personal_data", "profile_rule")
-        assert entry.finding is not None and entry.finding.rule.startswith("credleak-p15b@2:account-path-")
+        assert entry.finding is not None and entry.finding.rule.startswith("credleak-p15b@3:account-path-")
     rows = {r["source_key"].split("#", 1)[0].removeprefix("sha256:"): r for r in _rows(root)}
     assert set(rows) == {digests["tool"]}  # the model-command run is withheld, the tool-output run released
     needle = ACCOUNT.encode()

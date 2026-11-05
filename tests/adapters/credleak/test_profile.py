@@ -19,7 +19,7 @@ PROFILE_BYTES = (SRC / "profiles" / "credleak-p15b.profile.toml").read_bytes()
 def _policy():
     from agentprov.corpus.withhold import policy_of_profile
 
-    return policy_of_profile(PROFILE_BYTES, profile_id="credleak-p15b", profile_version=2)
+    return policy_of_profile(PROFILE_BYTES, profile_id="credleak-p15b", profile_version=3)
 
 
 def test_profile_pins_licence_import_and_family_schema():
@@ -126,7 +126,7 @@ def test_registry_entry_is_supported_lazy_and_cc_by_without_restriction():
     reg = get_source("credleak-p15b")
     (part,) = reg.capabilities
     assert part.part == "head" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == "credleak-p15b" and part.semantics == ("credleak.tools@2",) and part.corpus_id == "credleak-p15b"
+    assert part.profile == "credleak-p15b" and part.semantics == ("credleak.tools@3",) and part.corpus_id == "credleak-p15b"
     assert reg.licence.spdx == "CC-BY-4.0" and reg.licence.restrictions == () and reg.licence.policy == "include"
     assert resolve_factory(READERS["credleak.cell"]).__name__ == "CredleakCellReader"
     assert resolve_factory(MAPPERS["credleak.cell"]).__name__ == "CredleakMapper"

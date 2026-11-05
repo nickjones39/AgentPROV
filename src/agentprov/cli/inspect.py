@@ -363,6 +363,21 @@ def _records(doc: Any, args: argparse.Namespace) -> list[dict[str, Any]]:
     return chosen
 
 
+def _list_member(record: dict[str, Any], name: str) -> list[Any]:
+    """A list-valued record member (``after``, ``rule``, ``src``); absent is empty.
+
+    The seal digest says nothing about member types, and a file is untrusted (AU-CLIA-4): any other JSON type is refused
+    as an invalid AER (exit 2), never iterated.
+    """
+    value = record.get(name)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        rid = safe_text(str(record.get("id")), 60)
+        raise CliUsageError(f"agentprov inspect: the file is not a valid AER (record {rid!r}: {name!r} is not a list)")
+    return value
+
+
 # ------------------------------------------------------------------------------------------------ views
 def view_summary(target: Target, safe: Safe, args: argparse.Namespace) -> Any:
     if target.kind == "corpus":
@@ -456,7 +471,7 @@ def view_timeline(target: Target, safe: Safe, args: argparse.Namespace) -> Any:
     for r in _records(_aer_document(target), args):
         if r.get("k") in _NO_ORDER:
             continue
-        edges = r.get("after")
+        edges = _list_member(r, "after")
         entry: dict[str, Any] = {"id": r.get("id"), "k": r.get("k")}
         entry["after"] = [{"id": e.get("id"), "b": e.get("b")} for e in edges if isinstance(e, dict)] if edges else Plain("order unknown")
         out.append(entry)
@@ -474,7 +489,7 @@ def view_evidence(target: Target, safe: Safe, args: argparse.Namespace) -> Any:
         for name in ("ev",):
             if isinstance(r.get(name), str):
                 classes[r[name]] += 1
-        for rule in r.get("rule") or []:
+        for rule in _list_member(r, "rule"):
             if isinstance(rule, str):
                 rules[rule.split("#", 1)[0]] += 1
         rows.append({k: r[k] for k in ("id", "k", "ev", "by", "evf", "rule", "unk") if k in r})
@@ -569,7 +584,9 @@ def view_raw(target: Target, safe: Safe, args: argparse.Namespace) -> Any:
         raise CliUsageError("agentprov inspect: --view raw needs the raw store: give --corpus DIR")
     resolver = LocatorResolver(doc.header, reader.raw_store())
     out = []
-    for n, locator in enumerate(record.get("src") or []):
+    for n, locator in enumerate(_list_member(record, "src")):
+        if not isinstance(locator, dict):
+            raise CliUsageError(f"agentprov inspect: the file is not a valid AER (record {safe_text(args.record, 60)!r}: src[{n}] is not an object)")
         entry: dict[str, Any] = {"locator": locator}
         try:
             value = resolver.resolve(locator)

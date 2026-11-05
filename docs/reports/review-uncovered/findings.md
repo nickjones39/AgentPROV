@@ -13,12 +13,19 @@ The full review text is in this file's history, at `d3974b23`. Still open:
   only, by the user's rule of 2026-11-01.
 - **UC-44:** excluded from the fix batches.
 
+**Status (updated 2026-11-05, the 0.2.0 change batch).** The user lifted the 2026-11-01 rule for release 0.2.0 (D-1063),
+and the 17 findings above are fixed on the integration branch `audit/2026-11-05`, each under regen-batch rows 174 to
+178; the status rows give the integration commits. UC-41's agentdojo and adprov parts need catalogue version 3 and land
+with rows 179 and 180 (in progress). No sealed corpus is rewritten: each stays reproducible at its building commit (the
+F-8 ruling). The impact table below is the record of 2026-11-01; each row's prediction was re-checked read-only in its
+regen-batch row.
+
 ## Status
 
 | id | sev | area | finding | status |
 |---|---|---|---|---|
 | UC-1 | high | release | `export --onto` commits ignored files (e.g. `.env`); a second run hides the leaked commit behind a clean one | **fixed** `ba1849be` |
-| UC-2 | high | backends | the gate recorder matches runtime calls to batch calls by name only, so a Mandate denial is recorded as an execution and the call that ran as never run | open: recorded only (affects corpus results) |
+| UC-2 | high | backends | the gate recorder matches runtime calls to batch calls by name only, so a Mandate denial is recorded as an execution and the call that ran as never run | **fixed in 0.2.0** (D-1063, regen-batch row 177) `5f442a69` |
 | UC-3 | high | trust | on Windows every T1 worker dies at start-up: the V-4 audit hook blocks the probe `import _posixsubprocess` it then expects to raise ImportError | **fixed** `61e7e258` (class 1: the `aer` stage digest moves on re-import; no record changes) |
 | UC-4 | medium | live CLI | a remote `--defence-endpoint` (paid API) does not change the endpoint class: local consent, "no provider billing", optional caps | **fixed** `62d99d10` |
 | UC-5 | medium | live CLI | the per-cell call bound (48) ignores defence calls, so a MELON cell can overrun `--max-calls` severalfold | **fixed** `a86e7419` |
@@ -28,17 +35,17 @@ The full review text is in this file's history, at `d3974b23`. Still open:
 | UC-9 | medium | GUI | Run Live checks the dev-run cost cap, and builds the R2 consent text, from a stale estimate after the selection changes | **fixed** `6b337bc9` |
 | UC-10 | medium | jobs | a Linux wall-clock step over 2 s makes every running job read as unobserved: prune deletes it, stop/kill refuse, the single-writer check lets a second writer in | **fixed** `6c5538c2` |
 | UC-11 | medium | jobs | a stop or drain sent just after a job starts is silently dropped while `jobs stop` reports success (the only graceful stop on Windows) | **fixed** `74a5fb2c` |
-| UC-12 | medium | adapters | a live capture whose model calls a deny-listed tool name (`none`, `-`, …) loses its whole AER; the three sibling mappers have the fix (CD-10, item 97, BF-22) | open: recorded only (affects corpus results) |
+| UC-12 | medium | adapters | a live capture whose model calls a deny-listed tool name (`none`, `-`, …) loses its whole AER; the three sibling mappers have the fix (CD-10, item 97, BF-22) | **fixed in 0.2.0** (D-1063, regen-batch row 174) `ae1fb7a4` |
 | UC-13 | medium | capture | `plan_ok` carries every cell in one protocol line; above about 4,500 cells it exceeds 1 MiB and the run cannot start, reported as `backend.unavailable` | **fixed** `5adb0118` |
 | UC-14 | medium | assist | one assistant reply over 20,000 characters blocks every later GUI chat message until New Chat | **fixed** `32621242` |
 | UC-15 | medium | GUI | `last_line` shows the CLI's `INFO … end command=…` log line instead of the error reason (10 call sites) | **fixed** `44dde982` |
-| UC-16 | low | provenance | since D-930 an unk premise field can leave a statement with no method, and the whole derivation is refused (`prov.method_set_empty`) | open: recorded only (affects corpus results) |
-| UC-17 | low | backends | a gate executor that raises mid-batch leaves the calls it already ran as dispatches with no `tool.result` | open: recorded only (affects corpus results) |
-| UC-18 | low | backends | defence code and weights are hashed on one read and loaded on another; `refs/main` is never checked against the pinned revision | open: recorded only (affects corpus results) |
-| UC-19 | low | capture | a lone surrogate in a provider reply, or tool arguments nested over 200 levels, make the capture writer raise into the benchmark run | open: recorded only (affects corpus results) |
-| UC-20 | low | capture | writer-made events (a seq-1 flag note, an early `error`/`session.end`) break the fixed event order, and the verifier then reports a damaged chain | open: recorded only (affects corpus results) |
-| UC-21 | low | capture | Anthropic with `thinking_budget_tokens`: the declared instrumentation (temperature not sent; max_tokens 4000) contradicts the wire (temperature 1; 6048) | open: recorded only (affects corpus results) |
-| UC-22 | low | capture | T0's staging re-scan treats every parent variable matching the key-name pattern as a secret and over-quarantines | open: recorded only (affects corpus results) |
+| UC-16 | low | provenance | since D-930 an unk premise field can leave a statement with no method, and the whole derivation is refused (`prov.method_set_empty`) | **fixed in 0.2.0** (D-1063, regen-batch row 178) `dcbcdfd6` |
+| UC-17 | low | backends | a gate executor that raises mid-batch leaves the calls it already ran as dispatches with no `tool.result` | **fixed in 0.2.0** (D-1063, regen-batch row 177) `5f442a69` |
+| UC-18 | low | backends | defence code and weights are hashed on one read and loaded on another; `refs/main` is never checked against the pinned revision | **fixed in 0.2.0** (D-1063, regen-batch row 177) `2c29d638` |
+| UC-19 | low | capture | a lone surrogate in a provider reply, or tool arguments nested over 200 levels, make the capture writer raise into the benchmark run | **fixed in 0.2.0** (D-1063, regen-batch row 177) `9c699321` |
+| UC-20 | low | capture | writer-made events (a seq-1 flag note, an early `error`/`session.end`) break the fixed event order, and the verifier then reports a damaged chain | **fixed in 0.2.0** (D-1063, regen-batch row 177) `9c699321` (capture/0.1 amended in C.13) |
+| UC-21 | low | capture | Anthropic with `thinking_budget_tokens`: the declared instrumentation (temperature not sent; max_tokens 4000) contradicts the wire (temperature 1; 6048) | **fixed in 0.2.0** (D-1063, regen-batch row 177) `f1b85dd7` |
+| UC-22 | low | capture | T0's staging re-scan treats every parent variable matching the key-name pattern as a secret and over-quarantines | **fixed in 0.2.0** (D-1063, regen-batch row 177) `1d7c3154` |
 | UC-23 | low | live CLI | preflight probe calls are not gated by the caps and are lost from `live.caps` on resume | **fixed** `eee91365` |
 | UC-24 | low | live CLI | the egress proxy's 64-tunnel cap is below the allowed `--jobs`; the 65th tunnel gets 503 | **fixed** `707ea41c` |
 | UC-25 | low | live CLI | the defence endpoint's key ignores the keychain (D-702), and the refusal wrongly says ".env" | **fixed** `363db545` |
@@ -53,14 +60,14 @@ The full review text is in this file's history, at `d3974b23`. Still open:
 | UC-34 | low | GUI | "Copy Execution Id" copies an unvalidated id with control characters (S13) | **fixed** `7eb7a4ac` |
 | UC-35 | low | GUI | a relative or dash-led DEPOSIT_DIR is resolved against the GUI's cwd, but the uploader runs in the checkout | **fixed** `299ffa2e` |
 | UC-36 | low | GUI | several CLI calls (up to 120 s each) run on the UI thread | **fixed** `c3777292` |
-| UC-37 | low | adapters | the D-607 redactor skips `$utf16`-encoded strings, so account paths in them survive (NF-10's flaw, in dtap) | open: recorded only (affects corpus results) |
-| UC-38 | low | adapters | redaction followed by D-934 not-inlining leaves a dangling citation pointer; the run is sealed `adapter_defect` | open: recorded only (affects corpus results) |
-| UC-39 | low | adapters | the D-1011 flaw class elsewhere: counts, durations and times outside the AER ranges reach typed fields, and the writer refuses the run | open: recorded only (affects corpus results) |
-| UC-40 | low | adapters | the D-378 lone-surrogate pass is missing, so a lone surrogate in a typed text field makes the run degenerate | open: recorded only (affects corpus results) |
-| UC-41 | low | adapters | no not-inlined path for strings over 1 MiB (the D-934 class) | open: recorded only (affects corpus results) |
-| UC-42 | low | adapters | type confusion crashes the mapper, and Inspect copies non-conforming patches and deny-listed header strings into strict slots | open: recorded only (affects corpus results) |
-| UC-43 | low | trust | `decode_members` accepts an escaped lone surrogate that `decode_origins` refuses; re-encoding then raises an untyped error | open: recorded only (affects corpus results) |
-| UC-44 | low | trust | a stored zip entry is read up to its compressed size, past `max_member_bytes` | open: not fixed (excluded) |
+| UC-37 | low | adapters | the D-607 redactor skips `$utf16`-encoded strings, so account paths in them survive (NF-10's flaw, in dtap) | **fixed in 0.2.0** (D-1063, regen-batch row 175) `4f6a68de` |
+| UC-38 | low | adapters | redaction followed by D-934 not-inlining leaves a dangling citation pointer; the run is sealed `adapter_defect` | **fixed in 0.2.0** (D-1063, regen-batch row 175) `6e24bd10` |
+| UC-39 | low | adapters | the D-1011 flaw class elsewhere: counts, durations and times outside the AER ranges reach typed fields, and the writer refuses the run | **fixed in 0.2.0** (D-1063, regen-batch rows 174, 175 and 176): agentdojo family and adprov `10d280ca`, inspect `9d81c4e6` (row 174); dtap `8e3a4ab2` (row 175); mcphunt `1dfb461c`, wirelog `23ea1d3b`, qwencode `b4a3eec3`, geminicli `13dbfc8b`, agentops `a145a785`, credleak `f8de0864`, openhands `c9a5c013`, autogen `f09a5f99`, registry `8782484c` (row 176) |
+| UC-40 | low | adapters | the D-378 lone-surrogate pass is missing, so a lone surrogate in a typed text field makes the run degenerate | **fixed in 0.2.0** (D-1063, regen-batch rows 174, 175 and 176): agentdojo capture `ae1fb7a4` (row 174); dtap `b4b1ec1b` (row 175); the eight wave-2 families as for UC-39 (row 176) |
+| UC-41 | low | adapters | no not-inlined path for strings over 1 MiB (the D-934 class) | **fixed in 0.2.0** for dtap and six wave-2 families (D-1063): dtap `d891ac05` (row 175); agentops `a145a785`, qwencode `b4a3eec3`, credleak `f8de0864`, autogen `f09a5f99`, geminicli `13dbfc8b`, wirelog `23ea1d3b`, registry `8782484c` (row 176); not needed in mcphunt (D-218 carving) or openhands (its own rule). The agentdojo and adprov parts land with rows 179 and 180 (catalogue v3; in progress) |
+| UC-42 | low | adapters | type confusion crashes the mapper, and Inspect copies non-conforming patches and deny-listed header strings into strict slots | **fixed in 0.2.0** (D-1063, regen-batch row 174) `ae1fb7a4` (agentdojo capture), `9d81c4e6` (Inspect) |
+| UC-43 | low | trust | `decode_members` accepts an escaped lone surrogate that `decode_origins` refuses; re-encoding then raises an untyped error | **fixed in 0.2.0** (D-1063, regen-batch row 178) `03d435ce` |
+| UC-44 | low | trust | a stored zip entry is read up to its compressed size, past `max_member_bytes` | **fixed in 0.2.0** (D-1063, regen-batch row 178) `d007b66c` |
 | UC-45 | low | CI | publish checks out `inputs.tag` unqualified, so a branch with the tag's name wins; nothing checks the commit is the tag's | **fixed** `d207d7a5` |
 | UC-46 | low | CI | if `CI_RUNNER` is set in the public repository, fork pull requests run on the self-hosted machine | **fixed** `618586c3` |
 | UC-47 | low | CI | `persist-credentials` defaults to true; `pages: write`/`id-token: write` are granted to the build job too | **fixed** `0ab9937a` |

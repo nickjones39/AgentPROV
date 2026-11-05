@@ -85,8 +85,7 @@ def run_import(profile_id: str, cache: Path, corpus: Path, jobs: int, limit: int
     from agentprov.corpus.writer import CorpusWriter
     from agentprov.ingest.limits import IngestLimits
 
-    if str(corpus.resolve()).startswith(str((Path.home() / ".agentprov" / "corpora").resolve())):
-        raise SystemExit("trial imports never write into ~/.agentprov/corpora")
+    d10.refuse_real_corpora(corpus)
     profile = load_profile(profile_id)
     limits = IngestLimits()
     out: dict[str, Any] = {"profile": {"id": profile.id, "version": profile.version, "sha256": profile.sha256},

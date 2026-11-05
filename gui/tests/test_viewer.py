@@ -41,6 +41,14 @@ def window(qapp: Any, mini_corpus: Path, tmp_path: Path) -> Any:
     qapp.processEvents()
 
 
+def choose_filter(v: Any, key: str, value: str) -> None:
+    """Pick ``value`` of the facet ``key`` the way a user does (D-1060): + Add filter, the facet's submenu, the value."""
+    v.filter_menu.aboutToShow.emit()
+    sub = next(a.menu() for a in v.filter_menu.actions() if a.menu() is not None and a.data() == key)
+    sub.aboutToShow.emit()
+    next(a for a in sub.actions() if a.data() == value).trigger()
+
+
 def _open(qapp: Any, w: Any, corpus: Path, row: int = 0) -> Any:
     v = w.viewer
     v.open_path(corpus)
@@ -91,9 +99,10 @@ def test_table_detail_and_graph_fill(qapp: Any, window: Any, mini_corpus: Path) 
 def test_filters(qapp: Any, window: Any, mini_corpus: Path) -> None:
     v = _open(qapp, window, mini_corpus)
     ex = v.table.ex(2)
-    v.ex_filter.setText(ex[-8:])
-    assert v.model.rowCount() == 1
-    v.ex_filter.clear()
+    window._search(ex[-8:])  # the window's toolbar search is the id search (D-1060); a chip shows it
+    assert v.model.rowCount() == 1 and v.search_text == ex[-8:] and "search" in v.chips
+    v.chips["search"].click()  # its × clears it
+    assert v.model.rowCount() == 3 and v.search_text == "" and not v.chips
     v.exec_view.sortByColumn(0, __import__("PySide6.QtCore").QtCore.Qt.SortOrder.DescendingOrder)
     assert v.model.table_row(0) == 2
 

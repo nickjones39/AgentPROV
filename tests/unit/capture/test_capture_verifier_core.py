@@ -20,6 +20,7 @@ from cap_support import (
     VECTOR_PATH,
     new_log,
     replay_vector,
+    session_start_data,
     start,
 )
 
@@ -187,6 +188,30 @@ def test_kitchen_sink_session_leaks_nothing(tmp_path: Path) -> None:
     assert flags and all(e["data"]["ns"] == "capture" for e in flags)
     rules = {r["rule"] for e in parsed for r in e["data"].get("redactions", [])}
     assert rules >= {"cap.secret.env_value@1", "cap.secret.pattern@1", "cap.secret.url_component@1", "cap.secret.home_path@1", "cap.secret.host_name@1"}
+
+
+def test_adjusted_values_and_an_early_end_validate_against_the_schema(tmp_path: Path) -> None:
+    # UC-19: an escaped lone surrogate stays a string and a too-deep member becomes a $blob value (both schema forms);
+    # UC-20: a log that ends before its instrumentation verifies through the core's loader as an early end
+    deep: Any = 0
+    for _ in range(250):
+        deep = [deep]
+    log = new_log(tmp_path / "a")
+    start(log)
+    log.emit("llm.response", {"call": "c0", "status": "kept", "served_model": "m\ud800"}, pass_=0)
+    log.emit("tool.dispatch", {"occ": "o0", "provider_call_id": None, "name": "f\udfff", "args": deep}, pass_=0,
+             actor="env")
+    log.close("complete")
+    early = new_log(tmp_path / "b")
+    early.emit("session.start", session_start_data())
+    early.close("errored")
+    for path in (log.path, early.path):
+        lines = split_lines(path.read_bytes())
+        parsed = core_events(lines)
+        for event in parsed:
+            assert not list(VALIDATOR.iter_errors(event)), event["type"]
+        report = verify_chain(lines, parsed)
+        assert report.sealed and not report.issues, report.issues
 
 
 def test_parent_terminal_event_validates_against_the_schema(tmp_path: Path) -> None:

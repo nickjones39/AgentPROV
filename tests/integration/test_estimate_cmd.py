@@ -107,6 +107,48 @@ def test_the_text_form_and_usage_errors(cli: Callable[..., Run], tmp_path: Path)
     assert cli("estimate", "agentdojo", "--dry-run", "--progress", "off").code == 2  # run-only options are absent
 
 
+def _local_priors(home: Path) -> None:
+    """A local priors file (D-1062) with this model family's banking row, as ``agentprov priors build`` writes it."""
+    from agentprov.estimate.localpriors import document_bytes, local_priors_path
+    from agentprov.estimate.usage import KeyStats
+
+    stats = KeyStats(40, 400, 10.0, 14.0, 900.0, 1500.0, 0.0, 0.0, 80.0, 150.0, 20.0, 45.0, "chars/4")
+    rows = {("agentdojo", "banking", "", "gpt-4o", ""): {"benchmark": "agentdojo", "suite": "banking", "attack": None,
+                                                         "family": "gpt-4o", "backend": None, **stats.to_json()}}
+    built_from = {"tool": "agentprov priors build", "corpora": [{"corpus_id": "mine-test", "executions_read": 40,
+                                                                 "manifest_sha256": "0" * 64}]}
+    path = local_priors_path(home)
+    path.parent.mkdir(parents=True)
+    path.write_bytes(document_bytes(built_from, rows))
+
+
+def test_the_quote_says_what_it_rests_on(cli: Callable[..., Run], home: Path) -> None:
+    """D-1062: ``quote`` (additive) from the shipped priors, then from local priors of this model family."""
+    shipped = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)
+    q = shipped["quote"]
+    assert q["usd_p50"] == shipped["cost_p50"] and q["usd_p90"] == shipped["cost_p90"]
+    assert q["cells"] == shipped["units"] and q["calls_p90"] == shipped["calls_p90"] and q["jobs"] == 1
+    assert q["tokens_in_p90"] >= q["tokens_in_p50"] > 0 and q["seconds_serial_p50"] == q["seconds_p50"]
+    assert q["p90_aggregation"] == "upper (sum of per-cell 90th percentiles)"
+    b = q["basis"]
+    assert b["priors"] == "shipped" and b["corpora"] == [] and b["estimate_only"] is True
+    assert b["price_source"] == "openrouter" and b["price_as_of"] == shipped["price"]["as_of"]
+    assert b["discounts_assumed"] is False and b["executions"] > 0
+    _local_priors(home)
+    local = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o", "--jobs", "2").out)
+    b = local["quote"]["basis"]
+    assert (b["priors"], b["family_specific"], b["family"], b["executions"], b["corpora"], b["token_basis"]) == (
+        "local", True, "gpt-4o", 40, ["mine-test"], "chars/4")
+    assert local["sources"] == {"priors-local": local["units"]} and local["quote"]["jobs"] == 2
+    assert local["quote"]["seconds_serial_p50"] >= local["quote"]["seconds_p50"]
+    other = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "deepseek/deepseek-chat").out)
+    assert other["quote"]["basis"]["priors"] == "shipped"  # no local row for this family or any model
+    text = cli("estimate", "agentdojo", "--suite", "banking", "--model", "openrouter", "--model-id", "openai/gpt-4o",
+               "--progress", "off")
+    assert ("Estimate only: actual cost can differ (token counts are approximated as characters / 4; batch and "
+            "cache discounts are not assumed).") in text.err
+
+
 def test_caps_pass_through_and_a_cap_below_the_p90_is_a_warning(cli: Callable[..., Run]) -> None:
     """D-725 caps are estimate options (a keyed API plan needs them, D-721); a cap below the p90 is said, not hidden."""
     doc = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o", "--max-calls", "1",

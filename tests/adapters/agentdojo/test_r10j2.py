@@ -52,8 +52,8 @@ def _codes(outcome: Any) -> set[str]:
 
 
 def test_profile_3_adds_the_part_and_keeps_version_2():
-    profile = load_profile("agentdyn")  # v4 since D-933 (part b's census); v3 is archived as round 1 records it
-    assert profile.version == 4 and "history" in profile.data["profile"]["parts"]
+    profile = load_profile("agentdyn")  # v4 since D-933 (part b's census); v3 is archived as round 1 records it; v5: D-1063
+    assert profile.version == 5 and "history" in profile.data["profile"]["parts"]
     assert load_profile("agentdyn", 3).sha256.startswith("b827b7d987d679306a66")
     (pin,) = [p for p in profile.data["source"]["pins"] if p["role"] == "history"]
     assert (pin["part"], pin["commit"], pin["expected_files"]) == ("history", HISTORY, 621)

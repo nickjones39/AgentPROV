@@ -10,7 +10,9 @@ trees and every blob of it the local clone has (the phase-10c staging clones are
 GitHub). The objects are packed from the clone with ``git pack-objects`` under ``GIT_NO_LAZY_FETCH=1`` and
 ``GIT_ALLOW_PROTOCOL=file``, so a missing blob can never be fetched: it is simply absent. ``tools/seed_git_cache.py`` is
 not used for these clones because its ``git fetch`` would let the clone's ``upload-pack`` fetch a missing blob lazily
-from the network. Nothing is logged in the shared ``~/.agentprov/cache``.
+from the network. The pack is indexed with ``git index-pack --fsck-objects``, the object checks the product fetch runs
+(``transfer.fsckObjects``): a tree entry ``..`` or ``.git`` refuses the seed. Nothing is logged in the shared
+``~/.agentprov/cache``.
 
 The pin check reads the tree listing with the product code (``raw.fetch.Fetcher.git_tree`` on the scratch cache). Because
 ``git ls-tree -l`` prints ``BAD`` as the size of an absent blob, the listing is restricted to **covering pathspecs**: the
@@ -90,7 +92,9 @@ def seed(profile_id: str, clone: Path, cache: Path) -> dict[str, Any]:
     bare.mkdir(parents=True, exist_ok=True)
     if not (bare / "objects").is_dir():
         _git(bare, "init", "-q", "--bare", "--template=", str(bare))
-    _git(bare, "index-pack", "--stdin", data=pack)
+    # The objects get the product fetch's checks (transfer.fsckObjects): a tree with a '..' or '.git' entry, or any other
+    # malformed object, refuses the seed. --fsck-objects checks objects, not links, so an absent blob is still allowed.
+    _git(bare, "index-pack", "--fsck-objects", "--stdin", data=pack)
     (bare / "shallow").write_text(commit + "\n", encoding="ascii")
     return {"commit": commit, "store": str(bare), "objects": len(wanted), "blobs": len(blobs), "absent_blobs": len(absent)}
 
@@ -212,14 +216,22 @@ def _sample(tree: Any, profile: Any, every: int) -> Any:
     return tree
 
 
+def refuse_real_corpora(corpus: Path) -> None:
+    """Trial imports write scratch corpora only: refuse a corpus inside ``$AGENTPROV_HOME/corpora`` (default
+    ``~/.agentprov``) or ``~/.agentprov/corpora``, compared after resolving the path (relative paths, symlinks)."""
+    target = corpus.expanduser().resolve()
+    for home in (os.environ.get("AGENTPROV_HOME") or "~/.agentprov", "~/.agentprov"):
+        if target.is_relative_to((Path(home).expanduser() / "corpora").resolve()):
+            raise SystemExit("trial imports never write into $AGENTPROV_HOME/corpora")
+
+
 def run_import(profile_id: str, cache: Path, corpus: Path, jobs: int, sample: int | None) -> dict[str, Any]:
     from agentprov.adapters.runner.importer import GitPinTree, import_source
     from agentprov.corpus.writer import CorpusWriter
     from agentprov.ingest.limits import IngestLimits
 
     profile, fetcher, recipe, pin, absent = _fetcher_recipe(profile_id, cache)
-    if str(corpus).startswith(str(Path.home() / ".agentprov" / "corpora")):
-        raise SystemExit("trial imports never write into ~/.agentprov/corpora")
+    refuse_real_corpora(corpus)
     tree: Any = GitPinTree(fetcher, recipe)
     if sample:
         tree = _sample(tree, profile, sample)

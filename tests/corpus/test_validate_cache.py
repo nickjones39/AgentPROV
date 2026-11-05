@@ -126,7 +126,7 @@ def test_a_tampered_document_is_not_served_its_old_entry(sealed: Path, tmp_path:
 
 def _corruptions(data: bytes, doc: str) -> dict[str, bytes]:
     entry = json.loads(data)
-    other = dict(entry, context={**entry["context"], "agentprov_code_sha256": "0" * 64})
+    other = dict(entry, context={**entry["context"], "code": {**entry["context"]["code"], "closure_sha256": "0" * 64}})
     wrong_doc = dict(entry, doc_sha256="f" * 64)
     flipped = json.loads(data)
     flipped["outcomes"][0]["status"] = "fail"  # the outcomes digest no longer matches

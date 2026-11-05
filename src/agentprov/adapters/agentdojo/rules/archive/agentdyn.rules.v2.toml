@@ -1,0 +1,289 @@
+# Rule catalogue `agentdyn` (docs/architecture D.5.1, D.5.4, D.6.4, D.6.6, D.6.7, D.6.14; sources/agentdyn.md; verify/agentdyn.md).
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (homed in the agentdojo family, D.5.1). Rules
+# are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version` (AD-18). Nothing
+# is released yet, so its rules keep @1;
+# the file is at version 2 since the D-31 bumps (2026-10-13), and version 1 (the bytes the stored corpora recorded) ships
+# under rules/archive/agentdyn.rules.v1.toml. D-685 (b) (2026-10-22, D-31 owner criterion): agentdyn.malformed_tool_call_dropped
+# is appended in place, before the regeneration round's first kept import records version 2 (a shared catalogue; the
+# stored -p10 corpora record version 1). The rule is cited only under a profile declaring the quirk
+# agentdojo.malformed_tool_call_dropped.
+#
+# Code citations point at SaFo-Lab/AgentDyn at the pinned commit 5353cf7615b135cace8d07c8f12dac53a16b6db3. The January
+# 2026 run logs (evaluation_timestamp 2026-01-21 .. 2026-01-26) predate the repository (created 2026-01-29), and the exact
+# code that produced them is unknown (sources/agentdyn.md §12; verify/agentdyn.md §9 item 4). Each class-D rule below rests
+# on the cited code **and** on the logs themselves (the stated count of files shows the behaviour); none rests on the claim
+# that the cited commit produced the logs. No rule declares a `verified` assumption.
+
+[catalogue]
+id = "agentdyn"
+version = 2
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = []
+subtypes = []
+types = []
+
+[[rule]]
+id = "agentdyn.variant_by_keyset"
+version = 1
+class = "D"
+status = "active"
+statement = "An AgentDyn run log is of variant A, B, C or D by its top-level key set, exactly as the dialect classifies it (D.6.2): A is the 14-key AgentDojo 0.1.35 set (agentdojo_package_version present), B the 11-key set without version and timestamp (Progent's vendored AgentDojo 0.1.29), C the DRIFT key set with a messages list, D the same with conversations. The profile's variant_labels assign each variant to a part (a, b, c, d); a variant of another part is not selected."
+premises = [""]
+assumptions = []
+evidence = ["sources/agentdyn.md §3.1", "verify/agentdyn.md §3", "D.6.2", "D.4.4"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_variant_labels_route_the_other_parts"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.pipeline_dir_registry"
+version = 1
+class = "I"
+status = "active"
+statement = "The model, defence and provider of an AgentDyn run log are those of the one row of the identity table agentdyn_pipeline_dirs that names the log's pipeline directory. The directory names are curation labels of the publisher, not logger output (3,626 variant A directories differ from pipeline_name, and all of B and C); the table is the only identity source and pipeline_name is kept verbatim and compared, never used."
+premises = ["/pipeline_name"]
+assumptions = []
+evidence = ["sources/agentdyn.md §3.6, §8.3", "verify/agentdyn.md §5", "D.4.5"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_identity_comes_from_the_pipeline_dir_table"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.last_assistant_content_none_max3"
+version = 1
+class = "D"
+status = "active"
+statement = "AgentDyn re-runs the whole pipeline on the same mutated environment, up to three passes, while the model output read from the messages is None, and only the messages of the last pass are logged. Unlike upstream AgentDojo, AgentDyn reads the output from the last assistant message anywhere in the list (model_output_from_messages), not from the final message. A log whose last assistant message has content null (and that has no run error) therefore shows a retry that ran out: the attempt index is 2, and its earlier passes and the environment state they left are not observable."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/task_suite/task_suite.py", lines = "70-76", note = "model_output_from_messages: the last assistant message anywhere" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/task_suite/task_suite.py", lines = "384-394", note = "for _ in range(3): query, break when model_output is not None" },
+]
+evidence = ["sources/agentdyn.md §3.5", "verify/agentdyn.md §6", "D.6.5 Step 3"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_retry_is_inferred_from_the_last_assistant_message_anywhere"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.json_decode_error_imposed"
+version = 1
+class = "D"
+status = "active"
+statement = "When the model's output cannot be decoded, AgentDyn's benchmark runner catches the JSONDecodeError, logs the run error 'Skipping task ... because of JSON decode error', and assigns utility False and security True itself instead of running the checker. The recorded outcomes of such a log are imposed by the runner, not judged (origin harness_default). In the pinned data this is five meta-llama_llama-3.3-70b-instruct logs, each with the run error and the values (False, True)."
+premises = ["/error", "/utility", "/security"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/benchmark.py", lines = "149-152", note = "attacked run: except JSONDecodeError: utility = False; security = True" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/benchmark.py", lines = "318-321", note = "benign run: the same handler" },
+]
+evidence = ["sources/agentdyn.md §4.4", "verify/agentdyn.md §8", "D.6.7"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_json_decode_error_imposes_the_outcome"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.drift_user_error_key"
+version = 1
+class = "D"
+status = "active"
+statement = "In an AgentDyn log written through the integrated DRIFT defence (--defense drift), a message of role user that carries an error key is the DRIFT validator's refusal feedback: DRIFTLLM builds {role: user, content: error_text, error: error_text} when the refused call has no tool-call id, and a tool-role error message when it has one. The message is authored by the defence, not by the user, and records a refusal of the preceding assistant output. The pinned data hold 434 such messages, all in gpt-4o-mini-2024-07-18-drift, each directly after an assistant message with an empty tool_calls list, and each with content equal to the error."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/defenses/drift/DRIFTLLM.py", lines = "22-41", note = "_build_validation_error_tool_message: the user-role message with an error key" },
+]
+evidence = ["sources/agentdyn.md §3.7", "verify/agentdyn.md §6", "D.6.6"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_drift_user_error_key_is_a_defence_message"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.camel_orphan_tool_result"
+version = 1
+class = "I"
+status = "active"
+statement = "In an AgentDyn CaMeL log, a tool message that no assistant tool call answers is a call the CaMeL interpreter executed on its own: the P-LLM writes Python as assistant text and the interpreter runs the tool calls inside it, and the Q-LLM invocations appear only as tool messages. Such an execution is requested by the camel defence actor, not by the agent, and has no tool_call part to link to. This is an inference from the CaMeL design and the logs (2,635 tool messages against 658 assistant calls), not an observed request."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/agentdyn.md §3.8", "C.3.7 requested_by", "D.6.6"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_camel_orphan_results_are_requested_by_the_defence"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.camel_interpreter_feedback"
+version = 1
+class = "D"
+status = "active"
+statement = "In an AgentDyn CaMeL log, a later user message whose text begins 'Running the code gave the following error:' is the CaMeL interpreter's error feedback: on an interpretation error the privileged-LLM element appends the failed code as an assistant message and this feedback as a user message (the formatted exception, redacted when it came from an untrusted source) both to the logged messages and to the planner's private list. The message is written by the camel defence, not by the simulated user."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/defenses/camel/src/camel/pipeline_elements/privileged_llm.py", lines = "86-134", note = "format_camel_exception and make_error_messages: the user-role feedback" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/defenses/camel/src/camel/pipeline_elements/privileged_llm.py", lines = "372-375", note = "the pair appended to the logged messages and to the planner's list" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/agent_pipeline/agent_pipeline.py", lines = "527-534", note = "AgentPipeline.query logs messages after each element" },
+]
+evidence = ["docs/reports/analysis/phase10-corpus-analysis.md B3", "D.6.14", "regen-batch item 2"]
+tests = ["tests/adapters/agentdojo/test_item2_camel.py::test_interpreter_feedback_is_the_defences"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.camel_planner_input_not_logged"
+version = 1
+class = "D"
+status = "active"
+statement = "In an AgentDyn CaMeL log, the agent's model calls are the privileged planner's (P-LLM): it is queried with its own message list (its generated system prompt, the user query, and the earlier code and interpreter-feedback pairs) under a dummy runtime, never with tool results, and that list is not logged (the logged messages also hold the tool results and synthetic messages). The input of these calls is not recorded."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/defenses/camel/src/camel/pipeline_elements/privileged_llm.py", lines = "306-321", note = "the planner's own list: system prompt and query; dummy runtime" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/defenses/camel/src/camel/pipeline_elements/privileged_llm.py", lines = "372-375", note = "only code and feedback pairs are added to it" },
+]
+evidence = ["docs/reports/analysis/phase10-corpus-analysis.md B3", "D.6.14", "regen-batch item 2"]
+tests = ["tests/adapters/agentdojo/test_item2_camel.py::test_planner_calls_declare_their_input_not_recorded"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.camel_interpreter_feedback_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdyn.camel_interpreter_feedback@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): In an AgentDyn CaMeL log, a later user message whose text begins 'Running the code gave the following error:' is the CaMeL interpreter's error feedback: on an interpretation error the privileged-LLM element appends the failed code as an assistant message and this feedback as a user message (the formatted exception, redacted when it came from an untrusted source) both to the logged messages and to the planner's private list. The message is written by the camel defence, not by the simulated user."
+premises = ["/messages"]
+assumptions = []
+evidence = ["docs/reports/analysis/phase10-corpus-analysis.md B3", "D.6.14", "regen-batch item 2", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.camel_planner_input_not_logged_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdyn.camel_planner_input_not_logged@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): In an AgentDyn CaMeL log, the agent's model calls are the privileged planner's (P-LLM): it is queried with its own message list (its generated system prompt, the user query, and the earlier code and interpreter-feedback pairs) under a dummy runtime, never with tool results, and that list is not logged (the logged messages also hold the tool results and synthetic messages). The input of these calls is not recorded."
+premises = ["/messages"]
+assumptions = []
+evidence = ["docs/reports/analysis/phase10-corpus-analysis.md B3", "D.6.14", "regen-batch item 2", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.progent_denial_pattern"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool message whose error starts with \"ValidationError: The tool '<name>' is not allowed..\" in a -progent pipeline was produced by Progent's policy check (check_tool_call raises ValidationError(\"The tool '<name>' is not allowed.\") and the wrapper appends \". Please try other tools or arguments and continue to finish the user task\"). The call was denied before execution: the message records a defence decision, and the tool did not run. The reason of the denial is not logged. Other ValidationError messages are not denials."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/defenses/progent/secagent/tool.py", lines = "613-655", note = "check_tool_call: ValidationError(\"The tool '...' is not allowed.\") wrapped with the retry hint" },
+]
+evidence = ["sources/agentdyn.md §3.8", "D.6.6"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_progent_denial_is_a_decision"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.variant_c_rekey"
+version = 1
+class = "I"
+status = "active"
+statement = "A variant C file (drift.k18.messages) is one of AgentDyn's DRIFT outputs, re-keyed (conversations to messages) and relocated by the AgentDyn authors from AgentDyn's own history blobs runs/DRIFT/** (edge E11); no public DRIFT version writes a messages key. The head form is imported (variant C); the history blob becomes an alias origin only when the history part is imported (deferred, I.2.4)."
+premises = [""]
+assumptions = []
+evidence = ["verify/agentdyn.md §3", "I.2.2 E11"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_variant_c_rekey_is_declared_not_cited"]
+since = "0.1.0"
+
+# ---------------------------------------------------------------------------------------------- _unverified twins (D.5.4)
+# Regeneration-batch item 3 (D-24, D-27 c6): the class-I twin of each D rule that a profile cites for a record whose
+# producing code the D rule's `code` list does not cite (or that cites no code: documentary evidence only). The
+# mapper picks the twin per profile and record facets from `[harness] verified_code` (adapters/code_verification.py).
+
+[[rule]]
+id = "agentdyn.last_assistant_content_none_max3_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdyn.last_assistant_content_none_max3@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): AgentDyn re-runs the whole pipeline on the same mutated environment, up to three passes, while the model output read from the messages is None, and only the messages of the last pass are logged. Unlike upstream AgentDojo, AgentDyn reads the output from the last assistant message anywhere in the list (model_output_from_messages), not from the final message. A log whose last assistant message has content null (and that has no run error) therefore shows a retry that ran out: the attempt index is 2, and its earlier passes and the environment state they left are not observable."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/agentdyn.md §3.5", "verify/agentdyn.md §6", "D.6.5 Step 3", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.json_decode_error_imposed_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdyn.json_decode_error_imposed@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): When the model's output cannot be decoded, AgentDyn's benchmark runner catches the JSONDecodeError, logs the run error 'Skipping task ... because of JSON decode error', and assigns utility False and security True itself instead of running the checker. The recorded outcomes of such a log are imposed by the runner, not judged (origin harness_default). In the pinned data this is five meta-llama_llama-3.3-70b-instruct logs, each with the run error and the values (False, True)."
+premises = ["/error", "/utility", "/security"]
+assumptions = []
+evidence = ["sources/agentdyn.md §4.4", "verify/agentdyn.md §8", "D.6.7", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.drift_user_error_key_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The reading of agentdyn.drift_user_error_key@1 where the code that wrote the record is not among the commits it cites (D-24), so it is inferred, not derived (D.5.4 \"Citation of D rules\"): In an AgentDyn log written through the integrated DRIFT defence (--defense drift), a message of role user that carries an error key is the DRIFT validator's refusal feedback: DRIFTLLM builds {role: user, content: error_text, error: error_text} when the refused call has no tool-call id, and a tool-role error message when it has one. The message is authored by the defence, not by the user, and records a refusal of the preceding assistant output. The pinned data hold 434 such messages, all in gpt-4o-mini-2024-07-18-drift, each directly after an assistant message with an empty tool_calls list, and each with content equal to the error."
+premises = ["/messages"]
+assumptions = []
+evidence = ["sources/agentdyn.md §3.7", "verify/agentdyn.md §6", "D.6.6", "D.5.4", "DECISIONS D-24"]
+tests = ["tests/adapters/test_code_verification.py::test_every_twin_restates_its_d_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.nondeterministic_tool_state"
+version = 1
+class = "D"
+status = "active"
+statement = "AgentDyn's tool clients read the random generator and the clock inside tool calls: one-time passcodes (shopping, github, dynamic banking), order ids (shopping), order dates (shopping) and the timestamps of emails, comments and drive files. The values enter the environment state and, for the passcode flows, the tool results; a re-run of the same task, model and attack does not reproduce them. A recorded value is what that run produced; nothing in a log determines another run's value."
+premises = ["/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/shopping_client.py", lines = "150", note = "OTP: random.choices" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/shopping_client.py", lines = "646", note = "order date: datetime.date.today()" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/shopping_client.py", lines = "798", note = "order date: datetime.date.today()" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/shopping_client.py", lines = "818", note = "order id: random.randint" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/github_client.py", lines = "119", note = "OTP: random.choices" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/github_client.py", lines = "517", note = "comment timestamp: datetime.datetime.now()" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/dynamic_banking_client.py", lines = "48", note = "OTP: random.choices" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/dynamic_email_client.py", lines = "39", note = "email timestamp: datetime.datetime.now()" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/dynamic_email_client.py", lines = "70", note = "email timestamp: datetime.datetime.now()" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/cloud_drive_client.py", lines = "41", note = "file last_modified: datetime.datetime.now()" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/tools/cloud_drive_client.py", lines = "62", note = "file last_modified: datetime.datetime.now()" },
+]
+evidence = ["docs/reports/phase9b/README.md §3 (R-9b-1: two scripted live shopping runs, equal pass.start and different pass.end state digests)", "regen-batch item 26", "the AutoDojo fork xhOwenMa/AutoDojo at aa458794 carries the cited tool files with the same blob ids"]
+tests = ["tests/adapters/agentdojo/test_items_26_27.py::test_the_nondeterministic_tools_entry_and_its_rule"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.suite_benchmark"
+version = 1
+class = "D"
+status = "active"
+statement = "In a live session of the AutoDojo fork, a cell whose suite is shopping, github or dailylife runs AgentDyn's own suite: the fork's task suites and tool clients for those suites are byte-identical to AgentDyn's (the same blob ids), while the harness names every cell's benchmark agentdojo. So the execution's benchmark is agentdyn, as the source profile's suites map says (D.6.5 step 1); the cell's value is kept as recorded."
+premises = ["/task/suite", "/task/benchmark"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/shopping/task_suite.py", lines = "-", note = "blob c406bfd5; the AutoDojo fork at aa458794 has the same blob" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/github/task_suite.py", lines = "-", note = "blob 8313cfae; the AutoDojo fork at aa458794 has the same blob" },
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/dailylife/task_suite.py", lines = "-", note = "blob 35dca8e1; the AutoDojo fork at aa458794 has the same blob" },
+]
+evidence = ["docs/reports/phase9b/README.md §3 (R-9b-2)", "regen-batch item 27 (a)", "the AutoDojo fork xhOwenMa/AutoDojo at aa458794: agentdojo/src/agentdojo/default_suites/v1/{shopping,github,dailylife}/task_suite.py and tools/*.py have the cited blob ids"]
+tests = ["tests/adapters/agentdojo/test_items_26_27.py::test_a_live_agentdyn_cell_reads_its_benchmark_from_the_suites_map"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentdyn.malformed_tool_call_dropped"
+version = 1
+class = "D"
+status = "active"
+statement = "Added for the AgentDyn live backend (D-685 (b)). Under a live profile that declares the quirk agentdojo.malformed_tool_call_dropped, AgentDyn's _openai_to_assistant_message drops every wire tool call that _openai_to_tool_call cannot convert, which is exactly a call with no function or whose arguments do not decode to a JSON object (json.loads, then FunctionCall validation). The reply of a kept agent call is matched with its assistant message on the calls that remain, and the dropped calls are listed in the message's ext.agentdojo.dropped_calls (their index in the reply's tool_calls, name, raw arguments and provider id, src into the response blob). A dropped call is not part of the message and was never dispatched: no tool execution, no relation and no taint comes from it."
+premises = ["/data/response", "/data/messages"]
+assumptions = []
+code = [
+  { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/agent_pipeline/llms/openai_llm.py", lines = "125-154", note = "_openai_to_tool_call: json.loads(arguments) into FunctionCall; _openai_to_assistant_message: a failing conversion is skipped (except Exception: continue)" },
+]
+evidence = ["docs/reports/agentdyn-backend/README.md section 5", "DECISIONS D-685"]
+tests = ["tests/adapters/agentdojo/test_agentdyn.py::test_a_dropped_call_is_recognised_only_under_the_quirk"]
+since = "0.1.0"

@@ -31,7 +31,7 @@ def test_release_validation_sem_prov_and_determinism(mapped):
         assert not rep.findings, (crit, sorted({f.code for f in rep.findings}))
         from agentprov.adapters.semantics_profiles import load_semantics_profile
 
-        profile = load_semantics_profile("wirelog.tools", 1)
+        profile = load_semantics_profile("wirelog.tools", support.SEM_VERSION)
         srep = validate_sem_document(m.sem, m.doc, catalogues=reg, mode="release", profile=profile)
         assert not srep.findings, (crit, sorted({f.code for f in srep.findings}))
         assert validate_prov(m.prov.prov_json, m.doc, sems=[m.sem]).failed() == [], crit
@@ -133,6 +133,23 @@ def test_responses_link_by_echo(mapped):
     assert "wirelog.last_response_by_position_unverified@1" in _rules(assistants[-1])
     assert [c["evf"]["/status"] for c in m.of("model_call")] == ["D", "D", "D", "I"]
     assert all(c["status"] == "kept" for c in m.of("model_call"))
+    # AU-RC-4 (D-1063, regen-batch row 181): the causal after rests on the link, so the last, unechoed response's is I
+    assert [a["evf"]["/after"] for a in assistants] == ["D", "D", "D", "I"]
+
+
+def test_a_causal_after_is_never_stronger_than_its_link(mapped):
+    """AU-RC-4 (C.6.5 rule 1, D-87): in every fixture run, a record's causal ``/after`` is no stronger than the
+    ``/generated_by`` or ``/call`` link it follows."""
+    from agentprov.aer.evidence import effective_tag, weakest
+
+    for crit, m in mapped.items():
+        for rec in m.records:
+            if not any(a["b"] == "causal" for a in rec.get("after", ())):
+                continue
+            after = effective_tag(rec, "/after")
+            for link in ("/generated_by", "/call", "/subject"):
+                if link[1:] in rec:
+                    assert weakest(after, effective_tag(rec, link)) == weakest(after), (crit, rec["id"], link)
 
 
 def test_calls_and_results_pair_by_id(mapped):

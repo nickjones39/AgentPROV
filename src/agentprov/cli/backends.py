@@ -104,6 +104,10 @@ def run_backends(ctx: Context) -> CommandResult:
         raise CliUsageError("agentprov backends: an action is required (build)")
     if args.offline_check and args.dry_run:
         raise CliUsageError("agentprov backends build: --offline-check and --dry-run are exclusive")
+    if not args.dry_run:  # D-1064: refused where the backend is known not to install; the plan stays printable
+        from agentprov.platforms import refuse
+
+        refuse("backend_build", subject=args.backend)
     from agentprov.cli.live import envs
 
     root = envs.repository_root()

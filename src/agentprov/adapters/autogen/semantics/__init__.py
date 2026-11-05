@@ -1,7 +1,7 @@
 """Semantics profiles of the AutoGen guard-placement adapter family (docs/architecture D.19.8; C.14.1).
 
-The profile ``autogen.tools`` at version 1 is the data directory ``autogen.tools-1/`` beside this package and the code in
-:mod:`.tools`. :func:`agentprov.adapters.semantics_profiles.load_semantics_profile` finds the directory by convention,
+The profile ``autogen.tools`` at version ``n`` is the data directory ``autogen.tools-<n>/`` beside this package (versions
+1 and 2; 2 since D-1063) and the code in :mod:`.tools`. :func:`agentprov.adapters.semantics_profiles.load_semantics_profile` finds the directory by convention,
 reads its files and calls :func:`build_profile`; nothing here reads a corpus copy (AD-14).
 """
 

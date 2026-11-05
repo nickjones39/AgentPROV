@@ -24,6 +24,14 @@ print("started", flush=True)
 time.sleep(float(sys.argv[-1]))  # argv: -C ROOT x y SECONDS
 '''
 
+#: A job that ends at once. ``info`` probes the host (about 1 s idle, tens of seconds at load ~50, 2026-11-05),
+#: which none of these tests checks; ``settings list`` is an R0 read of the job's own home (0.2 s).
+QUICK = ("settings", "list")
+#: How long a test waits for a detached job to change state: polled, so a passing run never waits it out; long
+#: enough for a supervisor and its child to start and end on a loaded machine (2026-11-05: 30 s failed at
+#: load ~50).
+JOB_WAIT_S = 180.0
+
 
 @pytest.fixture
 def root(tmp_path: Path) -> Path:
@@ -41,7 +49,7 @@ def manager(tmp_path: Path, root: Path) -> JobManager:
     return JobManager(tmp_path / "home", environ=environ, root=root)
 
 
-def _wait(job_dir: Path, timeout: float = 30) -> None:
+def _wait(job_dir: Path, timeout: float = JOB_WAIT_S) -> None:
     end = time.monotonic() + timeout
     while time.monotonic() < end:
         job = load_job(job_dir)
@@ -52,13 +60,13 @@ def _wait(job_dir: Path, timeout: float = 30) -> None:
 
 
 def _wait_started(job_dir: Path) -> None:
-    end = time.monotonic() + 20
+    end = time.monotonic() + JOB_WAIT_S
     while time.monotonic() < end and b"started" not in (job_dir / "stdout.txt").read_bytes():
         time.sleep(0.05)
 
 
 def test_a_supervised_job_records_its_real_exit_code_and_an_allowlisted_env(manager: JobManager) -> None:
-    job = manager.spawn(JobRequest(("info", "--format", "json"), label="info"))
+    job = manager.spawn(JobRequest((*QUICK, "--format", "json"), label="quick"))
     assert job.pid is not None and job.supervisor_pid is not None
     _wait(job.directory)
     done = load_job(job.directory)
@@ -119,7 +127,7 @@ def test_drain_needs_a_control_file_and_resume_repeats_the_request(manager: JobM
 
 def test_prune_keeps_the_newest_and_never_a_running_job(manager: JobManager) -> None:
     for _ in range(3):
-        _wait(manager.spawn(JobRequest(("info",))).directory)
+        _wait(manager.spawn(JobRequest(QUICK)).directory)
     running = manager.spawn(JobRequest(("x", "y", "60"), tool="tools/sleeper.py"))
     candidates = manager.prune_candidates(keep=1)
     assert len(candidates) == 2 and running.job_id not in {j.job_id for j in candidates}
@@ -135,7 +143,7 @@ def test_prune_defaults_come_from_the_retention_settings(manager: JobManager, ca
 
     monkeypatch.setenv("AGENTPROV_HOME", str(manager.home))
     for _ in range(12):
-        _wait(manager.spawn(JobRequest(("info",))).directory)
+        _wait(manager.spawn(JobRequest(QUICK)).directory)
 
     def listed(*extra: str) -> int:
         capsys.readouterr()
@@ -210,6 +218,14 @@ def test_no_checkout_no_tool(tmp_path: Path) -> None:
     (("run", "agentdojo", "--keychain"), "R2"), (("run", "a", "--max-calls", "5"), "R2"), (("fetch",), "R2"),
     (("prices", "refresh", "--allow-network"), "R2"), (("prices", "set", "e", "m"), "R1"), (("prices", "list"), "R0"),
     (("settings", "get", "k"), "R0"), (("purge", "x", "--yes"), "R1"),
+    # D-1062: status and show read only; the daily refresh is still R2; a local priors build writes local state
+    (("prices", "status"), "R0"), (("prices", "refresh", "--allow-network", "--if-stale"), "R2"),
+    (("priors", "show"), "R0"), (("priors", "build", "--jobs", "2"), "R1"),
+    # D-1065: the update check, download and install reach the network or replace the app; status reads the cache;
+    # a rollback writes local state only
+    (("update", "status"), "R0"), (("update", "check", "--allow-network", "--if-stale"), "R2"),
+    (("update", "download", "--allow-network"), "R2"), (("update", "install", "--confirm", "--bundle", "b"), "R2"),
+    (("update", "rollback", "--yes", "--bundle", "b"), "R1"),
 ])
 def test_tiers(argv: tuple[str, ...], tier: str) -> None:
     assert tiers.tier_of_argv(argv) == tier
@@ -221,7 +237,7 @@ def test_destructive() -> None:
 
 
 def test_the_child_runs_this_interpreter(manager: JobManager) -> None:
-    job = manager.spawn(JobRequest(("info",)))
+    job = manager.spawn(JobRequest(QUICK))
     assert job.record["argv"][0] == sys.executable
     _wait(job.directory)
 

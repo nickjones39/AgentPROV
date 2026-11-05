@@ -20,10 +20,12 @@
 # native log that the live-versus-native check runs under this same profile (D.10.4). The quirks below are declared for
 # that native mapping (the stock 0.1.35 harness behaves as the upstream profile's code range does); they carry no
 # `observed` counts, because no live campaign has been run yet.
+# Version 4 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 3 ships under profiles/archive/agentdojo-live.profile.v3.toml.
 
 [profile]
 id = "agentdojo-live"
-version = 3
+version = 4
 format = "agentprov-source-profile/0.1"
 source_id = "agentdojo"
 family = "agentdojo"
@@ -62,7 +64,7 @@ content_dedup = "never"
 dialect = "agentprov.capture"
 mapper = "agentdojo.capture"
 variants = ["0.1"]
-rules = { aer = 1, agentdojo = 2, anthropic_messages = 1, cap = 1 }  # anthropic_messages: provider-anthropic sessions (D-656)
+rules = { aer = 1, agentdojo = 3, anthropic_messages = 1, cap = 1 }  # anthropic_messages: provider-anthropic sessions (D-656)
 include = ["raw/capture/*.capture.jsonl"]
 native = { dialect = "agentdojo.tracelogger", variants = ["v1.k14", "v1.k14.incomplete"], mapper = "agentdojo.tracelogger" }
 
@@ -77,7 +79,7 @@ suites = { workspace = "agentdojo", travel = "agentdojo", banking = "agentdojo",
 version_field = "benchmark_version"
 version_label_semantics = "suite_version"
 dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
-semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+semantics_profile = { id = "agentdojo.suites", version = 4 }  # D-31 and item 1: regenerated corpora read @2
 
 [family.agentdojo.harness]
 code_identity = "pinned"

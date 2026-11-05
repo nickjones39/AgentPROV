@@ -23,6 +23,7 @@ Pure (A-2): the output is a function of the unit's bytes, the header bytes, this
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import heapq
 import json
@@ -35,11 +36,12 @@ from typing import Any, Final
 from agentprov.adapters.code_verification import TWIN_SUFFIX, code_commits, rule_class
 from agentprov.adapters.inspect.redact import RULE as REDACT_RULE
 from agentprov.adapters.inspect.redact import Redactor, observed_model_ids, parse_redact_rules
-from agentprov.adapters.surrogates import scrub_keys, surrogates
+from agentprov.adapters.surrogates import JSON_FIELDS, has_lone_surrogate, scrub_keys, surrogates
 from agentprov.adapters.inspect.dialect import DIALECT_ID, FLAG_HEADER_NONFINITE, FLAG_MESSAGE_POOL, VARIANT, load_header
 from agentprov.adapters.protocols import AerRecord, MappingContext
 from agentprov.adapters.types import ExecutionUnit
-from agentprov.aer.canon import LexHints, encode_value, json_pointer
+from agentprov.aer.canon import I_JSON_MAX, LexHints, encode_value, json_pointer, pointer_escape
+from agentprov.aer.evidence import effective_tag, effective_tags, tag_class
 from agentprov.aer.ids import part_id
 from agentprov.errors import AgentProvError, IngestError, MalformedArtefact, UnsupportedVariant
 from agentprov.ingest.limits import MIB
@@ -53,7 +55,15 @@ ADAPTER_VERSION: Final = "0.1.0"
 CATALOGUES: Final = ("aer", "inspect")
 NAMESPACES: Final = {"inspect": "https://w3id.org/agentprov/ns/inspect#"}
 ATTACHMENT: Final = "attachment://"
-_RFC3339: Final = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})")
+#: an RFC 3339 instant within the AER's own field ranges (``aer._structure`` ``time``: month 01-12, day 01-31, hour
+#: 00-23, a leap second): a ``Z`` or ``+00:00`` value outside them is no instant here, never a typed time the AER writer
+#: refuses (review UC-39, the D-1011 class; another offset is converted by ``datetime``, which checks the calendar)
+_RFC3339: Final = re.compile(r"[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])"
+                             r"T(?:[01][0-9]|2[0-3]):[0-5][0-9]:(?:[0-5][0-9]|60)(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})")
+#: RFC 6902 operations (``aer.types.JSON_PATCH_OPS``) and an RFC 6901 pointer (``aer._structure`` ``pointer_any``): the
+#: shape the AER's ``state_change.patch`` requires (review UC-42)
+_PATCH_OPS: Final = frozenset({"add", "remove", "replace", "move", "copy", "test"})
+_PATCH_PATH: Final = re.compile(r"(?:/(?:[^/~]|~[01])*)*")
 _HEX40: Final = re.compile(r"[0-9a-f]{40}")
 _EVENT_POINTER: Final = re.compile(r"^/events/(0|[1-9][0-9]*)(?:/|$)")
 #: regeneration-batch item 133 (pre-check PC-04): a cached model call's output in another scope is that scope's message
@@ -90,7 +100,7 @@ def tool_status(error: object) -> str | None:
     kind = error.get("type")
     if kind == "approval":
         return None
-    return "invalid" if kind in _INVALID_TYPES else "error"
+    return "invalid" if isinstance(kind, str) and kind in _INVALID_TYPES else "error"
 
 
 #: An inspect_ai release (optionally ``.devN`` and a local ``+...``), for the producer-version gate of item 25.
@@ -141,6 +151,41 @@ def _ambiguous_tool_names(records: Sequence[dict[str, Any]]) -> None:
             unk = rec.setdefault("unk", {})
             for pointer in pointers:
                 unk.setdefault(pointer, "ambiguous")
+
+
+def _ambiguous_placeholders(records: Sequence[dict[str, Any]]) -> None:
+    """Review UC-42, as BF-22 for tool names: a deny-listed string (C.7.3) copied from the log into a typed header or
+    actor field (the execution's ``task``, an actor's ``version``, ``model`` or ``code``; the positions AER-V17 checks)
+    keeps its verbatim value, declared ``unk ambiguous`` (C.7.2(2)), instead of collapsing the sample into an
+    ``adapter_defect`` AER (e.g. ``task_version: "none"``)."""
+    for rec in records:
+        pointers: list[str] = []
+        if rec.get("k") == "execution" and isinstance(rec.get("task"), dict):
+            pointers += [f"/task/{name}" for name, value in rec["task"].items() if _placeholder(value)]
+        if rec.get("k") == "actor":
+            if _placeholder(rec.get("version")):
+                pointers.append("/version")
+            for group in ("model", "code"):
+                if isinstance(rec.get(group), dict):
+                    pointers += [f"/{group}/{name}" for name, value in rec[group].items() if _placeholder(value)]
+        if pointers:
+            unk = rec.setdefault("unk", {})
+            for pointer in pointers:
+                unk.setdefault(pointer, "ambiguous")
+
+
+def _placeholder(value: object) -> bool:
+    return isinstance(value, str) and value.lower() in _SENTINELS
+
+
+def _patch_ok(patch: object) -> bool:
+    """``patch`` has the shape of an AER ``state_change.patch`` (review UC-42): a list of RFC 6902 operations, each an
+    object whose ``op`` is one of the six and whose ``path`` is a JSON pointer (a scalar string, so no lone surrogate)."""
+    return isinstance(patch, list) and all(
+        isinstance(op, dict) and isinstance(op.get("op"), str) and op["op"] in _PATCH_OPS
+        and isinstance(op.get("path"), str) and _PATCH_PATH.fullmatch(op["path"]) is not None
+        and not has_lone_surrogate(op["path"])
+        for op in patch)
 
 
 def producer_commit(producer: object) -> str | None:
@@ -202,6 +247,34 @@ def _slim(value: object, pointer: str = "") -> tuple[Any, list[str]]:
             found += sub
         return items, found
     return value, []
+
+
+#: record members that are no assertion (C.2.2): never slimmed
+_META_FIELDS: Final = frozenset({"k", "id", "ev", "by", "evf", "rule", "src", "unk", "after"})
+
+
+def _slim_json(node: Any, tokens: tuple[str, ...], found: list[str]) -> Any:
+    """``node`` (a finished record's member, as encoded) with every string over 1 MiB in a Json position replaced by
+    :func:`_not_inlined`; a ``$utf16`` value counts by its decoded text (AU-RB-1, D-1063). ``found`` collects the
+    pointers. Typed positions are left as they are."""
+    json_position = any(t in JSON_FIELDS for t in tokens)
+    if isinstance(node, str):
+        if json_position and _big(node):
+            found.append("".join("/" + pointer_escape(t) for t in tokens))
+            return _not_inlined(node)
+        return node
+    if isinstance(node, dict):
+        wrapped = node.get("$utf16") if len(node) == 1 else None
+        if json_position and isinstance(wrapped, str):
+            text = base64.b64decode(wrapped).decode("utf-16-be", "surrogatepass")
+            if len(wrapped) > MIB or _big(text):
+                found.append("".join("/" + pointer_escape(t) for t in tokens))
+                return _not_inlined(text)
+            return node
+        return {k: _slim_json(v, (*tokens, str(k)), found) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_slim_json(v, (*tokens, str(i)), found) for i, v in enumerate(node)]
+    return node
 
 
 def _p(*tokens: str | int) -> str:
@@ -387,7 +460,7 @@ class _Msg:
     src: list[str] = field(default_factory=list)
     attachments: list[str] = field(default_factory=list)
     generated_by: str | None = None
-    generator_kind: str | None = None  # "agent" | "judge" | "tool" | "decision"
+    generator_kind: str | None = None  # "agent" | "judge" | "tool" | "decision" (truncation) | "denial" (approval error)
     scope: str | None = None
     consumer_key: tuple[Any, ...] | None = None
     emitted: bool = False
@@ -620,19 +693,47 @@ class _Build:
         self.header_ext = self._header_ext()
         if any(_slim(value)[1] for _name, value in self.header_ext):
             self.not_inlined.append("exec")  # the header is built last; its ids join the issue before it is deferred
-        if self.not_inlined:
-            self.defer("inspect.content_not_inlined", sorted(set(self.not_inlined)), R_NOT_INLINED, severity="info")
+        slot = len(self.issues)  # the not-inlined issue keeps its place among the deferred issues (item 28)
         self._contradictory_times()
         self._order()
         self._time_edges()
         header = self._header()
         records = [header, *(self.nodes[rid].rec.done() for rid in self.order)]
+        self._not_inlined_rest(records)
+        if self.not_inlined:
+            self.issues.insert(slot, ("inspect.content_not_inlined", sorted(set(self.not_inlined)), self.R(R_NOT_INLINED),
+                                      "info", None))
         _ambiguous_tool_names(records)
+        _ambiguous_placeholders(records)
         self._redact(records)
         surrogates(self, records, "inspect")
         for code, ids, rule, severity, detail in self.issues:
             self.ctx.issue(code, ids=ids, rule=rule, severity=severity, detail=detail)  # type: ignore[arg-type]
         yield from records
+
+    def _not_inlined_rest(self, records: Sequence[dict[str, Any]]) -> None:
+        """AU-RB-1 (D-1063): item 28 slims the positions it builds through :meth:`json`; every other Json position of a
+        finished record (a tool event's arguments, a sandbox output, the sample error, the ``ext.inspect`` copies, a
+        judgement's value) is slimmed here, each replaced pointer tagged D (I in an I record or field) under
+        ``inspect.content_not_inlined@1`` and the record listed in the info issue."""
+        for record in records:
+            found: list[str] = []
+            for key in [k for k in record if k not in _META_FIELDS]:
+                record[key] = _slim_json(record[key], (key,), found)
+            if not found:
+                continue
+            evf = dict(record.get("evf") or {})
+            rules = list(record.get("rule") or [])
+            for pointer in found:
+                weak = record.get("ev") == "I" or tag_class(effective_tag({**record, "evf": evf}, pointer)) == "I"
+                evf[pointer] = "I" if weak else "D"
+                ref = self.R(R_NOT_INLINED, pointer)
+                if ref not in rules:
+                    rules.append(ref)
+            record["evf"], record["rule"] = evf, rules
+            if "by" in record and "O" not in effective_tags(record):  # no bare O left: no party (C.6.2, AER-V12)
+                del record["by"]
+            self.not_inlined.append(str(record["id"]))
 
     def _redact(self, records: Sequence[dict[str, Any]]) -> None:
         """D-182 (with R-10p-3): the profile's ``[[family.inspect.redact]]`` rules over the finished records
@@ -938,9 +1039,13 @@ class _Build:
         run.tag("/actor", self.C("inspect.sample_run_by_harness@1"), self.R(self.V("inspect.sample_run_by_harness@1"), "/actor"))
         self.t(run, s.get("started_at"), s.get("completed_at"), "", "started_at", "completed_at")
         total = s.get("total_time")
-        if isinstance(total, int | float) and not isinstance(total, bool) and total >= 0:
+        if isinstance(total, int | float) and not isinstance(total, bool) and 0 <= total <= I_JSON_MAX:
             run.data.setdefault("t", {})["dur_s"] = run.enc(total, "/t/dur_s")
             run.data["t"]["dur_clock"] = "monotonic"
+            run.loc("a0", "/total_time")
+        elif isinstance(total, int | float) and not isinstance(total, bool) and total > I_JSON_MAX:
+            # review UC-39 (the D-1011 class): beyond the AER's number domain it is no typed duration; kept verbatim
+            run.x("total_time", total)
             run.loc("a0", "/total_time")
         for key in ("working_time", "model_usage", "role_usage", "turn_count", "error_retries"):
             if key in s:
@@ -980,7 +1085,7 @@ class _Build:
                 self.d(rec, "/subtype", "inspect.span_is_scope@1")
             actor_rule = None
             if span_id not in self.tool_spawned and role != "agent":  # item 12 (c3): who performs the span
-                if stype == "scorer" or (stype in _RUN_SPANS and e.get("name") == stype):
+                if stype == "scorer" or (isinstance(stype, str) and stype in _RUN_SPANS and e.get("name") == stype):
                     actor_rule, actor = "inspect.sample_run_by_harness@1", "harness"
                 elif stype == "tool" and self._has_runtime:
                     actor_rule, actor = "inspect.tool_span_by_runtime@1", "env"
@@ -1115,9 +1220,9 @@ class _Build:
                 self._keep(k, e)
                 if kind == "error":
                     self.errored = True
-                if kind not in _KEPT_OBSERVED:
+                if not isinstance(kind, str) or kind not in _KEPT_OBSERVED:  # UC-42: an unhashable kind raised
                     self.defer("inspect.unmapped_event", [self.scope_of(e)], "inspect.event_kept_in_ext@1", severity="info",
-                               detail=kind if kind in _KEPT_UNOBSERVED else "unknown event type")
+                               detail=kind if isinstance(kind, str) and kind in _KEPT_UNOBSERVED else "unknown event type")
         for k in state_events:
             self._state(k, self.events[k])
         for k, e in enumerate(self.events):
@@ -1262,7 +1367,7 @@ class _Build:
             mc.tag("/finish_reason", "O:provider")
         usage = _dict(output.get("usage"))
         typed = {_USAGE[name]: v for name, v in usage.items()
-                 if name in _USAGE and isinstance(v, int) and not isinstance(v, bool) and v >= 0}
+                 if name in _USAGE and isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= I_JSON_MAX}
         extra = {name: v for name, v in usage.items() if name not in _USAGE or _USAGE[name] not in typed}
         if typed:
             mc.data["usage"] = typed
@@ -1324,8 +1429,10 @@ class _Build:
         ``model_copy`` keeps ``id`` and ``tool_calls``; ``_remove_submit_tool`` and ``resolve_reasoning_history`` change
         only content). The call is the copy the model produced: an output choice's, else the ``messages`` copy's, never
         a replayed input's. Anything else stays ambiguous (fail-closed)."""
+        if not all(isinstance(msg.value.get("id"), str) for msg, _ in copies):
+            return None  # review UC-42: an unhashable id raised in the set; a non-string id never shares calls
         ids = {msg.value.get("id") for msg, _ in copies}
-        if len(ids) != 1 or not isinstance(next(iter(ids)), str):
+        if len(ids) != 1:
             return None
         first = json.dumps(copies[0][1], sort_keys=True)
         if any(json.dumps(call, sort_keys=True) != first for _, call in copies[1:]):
@@ -1375,7 +1482,8 @@ class _Build:
             if part is not None:
                 self.denied_parts.add(part)
             if message is not None and message.generated_by is None:
-                message.generated_by, message.generator_kind, message.scope = dc_id, "decision", scope
+                # AU-RB-3 (D-1063): the message is the approval error's, whatever the decision's verdict
+                message.generated_by, message.generator_kind, message.scope = dc_id, "denial", scope
             return
         te = _Rec(k="tool_execution", id=self.next_id("te"), actor="env", scope=scope, ev="O", by="source")
         self.te_of_event[k] = te.id
@@ -1597,6 +1705,12 @@ class _Build:
         if dangling:
             st.unk["/patch"] = "lost"
             self.defer("dangling_source_ref", [st.id], "inspect.state_event@1", detail=_p("events", k, "changes"))
+        elif not _patch_ok(patch):
+            # review UC-42: changes that are not RFC 6902 operations are no AER patch; kept verbatim, declared ambiguous
+            st.unk["/patch"] = "ambiguous"
+            st.ext["changes"] = self.json(st, patch, "/ext/inspect/changes")
+            for h in used:
+                st.loc("a0", _p("attachments", h))
         else:
             st.data["patch"] = self.json(st, patch, "/patch")  # strings over 1 MiB are not inlined (item 28)
             for h in used:
@@ -1846,28 +1960,31 @@ class _Build:
                 if part.get("t") == "text" and part.get("text") == "":
                     rec.unk[f"/parts/{n}/text"] = "ambiguous"  # '' records a provider null too (D.9.5)
                     rec.cite(self.R("inspect.message_content_parts@1", f"/parts/{n}/text"))
+        if role == "tool" and parts and parts[0]["t"] == "tool_result":
+            if isinstance(v.get("function"), str):
+                parts[0]["name"] = v["function"]
+            error = v.get("error")
+            if isinstance(error, dict) and isinstance(error.get("message"), str):
+                if _big(error["message"]):  # no typed form: beside the part, not inlined (AU-RB-1, D-1063)
+                    parts_extra.setdefault("0", {})["error"] = error["message"]
+                else:
+                    parts[0]["error"] = rec.enc(error["message"], f"{base}/0/error")
         rec.data["parts"] = parts
         if parts_extra:
             rec.x("part_extra", parts_extra)
         for name in ("id", "source", "model", "metadata", "function", "tool_call_id", "error"):
             if name in v and v[name] is not None:
                 rec.x(name, v[name])
-        if role == "tool" and parts and parts[0]["t"] == "tool_result":
-            if isinstance(v.get("function"), str):
-                parts[0]["name"] = v["function"]
-            error = v.get("error")
-            if isinstance(error, dict) and isinstance(error.get("message"), str):
-                parts[0]["error"] = rec.enc(error["message"], f"{base}/0/error")
         gen = msg.generated_by
         if gen is not None:
             rec.data["generated_by"] = gen
             rec.after.append({"b": "causal", "id": gen})
+            # AU-RB-3 (D-1063): a message an approval error left to the call's decision (deny, or terminate) rests on
+            # the error reading, inspect.tool_error_status@1; only the truncation decision's on the truncation rule
             rule = {"agent": "inspect.model_event_is_call@1", "judge": "inspect.model_event_is_call@1",
-                    "tool": "inspect.tool_event_is_execution@1",
-                    "decision": "inspect.tool_output_truncated@1"}[msg.generator_kind or "agent"]
+                    "tool": "inspect.tool_event_is_execution@1", "decision": "inspect.tool_output_truncated@1",
+                    "denial": "inspect.tool_error_status@1"}[msg.generator_kind or "agent"]
             gen_rec = self.nodes[gen].rec
-            if msg.generator_kind == "decision" and gen_rec.data.get("verdict") == "deny":
-                rule = "inspect.tool_error_status@1"
             self.d(rec, "/generated_by", rule)
             if msg.link_rule is not None:
                 self.d(rec, "/generated_by", msg.link_rule)
@@ -1877,7 +1994,7 @@ class _Build:
             actor = {"agent": "agent", "tool": "env"}.get(msg.generator_kind or "")
             if msg.generator_kind == "judge":
                 actor = gen_rec.data["actor"]
-            elif msg.generator_kind == "decision":
+            elif msg.generator_kind in ("decision", "denial"):
                 actor = str(gen_rec.data["actor"])
             if actor is not None:
                 rec.data["actor"] = actor
@@ -1911,12 +2028,15 @@ class _Build:
             rest = {k: v for k, v in item.items() if k not in ("type", "text")}
         elif kind == "reasoning" and isinstance(item.get("reasoning"), str):
             part: dict[str, Any] = {"t": "reasoning", "text": rec.enc(item["reasoning"], f"{at}/text")}
-            if isinstance(item.get("signature"), str):
+            # a signature over 1 MiB has no typed form: it stays beside the part, not inlined (AU-RB-1, D-1063)
+            signature = isinstance(item.get("signature"), str) and not _big(item["signature"])
+            if signature:
                 part["signature"] = item["signature"]
             if isinstance(item.get("redacted"), bool):
                 part["redacted"] = item["redacted"]
             parts.append(part)
-            rest = {k: v for k, v in item.items() if k not in ("type", "reasoning", "signature", "redacted")}
+            typed = ("type", "reasoning", "redacted", *(("signature",) if signature else ()))
+            rest = {k: v for k, v in item.items() if k not in typed}
         elif kind in ("image", "audio", "video") and _big(item.get(kind)):  # over 1 MiB: not inlined (item 28)
             parts.append(self.big_part(rec, kind, item[kind], at))
             rest = {k: v for k, v in item.items() if k not in ("type", kind)}

@@ -39,13 +39,15 @@ CLONE_ENV = "AGENTPROV_SURVEY_CLONE"
 DEFAULT_CLONE = Path.home() / "Desktop/PhD/Labs/AgentPROV-upstream/agent-security-tools-survey"
 
 
-def _policy(version: int = 3):
-    data = (PROFILES / ("survey-runs.profile.toml" if version == 3 else f"archive/survey-runs.profile.v{version}.toml"))
+def _policy(version: int = 4):  # version 4 (D-1063) keeps version 3's [withhold] table
+    data = (PROFILES / ("survey-runs.profile.toml" if version == 4 else f"archive/survey-runs.profile.v{version}.toml"))
     return policy_of_profile(data.read_bytes(), profile_id="survey-runs", profile_version=version)
 
 
 def test_version_3_declares_one_object_scope_personal_data_rule():
-    assert load_profile("survey-runs").version == 3
+    assert load_profile("survey-runs").version == 4  # 4: D-1063, version 3's [withhold] table unchanged
+    assert (PROFILES / "archive/survey-runs.profile.v3.toml").read_text().split("\n[withhold]\n", 1)[1] == \
+        (PROFILES / "survey-runs.profile.toml").read_text().split("\n[withhold]\n", 1)[1]
     policy = _policy()
     assert policy is not None
     assert [(r.id, r.kind, r.scope, r.reason) for r in policy.rules] == [

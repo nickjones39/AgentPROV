@@ -227,6 +227,15 @@ def test_the_packaged_copy_check_finds_a_missing_a_changed_and_an_extra_chapter(
     assert sync.differences(guide, copy) == ["missing: 03-c.md", "changed: 01-a.md", "extra: 02-b.md"]
 
 
+def test_every_platform_limit_names_a_guide_section_that_exists() -> None:
+    """D-1064: each refusal's "See the user guide, …" names a page and heading of this guide."""
+    from agentprov.platforms import LIMITS
+
+    for limit in LIMITS:
+        page, _, anchor = limit.guide.partition("#")
+        assert (GUIDE / page).is_file() and anchor in _anchors(GUIDE / page), limit.guide
+
+
 @pytest.mark.parametrize("image", sorted((GUIDE / "images").rglob("*.*")), ids=lambda p: p.name)
 def test_images_are_small(image: Path) -> None:
     assert image.stat().st_size <= MAX_IMAGE_BYTES, f"{image.name}: {image.stat().st_size} bytes"

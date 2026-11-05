@@ -15,6 +15,15 @@ Where each v1 member comes from is the single field table ``transcript_v1_fields
 too. ``aer`` is an :class:`agentprov.aer.reader.AerDocument` or any sequence of records (header first; a trailing seal is
 ignored). The view never raises on source text and prints none; a structural defect raises :class:`ViewError` naming a
 record id and pointer only.
+
+**Content not inlined** (C.15.3; D-1063, regen-batch row 180; the D-934 pattern). A string whose UTF-8 encoding exceeds
+1 MiB is not in the AER: the mapper put ``{"not_inlined": {"sha256", "bytes"}}`` in its place and cited a
+``<family>.content_not_inlined@<n>`` rule at that pointer. The view renders every such position, and only those, as the
+marker ``{"agentprov:not_inlined": {"sha256": <hex>, "bytes": <n>}}`` (:data:`NOT_INLINED_KEY`): a tool turn's content, a
+system, user or assistant text, a reasoning or refusal, or a value inside tool arguments, an injection payload or an extra
+member. A tool turn's ``content_sha256`` stays the digest of the content (the recorded one, else ``sha256:`` and the
+marker's digest). The view is lossy exactly there: the text stays in the raw artefact and is never made up. Source data
+that holds a member named ``agentprov:not_inlined`` is refused, so a marker in a view is never source content.
 """
 
 from __future__ import annotations
@@ -28,13 +37,14 @@ from functools import cache
 from importlib import resources
 from typing import Any, Final
 
-from agentprov.aer.canon import LexHints, decode_value
+from agentprov.aer.canon import LexHints, decode_value, pointer_unescape
 from agentprov.aer.locators import pointer_get
 from agentprov.errors import AgentProvError
 
 __all__ = [
     "BENIGN_LABEL",
     "CONVERTED_SOURCE",
+    "NOT_INLINED_KEY",
     "SCHEMA_ID",
     "TIMING_STUB",
     "ViewError",
@@ -51,6 +61,13 @@ CONVERTED_SOURCE: Final = "agentdojo_native_run_log"
 TIMING_STUB: Final = "0"  # rendered by render_converted only (erratum E8): the stub is a view rule, never AER data
 _TABLE_RESOURCE: Final = "transcript_v1_fields.toml"
 _ID_RE: Final = re.compile(r"([a-z_]*?)([0-9]+)$")
+#: The member of the marker that stands for content the AER does not inline (C.15.3; D-1063): a namespaced name, never a
+#: v1 member, and refused in source data, so a marker cannot be mistaken for source content or forged by it.
+NOT_INLINED_KEY: Final = "agentprov:not_inlined"
+#: A rule that replaced a string over 1 MiB by its digest (C.2.1(6); ``adprov.content_not_inlined@1``,
+#: ``agentdojo.content_not_inlined@1``, the D-934 pattern of every family).
+_NOT_INLINED_RULE: Final = re.compile(r"[a-z][a-z0-9_]*\.content_not_inlined@[1-9][0-9]*")
+_HEX64: Final = re.compile(r"[0-9a-f]{64}")
 
 
 class ViewError(AgentProvError):
@@ -121,6 +138,74 @@ class _Aer:
             if isinstance(rid, str):
                 self.by_id[rid] = record
         self._lex: dict[int, LexHints] = {}
+        self._digests: dict[int, dict[str, Mapping[str, Any]]] = {}
+        self._markers: list[dict[str, Any]] = []  # kept alive: their ids identify the view's own markers
+        self._marker_ids: set[int] = set()
+
+    def not_inlined(self, record: Mapping[str, Any]) -> Mapping[str, Mapping[str, Any]]:
+        """``{pointer: digest}`` of the strings ``record`` does not inline: each pointer a ``*.content_not_inlined``
+        rule reference names, whose value is ``{"not_inlined": {"sha256", "bytes"}}`` (C.2.1(6); D-1063). Only the
+        citation makes a digest object one: a source object of that shape elsewhere is data."""
+        key = id(record)
+        found = self._digests.get(key)
+        if found is None:
+            found = {}
+            for ref in _list(record.get("rule")):
+                rid, hash_, pointer = ref.partition("#") if isinstance(ref, str) else ("", "", "")
+                if not hash_ or not _NOT_INLINED_RULE.fullmatch(rid):
+                    continue
+                try:
+                    raw = pointer_get(record, pointer)
+                except (KeyError, IndexError, TypeError):
+                    raw = None
+                digest = raw.get("not_inlined") if isinstance(raw, Mapping) and len(raw) == 1 else None
+                if not (isinstance(digest, Mapping) and set(digest) <= {"sha256", "bytes", "media"}
+                        and isinstance(digest.get("sha256"), str) and _HEX64.fullmatch(digest["sha256"])
+                        and type(digest.get("bytes")) is int and digest["bytes"] >= 0
+                        and isinstance(digest.get("media", ""), str)):
+                    raise ViewError(f"record {record.get('id')!s}: {pointer} cites {rid} but holds no digest")
+                found[pointer] = digest
+            self._digests[key] = found
+        return found
+
+    def marker(self, digest: Mapping[str, Any]) -> dict[str, Any]:
+        """The view's marker for one string not inlined (C.15.3): ``{"agentprov:not_inlined": {sha256, bytes}}``."""
+        body: dict[str, Any] = {"sha256": digest["sha256"], "bytes": digest["bytes"]}
+        if "media" in digest:
+            body["media"] = digest["media"]
+        mark = {NOT_INLINED_KEY: body}
+        self._markers.append(mark)
+        self._marker_ids.add(id(mark))
+        return mark
+
+    def check_reserved(self, out: object) -> None:
+        """Refuse a document in which a member named ``agentprov:not_inlined`` is not one of this view's markers:
+        source data holding that name would read as a marker (C.15.3)."""
+        stack = [out]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                if id(node) in self._marker_ids:
+                    continue
+                if NOT_INLINED_KEY in node:
+                    raise ViewError(f"source data holds the reserved member {NOT_INLINED_KEY}")
+                stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+
+    def text(self, message: Mapping[str, Any], k: int) -> tuple[bool, Any]:
+        """``(found, value)`` of part ``k``'s text: the decoded ``text``, or the marker where the part's text was not
+        inlined (the mapper moved the digest to ``value``)."""
+        found, value = self.value(message, f"/parts/{k}/text")
+        if not found and f"/parts/{k}/value" in self.not_inlined(message):
+            return self.value(message, f"/parts/{k}/value")
+        return found, value
+
+    def kind(self, message: Mapping[str, Any], k: int, part: Mapping[str, Any]) -> object:
+        """The part's kind: ``t``, or for an ``other`` part that holds a text not inlined, the source type it keeps."""
+        if part.get("t") == "other" and f"/parts/{k}/value" in self.not_inlined(message):
+            return part.get("type")
+        return part.get("t")
 
     def lex(self, record: Mapping[str, Any]) -> LexHints:
         key = id(record)
@@ -139,7 +224,15 @@ class _Aer:
             raw = pointer_get(record, pointer)
         except (KeyError, IndexError, TypeError):
             return False, None
-        return True, decode_value(raw, at=pointer, lex=self.lex(record))
+        digests = self.not_inlined(record)
+        if pointer in digests:
+            return True, self.marker(digests[pointer])
+        value = decode_value(raw, at=pointer, lex=self.lex(record))
+        for at, digest in digests.items():
+            if at.startswith(pointer + "/"):
+                tokens = [pointer_unescape(t) for t in at[len(pointer) + 1:].split("/")]
+                value = _put(value, raw, tokens, self.marker(digest), at=f"record {record.get('id')!s}: {at}")
+        return True, value
 
     def of_kind(self, kind: str) -> list[Mapping[str, Any]]:
         return [r for r in self.records if r.get("k") == kind]
@@ -171,6 +264,52 @@ class _Aer:
             name, _, pointer = rest.partition(":")
             return self.value(self.judgement(name), pointer)
         raise ViewError(f"unknown source form {head!r} in the field table")
+
+
+def _put(decoded: Any, raw: Any, tokens: Sequence[str], mark: dict[str, Any], *, at: str, literal: bool = False) -> Any:
+    """``decoded`` (the decoded form of the AER value ``raw``) with ``mark`` at the encoded-form path ``tokens``: a
+    ``$lit`` wrapper token (C.11.3) has no decoded counterpart; any other token names the same member or item."""
+    if not tokens:
+        return mark
+    head, rest = tokens[0], tokens[1:]
+    if isinstance(raw, dict):
+        if not literal and head == "$lit" and len(raw) == 1 and "$lit" in raw:
+            return _put(decoded, raw["$lit"], rest, mark, at=at, literal=True)
+        if isinstance(decoded, dict) and head in raw and head in decoded:
+            decoded[head] = _put(decoded[head], raw[head], rest, mark, at=at)
+            return decoded
+    elif isinstance(raw, list) and isinstance(decoded, list) and head.isascii() and head.isdigit():
+        index = int(head) if len(head) <= 18 else len(raw)
+        if index < len(raw) and len(raw) == len(decoded):
+            decoded[index] = _put(decoded[index], raw[index], rest, mark, at=at)
+            return decoded
+    raise ViewError(f"{at}: the digest's pointer does not resolve in the decoded value")
+
+
+def _is_marker(value: object) -> bool:
+    """A marker's shape (:meth:`_Aer.marker`); :meth:`_Aer.check_reserved` refuses any the view did not make."""
+    return isinstance(value, dict) and len(value) == 1 and isinstance(value.get(NOT_INLINED_KEY), dict)
+
+
+def _content_digest(content: Any) -> str:
+    """v1 ``content_sha256``: ``sha256:`` + hex SHA-256 of the content's UTF-8, which a marker carries (C.15.3)."""
+    if _is_marker(content):
+        return "sha256:" + str(content[NOT_INLINED_KEY]["sha256"])
+    return "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _concat(pieces: Sequence[Any], where: str) -> Any:
+    """``"".join(pieces)``, the converter's concatenation; a single marker beside empty texts only is that marker. A
+    marker beside other text has no rendering (the joined text is unknown): ``ViewError``, never a partial text."""
+    if all(isinstance(p, str) for p in pieces):
+        return "".join(pieces)
+    marks = [p for p in pieces if _is_marker(p)]
+    if marks and all(isinstance(p, str) or _is_marker(p) for p in pieces):
+        if len(marks) == 1 and all(p == "" for p in pieces if isinstance(p, str)):
+            return marks[0]
+        raise ViewError(f"{where}: content not inlined is joined with other text, which the converter rules "
+                        "cannot render")
+    return "".join(pieces)  # raises TypeError on a piece that is not text, as the converter rule does
 
 
 def _ordinal(record_id: object) -> tuple[str, int]:
@@ -207,6 +346,7 @@ def render(aer: Any) -> dict[str, Any]:
         out["discarded_attempts"] = [_render_discarded(doc, scope) for scope in discarded]
     elif v1.get("discarded_attempts_empty") is True:
         out["discarded_attempts"] = []
+    doc.check_reserved(out)
     return out
 
 
@@ -355,9 +495,10 @@ def _part_text(doc: _Aer, message: Mapping[str, Any], kind: str) -> tuple[bool, 
     if not isinstance(parts, list):
         return False, None
     for k, part in enumerate(parts):
-        if isinstance(part, Mapping) and part.get("t") == kind:
-            # pre-round review #35: a part whose text aer/0.2 withholds (D-211) is still there; it renders null
-            found, value = doc.value(message, f"/parts/{k}/text")
+        if isinstance(part, Mapping) and doc.kind(message, k, part) == kind:
+            # pre-round review #35: a part whose text aer/0.2 withholds (D-211) is still there; it renders null. A text
+            # not inlined (an other part of this type, D-1063) renders the marker
+            found, value = doc.text(message, k)
             return True, value if found else None
     return False, None
 
@@ -412,16 +553,16 @@ def _render_assistant(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
     found, refusal = _part_text(doc, message, "refusal")
     if found:
         built["refusal"] = refusal
-    return _order(message, built, _assistant_template(parts), doc)
+    kinds = [doc.kind(message, k, part) for k, part in enumerate(parts) if isinstance(part, Mapping)]
+    return _order(message, built, _assistant_template(kinds), doc)
 
 
-def _assistant_template(parts: Sequence[Any]) -> str:
+def _assistant_template(kinds: Sequence[object]) -> str:
     """``assistant_turn``, or ``assistant_turn_log_reasoning`` when the reasoning part follows a tool-call or refusal
     part: the order of reasoning the baseline attached from the LLM element's side log, which a live AER carries as a
     part taken from the response after the native ones (``agentdojo.capture_reply_wire_fields@1``). An
     ``adprov.transcript_v1`` AER always lists reasoning before its calls and records any other order in
-    ``ext.adprov.keys``, which takes precedence (:func:`_order`)."""
-    kinds = [part.get("t") for part in parts if isinstance(part, Mapping)]
+    ``ext.adprov.keys``, which takes precedence (:func:`_order`). ``kinds`` are the parts' kinds (:meth:`_Aer.kind`)."""
     if "reasoning" in kinds and any(k in ("tool_call", "refusal") for k in kinds[: kinds.index("reasoning")]):
         return "assistant_turn_log_reasoning"
     return "assistant_turn"
@@ -447,11 +588,11 @@ def _render_tool(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
         call = doc.part(str(part.get("responds_to"))) if "responds_to" in part else None
         tool_call_id = call.get("provider_call_id") if isinstance(call, Mapping) else None
     execution = _execution_of(doc, message)
-    content = doc.value(message, "/parts/0/text")[1]
+    content = doc.text(message, 0)[1]  # a content not inlined renders the marker (D-1063)
     if "content_sha256" in adprov:
         digest = doc.value(message, "/ext/adprov/content_sha256")[1]
-    elif isinstance(content, str):
-        digest = "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest()
+    elif isinstance(content, str) or _is_marker(content):
+        digest = _content_digest(content)
     else:
         raise ViewError(f"tool message {message.get('id')!s}: no text content to digest")
     built: dict[str, Any] = {
@@ -512,26 +653,29 @@ def render_converted(aer: Any) -> dict[str, Any]:
         meta["run_error"] = run_error
     scored, _ = _attempts(doc)
     turns = [_converted_turn(doc, m) for m in _messages_of(doc, scored)]
-    return {"adprov_schema": SCHEMA_ID, "meta": meta, "turns": turns}
+    out = {"adprov_schema": SCHEMA_ID, "meta": meta, "turns": turns}
+    doc.check_reserved(out)
+    return out
 
 
 # AgentDojo content-block types the converter's ``_split_blocks`` reads, per AER part kind
 _BLOCK_TYPES: dict[str, frozenset[str]] = {"text": frozenset({"text"}), "reasoning": frozenset({"thinking", "redacted_thinking"})}
 
 
-def _joined(doc: _Aer, message: Mapping[str, Any], kinds: Iterable[str]) -> tuple[bool, str]:
+def _joined(doc: _Aer, message: Mapping[str, Any], kinds: Iterable[str]) -> tuple[bool, Any]:
     """``(any part of these kinds, concatenated non-null texts)``: the converter's ``_split_blocks`` over AER parts.
     A text or thinking block the importer kept verbatim (an ``agentdojo.unknown_block`` part, regeneration-batch item
-    90) contributes its ``content`` as the converter reads it (``content or ""``)."""
+    90) contributes its ``content`` as the converter reads it (``content or ""``). A text not inlined is its marker
+    (:func:`_concat`; D-1063)."""
     wanted = set(kinds)
     blocks = frozenset().union(*(_BLOCK_TYPES.get(kind, frozenset()) for kind in wanted))
     parts = _list(message.get("parts"))
     seen, texts = False, []
     for k, part in enumerate(parts):
-        if isinstance(part, Mapping) and part.get("t") in wanted:
+        if isinstance(part, Mapping) and doc.kind(message, k, part) in wanted:
             seen = True
-            text = doc.value(message, f"/parts/{k}/text")[1]
-            if isinstance(text, str):
+            text = doc.text(message, k)[1]
+            if isinstance(text, str) or _is_marker(text):
                 texts.append(text)
         elif (blocks and isinstance(part, Mapping) and part.get("t") == "other"
               and part.get("type") == "agentdojo.unknown_block"):
@@ -539,24 +683,30 @@ def _joined(doc: _Aer, message: Mapping[str, Any], kinds: Iterable[str]) -> tupl
             if isinstance(block, Mapping) and block.get("type") in blocks:
                 seen = True
                 body = block.get("content", "") or ""
-                if isinstance(body, str):
+                if isinstance(body, str) or _is_marker(body):
                     texts.append(body)
-    return seen, "".join(texts)
+    return seen, _concat(texts, f"message {message.get('id')!s}")
 
 
 def _converted_call(fid: Any, function: Any, args: Any, placeholder: Any = None) -> dict[str, Any]:
     """``transcript._serialize_function_call`` over plain values (``args or {}``; placeholders only when they differ)."""
-    out: dict[str, Any] = {"id": fid, "function": function, "args": dict(args or {})}
+    out: dict[str, Any] = {"id": fid, "function": function, "args": _args(args)}
     if placeholder is not None and placeholder != out["args"]:
         out["placeholder_args"] = placeholder
     return out
 
 
-def _split_blocks(content: Any) -> tuple[str, str]:
-    """``transcript._split_blocks`` (converter rule): ``(text, reasoning)`` of a native content value."""
+def _args(args: Any) -> Any:
+    """The converter's ``args or {}`` as a dict; arguments not inlined as a whole stay their marker."""
+    return args if _is_marker(args) else dict(args or {})
+
+
+def _split_blocks(content: Any, where: str = "a native message") -> tuple[Any, Any]:
+    """``transcript._split_blocks`` (converter rule): ``(text, reasoning)`` of a native content value. A content or a
+    block's content not inlined is its marker (:func:`_concat`; D-1063)."""
     if not content:
         return "", ""
-    if isinstance(content, str):
+    if isinstance(content, str) or _is_marker(content):
         return content, ""
     text_parts: list[str] = []
     think_parts: list[str] = []
@@ -568,15 +718,15 @@ def _split_blocks(content: Any) -> tuple[str, str]:
             text_parts.append(body)
         elif block.get("type") in ("thinking", "redacted_thinking"):
             think_parts.append(body)
-    return "".join(text_parts), "".join(think_parts)
+    return _concat(text_parts, where), _concat(think_parts, where)
 
 
-def _native_message_turn(msg: Any) -> dict[str, Any]:
+def _native_message_turn(msg: Any, where: str = "a native message") -> dict[str, Any]:
     """``transcript.message_to_turn`` on a message the importer kept verbatim (an ``agentdojo.unknown_message`` part)."""
     if not isinstance(msg, dict):
         return {"role": None, "content": ""}
     role = msg.get("role")
-    text, reasoning = _split_blocks(msg.get("content"))
+    text, reasoning = _split_blocks(msg.get("content"), where)
     if role in ("system", "user"):
         return {"role": role, "content": text}
     if role == "assistant":
@@ -598,7 +748,7 @@ def _native_message_turn(msg: Any) -> dict[str, Any]:
             "function": scall.get("function"),
             "args": scall.get("args", {}),
             "content": text,
-            "content_sha256": "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "content_sha256": _content_digest(text),
             "error": msg.get("error"),
             "started_at": TIMING_STUB,
             "ended_at": TIMING_STUB,
@@ -612,7 +762,7 @@ def _converted_turn(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
     if len(parts) == 1 and isinstance(parts[0], Mapping) and parts[0].get("t") == "other" and \
             parts[0].get("type") == "agentdojo.unknown_message":
         try:  # the value is verbatim untrusted source JSON; the converter rules assume its types
-            return _native_message_turn(doc.value(message, "/parts/0/value")[1])
+            return _native_message_turn(doc.value(message, "/parts/0/value")[1], f"message {message.get('id')!s}")
         except (TypeError, ValueError, AttributeError) as exc:  # UnicodeEncodeError is a ValueError
             raise ViewError(f"message {message.get('id')!s}: /parts/0/value has a shape the converter rules "
                             f"cannot render ({type(exc).__name__})") from None
@@ -647,9 +797,10 @@ def _converted_turn(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
             call = doc.part(str(part.get("responds_to"))) if "responds_to" in part else None
             tool_call_id = call.get("provider_call_id") if isinstance(call, Mapping) else None
         execution = _execution_of(doc, message)
-        if "value" in part and "text" not in part:  # a list the mapper kept verbatim (agentdojo.multi_block_tool_content)
+        if "value" in part and "text" not in part and "/parts/0/value" not in doc.not_inlined(message):
+            # a list the mapper kept verbatim (agentdojo.multi_block_tool_content); a text not inlined is _joined's
             try:  # untrusted source JSON, as for unknown_message: the converter rule assumes its types
-                content = _split_blocks(doc.value(message, "/parts/0/value")[1])[0]
+                content = _split_blocks(doc.value(message, "/parts/0/value")[1], f"message {message.get('id')!s}")[0]
             except (TypeError, ValueError, AttributeError) as exc:
                 raise ViewError(f"message {message.get('id')!s}: /parts/0/value has a shape the converter rules "
                                 f"cannot render ({type(exc).__name__})") from None
@@ -659,9 +810,9 @@ def _converted_turn(doc: _Aer, message: Mapping[str, Any]) -> dict[str, Any]:
             "role": "tool",
             "tool_call_id": tool_call_id,
             "function": execution.get("name") if execution is not None else None,
-            "args": dict((doc.value(execution, "/args")[1] if execution is not None else None) or {}),
+            "args": _args(doc.value(execution, "/args")[1] if execution is not None else None),
             "content": content,
-            "content_sha256": "sha256:" + hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "content_sha256": _content_digest(content),
             "error": doc.value(message, "/parts/0/error")[1],
             "started_at": TIMING_STUB,
             "ended_at": TIMING_STUB,

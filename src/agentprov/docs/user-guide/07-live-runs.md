@@ -61,6 +61,27 @@ what that code can reach, so a real-model run refuses to start without `--contai
 declared. Scripted runs record no containment (`producer.sandbox` is null), are marked `test_only`, and their corpus is
 synthetic and never released. A scripted and a real session never share a corpus.
 
+## Platforms
+
+Live runs work on **macOS and Linux**. On Windows they are not available yet, and the features below are refused there
+before anything starts (exit 4, `platform.unsupported`), with the reason in the message. `agentprov info` lists what is
+unavailable on the machine it runs on and why (its Platform section; `platform` in `info --format json` and in
+`info SOURCE --format json`). The limits
+come from one table in the code (`agentprov.platforms`, D-1064), and only tested limits are listed:
+
+| Feature | macOS | Linux | Windows x86_64 | Windows ARM64 |
+|---|---|---|---|---|
+| Live runs: `agentprov run` (a run, `--preflight-only`, `--catalogue`, a `--dry-run` that plans cells, `--tune-jobs`) and `agentprov estimate`, which plans through `run --dry-run` | yes | yes | not yet: the backend environment builds, but the backend worker exits at start-up for a reason not yet diagnosed | not yet: the AgentDojo backend cannot be installed (next row) |
+| `agentprov backends build agentdojo`, `autodojo`, `agentdyn` (and `--offline-check`) | yes | yes | builds, but cannot be used for runs yet | not yet: their pinned dependencies `cryptography` 50.0.2 and `cachebox` 5.2.3 publish no Windows ARM64 wheels, and backends install from wheels only |
+| Enforced containment, `--containment sandbox-exec` | yes | no: it is macOS's `sandbox-exec`; declare `dedicated-user` or `vm` | no | no |
+| The machine-wide job queue (`jobs start --queue-cpu`, a batch step's `queue_cpu`, `tools/suite_queue.py`) | yes | yes | no: it holds its slots with POSIX file locks (`fcntl`); jobs run without it | no (same reason) |
+
+AgentDojo itself names no supported operating systems, and its continuous integration runs on Linux only. The Windows
+x86_64 result was obtained under Windows 11 ARM64's x64 emulation, not on x86_64 hardware (D-867). On Windows these
+still work, because they start no backend worker: a host preset's dry run (`run SOURCE --m5ultra --dry-run`, the
+concurrency plan), `backends build --dry-run`, a build of the Inspect backend (no known limit; its runs are refused like
+every live run), and everything outside live runs (import, derive, validate, verify, stats, the Viewer).
+
 ## Backends and their environments
 
 | Source | Backend project | What it runs | Notes |
@@ -219,7 +240,9 @@ loopback** (to list models), though it makes no model call.
 
 `agentprov estimate SOURCE <the same options as run>` gives the cost and time before you start, at p50 and p90, without a
 model call. It takes cell statistics from the corpora you name with `--stats-corpus` (counts only; at most 16), else from
-shipped priors, else from a conservative default. Without a key option it plans with a scripted stand-in, and says so.
+your local priors (built from your own sealed corpora, below) and the shipped priors, else from a conservative default.
+Without a key option it plans with a scripted stand-in, and says so. **Every figure is an estimate only**: the actual
+cost can differ, and the estimate says what it rests on.
 
 ```text
 $ agentprov estimate agentdojo --corpus $CORPORA/e --campaign e --suite banking --user-tasks 0-1 \
@@ -228,6 +251,7 @@ $ agentprov estimate agentdojo --corpus $CORPORA/e --campaign e --suite banking 
 ≈ $0.0029 (p90 $0.0058) for 4 cell run(s), prices as of 2026-10-28 (your override (agentprov prices set)) Time ≈ 54 s (p90 6 m) at --jobs 1.
 Plan 85f16c3571896382…: 4 cells × 1 repeat(s) = 4 units; 0 already settled; up to 12 attempts due (--max-attempts 3).
 Cost: p50 $0.0029, p90 $0.0058, worst case (every due attempt at p90) $0.0199; model calls p50 13, p90 19.
+Estimate only: actual cost can differ (token counts are approximated as characters / 4; batch and cache discounts are not assumed).
 
 By suite:
   banking                                        4 units  p50 $0.0027  p90 $0.0055  [priors]
@@ -291,15 +315,50 @@ The AgentDojo rows did not change. A prior's duration is the time the recorded r
 the log, so the time figures are a guide, not a promise for your machine; `--stats-corpus` with your own corpora is
 closer.
 
+**Local priors from your own corpora** (D-1062). `agentprov priors build` counts the executions of your sealed corpora
+(every one under `$AGENTPROV_HOME/corpora`, the highest version of each; or the ones you name with `--corpus DIR`) into
+`$AGENTPROV_HOME/estimate/priors-local.json`, in the shipped priors' format. Working (`.partial`) corpora and withheld
+executions are left out, an execution two corpora share counts once, and nothing is written into a corpus. A sealed
+corpus that cannot be read as a whole (a damaged `executions.jsonl`, say) is skipped and named, and the others are
+still read; a corpus you named with `--corpus` refuses the build instead, naming its `--corpus` number. `--jobs N`
+reads with N worker processes (0, the default: the host default); the result is the same at any N. `agentprov priors
+show` says which tables the estimate has. From then on, for each suite and attack, `agentprov estimate` takes this model
+family's rows before any-model rows, and your rows before the shipped ones: your rows for the family, the shipped rows
+for the family, your any-model rows, the shipped any-model rows. Rebuild after you seal a new corpus.
+
+```text
+$ agentprov priors build --jobs 8
+  mine-banking 0.1.0: 1,200 of 1,200 executions
+  skipped mine-travel.partial: working (not sealed)
+priors: 46 rows from 1,200 executions of 1 sealed corpora into ~/.agentprov/estimate/priors-local.json
+```
+
+(The corpus names and counts above are an illustration, not a run.)
+
+**How the figures add up.** The p50 cost is the sum over the cells of calls × the cost of a call at their medians. The
+p90 cost is the same sum at the 90th percentiles, each taken on its own: "upper (sum of per-cell 90th percentiles)". It
+is deliberately high, because a run's total varies much less than one cell does, but it is not a statistical bound and
+not the 90th percentile of the run's total. Tokens are the recorded usage where a corpus recorded it, else the message
+characters / 4 (plus the suite's tool definitions); batch prices are never used, and cached input is priced at the cache
+rate only where past runs recorded cache reads.
+
 **Prices** come from a dated table shipped with AgentPROV (394 prices as of 2026-10-21), overridden per model with
 `agentprov prices set ENDPOINT MODEL --input … --output …`, and optionally refreshed from OpenRouter's public model list
-with `agentprov prices refresh --allow-network` (a network call, never automatic). `agentprov prices list` shows what is
-priced; a local endpoint has no per-token cost. `--price-in` and `--price-out` on `run` are different: they price the
+with `agentprov prices refresh --allow-network` (a network call; in a terminal never automatic). The desktop app
+refreshes them once a day, the first time Run Live opens that day, with `agentprov prices refresh --allow-network
+--if-stale`, while the setting `prices.auto_refresh` is on (it is unless you set it to `false`): `--if-stale` fetches only
+when no snapshot was written today, in your local time. A failed refresh keeps the last prices and never blocks Run
+Live. `agentprov prices status --format json` says when the prices were last refreshed (`written_at`, in UTC) and
+whether a refresh is due. Anthropic, OpenAI and DeepSeek publish no price list to fetch, so their direct prices are the
+shipped table's, with its date. `agentprov prices list` shows what is priced; a local endpoint has no per-token cost. `--price-in` and `--price-out` on `run` are different: they price the
 **caps**, not the estimate ([Consent, caps and what they refuse](#consent-caps-and-what-they-refuse)).
 
 `estimate --format json` prints one `agentprov-estimate/0.1` document: units, attempts due, calls, cost and time at p50
 and p90 and as a worst case, the breakdown by suite and attack, the price used and its date, and warnings. Judge calls of
-an Inspect plan are counted and priced separately (D-770).
+an Inspect plan are counted and priced separately (D-770). Its `quote` object (D-1062) gathers the run's figures,
+`usd_p50`, `usd_p90`, calls, input and output tokens and time (at your `--jobs`, and one cell after another), with
+`p90_aggregation` and a `basis`: which priors (`local`, `shipped` or `mixed`), whether the rows were this model family's,
+how many recorded executions are behind them, the token basis, the price's source and date, and `estimate_only: true`.
 
 ## Models, endpoints and keys
 
@@ -404,8 +463,11 @@ to 8 attempts) and in its role rewrite, and the corpus records the element used 
 
 **A server on another machine** needs `--allow-lan-endpoint`: a literal private address (10/8, 172.16/12, 192.168/16,
 100.64/10, fc00::/7; no host names, no IPv6 zone ids), plain `http`, keyless, recorded as given, with `files` null
-(there is no local file to hash; `--model-dir` names a shared copy). Prompts and replies then leave this machine. As
-built, a LAN endpoint is class `api` ([Consent](#consent-caps-and-what-they-refuse)).
+(there is no local file to hash; `--model-dir` names a shared copy). Prompts and replies then leave this machine, so a
+LAN endpoint is class `api` (D-1067): it needs `--i-consent-to-api-costs` (or the prompt) and all four caps, as an API
+endpoint does; `--price-in 0 --price-out 0` is fine for a server that bills nothing ([Consent](#consent-caps-and-what-they-refuse)).
+The desktop app's Run Live shows the caps and asks for API consent as soon as *Allow a LAN model server* is ticked or
+the base URL is off loopback.
 
 ### API endpoints and keys
 
@@ -453,7 +515,7 @@ before"). For a local server, stock AgentDojo's own display name is "Local model
 Exit codes (specification N.1.3): **0** ok, **1** failures, **2** usage, **3** environment, **4** refused by a guard,
 **5** unsupported, **70** internal, **130** interrupted. What a real run needs depends on its transport:
 
-| | Scripted (`--llm-script`) | Local server | API endpoint |
+| | Scripted (`--llm-script`) | Local server (on loopback) | API endpoint (a LAN server too, D-1067) |
 |---|---|---|---|
 | Key | none (`--keychain`, `--env-stdin` refused, exit 2) | none | required (exit 3 if missing) |
 | `--containment` | not used | required | required |
@@ -490,12 +552,19 @@ Exit codes (specification N.1.3): **0** ok, **1** failures, **2** usage, **3** e
 
 **What the caps count.** Every billed call is charged to the caps: each cell's calls, each probe call, a billed reply
 with no usage (charged at the bound), a parent-ended attempt (one extra call at the bound) and a missing log (a whole
-cell). T0 starts a cell only if the spend so far, the worst case of every cell in flight and the worst case of the new
+cell). A cell that was running when the campaign aborted, or when a second Ctrl-C or a kill ended the process, never
+reaches the ledger; it stays counted in `live.caps.unledgered_cells`, and resuming charges it a whole cell. T0 starts a cell only if the spend so far, the worst case of every cell in flight and the worst case of the new
 cell all fit both caps. The worst case of an AgentDojo-family cell is **48 billed calls** (`3 × (1 + 15)`: up to three
-passes of one call plus a tool loop of at most 15), each at the per-call bound of 32,000 input tokens (or the largest
+passes of one call plus a tool loop of at most 15) with the stock native LLM element. An element that asks again after a
+billed reply multiplies it: `--llm-element gateway_compat` (the presets' element) re-asks up to 8 times per step, so
+its cell reserves **384**, and the AutoDojo fork's native element up to 3 times, so **144**; a probe call is charged 8
+or 3 calls likewise. A defence's declared calls are added: MELON's masked re-run goes through the same element, so
+its masked call counts 1 or 8 a step and its two embeddings a step once (a MELON cell reserves 192, or **864** under
+`gateway_compat`),
+and `tool_filter`'s one call a pass counts once. Each call is at the per-call bound of 32,000 input tokens (or the largest
 seen) and the transmitted `max_tokens` (or 4,096, or the largest seen). All input-side tokens (input, cache read and
 cache write) are priced at `--price-in`. At `--price-in 0.15 --price-out 0.60` that is about `$0.0073` per call and
-about `$0.348` per cell. A cell that bills more than its bound stops the campaign (`cap_bound_exceeded`); a cap that
+about `$0.348` per 48-call cell (`$2.79` for 384). A cell that bills more than its bound stops the campaign (`cap_bound_exceeded`); a cap that
 cannot fit the next cell stops it with `cap_reached`, and re-running with a higher cap resumes. The recorded **spend
 upper bound** is a ceiling, not a bill: the pilot's OpenRouter run had a bound of $0.011 against recorded usage of about
 $0.0035. The provider's own key limit remains the hard backstop; set one.
@@ -537,8 +606,9 @@ The consent, key, endpoint and containment refusals come after these and need a 
 | `dedicated-user` | any | `dedicated_user`, `declared_by: operator` | **Declared, not enforced:** your statement that the run executes as a dedicated operating-system user. Recorded, not checked |
 | `vm` | any | `vm`, `declared_by: operator` | **Declared, not enforced:** your statement that the run executes inside a virtual machine. Recorded, not checked |
 
-On Linux and Windows `sandbox-exec` is refused (exit 4), because its probe is "not applicable" there; use a declaration. The
-desktop app offers only the choices that apply on its machine.
+`sandbox-exec` works on macOS only: on Linux and Windows it is refused (exit 4, `cli.refused.containment`) with the reason
+from the [platform table](#platforms) ("Enforced containment (--containment sandbox-exec) is available on macOS only. On
+Linux it is not available: …"); use a declaration. The desktop app offers only the choices that apply on its machine.
 
 **What `sandbox-exec` enforces.** The worker may import the backend, write its staging directory and its private home,
 and connect to two loopback ports only. It may not read the repository, `~/.ssh`, `~/.aws`, `~/.config/gh`, any `.env` or
@@ -919,6 +989,7 @@ There is no CI job for the AgentDyn or Inspect backends; their checks were run b
 
 | You see | Because | Fix |
 |---|---|---|
+| `platform.unsupported` (4): "Live runs (agentprov run) are available on macOS and Linux. On Windows … they are not available yet: …" | this is Windows ([Platforms](#platforms)) | run on macOS or Linux; a host preset's `--dry-run` still plans |
 | `cannot run 'X': no live capability` or `live status planned` (5) | the source has no live backend (`rope`), or its live part is `planned` | none in this build; a `planned` part with a backend admits scripted runs only |
 | `cli.refused.api_caps` (4) | an API endpoint without its caps | give `--max-calls`, `--max-cost-usd`, `--price-in`, `--price-out` |
 | `--max-cost-usd needs --price-in and --price-out` (2) | the caps price needs prices | add both |

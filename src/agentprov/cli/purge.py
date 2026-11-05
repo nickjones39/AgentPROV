@@ -103,9 +103,11 @@ def _describe(plan: Any, result: CommandResult, dry: bool) -> None:
             result.output(f"  and the same bytes at {safe_text(label, 200)}")
     for note in plan.notices:
         result.output(f"  {note}")
-    action = "would write" if dry else "writing"
-    status = "already present" if plan.already_tombstoned else f"reason {plan.reason}, date {plan.date}"
-    result.output(f"  {action} the tombstone in {plan.tombstone_label} ({status})")
+    if plan.already_tombstoned:
+        result.output(f"  the tombstone is already in {plan.tombstone_label}")
+    else:
+        action = "would write" if dry else "writing"
+        result.output(f"  {action} the tombstone in {plan.tombstone_label} (reason {plan.reason}, date {plan.date})")
     if plan.kind == "corpus":
         n = len(plan.affected)
         result.output(
@@ -200,8 +202,10 @@ def run_purge(ctx: Context) -> CommandResult:
         "objects_removed": 1 if done.removed else 0,
         "tombstones_written": 1 if done.tombstone_written else 0,
     }
+    # AU-CLIA-3: say "removed" only when this run removed the object; a repeated purge finds it already gone
+    what = f"removed sha256:{digest}" if done.removed else f"sha256:{digest} was already removed"
     result.info(
-        f"agentprov purge: removed sha256:{digest}; tombstone in {plan.tombstone_label}; "
+        f"agentprov purge: {what}; tombstone in {plan.tombstone_label}; "
         f"{done.register_entries_written} execution(s) newly withheld (release.withheld)"
     )
     if done.register_entries_written:

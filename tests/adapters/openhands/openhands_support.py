@@ -32,8 +32,8 @@ REPO = Path(__file__).resolve().parents[3]
 FIXTURES = REPO / "tests" / "fixtures" / "openhands"
 OAS_REPO = "https://github.com/sani903/OpenAgentSafety"
 OAS_COMMIT = "857798ff26c4ce6e1d7911ee4d8b3f84a71184e0"
-#: The semantics profile version the current profiles select (D-31 bump with D-606; @1 reads catalogue v1).
-SEM_VERSION = 2
+#: The semantics profile version the current profiles select (D-1063; @2 reads catalogue v2, @1 catalogue v1).
+SEM_VERSION = 3
 
 
 @cache

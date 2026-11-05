@@ -46,7 +46,9 @@ def test_runs_dashboard_follows_a_job(qapp: Any, runs: Any) -> None:
     wait(qapp, lambda: runs.manager.jobs[job.job_id].state != "running", 30)
     runs.refresh()
     runs.select(job.job_id)
-    assert "ok" in runs.title.text()
+    # the state is the header's badge, the exit code and outcome its subtitle (D-1061's job header)
+    assert runs.title.text() == "fake import" and runs.state_badge.text() == "Ended"
+    assert "ended with exit 0 (ok)" in runs.subtitle.text()
     counts = {runs.counts.item(r, 0).text(): runs.counts.item(r, 1).text() for r in range(runs.counts.rowCount())}
     assert counts and int(counts.get("sealed", "0")) == 6
     assert runs.resume_btn.isEnabled() and not runs.stop_btn.isEnabled()
@@ -89,7 +91,7 @@ def test_job_dialog_preview_tier_and_conformance(qapp: Any) -> None:
     from agentprov_gui.ui.jobdialog import JobDialog
 
     dlg = JobDialog(FORMS["import"], program=("agentprov",), preset={"source": "agentdojo", "corpus": "/tmp/c"})
-    assert "agentprov import --corpus /tmp/c" in dlg.preview.toPlainText()
+    assert "agentprov import --corpus /tmp/c" in dlg.command_line()
     assert dlg.tier.text().startswith("R1")
     assert not dlg.conformance.isEnabled() and dlg.conformance.isChecked()  # the CLI has no option yet (G2c-5)
     dlg.inputs["fetch"].setChecked(True)
@@ -106,10 +108,10 @@ def test_conformance_warning_flow(qapp: Any, monkeypatch: pytest.MonkeyPatch) ->
                        conformance_option="--skip-prov-conformance")
     monkeypatch.setattr(jd, "choose", lambda *a, **k: False)  # the user keeps the check
     dlg.conformance.click()
-    assert dlg.conformance.isChecked() and "--skip-prov-conformance" not in dlg.preview.toPlainText()
+    assert dlg.conformance.isChecked() and "--skip-prov-conformance" not in dlg.command_line()
     monkeypatch.setattr(jd, "choose", lambda *a, **k: True)  # the user skips it, after the warning
     dlg.conformance.click()
-    assert not dlg.conformance.isChecked() and "--skip-prov-conformance" in dlg.preview.toPlainText()
+    assert not dlg.conformance.isChecked() and "--skip-prov-conformance" in dlg.command_line()
     assert "Not advisable" in jd.CONFORMANCE_WARNING
 
 
@@ -138,7 +140,8 @@ def test_system_sampler_once(qapp: Any, tmp_path: Path) -> None:
     got = [page.sampler.sample()]
     assert got and got[0]["cpu"] and any(pid == os.getpid() for pid, *_ in got[0]["procs"])
     page._show(got[0])
-    assert "memory" in page.summary.text()
+    assert "GiB" in page.facts.value("memory") and "%" in page.facts.value("cpu")
+    assert page.following.text().startswith("The job: ")  # followed by pid only: no job id to name
     page.shutdown()
 
 
@@ -394,3 +397,22 @@ def test_copy_execution_id_copies_only_a_well_formed_id(qapp: Any) -> None:
     from agentprov_gui.ui.viewer import EXECUTION_ID
 
     assert EXECUTION_ID.pattern == EXECUTION_ID_RE.pattern  # the GUI's copy of the core's id rule
+
+
+def test_a_running_job_that_vanished_from_the_list_raises_nothing(qapp: Any, tmp_path: Path, settings: Any,
+                                                                   monkeypatch: pytest.MonkeyPatch) -> None:
+    """Audit AU-GUI-5: a job seen running and then no longer listed (its folder removed, or job.json unreadable for one
+    read) raised KeyError on every list refresh, so the activity line and the job-ended notifications stopped."""
+    from agentprov_gui.ui.mainwindow import MainWindow
+
+    settings.checkout = tmp_path / "no-checkout"
+    w = MainWindow(settings, cache_dir=tmp_path / "layout", home=tmp_path / "home")
+    try:
+        ended: list[Any] = []
+        monkeypatch.setattr(w, "_job_ended", ended.append)
+        w._running_ids = {"vanished-job"}
+        w._jobs_changed(0, 3)
+        assert w._running_ids == set() and ended == []  # dropped, no notification for a job that is not listed
+        assert w.activity.text() == "3 jobs"
+    finally:
+        w.close()

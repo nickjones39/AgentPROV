@@ -354,3 +354,35 @@ def test_offline_check_is_refused_while_the_environment_is_being_built(cli, in_r
     assert run.code != 0 and "being built" in run.err, run.err
     run = cli("backends", "build", "agentdojo", "--offline-check")  # no build running: the usual missing-build refusal
     assert run.code == 3 and "backends build agentdojo" in run.err
+
+
+# ---------------------------------------------------------------------------------------------- platform limits (D-1064)
+
+
+@pytest.mark.parametrize("backend", ["agentdojo", "autodojo", "agentdyn"])
+def test_a_build_on_windows_arm64_is_refused_before_anything_starts(cli, in_repo, tmp_path, monkeypatch, simulate_host,
+                                                                    backend, check_summary):
+    home = tmp_path / "home"
+    monkeypatch.setenv("AGENTPROV_HOME", str(home))
+    simulate_host("Windows", "arm64")
+    for extra in ((), ("--offline-check",)):
+        run = cli("backends", "build", backend, *extra, "--json")
+        assert run.code == 4, run.err
+        document = run.json()
+        check_summary(document)
+        assert document["outcome"] == "refused" and document["refusal"]["status"] == "platform.unsupported"
+        assert ("[platform.unsupported]: Building the agentdojo, autodojo and agentdyn backend environments is "
+                "available on macOS and Linux. On Windows ARM64 it is not available yet: ") in run.err
+    assert not home.exists()
+    assert cli("backends", "build", backend, "--dry-run").code == 0  # the plan stays printable
+
+
+def test_a_build_on_windows_x86_64_and_of_the_inspect_backend_is_not_refused(cli, in_repo, tmp_path, monkeypatch,
+                                                                            simulate_host):
+    monkeypatch.setenv("AGENTPROV_HOME", str(tmp_path / "home"))
+    simulate_host("Windows", "x86_64")
+    run = cli("backends", "build", "agentdojo", "--offline-check")
+    assert run.code == 3 and "platform.unsupported" not in run.err  # it builds there (D-867): the missing build
+    simulate_host("Windows", "arm64")
+    run = cli("backends", "build", "inspect-agentharm", "--offline-check")
+    assert run.code == 3 and "platform.unsupported" not in run.err  # no known limit for the Inspect backend

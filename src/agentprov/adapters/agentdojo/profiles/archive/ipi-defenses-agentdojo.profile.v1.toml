@@ -1,0 +1,198 @@
+# Source profile `ipi-defenses-agentdojo`: the per-instance traces of the replication package "Evaluating Indirect
+# Prompt-Injection Defenses in Tool-Using LLM Agents" (Khan, AlKhanbashi, Mohamed; Zenodo 22011266, v4.0.0, concept
+# 20731176): AgentDojo 0.1.35 banking runs of gpt-5.4-mini, gpt-5.4 and claude-sonnet-4-6 under AgentDojo's built-in
+# defences, two runs (phase 10j; D-251; docs/reports/phase10j/census.md §3).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10j census of
+# every selected log (tools/agentdojo/phase10j_profiles.py census), reconciled with tools/agentdojo/phase10j_census.py.
+#
+# Input: the zip is an archive input (D-200). Every log is a member of one of three nested gzip tars (D-57, D-382), whose
+# members are runs/<run set>/<defence>/<model>/banking/... . The README's limitations, disclosed here and in the registry
+# caveat: (1) a runner defect overwrote some first-run cells; the deposit ships only the cells whose traces survived, each
+# complete (169 logs); (2) the prompt-injection detector's Hugging Face revision is not pinned; (3) runs 1 and 2 evaluate
+# the same benchmark instances again. `benchmark_version` is null in every log: not_recorded (D-102). Inclusion was
+# re-checked in phase 10j and stands (D-251); v4.0.0 is the latest of four versions (metadata query, census §12).
+
+[profile]
+id = "ipi-defenses-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "ipi-defenses-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "IPI defences replication package: AgentDojo 0.1.35 banking logs of gpt-5.4(-mini) and claude-sonnet-4-6 under AgentDojo's built-in defences (Zenodo 22011266)"
+evidence = ["docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md §2 (held, D-90)", "docs/reports/phase10j/census.md §3"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.20731176"
+paper = "Evaluating Indirect Prompt-Injection Defenses in Tool-Using LLM Agents: Security, Utility, and Replication (Computers, MDPI; revised manuscript computers-4482974)"
+package = { name = "agentdojo", requirement = "agentdojo==0.1.35 (README, reproduction step)", version_identifies_code = false }
+
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.22011266"
+record = 22011266
+version = "4.0.0"
+file = "AgentSecurity-IPIDefenses-v4.0.zip"
+sha256 = "c2370724960a3fa17772518ef99623a1dab5f99547c457ecbcf9276a4faa5226"
+md5 = "1d61c6bdb81b1550b79d73ff601fcc3b"
+size = 3305018
+date = "2026-08-19"
+note = "fetched 2026-10-11 (phase 10c, user-approved); the latest version on 2026-10-14 (versions 20731177, 21361725, 21418519, 22011266)"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["Adil Khan", "Khaled AlKhanbashi", "Azza Mohamed"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "README 'Licence': code MIT, data and documentation CC BY 4.0; record licence cc-by-4.0"
+attribution = [
+  "Khan, AlKhanbashi, Mohamed, replication package, Zenodo 10.5281/zenodo.22011266 (v4.0.0), CC-BY-4.0",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo==0.1.35 (PyPI; README), with code/agentdojo_banking.py (LOGDIR-patched runner; not verified, D-24)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs/*/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+nested = [
+  { id = "run1-mini", pattern = "AgentSecurity-IPIDefenses-v4.0/data/traces_run1_mini_pdef.tar.gz", note = "run 1, GPT-5.4-mini, five defences (845 logs)" },
+  { id = "run2-mini", pattern = "AgentSecurity-IPIDefenses-v4.0/data/traces_run2_mini_rerun.tar.gz", note = "run 2, GPT-5.4-mini, five defences (845 logs)" },
+  { id = "run2-frontier", pattern = "AgentSecurity-IPIDefenses-v4.0/data/traces_frontier_verify.tar.gz", note = "run 2, GPT-5.4 and Claude Sonnet 4.6, nine cells (1,521 logs)" },
+]
+# the identity key is <run set>/<defence>/<model>: the defence directory sits above the model directory (D-104)
+layout = "runs/{model_dir?}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = [
+  "AgentSecurity-IPIDefenses-v4.0/README.md", "AgentSecurity-IPIDefenses-v4.0/data/RUN_MAP.md",
+  "AgentSecurity-IPIDefenses-v4.0/docs/CHANGES.md", "AgentSecurity-IPIDefenses-v4.0/docs/CHANGES_ADDENDUM_2026-07-16.md",
+  "AgentSecurity-IPIDefenses-v4.0/code/agentdojo_banking.py",
+]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/ipi_defenses_run_dirs.toml", sha256 = "e8de386501bff426cae74ffb7565f640349fd8f325db63637a17a8e62c066520" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# agentdojo==0.1.35 from PyPI with the deposit's runner; not verified against the runs (D-24)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+  { label = "agentdojo_default_spotlighting", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/agent_pipeline/agent_pipeline.py", sha256 = "2954962b7689663e8083fd5872aa5b1368437f16cc16cec7c0121d603a13eb03", note = "the default plus the spotlighting_with_delimiting sentence (l. 267-273); exactly the 676 logs of the spotlighting directories", applies = { variant = ["v1.k14"], model_dir = ["*/spotlighting_with_delimiting/*"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 475, origin_rule_applied = 475 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 171 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 2, logs = 2 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 2751 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 6049, present_and_null = 6049 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { head = { null_ids = 0, logs_with_null_ids = 0, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.pi_detector_redaction"
+applies = { model_dir = ["*/transformers_pi_detector/*"] }
+rules = ["agentdojo.pi_detector_sentinel@1"]
+params = { sentinel = "<Data omitted because a prompt injection was detected>" }
+observed = { head = { logs = 608, redactions = 1169 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.tool_filter_aux_llm"
+applies = { model_dir = ["*/tool_filter/*"] }
+rules = ["agentdojo.tool_filter_aux_message@1"]
+observed = { head = { logs = 507, logs_with_filter_messages = 507 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.repeat_user_prompt_reinsertion"
+applies = { model_dir = ["*/repeat_user_prompt/*"] }
+rules = ["agentdojo.repeat_user_prompt_copy@1"]
+observed = { head = { logs = 676, logs_with_copies = 665 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { model_dir = ["*/spotlighting_with_delimiting/*"] }
+rules = ["agentdojo.spotlighting_content@1"]
+observed = { head = { logs = 676, logs_with_tool_results = 635 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

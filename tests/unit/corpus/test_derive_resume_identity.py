@@ -52,20 +52,20 @@ def _interrupted_derive(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.
 def test_a_resume_under_another_semantics_profile_is_refused(capsys, tmp_path, monkeypatch):
     src = ds.agentdojo_corpus(tmp_path, name="aer-only", count=2, until="aer")
     out = tmp_path / "new"
-    _interrupted_derive(capsys, monkeypatch, src, out, "agentdojo.suites@2")
+    _interrupted_derive(capsys, monkeypatch, src, out, "agentdojo.suites@4")
     derived_from = json.loads((ds.partial(out) / "corpus.json").read_text())["derived_from"]
-    assert derived_from["semantics"] == ["agentdojo.suites@2"] and "sem" in derived_from["fn_digests"]
+    assert derived_from["semantics"] == ["agentdojo.suites@4"] and "sem" in derived_from["fn_digests"]
     code, err = _run(capsys, "derive", "--corpus", str(src), "--out", str(out), "--in-process",
-                     "--semantics-profile", "agentdojo.suites@3")
+                     "--semantics-profile", "agentdojo.suites@5")
     assert code == 4 and "corpus.derive.resume_mismatch" in err
-    assert sorted(p.name for p in (ds.partial(out) / "sem").iterdir()) == ["agentdojo.suites-2"]
+    assert sorted(p.name for p in (ds.partial(out) / "sem").iterdir()) == ["agentdojo.suites-4"]
 
 
 def test_a_resume_under_the_same_semantics_profile_still_resumes(capsys, tmp_path, monkeypatch):
     src = ds.agentdojo_corpus(tmp_path, name="aer-only", count=2, until="aer")
     out = tmp_path / "new"
-    _interrupted_derive(capsys, monkeypatch, src, out, "agentdojo.suites@2")
+    _interrupted_derive(capsys, monkeypatch, src, out, "agentdojo.suites@4")
     code, err = _run(capsys, "derive", "--corpus", str(src), "--out", str(out), "--in-process",
-                     "--semantics-profile", "agentdojo.suites@2")
+                     "--semantics-profile", "agentdojo.suites@4")
     assert code == 0, err
     assert len(ds.rows(ds.partial(out))) == 2

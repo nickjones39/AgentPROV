@@ -11,6 +11,8 @@ from types import ModuleType
 
 import pytest
 
+from agentprov.estimate.usage import ExecutionUsage
+
 TOOL = Path(__file__).resolve().parents[2] / "tools" / "estimate" / "gen_estimate_priors.py"
 SHA = "5b1f6fdf" + "0" * 32
 
@@ -69,3 +71,23 @@ def test_the_table_records_each_corpus_building_commit(tmp_path: Path, capsys: p
     assert g.main([*base, "--corpus-commit", f"x-rg1.partial={SHA}"]) == 0
     (corpus,) = json.loads(out.read_text(encoding="utf-8"))["built_from"]["corpora"]
     assert corpus["name"] == "x-rg1.partial" and corpus["building_commit"] == SHA and corpus["corpus_id"] == "x"
+
+
+def _usage(model: str | None, calls: int, backend: str | None = None) -> ExecutionUsage:
+    return ExecutionUsage("agentdojo", "banking", None, model, calls, (100,) * calls, (0,) * calls, (10,) * calls, 1.0,
+                          "usage", backend=backend)
+
+
+def test_the_any_model_and_any_backend_rows_hold_every_execution() -> None:
+    """AU-TRG-6: an execution without a model family (``llama3:8b`` is not a plain label) or without a backend (an
+    import) was keyed like the any-model (any-backend) row, and that subset's row was kept instead of the aggregate."""
+    g = _tool()
+    usages = ([_usage("gpt-4o-2024-05-13", 10, "agentdojo") for _ in range(10)]
+              + [_usage("gpt-4o-2024-05-13", 4) for _ in range(6)] + [_usage("llama3:8b", 1) for _ in range(5)])
+    rows = g.build_rows(usages, min_executions=5)
+    key = ("agentdojo", "banking", "")
+    assert rows[(*key, "", "")]["executions"] == 21  # any model, any backend: every execution
+    assert rows[(*key, "gpt-4o", "")]["executions"] == 16  # this family on any backend (live and imported)
+    assert rows[(*key, "gpt-4o", "agentdojo")]["executions"] == 10
+    assert rows[(*key, "", "agentdojo")]["executions"] == 10
+    assert set(rows) == {(*key, "", ""), (*key, "gpt-4o", ""), (*key, "gpt-4o", "agentdojo"), (*key, "", "agentdojo")}

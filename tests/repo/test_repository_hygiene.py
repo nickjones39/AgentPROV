@@ -56,11 +56,22 @@ def tracked() -> list[str]:
     return _git("ls-files", "-z").split("\0")[:-1]
 
 
-def _synthetic_markers() -> list[re.Pattern[bytes]]:
-    """The allowlist of ``.gitleaks.toml``: markers carried by every synthetic key in the redaction tests."""
-    config = tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))
-    return [re.compile(m.removeprefix("(?i)").encode(), re.IGNORECASE if m.startswith("(?i)") else 0)
-            for m in config["allowlist"]["regexes"]]
+def _gitleaks_allowlists() -> list[dict]:
+    return tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))["allowlists"]
+
+
+def _marker_allowlist() -> dict:
+    """The ``.gitleaks.toml`` allowlist of the synthetic test keys: the one scoped to paths."""
+    (entry,) = [a for a in _gitleaks_allowlists() if a.get("paths")]
+    return entry
+
+
+def _synthetic_markers() -> tuple[list[re.Pattern[str]], list[re.Pattern[bytes]]]:
+    """The test trees and the markers carried by every synthetic key in the redaction tests (``.gitleaks.toml``)."""
+    entry = _marker_allowlist()
+    return ([re.compile(p) for p in entry["paths"]],
+            [re.compile(m.removeprefix("(?i)").encode(), re.IGNORECASE if m.startswith("(?i)") else 0)
+             for m in entry["regexes"]])
 
 
 # ------------------------------------------------------------------------------------------ what is tracked
@@ -87,16 +98,19 @@ def test_no_large_file_outside_the_fixture_tree_unless_allowlisted(tracked: list
 
 
 def test_no_key_shaped_string_is_tracked_outside_the_synthetic_markers(tracked: list[str]) -> None:
-    markers = _synthetic_markers()
+    """A key-shaped string is tracked only in a test tree, carrying a marker (the scope of ``.gitleaks.toml``'s
+    marker allowlist, AU-TWF-12)."""
+    trees, markers = _synthetic_markers()
     hits: list[tuple[str, str]] = []
     for path in tracked:
         file = ROOT / path
         if not file.is_file() or file.stat().st_size > 8 * MIB:
             continue
         data = file.read_bytes()
+        in_tests = any(t.search(path) for t in trees)
         for name, pattern in SECRET_PATTERNS.items():
             for match in pattern.finditer(data):
-                if not any(m.search(match.group()) for m in markers):
+                if not (in_tests and any(m.search(match.group()) for m in markers)):
                     hits.append((path, name))  # never the value
     assert hits == []
 
@@ -284,13 +298,47 @@ def test_every_accepted_dependency_advisory_has_a_reason_and_an_expiry() -> None
 def test_the_execution_id_allowlist_entry_matches_only_a_whole_execution_id() -> None:
     """``.gitleaks.toml`` allows AgentPROV execution ids (analysis records list them; an id can contain "api" or "key").
     The entry must stay anchored to the whole secret so that a real key containing such a string is still reported."""
-    config = tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))
-    (entry,) = [r for r in config["allowlist"]["regexes"] if "ex_" in r]
+    (entry,) = [r for a in _gitleaks_allowlists() for r in a["regexes"] if "ex_" in r]
     assert entry.startswith("^") and entry.endswith("$")
     pattern = re.compile(entry)
     assert pattern.search("ex_inwukq44gvaz5thl2napiszc5y")
     for key in ("sk-ex_inwukq44gvaz5thl2napiszc5y", "ex_inwukq44gvaz5thl2napiszc5yA1", "AKIAex_inwukq44gvaz5thl2napiszc5y"):
         assert not pattern.search(key)
+
+
+def test_the_marker_allowlist_applies_only_inside_the_test_trees() -> None:
+    """AU-TWF-12: the synthetic-key markers ("1234567890", "sentinel", ...) excuse a detected secret only in a test
+    tree and only together with the path (condition AND); the one global entry is the anchored execution id."""
+    entry = _marker_allowlist()
+    assert entry["condition"] == "AND" and entry["regexTarget"] == "secret"
+    assert all(p.startswith("^") and "tests/" in p for p in entry["paths"])
+    rest = [a for a in _gitleaks_allowlists() if not a.get("paths")]
+    assert [r for a in rest for r in a["regexes"]] == ["^ex_[a-z2-7]{26}$"]
+    assert all(set(a) <= {"description", "regexTarget", "regexes"} for a in rest)
+
+
+@pytest.mark.skipif(shutil.which("gitleaks") is None or shutil.which("git") is None, reason="needs gitleaks and git")
+def test_gitleaks_reports_a_marker_key_outside_the_test_trees(tmp_path: Path) -> None:
+    """AU-TWF-12, with the gitleaks binary: in a scratch repository scanned as CI scans this one (``gitleaks git``
+    with this config), a key holding a marker is reported outside the test trees, a key without one is reported inside
+    them, and only a marked key inside them is allowed. The keys are assembled here, so this file holds none."""
+    body = "u8jzPde0IgxL" + "{}" + "d6GncfBAepfJBd0Kh8oO"
+    files = {"src/app/settings.py": "1234567890", "tests/unit/test_plain.py": "QwErTyUiOp",
+             "tests/unit/test_marked.py": "1234567890"}
+    for rel, middle in files.items():
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f'client_secret = "{body.format(middle)}"\n', encoding="utf-8")
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t",
+           "GIT_AUTHOR_EMAIL": "t@example.invalid", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid"}
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "keys"]):
+        subprocess.run(["git", *args], cwd=tmp_path, env=env, check=True, capture_output=True)
+    report = tmp_path.parent / "gitleaks-report.json"
+    subprocess.run(["gitleaks", "git", "--no-banner", "--redact", "--config", str(ROOT / ".gitleaks.toml"),
+                    "--report-format", "json", "--report-path", str(report), "."], cwd=tmp_path, env=env,
+                   capture_output=True)
+    reported = {f["File"] for f in json.loads(report.read_text(encoding="utf-8"))}
+    assert reported == {"src/app/settings.py", "tests/unit/test_plain.py"}
 
 
 def test_gitleaksignore_holds_only_commit_pinned_fingerprints() -> None:

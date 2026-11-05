@@ -176,6 +176,36 @@ def test_a_reply_after_new_chat_is_dropped(qapp: Any) -> None:
     assert page.messages == []
 
 
+def test_an_older_settings_read_that_lands_last_is_dropped(qapp: Any) -> None:
+    """Audit AU-GUI-2: reload() kept no sequence, so a slow earlier ``settings list`` answer (the start-up read) that
+    arrived after the read made by Settings › OK put the old model and endpoint back."""
+    import threading
+
+    from agentprov_gui.ui.help import AssistantPage
+
+    gate, reads = threading.Event(), [0]
+
+    def cli(argv: list[str], stdin: bytes | None) -> tuple[int, bytes, bytes]:
+        reads[0] += 1
+        if reads[0] == 1:  # the first read is slow and old
+            gate.wait(10)
+            values = {"assistant.endpoint": "openai", "assistant.model": "old-model"}
+        else:
+            values = {"assistant.server": "ollama", "assistant.model": "new-model"}
+        return 0, json.dumps({"values": values}).encode(), b""
+
+    page = AssistantPage(cli)  # read 1, blocked
+    wait(qapp, lambda: reads[0] == 1)
+    page.reload()  # read 2: Settings › OK
+    wait(qapp, lambda: page.model == "new-model")
+    gate.set()
+    end = time.monotonic() + 0.5
+    while time.monotonic() < end:  # the old answer is delivered by a queued signal
+        qapp.processEvents()
+        time.sleep(0.01)
+    assert (page.model, page.server, page.endpoint) == ("new-model", "ollama", None)
+
+
 def test_the_main_window_has_a_help_section(qapp: Any, tmp_path: Path) -> None:
     from PySide6.QtCore import QSettings
 
@@ -209,6 +239,58 @@ def test_the_settings_pane_round_trips(qapp: Any, values: dict[str, Any], expect
     pane = AssistantPane(None, cli=lambda argv: (0, json.dumps({"values": values}).encode(), b""))
     wait(qapp, lambda: pane.loaded is not None)
     assert pane.values() == expected
+
+
+def _assistant_pane(qapp: Any, stored: dict[str, Any]) -> tuple[Any, list[list[str]]]:
+    from agentprov_gui.ui.settings_panes import AssistantPane
+
+    writes: list[list[str]] = []
+
+    def cli(argv: list[str]) -> tuple[int, bytes, bytes]:
+        if argv[:2] == ["settings", "list"]:
+            return 0, json.dumps({"values": stored}).encode(), b""
+        writes.append(list(argv))
+        return 0, b"", b""
+
+    pane = AssistantPane(None, cli=cli)
+    wait(qapp, lambda: pane.loaded is not None)
+    return pane, writes
+
+
+@pytest.mark.parametrize(("stored", "kind", "provider"), [
+    ({"assistant.endpoint": "ollama", "assistant.model": "llama3"}, "ollama", None),  # a local endpoints.toml entry
+    ({"assistant.base_url": "http://127.0.0.1:9999/v1", "assistant.model": "m"}, "other", None),  # a URL alone
+    ({"assistant.endpoint": "mistral", "assistant.model": "m"}, "api", "mistral"),  # an entry the list does not name
+    ({"assistant.server": "omlx", "assistant.endpoint": "omlx", "assistant.model": "m"}, "omlx", None),
+    ({"assistant.server": "ollama", "assistant.base_url": "http://127.0.0.1:9000/v1", "assistant.endpoint": "openai"},
+     "ollama", None),  # a combination the fields cannot show exactly
+])
+def test_an_ok_that_changed_nothing_in_the_assistant_pane_writes_nothing(
+        qapp: Any, stored: dict[str, Any], kind: str, provider: str | None) -> None:
+    """Audit AU-GUI-1: OK (save() on every pane) rewrote what the CLI set: a local endpoint alone became openai (the
+    Assistant then asked a billed provider) and a base URL without a server was unset."""
+    pane, writes = _assistant_pane(qapp, stored)
+    assert pane.kind == kind
+    if provider is not None:
+        assert pane.endpoint.currentData() == provider
+    pane.save()
+    assert writes == []
+
+
+def test_the_assistant_pane_writes_only_what_was_changed(qapp: Any) -> None:
+    pane, writes = _assistant_pane(qapp, {"assistant.endpoint": "ollama", "assistant.model": "llama3"})
+    pane.model.setEditText("qwen3")
+    pane.save()
+    assert writes == [["settings", "set", "assistant.model", "qwen3"]]  # the endpoint is kept as stored
+    pane, writes = _assistant_pane(qapp, {"assistant.endpoint": "ollama", "assistant.model": "llama3"})
+    pane.server.setCurrentIndex(pane.server.findData("api"))
+    pane.endpoint.setCurrentIndex(pane.endpoint.findData("anthropic"))
+    pane.save()
+    assert writes == [["settings", "set", "assistant.endpoint", "anthropic"]]  # the connection, as now shown
+    pane, writes = _assistant_pane(qapp, {"assistant.base_url": "http://127.0.0.1:9999/v1", "assistant.model": "m"})
+    pane.server.setCurrentIndex(pane.server.findData("splash"))
+    pane.save()
+    assert writes == [["settings", "set", "assistant.server", "splash"]]  # the typed address is kept, as before
 
 
 def test_choosing_a_server_fills_its_address_and_refresh_lists_the_loaded_model_first(qapp: Any) -> None:

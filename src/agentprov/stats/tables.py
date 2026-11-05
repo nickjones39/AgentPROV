@@ -41,7 +41,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
@@ -284,8 +284,11 @@ def compute_corpus(
     on_row: Callable[[IndexRow], None] | None = None,
     per_execution: bool = False,
     exclusions: Sequence[Exclusion] | None = None,
+    exclude_ex: Collection[str] = (),
 ) -> CorpusTables:
-    """Compute ``tables`` over ``corpus`` in one streamed pass (see the module docstring)."""
+    """Compute ``tables`` over ``corpus`` in one streamed pass (see the module docstring). ``exclude_ex`` names
+    executions the row tables read as if the index did not hold them: the datasheet passes the ones a seal withholds, so
+    its field-group table covers the released set (H.2.9; AU-BND-6)."""
     wanted = set(tables)
     unknown_tables = wanted - set(TABLES) - set(OPTIONAL_TABLES)
     if unknown_tables:
@@ -319,6 +322,8 @@ def compute_corpus(
         failure_list.append({"subject": {"ex": ex}, "stage": stage, "code": exc.code, "detail": _label(str(exc))})
 
     for row in reader.iter_index():
+        if row.ex in exclude_ex:
+            continue
         total_rows += 1
         if select and not row_matches(row, select):
             continue

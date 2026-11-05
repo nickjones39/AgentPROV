@@ -13,6 +13,7 @@ import shutil
 import zipfile
 
 import corpus_harness as harness
+import seal_support as ss
 import verify_support as vs
 from corpus_harness import verify
 from test_sec25_withhold_issue import HEAD, ISSUE_RULE, _hits, _inject, _package, corpus, working_template  # noqa: F401
@@ -28,6 +29,7 @@ def test_a_released_container_of_a_withheld_member_fails_chain(cli, corpus, monk
     assert run.code == 0, run.err
     root = corpus["root"]
     assert verify(cli, root, "--level", "chain", "--release", "--root-digest", vs.root_digest(root)).code == 0
+    ss.writable(root)  # the sealed tree is read-only; the attacker below lifts that first
     doc = decode_withheld((root / "WITHHELD.json").read_bytes())
     container = next(e for e in doc.entries if e.basis == "container")
     members_left = [e for e in doc.entries if e.sha256 != container.sha256]

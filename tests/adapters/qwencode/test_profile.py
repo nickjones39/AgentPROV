@@ -32,7 +32,7 @@ def test_profile_pins_licence_import_and_family_schema():
     family = tomllib.loads((SRC / "profiles" / f"{support.PROFILE}.profile.toml").read_text(encoding="utf-8"))["family"]["qwencode"]
     assert list(jsonschema.Draft202012Validator(schema).iter_errors(family)) == []
     jsonschema.Draft202012Validator.check_schema(json.loads((SRC / "ext.schema.json").read_text(encoding="utf-8")))
-    assert family["semantics_profile"] == {"id": "qwencode.tools", "version": 2}
+    assert family["semantics_profile"] == {"id": "qwencode.tools", "version": 3}  # D-1063
 
 
 def test_supp_pin_is_the_openhands_parts_own():
@@ -49,7 +49,7 @@ def test_registry_entry_is_supported_and_cc_by():
     reg = get_source(support.PROFILE)
     (part,) = reg.capabilities
     assert part.part == "qwen3coder" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == support.PROFILE and part.semantics == ("qwencode.tools@2",)
+    assert part.profile == support.PROFILE and part.semantics == ("qwencode.tools@3",)
     assert reg.licence.spdx == "CC-BY-4.0" and reg.licence.restrictions == ()
     assert resolve_factory(READERS["qwencode.json"]).__name__ == "QwenJsonReader"
     assert resolve_factory(MAPPERS["qwencode.json"]).__name__ == "QwenJsonMapper"

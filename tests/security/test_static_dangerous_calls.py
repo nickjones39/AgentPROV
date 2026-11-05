@@ -33,6 +33,14 @@ ALLOWED = {
         "frozen compat port (invariant 8): probes whether prov/rdflib are installed; the module name is a literal",
     ("backends/shared/src/agentprov_backend/executor_mirror.py", "literal_eval"):
         "T2 only: mirrors AgentDojo 0.1.35 ToolsExecutor.query byte for byte (source-hash pinned; upstream parity)",
+    ("backends/shared/src/agentprov_backend/defences.py", "compile"):
+        "T2 only: compiles a provisioned defence's entry point from the exact bytes whose pinned sha256 was just "
+        "checked (UC-18; it replaced importlib's exec_module, which re-read the file after the check)",
+    ("backends/shared/src/agentprov_backend/defences.py", "exec"):
+        "T2 only: runs that compiled, sha256-verified entry point as its private module (UC-18)",
+    ("src/agentprov/update/unpack.py", "import tarfile"):
+        "D-1065: unpacks a desktop bundle whose sha256 was checked against the release's SHA256SUMS first; members are "
+        "streamed with extractfile() and written by its own checks (names, types, sizes, links last), never extract()",
 }
 #: Modules that may start processes (G.11 #15 plus the probes), and why.
 SUBPROCESS_MODULES = {
@@ -48,6 +56,10 @@ SUBPROCESS_MODULES = {
     "src/agentprov/cli/live/sandbox.py": "the sandbox-exec probe and wrapper (AD-13(b))",
     "src/agentprov/render/dot.py": "Graphviz dot, fixed argv (G.8.6)",
     "src/agentprov/migration/gates.py": "gate G0 runs the frozen baseline environment (J.1.6)",
+    "src/agentprov/update/verify.py": "ssh-keygen -Y verify of the release's SHA256SUMS.sig, fixed argv (D-1065)",
+    "src/agentprov/update/unpack.py": "hdiutil attach/detach and ditto for the macOS bundle's disk image (D-1065)",
+    "src/agentprov/update/install.py": "starts the Windows update helper (this interpreter, -I, agentprov.update.apply; "
+                                       "D-1065)",
     "src/agentprov/cli/gitinfo.py": "git rev-parse/status for the sealing and building commits (H.2.7, D-780; moved from "
                                     "cli/package.py), and the G3 output guard's check-ignore",
 }

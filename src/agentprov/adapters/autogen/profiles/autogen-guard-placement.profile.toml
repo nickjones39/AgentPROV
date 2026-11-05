@@ -13,9 +13,12 @@
 #
 # The deposit's text is untrusted data: probe documents carry injection passages and canaries by design.
 
+# Version 3 (D-1063, regen-batch row 176): semantics autogen.tools@2 (catalogue autogen 2); version 2, which the
+# sealed corpus autogen-guard-placement-w2 records, ships as profiles/archive/autogen-guard-placement.profile.v2.toml.
+
 [profile]
 id = "autogen-guard-placement"
-version = 2
+version = 3
 format = "agentprov-source-profile/0.1"
 source_id = "autogen-guard-placement"
 family = "autogen"
@@ -67,7 +70,7 @@ content_dedup = "never"
 dialect = "autogen.runs"
 mapper = "autogen.runs"
 variants = ["condition", "defense", "injecagent", "team"]
-rules = { aer = 1, autogen = 1 }
+rules = { aer = 1, autogen = 2 }
 include = ["autogen-guard-placement/results/phase*/runs.jsonl", "autogen-guard-placement/results/phase6/*/runs.jsonl"]
 # D-300 with D-321: the phase 7-9 run files are selected; the reader registers each of their 190 rows on its own line
 # (phase 7: select.not_execution_artefact, autogen.rail_probe_no_agent; phases 8-9: select.out_of_scope,
@@ -97,7 +100,7 @@ scope = "object"
 [family.autogen]
 verified_code = [{ commit = "83afbf5857aac683340d4c692194e548b1e8edda", note = "microsoft/autogen python-v0.7.5; requirements.txt pins 0.7.5 and the phase-0 capture records it installed (D-303)" }]
 block_guard_by_phase = { "10" = "keyword", "12" = "llm", "13" = "llm" }
-semantics_profile = { id = "autogen.tools", version = 1 }
+semantics_profile = { id = "autogen.tools", version = 2 }
 runs = { rows = 1270, runs = 1080, rail = 150, framework = 40 }
 
 # The harness's task per entry point (ENTRY_TASK in the deposit's src/harness.py; read, never run). `{text}` is the probe

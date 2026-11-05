@@ -152,7 +152,7 @@ def test_a_batch_never_loses_a_staged_input_to_the_previous_batch(sealed: Path, 
     would take the next batch's copy too."""
     monkeypatch.setattr(validation, "POOL_BATCH", 1)
     rows = CorpusReader.open(sealed).index()
-    monkeypatch.setattr(CorpusReader, "index", lambda self: [rows[0], rows[0], *rows[1:]])  # one AER in two batches
+    monkeypatch.setattr(CorpusReader, "iter_index", lambda self: iter([rows[0], rows[0], *rows[1:]]))  # one AER in two batches
     real_run = validation.WorkerPool.run
     missing: list[str] = []
 

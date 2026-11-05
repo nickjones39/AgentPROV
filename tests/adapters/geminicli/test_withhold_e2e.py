@@ -60,7 +60,7 @@ mode = "import"
 
 [[sources]]
 source_id = "{PROFILE}"
-profile = "{PROFILE}@2"
+profile = "{PROFILE}@3"
 parts = ["results-raw"]
 
 [[sources.snapshots]]
@@ -70,7 +70,7 @@ alt_origins = []
 raw_policy = "include"
 
 [derive]
-sem_profiles = ["geminicli.tools@1"]
+sem_profiles = ["geminicli.tools@2"]
 prov_specs = ["agentprov-prov/0.1"]
 views = []
 options = {{ context_encoding = "members" }}
@@ -215,14 +215,14 @@ def _inputs() -> Any:
     from agentprov.corpus.package import LicenceFile, ProducerFacts, SealInputs
 
     package = resources.files("agentprov").joinpath("adapters", "geminicli")
-    node = package.joinpath("semantics", "geminicli.tools-1")
+    node = package.joinpath("semantics", "geminicli.tools-2")
     return SealInputs(
         spec=SPEC.encode(),
         card=CARD.encode(),
         changes=CHANGES.encode(),
         statements=load_statements((_TESTS.parent / "corpora" / "datasheet-statements.toml").read_bytes()),
         source_profile=package.joinpath("profiles", f"{PROFILE}.profile.toml").read_bytes(),
-        semantics_profiles={"geminicli.tools@1": {c.name: c.read_bytes() for c in sorted(node.iterdir(), key=lambda c: c.name)
+        semantics_profiles={"geminicli.tools@2": {c.name: c.read_bytes() for c in sorted(node.iterdir(), key=lambda c: c.name)
                                                   if c.is_file()}},
         licence_files={"LICENSE": LicenceFile(b"test licence text\n", "supplied at sealing (test)")},
         producer=ProducerFacts(git_commit="0123456789abcdef0123456789abcdef01234567", git_tree_clean=True,
@@ -253,7 +253,7 @@ def test_the_shipped_profile_withholds_the_sentinel_rollout(cli, working):
     by_sha = {e.sha256: e for e in document.entries}
     entry = by_sha[working["planted"]]
     assert (entry.reason, entry.basis) == ("secret", "profile_rule")
-    assert entry.finding is not None and entry.finding.rule.startswith(f"{PROFILE}@2:")
+    assert entry.finding is not None and entry.finding.rule.startswith(f"{PROFILE}@3:")
     assert by_sha[working["container"]].basis == "container"
     assert {e.basis for e in document.entries} == {"profile_rule", "container"}
     assert [p.to_json()["rules"] for p in document.policies] == [[
@@ -321,7 +321,7 @@ def test_a_key_in_an_unselected_member_withholds_the_tar_d450(cli, unselected_te
     assert entry.sha256 == unselected_template["container"]
     assert (entry.reason, entry.basis, entry.affected_executions) == ("secret", "profile_rule", ())
     assert entry.finding is not None and entry.finding.detector == "agentprov-withhold-decoded/1"
-    assert entry.finding.rule == f"{PROFILE}@2:google-api-key-shape"
+    assert entry.finding.rule == f"{PROFILE}@3:google-api-key-shape"
     assert len(_rows(root)) == 3
     sealed = {p.name.split(".", 1)[0] for p in (root / "raw").rglob("*") if p.is_file()}
     assert unselected_template["container"] not in sealed
@@ -414,7 +414,7 @@ def test_the_harness_account_path_withholds_the_patch_and_readme_only_d609(cli, 
     for key, rule in (("patch", "harness-account-path"), ("readme", "deposit-readme-account-path")):
         entry = by_sha[account_template[key]]
         assert (entry.reason, entry.basis, entry.affected_executions) == ("personal_data", "profile_rule", ())
-        assert entry.finding is not None and entry.finding.rule == f"{PROFILE}@2:{rule}"
+        assert entry.finding is not None and entry.finding.rule == f"{PROFILE}@3:{rule}"
         assert "D-609" in entry.public_note
     assert by_sha[account_template["container"]].basis == "container"
     assert document.executions == ()

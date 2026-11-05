@@ -189,6 +189,15 @@ SCHEMA: Final[tuple[Key, ...]] = (
     Key(r"ci\.default_target", "choice", "local, github or mac-studio", choices=("local", "github", "mac-studio")),
     # provider model lists (agentprov models, the local-endpoints session's D-730..D-739): off until switched on
     Key(r"models\.auto_refresh", "bool", "refresh each provider's model list at most once every 24 h (network)"),
+    # D-1062: the standing consent to refresh OpenRouter's prices once a day when Run Live opens (unset: on, the user's
+    # choice of 2026-11-05); agentprov prices refresh --if-stale fetches only while it is not false
+    Key(r"prices\.auto_refresh", "bool", "refresh OpenRouter's prices once a day when Run Live opens (network; unset: "
+        "on)"),
+    # D-1065: the standing consent to the daily update check (agentprov update check --if-stale fetches only while it
+    # is not false; unset: on), and the newest release the desktop app has announced (it tells once per version)
+    Key(r"update\.auto_check", "bool", "check GitHub for a new AgentPROV release once a day (network; unset: on)"),
+    Key(r"update\.last_notified", "str", "the newest release version the desktop app has announced (X.Y.Z)",
+        validator=lambda v: None if re.fullmatch(r"\d{1,6}\.\d{1,6}\.\d{1,6}", v) else "a version X.Y.Z"),
     # the desktop app's Help > Assistant (agentprov assist, D-1010): which endpoint and model answer; the key stays in
     # the OS keychain (agentprov keys), never here
     Key(r"assistant\.endpoint", "str", "the endpoints.toml endpoint the Assistant asks (agentprov assist --endpoint)",

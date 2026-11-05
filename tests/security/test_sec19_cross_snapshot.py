@@ -153,7 +153,9 @@ def duplicated_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def duplicated(duplicated_template: Path, tmp_path: Path) -> Path:
     dest = tmp_path / "corpora" / "c"
     shutil.copytree(duplicated_template, dest, symlinks=True)
-    return dest
+    import seal_support as ss
+
+    return ss.writable(dest)  # a sealed tree is read-only, and copytree keeps the modes; the tests tamper with it
 
 
 def test_sec19_a_sealed_corpus_records_the_collapse_in_its_index_register_origins_and_duplicates_summary(cli, duplicated):

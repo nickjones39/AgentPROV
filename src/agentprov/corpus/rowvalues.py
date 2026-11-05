@@ -7,7 +7,9 @@ two functions, so a Viewer filter and its CLI selector cannot disagree (D-700).
 * :func:`outcome_states`: ``true`` / ``false`` for each ``outcome`` element whose SEM claim is ``claim`` and whose
   ``holds`` is a boolean, or ``["none"]`` when no element has one (the claim was not judged). For ``attack_succeeded``
   the AgentDojo SEM profile gives the claim only on an attacked cell and for a checker's result, so a benign cell is
-  ``none``, whatever its raw ``security`` judgement says.
+  ``none``, whatever its raw ``security`` judgement says. A correction decides: when an element with the claim comes
+  from a ``recomputed`` judgement (a ROPE correction, a DTap audit; C.3.10 ``revises``), only those elements count, so a
+  corrected row matches its corrected value and never both (D-29 item 5, AU-MSR-1). The facet keeps every element.
 """
 
 from __future__ import annotations
@@ -31,6 +33,8 @@ def cell_strings(value: Any) -> list[str]:
 
 
 def outcome_states(outcome: Any, claim: str) -> list[str]:
-    states = sorted({"true" if e["holds"] else "false" for e in (outcome if isinstance(outcome, list) else [])
-                     if isinstance(e, Mapping) and e.get("claim") == claim and isinstance(e.get("holds"), bool)})
+    judged = [e for e in (outcome if isinstance(outcome, list) else [])
+              if isinstance(e, Mapping) and e.get("claim") == claim and isinstance(e.get("holds"), bool)]
+    corrected = [e for e in judged if e.get("origin") == "recomputed"]
+    states = sorted({"true" if e["holds"] else "false" for e in corrected or judged})
     return states or ["none"]

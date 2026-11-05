@@ -29,7 +29,9 @@ def _resource_sha256(*parts: str) -> str:
 
 
 def test_rescont_is_at_version_2_and_ships_main_s_version_1():
-    current = load_catalogue("rescont")
+    # version 2 as this bump made it (row 179 of D-1063 moved the current catalogue on to 3, archiving 2)
+    assert load_catalogue("rescont").version >= 2
+    current = load_catalogue("rescont", 2)
     assert current.version == 2 and NEW_CODES <= current.issue_codes
     archived = load_catalogue("rescont", 1)
     assert archived.version == 1 and archived.digest == RESCONT_1
@@ -43,8 +45,9 @@ def test_rescont_is_at_version_2_and_ships_main_s_version_1():
 
 
 def test_the_memo_ozdincer_profile_is_at_version_2_and_ships_main_s_version_1():
-    current = load_profile(PROFILE)
-    assert current.version == 2 and load_profile(PROFILE, 2) == current
+    assert load_profile(PROFILE).version >= 2  # row 179 of D-1063 moved it on to 3, archiving 2
+    current = load_profile(PROFILE, 2)
+    assert current.version == 2
     assert current.data["import"]["rules"]["rescont"] == 2
     archived = load_profile(PROFILE, 1)
     assert archived.version == 1 and archived.sha256 == PROFILE_1

@@ -14,6 +14,12 @@ Write protocol (G.3.1 step 1, after landscape/secure_ingestion.md section 8.2):
    mismatch fails loudly (``raw.digest.collision``);
 4. the temporary name is removed and the shard directory is ``fsync``-ed.
 
+A store built with ``durable=False`` (D-1068 P7) skips the two ``fsync`` calls of steps 2 and 4 and nothing else: the
+same hashing, size cap, read-only mode, ``os.link`` publication and digest checks. It is for trees that are removed when
+the command ends and never become a corpus: the T1 input stores of ``import``, ``derive`` and ``validate``, and the
+private trees of ``recompute --dry-run`` and ``verify --level rederive``. A crash loses such a tree anyway, so making its
+objects survive a power loss buys nothing. Stores created inside :func:`transient_stores` default to it.
+
 Nothing in this module overwrites, renames over, edits or deletes a published object. A host whose filesystem cannot
 hard-link refuses (``raw.store.link_failed``, exit 3) rather than falling back to a non-atomic publish.
 
@@ -33,6 +39,7 @@ import os
 import stat
 import zlib
 from collections.abc import Iterable, Iterator
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -59,6 +66,7 @@ __all__ = [
     "ext_for_media",
     "limit_field_for",
     "put_stream",
+    "transient_stores",
     "violation_detail",
 ]
 
@@ -251,12 +259,29 @@ def read_tombstones(root: Path, limits: IngestLimits | None = None) -> frozenset
     return frozenset(digests)
 
 
+#: The ``durable`` default of a store built without one: false inside :func:`transient_stores` (D-1068 P7).
+_DURABLE: ContextVar[bool] = ContextVar("agentprov_raw_store_durable", default=True)
+
+
+@contextlib.contextmanager
+def transient_stores() -> Iterator[None]:
+    """Stores created in this block (in this thread or context) default to ``durable=False``: for a command whose every
+    write goes to a private tree it removes at its end (``recompute --dry-run``, ``verify --level rederive``)."""
+    token = _DURABLE.set(False)
+    try:
+        yield
+    finally:
+        _DURABLE.reset(token)
+
+
 class RawObjectStore:
     """The raw store of one corpus (or one fetch cache), rooted at ``root`` (``<corpus>/raw``).
 
     ``root/objects`` holds the objects and ``root/tmp`` (mode ``0700``) the temporary files of in-flight writes; the
     ``tmp`` directory must be empty when a corpus is sealed (phase 11). ``create=False`` opens an existing store
     read-only: no directory is created or modified. ``verify_on_read`` makes :meth:`read_bytes` re-hash what it reads.
+    ``durable=False`` skips the ``fsync`` of each new object and its shard directory (module docstring); ``None``
+    takes the default of the context (:func:`transient_stores`), else ``True``.
     """
 
     def __init__(
@@ -266,8 +291,10 @@ class RawObjectStore:
         limits: IngestLimits | None = None,
         create: bool = True,
         verify_on_read: bool = False,
+        durable: bool | None = None,
     ) -> None:
         self.root = Path(root)
+        self.durable = _DURABLE.get() if durable is None else durable
         self.limits = limits or IngestLimits()
         self.verify_on_read = verify_on_read
         self.objects_dir = self.root / "objects"
@@ -490,7 +517,8 @@ class RawObjectStore:
                     crc = zlib.crc32(chunk, crc)
                     out.write(chunk)
                 out.flush()
-                os.fsync(out.fileno())
+                if self.durable:
+                    os.fsync(out.fileno())
             digest = hasher.hexdigest()
             if expected_sha256 is not None and digest != expected_sha256:
                 raise ObjectMismatchError("streamed bytes do not hash to the expected digest")
@@ -560,7 +588,8 @@ class RawObjectStore:
         self._discard(tmp)
         if os.stat(target).st_mode & 0o222:
             os.chmod(target, 0o444)  # a host where the discard had to make the shared name writable
-        _fsync_dir(target.parent)
+        if self.durable:
+            _fsync_dir(target.parent)
         return True
 
     def _require_intact(self, path: Path, digest: str) -> None:

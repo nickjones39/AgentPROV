@@ -288,7 +288,8 @@ def map_unit(
     unit: ExecutionUnit, mapper: Any, profile: SourceProfile, *, registry: RuleRegistry | None = None,
     auxiliary: Mapping[str, bytes] | None = None, source: bytes | Callable[[], bytes] | None = None, limits: Any = None,
 ) -> MapOutcome:
-    """Map one unit (in this process). Never raises for the unit's content; ``RuleNotDeclared`` is a programming error.
+    """Map one unit (in this process). Never raises for the unit's content; ``RuleNotDeclared`` is a programming error
+    and a ``MemoryError`` the job's resource limit (both propagate).
 
     ``auxiliary`` maps each role of ``unit.auxiliary`` to its bytes (read from the raw store by the caller). ``source``
     is the primary artefact's bytes (or a callable that reads them), offered to :meth:`MapContext.carve` (D-218)."""
@@ -301,7 +302,9 @@ def map_unit(
                      limits=limits)
     try:
         records = [dict(r) for r in mapper.map(unit, ctx)]
-    except RuleNotDeclared:
+    except (RuleNotDeclared, MemoryError):
+        # a MemoryError is the job's resource limit (worker.limit.rss, G.4.6/G.4.12), wherever in the job it is raised:
+        # the job fails and the importer seals and registers it as over the limit, never as an adapter defect (AU-RP-6)
         raise
     except MalformedArtefact as exc:
         return _degenerate(unit, mapper, MapContext(profile, rules, mapping, ex), "unparseable_artefact", exc.code)

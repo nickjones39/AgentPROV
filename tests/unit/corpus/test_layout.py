@@ -220,6 +220,27 @@ def test_iter_tree_escapes_untrusted_names(tmp_path):
     assert finding.code == "corpus.tree.stray" and "\u202e" not in finding.label and "<U+202E>" in finding.label
 
 
+def test_an_operating_system_metadata_file_is_a_stray_whose_detail_names_the_cleanup(tmp_path):
+    """User approval 2026-11-05: the ``corpus.tree.stray`` finding of a file manager's metadata file says what wrote it
+    and how to delete it (a fixed pattern, never the label); code and label are unchanged, other strays keep theirs."""
+    from agentprov.corpus.layout import iter_tree
+
+    root = tmp_path / "c"
+    (root / "aer").mkdir(parents=True)
+    for name in (".DS_Store", "aer/.DS_Store", "._corpus.json", "Thumbs.db", "aer/desktop.ini", "notes.txt"):
+        (root / name).write_bytes(b"\0")
+    found = {f.label: f for f in iter_tree(root).findings}
+    assert {f.code for f in found.values()} == {"corpus.tree.stray"} and len(found) == 6
+    expected = {".DS_Store": "find DIR -name .DS_Store -delete", "aer/.DS_Store": "find DIR -name .DS_Store -delete",
+                "._corpus.json": "find DIR -name '._*' -delete", "Thumbs.db": "find DIR -name Thumbs.db -delete",
+                "aer/desktop.ini": "find DIR -name desktop.ini -delete"}
+    for label, command in expected.items():
+        detail = found[label].detail
+        assert detail.startswith("an operating-system metadata file") and command in detail, (label, detail)
+        assert "macOS Finder writes .DS_Store" in detail and "the sealed tree is otherwise unchanged" in detail
+    assert found["notes.txt"].detail == "not a file of the H.1.2 tree"
+
+
 def test_a_lock_break_token_is_a_working_tree_lock_entry(tmp_path):
     """Pre-round review D #6: ``io.atomic.LockFile`` breaks a stale lock under a ``.agentprov.lock.break`` token; one
     left by a breaker that died is a working-tree lock entry like the lock itself, not a stray file."""

@@ -56,12 +56,22 @@ def decision_nodes(ctx: Ctx) -> None:
             name = f"{local(subject)}.out"
         elif is_part_id(subject) and (ctx.part(subject) or {}).get("t") == "tool_result":
             name = f"{local(subject)}.pre"
-        if name is None or ctx.node(name) is not None:
+        if name is None:
             continue
         attrs: list[Attr] = []
         original = record.get("original")
         if ctx.present(dc, "/original") and blob_digest(original):
             attrs.append(Attr("apv:contentSha256", blob_digest(original), (Field(dc, "/original"),)))
+        existing = ctx.node(name)
+        if existing is not None:
+            # a later decision about the same output: its subject is that output as produced too (C.3, R-21), so it
+            # shares the entity; the first decision that records the content digest gives it (AU-RP-1)
+            if existing.rule != "aprov.decision@1":
+                continue
+            if not any(a.prop == "apv:contentSha256" for a in existing.attrs):
+                existing.attrs.extend(attrs)
+            ctx.register_subject_node(dc, name)
+            continue
         base = subject.split("#", 1)[0]
         ctx.add_node(name, "entity", "aprov.decision@1", [], None, attrs, fields=[Field(dc, "/subject")],
                      nodes=[local(dc), local(base)])

@@ -1,0 +1,208 @@
+# Source profile `agentops-bench-pilot`: the v1.0 pilot runs of AgentOps-Bench (Zenodo 19875693; docs/architecture D.18;
+# DECISIONS D-190..D-199; docs/reports/phase10i/).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18). Version 2 (D-31 bump with catalogue agentops 2 and agentops.tools@2; bug pass regen items
+# 34, 36, 37; and D-608, regen item 137: the tool-output redaction and the [withhold] rule, folded into the same
+# version 2 because no corpus records version 2); version 1 ships under archive/ with the bytes the stored corpora recorded. The [family.agentops] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10i census of every member of the
+# pinned archives, read in memory (docs/reports/phase10i/agentops-bench.census.json).
+#
+# Scope (D-143, D-191): the corpus counts the prompt-injection condition and the safety tasks: 2,400 adversarial runs
+# plus the 960 clean and noisy safety runs = 3,360 of 7,200 cells. The other 3,840 cells (3,842 files, adding the two
+# part-1 Opus copies of clean/research_011 that the deposit's merge discarded) are excluded by rule and registered
+# `select.out_of_scope`, never dropped silently.
+#
+# Input: the runs are members of a gzip tar (an archive input, D-200; pax headers read through the allowlist, D-248). The
+# task definitions are the `tasks/` files of the code's GitHub repository at tag v1.0 (commit c7b29be6), a git context
+# tree (runner item R2, D.16.14). The Zenodo zip of the same tag is kept as the archival twin: its 101 `tasks/` members,
+# its 100 task YAMLs and its LICENSE are byte-identical to the git blobs (checked 2026-10-14, docs/reports/phase10i/ §10).
+
+[profile]
+id = "agentops-bench-pilot"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "agentops-bench"
+family = "agentops"
+parts = ["pilot-v1-seeded"]
+title = "AgentOps-Bench v1.0 pilot: 8 models x 100 tasks x 3 conditions x 3 runs (Zenodo 19875693), in-scope part"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.12", "docs/reports/phase10i/README.md"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.19875693"
+paper = "AgentOps-Bench: A Reproducible Benchmark for Operational Evaluation of Tool-Using LLM Agents (Srivastav, 2026; Zenodo concept 10.5281/zenodo.19875456)"
+package = { name = "agentops-bench", requirement = "code at tag v1.0 (commit c7b29be6; Zenodo snapshot kunwarshivam-agentops-bench-9153772 in the same record); producing code not recorded (D-193)", version_identifies_code = false }
+
+# The runs: 14,540 tar entries, of which 7,202 run files under pilot_v1_seeded/<agent>/<provider_model>/<condition>/;
+# 7,270 macOS AppleDouble members (._*), 7 symlinks and the per-model rollups are not executions.
+[[source.pins]]
+role = "runs"
+part = "pilot-v1-seeded"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.19875693"
+file = "agentops-bench-v1.0-pilot-traces.tar.gz"
+sha256 = "e185bfd037fa9fa5727dbae0eb8eba421dfb5011dfec6f4dc60b111d51e7a85f"
+md5 = "413c6123d376c3a8f29ad8b7195cd267"
+size = 14819650
+date = "2026-04-28"
+note = "fetched 2026-10-12 (phase 10e); the md5 equals the record's checksum"
+
+# The task definitions: the 100 YAML files tasks/<domain>/<NNN>_<slug>.yaml at GitHub tag v1.0 (annotated tag object
+# 91537725, peeled commit c7b29be6; the Zenodo zip's comment names the same commit, its root directory the tag object's
+# short id). Table tables/task_files.toml lists them (D-194). Fetched 2026-10-14 with the user's yes (bare depth-1 store,
+# never checked out); the repository's code is never read, run or installed.
+[[source.pins]]
+role = "tasks"
+part = "pilot-v1-seeded"
+primary = false
+kind = "git"
+repo = "https://github.com/kunwarshivam/agentops-bench"
+commit = "c7b29be6c0d8201d3025d4abc1244935b83586d6"
+tree = "tasks/"
+tree_sha1 = "6434c5a485115b45157166fbe0e41f1cb41432d2"
+expected_files = 101
+expected_bytes = 59166
+date = "2026-04-28"
+note = "tag v1.0; context only (runner item R2); 101 files under tasks/ (100 task YAMLs and a README)"
+
+# The archival twin of the tasks pin: the Zenodo copy of the same tag (GitHub integration). Not imported; it records where
+# the task bytes are archived under a DOI. Byte identity with the git pin: docs/reports/phase10i/README.md §10.
+[[source.pins]]
+role = "tasks_archive"
+part = "pilot-v1-seeded"
+primary = false
+kind = "zenodo"
+doi = "10.5281/zenodo.19875693"
+file = "kunwarshivam/agentops-bench-v1.0.zip"
+sha256 = "852a372da1d797adc5a60a95ea8f5194d8b652d4d5c19738eab152f7a57c1fed"
+md5 = "71ad345da90595fe85456d0a9a1e47f2"
+size = 2449857
+date = "2026-04-28"
+note = "fetched 2026-10-12 (phase 10i, the user's yes); the md5 equals the record's checksum; root kunwarshivam-agentops-bench-9153772/; zip comment = commit c7b29be6 (the tasks pin)"
+
+[licence]
+spdx = "Apache-2.0"
+holders = ["Kunwar Shivam Srivastav (the record's creator)"]
+data_licence = "Apache-2.0"
+policy = "include"
+basis = "Apache-2.0 on the Zenodo record and in the snapshot's LICENSE; the pilot traces carry no separate licence"
+attribution = [
+  "AgentOps-Bench, Zenodo 10.5281/zenodo.19875693 (Apache-2.0)",
+  "code snapshot kunwarshivam-agentops-bench-9153772 (task definitions)",
+]
+unassessed = ["model-provider terms on redistributing model outputs", "web-search fixture content replayed inside tool results"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentops.trace"
+mapper = "agentops.trace"
+variants = ["v1"]
+rules = { aer = 1, agentops = 2 }
+# `[!.]`: the deposit's 2,400 AppleDouble `adversarial/._*_run*.json` members are never selected, so never decompressed
+# or stored (R-40); the runner skips them as strays either way (version 2, phase 10i trial).
+include = [
+  "pilot_v1_seeded/*/*/adversarial/[!.]*_run*.json",
+  "pilot_v1_seeded/*/*/clean/safety_*_run*.json",
+  "pilot_v1_seeded/*/*/noisy/safety_*_run*.json",
+]
+exclude = [
+  { glob = "pilot_v1_seeded/*/*/clean/code_*_run*.json", code = "select.out_of_scope", note = "D-143: clean, not a safety task" },
+  { glob = "pilot_v1_seeded/*/*/clean/data_analysis_*_run*.json", code = "select.out_of_scope", note = "D-143: clean, not a safety task" },
+  { glob = "pilot_v1_seeded/*/*/clean/research_*_run*.json", code = "select.out_of_scope", note = "D-143: clean, not a safety task (includes the 2 discarded part-1 Opus copies)" },
+  { glob = "pilot_v1_seeded/*/*/clean/tool_use_*_run*.json", code = "select.out_of_scope", note = "D-143: clean, not a safety task" },
+  { glob = "pilot_v1_seeded/*/*/noisy/code_*_run*.json", code = "select.out_of_scope", note = "D-143: noisy, not a safety task" },
+  { glob = "pilot_v1_seeded/*/*/noisy/data_analysis_*_run*.json", code = "select.out_of_scope", note = "D-143: noisy, not a safety task" },
+  { glob = "pilot_v1_seeded/*/*/noisy/research_*_run*.json", code = "select.out_of_scope", note = "D-143: noisy, not a safety task" },
+  { glob = "pilot_v1_seeded/*/*/noisy/tool_use_*_run*.json", code = "select.out_of_scope", note = "D-143: noisy, not a safety task" },
+  { glob = "pilot_v1_seeded/*_report.json", code = "select.not_execution_artefact", note = "per-model rollup of the run files" },
+  { glob = "pilot_v1_seeded/*/*_report.json", code = "select.not_execution_artefact", note = "per-model rollup of the run files" },
+  { glob = "pilot_v1_seeded/*/_partial_provenance.json", code = "select.not_execution_artefact", note = "the renamed part-2 Opus rollup" },
+  { glob = "pilot_v1_seeded/_combined/*", code = "select.not_execution_artefact", note = "rollups, analysis tables and symlinks" },
+]
+context_artefacts = ["tasks:tasks/*/*.yaml"]
+layout = "pilot_v1_seeded/{agent_dir}/{provider_model}/{condition}/{domain}_{NNN}_run{k}.json"
+
+# D-608 (principle D-604; amends D-199 and D-186 (c) for this source): run_python output (result text, stdout, stderr)
+# names a third-party macOS account in a path. The AER redacts it (family.agentops.redact below); the raw objects that
+# hold it are withheld at object scope: the 13 selected run objects, and the tar, which holds them and 29 unselected
+# members with the path (the decoded scan, D-450). No execution is withheld: the AER no longer holds the path.
+[withhold]
+reason = "personal_data"
+public_note = "a third-party workstation account path in tool output (D-608); the AER holds a salted label instead"
+
+[[withhold.rules]]
+id = "account-path"
+pattern = "/Users/[A-Za-z0-9._\\-]{1,64}/"
+scope = "object"
+
+[family.agentops]
+layout = "{root}/{agent_dir}/{provider_model}/{condition}/{domain}_{number}_run{run}.json"
+conditions = ["clean", "noisy", "adversarial"]
+in_scope = { conditions = ["adversarial"], domains = ["safety"] }
+tools = ["calculate", "get_current_time", "get_stock_price", "get_weather", "query_database", "read_file", "run_python", "send_email", "web_search", "write_file"]
+pairing = "agentops.pair_by_index_unverified@1"
+task_table = { file = "tables/task_files.toml", rows = 100 }
+semantics_profile = { id = "agentops.tools", version = 2 }
+
+# D-608: the account path in tool output. Structure only: `/Users/<name>` before a `/`, where <name> is not one of the
+# generic names of the release scan's allowlist (D-457); the whole `/Users/<name>` becomes the label, so no AER byte
+# matches the [withhold] pattern. Model text, call arguments and the run error are never touched (D-604).
+[[family.agentops.redact]]
+id = "macos_account"
+scope = "tool_output"
+pattern = '/Users/(?!(?i:user|users|ubuntu|runner|runneradmin|root|shared|guest|vscode|codespace|jovyan|ec2-user|admin|administrator|default|public|travis|circleci|appveyor|vagrant|docker|app|node|nobody|username|you|me|name|example)/)(?P<span>[A-Za-z0-9._\-]{1,64})(?=/)'
+replacement = "acct-{span12}"
+note = "a third-party macOS account path in run_python output: /Users/<account>/..."
+
+[[family.agentops.quirk]]
+id = "agentops.empty_trace"
+rules = ["agentops.empty_trace@1"]
+observed = { files = 162, in_scope = 101 }
+
+[[family.agentops.quirk]]
+id = "agentops.run_error"
+rules = ["agentops.run_error@1"]
+observed = { files = 216, in_scope = 133 }
+
+[[family.agentops.quirk]]
+id = "agentops.iteration_limit"
+rules = ["agentops.iteration_cap_unverified@1"]
+observed = { files = 1, in_scope = 0 }
+
+[[family.agentops.quirk]]
+id = "agentops.fault_injection"
+rules = ["agentops.fault_injection_unverified@1"]
+observed = { results = 2093, in_scope = 715 }
+
+[[family.agentops.quirk]]
+id = "agentops.payload_injection"
+rules = ["agentops.payload_injection_unverified@1", "agentops.payload_suffix@1"]
+observed = { results = 2011, in_scope = 2011, runs = 1373 }
+
+[[family.agentops.quirk]]
+id = "agentops.repeated_tool_names"
+rules = ["agentops.pair_by_index_unverified@1"]
+observed = { steps = 1391, in_scope = 437 }
+
+[[family.agentops.quirk]]
+id = "agentops.unlisted_tool_name"
+rules = ["agentops.unlisted_tool_name@1"]
+observed = { calls = 6, in_scope = 5 }
+
+[[family.agentops.quirk]]
+id = "agentops.dispatch_error_result"
+rules = ["agentops.dispatch_error_text@1"]
+observed = { results = 391, in_scope = 182 }
+
+[[family.agentops.quirk]]
+id = "agentops.superseded_part1_copies"
+rules = []
+note = "two part-1 Opus files (clean/research_011 runs 1 and 2) that the deposit's merge discarded for part 2's; out of scope"
+observed = { files = 2, in_scope = 0 }

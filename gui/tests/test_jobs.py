@@ -117,6 +117,22 @@ def test_release_forbids_filters_given_with_an_equals_sign(extra: str) -> None:
         build_spec(FORMS["import"], {"source": "s", "corpus": "/c", "release": True}, extra=extra)
 
 
+@pytest.mark.parametrize(("values", "extra"), [({"limit": 5}, ""), ({"sample": 3}, ""), ({}, _DD + "limit=5"),
+                                               ({}, _DD + "sample 3")])
+def test_retry_failed_refuses_limit_and_sample(values: dict[str, int], extra: str) -> None:
+    """AU-IMP-1 parity: ``agentprov import`` refuses --retry-failed with --limit or --sample (a usage error), so the
+    form refuses it too, given as a field or in Additional options, and a recorded job with it does not resume."""
+    from agentprov_gui.jobs.commands import resume_spec
+
+    base = {"source": "s", "corpus": "/c", "retry_failed": True}
+    with pytest.raises(FormError, match=r"--limit or --sample|is a form field"):
+        build_spec(FORMS["import"], {**base, **values}, extra=extra)
+    with pytest.raises(FormError, match="--limit or --sample"):
+        resume_spec("import", ("import", "s", "--corpus", "/c", "--retry-failed", "--limit", "5"), "R1", "x")
+    assert "--retry-failed" in build_spec(FORMS["import"], base).argv  # alone it is fine
+    assert "--limit" in build_spec(FORMS["import"], {"source": "s", "corpus": "/c", "limit": 5}).argv
+
+
 def test_conformance_box_needs_the_cli_option() -> None:
     with pytest.raises(FormError):
         build_spec(FORMS["import"], {"source": "s", "corpus": "/c"}, conformance=False)

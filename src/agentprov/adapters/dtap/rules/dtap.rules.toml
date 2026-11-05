@@ -20,12 +20,17 @@
 # (the profile redaction of listed account paths); every version-1 rule is unchanged.
 # Version 3 (D-934, wave 2): the rule dtap.content_not_inlined@1 and the issue code content_not_inlined; version 2, which
 # the wave-2 tree dtap-bench-w2 records, ships unchanged as rules/archive/dtap.rules.v2.toml.
+# Version 4 (UC-40, the 0.2.0 change batch): the rule dtap.lone_surrogate_replaced@1 and the issue code
+# lone_surrogate_replaced (the D-378 lone-surrogate pass); version 3, which the sealed corpus dtap-bench-w2c records,
+# ships unchanged as rules/archive/dtap.rules.v3.toml.
+# Version 4 also holds dtap.marker_not_inlined@1 (D-1063, regen-batch row 182, review AU-RC-3), which dtap.tools@4
+# cites; version 4 is unreleased and no corpus records it, so the rule is added in place.
 
 [catalogue]
 id = "dtap"
-version = 3
+version = 4
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["partial_trajectory", "empty_trajectory", "harness_failure", "judgement_on_failed_run", "pairing_ambiguous_batch", "config_join_unverified", "config_missing", "config_unparseable", "task_info_truncated", "goal_rewritten_at_eval", "user_step_not_logged", "final_response_differs", "source_truncation_marker", "judge_error", "judge_attempt_unresolved", "unjudged_attempt", "path_field_mismatch", "value_redacted", "content_not_inlined"]
+issue_codes = ["partial_trajectory", "empty_trajectory", "harness_failure", "judgement_on_failed_run", "pairing_ambiguous_batch", "config_join_unverified", "config_missing", "config_unparseable", "task_info_truncated", "goal_rewritten_at_eval", "user_step_not_logged", "final_response_differs", "source_truncation_marker", "judge_error", "judge_attempt_unresolved", "unjudged_attempt", "path_field_mismatch", "value_redacted", "content_not_inlined", "lone_surrogate_replaced"]
 subtypes = ["dtap.attack_goal", "dtap.attack_goal_at_eval"]
 types = ["dtap:list_mcp_tools", "dtap:harness_error", "dtap:tool_name_list", "dtap:error_text"]
 
@@ -779,6 +784,19 @@ tests = ["tests/adapters/dtap/test_semantics.py::test_every_sem_rule_is_cited"]
 since = "0.1.0"
 
 [[rule]]
+id = "dtap.marker_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool result whose content, or part of it, is not inlined (dtap.content_not_inlined@1 cited at the part's value, C.2.1 item 6) cannot be searched in full: an environment or skill payload none of whose needles is found in what the part still holds is marked gap there (the output is unreadable, C.14.3), never absent; a needle found there marks it present as under dtap.env_marker@1. A payload seen at none of its logged locations while such a result was among them is unmatchable, never logged_absent."
+premises = ["part value", "the part's content_not_inlined citation", "fixture content"]
+assumptions = []
+code = []
+evidence = ["regen-batch item 182 (review AU-RC-3)", "DECISIONS D-1063", "docs/architecture/C_data_model.md C.14.3 (gap)", "D.16.6 exposure classes"]
+tests = ["tests/adapters/dtap/test_semantics.py::test_a_result_not_inlined_is_a_gap_and_its_exposure_unmatchable"]
+since = "0.2.0"
+
+[[rule]]
 id = "dtap.env_marker"
 version = 1
 class = "D"
@@ -1175,4 +1193,17 @@ assumptions = []
 code = []
 evidence = ["DECISIONS D-934 (wave 2: one DTap trajectory holds a 1.72 MB tool-result text)", "inspect.content_not_inlined@1 (regen item 28; D-832)", "openhands.content_not_inlined@1"]
 tests = ["tests/adapters/dtap/test_not_inlined_d934.py::test_a_tool_result_over_1_mib_is_its_value_digest"]
+since = "0.1.0"
+
+[[rule]]
+id = "dtap.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue dtap.lone_surrogate_replaced (with exec when a source object key was replaced before mapping); the original stays in the raw store (the D-378 pass, UC-40). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-23", "DECISIONS D-378", "inspect.lone_surrogate_replaced@1"]
+tests = ["tests/adapters/dtap/test_surrogates_uc40.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
 since = "0.1.0"

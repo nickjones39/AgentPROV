@@ -1,5 +1,7 @@
 # Source profile `mcphunt`: MCPHunt agent traces (HF lihaonan0716/mcphunt-agent-traces @ c4c69322bf9e; docs/architecture
 # D.21; DECISIONS D-286..D-289; docs/reports/phase10m/ part B).
+# Version 4 (D-1063, regen-batch row 176): catalogue mcphunt 3 and semantics mcphunt.tools@3 (the lone-surrogate
+# rule); version 3, which the sealed corpus mcphunt-w2b records, ships as profiles/archive/mcphunt.profile.v3.toml.
 #
 # Data, not code. No status lives here: the registry is the only status store. Any byte change bumps `version`
 # (AD-18). Version 2 (D-31 bump with catalogue mcphunt 2 and mcphunt.tools@2; bug pass regen items 38-41); version 1
@@ -16,7 +18,7 @@
 
 [profile]
 id = "mcphunt"
-version = 3
+version = 4
 format = "agentprov-source-profile/0.1"
 source_id = "mcphunt"
 family = "mcphunt"
@@ -239,7 +241,7 @@ content_dedup = "never"
 dialect = "mcphunt.traces"
 mapper = "mcphunt.trace"
 variants = ["v2.0.0"]
-rules = { aer = 1, mcphunt = 2 }
+rules = { aer = 1, mcphunt = 3 }
 include = ["main/*.json", "mitigation/*.json", "live_guard_defense/*.json", "browser_replication/*.json"]
 layout = "<split>/<model or arm>.json, one execution per element of /traces"
 # four traces of 20.5-46.9 MB (D-288): the element limit raised to the calibrated ceiling (D-323)
@@ -251,7 +253,7 @@ map_rss_bytes = 4294967296
 [family.mcphunt]
 streamed_arrays = ["/traces"]
 splits = ["main", "mitigation", "live_guard_defense", "browser_replication"]
-semantics_profile = { id = "mcphunt.tools", version = 2 }
+semantics_profile = { id = "mcphunt.tools", version = 3 }
 withhold_basis = "mcphunt.canary_flagged"
 
 # MCP server label -> the package names measurement.mcp_versions uses for it (the memory server was renamed during the

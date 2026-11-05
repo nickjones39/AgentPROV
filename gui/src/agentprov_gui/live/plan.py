@@ -29,12 +29,15 @@ __all__ = [
     "PlanError",
     "PriceRow",
     "PriceTable",
+    "Quote",
+    "QuoteBasis",
     "SuiteEntry",
     "live_status",
     "load_endpoints",
     "parse_catalogue",
     "parse_estimate",
     "parse_prices",
+    "parse_quote",
 ]
 
 ESTIMATE_FORMAT: Final = "agentprov-estimate/0.1"
@@ -179,6 +182,99 @@ class EstimateView:
     plan_sha256: str
     warnings: tuple[str, ...]
     text: tuple[str, ...]
+    calls_p50: float | None = None
+    calls_p90: float | None = None
+    quote: Quote | None = None  # the CLI's ``quote`` object, when this CLI gives one (read defensively)
+
+
+@dataclass(frozen=True, slots=True)
+class QuoteBasis:
+    """What the quote's figures rest on, as the CLI states it (``quote.basis``). Every field may be missing (an older
+    CLI): ``None`` then, and the dialog says it does not know rather than guessing."""
+
+    priors: str | None = None  # local (the user's sealed corpora) | shipped (the shipped table) | mixed
+    family_specific: bool | None = None  # True only when the figures are this model family's own
+    family: str | None = None
+    executions: int | None = None  # recorded executions behind the per-call figures
+    corpora: int | None = None  # the sealed corpora they come from
+    token_basis: str | None = None  # e.g. chars/4, usage, mixed
+    price_source: str | None = None  # direct | openrouter | override | local
+    price_as_of: str | None = None
+    discounts_assumed: bool | None = None  # batch or cache discounts
+    estimate_only: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Quote:
+    """The USD quote for a real model's run (``agentprov estimate``'s ``quote`` object). A missing figure is ``None``;
+    the dialog then falls back to the estimate's own fields or shows a dash."""
+
+    usd_p50: Decimal | None = None
+    usd_p90: Decimal | None = None
+    calls_p50: float | None = None
+    calls_p90: float | None = None
+    tokens_in_p50: float | None = None
+    tokens_in_p90: float | None = None
+    tokens_out_p50: float | None = None
+    tokens_out_p90: float | None = None
+    seconds_p50: float | None = None
+    seconds_p90: float | None = None
+    cells: int | None = None
+    basis: QuoteBasis = QuoteBasis()
+    jobs: int | None = None  # the concurrency the time is given at
+    p50_aggregation: str | None = None  # how the run's figures add up ("sum of per-cell medians")
+    p90_aggregation: str | None = None  # "upper (sum of per-cell 90th percentiles)": not the run's own 90th percentile
+
+
+def _opt(convert: Any, value: Any) -> Any:
+    """``convert(value, "quote")``, or ``None`` when the value is missing or malformed (a defensive read)."""
+    if value is None:
+        return None
+    try:
+        return convert(value, "quote")
+    except PlanError:
+        return None
+
+
+def _flag(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
+
+
+def _count(value: Any) -> int | None:
+    """A count, or the length of a list (``corpora`` may be the corpora themselves)."""
+    return len(value) if isinstance(value, list) else _opt(_int, value)
+
+
+def _decimal_text(value: Any) -> str | None:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return str(value)
+    return None
+
+
+def parse_quote(raw: Any) -> Quote | None:
+    """The ``quote`` object, read defensively: a field that is missing or of the wrong type is ``None``, never an
+    error (the estimate itself stays usable)."""
+    if not isinstance(raw, dict):
+        return None
+    b: dict[str, Any] = raw["basis"] if isinstance(raw.get("basis"), dict) else {}
+    priors = _label(b.get("priors"), 20)
+    basis = QuoteBasis(
+        priors=priors if priors in ("local", "shipped", "mixed") else None, family_specific=_flag(b.get("family_specific")),
+        family=_label(b.get("family"), 120) or None, executions=_count(b.get("executions")),
+        corpora=_count(b.get("corpora")), token_basis=_label(b.get("token_basis"), 40) or None,
+        price_source=_label(b.get("price_source"), 200) or None, price_as_of=_label(b.get("price_as_of"), 25) or None,
+        discounts_assumed=_flag(b.get("discounts_assumed")), estimate_only=_flag(b.get("estimate_only")))
+    return Quote(
+        usd_p50=_opt(_money, _decimal_text(raw.get("usd_p50"))), usd_p90=_opt(_money, _decimal_text(raw.get("usd_p90"))),
+        calls_p50=_opt(_float, raw.get("calls_p50")), calls_p90=_opt(_float, raw.get("calls_p90")),
+        tokens_in_p50=_opt(_float, raw.get("tokens_in_p50")), tokens_in_p90=_opt(_float, raw.get("tokens_in_p90")),
+        tokens_out_p50=_opt(_float, raw.get("tokens_out_p50")), tokens_out_p90=_opt(_float, raw.get("tokens_out_p90")),
+        seconds_p50=_opt(_float, raw.get("seconds_p50")), seconds_p90=_opt(_float, raw.get("seconds_p90")),
+        cells=_count(raw.get("cells")), basis=basis, jobs=_count(raw.get("jobs")),
+        p50_aggregation=_label(raw.get("p50_aggregation"), 120) or None,
+        p90_aggregation=_label(raw.get("p90_aggregation"), 120) or None)
 
 
 def parse_estimate(data: bytes) -> EstimateView:
@@ -198,7 +294,8 @@ def parse_estimate(data: bytes) -> EstimateView:
         _money(doc.get("cost_worst"), "cost_worst"), _float(doc.get("seconds_p50"), "seconds_p50"),
         _float(doc.get("seconds_p90"), "seconds_p90"), None if price is None else PriceRow.from_json(price),
         "stand-in" if doc.get("planned_with") == "stand-in" else "model", _label(plan.get("plan_sha256"), 64),
-        tuple(_label(w, 600) for w in warnings), tuple(_label(x, 600) for x in lines))
+        tuple(_label(w, 600) for w in warnings), tuple(_label(x, 600) for x in lines),
+        _opt(_float, doc.get("calls_p50")), _opt(_float, doc.get("calls_p90")), parse_quote(doc.get("quote")))
 
 
 @dataclass(frozen=True, slots=True)

@@ -769,6 +769,9 @@ def quality_check(out: Row, header: dict[str, Any], recs: list[dict[str, Any]], 
             out.c[f"sa05|{split}|task_true"] += 1
             if out.info.get("n_raw_calls", 0) == 0:
                 out.c[f"sa05|{split}|task_true_zero_calls"] += 1
+    elif isinstance(judge, dict) and (method == "colocation" or (method == "content" and "resolved_to" not in link)):
+        # the judge is linked to this attempt (co-located, or resolved by content to it): its judgements must be here
+        out.bad("DT07", "judgements_missing")
     # judge-to-attempt linkage (D.16.8) recomputed: a judge string (>= 40 normalised characters) found in exactly one
     # attempt links the judge to it; otherwise a single attempt is linked by co-location; otherwise unresolved
     if isinstance(judge, dict) and isinstance(link, dict) and isinstance(pdoc, dict):

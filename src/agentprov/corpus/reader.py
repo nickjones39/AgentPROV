@@ -337,6 +337,11 @@ class CorpusReader:
             self._rows = {row.ex: row for row in self.iter_index()}
         return list(self._rows.values())
 
+    def release_index(self) -> None:
+        """Drop the rows :meth:`index` keeps (P8: a caller that kept the rows it needs frees the rest); the next
+        :meth:`index` or :meth:`row` reads the index again."""
+        self._rows = None
+
     def row(self, ex: str) -> IndexRow | None:
         self.index()
         assert self._rows is not None
@@ -374,22 +379,27 @@ class CorpusReader:
 
     def validation_results(self) -> list[dict[str, Any]]:
         """``validation/results.jsonl`` rows (strict JSONL, sorted by ``ex``); ``[]`` when the stage never ran."""
+        return list(self.iter_validation_results())
+
+    def iter_validation_results(self) -> Iterator[dict[str, Any]]:
+        """:meth:`validation_results` one row at a time (P8: a caller keeps what it needs, not every row). The checks
+        and their order are the same: a malformed row raises where it is read, and the order (sorted by ``ex``, no
+        duplicate) is checked after the last row, so a consumer that reads to the end sees the same error."""
         label = "validation/results.jsonl"
         if not self.exists(label):
-            return []
-        rows: list[dict[str, Any]] = []
+            return
+        keys: list[bytes] = []
         with self.open_file(label) as stream:
             try:
                 for _, _, value in iter_jsonl(stream, self.limits):
                     if not isinstance(value, dict) or not isinstance(value.get("ex"), str):
                         raise CorpusReadError("a validation row is an object with an ex", code="corpus.read.validation")
-                    rows.append(value)
+                    keys.append(value["ex"].encode("utf-8"))
+                    yield value
             except IngestError as exc:
                 raise CorpusReadError(f"{label} is not strict JSONL ({exc.code})", code="corpus.read.validation") from None
-        keys = [r["ex"].encode("utf-8") for r in rows]
         if keys != sorted(set(keys)):
             raise CorpusReadError(f"{label} is not sorted by ex, or has a duplicate", code="corpus.read.validation")
-        return rows
 
     def validation_summary(self) -> dict[str, Any] | None:
         document = self.read_document("validation/summary.json", required=False)

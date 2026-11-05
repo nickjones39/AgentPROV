@@ -15,6 +15,7 @@ import pytest
 
 from agentprov.cli import control
 from agentprov.cli.control import ControlRequest, ControlWatcher, parse_request
+from agentprov.jobs.record import JOB_FORMAT
 from agentprov.progress import ProgressEvent
 
 
@@ -74,6 +75,35 @@ def test_a_request_issued_after_this_process_started_is_acted_on_although_it_pre
     w.start()
     w.poll()
     assert stops == [1] and [e.fields["effect"] for e in events.events] == ["stop"]
+
+
+@pytest.mark.parametrize("job_env, created, acted", [
+    (True, "2026-10-14T11:59:58Z", True),  # sent while the job waited in the queue, before this process started
+    (False, "2026-10-14T11:59:58Z", False),  # not run as that job: an earlier invocation's request
+    (True, "2026-10-14T12:00:01Z", False),  # issued before the job was created: never this job's
+])
+def test_a_request_sent_while_a_queued_job_waits_for_its_slot_is_acted_on(tmp_path, monkeypatch, job_env, created,
+                                                                           acted):
+    """AU-RT-3 / AU-CLIA-7: with --queue-cpu the command starts only when the queue grants a slot, so a stop or drain
+    sent meanwhile predates this process; in the job's own control file it is still this job's."""
+    job_id = "019a0000-0000-7000-8000-000000000001"
+    directory = tmp_path / "jobs" / job_id
+    directory.mkdir(parents=True)
+    (directory / "job.json").write_text(json.dumps({"format": JOB_FORMAT, "job_id": job_id, "created": created}))
+    if job_env:
+        monkeypatch.setenv("AGENTPROV_JOB_ID", job_id)
+    else:
+        monkeypatch.delenv("AGENTPROV_JOB_ID", raising=False)
+    _write(directory / "control.json", "stop")  # issued 2026-10-14T12:00:00Z, long before this process started
+    stops: list[int] = []
+    w = ControlWatcher(directory / "control.json", command="import", interrupt=lambda: stops.append(1))
+    try:
+        w.start()
+        w.poll()
+    finally:
+        w.close()
+        control.reset()
+    assert stops == ([1] if acted else [])
 
 
 def test_stop_interrupts_once_and_is_acknowledged(watcher):

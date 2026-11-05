@@ -250,7 +250,7 @@ def test_profile_pins_licence_and_selection():
     imp = data["import"]
     assert tuple(imp["variants"]) == ("v1.k14",) and tuple(imp["include"]) == ("runs/**/*.json",)
     assert tuple(imp["context_artefacts"]) == ("agentdojo_mandate_eval.py", "README.md", "requirements.txt", "LICENSE")
-    assert dict(imp["rules"]) == {ns: load_catalogue(ns).version for ns in imp["rules"]} == {"aer": 1, "agentdojo": 2, "mandate": 1}
+    assert dict(imp["rules"]) == {ns: load_catalogue(ns).version for ns in imp["rules"]} == {"aer": 1, "agentdojo": 3, "mandate": 1}
     assert dict(data["family"]["agentdojo"]["benchmark"]["suites"]) == {"banking": "agentdojo"}
     verified = {v["commit"] for v in data["family"]["agentdojo"]["harness"]["verified_code"]}
     assert verified == {"a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", "089ed468cf3ed0322acc66b0211f26d9d90dbf60",

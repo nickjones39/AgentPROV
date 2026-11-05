@@ -248,12 +248,24 @@ def verify_provisioned(env: Path, entry: Entry) -> str | None:
                         f"build ... --defence-assets {entry.id})")
             if _sha256_file(p) != f["sha256"]:
                 return f"its provisioned weights file {weights['repo']}/{f['path']} differs from the pinned sha256"
+        problem = _ref_problem(root.parent.parent / "refs" / "main", str(weights["revision"]))
+        if problem is not None:  # the offline hub resolves refs/main: it must name the snapshot checked above (UC-18)
+            return f"its offline hub cache for {weights['repo']}: {problem} (agentprov backends build ... --defence-assets {entry.id})"
     for f in entry.files:
         p = provisioned_dir(env, entry) / f["path"]
         if not p.is_file() or p.is_symlink():
             return f"its pinned file {f['path']} is not provisioned (agentprov backends build ... --defence-assets {entry.id})"
         if p.stat().st_size > MAX_PROVISIONED_BYTES or hashlib.sha256(p.read_bytes()).hexdigest() != f["sha256"]:
             return f"its provisioned file {f['path']} differs from the pinned sha256"
+    return None
+
+
+def _ref_problem(ref: Path, revision: str) -> str | None:
+    """Why the hub ref ``ref`` does not name ``revision`` (``None``: it does). The ref is a 40-hex text file."""
+    if not ref.is_file() or ref.is_symlink() or ref.stat().st_size > 64:
+        return "refs/main is missing"
+    if ref.read_bytes().strip() != revision.encode("ascii"):
+        return "refs/main does not name the pinned revision"
     return None
 
 

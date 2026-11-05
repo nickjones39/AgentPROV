@@ -1,0 +1,164 @@
+# Source profile `sentry-agentdojo`: the AgentDojo trajectories of vinhqdang/SENTRY-Anytime-Valid-E-Process-Monitoring-
+# of-LLM-Agent-Action-Streams (real_data/agentdojo/), 674 TraceLogger logs of deepseek-v4-flash, gpt-4o-mini and
+# OpenRouter's free router with important_instructions and injecagent, all four suites (phase 10d; shortlist row 19;
+# sources/agentdojo-format-candidates.md §3.20). AGPL-3.0: its own corpus (D-94). SENTRY monitors the trajectories
+# after the fact; no defence ran in the loop.
+#
+# The 72 logs of openrouter-free-router-local went through a router that picks the model per call and logs none:
+# identity_unresolved, unk /model not_recorded (D-92). benchmark_version is null in every log: not_recorded.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/sentry@938e8be757f4.*).
+
+[profile]
+id = "sentry-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "sentry-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "SENTRY: AgentDojo 0.1.35 trajectories of OpenRouter-served agents for a post-hoc monitor (vinhqdang/SENTRY)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/vinhqdang/SENTRY-Anytime-Valid-E-Process-Monitoring-of-LLM-Agent-Action-Streams"
+paper = "manuscript/ in the repository (not published)"
+package = { name = "agentdojo", requirement = "not declared for the collection", version_identifies_code = false }
+
+# The pin covers the repository root (782 files): the trajectories and caches under real_data/, the monitor, the
+# manuscript. The byte total is not stated: 20 manuscript PDFs and one image were not fetched in phase 10c; the other
+# 761 files hold 14,783,970 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "938e8be757f4d8168bc7ee5b23f767e431df873f"
+date = "2026-08-31"
+expected_files = 782
+note = "the default branch at 2026-10-11 (phase 10c); 674 logs under real_data/agentdojo/<log set>/<pipeline dir>/"
+
+[licence]
+spdx = "AGPL-3.0-only"
+holders = ["vinhqdang (repository owner; the LICENSE carries no copyright line of its own)"]
+data_licence = "none"
+policy = "include"
+basis = "LICENSE is the AGPL v3 text and the README names AGPL-3.0; no 'or later' statement was found, so the stated version is recorded (-only); the logs embed AgentDojo benchmark text (MIT)"
+restrictions = ["AGPL-3.0: a corpus holding these logs is conveyed under the AGPL-3.0 (corresponding source, the same licence for derived works); kept in its own corpus (D-94)"]
+attribution = [
+  "vinhqdang/SENTRY-Anytime-Valid-E-Process-Monitoring-of-LLM-Agent-Action-Streams (AGPL-3.0), commit 938e8be757f4d8168bc7ee5b23f767e431df873f",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; installation not declared)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["real_data/agentdojo/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "real_data/agentdojo/{log_set}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions.
+context_artefacts = ["LICENSE", "README.md", "NOTES.md", "pyproject.toml"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/sentry_pipeline_dirs.toml", sha256 = "e495cac1c67ff97ab50f5ae944a03c06db0ec629220a22148e2c00e72d9d57dd" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", banking = "agentdojo", travel = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no AgentDojo installation is declared for the collection; the logs record only the distribution version
+# string (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log, recognised by its upstream digest.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 190, origin_rule_applied = 189 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 2 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 5, logs = 5 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 669 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 2903, present_and_null = 2903 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 4, null_outcome_files = 0 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

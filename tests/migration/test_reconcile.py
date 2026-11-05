@@ -8,8 +8,11 @@ locally with ``tools/migration/r3_reconcile.py``.
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -81,6 +84,27 @@ def test_an_unexplained_difference_fails_and_names_its_pattern():
     assert ("differs_expected", "scope[*]/t/dur_s", "rounding") in report.categories
 
 
+def test_a_report_with_no_pairs_does_not_pass():
+    """AU-MSR-3: a wrong converted root matches no native log; zero pairs compared nothing and is not a pass."""
+    report = reconcile.ReconciliationReport()
+    assert not report.passed and report.to_json()["passed"] is False
+    report.add("item-1", {"message[0]/role": "user"}, {"message[0]/role": "user"}, {"verdict": "agree"})
+    assert report.passed
+
+
+def test_the_r3_driver_refuses_a_missing_converted_root(tmp_path, monkeypatch):
+    """AU-MSR-3: ``tools/migration/r3_reconcile.py`` stops before reading any blob when ``--baseline`` holds no
+    converted tree, instead of reporting every native log unmatched and passing."""
+    monkeypatch.setattr(sys, "path", list(sys.path))  # the driver puts tools/agentdojo on the path
+    script = Path(__file__).resolve().parents[2] / "tools" / "migration" / "r3_reconcile.py"
+    spec = importlib.util.spec_from_file_location("r3_reconcile_under_test", script)
+    assert spec is not None and spec.loader is not None
+    driver = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(driver)
+    with pytest.raises(SystemExit, match="not a directory"):
+        driver.run(tmp_path / "no-cache", tmp_path / "not-a-baseline", workers=1, limit=None)
+
+
 def test_a_rounding_beyond_half_a_millisecond_is_unexpected():
     out = reconcile.classify({"scope[0]/t/dur_s": 1.0}, {"scope[0]/t/dur_s": 1.001})
     assert out == Counter({("differs_unexpected", "scope[*]/t/dur_s", ""): 1})
@@ -140,3 +164,20 @@ def test_payload_members_named_like_record_metadata_are_compared():
     assert not report.passed
     assert report.categories[("differs_unexpected", "message[*]/parts/*/args/id", "")] == 1
     assert report.categories[("differs_unexpected", "tool_execution[*]/args/id", "")] == 1
+
+
+def test_empty_arrays_and_objects_are_compared_by_presence_and_type():
+    """AU-MSR-4: an empty ``[]`` or ``{}`` is a leaf of the projection, so ``args: {}`` against ``args: []`` differs and
+    ``parts: []`` against no ``parts`` is one-sided; an empty reference list is kept too."""
+    out = reconcile.classify(reconcile.project([{"k": "tool_execution", "args": {}}]),
+                             reconcile.project([{"k": "tool_execution", "args": []}]))
+    assert out == Counter({("differs_unexpected", "tool_execution[*]/args", ""): 1})
+    native = reconcile.project([{"k": "message", "role": "assistant", "parts": [], "after": []}])
+    v1 = reconcile.project([{"k": "message", "role": "assistant"}])
+    assert native == {"message[0]/role": "assistant", "message[0]/parts": [], "message[0]/after": []}
+    out = reconcile.classify(native, v1)
+    assert out[("native_only", "message[*]/parts", "unexplained")] == 1
+    assert out[("native_only", "message[*]/after", "unexplained")] == 1
+    same = reconcile.classify(reconcile.project([{"k": "tool_execution", "args": {}, "returned": []}]),
+                              reconcile.project([{"k": "tool_execution", "args": {}, "returned": []}]))
+    assert same == Counter({("equal", "tool_execution[*]/args", ""): 1, ("equal", "tool_execution[*]/returned", ""): 1})

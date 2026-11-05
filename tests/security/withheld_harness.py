@@ -107,9 +107,11 @@ def purged_sealed(tmp_path_factory: Any, where: Path) -> dict[str, Any]:
     built = _TEMPLATE["built"]
     where.mkdir(parents=True, exist_ok=True)
     root, sidecar = where / "c", where / "c.withheld"
+    import seal_support as ss
+
     shutil.copytree(built["root"], root, symlinks=True)
     shutil.copytree(built["sidecar"], sidecar, symlinks=True)
-    return {**built, "root": root, "sidecar": sidecar}
+    return {**built, "root": ss.writable(root), "sidecar": sidecar}  # a sealed tree is read-only; tests tamper with it
 
 
 def files(root: Path) -> dict[str, bytes]:

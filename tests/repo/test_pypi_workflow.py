@@ -5,6 +5,7 @@ release tag before anything is checked out, and asserts that the checked-out com
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -38,3 +39,27 @@ def test_the_tag_input_reaches_shell_steps_only_through_the_environment() -> Non
     for step in _build_steps():
         assert "${{" not in str(step.get("run", "")), "no expression is expanded inside a run script"
     assert re.search(r"ref: refs/tags/\$\{\{ inputs\.tag \}\}", PYPI.read_text(encoding="utf-8"))
+
+
+#: The packages pypi.yml publishes from one tag, by their pyproject files.
+PUBLISHED = ("pyproject.toml", "capture/pyproject.toml", "zenodo/pyproject.toml")
+
+
+def _name(requirement: str) -> str:
+    match = re.match(r"[A-Za-z0-9_.-]+", requirement)
+    assert match, requirement
+    return match[0]
+
+
+def test_published_packages_require_their_siblings_at_the_release_version() -> None:
+    """AU-TWF-13: the three packages are published together from one tag, so each requires its siblings at exactly that
+    version; a bare requirement let ``pip install agentprov==X`` take whatever ``agentprov-capture`` is newest."""
+    projects = [tomllib.loads((ROOT / f).read_text(encoding="utf-8"))["project"] for f in PUBLISHED]
+    versions = {p["name"]: p["version"] for p in projects}
+    assert len(set(versions.values())) == 1, versions
+    requirements = [(p["name"], r) for p in projects for r in
+                    [*p.get("dependencies", ()), *(r for rs in p.get("optional-dependencies", {}).values() for r in rs)]]
+    siblings = [(who, r) for who, r in requirements if _name(r) in versions]
+    assert {_name(r) for _who, r in siblings} == {"agentprov", "agentprov-capture", "agentprov-zenodo"}
+    for who, r in siblings:
+        assert r == f"{_name(r)}=={versions[_name(r)]}", f"{who} requires {r!r}"

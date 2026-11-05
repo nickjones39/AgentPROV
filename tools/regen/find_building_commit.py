@@ -6,7 +6,8 @@ A working corpus records no commit (``corpus.json`` has ``producer.agentprov_ver
 its ``derivation.json`` records, per stage, the SHA-256 code digests of the package directories that ran
 (H.8.2(2): ``sha256(JCS([[relpath, sha256(file)], ...]))`` over ``.py``/``.toml``/``.json``/``.ttl`` files, CRLF normalised).
 This tool recomputes those digests from git trees for every commit reachable from any ref and prints the commits whose
-lockfile and stage digests all match. Read-only git plumbing (``ls-tree``, ``cat-file --batch``); nothing is checked out.
+lockfile and stage digests all match (aer with its adapter, sem, prov and validation, in the scopes the importer used
+before D-451). Read-only git plumbing (``ls-tree``, ``cat-file --batch``); nothing is checked out.
 The digest construction is a copy of ``agentprov.corpus.derive.code_sha256`` (its JCS of a list of string pairs is plain
 compact JSON with sorted entries and ASCII-safe strings, which holds for these relpaths and hex digests).
 """
@@ -79,6 +80,22 @@ def code_digest(files: dict[str, str], blobs: Blobs, dirs: list[str], exclude: l
     return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 
+def sem_dirs(files: dict[str, str], profiles: dict[str, str]) -> list[str] | None:
+    """The sem stage's digest scope at a commit (``["sem", "adapters/semantics_profiles.py", *families]``, the
+    importer's construction): the ``adapters/<family>/semantics`` directory of the one family that ships each recorded
+    profile ``<id>@<version>`` as ``semantics/<id>-<version>/`` in that commit; None when a profile has no single owner
+    there (the commit could not have loaded it)."""
+    families: set[str] = set()
+    for ref in profiles:
+        pid, _, version = ref.rpartition("@")
+        owners = {parts[0] for path in files if path.startswith(PKG + "adapters/")
+                  if (parts := path[len(PKG + "adapters/"):].split("/"))[1:3] == ["semantics", f"{pid}-{version}"]}
+        if len(owners) != 1:
+            return None
+        families |= owners
+    return ["sem", "adapters/semantics_profiles.py", *sorted(f"adapters/{f}/semantics" for f in families)]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("corpus", type=Path)
@@ -99,6 +116,9 @@ def main() -> int:
             continue
         ok = all(code_digest(files, blobs, dirs, exc) == stages[stage].get(field)
                  for stage, field, dirs, exc in checks if stage in stages)
+        if ok and "sem" in stages:  # its scope names the profile-owning families, found in each commit's tree
+            dirs = sem_dirs(files, stages["sem"].get("profiles") or {})
+            ok = dirs is not None and code_digest(files, blobs, dirs, []) == stages["sem"].get("engine_code_sha256")
         if ok:
             hits.append(commit)
     for commit in hits:

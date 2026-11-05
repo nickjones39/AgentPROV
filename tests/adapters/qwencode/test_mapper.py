@@ -203,6 +203,26 @@ def test_truncated_output_is_salvaged(mapped):
     assert salvage["size"] == 65536 and salvage["kept_bytes"] + salvage["dropped_bytes"] == 65536
     assert {"qwencode.truncated_capture", "qwencode.no_result_message", "incomplete_run"} <= set(m.codes())
     assert m.header["evf"]["/ext/qwencode/salvage"] == "D"
+    loss = [i for i in m.issues if i["code"] == "incomplete_run"]
+    assert loss and all(i["rule"].startswith("qwencode.capture_cut_unverified@1") for i in loss)
+
+
+def test_an_output_without_a_result_message_infers_the_loss():
+    """AU-RC-5 (D-1063, regen-batch row 182): an output that ends without a result message and was not cut by the
+    capture raised incomplete_run under the class-D qwencode.result_status@1, so the execution was known_incomplete (a
+    proven loss) on a reading of Qwen Code's writer that D-574 makes class I. It now cites the class-I
+    qwencode.no_result_message_unverified@1 (assumption qwencode:ResultClosesRun), as gemini-cli's identical case does,
+    and the loss is inferred, not proven."""
+    from agentprov.adapters.runner.importer import proven_loss_codes
+
+    m = support.modified("python", lambda ms: [x for x in ms if x.get("type") != "result"])
+    run = m.get("run")
+    assert run["unk"]["/status"] == "not_recorded" and "qwencode.no_result_message_unverified@1#/status" in run["rule"]
+    for code in ("qwencode.no_result_message", "incomplete_run"):
+        (issue,) = [i for i in m.issues if i["code"] == code]
+        assert issue["rule"] == "qwencode.no_result_message_unverified@1", code
+    assert "incomplete_run" not in proven_loss_codes(m.issues)
+    assert not any(r.startswith("qwencode.result_status@") for r in run["rule"])
 
 
 def test_sidecars(mapped):
@@ -328,7 +348,7 @@ def test_prov_and_sem_validate(mapped):
     from agentprov.sem.validate import validate_sem_document
     from agentprov.validate import validate_prov
 
-    profile = load_semantics_profile("qwencode.tools", 2)
+    profile = load_semantics_profile("qwencode.tools", 3)
     for crit, m in mapped.items():
         sem = validate_sem_document(m.sem, m.doc, catalogues=RuleRegistry.default(), mode="release", profile=profile)
         assert sem.ok, (crit, [f.code for f in sem.findings][:5])
@@ -465,7 +485,7 @@ def test_extra_result_and_undecodable_rules():
     (af,) = [r for r in m.of("artefact") if r.get("content") == second]
     assert m.get(af["generated_by"])["type"] == "qwencode:unmapped_message"
     (issue,) = [i for i in m.issues if i["code"] == "qwencode.extra_result_message"]
-    assert issue["rule"].startswith("qwencode.result_status@1") and issue["ids"] == [af["generated_by"]]
+    assert issue["rule"].startswith("qwencode.result_status@2") and issue["ids"] == [af["generated_by"]]
     report = validate_records([*m.doc.records, m.doc.seal], store=None, catalogues=RuleRegistry.default(), mode="release")
     assert report.ok, [f.code for f in report.findings][:5]
 

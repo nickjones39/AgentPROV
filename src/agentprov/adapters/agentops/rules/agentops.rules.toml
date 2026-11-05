@@ -13,12 +13,18 @@
 # with an `asserted` assumption, as DTap's are (D.16.11). The snapshot paths are documentary evidence in `evidence`
 # ("snapshot:<path> <symbol>"), never verification. The D rules are deterministic functions of observed bytes or of
 # pinned package data; they declare no assumption, cite no code and cite the census (docs/reports/phase10i/).
+#
+# Version 3 (D-1063, regen-batch row 176; review UC-40/UC-41): the rules agentops.lone_surrogate_replaced@1 and
+# agentops.content_not_inlined@1 and their issue codes; version 2, which the sealed corpus agentops-bench-w2 records,
+# ships unchanged as rules/archive/agentops.rules.v2.toml.
+# Version 3 also holds agentops.payload_marker_not_inlined@1 (D-1063, regen-batch row 182, review AU-RC-3), which
+# agentops.tools@3 cites; version 3 is unreleased and no corpus records it, so the rule is added in place.
 
 [catalogue]
 id = "agentops"
-version = 2
+version = 3
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["empty_trace", "run_error", "iteration_limit", "task_join_missing", "user_message_not_logged", "unlisted_tool_name", "dispatch_error_result", "final_output_differs", "label_field_mismatch", "payload_suffix_mismatch", "failure_with_payload", "repeated_tool_names", "payload_outside_adversarial", "value_redacted"]
+issue_codes = ["empty_trace", "run_error", "iteration_limit", "task_join_missing", "user_message_not_logged", "unlisted_tool_name", "dispatch_error_result", "final_output_differs", "label_field_mismatch", "payload_suffix_mismatch", "failure_with_payload", "repeated_tool_names", "payload_outside_adversarial", "value_redacted", "lone_surrogate_replaced", "content_not_inlined"]
 subtypes = ["agentops.fault_injection"]
 types = []
 
@@ -591,6 +597,19 @@ tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cite
 since = "0.1.0"
 
 [[rule]]
+id = "agentops.payload_marker_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool result whose content, or part of it, is not inlined (agentops.content_not_inlined@1 cited at the part, C.2.1 item 6) cannot be searched in full: a payload fixture not found in what the part still holds is marked gap (the output is unreadable here, C.14.3), never absent; one found there is present as under agentops.payload_marker@1. With no payload observed, the result keeps its producing tool's label and has no author."
+premises = ["part value", "the part's content_not_inlined citation", "fixture content"]
+assumptions = []
+code = []
+evidence = ["regen-batch item 182 (review AU-RC-3)", "DECISIONS D-1063", "docs/architecture/C_data_model.md C.14.3 (gap)"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_a_payload_in_a_result_not_inlined_is_a_gap_not_absent"]
+since = "0.2.0"
+
+[[rule]]
 id = "agentops.verbatim_match"
 version = 1
 class = "D"
@@ -724,3 +743,31 @@ code = []
 evidence = ["DECISIONS D-608", "DECISIONS D-604", "DECISIONS D-476", "docs/reports/precheck/agentops-bench.md PC-agentops-bench-01"]
 tests = ["tests/adapters/agentops/test_redact.py::test_tool_output_is_redacted_and_model_text_is_not"]
 since = "0.1.0"
+
+# D-1063 (catalogue version 3; regen-batch row 176; review UC-40): the D-378 lone-surrogate pass.
+[[rule]]
+id = "agentops.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue agentops.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/agentops/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"
+
+# D-1063 (catalogue version 3; regen-batch row 176; review UC-41): strings over 1 MiB, the D-934 pattern.
+[[rule]]
+id = "agentops.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text or reasoning part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); any other string position holds the digest object. The string stays in the raw artefact the record's locator names."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063"]
+tests = ["tests/adapters/agentops/test_uc39_41.py::test_a_string_over_1_mib_is_not_inlined"]
+since = "0.2.0"

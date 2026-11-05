@@ -188,7 +188,7 @@ def test_a_scripted_autodojo_cell_replays_a_verified_cache(live_home: Path, in_r
     (row,) = _rows(corpus)
     assert row["mode"] == "live" and row["status"] in ("ok", "ok_with_issues")
     assert row["stages"]["validation"] == "ok" and row["stages"]["prov"] == {"agentprov-prov/0.1": "ok"}
-    assert row["stages"]["sem"] == {"agentdojo.suites@3": "ok"}  # the live part reads suites@3 (regeneration-batch item 27 (b))
+    assert row["stages"]["sem"] == {"agentdojo.suites@5": "ok"}  # the live part reads suites@3 (regeneration-batch item 27 (b)), @5 since D-1063
     assert sorted(r["role"] for r in row["raw"]) == ["capture_log", "native_log", "supporting"]
     lines = (_partial(corpus) / row["paths"]["aer"]).read_bytes().splitlines()
     header = json.loads(lines[0])

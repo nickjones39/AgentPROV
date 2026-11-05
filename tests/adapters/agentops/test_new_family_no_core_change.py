@@ -33,7 +33,7 @@ APPROVED_CORE = {"src/agentprov/corpus/register.py"}
 
 
 def test_the_branch_touches_only_the_family_and_the_approved_core_code():
-    changed = changed_or_skip(support.REPO)  # the merge base with origin/main or main, the newer
+    changed = changed_or_skip(support.REPO, family="agentops")  # the merge base with origin/main or main, the newer
     if not any(p.startswith("src/agentprov/adapters/agentops/") for p in changed):
         pytest.skip("this branch does not change the agentops family")
     assert [p for p in changed if p.startswith(PROTECTED) and p not in APPROVED_CORE] == []

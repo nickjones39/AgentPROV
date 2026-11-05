@@ -68,7 +68,7 @@ def test_writer_reproduces_each_vector_byte_for_byte(name: str, tmp_path: Path) 
 def test_kat_vector_digest_of_c161() -> None:
     records = vector_records("agentdojo_2024_pi_detector")
     assert records[0]["ex"] == KAT1_EX
-    assert records[-1]["records_sha256"] == "7ae9e35abb0cec5b803f7f24ade0e7fc7c81b918989bba3c05c9151366934cc2"
+    assert records[-1]["records_sha256"] == "9db012a693058d5e7b41d74fa747aada27e301767deeafd47c22385266596687"
 
 
 @pytest.mark.parametrize("name", VECTOR_NAMES)

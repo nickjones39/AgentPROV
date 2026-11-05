@@ -157,6 +157,8 @@ class ProgressState:
     workers: dict[str, Any] = field(default_factory=dict)  # 0.2 heartbeat
     ended: bool = False
     exit_code: int | None = None
+    #: the ``end`` event's outcome (0.2): ``drained`` when a drain ended the command early (D-394)
+    outcome: str | None = None
     elapsed_s: float | None = None
     dropped: int = 0
     events: int = 0
@@ -218,6 +220,8 @@ class ProgressState:
             self.ended = True
             code = ev.get("exit_code")
             self.exit_code = code if isinstance(code, int) and not isinstance(code, bool) else None
+            outcome = ev.get("outcome")
+            self.outcome = outcome if isinstance(outcome, str) and len(outcome) <= 32 else None
             elapsed = ev.get("elapsed_s")
             self.elapsed_s = float(elapsed) if isinstance(elapsed, int | float) and not isinstance(elapsed, bool) else None
             units = ev.get("units_done")

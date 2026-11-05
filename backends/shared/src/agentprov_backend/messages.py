@@ -26,6 +26,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from agentprov_backend._jsonval import MAX_SAFE_INT
+
 __all__ = [
     "MAX_SSE_EVENTS",
     "USAGE_KEYS",
@@ -37,6 +39,7 @@ __all__ = [
     "messages_response_facts",
     "parse_sse",
     "stock_wire_count",
+    "usage_out_of_range",
 ]
 
 #: At most this many events are parsed from one body; the rest are ignored and the stream reported incomplete.
@@ -224,7 +227,17 @@ def decode_messages_body(body: bytes, media: str | None) -> AssembledMessage | N
 
 
 def _nonneg_int(v: Any) -> int | None:
-    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+    """A usage count a capture event can hold: a non-negative integer within 2^53-1 (I-JSON, C.13.10 item 5)."""
+    return v if isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= MAX_SAFE_INT else None
+
+
+def usage_out_of_range(msg: AssembledMessage | None) -> list[str]:
+    """The provider usage members of ``msg`` whose count is beyond 2^53-1 (AU-NC-201): left out of ``usage`` by
+    :func:`messages_response_facts`, named by the recorder in a note ``agentdojo/usage_out_of_range``."""
+    if msg is None or msg.error is not None:
+        return []
+    return [src for src in USAGE_KEYS
+            if isinstance(v := msg.usage.get(src), int) and not isinstance(v, bool) and v > MAX_SAFE_INT]
 
 
 def messages_response_facts(msg: AssembledMessage | None) -> dict[str, Any]:

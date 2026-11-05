@@ -11,6 +11,9 @@ into "additional options" still raises the tier:
 The GUI never adds ``--show-content`` (S2: content is shown from the read model) and never the option that reads an environment file (S7). The
 global options every job gets (progress, log and summary files in the job directory, ``--no-colour``) are added by the
 job manager, not here.
+
+:data:`LOOKS` says how Runs › New Job shows each form (D-1060: sections, plain labels, captions, modes, what sits under
+Advanced). It is presentation only and never changes the argv a form produces.
 """
 
 from __future__ import annotations
@@ -23,13 +26,20 @@ from pathlib import Path
 from typing import Any, Final
 
 __all__ = [
+    "COMMON_LOOKS",
     "CONFORMANCE_OPTION",
     "FORMS",
+    "GLOBAL_LOOKS",
+    "LOOKS",
     "TIERS",
     "CommandForm",
     "Field",
     "FormError",
+    "FormLook",
     "JobSpec",
+    "Look",
+    "Mode",
+    "Segment",
     "build_spec",
     "has_form_words",
     "resume_spec",
@@ -75,6 +85,8 @@ MANAGED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
     "jobs prune": {"--yes": "Settings › Jobs: after the user confirms the listed jobs"},
     "devrun prune": {"--yes": "Runs › Dev Run…: devrun start prunes old runs itself; a manual prune asks first"},
     "keys delete": {"--yes": "Settings › Keys: after the GUI's own confirmation"},
+    "update install": {"--confirm": "About › Download and Install…: added only after the confirmation that names the "
+                                    "folder replaced and the rollback (D-1065)"},
 }
 #: D-654: options never reachable from the GUI, each with its reason ("*" = every command).
 EXCLUDED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
@@ -92,6 +104,8 @@ EXCLUDED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
                "--env-stdin": "for clients holding keys themselves; the GUI passes --keychain instead (D-702)"},
     "backends build": {"--env-file": "S7: the GUI never reads or passes .env (not read by the build)"},  # S7: refused
     "assist": {"--env-file": "S7: the GUI never reads or passes .env (keys come from the keychain)"},  # S7: refused
+    "update rollback": {"--yes": "the app offers no rollback button (D-1065): the install's result shows the "
+                                 "rollback command, run in a terminal (on Windows once the app has quit)"},
 }
 #: D-654: argparse aliases of a command the GUI reaches under its other name.
 ALIASES: Final[Mapping[str, str]] = {"sources": "info", "convert": "import"}
@@ -210,6 +224,19 @@ _PROV = F("prov_spec", "PROV spec", "choice", "--prov-spec", choices=("", "agent
 _SELECT = F("select", "Select (KEY=VALUE[,VALUE…])", "text", "--select")
 _IN_PROCESS = F("in_process", "Debugging only: run the workers in this process", "bool", "--in-process", advanced=True)
 _NO_VCACHE = F("no_validation_cache", "Do not use the validation cache", "bool", "--no-validation-cache", advanced=True)
+
+#: D-1065: ``agentprov update``'s bundle platforms (``agentprov.update.releases.PLATFORMS``, which the GUI does not
+#: import: it loads the fetch layer; tests/test_cli_parity.py checks the choices against the CLI's)
+UPDATE_PLATFORMS: Final = ("macos-arm64", "macos-x86_64", "windows-x64", "windows-arm64", "linux-x86_64",
+                           "linux-aarch64")
+_UPDATE_APP = (F("bundle", "The desktop app's folder (AgentPROV.app, or the AgentPROV folder)", "dir", "--bundle"),
+               F("gui_version", "The desktop app's version (X.Y.Z)", "text", "--gui-version"))
+_UPDATE_PLATFORM = F("platform", "Bundle platform (default: this machine's)", "choice", "--platform",
+                     choices=("", *UPDATE_PLATFORMS), advanced=True)
+_UPDATE_DIR = F("dir", "Staging folder (default: $AGENTPROV_HOME/update/staging/PLATFORM)", "dir", "--dir",
+                advanced=True)
+_JSON = F("format", "Format", "choice", "--format", choices=("text", "json"), default="json")
+
 
 def _backend_envs() -> tuple[str, ...]:
     """``backends build`` choices: the registered backends (``adapters.registry.BACKENDS``), never a fixed list."""
@@ -545,7 +572,18 @@ FORMS: Final[Mapping[str, CommandForm]] = {
               default=True),
             F("from_file", "Import a saved response instead (no network)", "path", "--from-file", advanced=True),
             F("fetched", "Its fetch date (YYYY-MM-DD)", "text", "--fetched", advanced=True),
-        )),  # D-650, D-701: confirmed every time; never automatic
+            F("if_stale", "Only when no snapshot was written today and prices.auto_refresh is on (the daily refresh)",
+              "bool", "--if-stale", advanced=True),
+        )),  # D-650, D-701: confirmed every time from New Job; D-1062: Run Live's daily refresh starts it --if-stale
+        CommandForm("priors_build", ("priors", "build"), "Build cost figures from my corpora (estimate priors)", "R1", (
+            F("corpus", "Sealed corpora (default: every sealed corpus under $AGENTPROV_HOME/corpora)", "multi",
+              "--corpus"),
+            F("jobs", "Worker processes (0: the host default; a few leave the machine to other work)", "int", "--jobs",
+              default=8),
+            F("min_executions", "Leave out a row with fewer executions (default 5)", "int", "--min-executions",
+              advanced=True),
+            F("format", "Format", "choice", "--format", choices=("", "text", "json"), advanced=True),
+        )),  # D-1062: $AGENTPROV_HOME/estimate/priors-local.json; reads every AER of the sealed corpora
         CommandForm("backends_build", ("backends", "build"), "Build a backend environment", "R1", (
             F("backend", "Backend", "choice", None, choices=_backend_envs(), required=True),
             F("offline_check", "Check an existing build only", "bool", "--offline-check"),
@@ -633,6 +671,33 @@ FORMS: Final[Mapping[str, CommandForm]] = {
         CommandForm("prices_unset", ("prices", "unset"), "Prices: remove an override (Settings › Prices)", "R1", (
             F("endpoint", "Endpoint", "text", None, required=True), F("model", "Model id", "text", None, required=True),
         ), menu=False),
+        CommandForm("prices_status", ("prices", "status"), "Prices: when they were refreshed (Run Live)", "R0", (
+            F("format", "Format", "choice", "--format", choices=("text", "json"), default="json"),
+        ), menu=False),  # D-1062: Run Live's daily refresh reads it
+        CommandForm("priors_show", ("priors", "show"), "Estimate priors: show (local and shipped)", "R0", (
+            F("format", "Format", "choice", "--format", choices=("text", "json"), default="json"),
+        ), menu=False),
+        # D-1065: Check for Updates (About, the start-up notice, Settings › Updates) runs these; not in the New Job menu
+        CommandForm("update_status", ("update", "status"), "Updates: the last check (About; no network)", "R0", (
+            *_UPDATE_APP, _UPDATE_PLATFORM, _JSON,
+        ), menu=False),
+        CommandForm("update_check", ("update", "check"), "Updates: check for a new release (About; network)", "R2", (
+            F("allow_network", "Allow network (one public URL, api.github.com)", "bool", "--allow-network", tier="R2",
+              default=True),
+            F("if_stale", "Only once a day, while update.auto_check is on (the start-up check)", "bool", "--if-stale"),
+            *_UPDATE_APP, _UPDATE_PLATFORM, _JSON,
+        ), menu=False),
+        CommandForm("update_download", ("update", "download"), "Updates: download and verify (About; network)", "R2", (
+            F("allow_network", "Allow network (GitHub's release files)", "bool", "--allow-network", tier="R2",
+              default=True),
+            _UPDATE_DIR, _UPDATE_PLATFORM, _JSON,
+        ), menu=False),
+        CommandForm("update_install", ("update", "install"), "Updates: install the verified download (About)", "R2", (
+            *_UPDATE_APP, _UPDATE_DIR, _UPDATE_PLATFORM, _JSON,
+        ), menu=False),  # --confirm only after About's confirmation (MANAGED_OPTIONS)
+        CommandForm("update_rollback", ("update", "rollback"), "Updates: back to the previous version", "R1", (
+            F("bundle", "The desktop app's folder", "dir", "--bundle", required=True), _UPDATE_PLATFORM, _JSON,
+        ), menu=False),  # --yes: EXCLUDED_OPTIONS (the app shows the command; it offers no rollback button)
         CommandForm("estimate", ("estimate",), "Estimate a live run (Run Live)", "R0", ESTIMATE_FIELDS, menu=False),
         # D-704: the GUI's job manager is the core's; Runs starts, follows and controls jobs through these commands
         CommandForm("jobs_start", ("jobs", "start"), "Jobs: start", "R1", (
@@ -664,6 +729,9 @@ FORMS: Final[Mapping[str, CommandForm]] = {
             *((F("format", "Format", "choice", "--format", choices=("text", "json"), default="json"),)
               if name == "resume" else ()),
         ), menu=False) for name in ("stop", "kill", "drain", "resume")),
+        CommandForm("jobs_cancel", ("jobs", "cancel"), "Jobs: cancel", "R1", (  # D-1061: stop, and resume refuses it
+            F("job_id", "Job", "text", None, required=True),
+        ), menu=False),
         CommandForm("batch_create", ("batch", "create"), "Batch: create", "R1", (
             F("spec", "Step list (a file)", "path", None), F("stdin", "The step list on stdin", "bool", "--stdin"),
             F("label", "Label", "text", "--label"),
@@ -679,6 +747,8 @@ FORMS: Final[Mapping[str, CommandForm]] = {
         ), menu=False) for name in ("start", "resume", "run")),
         CommandForm("batch_stop", ("batch", "stop"), "Batch: stop", "R1", (
             F("batch_id", "Batch", "text", None, required=True), F("steps", "Also its running steps", "bool", "--steps"),
+            F("wait", "Seconds to wait for them to end", "float", "--wait"),
+            F("format", "Format", "choice", "--format", choices=("text", "json"), default="json"),
         ), menu=False),
         CommandForm("batch_list", ("batch", "list"), "Batch: list", "R0", (
             F("format", "Format", "choice", "--format", choices=("text", "json"), default="json"),
@@ -709,6 +779,360 @@ FORMS: Final[Mapping[str, CommandForm]] = {
     )
 }
 
+
+# ----------------------------------------------------------------------------------------------- presentation
+# D-1060: how Runs › New Job shows a form (sections, plain labels, captions, the right control). Presentation only:
+# the argv is always the Field's and build_spec's; a form or field without an entry here still renders cleanly.
+@dataclass(frozen=True, slots=True)
+class Look:
+    """How New Job shows one field. Empty values fall back: the section to "Save to" (a field that names what the job
+    writes), "Output" (``format``) or "Options"; the label to the field's label without its trailing parenthesis, which
+    becomes the caption; ``advanced`` to the field's own flag."""
+
+    section: str = ""
+    label: str = ""
+    caption: str = ""
+    unit: str = ""
+    placeholder: str = ""  # a number's or a blank choice's unset text ("Default (8)"); "" gives "Default"
+    advanced: bool | None = None  # under the one "Advanced: …" disclosure
+    when: str = ""  # shown (and set) only while another field is set: "KEY" (any value) or "KEY=VALUE"
+    folder: bool | None = None  # a path field's Choose… picks a folder (default: for a "dir" field)
+    inline: str = ""  # shown after the control of another field or mode (its KEY), in its row; the caption goes to the tip
+
+
+@dataclass(frozen=True, slots=True)
+class Segment:
+    """One choice of a :class:`Mode`: its text and the fields shown (and set) while it is chosen."""
+
+    text: str
+    shows: tuple[str, ...] = ()
+    tip: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Mode:
+    """Two to four exclusive ways to fill a form, as a segmented control (rule 6): the fields of the other segments
+    are hidden and left out of the command. ``flag``: a bool field the mode itself sets (on for ``flag_segment``, off
+    otherwise; it has no row of its own). The first segment whose fields the preset fills is chosen, else
+    ``default``."""
+
+    key: str
+    label: str
+    segments: tuple[Segment, ...]
+    section: str = ""
+    caption: str = ""
+    tip: str = ""
+    flag: str = ""
+    flag_segment: int = 0
+    default: int = 0
+
+    def owns(self) -> tuple[str, ...]:
+        return (*((self.flag,) if self.flag else ()), *(k for s in self.segments for k in s.shows))
+
+
+@dataclass(frozen=True, slots=True)
+class FormLook:
+    """A form's presentation: per-field looks, its modes, the words naming what its Advanced disclosure holds and
+    ``says``, what Continue will do as one plain sentence (New Job's "What happens" card): ``(condition, text)`` clauses
+    joined in order, each kept only when its condition holds and every ``{KEY}`` it names is set. A condition is
+    comma-separated terms that must all hold: ``KEY`` (set), ``!KEY`` (not set) or ``KEY=VALUE``; ``""`` always holds.
+    ``{KEY:name}`` gives a path's last part (each one's, for a list), ``{KEY:short}`` a digest's first 8 hex digits.
+    A form without ``says`` is described by its title."""
+
+    fields: Mapping[str, Look] = field(default_factory=dict)
+    modes: tuple[Mode, ...] = ()
+    advanced: str = ""
+    says: tuple[tuple[str, str], ...] = ()
+
+
+_RUN = "Run"
+#: looks shared by the fields of the same key in every form (a form's own look replaces them)
+COMMON_LOOKS: Final[Mapping[str, Look]] = {
+    "jobs": Look(_RUN, "Workers", unit="processes", placeholder="Default (host)", advanced=True),
+    "dry_run": Look(_RUN, "Dry run", "Writes nothing", advanced=True),
+    "prov_spec": Look(_RUN, "PROV spec", placeholder="Default", advanced=True),
+    "in_process": Look(_RUN, "Run the workers in this process", "Debugging only", advanced=True),
+    "no_validation_cache": Look(_RUN, "Do not use the validation cache", advanced=True),
+    "release": Look("", "Release mode", "Strict checks; no filters, limits or samples"),
+    "select": Look("", "Select", "KEY=VALUE[,VALUE…]: an AER-header filter"),
+    "format": Look("Output", "Format"),
+    "cache_dir": Look("", "Fetch cache", placeholder="Default ($AGENTPROV_HOME/cache)"),
+}
+#: the global options of every CLI job (D-654), under Advanced › Logging and progress
+GLOBAL_LOOKS: Final[Mapping[str, Look]] = {
+    "g_verbose": Look("Logging and progress", "Verbose log", "DEBUG records in the job log"),
+    "g_quiet": Look("Logging and progress", "Quiet", "Only warnings and errors on stderr"),
+    "g_log_format": Look("Logging and progress", "Log format", "Of stderr"),
+    "g_progress_interval": Look("Logging and progress", "Progress heartbeat", unit="seconds"),
+    "g_progress_max_bytes": Look("Logging and progress", "Progress file rotation", unit="bytes"),
+    "g_max_listed": Look("Logging and progress", "Failures listed", "In the job's summary"),
+    "g_break_stale_lock": Look("Logging and progress", "Remove a stale lock first",
+                               "Writers only; confirmed before the job starts"),
+}
+_SAMPLE = Look("What to check", "Sample", "A sample of N executions instead of all", unit="executions",
+               placeholder="All")
+_SEED = Look("What to check", "Seed", "Of the sample", when="sample")
+#: per form (by :attr:`CommandForm.name`)
+LOOKS: Final[Mapping[str, FormLook]] = {
+    "import": FormLook({
+        "source": Look("Source", "Source", "A registry source id; optional with a corpus spec"),
+        "input": Look("Source", "Input", "A folder or one file, read in place", folder=True),
+        "verify_against_pin": Look("Source", "Verify against the pin",
+                                   "Records the pinned origin of the files the pin vouches for"),
+        "allow_network": Look("Source", "Download if not cached", "Otherwise an uncached pin is refused",
+                              inline="origin"),
+        "large_download": Look("Source", "Allow a large download", "100 MiB or more", when="allow_network"),
+        "cache_dir": Look("Fetch the pin", "Fetch cache", "Where the pinned bytes are kept",
+                          placeholder="Default ($AGENTPROV_HOME/cache)", advanced=True),
+        "snapshot": Look("Source", "Snapshot", placeholder="Default (the registry part)"),
+        "corpus": Look("Save to", "Working corpus", "A new folder, outside the repository (DIR.partial while "
+                                                    "it is written)"),
+        "limit": Look("How much", "N", "The first N new units are mapped", unit="units", inline="how_much"),
+        "sample": Look("How much", "N", "A deterministic sample, chosen before mapping", unit="executions",
+                       inline="how_much"),
+        "sample_mode": Look("How much", "Sampling", "Default: the first N by key"),
+        "seed": Look("How much", "Seed", "Required by random sampling", when="sample_mode=random"),
+        "until": Look(_RUN, "Stop after stage", placeholder="All stages (default)", advanced=True),
+        "retry_failed": Look(_RUN, "Retry failed units", "Every failed unit; no limit or sample", advanced=True),
+        "release": Look(_RUN, "Release mode", "Strict checks; no filters, limits or samples", advanced=True),
+        "profile": Look("Profile and pin", "Profile", placeholder="Default (the registry's)", advanced=True),
+        "pin": Look("Profile and pin", "Pin role", "Such as 2024-06 or release", advanced=True),
+        "corpus_id": Look("Profile and pin", "Corpus id", placeholder="Default (the registry's)", advanced=True),
+        "spec": Look("Profile and pin", "Corpus spec", "SPEC.toml; deferred in this build", advanced=True),
+        "context": Look("Profile and pin", "Context inputs", "ROLE=PATH, a local copy of a context pin",
+                        advanced=True),
+        "no_context": Look("Profile and pin", "Context roles left out", "ROLE", advanced=True),
+        "suite": Look("Selection", "Suite", advanced=True),
+        "attack": Look("Selection", "Attack", advanced=True),
+        "pipeline": Look("Selection", "Pipeline", advanced=True),
+        "variant": Look("Selection", "Variant", advanced=True),
+        "select": Look("Selection", "Select", "KEY=VALUE[,VALUE…]: an AER-header filter", advanced=True),
+        "max_file_bytes": Look("Limits", "Largest file", unit="bytes", advanced=True),
+        "max_json_depth": Look("Limits", "Deepest JSON nesting", unit="levels", advanced=True),
+        "size_hints": Look("Limits", "Size hints", "A folder of size hints", advanced=True),
+        "allow_hardlinks": Look("Limits", "Accept hard-linked input files", advanced=True),
+        "artefacts": Look("Limits", "Print the artefact table", "With a dry run; locators only", advanced=True),
+    }, modes=(
+        Mode("origin", "Get the data", (
+            Segment("Fetch the pin", ("allow_network", "large_download", "cache_dir"),
+                    "Reads the profile's pin from the verified fetch cache (--fetch)."),
+            Segment("Local folder", ("input", "verify_against_pin"),
+                    "Reads a local folder or file in place (--input)."),
+        ), section="Source", flag="fetch", flag_segment=0, default=1),
+        Mode("how_much", "Executions", (
+            Segment("All", (), "Every unit of the snapshot (no --limit or --sample)."),
+            Segment("First N", ("limit",), "At most N new units (--limit N)."),
+            Segment("Sample N", ("sample", "sample_mode", "seed"),
+                    "A deterministic sample of N executions, chosen before mapping (--sample N)."),
+        ), section="How much"),
+    ), advanced="fetch cache, stages, workers, dry run, pin, selection, limits, logging, extra arguments",
+       says=(("", "Imports "), ("!limit,!sample", "every unit"), ("limit", "the first {limit} new units"),
+             ("sample", "a sample of {sample} executions"), ("source", " of {source}"),
+             ("source,snapshot", " snapshot {snapshot}"), ("input", " from {input:name}, read in place"),
+             ("", " into the new working corpus"), ("corpus", " {corpus:name}"), ("", "."),
+             ("fetch,!allow_network", " The pin must already be in the fetch cache."),
+             ("fetch,allow_network", " The pin is downloaded if it is not cached."),
+             ("input,verify_against_pin", " The files are checked against the pin."))),
+    "derive": FormLook({
+        "corpus": Look("Source", "Source corpus"),
+        "out": Look("Save to", "New corpus", "Must not exist yet; NEW.partial resumes"),
+        "stages": Look("What to derive", "Stages", "sem, prov, validation, views", placeholder="Default (all)"),
+        "views": Look("What to derive", "View", placeholder="None"),
+        "semantics_profile": Look("What to derive", "Semantics profiles", "ID@N", advanced=True),
+        "link_raw": Look(_RUN, "Hard-link raw objects", advanced=True),
+        "no_reuse": Look(_RUN, "Recompute every execution", advanced=True),
+        "trig": Look("Save to", "TriG output folder", advanced=True),
+    }, advanced="stages, workers, dry run, conformance, logging, extra arguments",
+       says=(("", "Derives a new corpus version"), ("corpus", " from {corpus:name}"), ("out", " into {out:name}"),
+             ("stages", " (stages {stages})"), ("views", " with the {views} view"), ("", "."),
+             ("trig", " TriG files go to {trig:name}."))),
+    "recompute": FormLook({
+        "corpus": Look("Source", "Source corpus"),
+        "out": Look("Result", "New corpus", "Must not exist yet"),
+        "link_raw": Look("Result", "Hard-link raw objects"),
+        "stages": Look("What to compare", "Stages", "expand, aer, sem, prov, validation, views",
+                       placeholder="Default (all)"),
+        "show_diff": Look("What to compare", "Differences shown", "The first N", unit="differences"),
+        "strict": Look("What to compare", "Strict"),
+        "no_reuse": Look(_RUN, "Recompute every execution", advanced=True),
+    }, modes=(
+        Mode("result", "Result", (
+            Segment("Compare only", (), "A dry run: recompute and compare; writes nothing (--dry-run)."),
+            Segment("Write a new corpus", ("out", "link_raw"), "Recompute into a new corpus (--out NEW)."),
+        ), section="Result", flag="dry_run", flag_segment=0),
+    ), advanced="PROV spec, workers, conformance, logging, extra arguments",
+       says=(("", "Recomputes"), ("corpus", " {corpus:name}"), ("stages", " (stages {stages})"),
+             ("", " and compares the result with what it holds"), ("dry_run", "; writes nothing"),
+             ("out", "; writes the new corpus {out:name}"), ("", "."),
+             ("show_diff", " Shows the first {show_diff} differences."))),
+    "validate": FormLook({
+        "corpus": Look("Source", "Corpus"),
+        "files": Look("Source", "Files", "Separated by spaces"),
+        "aer": Look("Source", "AER files", "Separated by spaces"),
+        "store": Look("Source", "Raw store", "A folder (file mode)"),
+        "tiers": Look("What to check", "Tiers", "aer, sem, prov, linkage, shacl, regression",
+                      placeholder="Default (all)"),
+        "strict": Look("What to check", "Strict"),
+        "release": Look("What to check", "Release mode", "Strict checks; no samples"),
+        "sample": _SAMPLE, "seed": _SEED,
+        "card": Look("What to check", "Corpus card", "Lints a CARD.md", advanced=True),
+        "report": Look("Save to", "Report file", "Outside the corpus"),
+    }, modes=(
+        Mode("what", "Check", (
+            Segment("A corpus", ("corpus",), "A corpus directory (--corpus)."),
+            Segment("Files", ("files", "aer", "store"), "Files instead of a corpus (FILES, --aer, --store)."),
+        ), section="Source"),
+    ), advanced="PROV spec, workers, corpus card, logging, extra arguments",
+       says=(("", "Validates"), ("corpus", " the corpus {corpus:name}"), ("files", " the files {files:name}"),
+             ("aer", " the AER files {aer:name}"), ("!corpus,!files,!aer", " a corpus or files"),
+             ("tiers", " at the tiers {tiers}"), ("sample", " on a sample of {sample} executions"),
+             ("release", " in release mode"), ("", "."), ("report", " The report goes to {report:name}."))),
+    "verify": FormLook({
+        "corpus": Look("Source", "Corpus or deposit", "A corpus, a deposit or a .meta.zip"),
+        "level": Look("What to check", "Level"),
+        "release": Look("What to check", "Release mode"),
+        "sample": _SAMPLE, "seed": _SEED,
+        "against_pins": Look("What to check", "Compare with the pins"),
+        "allow_network": Look("What to check", "Download what is not cached", when="against_pins"),
+        "cache_dir": Look("What to check", "Fetch cache", placeholder="Default ($AGENTPROV_HOME/cache)",
+                          when="against_pins"),
+        "root_digest": Look("What to check", "Root digests", "sha256:…, one per corpus", advanced=True),
+    }, advanced="root digests, workers, logging, extra arguments",
+       says=(("", "Verifies"), ("corpus", " {corpus:name}"), ("level", " at the {level} level"),
+             ("sample", " on a sample of {sample} executions"), ("release", " in release mode"),
+             ("against_pins", " and compares it with the pins"),
+             ("against_pins,allow_network", ", downloading what is not cached"), ("", "."))),
+    "render": FormLook({
+        "corpus": Look("Source", "Corpus"),
+        "ex": Look("Source", "Executions", "Execution ids, separated by spaces", placeholder="All"),
+        "select": Look("Source", "Select", "KEY=VALUE[,VALUE…]: an AER-header filter"),
+        "limit": Look("Source", "Limit", unit="graphs", placeholder="None"),
+        "bundle": Look("Graphs", "Bundles"),
+        "format": Look("Graphs", "Formats", "A comma list, such as svg,png"),
+        "direction": Look("Graphs", "Direction", "Left to right or top to bottom"),
+        "out": Look("Save to", "Output folder", "Never inside a corpus"),
+        "max_edges": Look("Graphs", "Largest graph", unit="edges", advanced=True),
+    }, advanced="edges, workers, dry run, logging, extra arguments"),
+    "fetch": FormLook({
+        "corpus": Look("What to fetch", "Corpus", "Its REFERENCES.json names the pins"),
+        "only": Look("What to fetch", "Only object", "sha256:…"),
+        "profile": Look("What to fetch", "Profile"),
+        "pin": Look("What to fetch", "Pin role"),
+        "path": Look("What to fetch", "Path prefix"),
+        "history": Look("What to fetch", "Full blobless history"),
+        "cache_dir": Look("Save to", "Fetch cache", placeholder="Default ($AGENTPROV_HOME/cache)"),
+        "allow_network": Look("Network", "Allow network"),
+        "large_download": Look("Network", "Allow a large download", "100 MiB or more"),
+    }),
+    "stats": FormLook({
+        "corpus": Look("Source", "Corpus"),
+        "tables": Look("What to count", "Tables", "A comma list", placeholder="Default (all)"),
+        "per_execution": Look("What to count", "Per execution"),
+        "prov_spec": Look("What to count", "PROV spec", placeholder="Default"),
+        "select": Look("What to count", "Select", "KEY=VALUE[,VALUE…]: an AER-header filter"),
+        "out": Look("Output", "Export to file"),
+        "artefacts": Look("What to count", "Artefact table", advanced=True),
+    }),
+    "package_seal": FormLook({
+        "corpus": Look("Corpus", "Working corpus", "DIR or DIR.partial"),
+        "corpus_version": Look("Release", "Corpus version", "X.Y.Z"),
+        "release_date": Look("Release", "Release date", "YYYY-MM-DD", placeholder="Today"),
+        "spec": Look("Release", "Corpus spec"),
+        "licence_file": Look("Release", "Licence file", "NAME=PATH"),
+    }, says=(("", "Seals the working corpus"), ("corpus", " {corpus:name}"),
+             ("corpus_version", " as version {corpus_version}"), ("release_date", ", released {release_date}"),
+             ("", "."))),
+    "package_deposit": FormLook({
+        "deposit": Look("Save to", "Deposit folder", "The draft is built here; nothing is uploaded"),
+        "corpus": Look("Source", "Sealed corpora", "Separated by spaces"),
+        "metadata": Look("Source", "Release metadata", "release.toml"),
+        "release_date": Look("Release", "Release date", "YYYY-MM-DD", placeholder="Today"),
+        "max_archive_bytes": Look("Release", "Largest archive", unit="bytes"),
+        "mixed": Look("Release", "Allow mixed licence classes"),
+    }, says=(("", "Builds a deposit draft"), ("deposit", " in {deposit:name}"), ("corpus", " from {corpus:name}"),
+             ("", "; nothing is uploaded."))),
+    "package_index": FormLook({
+        "index": Look("Save to", "Index folder", "The draft is built here; nothing is uploaded"),
+        "part": Look("Source", "Part receipts", "DIR.zenodo-TARGET-draft-receipt.json, separated by spaces"),
+        "corpus": Look("Source", "Sealed corpora", "Of those parts, separated by spaces"),
+        "metadata": Look("Source", "Release metadata", "release.toml"),
+        "release_date": Look("Release", "Release date", "YYYY-MM-DD"),
+    }, says=(("", "Builds a collection index deposit"), ("index", " in {index:name}"),
+             ("corpus", " for {corpus:name}"), ("", "; nothing is uploaded."))),
+    "purge": FormLook({
+        "object": Look("Object", "Object", "sha256: and 64 hex digits"),
+        "reason": Look("Object", "Reason"),
+        "corpus": Look("Remove from", "Working corpus"),
+        "cache_dir": Look("Remove from", "Fetch cache", placeholder="Default ($AGENTPROV_HOME/cache)"),
+        "dry_run": Look("Check first", "Dry run", "Shows what would be removed; removes nothing"),
+    }, modes=(
+        Mode("where", "Remove from", (
+            Segment("A working corpus", ("corpus",), "Purge the object from a working corpus (--corpus)."),
+            Segment("The fetch cache", ("cache_dir",), "Purge it from the fetch cache instead (--cache)."),
+        ), section="Remove from", flag="cache", flag_segment=1),
+    ), says=(("!dry_run", "Removes the object"), ("dry_run", "Shows what removing the object would do"),
+             ("object", " {object:short}"), ("reason", " ({reason})"), ("!cache", " from the working corpus"),
+             ("!cache,corpus", " {corpus:name}"), ("cache", " from the fetch cache"), ("", "."),
+             ("!dry_run", " Irreversible: Continue asks for the object's first 8 hex digits."),
+             ("dry_run", " A dry run: nothing is removed."))),
+    "ci_local": FormLook({
+        "only": Look("Jobs", "Only", "Job ids, a comma list", placeholder="All"),
+        "skip": Look("Jobs", "Skip", "Job ids, a comma list"),
+        "with_dispatch": Look("Jobs", "Also the dispatch-only jobs"),
+        "strict": Look("Jobs", "Strict", "A skipped or unavailable job fails the run"),
+        "json": Look("Output", "Report as JSON"),
+        "allow_network": Look("Network", "Allow network", "Downloads; ask first"),
+    }),
+    "prices_refresh": FormLook({
+        "from_file": Look("Prices", "Saved response", "A file; no network"),
+        "fetched": Look("Prices", "Fetched on", "YYYY-MM-DD"),
+        "if_stale": Look("Daily refresh", "Only when stale", "No snapshot today, and prices.auto_refresh is on",
+                         advanced=True),
+    }, modes=(
+        Mode("from", "Prices from", (
+            Segment("openrouter.ai", (), "Fetch one public URL, openrouter.ai (--allow-network)."),
+            Segment("A saved response", ("from_file", "fetched"), "Import a saved response instead (--from-file)."),
+        ), section="Prices", flag="allow_network", flag_segment=0),
+    ), advanced="daily refresh, logging, extra arguments",
+       says=(("allow_network", "Fetches the current model prices from openrouter.ai (one public URL)"),
+             ("!allow_network", "Imports the saved price response"), ("!allow_network,from_file", " {from_file:name}"),
+             ("!allow_network,fetched", " fetched on {fetched}"),
+             ("if_stale", ", only when no snapshot was written today and prices.auto_refresh is on"), ("", "."))),
+    "priors_build": FormLook({
+        "corpus": Look("Source", "Sealed corpora", "Default: every sealed corpus under $AGENTPROV_HOME/corpora"),
+        "jobs": Look(_RUN, "Workers", "0: the host default; a few leave the machine to other work",
+                     unit="processes"),
+        "min_executions": Look(_RUN, "Fewest executions per row", unit="executions", placeholder="Default (5)",
+                               advanced=True),
+    }, says=(("", "Builds cost figures for Run Live's quote from"), ("corpus", " {corpus:name}"),
+             ("!corpus", " every sealed corpus under $AGENTPROV_HOME/corpora"),
+             ("jobs", " with {jobs} worker processes"), ("", ". Nothing is written into a corpus."))),
+    "backends_build": FormLook({
+        "backend": Look("Backend", "Backend"),
+        "offline_check": Look("Backend", "Check an existing build only"),
+        "allow_network": Look("Backend", "Allow network", "uv downloads"),
+        "defence_assets": Look("Defences", "Defence assets", "Registry ids, a comma list", advanced=True),
+        "defence_source": Look("Defences", "Defence source", "A local tree with the pinned code", advanced=True),
+    }),
+    "inspect": FormLook({
+        "target": Look("Target", "Target", "An execution id, a file or a corpus root"),
+        "corpus": Look("Target", "Corpus"),
+        "view": Look("View", "View"),
+        "record": Look("View", "One record", "Its id"),
+        "bundle": Look("View", "PROV bundles", placeholder="Default"),
+        "max_chars": Look("View", "Characters per value", "With content; the GUI never shows content here",
+                          advanced=True),
+    }),
+    "settings_set": FormLook(says=(("", "Sets the setting"), ("key", " {key}"), ("value", " to {value}"), ("", "."))),
+    "settings_unset": FormLook(says=(("", "Removes the setting"), ("key", " {key}"), ("", "."))),
+    "batch_create": FormLook(says=(
+        ("", "Creates a batch"), ("label", " labelled {label}"), ("spec", " from the step list {spec:name}"),
+        ("stdin", " from the step list on stdin"), ("concurrency", ", {concurrency} steps at a time"),
+        ("continue_on_failure", ", continuing after a step exits 4 or 70"), ("", "."))),
+    "batch_stop": FormLook(says=(("", "Stops the batch"), ("batch_id", " {batch_id}"),
+                                 ("steps", " and its running steps"),
+                                 ("wait", ", waiting up to {wait} seconds for them to end"), ("", "."))),
+}
 
 #: GR-20: the options that take a path or directory (every form's path, dir and corpus-list fields). A job's cwd is its
 #: own job directory, so a relative or "~" value there would name a tree no GUI check, lock test or viewer looks at.
@@ -754,6 +1178,14 @@ def _tool_options(form: CommandForm, tokens: Sequence[str], where: str) -> None:
         raise FormError(f"{where}: {form.tool} takes only {', '.join(allowed)}, spelled in full")
 
 
+def _retry_without_cap(command: str, names: set[str]) -> None:
+    """``agentprov import`` refuses --retry-failed with --limit or --sample (AU-IMP-1: a retry drops every failed row
+    of the snapshot before re-mapping, so a cap would leave the rows past it with no index row or register entry)."""
+    if command == "import" and "--retry-failed" in names and names & {"--limit", "--sample"}:
+        raise FormError("Retry failed units re-processes every failed unit: it cannot be combined with --limit or "
+                        "--sample")
+
+
 def build_spec(form: CommandForm, values: Mapping[str, Any], *, extra: str = "", label: str = "",
                conformance: bool = True, conformance_option: str | None = None) -> JobSpec:
     """The :class:`JobSpec` of ``form`` filled with ``values`` (missing keys use the field default).
@@ -768,7 +1200,8 @@ def build_spec(form: CommandForm, values: Mapping[str, Any], *, extra: str = "",
     tier = form.tier
     for f in (*form.fields, *(GLOBAL_FIELDS if form.tool is None else ())):
         value = values.get(f.key, f.default)
-        if value in (None, "", False) or (f.kind == "list" and not value):
+        # `is False`, not `in (..., False)`: 0 == False, and a 0 or 0.0 the user typed is a value, not "unset"
+        if value is None or value is False or value == "" or (f.kind == "list" and not value):
             if f.required:
                 raise FormError(f"{f.label} is required")
             continue
@@ -878,6 +1311,7 @@ def build_spec(form: CommandForm, values: Mapping[str, Any], *, extra: str = "",
     release = "--release" in names
     if release and names & {"--select", "--limit", "--sample", "--in-process"}:
         raise FormError("Release mode forbids --select, --limit, --sample and --in-process")
+    _retry_without_cap(form.name, names)
     final_tier = tier_of_argv(argv, _max_tier(tier, form.tier))
     if form.name == "recompute" and {"--out", "--dry-run"} <= names:
         raise FormError("Recompute: choose a dry run or a new corpus, not both")
@@ -934,6 +1368,7 @@ def resume_spec(command: str, argv: Sequence[str], recorded_tier: str, label: st
     release = "--release" in names
     if release and names & {"--select", "--limit", "--sample", "--in-process"}:
         raise FormError("Release mode forbids --select, --limit, --sample and --in-process")
+    _retry_without_cap(form.name, names)
     return JobSpec(
         command=command,
         argv=tuple(argv),

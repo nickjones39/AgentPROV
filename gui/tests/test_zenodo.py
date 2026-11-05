@@ -300,3 +300,47 @@ def test_the_package_page_writes_release_toml_only_where_none_exists(qapp: Any, 
     assert target.read_text() == "mine" and "never overwritten" in page.texts[-1].toPlainText()
     assert page.zenodo_btn.accessibleName() == "Create Zenodo drafts…"
     page.deleteLater()
+
+
+# ================================================================================================ the form style (D-1060)
+class _PythonCli:
+    python = (sys.executable,)
+
+
+def test_the_drafts_card_is_the_uploader_runs_start_would_make(qapp: Any, tmp_path: Path) -> None:
+    """The command card shows the runs :meth:`start` would make (the same parse and plan), after the same program as
+    :meth:`argv`; every run passes --keychain and no token is ever in them."""
+    from agentprov_gui.ui.zenodo import ZenodoDraftsDialog
+
+    deposits = f"{tmp_path / 'u'} {ROOT}\n{tmp_path / 'm'} {ROOT2}"
+    dlg = ZenodoDraftsDialog(_PythonCli(), tmp_path, deposits=deposits,
+                             settings={"zenodo.target_preselect": "production", "zenodo.communities": ["agentprov"]})
+    assert dlg.chosen_target() == "production" and dlg.target.currentText() == "Production"
+    plan = Z.plan_steps(Z.parse_deposits(deposits), "production", ["agentprov"])
+    card = dlg.command_card
+    assert [args for _what, args in card.commands] == [step.args for step in plan.steps]
+    assert dlg.argv(plan.steps[0]) == [*dlg.program(), *plan.steps[0].args]
+    copied = card.plain()
+    assert copied.count(" ".join([sys.executable, "-I", "-m", Z.MODULE])) == 3 and "--keychain" in copied
+    assert "TOKEN" not in copied.upper()
+    dlg.target.setCurrentIndex(0)
+    dlg._update_commands()
+    assert dlg.chosen_target() == "sandbox" and all("sandbox" in args for _what, args in card.commands)
+    dlg.deposits.setPlainText(f"{tmp_path} sha256:short")
+    dlg._update_commands()
+    assert card.commands == [] and "valid" in card.note
+    dlg.done(0)
+
+
+def test_no_drafts_button_is_a_default_one(qapp: Any, tmp_path: Path) -> None:
+    """Return in a field never presses Start: the uploader starts only from a click (its typed phrase still gates it)."""
+    from PySide6.QtWidgets import QPushButton
+
+    from agentprov_gui.ui.zenodo import ZenodoDraftsDialog
+
+    dlg = ZenodoDraftsDialog(_PythonCli(), tmp_path)
+    buttons = dlg.findChildren(QPushButton)
+    assert buttons and not any(b.isDefault() or b.autoDefault() for b in buttons)
+    assert dlg.start_btn.property("apvRole") == "primary"
+    assert "List a deposit" in dlg.command_card.note
+    dlg.done(0)

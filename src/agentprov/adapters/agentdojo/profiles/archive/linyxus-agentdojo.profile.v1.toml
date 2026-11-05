@@ -1,0 +1,173 @@
+# Source profile `linyxus-agentdojo`: branch lacuna-exp of Linyxus/agentdojo, an AgentDojo fork with the Tacit defence
+# (unrelated to CSSLab/Tacit): 9,068 TraceLogger logs of o4-mini-high, gemini-2.5-pro, gpt-5.4-nano, claude-sonnet-4 and
+# deepseek-v4-flash via OpenRouter, five to seven repeated run sets (phase 10d; shortlist row 4;
+# sources/agentdojo-format-candidates.md §3.5). Branch tacit-exp is a subset of this pin.
+#
+# Tacit rewrites the system prompt per configuration (24 texts of 3,158 to 17,101 characters, none in the repository):
+# they stay agentdojo.system_prompt_unrecognised (info). The extra top-level keys backend_tool_traces,
+# tool_trace_source, tacit_secure_output and model are kept verbatim in ext.agentdojo.extra. The *.secure-channel.txt
+# beside each log are Tacit's channel output: registered, not mapped.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/linyxus@698d7ff29cac.*).
+
+[profile]
+id = "linyxus-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "linyxus-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "Linyxus/agentdojo lacuna-exp: AgentDojo 0.1.35 logs of the Tacit defence on OpenRouter models"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/Linyxus/agentdojo"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", vendored = "the fork itself (19 code commits after the first runs)", version_identifies_code = false }
+
+# The pin covers the repository root (17,656 files, 196,887,263 bytes; all fetched): the fork's code and the run sets.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "698d7ff29cac4bb5dccb5ed2d06f5e8364547a97"
+date = "2026-05-24"
+expected_files = 17656
+expected_bytes = 196887263
+note = "branch lacuna-exp at 2026-10-11 (phase 10c), a superset of branch tacit-exp (4bd1de08); main holds no new runs"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr (the upstream LICENSE kept by the fork)", "Linyxus (fork owner; no own copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin (upstream text, (c) 2024 Debenedetti et al.); the fork adds no licence of its own"
+attribution = [
+  "Linyxus/agentdojo (MIT), branch lacuna-exp, commit 698d7ff29cac4bb5dccb5ed2d06f5e8364547a97",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["ethz-spylab/agentdojo (vendored fork with the Tacit defence; the code changed after the runs)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs-*/*/*/*/*/*.json", "lacuna-runs-*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "*runs-*/*/*/*/*/*.secure-channel.txt", code = "select.not_execution_artefact", note = "Tacit secure-channel output beside each log (also in tacit_secure_output)" },
+]
+layout = "{run_set}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the documents. The repository's
+# agent-instruction file is never stored.
+context_artefacts = ["LICENSE", "README.md", "pyproject.toml", "CITATION.bib"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/linyxus_pipeline_dirs.toml", sha256 = "c8d035db72d2b9334e36ac28f981151492776f79813df49d86f967d522c099e3" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", banking = "agentdojo", travel = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the fork vendors AgentDojo and changed its code after the first runs (19 commits, phase 10c h01); the logs
+# record only the distribution version string
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt in the two undefended directories only, recognised by its upstream digest; the Tacit
+# prompts are defence-generated and stay unrecognised.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 414, origin_rule_applied = 409 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 414 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 355 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 46, logs = 42 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 8369 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 21627, present_and_null = 21627 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 15, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.empty_messages_without_outcome"
+applies = {}
+rules = ["agentdojo.no_execution_observed@1"]
+note = "three logs hold no message and no outcome"
+observed = { head = { files = 3 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

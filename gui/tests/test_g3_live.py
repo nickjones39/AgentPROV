@@ -377,6 +377,70 @@ def test_api_caps_and_local_consent_follow_the_cli(qapp: Any, tmp_path: Path, mo
     dlg.close()
 
 
+def test_a_lan_model_server_takes_the_caps_and_api_consent(qapp: Any, tmp_path: Path,
+                                                           monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-RN-8 / D-1067: a keyless LAN server (a local entry with the LAN opt-in, or a base URL off loopback) is an
+    API-endpoint run for the CLI, so Run Live shows the caps, asks for API consent and builds an argv the CLI's class
+    rule admits; a local entry on loopback keeps the local consent and no caps."""
+    from agentprov.cli.live.policy import Caps, endpoint_class
+    from agentprov.cli.main import build_parser
+    from PySide6.QtWidgets import QCheckBox, QDialog, QLabel
+
+    from agentprov_gui.live import keychain
+    from agentprov_gui.live.plan import ENDPOINTS_REL
+    from agentprov_gui.live.runspec import RunSettings
+    from agentprov_gui.ui.runlive import RunLiveDialog, consent_text
+
+    repo = tmp_path / "repo"
+    path = repo / ENDPOINTS_REL
+    path.parent.mkdir(parents=True)
+    path.write_text('[endpoints.ollama]\nbase_url = "http://127.0.0.1:11434/v1"\nlocal = true\n')
+    monkeypatch.setattr(keychain, "status", lambda cli: keychain.KeychainStatus(True, "FakeRing"))
+    monkeypatch.setattr(keychain, "present", lambda cli, names: dict.fromkeys(names, True))
+    m = JobManager(tmp_path / "home", CliLocator(None, (sys.executable, str(FAKE))))
+    preset = RunSettings(campaign="t", scripted=False, model="ollama", model_id="llama3", suites=("banking",),
+                         containment="vm")
+    caps = frozenset({"--max-calls", "--max-cost-usd", "--price-in", "--price-out", "--i-consent-to-local-run"})
+    dlg = RunLiveDialog(m, home=tmp_path / "home", checkout=repo, preset=preset, run=fake_run([]), cli_options=caps)
+    wait(qapp, lambda: "agentdojo" in dlg.catalogues and "agentdojo" in dlg.live_status and dlg.prices is not None)
+    dlg.live_status["agentdojo"] = "supported"  # past the planned gate
+    dlg._gate()
+    assert dlg.caps_box.isHidden() and not dlg._caps_shown() and dlg._local_consent()  # loopback: a local run
+    lan: QCheckBox = dlg.more_inputs["allow_lan_endpoint"]  # type: ignore[assignment]
+    lan.setChecked(True)
+    assert "both caps" in (dlg._gate() or "") and not dlg.caps_box.isHidden() and not dlg._local_consent()
+    dlg.more_inputs["base_url"].setText("http://192.168.1.50:11434/v1")  # type: ignore[attr-defined]
+    dlg.max_calls.setValue(200)
+    dlg.max_cost.setValue(1)
+    assert "both caps" not in (dlg._gate() or "")
+    argv = list(dlg.run_spec(consent=True).argv)
+    assert "--i-consent-to-api-costs" in argv and "--i-consent-to-local-run" not in argv and "--allow-lan-endpoint" in argv
+    args = build_parser().parse_args(argv)  # the CLI's own parser takes it, and its class rule admits it
+    assert endpoint_class(local_entry=True, base_url=args.base_url) == "api"
+    assert Caps(args.max_calls, args.max_cost_usd, args.price_in, args.price_out).missing_for_api() == []
+    assert (args.price_in, args.price_out) == (0.0, 0.0)  # an unpriced local server: the caps are priced at zero
+    seen: dict[str, str] = {}
+
+    def exec_(self: QDialog) -> int:
+        seen["tick"] = self.findChild(QCheckBox).text()
+        seen["text"] = "\n".join(w.text() for w in self.findChildren(QLabel))
+        self.findChild(QCheckBox).setChecked(True)
+        return 1
+
+    monkeypatch.setattr(QDialog, "exec", exec_)
+    assert dlg.confirm_costs(dlg.settings(), preflight=False)
+    assert "192.168.1.50" in seen["text"] and "A LAN model server: prompts and replies leave this machine" in seen["text"]
+    assert "Caps (D-725)" in seen["text"] and seen["tick"] == consent_text(dlg.current_estimate().attempts_due
+                                                                         if dlg.current_estimate() else 0)
+    lan.setChecked(False)  # a base URL off loopback is an API-endpoint run without the opt-in too
+    dlg._gate()
+    assert not dlg.caps_box.isHidden() and not dlg._local_consent()
+    dlg.more_inputs["base_url"].setText("")  # type: ignore[attr-defined]
+    dlg._gate()
+    assert dlg.caps_box.isHidden() and dlg._local_consent()
+    dlg.close()
+
+
 def test_preflight_only_on_an_api_endpoint_needs_no_caps_and_passes_none(qapp: Any, tmp_path: Path,
                                                                           monkeypatch: pytest.MonkeyPatch) -> None:
     """D-725/D-729: the CLI refuses caps with --preflight-only (exit 2), so Preflight Only… is enabled without them,
@@ -440,6 +504,18 @@ def test_tune_applies_the_preset_jobs(qapp: Any, dialog: Any, monkeypatch: pytes
     dialog.tune()
     assert dialog.jobs.value() == 6
     assert any("--m5ultra" in c and "--dry-run" in c for c in dialog.calls)
+
+
+def test_tune_leaves_the_form_s_jobs_out_of_the_dry_run(qapp: Any, dialog: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-RN-6: with --jobs given, the preset plan takes it as an override, so Tune would offer the user's own number;
+    the dry run is sent without it and Apply offers the computed jobs."""
+    from PySide6.QtWidgets import QDialog
+
+    monkeypatch.setattr(QDialog, "exec", lambda self: 1)
+    dialog.jobs.setValue(2)
+    dialog.tune()
+    (call,) = [c for c in dialog.calls if "--m5ultra" in c and "--dry-run" in c]
+    assert "--jobs" not in call and dialog.jobs.value() == 6
 
 
 def test_repository_commands_start_in_the_checkout(tmp_path: Path) -> None:
@@ -585,7 +661,9 @@ def test_the_call_cap_counts_from_the_heartbeat_after_a_reattach_and_survives_re
     requested: list[str] = []
     m.request = lambda j, what: requested.append(what) or True  # type: ignore[method-assign]
     page._enforce_call_cap(job, f)  # type: ignore[arg-type]
-    assert job.job_id in page._capped and requested == ["drain"]  # 7 >= 5, although only one step line was folded
+    assert job.job_id in page._capped
+    wait(qapp, lambda: bool(requested))  # AU-GUI-3: the request runs in the pool
+    assert requested == ["drain"]  # 7 >= 5, although only one step line was folded
     extra = page._resume_extra(job)
     assert extra["call_cap"] == 5 and extra["progress_level"] == "steps" and extra["devrun"] == "d1"
     _wait(m, job.job_id)
@@ -627,3 +705,132 @@ def test_slow_cli_calls_run_off_the_ui_thread(qapp: Any, tmp_path: Path, monkeyp
     assert page.isEnabled()
     pkg.deleteLater()
     page.close()
+
+
+def test_job_control_settings_writes_and_keychain_calls_run_off_the_ui_thread(
+        qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Audit AU-GUI-3 (UC-36 completed): the stored settings read on every New Job and start, ``jobs start``, stop,
+    kill and drain, the call-cap drain from the 1 s list timer, Settings › OK's ``settings set`` per key and Keys ›
+    Check Keychain ran on the UI thread; each now runs in the pool, and the page (or the Settings window) comes back
+    enabled."""
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QSettings, QThread
+
+    from agentprov_gui import settings_client
+    from agentprov_gui.live import keychain
+    from agentprov_gui.settings import Settings
+    from agentprov_gui.ui import runs
+    from agentprov_gui.ui.livepanes import KeysPane
+    from agentprov_gui.ui.runs import RunsPage
+    from agentprov_gui.ui.settings_panes import JobsPane
+
+    ui = QThread.currentThread()
+    seen: list[tuple[str, bool]] = []
+
+    def call(name: str, value: Any) -> Any:
+        seen.append((name, QThread.currentThread() is not ui))
+        return value
+
+    m = JobManager(tmp_path / "home", CliLocator(None, (sys.executable, str(FAKE))))
+    page = RunsPage(m, Settings(QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)))
+    page.list_timer.stop()
+    monkeypatch.setattr(settings_client, "read", lambda cli, prefix: call("read", {}))
+    monkeypatch.setattr(m, "spawn", lambda spec, **kw: call("spawn", SimpleNamespace(job_id="gone")))
+    monkeypatch.setattr(m, "request", lambda job, what: call(what, False))
+    monkeypatch.setattr(m, "stop", lambda job: call("signal", True))
+    monkeypatch.setattr(m, "kill", lambda job: call("kill", True))
+    monkeypatch.setattr(runs, "ask", lambda *a, **kw: True)
+    assert page.start(JobSpec("validate", ("validate",), "R1", "v")) is not None  # stored settings, then jobs start
+    page.selected = SimpleNamespace(job_id="j", record={})  # type: ignore[assignment]
+    page.stop()
+    page.kill()
+    page.drain()
+    assert seen == [("read", True), ("spawn", True), ("stop", True), ("signal", True), ("kill", True),
+                    ("drain", True)], seen
+    assert page.isEnabled()
+
+    seen.clear()  # the call cap, from the list timer: queued, never waited for
+    follower = SimpleNamespace(state=SimpleNamespace(step_count=lambda stage: 9))
+    page._enforce_call_cap(SimpleNamespace(job_id="c", record={"call_cap": 5}), follower)  # type: ignore[arg-type]
+    wait(qapp, lambda: len(seen) == 2)
+    assert seen == [("drain", True), ("signal", True)]
+
+    seen.clear()  # Settings › OK: one settings set per changed key
+    pane = JobsPane(None, cli=lambda argv: (0, b'{"values": {}}', b"") if argv[1] == "list" else call(argv[1], (0, b"", b"")))
+    wait(qapp, lambda: pane.loaded is not None)
+    pane.retention.setValue(300)
+    pane.save()
+    assert seen == [("set", True)] and pane.isEnabled()
+
+    seen.clear()  # Keys › Check Keychain
+    monkeypatch.setattr(keychain, "status", lambda cli: call("status", keychain.KeychainStatus(True, "FakeRing")))
+    monkeypatch.setattr(keychain, "present", lambda cli, names: call("present", dict.fromkeys(names, True)))
+    keys = KeysPane(None, None)
+    keys.refresh()
+    assert seen == [("status", True), ("present", True)] and keys.isEnabled()
+    for widget in (keys, pane):
+        widget.deleteLater()
+    page.close()
+
+
+def test_run_off_ui_lets_the_call_finish_when_the_loop_ends_first(qapp: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The local loop also ends when the app quits (QCoreApplication.exit) before the call returned: run_off_ui raised
+    KeyError for the missing result; it now waits for the call, as the pool does on exit."""
+    import PySide6.QtCore
+    from PySide6.QtWidgets import QWidget
+
+    from agentprov_gui.ui.worker import run_off_ui
+
+    class EndsAtOnce:  # an event loop whose exec() returns at once, as after QCoreApplication.exit
+        def exec(self) -> int:
+            return 0
+
+        def quit(self) -> None:
+            pass
+
+    monkeypatch.setattr(PySide6.QtCore, "QEventLoop", EndsAtOnce)
+    owner = QWidget()
+
+    def slow() -> int:
+        time.sleep(0.2)
+        return 42
+
+    assert run_off_ui(owner, slow) == 42 and owner.isEnabled()
+    owner.deleteLater()
+
+
+@pytest.mark.parametrize("failing", [False, True])
+def test_an_estimate_in_flight_is_dropped_once_the_selection_has_none(qapp: Any, dialog: Any, failing: bool) -> None:
+    """Audit AU-GUI-6: unticking every suite while an estimate ran left ``_dry_seq`` where it was, so the earlier
+    selection's estimate (or its failure) landed afterwards and replaced 'tick a suite' with its cost and cells."""
+    import threading
+
+    wait(qapp, lambda: dialog.estimate_result is not None)
+    base, release, finished = dialog.run, threading.Event(), threading.Event()
+
+    def slow(manager: Any, argv: list[str], **kw: Any) -> tuple[int, bytes, bytes]:
+        if argv[0] != "estimate":
+            return base(manager, argv, **kw)
+        release.wait(10)
+        try:
+            if failing:
+                raise RuntimeError("the estimate failed")
+            return base(manager, argv, **kw)
+        finally:
+            finished.set()
+
+    dialog.run = slow
+    dialog.refresh_estimate()  # in flight
+    for key in dialog.suites.checked():  # D-1060: the suites are a checklist of check boxes
+        dialog.suites.boxes[key].setChecked(False)
+    dialog.refresh_estimate()
+    assert dialog.headline.text().startswith("Estimate: tick a suite")
+    release.set()
+    wait(qapp, finished.is_set)
+    end = time.monotonic() + 0.5
+    while time.monotonic() < end:  # the late result (or failure) is delivered by a queued signal
+        qapp.processEvents()
+        time.sleep(0.01)
+    assert dialog.headline.text().startswith("Estimate: tick a suite"), dialog.headline.text()
+    assert dialog.estimate_result is None and dialog.details.toPlainText() == ""

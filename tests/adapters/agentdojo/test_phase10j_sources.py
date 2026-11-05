@@ -34,12 +34,12 @@ from agentprov.raw.origins import Origin
 
 #: profile id -> (fixture directory, parts, semantics, the registry parts' import status)
 PROFILES = {
-    "authority-caps-agentdojo": ("authority-caps", ("head",), "agentdojo.suites@2"),
-    "ipi-defenses-agentdojo": ("ipi-defenses", ("head",), "agentdojo.suites@2"),
-    "dca-agentdojo": ("dca", ("v1", "drift"), "agentdojo.suites@2"),
-    "kavach-agentdojo": ("kavach", ("main", "nav-fixer2", "rearch-forcedformat-fix"), "agentdojo.suites@2"),
-    "environmentoptim-agentdojo": ("environmentoptim", ("head",), "agentdojo.suites@3"),
-    "drift1-agentdojo": ("drift1", ("drift",), "agentdojo.suites@2"),
+    "authority-caps-agentdojo": ("authority-caps", ("head",), "agentdojo.suites@4"),
+    "ipi-defenses-agentdojo": ("ipi-defenses", ("head",), "agentdojo.suites@4"),
+    "dca-agentdojo": ("dca", ("v1", "drift"), "agentdojo.suites@4"),
+    "kavach-agentdojo": ("kavach", ("main", "nav-fixer2", "rearch-forcedformat-fix"), "agentdojo.suites@4"),
+    "environmentoptim-agentdojo": ("environmentoptim", ("head",), "agentdojo.suites@5"),
+    "drift1-agentdojo": ("drift1", ("drift",), "agentdojo.suites@4"),
 }
 TABLES = ("authority_caps_pipeline_dirs", "ipi_defenses_run_dirs", "dca_run_dirs", "kavach_run_dirs",
           "environmentoptim_run_dirs", "drift1_model_dirs")
@@ -95,8 +95,8 @@ def test_profile_conforms_and_every_quirk_is_cited_and_censused(profile_id):
     table = family_table(profile)
     jsonschema.validate(table.data, family_schema())
     assert check_against_schema(table.data, family_schema()) == []
-    # regeneration-batch item 106 bumped environmentoptim-agentdojo to version 2 (D-31; v1 archived)
-    assert profile.version == (2 if profile_id == "environmentoptim-agentdojo" else 1)
+    # regeneration-batch item 106 bumped environmentoptim-agentdojo to version 2 (D-31; v1 archived); D-1063 one more
+    assert profile.version == (3 if profile_id == "environmentoptim-agentdojo" else 2)
     assert profile.parts == PROFILES[profile_id][1]
     assert table.verified_code == () and table.harness["code_identity"] == "unpinned"  # D-24: no harness verified
     for quirk in table.quirks:

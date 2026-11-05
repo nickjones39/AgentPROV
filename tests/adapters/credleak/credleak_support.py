@@ -90,8 +90,9 @@ class Mapped:
         return self.doc.of_kind(kind)
 
 
-#: The semantics profile version each source-profile version selects (D-605: profile 2 reads credleak.tools@2).
-SEMANTICS_OF = {1: 1, 2: 2}
+#: The semantics profile version each source-profile version selects (D-605: profile 2 reads credleak.tools@2;
+#: D-1063: profile 3 reads credleak.tools@3).
+SEMANTICS_OF = {1: 1, 2: 2, 3: 3}
 
 
 def map_cell(label: str, data: bytes, *, sem: bool = True, prov: bool = True, origin: Origin | None = None,

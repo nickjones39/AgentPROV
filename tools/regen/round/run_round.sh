@@ -37,6 +37,13 @@ q() {  # q CLASS CPU LABEL CMD...
 
 corpus() {
   local n=$1 id=${ID[$1]} new=$C/${ID[$1]}-rg1 old=$C/${ID[$1]}-p10.partial
+  # import resumes an existing DIR.partial (a re-run would map nothing): a failed corpus's tree stays (D-356) and stops
+  # the re-run; an earlier attempt's summaries are renamed aside (kept), so a step that dies is never judged by them
+  [ -e $new ] || [ -e $new.partial ] && { say "STOP $n: $new exists"; exit 1; }
+  local f stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  for f in $L/$n-{import,dryrun,validate,verify,compare,verdict}.json; do
+    [ -e $f ] && { mv -n $f $f.before-$stamp && [ ! -e $f ] || { say "STOP $n: cannot rename $f aside"; exit 1; } }
+  done
   local before=$(shasum -a 256 $ACQ | cut -d' ' -f1)
   q import $CPU $n-import $PY -m agentprov import ${=ARGS[$n]} --release --jobs $CPU --progress off --corpus $new \
     --summary-json $L/$n-import.json

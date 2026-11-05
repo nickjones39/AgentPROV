@@ -9,12 +9,16 @@
 # behaviour is class I with an `asserted` assumption, its name ending in `_unverified` where a D twin could exist once the
 # code is verified (as D-172). The D rules are deterministic functions of observed bytes; they declare no assumption and
 # cite the census (docs/reports/phase10o/).
+#
+# Version 2 (D-1063, regen-batch row 176; review UC-40/UC-41): the rules geminicli.lone_surrogate_replaced@1 and
+# geminicli.content_not_inlined@1 and their issue codes; version 1, which the sealed corpus code-agent-misalignment-w2
+# records, ships unchanged as rules/archive/geminicli.rules.v1.toml.
 
 [catalogue]
 id = "geminicli"
-version = 1
+version = 2
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["label_field_mismatch", "sidecar_missing", "sidecar_unparseable", "cli_model_alias", "cli_error_result", "no_result_event", "events_after_result", "subagent_internals_unobserved", "cli_notice", "unmapped_event", "manifest_differs", "verdict_meta_disagree"]
+issue_codes = ["label_field_mismatch", "sidecar_missing", "sidecar_unparseable", "cli_model_alias", "cli_error_result", "no_result_event", "events_after_result", "subagent_internals_unobserved", "cli_notice", "unmapped_event", "manifest_differs", "verdict_meta_disagree", "lone_surrogate_replaced", "content_not_inlined"]
 subtypes = []
 types = ["geminicli:cli_notice", "geminicli:notice_text", "geminicli:unmapped_event", "geminicli:event_payload"]
 
@@ -610,3 +614,29 @@ code = []
 evidence = ["docs/reports/phase10o/README.md §6 item 1"]
 tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
 since = "0.1.0"
+
+[[rule]]
+id = "geminicli.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue geminicli.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/geminicli/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"
+
+[[rule]]
+id = "geminicli.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text or reasoning part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); any other string position holds the digest object. The string stays in the raw artefact the record's locator names."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063"]
+tests = ["tests/adapters/geminicli/test_uc39_41.py::test_a_string_over_1_mib_is_not_inlined"]
+since = "0.2.0"

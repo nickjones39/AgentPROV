@@ -159,7 +159,7 @@ def map_files(directory: str, files: Mapping[str, bytes], *, sem: bool = False, 
     if sem or prov:
         from agentprov.sem.engine import annotate
 
-        profile = load_semantics_profile("geminicli.tools", 1)
+        profile = load_semantics_profile("geminicli.tools", 2)  # D-1063
         result.sem = annotate(doc, profile)
         if prov:
             from agentprov.prov.engine import derive

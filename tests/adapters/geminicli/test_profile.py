@@ -30,7 +30,7 @@ def test_profile_pins_licence_import_and_family_schema():
     family = tomllib.loads((SRC / "profiles" / f"{support.PROFILE}.profile.toml").read_text(encoding="utf-8"))["family"]["geminicli"]
     assert list(jsonschema.Draft202012Validator(schema).iter_errors(family)) == []
     jsonschema.Draft202012Validator.check_schema(json.loads((SRC / "ext.schema.json").read_text(encoding="utf-8")))
-    assert family["semantics_profile"] == {"id": "geminicli.tools", "version": 1}
+    assert family["semantics_profile"] == {"id": "geminicli.tools", "version": 2}  # D-1063
 
 
 def test_out_of_scope_globs_are_exactly_the_excluded_scaffolds():
@@ -53,7 +53,7 @@ def test_withhold_policy_parses_and_matches_the_key_shape_only():
     from agentprov.corpus.withhold import policy_of_profile
 
     path = SRC / "profiles" / f"{support.PROFILE}.profile.toml"
-    policy = policy_of_profile(path.read_bytes(), profile_id=support.PROFILE, profile_version=2)
+    policy = policy_of_profile(path.read_bytes(), profile_id=support.PROFILE, profile_version=3)
     assert policy is not None
     rule = next(r for r in policy.rules if r.id == "google-api-key-shape")
     assert rule.kind == "pattern" and rule.scope == "executions"
@@ -68,12 +68,13 @@ _ACCOUNT = "q" + "z" + "x"
 
 def test_d609_account_path_rules_are_object_scope_personal_data():
     """D-609: two structural pattern rules, object scope, reason personal_data (overriding the table's secret), each with
-    its own public note; the key-shape rule is unchanged. Version 2 is current; version 1 is the archived D-31 bytes."""
+    its own public note; the key-shape rule is unchanged. Version 3 is current (D-1063); versions 1 (the archived D-31
+    bytes) and 2 (the sealed corpus code-agent-misalignment-w2's, D-1063) are archived."""
     from agentprov.corpus.withhold import policy_of_profile
 
     profile = load_profile(support.PROFILE)
-    assert profile.version == 2 and load_profile(support.PROFILE, 1).version == 1
-    policy = policy_of_profile(path_text().encode(), profile_id=support.PROFILE, profile_version=2)
+    assert profile.version == 3 and load_profile(support.PROFILE, 2).version == 2 and load_profile(support.PROFILE, 1).version == 1
+    policy = policy_of_profile(path_text().encode(), profile_id=support.PROFILE, profile_version=3)
     assert policy is not None
     assert [(r.id, r.kind, r.scope, r.reason) for r in policy.rules] == [
         ("deposit-readme-account-path", "pattern", "object", "personal_data"),
@@ -94,7 +95,7 @@ def path_text() -> str:
 def test_d609_harness_rule_matches_the_diff_header_form_only():
     from agentprov.corpus.withhold import policy_of_profile
 
-    policy = policy_of_profile(path_text().encode(), profile_id=support.PROFILE, profile_version=2)
+    policy = policy_of_profile(path_text().encode(), profile_id=support.PROFILE, profile_version=3)
     assert policy is not None
     harness = next(r for r in policy.rules if r.id == "harness-account-path")
     readme = next(r for r in policy.rules if r.id == "deposit-readme-account-path")
@@ -116,7 +117,7 @@ def test_registry_entry_is_supported_and_cc_by():
     reg = get_source(support.PROFILE)
     (part,) = reg.capabilities
     assert part.part == "results-raw" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == support.PROFILE and part.semantics == ("geminicli.tools@1",)
+    assert part.profile == support.PROFILE and part.semantics == ("geminicli.tools@2",)
     assert part.corpus_id == "code-agent-misalignment"
     assert reg.licence.spdx == "CC-BY-4.0" and reg.licence.restrictions == () and reg.licence.policy == "include"
     assert resolve_factory(READERS["geminicli.stream_json"]).__name__ == "GeminiStreamReader"

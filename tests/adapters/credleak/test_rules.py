@@ -14,17 +14,18 @@ from agentprov.aer.rules import RULE_ID_RE, load_catalogue, parse_catalogue
 
 PACKAGE = "agentprov.adapters.credleak"
 SRC = support.REPO / "src" / "agentprov" / "adapters" / "credleak"
-ISSUE_CODES = {"path_outside_grammar", "turn_number_mismatch", "cell_run_disagree", "invocation_error", "value_redacted"}
+ISSUE_CODES = {"path_outside_grammar", "turn_number_mismatch", "cell_run_disagree", "invocation_error", "value_redacted",
+               "lone_surrogate_replaced", "content_not_inlined"}  # the last two: catalogue version 3 (D-1063)
 SYNTH_LABEL = "p15b-run-data/01-injection-map/T1-file-document/test-model/run__T1__test-model__T1.9__2026.json"
 
 
 def catalogue():
-    return load_catalogue("credleak", 2, package=PACKAGE)
+    return load_catalogue("credleak", 3, package=PACKAGE)  # D-1063; v2 (D-605) and v1 are archived
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("credleak", 2, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("credleak", 3, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.types == set() and cat.subtypes == set()
     data = (resources.files(PACKAGE) / "rules" / "credleak.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -87,7 +88,9 @@ def test_every_declared_rule_is_exercised(mapped):
         cited |= _cited(m)
     from agentprov.adapters.semantics_profiles import load_semantics_profile
 
-    cited.add(str(load_semantics_profile("credleak.tools", 2).taint_policy.rule))
+    cited.add(str(load_semantics_profile("credleak.tools", 3).taint_policy.rule))
+    # D-1063: no fixture holds a lone surrogate or a 1 MiB string; test_uc39_41.py builds cells that do
+    cited |= {"credleak.lone_surrogate_replaced@1", "credleak.content_not_inlined@1"}
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     assert citable - cited == set(), sorted(citable - cited)
 
@@ -97,4 +100,27 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(credleak\.[a-z_.]+@[0-9]+)"', source))
     assert literals <= set(catalogue().rules) and literals
     codes = {c.removeprefix("credleak.") for c in re.findall(r'"(credleak\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    # (agentprov.adapters.surrogates.surrogates, called with the namespace; D-1063)
+    assert codes | {"lone_surrogate_replaced"} == ISSUE_CODES and "surrogates(self, records, \"credleak\")" in source
+
+
+#: D-1063 (regen-batch row 176): the catalogue bytes the sealed corpus credleak-p15b-w2b records (derivation.json).
+SEALED_CATALOGUE_V2 = "2059d34551d57f25919417226fa76e0e82031e22e61cadb0a070405a593ea779"
+SEALED_PROFILE_V2 = "44a5c13d3c8dba110246a93521d8ec7019fd351013869093de114cda118225ea"
+
+
+def test_catalogue_version_2_is_archived_as_sealed_and_version_3_only_adds_the_d1063_rules():
+    import hashlib
+
+    from agentprov.adapters.profiles import load_profile
+
+    archived = (SRC / "rules" / "archive" / "credleak.rules.v2.toml").read_bytes()
+    assert hashlib.sha256(archived).hexdigest() == SEALED_CATALOGUE_V2 == load_catalogue("credleak", 2).digest
+    profile = (SRC / "profiles" / "archive" / "credleak-p15b.profile.v2.toml").read_bytes()
+    assert hashlib.sha256(profile).hexdigest() == SEALED_PROFILE_V2 == load_profile("credleak-p15b", 2).sha256
+    v2, v3 = load_catalogue("credleak", 2), catalogue()
+    assert v3.version == 3 and load_profile("credleak-p15b").version == 3
+    assert set(v3.rules) - set(v2.rules) == {"credleak.lone_surrogate_replaced@1", "credleak.content_not_inlined@1"}
+    assert all(v3.rules[rid] == rule for rid, rule in v2.rules.items())
+    assert v3.issue_codes - v2.issue_codes == {"lone_surrogate_replaced", "content_not_inlined"}

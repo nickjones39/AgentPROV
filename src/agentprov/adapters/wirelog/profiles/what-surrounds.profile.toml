@@ -1,8 +1,11 @@
 # Source profile `what-surrounds`: "What surrounds an injection decides whether it works" (Zenodo 21944598 v1.0.0;
 # docs/architecture D.20; DECISIONS D-280..D-285; docs/reports/phase10m/).
+# Version 2 (D-1063, regen-batch row 176): catalogue wirelog 2 and semantics wirelog.tools@2 (the lone-surrogate and
+# not-inlined rules); version 1, which the sealed corpus what-surrounds-w2 records, ships as
+# profiles/archive/what-surrounds.profile.v1.toml.
 #
 # Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
-# `version` (AD-18); nothing is released yet, so it is still 1. The [family.wirelog] table is checked against
+# `version` (AD-18). The [family.wirelog] table is checked against
 # ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10m census of every member of the
 # pinned zip, read in memory (docs/reports/phase10m/zenodo-21944598.census.json).
 #
@@ -18,7 +21,7 @@
 
 [profile]
 id = "what-surrounds"
-version = 1
+version = 2
 format = "agentprov-source-profile/0.1"
 source_id = "what-surrounds"
 family = "wirelog"
@@ -68,7 +71,7 @@ content_dedup = "never"
 dialect = "wirelog.request_response"
 mapper = "wirelog.run_dir"
 variants = ["bedrock-converse", "anthropic-messages"]
-rules = { aer = 1, wirelog = 1 }
+rules = { aer = 1, wirelog = 2 }
 include = ["runs_named/*/*", "results.csv", "attacks.json"]
 layout = "runs_named/{model}__{arm}__{NNNN}/request.json"
 
@@ -85,7 +88,7 @@ send_tool = "send_email"
 recipient_arg = "to"
 no_attack_arms = ["clean"]
 code_only_payload_arms = ["soft", "imperative", "urgent_authority", "operator_spoof"]
-semantics_profile = { id = "wirelog.tools", version = 1 }
+semantics_profile = { id = "wirelog.tools", version = 2 }
 
 # The three task prompts, by the SHA-256 of their UTF-8 text (wirelog.task_prompt_table@1).
 tasks = [

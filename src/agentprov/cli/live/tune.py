@@ -164,7 +164,8 @@ def _r(value: float | None) -> float | None:
 
 
 def skipped(jobs: int, reason: str) -> dict[str, Any]:
-    """An arm that did not run: ``memory`` (above ``J_memory``) or ``after_timeouts`` (the stop rule, D-820)."""
+    """An arm that did not run: ``memory`` (above ``J_memory``), ``after_timeouts`` (the stop rule, D-820) or
+    ``drained`` (a drain stopped the sweep before the arm finished; a re-run measures it, AU-RN-1)."""
     return {"jobs": jobs, "status": "skipped", "reason": reason}
 
 
@@ -197,8 +198,14 @@ def recommend(arms: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------------------------- the report
 
 
-def report_document(*, header: Mapping[str, Any], arms: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    return {"format": TUNE_FORMAT, **dict(header), "arms": list(arms), "recommendation": recommend(arms)}
+def report_document(*, header: Mapping[str, Any], arms: Sequence[Mapping[str, Any]],
+                    drained: bool = False) -> dict[str, Any]:
+    """The report. ``drained``: a drain stopped the sweep before every arm ran, so nothing is recommended from the
+    arms that did (AU-RN-1); a re-run of the same command measures the rest."""
+    rec = recommend(arms)
+    if drained:
+        rec = {**rec, "jobs": None, "drained": True}
+    return {"format": TUNE_FORMAT, **dict(header), "arms": list(arms), "recommendation": rec}
 
 
 def report_markdown(doc: Mapping[str, Any]) -> str:
@@ -226,6 +233,8 @@ def report_markdown(doc: Mapping[str, Any]) -> str:
     rec = doc.get("recommendation") or {}
     lines += ["", f"Peak {cell(rec.get('peak_traces_per_hour'))} traces/h; recommended jobs: "
                   f"**{cell(rec.get('jobs'))}** (smallest N ≥ {RATE_SHARE:.0%} of peak, no timeouts, no failed cell)."]
+    if rec.get("drained"):
+        lines += ["", "Drained before every arm ran: no recommendation; re-run the same command to measure the rest."]
     return "\n".join(lines) + "\n"
 
 

@@ -1,0 +1,197 @@
+# Source profile `llm-lock-agentdojo`: Wakeful-Cloud/llm-lock (LLMLock, a CS562 course project), 53,307 AgentDojo 0.1.35
+# TraceLogger logs (v1.2.2 suites, all four at full task coverage) of one local agent under nine prompt-injection
+# defence arms of 5,923 logs each (phase 10d; shortlist row 2; sources/agentdojo-format-candidates.md §3.1; routing R4).
+#
+# Identity: no log records the agent's model (main.py sets pipeline.name = "local"; the model is a CLI option whose
+# default a run may override), so every log is sealed identity_unresolved with unk /model not_recorded (D-92, D-105);
+# the defence arm is the path between data/agentdojo/ and logs/ (identity table llmlock_defence_arms, rows with a defence
+# and no model, routing R4); the data-delimiter arm is AgentDojo's spotlighting_with_delimiting, reimplemented (D-114).
+# The other defences are tool-output detectors that run after a tool executed: four arms abort the run on a detection
+# (defense_utils.EnhancedPromptInjectionDetector raises AbortAgentError; 11,505 runs end at the flagged output: a
+# terminate decision, quirk detector_abort, R10, D-116), three replace the flagged output by AgentDojo's sentinel
+# (quirk pi_detector_redaction; the pinned code no longer does, so those runs used an earlier code state). None refuses
+# a call, so the 88,197 tool errors are the tools' own errors, not denials (no defence_denial_message quirk). Their per-check outputs are extra top-level keys
+# (classification_result, *_malicious_probability, *_duration), kept verbatim in ext.agentdojo.extra. The agent is AgentDojo's PromptingLLM (tool calls parsed from the model's text) behind Ollama.
+#
+# The run README says some attacks were abandoned half-way and left in the results; nothing here filters them. One log
+# (hybrid/qualifire-..., workspace user_task_19) holds two secret-like strings (count only; the release scan rules on it).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/llm-lock@7bb9915b57e0.*).
+
+[profile]
+id = "llm-lock-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "llm-lock-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "LLMLock: AgentDojo 0.1.35 logs of a local agent under nine prompt-injection detector defences (Wakeful-Cloud/llm-lock)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2, §3.1", "verify/agentdojo-format-candidates.md §1", "docs/reports/phase10d/deferred.md (llm-lock, before R4)"]
+
+[source]
+canonical_repo = "https://github.com/Wakeful-Cloud/llm-lock"
+paper = "none found (phase 10c); a CS562 final project"
+package = { name = "agentdojo", vendored = "no: uv.lock pins Wakeful-Cloud/agentdojo at 6ebf27e7648d8f866e8ee8c850e0c3a78b9d203f, an ethz-spylab/agentdojo commit", logged_version = "0.1.35", version_identifies_code = false }
+
+# The pin covers the repository root (70,075 files): the runs, the harness (agentdojo/*.py, scripts/), a synthetic
+# conversation dataset (16,368 JSON files) and notebook outputs, which are not executions and are not selected.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "7bb9915b57e087536b6bdeae0066adb0d8999958"
+date = "2025-12-15"
+expected_files = 70075
+note = "the default branch at 2026-10-11 (phase 10c), a single commit; 53,307 logs under data/agentdojo/<arm>/logs/local/"
+
+[licence]
+spdx = "GPL-3.0"
+holders = ["Wakeful-Cloud (repository owner; the LICENSE file is the GPL-3.0 text with no copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "GPL-3.0 LICENSE at the pin (title line 'GNU GENERAL PUBLIC LICENSE Version 3'); no 'only' or 'or later' statement; own GPL-3.0 corpus (D-94)"
+attribution = [
+  "Wakeful-Cloud/llm-lock (GPL-3.0), commit 7bb9915b57e087536b6bdeae0066adb0d8999958",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["ethz-spylab/agentdojo 0.1.35 (git dependency Wakeful-Cloud/agentdojo@6ebf27e7, an upstream commit)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["data/agentdojo/*/logs/local/*/*/*/*.json", "data/agentdojo/*/*/logs/local/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "data/agentdojo/{model_dir?}/logs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the harness and defences, the run script
+# and every arm's run README and results summary.
+context_artefacts = ["LICENSE", "README.md", "pyproject.toml", "uv.lock", "agentdojo/*.py", "scripts/run.sh", "data/agentdojo/*/README.md", "data/agentdojo/*/*/README.md", "data/agentdojo/*/results.json", "data/agentdojo/*/*/results.json"]
+
+[family.agentdojo.identity]
+# the defence arm is the layout's optional component (model_dir mode: the table is keyed by it); no row names a model
+model_from = "model_dir"
+pipeline_name_policy = "constant_not_model"
+table = { path = "tables/llmlock_defence_arms.toml", sha256 = "70fa5701b481d05c339a00595d76f0a58a92f980f150a9e34c912bd479cca838" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", banking = "agentdojo", travel = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the runs were committed together with the harness (one commit); AgentDojo comes from a git pin that is not verified
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified, so every D rule of the family
+# catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# main.py's own prompt (l. 309) in eight arms, and the same prompt with the delimiter sentence (l. 408) in data-delimiter;
+# both recognised by the digest of the logged text.
+system_prompt_variants = [
+  { label = "llmlock_default", source = "Wakeful-Cloud/llm-lock@7bb9915b57e087536b6bdeae0066adb0d8999958:agentdojo/main.py", sha256 = "ba82aafef4327a44ca1a97bdc7f3d3f11ac057cc67f6fa12548db538a89b8590", note = "the SystemMessage text of main.py l. 309; recognised by digest", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+  { label = "llmlock_data_delimiter", source = "Wakeful-Cloud/llm-lock@7bb9915b57e087536b6bdeae0066adb0d8999958:agentdojo/main.py", sha256 = "eefdbc1d8c0b210fe53a32cdbb059fc4dd600b2f2129b51e9ea087ad3c2f6f1d", note = "main.py l. 309 plus the delimiter sentence of l. 408; recognised by digest", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 1188, origin_rule_applied = 1188 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 315 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 1699, logs = 1697 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 48942 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 196848, present_and_null = 196848 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { model_dir = ["data-delimiter"] }
+rules = ["agentdojo.spotlighting_content@1"]
+note = "the data-delimiter arm is AgentDojo's spotlighting_with_delimiting (main.py l. 407-418; D-114): every tool output between << and >>"
+observed = { head = { logs = 5923, logs_with_tool_results = 5393 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.dos_security_not_utility"
+applies = { attack_dir = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"] }
+rules = ["agentdojo.dos_security_rule@1", "agentdojo.dos_placeholder_injection_task@1"]
+observed = { head = { files = 873 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.pi_detector_redaction"
+applies = { model_dir = ["transformer/*", "hybrid/qualifire-prompt-injection-jailbreak-sentinel-v2"] }
+rules = ["agentdojo.pi_detector_sentinel@1"]
+params = { sentinel = "<Data omitted because a prompt injection was detected>", defences = ["transformer-protectai-deberta-v3-base-prompt-injection-v2", "transformer-qualifire-prompt-injection-jailbreak-sentinel-v2", "hybrid-qualifire-prompt-injection-jailbreak-sentinel-v2"] }
+note = "these three arms replace a flagged tool output by AgentDojo's sentinel (EnhancedPromptInjectionDetector.transform) and never abort; the pinned code always aborts, so they ran an earlier state of defense_utils.py (one squashed commit)"
+observed = { head = { logs = 5376, redactions = 13857 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.detector_abort"
+applies = { model_dir = ["embedding", "hybrid/protectai-deberta-v3-base-prompt-injection-v2", "llm", "multiclass"] }
+rules = ["agentdojo.detector_abort_after_output@1"]
+params = { defences = ["embedding", "hybrid-protectai-deberta-v3-base-prompt-injection-v2", "llm", "multiclass"] }
+note = "these four arms abort the run after a flagged tool output (defense_utils.EnhancedPromptInjectionDetector raises AbortAgentError; routing R10, D-116); no other arm ends at a tool output"
+observed = { head = { aborts = 11505, aborts_output_unrecorded = 1341 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

@@ -3,7 +3,7 @@
 #
 # Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
 # is the default `agentprov.adapters.autogen`. Rules are immutable once released: a change of statement, class or
-# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+# behaviour mints @n+1 and bumps `version` (AD-18).
 #
 # Citation policy (D-24, D-303): three D rules read AutoGen library behaviour from microsoft/autogen at tag python-v0.7.5
 # (commit 83afbf5857aac683340d4c692194e548b1e8edda; 21 files fetched with the user's yes, 2026-10-13) and have
@@ -13,11 +13,17 @@
 # that rests on harness behaviour is class I with an asserted assumption (as D-193). The other D rules are deterministic
 # functions of observed bytes (an id join, a text or digest comparison) and cite the census (docs/reports/phase10n/).
 
+# Version 2 (D-1063, regen-batch row 176; review UC-40/UC-41): the rules autogen.lone_surrogate_replaced@1 and
+# autogen.content_not_inlined@1 and their issue codes; version 1, which the sealed corpus autogen-guard-placement-w2
+# records, ships unchanged as rules/archive/autogen.rules.v1.toml.
+# Version 2 also holds autogen.payload_marker_not_inlined@1 (D-1063, regen-batch row 182, review AU-RC-3), which
+# autogen.tools@2 cites; version 2 is unreleased and no corpus records it, so the rule is added in place.
+
 [catalogue]
 id = "autogen"
-version = 1
+version = 2
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["aborted_attempt_events", "arguments_not_json", "block_effect_in_request_log", "block_subject_not_recorded", "guard_text_unjoined", "passage_not_in_document", "probe_join_missing", "response_unmatched", "task_template_mismatch", "tool_error_result"]
+issue_codes = ["aborted_attempt_events", "arguments_not_json", "block_effect_in_request_log", "block_subject_not_recorded", "guard_text_unjoined", "passage_not_in_document", "probe_join_missing", "response_unmatched", "task_template_mismatch", "tool_error_result", "lone_surrogate_replaced", "content_not_inlined"]
 subtypes = ["autogen.probe_document"]
 types = ["autogen:memory_query", "autogen:memory_content"]
 
@@ -740,6 +746,19 @@ tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited
 since = "0.1.0"
 
 [[rule]]
+id = "autogen.payload_marker_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool result whose text is not inlined (autogen.content_not_inlined@1 cited at the part's value, C.2.1 item 6) cannot be searched: each payload fixture of the run is marked gap on it (the output is unreadable here, C.14.3), never absent. With no payload observed, the result keeps its producing tool's label and has no author."
+premises = ["part value", "the part's content_not_inlined citation", "fixture content"]
+assumptions = []
+code = []
+evidence = ["regen-batch item 182 (review AU-RC-3)", "DECISIONS D-1063", "docs/architecture/C_data_model.md C.14.3 (gap)"]
+tests = ["tests/adapters/autogen/test_semantics.py::test_every_sem_rule_is_cited", "tests/adapters/autogen/test_semantics.py::test_a_result_not_inlined_has_gap_markers"]
+since = "0.2.0"
+
+[[rule]]
 id = "autogen.canary_match"
 version = 1
 class = "D"
@@ -817,3 +836,29 @@ code = []
 evidence = ["deposit:src/run_experiment.py set_aside_errors", "docs/reports/phase10n/README.md §2.3"]
 tests = ["tests/adapters/autogen/test_rules.py::test_reserved_rules_are_never_cited"]
 since = "0.1.0"
+
+[[rule]]
+id = "autogen.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue autogen.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/autogen/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"
+
+[[rule]]
+id = "autogen.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text or reasoning part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); a tool call's args_raw (a typed string, optional) leaves the part and its digest stands at ext.autogen.args_raw_not_inlined.<k> (the decoded args keep their own digests); any other string position holds the digest object. The string stays in the raw artefact the record's locator names."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063", "regen-batch item 182 (AU-NC-307)"]
+tests = ["tests/adapters/autogen/test_uc39_41.py::test_a_string_over_1_mib_is_not_inlined", "tests/adapters/autogen/test_uc39_41.py::test_an_arguments_string_over_1_mib_leaves_args_raw_for_ext"]
+since = "0.2.0"

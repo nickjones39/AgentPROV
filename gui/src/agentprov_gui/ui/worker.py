@@ -81,15 +81,20 @@ def run_off_ui[T](owner: Any, fn: Callable[[], T]) -> T:
     """``fn()`` (a CLI call that may take a minute or two) in the pool, while a local event loop keeps the window
     painting and responsive (review UC-36). ``owner`` (a widget) is disabled meanwhile, so no second action starts from
     it. Returns ``fn``'s result; its exception is raised here, on the UI thread."""
+    import threading
+
     from PySide6.QtCore import QEventLoop
 
     box: dict[str, Any] = {}
+    finished = threading.Event()
 
     def work(_signals: JobSignals) -> None:
         try:
             box["result"] = fn()
         except BaseException as exc:  # re-raised below, on the UI thread
             box["error"] = exc
+        finally:
+            finished.set()
 
     loop = QEventLoop()
     enabled = owner.isEnabled()
@@ -99,6 +104,9 @@ def run_off_ui[T](owner: Any, fn: Callable[[], T]) -> T:
         loop.exec()
     finally:
         owner.setEnabled(enabled)
+    # the loop also ends when the app quits (QCoreApplication.exit) before fn returned: let it finish, as the pool does
+    # on exit, rather than raise KeyError for the missing result
+    finished.wait()
     if "error" in box:
         raise box["error"]
     return box["result"]  # type: ignore[no-any-return]

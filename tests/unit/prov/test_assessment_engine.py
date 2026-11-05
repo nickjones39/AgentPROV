@@ -170,6 +170,30 @@ def test_a_premise_field_declared_unknown_is_not_cited(tmp_path: Path) -> None:
     assert [(o.id, sorted(o.codes())) for o in report.outcomes if o.status in ("fail", "skipped")] == []
 
 
+def test_an_unknown_inferred_premise_keeps_its_methods(tmp_path: Path) -> None:
+    """UC-16: an annotation INFERRED by propagation (its own rule is DERIVED) whose only INFERRED premise is a field
+    declared unknown. D-930 leaves the field uncited; its I-class rules stay the statement's method set (the annotation's
+    method set is its premises'), so the label is derived instead of the whole execution being refused
+    (``prov.method_set_empty``)."""
+    recs = records()
+    te1 = next(r for r in recs if r.get("id") == "te1")
+    te1["rule"] = [*te1["rule"], "tst.i@1#/name"]
+    te1["evf"] = {"/name": "I"}
+    te1["unk"] = {"/name": "ambiguous"}
+    doc = ps.write_aer(recs, tmp_path / "unk-i.aer.jsonl")
+    reg = registry()
+    assert ps.check_valid(doc, reg) == []
+    sem = sem_document(doc, [ann("te1", "role", ["send_sink"], "I", "ns_label", [("te1", "/name")])])
+    result = derive(doc, [sem], registry=reg, sem_profiles=PROFILES)
+    iri, bundle = assess(result)
+    assert result.report.assessment[iri]["premise_field_unknown"] == 1 and result.report.assessment[iri]["labels"] == 1
+    (label,) = claims(bundle, "apv:Labelled")
+    assert label["apv:evidenceClass"]["$"] == "apv:Inferred" and label["apv:method"] == "tst.i@1"
+    assert label["apv:sourcePointer"] == "te1"  # te1/name is still not cited (D-930)
+    report = validate_prov(result.prov_json, doc, registry=reg, sems=[sem])
+    assert [(o.id, sorted(o.codes())) for o in report.outcomes if o.status in ("fail", "skipped")] == []
+
+
 # ============================================================================================================ no SEM / determinism
 def test_derivation_without_sem_is_unchanged(aer: AerDocument) -> None:
     plain = derive(aer, registry=registry())

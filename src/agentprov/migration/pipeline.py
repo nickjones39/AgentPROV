@@ -427,7 +427,7 @@ def run_pipeline(
     profile_digest = {(profile.id, profile.version): profile.sha256}
     with tempfile.TemporaryDirectory(prefix="agentprov-gate-") as scratch:
         base = Path(work) if work is not None else Path(scratch)
-        store = RawObjectStore(base / "raw")
+        store = RawObjectStore(base / "raw", durable=work is not None)  # D-1068 P7: T1 inputs of a scratch run
         tmp = base / "aer-tmp"
         tmp.mkdir(parents=True, exist_ok=True)
         pool = WorkerPool(workers=workers, store_root=store.objects_dir, release=release, in_process=in_process)
@@ -461,7 +461,7 @@ def run_pipeline(
             return batch, data, pool.run(jobs)
 
         batches = [pairs[i : i + BATCH] for i in range(0, len(pairs), BATCH)]
-        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="gate-map") as mapper:
+        with pool, ThreadPoolExecutor(max_workers=1, thread_name_prefix="gate-map") as mapper:  # D-1068 P1: close
             futures: dict[int, Future[Any]] = {}
             if batches:
                 futures[0] = mapper.submit(submit, batches[0])

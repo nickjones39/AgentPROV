@@ -164,8 +164,9 @@ def modified(criterion: str, change: Callable[[dict[str, Any]], None], *, label:
     data = json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode("ascii")
     return map_label(label or F[criterion], data=data, sem=sem, prov=prov, tasks=tasks)
 
-#: The semantics profile version the current profile selects (D-31 bump with regen items 34-37; @1 reads catalogue v1).
-SEM_VERSION = 2
+#: The semantics profile version the current profile selects (D-31 bump with regen items 34-37; @1 reads catalogue v1;
+#: @3 reads catalogue v3, D-1063).
+SEM_VERSION = 3
 
 
 # --------------------------------------------------------------- in-memory runs (test_redact, test_withhold_e2e)

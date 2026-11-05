@@ -23,15 +23,17 @@ R2_FLAGS: Final = ("--allow-network", "--fetch", "--i-consent-to-large-download"
                    "--price-in", "--price-out", "--confirm-r2")
 #: Commands (by their first one or two words) whose base tier is R0 (read-only) or R2 (network by definition).
 _R0: Final = frozenset({"info", "sources", "validate", "inspect", "stats", "verify", "estimate", "models",
-                        "prices list", "prices get", "settings list", "settings get", "keys list", "keys status",
+                        "prices list", "prices get", "prices status", "priors show", "settings list", "settings get",
+                        "keys list", "keys status", "update status",
                         "jobs list", "jobs show", "jobs follow", "batch list", "batch show"})
-_R2: Final = frozenset({"fetch", "prices refresh"})
+_R2: Final = frozenset({"fetch", "prices refresh", "update check", "update download", "update install"})
 DESTRUCTIVE: Final = frozenset({"purge"})
 #: Commands that find the repository from their cwd (``cli/live/envs.repository_root``, M.4): they start in the
 #: checkout, not in the job directory.
 REPO_COMMANDS: Final = frozenset({"run", "backends", "migrate"})
 #: Commands whose second word is a subcommand (the job's global options go after both words).
-_TWO_WORDS: Final = frozenset({"backends", "migrate", "prices", "settings", "keys", "jobs", "batch"})
+_TWO_WORDS: Final = frozenset({"backends", "migrate", "prices", "priors", "settings", "keys", "jobs", "batch",
+                               "update"})
 
 
 def split_index(argv: Sequence[str]) -> int:

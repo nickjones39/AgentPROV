@@ -236,3 +236,47 @@ def test_an_inferred_attribute_on_an_activity_becomes_a_premised_assessment(tmp_
     a = assessments[0]
     assert a["bundle"] == "inf" and a["prov:label"] == "plan" and a["apv:method"] == "tst.i@1"
     assert a["apv:subject"]["$"] == "x:ac0" and a["apv:premise"]["$"] == "x:ac0"
+
+
+def test_every_decision_about_one_tool_execution_uses_its_output_as_produced(tmp_path: Path) -> None:
+    """AU-RP-1: a second decision about one tool execution uses ``x:L(te).out`` (C.3 decision.subject, R-21), never
+    the tool-execution activity (NE-19, PROV Con. 50 typing); its /original status lands on that entity, not a gap."""
+    from agentprov.validate import validate_prov  # noqa: PLC0415
+
+    records = [
+        *ps.generic_records(),
+        ps.derived({"k": "actor", "id": "def0", "kind": "defense"}),
+        ps.derived({"k": "actor", "id": "def1", "kind": "defense"}),
+        ps.derived({"k": "decision", "id": "dc3", "actor": "def0", "scope": "att0", "subject": "te2", "verdict": "allow"}),
+        ps.derived({"k": "decision", "id": "dc4", "actor": "def1", "scope": "att0", "subject": "te2",
+                    "verdict": "redact", "unk": {"/original": "overwritten"}}),
+    ]
+    res = run(tmp_path, records)
+    for dc in ("x:dc3", "x:dc4"):
+        one(res, "used", "aprov.decision@1", prov__activity=dc, prov__entity="x:te2.out")
+    assert find(res, "used", "aprov.decision@1", prov__entity="x:te2") == []
+    out = one(res, "entity", "aprov.decision@1", id="x:te2.out")
+    assert "Overwritten" in str(out.get("apv:contentStatus"))
+    assert [g for g in find(res, "entity", "aprov.n_gap@1") if g["apv:about"]["$"] == "x:dc4"] == []
+    report = validate_prov(res.prov_json, ps.write_aer(records, tmp_path / "again.aer.jsonl"))
+    bad = {o.id for o in report.outcomes if o.status not in ("pass", "not_applicable")}
+    assert not bad & {"PV-NE-19", "pv.constraints.typing"}, bad
+
+
+def test_the_service_agent_and_its_provider_association_are_at_most_derived(tmp_path: Path) -> None:
+    """AU-RP-2, decided 2026-11-05 (option a): aprov.n_model@1's ceiling D caps its ``service`` path cap O (a per-path
+    cap is never above the ceiling, D-621), so even an OBSERVED provider-reported served model gives a DERIVED service
+    agent and InferenceProvider association (EF E.1.3, E.1.4, E.10 item 3)."""
+    records = ps.generic_records()
+    for r in records:
+        if r.get("id") in ("mc0", "agent"):
+            r.update({"ev": "O", "by": "source", "src": [{"a": "a0", "line": 1, "p": ""}]})
+            r.pop("rule", None)
+        if r.get("id") == "mc0":
+            r.update({"served_model": "tst-model-2025", "evf": {"/served_model": "O:provider"}})
+    res = run(tmp_path, records)
+    svc = one(res, "agent", "aprov.n_model@1", id="x:agent.svc")
+    assoc = [s for s in find(res, "wasAssociatedWith", "aprov.assoc_model_call@1", prov__activity="x:mc0",
+                             prov__agent="x:agent.svc")]
+    assert len(assoc) == 1
+    assert svc["apv:evidenceClass"]["$"] == assoc[0]["apv:evidenceClass"]["$"] == "apv:Derived"

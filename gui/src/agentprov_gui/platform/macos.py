@@ -100,6 +100,14 @@ class NativeChrome:
                 out.append(str(item.searchField().stringValue() or ""))
         return out
 
+    def set_search(self, text: str) -> None:
+        """The search field shows ``text``, the Viewer's id search (AU-NG-5: a chip removed, Clear all or another
+        corpus opened changes it there). Setting the value sends no action, so the search is not run again."""
+        text = clean(text, 200)
+        for item in self.toolbar.items() or ():
+            if str(item.itemIdentifier()) == SEARCH_ID and str(item.searchField().stringValue() or "") != text:
+                item.searchField().setStringValue_(text)
+
     def set_activity(self, running: int, ended: int) -> None:
         self.activity.setStringValue_(f"● {running} running" if running else f"{ended} jobs")
         _dock_badge(running)

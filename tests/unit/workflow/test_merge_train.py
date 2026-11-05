@@ -265,16 +265,17 @@ def test_status_lists_runs(clone: Path, sdir: Path, isolated_env: Path, capsys: 
 
 
 def test_default_gate_uses_the_suite_queue_when_present(tmp_path: Path) -> None:
-    assert mt.default_gates(tmp_path, "r")[0] == ["uv", "run", "pytest"]
+    assert mt.default_gates(tmp_path, "r")[0] == ["uv", "run", "--frozen", "pytest"]
     (tmp_path / "tools").mkdir()
     (tmp_path / "tools" / "suite_queue.py").write_text("", encoding="utf-8")
     (tmp_path / "tools" / "regen_pins.py").write_text("", encoding="utf-8")
     gates = mt.default_gates(tmp_path, "r")
-    assert gates[0][:4] == ["uv", "run", "python", "tools/suite_queue.py"] and "--" in gates[0]
+    assert gates[0][:5] == ["uv", "run", "--frozen", "python", "tools/suite_queue.py"] and "--" in gates[0]
     assert gates[0][gates[0].index("-n") + 1] == "10"  # the suite gate of suite-perf phase 3
-    assert ["uv", "run", "python", "tools/regen_pins.py", "--check"] in gates
+    assert ["uv", "run", "--frozen", "python", "tools/regen_pins.py", "--check"] in gates
     (tmp_path / "tools" / "ci_local.py").write_text("", encoding="utf-8")
-    assert mt.default_gates(tmp_path, "r") == [["uv", "run", "python", "tools/ci_local.py", "--label", "merge-train r"]]
+    assert mt.default_gates(tmp_path, "r") == [["uv", "run", "--frozen", "python", "tools/ci_local.py", "--label",
+                                             "merge-train r"]]
 
 
 BEGIN, END = "<!-- BEGIN gen -->", "<!-- END gen -->"
@@ -444,17 +445,19 @@ SPLIT_DECISIONS = """# Brief
 
 
 def _decisions_resolver(adopt: bool = True) -> mt.Resolver:
-    """The real decisions resolver, run with this interpreter instead of ``uv run python``."""
+    """The real decisions resolver, run with this interpreter instead of ``uv run --frozen python``."""
     real = REAL_DECISIONS
-    assert real.command[:3] == ("uv", "run", "python") and real.adopt and real.adopt[:3] == ("uv", "run", "python")
-    return dataclasses.replace(real, command=(sys.executable, *real.command[3:]),
-                               adopt=(sys.executable, *real.adopt[3:]) if adopt else None)
+    uv = ("uv", "run", "--frozen", "python")
+    assert real.command[:4] == uv and real.adopt and real.adopt[:4] == uv
+    return dataclasses.replace(real, command=(sys.executable, *real.command[4:]),
+                               adopt=(sys.executable, *real.adopt[4:]) if adopt else None)
 
 
 def _split_main(clone: Path) -> str:
     """main gets DECISIONS.md, then the split (fragments, same bytes); returns the commit before the split."""
     for name in ("gen_docs.py", "_workflow.py"):
         write(clone, f"tools/{name}", (TOOLS / name).read_text(encoding="utf-8"))
+    write(clone, ".gitignore", "__pycache__/\n")  # as in the repository: the tools' bytecode is never committed
     write(clone, "docs/architecture/DECISIONS.md", SPLIT_DECISIONS)
     git(clone, "switch", "-q", "-c", "tmp-main", "origin/main")
     before = commit(clone, "decisions, before the split")
@@ -524,3 +527,44 @@ def test_a_conflicted_doc_is_regenerated_after_the_split_and_refused_before_it(
     entry = rep["attempted"][0]
     assert entry["outcome"] == "conflict" and "resolved_by" not in entry
     assert "predates the split" in entry["error"] and "gen_docs.py --adopt" in entry["error"]
+
+
+def test_a_generator_never_folds_an_unowned_file_into_the_merge_commit(clone: Path, sdir: Path, isolated_env: Path,
+                                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-TWF-10: a generator run that also rewrites a file it does not own (``uv run`` relocking a stale ``uv.lock``)
+    stops the train, naming the file; the rewrite is never staged into the merge commit."""
+    _readme_main(clone)
+    write(clone, "uv.lock", "lock v1\n")
+    commit(clone, "a lockfile")
+    git(clone, "push", "-q", "origin", "HEAD:refs/heads/main")
+    git(clone, "fetch", "-q", "origin")
+    _green(sdir, "p1", _branch(clone, "p1", {"parts/b.txt": "| b |\n"}))
+    relock = README_GEN + "pathlib.Path('uv.lock').write_text('lock v2, rewritten by the generator run\\n')\n"
+    monkeypatch.setattr(mt, "RESOLVERS", (mt.Resolver("readme", "gen.py", ("README.md",), (sys.executable, "-c", relock),
+                                                      block=(BEGIN, END), after_merge=True),))
+    assert _train(clone, sdir, "plan", "p1") == 2
+    rep = _report(isolated_env)
+    assert rep["result"] == "conflict" and "uv.lock" in rep["attempted"][0]["error"]
+    wt = Path(rep["worktree"])
+    assert "uv.lock" not in git(wt, "diff", "--name-only", "HEAD^1", "HEAD").split()
+
+
+def test_generators_and_gates_never_relock() -> None:
+    """AU-TWF-10: every ``uv run`` the train starts is ``--frozen``, so it cannot rewrite ``uv.lock`` (and the gate's
+    ``uv lock --check`` sees the lock the branches committed)."""
+    commands = [list(c) for r in mt.RESOLVERS for c in (r.command, r.adopt, *(cmd for _t, _b, cmd in r.more)) if c]
+    for cmd in [*commands, *mt.default_gates(Path("/nonexistent"), "r")]:
+        if cmd[:2] == ["uv", "run"]:
+            assert cmd[2] == "--frozen", cmd
+
+
+@pytest.mark.parametrize("spelling", ["refs/heads/review/x", "heads/review/x", "refs/heads/review-base/x"])
+def test_a_review_branch_is_refused_however_it_is_spelled(clone: Path, sdir: Path, isolated_env: Path,
+                                                          spelling: str) -> None:
+    """AU-TWF-11: the refusal applies to the resolved ref, not to the argument's spelling."""
+    sha = _branch(clone, spelling.removeprefix("refs/").removeprefix("heads/"), {"r": "r"})
+    for arg in (spelling, sha):  # a bare commit at a review branch's tip too
+        assert _train(clone, sdir, "plan", arg, "--allow-unverified") == 2
+        assert "review branches are never merged" in _report(isolated_env)["refusals"][0]
+    _branch(clone, "reviewed-feature", {"f": "f"})  # a name that merely starts with "review" is admitted
+    assert _train(clone, sdir, "plan", "refs/heads/reviewed-feature", "--allow-unverified") == 0

@@ -37,6 +37,8 @@ __all__ = [
 ]
 
 BlockKind = Literal["text", "tool_use", "tool_result", "other"]
+#: The AER's integer domain (I-JSON, C.11.3): the largest count a typed ``usage`` member can hold (D-1063, review UC-39)
+MAX_COUNT: Final = 2**53 - 1
 
 #: Usage keys of each variant mapped to the AER ``Usage`` members (C.3.12); every other usage member is kept in ``ext``.
 USAGE_KEYS: Final[Mapping[str, Mapping[str, str]]] = {
@@ -235,7 +237,8 @@ def _usage(raw: object, variant: str) -> tuple[dict[str, int], dict[str, Any]]:
     extra: dict[str, Any] = {}
     for key, val in raw.items():
         name = table.get(key)
-        if name is not None and isinstance(val, int) and not isinstance(val, bool) and val >= 0:
+        # D-1063 (review UC-39): a count beyond the AER's integer domain (I-JSON, C.11.3) is never typed; kept in extra
+        if name is not None and isinstance(val, int) and not isinstance(val, bool) and 0 <= val <= MAX_COUNT:
             usage[name] = val
         else:
             extra[key] = val

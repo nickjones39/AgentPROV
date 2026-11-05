@@ -1,0 +1,157 @@
+# Source profile `drift1-agentdojo`: the new DRIFT-format run logs of CGboom-git/drift-1, a fork of SaFo-Lab/DRIFT: 616
+# gpt-4o-mini runs and 10 PACT-DRIFT runs (phase 10j; D-256, D-93, RT-9; docs/reports/phase10j/census.md §7).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10j census of
+# every selected log (tools/agentdojo/phase10j_profiles.py census), reconciled with the phase-10l census
+# (docs/reports/phase10l/census.md) and tools/agentdojo/phase10j_census.py.
+#
+# All logs are drift.k18.conversations, mapped by the DRIFT build (D-270). runs/gpt-4o-mini-2024-07-18/ holds 1,569 byte
+# copies of DRIFT head (select.owned_elsewhere, owner drift). The 10 PACT files carry six extra top-level keys, mapped
+# generically, and 9 CALL ERROR texts that match neither DRIFT check (drift.call_error_unrecognised, D-279); the PACT arm
+# stays in (RT-6 withdrawn). No LICENSE file: MIT by the README badge (D-93).
+
+[profile]
+id = "drift1-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "drift1-agentdojo"
+family = "agentdojo"
+parts = ["drift"]
+title = "drift-1 (CGboom-git/drift-1): DRIFT-format logs of gpt-4o-mini, including a PACT-DRIFT arm"
+evidence = ["docs/reports/systematic-search/candidates/agentdojo-format-shortlist.md §2 (held, D-93)", "docs/reports/phase10l/routing.md RT-9", "docs/reports/phase10j/census.md §7"]
+
+[source]
+canonical_repo = "https://github.com/CGboom-git/drift-1"
+paper = "none (fork of SaFo-Lab/DRIFT, arXiv:2506.12104)"
+package = { name = "agentdojo", requirement = "requirements.txt of the fork (DRIFT's agentdojo==0.1.35)", version_identifies_code = false }
+
+[[source.pins]]
+role = "drift"
+part = "drift"
+primary = true
+kind = "git"
+commit = "0e28729b4d9a6f466ba4803ccdc18a842c50cd20"
+note = "the default branch at 2026-10-11 (phase 10c); 2,195 DRIFT logs, 626 new"
+
+[licence]
+spdx = "MIT"
+holders = ["CGboom-git (drift-1)", "Hao Li (DRIFT)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT, README badge only; LICENSE file missing (D-93: a README statement counts, LIC rule 1)"
+attribution = [
+  "CGboom-git/drift-1 (MIT by README badge), commit 0e28729b4d9a6f466ba4803ccdc18a842c50cd20",
+  "DRIFT (MIT, (c) 2026 Hao Li; arXiv:2506.12104), AgentDojo and AgentDyn (MIT): the code and benchmark text behind the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["SaFo-Lab/DRIFT (fork), agentdojo==0.1.35 (not verified, D-24, D-272)"]
+vendored = []
+duplicates = [
+  { of = "drift", path = "runs/gpt-4o-mini-2024-07-18/**", relation = "byte_identical", owner = "drift" },
+]
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["drift.k18.conversations"]
+rules = { aer = 1, agentdojo = 2, drift = 1 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "runs/gpt-4o-mini-2024-07-18/**", code = "select.owned_elsewhere", owner = "drift", note = "1,569 byte copies of DRIFT head (verify/drift.md §7)" },
+]
+layout = "runs/{model_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+context_artefacts = ["README.md", "requirements.txt"]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/drift1_model_dirs.toml", sha256 = "dc5b3c42d48cc6aa4918032eb5abac6c574daee5ca93d9db86f7e40e5f55df95" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo", dailylife = "agentdyn", github = "agentdyn", shopping = "agentdyn" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version_for_agentdojo_suites_only"
+dos_attacks = []
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no log names its code; DRIFT's readings are cited through their `_unverified` twins (D-272)
+code_identity = "unpinned"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_tool_output_post_isolation"
+applies = {}
+rules = ["drift.tool_output_post_isolation@1"]
+observed = { drift = { isolation_decisions = 2071, tool_messages = 2206 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_assistant_reserialised"
+applies = {}
+rules = ["drift.assistant_reserialised@1"]
+observed = { drift = { raw = 346, reserialised = 2617 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_call_error_as_user"
+applies = {}
+rules = ["drift.call_error_user_is_validator@1", "drift.call_error_check@1"]
+observed = { drift = { checklist = 198, files = 173, messages = 266, trajectory = 59 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_calls_in_text_not_executed"
+applies = {}
+rules = ["drift.calls_in_text_not_executed@1"]
+observed = { drift = { final_turns = 78, raw = 0, reserialised = 78 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_no_system_no_injections"
+applies = {}
+rules = ["drift.no_system_message@1", "drift.no_injection_map@1"]
+observed = { drift = { fixtures = 0, system_messages = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_plan_fields_by_commit"
+applies = {}
+rules = ["drift.plan_fields_semantics@1"]
+params = { semantics = "initial_plan" }
+observed = { drift = { contradicted = 0, final_plan_state = 0, initial_plan = 626 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["drift.benign_security_constant@1"]
+observed = { drift = { files = 97 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = {}
+rules = ["agentdojo.args_are_effective@1"]
+observed = { drift = { files = 611 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1"]
+params = { seeded_random_trace_local = ["**"] }
+observed = { drift = { null_ids = 0, logs_with_null_ids = 0, logs_with_repeated_ids = 0, logs_with_duplicate_ids = 0 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "drift.benign_security_constant@1",
+  "agentdojo.checker_outcome@1",
+]

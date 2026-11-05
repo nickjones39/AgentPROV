@@ -57,6 +57,7 @@ __all__ = [
     "exit_code_for",
     "format_exception_safe",
     "install_signal_handlers",
+    "interrupts_deferred",
     "normalised_options",
     "outcome_for",
     "redact_personal",
@@ -615,6 +616,38 @@ class Interrupted(KeyboardInterrupt):
             self.signal_name = f"signal {signum}"
 
 
+class _Deferral:
+    """The state of :func:`interrupts_deferred` (main thread only): how deep the critical sections nest and the first
+    interrupting signal that arrived inside one."""
+
+    depth = 0
+    pending: int | None = None
+
+
+@contextmanager
+def interrupts_deferred() -> Iterator[None]:
+    """A critical section of the main thread (AU-RN-7): the first SIGINT, SIGTERM or SIGHUP (or the control watcher's
+    simulated SIGTERM) that arrives inside it is held and raised as :class:`Interrupted` when the outermost section ends
+    normally; a second one still exits at once. A section that ends with its own exception propagates that exception
+    and drops the held signal (the command is ending either way). Outside the main thread, or without
+    :func:`install_signal_handlers`, nothing is deferred."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    _Deferral.depth += 1
+    try:
+        yield
+    except BaseException:
+        _Deferral.depth -= 1
+        if _Deferral.depth == 0:
+            _Deferral.pending = None
+        raise
+    _Deferral.depth -= 1
+    if _Deferral.depth == 0 and _Deferral.pending is not None:
+        signum, _Deferral.pending = _Deferral.pending, None
+        raise Interrupted(signum)
+
+
 @contextmanager
 def install_signal_handlers() -> Iterator[None]:
     """First SIGINT, SIGTERM or SIGHUP raises :class:`Interrupted` (a :class:`KeyboardInterrupt`) in the main thread
@@ -630,6 +663,7 @@ def install_signal_handlers() -> Iterator[None]:
         yield
         return
     count = 0
+    _Deferral.pending = None
 
     def handler(signum: int, frame: object) -> None:
         nonlocal count
@@ -637,6 +671,9 @@ def install_signal_handlers() -> Iterator[None]:
         if count > 1:
             _kill_backend_workers()
             os._exit(130)
+        if _Deferral.depth:  # inside a critical section: raised when it ends (interrupts_deferred)
+            _Deferral.pending = signum
+            return
         raise Interrupted(signum)
 
     saved: list[tuple[int, Any]] = []

@@ -290,3 +290,18 @@ def test_a_secret_inside_an_own_link_segment_or_beside_one_is_still_caught() -> 
 ])
 def test_other_urls_get_the_full_check(text: str) -> None:
     assert SH.leak_hits(text) == [m.group(0) for m in SH.LEAKS.finditer(text)]
+
+
+# AU-GUI-4: the Windows account-path shape matched only a doubled backslash (``C:\\Users`` in a raw string), so a
+# real path with one backslash passed the guard; it matches either now, with any drive letter
+@pytest.mark.parametrize("text", [
+    r"C:\Users\alice\AppData\Local\agentprov",
+    r"d:\Users\bob",
+    r"C:\\Users\\alice",  # JSON-escaped
+])
+def test_windows_account_paths_match(text: str) -> None:
+    assert SH.leak_hits(text), text
+
+
+def test_windows_shape_needs_the_users_folder() -> None:
+    assert not SH.leak_hits(r"C:\Program Files\agentprov")

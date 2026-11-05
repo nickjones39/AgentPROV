@@ -24,6 +24,8 @@ from typing import Any, Final
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QFrame,
     QHBoxLayout,
     QLineEdit,
     QListWidget,
@@ -31,13 +33,14 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSplitter,
-    QVBoxLayout,
     QWidget,
 )
 
 from agentprov_gui import __version__
 from agentprov_gui import text as T
 from agentprov_gui.guide import BUNDLED, chapter_files, pick_guide
+from agentprov_gui.ui.brand import SourceListDelegate, command_card, page_layout
+from agentprov_gui.ui.forms import FormSection, StatusBadge, SummaryPanel, caption, heading
 from agentprov_gui.ui.safe import DocView, ReadOnlyText, SafeLabel, set_control_tooltip
 
 __all__ = ["AssistantPage", "DocsPage", "chapters", "slug"]
@@ -117,9 +120,14 @@ class DocsPage(QWidget):
         self.source = "none"  # checkout | bundled | none
         self.current: Path | None = None
         self.history: list[Path] = []
-        lay = QVBoxLayout(self)
+        lay, head, self.note = page_layout(self, "Docs", caption_name="Docs status")
+        self.source_badge = StatusBadge("", name="Guide source", parent=self)
+        set_control_tooltip(self.source_badge, "Which user guide this page reads: the checkout's own, or the copy that "
+                                               "came with the app.")
+        head.addWidget(self.source_badge)
         bar = QHBoxLayout()
-        self.back_btn = QPushButton("Back", self)
+        bar.setSpacing(8)
+        self.back_btn = QPushButton("‹ Back", self)
         self.back_btn.setAccessibleName("Back to the previous chapter")
         self.back_btn.clicked.connect(self.back)
         set_control_tooltip(self.back_btn, "Goes back to the chapter shown before this one.")
@@ -135,22 +143,36 @@ class DocsPage(QWidget):
         set_control_tooltip(self.settings_btn,
                             "Opens Settings › General, where the AgentPROV checkout whose user guide this page reads "
                             "is set.")
+        self.note.setVisible(True)  # the guide it reads (set_checkout fills it)
         bar.addWidget(self.back_btn)
         bar.addWidget(self.find_field, 1)
         bar.addWidget(self.settings_btn)
         lay.addLayout(bar)
-        self.note = SafeLabel("", name="Docs status", parent=self)
-        self.note.setWordWrap(True)
-        lay.addWidget(self.note)
         split = QSplitter(Qt.Orientation.Horizontal, self)
-        self.toc = QListWidget(split)
+        split.setChildrenCollapsible(False)
+        split.setHandleWidth(18)
+        chapters_card = FormSection("", parent=split)
+        chapters_card.setMaximumWidth(320)
+        self.toc = QListWidget(chapters_card.card)
         self.toc.setAccessibleName("Chapters")
-        self.toc.setMaximumWidth(320)
+        self.toc.setFrameShape(QFrame.Shape.NoFrame)
+        self.toc.setItemDelegate(SourceListDelegate(self.toc))  # the sidebar's source-list rows (D-1060)
+        self.toc.setMouseTracking(True)
+        self.toc.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.toc.setStyleSheet("QListWidget { background: transparent; border: none; outline: 0; }")
         set_control_tooltip(self.toc, "The chapters of the user guide (the checkout's docs/user-guide folder, else the "
                                       "copy that comes with the app); choose one to read it.")
-        self.view = DocView(name="Chapter", parent=split)
-        split.addWidget(self.toc)
-        split.addWidget(self.view)
+        chapters_card.add(self.toc)
+        chapters_card.card.setSizePolicy(chapters_card.card.sizePolicy().horizontalPolicy(),
+                                         chapters_card.card.sizePolicy().Policy.Expanding)
+        reader = FormSection("", parent=split)
+        self.view = DocView(name="Chapter", parent=reader.card)
+        self.view.setFrameShape(QFrame.Shape.NoFrame)
+        self.view.setStyleSheet("QTextBrowser { background: transparent; border: none; }")
+        reader.add(self.view)
+        reader.card.setSizePolicy(reader.card.sizePolicy().horizontalPolicy(), reader.card.sizePolicy().Policy.Expanding)
+        split.addWidget(chapters_card)
+        split.addWidget(reader)
         split.setStretchFactor(1, 1)
         lay.addWidget(split, 1)
         self.toc.currentItemChanged.connect(self._picked)
@@ -172,6 +194,8 @@ class DocsPage(QWidget):
         self.toc.blockSignals(False)
         self.settings_btn.setVisible(self.source != "checkout")
         self.back_btn.setEnabled(False)
+        self.source_badge.set_status(*(("No guide", "warn") if not found else ("The checkout's guide", "ok")
+                                       if self.source == "checkout" else ("The app's copy of the guide", "info")))
         if not found:
             self.view.clear()
             self.note.set_plain("No user guide here: no AgentPROV checkout with a docs/user-guide folder is set in "
@@ -284,49 +308,79 @@ class AssistantPage(QWidget):
         self.loaded = False
         self.busy = False
         self.generation = 0  # a reply that arrives after New Chat belongs to the old session and is dropped
+        self._settings_seq = 0  # AU-GUI-2: a settings read that lands after a newer one is dropped
         self.page: str | None = None  # the page beside the Assistant tab (D-1041; set by the main window)
-        lay = QVBoxLayout(self)
-        top = QHBoxLayout()
-        self.status = SafeLabel("Reading the Assistant settings…", name="Assistant status", parent=self)
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        chat = QWidget(self)
+        lay, head, _note = page_layout(chat, "Assistant", caption_text=(
+            "Ask how to do something in AgentPROV. A reply is model output, shown as plain text: nothing in it is "
+            "followed or run."))
+        self.new_btn = QPushButton("New Chat", chat)
+        self.new_btn.setAccessibleName("Clear the chat and start a new one")
+        self.new_btn.clicked.connect(self.new_chat)
+        set_control_tooltip(self.new_btn, "Clears the conversation and starts a new one; a reply still on its way is "
+                                          "dropped.")
+        head.addWidget(self.new_btn)
+        conversation = FormSection("", parent=chat)
+        self.transcript = ReadOnlyText(name="Conversation", parent=conversation.card, wrap=True)
+        self.transcript.setFrameShape(QFrame.Shape.NoFrame)
+        self.transcript.setStyleSheet("QPlainTextEdit { background: transparent; border: none; }")
+        self.transcript.setPlaceholderText("The conversation shows here.")
+        conversation.add(self.transcript)
+        conversation.card.setSizePolicy(conversation.card.sizePolicy().horizontalPolicy(),
+                                        conversation.card.sizePolicy().Policy.Expanding)
+        lay.addWidget(conversation, 1)
+        composer = FormSection("", parent=chat)
+        self.input = QPlainTextEdit(composer.card)
+        self.input.setAccessibleName("Your message")
+        self.input.setPlaceholderText("Ask how to do something in AgentPROV (⌘↩ or Ctrl+Enter sends)")
+        self.input.setMaximumHeight(110)
+        self.input.setFrameShape(QFrame.Shape.NoFrame)
+        self.input.setStyleSheet("QPlainTextEdit { background: transparent; border: none; }")
+        set_control_tooltip(self.input, "Your question about AgentPROV. ⌘↩ or Ctrl+Enter sends it, with the earlier "
+                                        "turns of this conversation.")
+        composer.add(self.input)
+        bottom_row = QWidget(composer.card)
+        bottom = QHBoxLayout(bottom_row)
+        bottom.setContentsMargins(0, 0, 0, 0)
+        self.privacy = caption("", name="What is sent", parent=bottom_row)
+        self.send_btn = QPushButton("Send", bottom_row)
+        self.send_btn.setAccessibleName("Send the message to the Assistant")
+        self.send_btn.setProperty("apvRole", "primary")  # the blue default action (D-1060)
+        self.send_btn.clicked.connect(self.send)
+        set_control_tooltip(self.send_btn, "Sends the message through agentprov assist, with the passages of the "
+                                           "guide, the CLI help and the code docs that best match it.")
+        bottom.addWidget(self.privacy, 1)
+        bottom.addWidget(self.send_btn, 0, Qt.AlignmentFlag.AlignBottom)
+        composer.add(bottom_row)
+        lay.addWidget(composer)
+        outer.addWidget(chat, 1)
+        # the summary panel: the model in use and its state, and the terminal command each message runs
+        panel = SummaryPanel(name="Assistant summary", parent=self, width=300)
+        panel.add(heading("Model", name="Model heading", parent=panel.inner))
+        card, card_lay = panel.card(name="Assistant model")
+        self.state = StatusBadge("", name="Assistant state", parent=card)
+        set_control_tooltip(self.state, "Whether the Assistant can answer: its model and server or provider are set "
+                                        "in Settings › Assistant.")
+        card_lay.addWidget(self.state)
+        self.status = SafeLabel("Reading the Assistant settings…", name="Assistant status", parent=card)
         self.status.setWordWrap(True)
         set_control_tooltip(self.status, "The model and the server or provider the Assistant uses, from Settings › "
                                          "Assistant.", active=lambda: self.ready)
-        self.settings_btn = QPushButton("Open Settings…", self)
+        card_lay.addWidget(self.status)
+        self.settings_btn = QPushButton("Open Settings…", card)
         self.settings_btn.setAccessibleName("Open Settings to set up the Assistant")
         self.settings_btn.clicked.connect(lambda: self.settings_requested.emit("Assistant" if self.loaded else
                                                                                "General"))
         set_control_tooltip(self.settings_btn,
                             "Opens Settings › Assistant to choose the server or API provider and the model, or "
                             "Settings › General when there is no agentprov to run.")
-        self.new_btn = QPushButton("New Chat", self)
-        self.new_btn.setAccessibleName("Clear the chat and start a new one")
-        self.new_btn.clicked.connect(self.new_chat)
-        set_control_tooltip(self.new_btn, "Clears the conversation and starts a new one; a reply still on its way is "
-                                          "dropped.")
-        top.addWidget(self.status, 1)
-        top.addWidget(self.settings_btn)
-        top.addWidget(self.new_btn)
-        lay.addLayout(top)
-        self.transcript = ReadOnlyText(name="Conversation", parent=self, wrap=True)
-        lay.addWidget(self.transcript, 1)
-        self.input = QPlainTextEdit(self)
-        self.input.setAccessibleName("Your message")
-        self.input.setPlaceholderText("Ask how to do something in AgentPROV (⌘↩ or Ctrl+Enter sends)")
-        self.input.setMaximumHeight(110)
-        set_control_tooltip(self.input, "Your question about AgentPROV. ⌘↩ or Ctrl+Enter sends it, with the earlier "
-                                        "turns of this conversation.")
-        lay.addWidget(self.input)
-        bottom = QHBoxLayout()
-        self.privacy = SafeLabel("", name="What is sent", parent=self)
-        self.privacy.setWordWrap(True)
-        self.send_btn = QPushButton("Send", self)
-        self.send_btn.setAccessibleName("Send the message to the Assistant")
-        self.send_btn.clicked.connect(self.send)
-        set_control_tooltip(self.send_btn, "Sends the message through agentprov assist, with the passages of the "
-                                           "guide, the CLI help and the code docs that best match it.")
-        bottom.addWidget(self.privacy, 1)
-        bottom.addWidget(self.send_btn)
-        lay.addLayout(bottom)
+        card_lay.addWidget(self.settings_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        self.command_card = command_card(panel.inner)
+        panel.add(self.command_card)
+        outer.addWidget(panel)
         for keys in ("Ctrl+Return", "Ctrl+Enter"):
             shortcut = QShortcut(QKeySequence(keys), self.input)
             shortcut.activated.connect(self.send)
@@ -357,7 +411,14 @@ class AssistantPage(QWidget):
                 return None
             return values if isinstance(values, dict) else None
 
-        submit(self, work, self._configured, lambda _code: self._configured(None))
+        self._settings_seq += 1
+        seq = self._settings_seq
+
+        def done(values: dict[str, Any] | None) -> None:
+            if seq == self._settings_seq:  # else a newer read (Settings › OK) is running or has answered
+                self._configured(values)
+
+        submit(self, work, done, lambda _code: done(None))
 
     def _configured(self, values: dict[str, Any] | None) -> None:
         self.loaded = values is not None
@@ -411,6 +472,30 @@ class AssistantPage(QWidget):
         self.send_btn.setEnabled(self.ready and not self.busy)
         self.input.setEnabled(self.ready)
         self.new_btn.setEnabled(bool(self.messages) or self.busy)
+        if not self.loaded:
+            self.state.set_status("No agentprov to run", "bad")
+        elif not self.ready:
+            self.state.set_status("Not set up", "warn")
+        else:
+            self.state.set_status("Waiting for the reply" if self.busy else "Ready", "info" if self.busy else "ok")
+        if self.ready:
+            stdin = "the conversation" + (f" and the page name ({self.page})" if self.page in ASSIST_PAGES else "")
+            self.command_card.set_commands([(f"{stdin} go on stdin as {REQUEST_FORMAT} JSON; for one question, add "
+                                             "--question TEXT", self.assist_argv())])
+        else:
+            self.command_card.set_commands([], note="Set up the Assistant in Settings › Assistant to see its command.")
+
+    def assist_argv(self) -> list[str]:
+        """The ``agentprov assist`` arguments each message runs (and the terminal command card shows): the model, the
+        endpoint or local server, the key from the keychain only (never a key in the arguments, D-702) and
+        ``--allow-network`` for an API provider."""
+        argv = ["assist", "--model-id", str(self.model), "--keychain", "--format", "json"]
+        for option, value in (("--endpoint", self.endpoint), ("--server", self.server), ("--base-url", self.base_url)):
+            if value is not None:
+                argv += [option, value]
+        if not self.local:
+            argv.append("--allow-network")
+        return argv
 
     def set_page(self, page: str | None) -> None:
         """The page beside the Assistant tab (D-1041): its name goes with the next message."""
@@ -442,12 +527,7 @@ class AssistantPage(QWidget):
         self._render(pending=True)
         self._refresh_controls()
         request = request_bytes(self.messages, self.page)
-        argv = ["assist", "--model-id", str(self.model), "--keychain", "--format", "json"]
-        for option, value in (("--endpoint", self.endpoint), ("--server", self.server), ("--base-url", self.base_url)):
-            if value is not None:
-                argv += [option, value]
-        if not self.local:
-            argv.append("--allow-network")
+        argv = self.assist_argv()
         generation = self.generation
         submit(self, lambda _s: self._call(argv, request), lambda r: self._answered(generation, r),
                lambda code: self._answered(generation, (124, b"", code.encode())))

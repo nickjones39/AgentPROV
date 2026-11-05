@@ -129,18 +129,62 @@ def test_info_without_backend_environments_says_none_built(cli, host_probe, monk
     assert "backend envs      none built" in cli("info").out
 
 
+@pytest.mark.parametrize(("arch", "features"), [
+    ("x86_64", ["live_runs", "sandbox_exec", "job_queue"]),
+    ("arm64", ["live_runs", "backend_build", "sandbox_exec", "job_queue"]),
+])
+def test_info_reports_what_windows_cannot_use_and_why(cli, host_probe, simulate_host, arch, features):
+    """D-1064: ``platform`` (JSON) and the Platform section (text) list the features unavailable here, with the reason
+    and where they work; the desktop app disables them from this member."""
+    from agentprov.platforms import unavailable
+
+    simulate_host("Windows", arch)
+    data = json.loads(cli("info", "--format", "json").out)
+    plat = data["platform"]
+    assert plat["system"] == "Windows" and plat["machine"] == arch
+    assert [hit["feature"] for hit in plat["unavailable"]] == features
+    live = plat["unavailable"][0]
+    expected = unavailable("live_runs", "Windows", arch)
+    assert expected is not None and live == expected.to_json()
+    assert live["works_on"] == "macOS and Linux" and live["guide"] == "docs/user-guide/07-live-runs.md#platforms"
+    out = cli("info").out
+    assert "\nPlatform\n" in out and f"  system / arch     Windows / {arch}" in out
+    assert f"  unavailable here  {expected.message()}" in out
+
+
+@pytest.mark.parametrize(("system", "arch", "features"), [("Darwin", "arm64", []), ("Linux", "x86_64", ["sandbox_exec"]),
+                                                          ("Linux", "aarch64", ["sandbox_exec"])])
+def test_info_on_macos_and_linux_reports_no_live_limit(cli, host_probe, simulate_host, system, arch, features):
+    simulate_host(system, arch)
+    plat = json.loads(cli("info", "--format", "json").out)["platform"]
+    assert [hit["feature"] for hit in plat["unavailable"]] == features
+    if not features:
+        assert "unavailable here  none (no known platform limit applies)" in cli("info").out
+
+
+def test_info_source_json_carries_the_platform_member_too(cli, simulate_host):
+    """D-1064: ``info SOURCE --format json`` (no host probe) has the same ``platform`` member as plain ``info``."""
+    simulate_host("Windows", "arm64")
+    data = json.loads(cli("info", "agentdojo", "--format", "json").out)
+    assert data["source_id"] == "agentdojo" and data["platform"]["system"] == "Windows"
+    assert [hit["feature"] for hit in data["platform"]["unavailable"]] == ["live_runs", "backend_build", "sandbox_exec",
+                                                                          "job_queue"]
+
+
 @pytest.mark.parametrize("flags", [["--matrix"], ["--must-not-claim"]])
 def test_info_claims_dependent_forms_are_refused_not_invented(cli, host_probe, flags):
     run = cli("info", *flags, "--json")
     assert run.code == 5
-    assert run.json()["refusal"]["status"] == "the claims library is not part of this build"
+    assert run.json()["refusal"]["status"] == "not built yet"
+    # AU-CLIA-5: the claims library ships (validate --card uses it); the refusal must not say it is absent
+    assert "not part of this build" not in run.err and "is present" in run.err
 
 
 @pytest.mark.parametrize("flags", [["agentdojo"], ["--source", "agentdojo"]])
 def test_info_source_shows_parts_profiles_pins_and_licence(cli, host_probe, flags):
     run = cli("info", *flags)
     assert run.code == 0
-    for token in ("2024-06: role source", "agentdojo-upstream v2 sha256", "pin 2024-06: git", "c274885610efaaafec38b6d3eb07152ba7ff3f94",
+    for token in ("2024-06: role source", "agentdojo-upstream v3 sha256", "pin 2024-06: git", "c274885610efaaafec38b6d3eb07152ba7ff3f94",
                   "policy include", "Evidence"):
         assert token in run.out
     data = json.loads(cli("info", *flags, "--format", "json").out)
@@ -222,10 +266,6 @@ def test_import_spec_replaces_the_source_argument(cli, tmp_path):
     spec.write_text("")
     run = cli("import", "--spec", str(spec), "--corpus", str(tmp_path / "c"), "--input", str(tmp_path), "--json")
     assert run.code == 5 and run.json()["refusal"]["id"] == str(spec)
-
-
-def test_import_requires_a_corpus(cli, tmp_path):
-    assert cli("import", "agentdojo", "--snapshot", "2024-06", "--input", str(tmp_path)).code == 2
 
 
 def test_import_requires_a_source_unless_a_spec_is_given(cli, tmp_path):

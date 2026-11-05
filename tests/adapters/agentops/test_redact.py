@@ -62,7 +62,7 @@ def test_tool_output_is_redacted_and_model_text_is_not():
     for tool, pointers in zip(tools, (["/parts/0/text"], ["/parts/0/value/stderr", "/parts/0/value/stdout"]), strict=True):
         listed = sorted(e["p"] for e in tool["ext"]["agentops"]["redacted"])
         assert listed == pointers
-        assert {e["rule"] for e in tool["ext"]["agentops"]["redacted"]} == {f"{support.PROFILE}@2#macos_account"}
+        assert {e["rule"] for e in tool["ext"]["agentops"]["redacted"]} == {f"{support.PROFILE}@3#macos_account"}
         assert all(tool["evf"][p] == "D" for p in pointers)
         assert {f"{RULE}#{p}" for p in pointers} <= set(tool["rule"])
     # model text, call arguments and the final output stay verbatim (D-604)
@@ -153,7 +153,7 @@ def test_the_withhold_policy_is_object_scope_personal_data():
     from agentprov.corpus.withhold import load_policy
 
     data = (support.REPO / "src/agentprov/adapters/agentops/profiles" / f"{support.PROFILE}.profile.toml").read_bytes()
-    policy = load_policy(data, profile_id=support.PROFILE, profile_version=2, catalogues={"aer": 1, "agentops": 2})
+    policy = load_policy(data, profile_id=support.PROFILE, profile_version=3, catalogues={"aer": 1, "agentops": 3})
     assert policy is not None
     assert [(r.id, r.kind, r.scope, r.reason) for r in policy.rules] == [("account-path", "pattern", "object",
                                                                           "personal_data")]

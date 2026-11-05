@@ -260,6 +260,27 @@ def test_raw_view_resolves_locators_and_shows_excerpts_only_with_show_content(cl
     assert broken.code == 0  # a locator that does not resolve is reported, not raised
 
 
+@pytest.mark.parametrize("bad", [{"after": 5, "rule": 7, "src": 3}, {"after": "x", "rule": {"r": 1}, "src": [3]}])
+def test_members_of_the_wrong_type_are_an_invalid_aer_not_an_internal_error(cli, raw_store, tmp_path, bad):
+    """AU-CLIA-4: the seal digest says nothing about member types; a resealed file with an int ``after`` is refused (2)."""
+    import aer_support as s
+
+    from agentprov.aer.canon import dumps_line
+
+    records = [dict(r) for r in s.example_records()]
+    target = next(r for r in records if r.get("id") == "m0")
+    target.update(bad)
+    path = tmp_path / "crafted.aer.jsonl"
+    path.write_bytes(b"".join(dumps_line(r) for r in [*records, s.seal_record(records)]))
+    corp = tmp_path / "corp"
+    shutil.copytree(raw_store, corp.with_name("corp.partial") / "raw")
+    for view in ("timeline", "evidence"):
+        run = cli("inspect", str(path), "--view", view)
+        assert run.code == 2 and "not a valid AER" in run.err and "internal error" not in run.err, (view, run.err)
+    raw = cli("inspect", str(path), "--view", "raw", "--record", "m0", "--corpus", str(corp))
+    assert raw.code == 2 and "not a valid AER" in raw.err and "internal error" not in raw.err, raw.err
+
+
 def test_detect_reports_each_dialect_and_the_key_set_without_mapping(cli, tmp_path):
     path = tmp_path / "log.json"
     path.write_text(json.dumps({"suite_name": "workspace", "bad\x1bkey": 1}))

@@ -64,7 +64,7 @@ def test_deposit_composition_and_manifest(mit, tmp_path):
     names = sorted(p.name for p in out.iterdir())
     assert {"README.md", "CHANGELOG.md", "DATASHEET-mini-mit.md", DEPOSIT_MANIFEST, DEPOSIT_METADATA,
             "mini-mit-v0.1.0.meta.zip", "mini-mit-v0.1.0.raw.001.zip", "mini-mit-v0.1.0.aer.001.zip",
-            "mini-mit-v0.1.0.sem-agentdojo.suites-2.001.zip", "mini-mit-v0.1.0.prov-agentprov-prov-0.1.001.zip"} == set(names)
+            "mini-mit-v0.1.0.sem-agentdojo.suites-4.001.zip", "mini-mit-v0.1.0.prov-agentprov-prov-0.1.001.zip"} == set(names)
     assert (out / "DATASHEET-mini-mit.md").read_bytes() == (mit / "DATASHEET.md").read_bytes()  # a byte copy (REP-3)
     dm = _deposit_manifest(out)
     assert dm["format"] == "agentprov-deposit-manifest/0.1" and dm["status"] == "draft-unpublished"

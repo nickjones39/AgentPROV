@@ -12,11 +12,39 @@ Every widget made here needs an accessible name (D-446).
 
 from __future__ import annotations
 
+import math
+import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import ClassVar, Final
 
-from PySide6.QtCore import QAbstractItemModel, QEvent, QModelIndex, QObject, Qt, QUrl
-from PySide6.QtGui import QHelpEvent, QImage, QPixmap, QTextDocument
+from PySide6.QtCore import (
+    QAbstractItemModel,
+    QEvent,
+    QMargins,
+    QMarginsF,
+    QModelIndex,
+    QObject,
+    QPoint,
+    QRect,
+    QRectF,
+    QSettings,
+    QSize,
+    Qt,
+    QUrl,
+)
+from PySide6.QtGui import (
+    QAction,
+    QColor,
+    QFont,
+    QGuiApplication,
+    QHelpEvent,
+    QImage,
+    QPainter,
+    QPen,
+    QPixmap,
+    QTextDocument,
+)
 from PySide6.QtGui import Qt as QtGuiNs
 from PySide6.QtWidgets import (
     QApplication,
@@ -26,31 +54,51 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QTableWidget,
     QTextBrowser,
+    QToolTip,
     QTreeWidget,
     QWidget,
 )
 
 from agentprov_gui import text as T
+from agentprov_gui.ui import theme
 
 __all__ = [
+    "TIP_FONT_PX",
+    "TIP_MAX_WIDTH",
+    "TIP_OFFSET",
+    "TIP_PADDING",
+    "TIP_RADIUS",
+    "TIP_SHADOW",
     "DocView",
     "ReadOnlyText",
     "SafeForm",
     "SafeImage",
     "SafeLabel",
+    "TooltipFilter",
     "help_tooltip",
+    "install_tooltip_filter",
+    "is_tip_label",
     "is_tooltip_role",
+    "pointer_scale",
     "safe_message_box",
     "safe_tooltip",
+    "screen_rect",
     "set_combo_item_tooltip",
     "set_control_tooltip",
     "set_header_tooltips",
+    "set_help_tooltip",
     "set_item_tooltip",
     "set_list_item_tooltip",
     "set_setting_tooltip",
     "set_tab_tooltip",
     "set_tooltip",
+    "set_tooltips_shown",
+    "set_unavailable_tooltip",
     "tab_text",
+    "tip_position",
+    "tip_size",
+    "tip_style",
+    "tooltips_shown",
 ]
 
 
@@ -100,6 +148,34 @@ def help_tooltip(value: object) -> str:
     return str(QtGuiNs.convertFromPlainText(T.line(value, 500), Qt.WhiteSpaceMode.WhiteSpaceNormal))
 
 
+def set_help_tooltip(widget: QWidget, value: object) -> None:
+    """Explanatory text (:func:`help_tooltip`) as ``widget``'s tooltip, shown whatever its state (a status badge whose
+    tip changes with the status)."""
+    widget.setToolTip(help_tooltip(value))
+
+
+#: D-1064: a control disabled because this platform cannot run the feature; its tooltip (why) shows while it is off
+UNAVAILABLE_TIP: Final = "apvUnavailableTip"
+_TIP_BEFORE: Final = "apvTipBefore"
+
+
+def set_unavailable_tooltip(target: QWidget | QAction, value: object | None) -> None:
+    """Why a control (a widget or a menu action) is unavailable on this platform (D-1064), as its tooltip, shown although
+    it is disabled (the in-use gate of :func:`set_setting_tooltip` lets it through). ``None`` puts the control's own
+    tooltip back. Enabling or disabling the control is the caller's."""
+    marked = bool(target.property(UNAVAILABLE_TIP))
+    if value is None:
+        if marked:
+            target.setProperty(UNAVAILABLE_TIP, False)
+            before = target.property(_TIP_BEFORE)
+            target.setToolTip(before if isinstance(before, str) else "")
+        return
+    if not marked:
+        target.setProperty(_TIP_BEFORE, target.toolTip() if isinstance(target, QWidget) else "")
+        target.setProperty(UNAVAILABLE_TIP, True)
+    target.setToolTip(help_tooltip(value))
+
+
 class _SettingTipGate(QObject):
     """Swallows a tooltip event unless the setting is in use (Qt shows tooltips on disabled widgets too)."""
 
@@ -113,13 +189,243 @@ class _SettingTipGate(QObject):
                 and (self.active is None or bool(self.active())))
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if event.type() != QEvent.Type.ToolTip:
+        if event.type() != QEvent.Type.ToolTip or watched.property(UNAVAILABLE_TIP):  # D-1064: says why it is off
             return False
         pointer = QApplication.widgetAt(event.globalPos()) if isinstance(event, QHelpEvent) else None
         if self.in_use(pointer):
             return False
         event.accept()  # the event stops here: no ancestor's tooltip is shown instead
         return True
+
+
+#: Where a tooltip's top-left corner goes from the pointer's hot spot, in points at the standard pointer size: just
+#: right of and below the macOS arrow, which reaches 10 × 17 points from its hot spot (the arrow's image is 28 × 40
+#: points, hot spot (4.5, 4)). Scaled by :func:`pointer_scale`, so a larger pointer does not cover the tip.
+TIP_OFFSET: Final = QPoint(4, 20)
+
+_POINTER_PREFS: list[QSettings] = []
+
+
+def pointer_scale() -> float:
+    """macOS Accessibility › Display › Pointer size (``mouseDriverCursorSize``, 1 to 4), which Qt multiplies into its
+    own cursor size; 1 elsewhere, or when it cannot be read. Read only, never written."""
+    if sys.platform != "darwin":
+        return 1.0
+    if not _POINTER_PREFS:
+        _POINTER_PREFS.append(QSettings(QSettings.Format.NativeFormat, QSettings.Scope.UserScope, "apple.com",
+                                        "universalaccess"))
+    try:
+        value = float(_POINTER_PREFS[0].value("mouseDriverCursorSize", 1.0))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 1.0
+    return min(4.0, max(1.0, value)) if math.isfinite(value) else 1.0
+
+
+def tip_position(anchor: QPoint, size: QSize, screen: QRect, scale: float = 1.0) -> QPoint:
+    """The top-left corner of a tooltip (or the graph's popover) of ``size`` for the pointer's hot spot at ``anchor``:
+    :data:`TIP_OFFSET` times ``scale``; left of the hot spot when that would cross the screen's right edge, above it
+    when it would cross the bottom, and then kept on ``screen`` (the clamping of Qt's ``QTipLabel::placeTip``)."""
+    x = anchor.x() + round(TIP_OFFSET.x() * scale)
+    y = anchor.y() + round(TIP_OFFSET.y() * scale)
+    if x + size.width() > screen.x() + screen.width():
+        x = anchor.x() - 4 - size.width()
+    if y + size.height() > screen.y() + screen.height():
+        y = anchor.y() - 4 - size.height()
+    x = max(screen.x(), min(x, screen.x() + screen.width() - size.width()))
+    y = max(screen.y(), min(y, screen.y() + screen.height() - size.height()))
+    return QPoint(x, y)
+
+
+def screen_rect(at: QPoint, widget: QWidget | None = None) -> QRect:
+    """The geometry of the screen under ``at`` (else ``widget``'s, else the primary screen's)."""
+    screen = QGuiApplication.screenAt(at) or (widget.screen() if widget is not None else None) \
+        or QGuiApplication.primaryScreen()
+    return screen.geometry() if screen is not None else QRect(at, QSize(1, 1))
+
+
+#: The tooltip's look (D-1060): a card of the current scheme (its colour, a hairline border, rounded corners and a soft
+#: shadow), text at :data:`TIP_FONT_PX` with :data:`TIP_PADDING` around it, wrapped at :data:`TIP_MAX_WIDTH`.
+TIP_MAX_WIDTH: Final = 360  # the card's widest (px): a longer explanation wraps into a block
+TIP_PADDING: Final = (6, 9)  # between the card's edge and the text (px): top and bottom, left and right
+TIP_RADIUS: Final = 8
+TIP_SHADOW: Final = QMargins(5, 3, 5, 7)  # the room around the card for its shadow (left, top, right, bottom; px)
+TIP_FONT_PX: Final = 12  # at the 13 px body size; it follows View › Bigger and Smaller
+
+
+def is_tip_label(widget: QObject) -> bool:
+    """Qt's tooltip label: a label that is a tooltip window (it has no object name yet when it is first polished)."""
+    return isinstance(widget, QLabel) and widget.isWindow() and widget.windowType() == Qt.WindowType.ToolTip
+
+
+def tip_style(t: theme.Tokens) -> str:
+    """The tooltip label's own style sheet (Qt's style sheets name its label ``QToolTip``): the text colour of ``t``, no
+    panel of Qt's (the filter paints the card), and the shadow's room and the padding around the text."""
+    m, (pv, ph) = TIP_SHADOW, TIP_PADDING
+    return (f"QToolTip {{ color: {t.text}; background: transparent; border: none; "
+            f"margin: {m.top()}px {m.right()}px {m.bottom()}px {m.left()}px; padding: {pv}px {ph}px; }}")
+
+
+def tip_font() -> QFont:
+    """The tooltip's font: the application's, at :data:`TIP_FONT_PX` of the 13 px body size."""
+    font = QFont(QApplication.font())
+    size = font.pointSizeF()
+    if size > 0:
+        font.setPointSizeF(max(7.0, size * TIP_FONT_PX / theme.TYPE["body"]))
+    return font
+
+
+def tip_size(label: QLabel) -> QSize:
+    """The size of a tooltip label: the card at most :data:`TIP_MAX_WIDTH` wide, as narrow as the text's lines at that
+    width allow (a short tip stays one short line; a long explanation wraps into a block), and as tall as the wrapped
+    text. Text that cannot wrap there (a long path or id, whose spaces do not break) keeps the size Qt gives it."""
+    hint = label.sizeHint()
+    cap = TIP_MAX_WIDTH + TIP_SHADOW.left() + TIP_SHADOW.right()
+    if not label.wordWrap() or label.minimumSizeHint().width() > cap:
+        return hint
+    height = label.heightForWidth(cap)
+    lo, hi = min(label.minimumSizeHint().width(), cap), cap  # the narrowest width that keeps the lines at the cap
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if label.heightForWidth(mid) > height:
+            lo = mid + 1
+        else:
+            hi = mid
+    return QSize(hi, height)
+
+
+def _paint_tip_card(label: QLabel) -> None:
+    """The card behind the tooltip's text: a soft shadow (rings fading outwards, a little lower than the card), then
+    the card's colour with a hairline border and rounded corners. The label paints its text over it."""
+    t = theme.tokens()
+    card = QRectF(label.rect()).marginsRemoved(QMarginsF(TIP_SHADOW))
+    p = QPainter(label)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setPen(Qt.PenStyle.NoPen)
+    rings = min(TIP_SHADOW.left(), TIP_SHADOW.right())
+    shade = QColor(0, 0, 0, 22 if theme.is_dark() else 12)
+    for i in range(rings, 0, -1):
+        p.setBrush(shade)
+        p.drawRoundedRect(card.adjusted(-i, -i + 2, i, i + 2), TIP_RADIUS + i, TIP_RADIUS + i)
+    p.setBrush(QColor(t.card))
+    p.setPen(QPen(QColor(t.card_border), 1))
+    p.drawRoundedRect(card.adjusted(0.5, 0.5, -0.5, -0.5), TIP_RADIUS, TIP_RADIUS)
+    p.end()
+
+
+class TooltipFilter(QObject):
+    """Every tooltip of the app passes here: installed once on the application (``app.py``,
+    :func:`install_tooltip_filter`), it sees each tooltip event before the widget, item view, header, tab bar or combo
+    popup that would answer it.
+
+    * Settings › Appearance › Show tooltips off (:func:`set_tooltips_shown`): every tooltip event is swallowed.
+    * On: Qt's tooltip label is placed at :func:`tip_position` of the pointer when it is shown or moved to a new tip.
+      Qt itself puts it a whole cursor image below the hot spot (``QTipLabel::placeTip``: ``QPlatformCursor::size()``
+      down, which on macOS is the arrow image's 40 points times the pointer size) for any tip more than half that
+      tall, which is every wrapped explanation, and beside the pointer for a shorter one.
+    * The look (D-1060): the label gets a translucent window before it first exists (no system shadow; its own soft
+      one), the current scheme's card colour, hairline border and text colour (:func:`tip_style`), the tooltip font
+      (:func:`tip_font`) and its size (:func:`tip_size`: a long explanation wraps at :data:`TIP_MAX_WIDTH`) whenever
+      it is shown or resized for a new tip, so a change of the appearance reaches the next tip.
+
+    The setting gates (:func:`set_setting_tooltip`) still decide first: a tip they swallow is never shown, so it is
+    never placed. The text is the widget's own (plain text, S1)."""
+
+    #: Settings › Appearance › Show tooltips (:func:`set_tooltips_shown`)
+    shown: ClassVar[bool] = True
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self.anchor: QPoint | None = None  # the hot spot of the latest tooltip event
+        self._placing = False
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        kind = event.type()
+        if kind == QEvent.Type.ToolTip:
+            if not TooltipFilter.shown:
+                event.accept()  # the event stops here: no ancestor's tooltip either
+                return True
+            if isinstance(event, QHelpEvent):
+                self.anchor = event.globalPos()
+            return False
+        if kind == QEvent.Type.Paint:
+            if is_tip_label(watched):
+                _paint_tip_card(watched)  # type: ignore[arg-type]
+            return False
+        if kind == QEvent.Type.Polish and is_tip_label(watched):
+            self.prepare(watched)  # type: ignore[arg-type]
+            return False
+        if kind in (QEvent.Type.Show, QEvent.Type.Move, QEvent.Type.Resize) and not self._placing \
+                and isinstance(watched, QWidget) and (watched.objectName() == "qtooltip_label" or is_tip_label(watched)):
+            if kind != QEvent.Type.Move and is_tip_label(watched):
+                self.style(watched)  # type: ignore[arg-type]
+            if self.anchor is not None:
+                self.place(watched, self.anchor)
+        return False
+
+    @staticmethod
+    def prepare(label: QLabel) -> None:
+        """Before the tooltip's window exists: translucent, so the card's corners and shadow show what is behind them,
+        and without the system's shadow (the card has its own)."""
+        label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        if label.windowHandle() is None:
+            label.overrideWindowFlags(label.windowFlags() | Qt.WindowType.NoDropShadowWindowHint)
+
+    def style(self, label: QLabel) -> None:
+        """The current scheme's style, the tooltip font and :func:`tip_size` (each set only when it changed)."""
+        if not label.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground):
+            self.prepare(label)  # a label made before the filter was installed
+        sheet = tip_style(theme.tokens())
+        if label.styleSheet() != sheet:
+            label.setStyleSheet(sheet)
+        font = tip_font()
+        if label.font() != font:
+            label.setFont(font)
+        if label.margin() or label.indent() > 0:
+            label.setMargin(0)
+            label.setIndent(0)
+        size = tip_size(label)
+        if label.size() != size:
+            self._placing = True
+            try:
+                label.resize(size)
+            finally:
+                self._placing = False
+
+    def place(self, label: QWidget, anchor: QPoint) -> None:
+        """Move Qt's tooltip ``label`` to :func:`tip_position` of ``anchor``. On a Show event the window is not on screen
+        yet, so it appears there directly."""
+        target = tip_position(anchor, label.size(), screen_rect(anchor, label), pointer_scale())
+        if label.pos() != target:
+            self._placing = True
+            try:
+                label.move(target)
+            finally:
+                self._placing = False
+
+
+_FILTER: list[TooltipFilter] = []
+
+
+def install_tooltip_filter(app: QApplication, *, shown: bool = True) -> TooltipFilter:
+    """The application's :class:`TooltipFilter`, installed on the first call; ``shown`` is Settings › Appearance › Show
+    tooltips."""
+    set_tooltips_shown(shown)
+    if not _FILTER:
+        _FILTER.append(TooltipFilter(app))
+        app.installEventFilter(_FILTER[0])
+    return _FILTER[0]
+
+
+def set_tooltips_shown(shown: bool) -> None:
+    """Settings › Appearance › Show tooltips: off swallows every tooltip (and the graph's popover); a tip already
+    showing is hidden."""
+    TooltipFilter.shown = bool(shown)
+    if not shown:
+        QToolTip.hideText()
+
+
+def tooltips_shown() -> bool:
+    return TooltipFilter.shown
 
 
 def set_setting_tooltip(widget: QWidget, value: object, *, subject: QWidget | None = None,
@@ -150,9 +456,9 @@ def set_header_tooltips(view: QTableWidget | QTreeWidget, tips: Sequence[str]) -
             item.setToolTip(help_tooltip(tip))
 
 
-def set_list_item_tooltip(item: object, value: object) -> None:
-    """A tooltip on a ``QListWidgetItem`` (one column)."""
-    item.setToolTip(safe_tooltip(value))  # type: ignore[attr-defined]
+def set_list_item_tooltip(item: object, value: object, *, wrap: bool = False) -> None:
+    """A tooltip on a ``QListWidgetItem`` (one column); ``wrap``: explanatory text (:func:`help_tooltip`)."""
+    item.setToolTip(help_tooltip(value) if wrap else safe_tooltip(value))  # type: ignore[attr-defined]
 
 
 def set_combo_item_tooltip(box: object, index: int, value: object) -> None:
@@ -346,12 +652,18 @@ def ask(parent: QWidget | None, title: str, text: str, informative: str = "", *,
     return box.exec() == ok
 
 
-def choose(parent: QWidget | None, title: str, text: str, informative: str, keep: str, other: str) -> bool:
-    """Two named buttons; ``keep`` is the default and the escape button. True when ``other`` (destructive) is chosen."""
+def choose(parent: QWidget | None, title: str, text: str, informative: str, keep: str, other: str, *,
+           tips: tuple[str, str] = ("", "")) -> bool:
+    """Two named buttons; ``keep`` is the default and the escape button. True when ``other`` (destructive) is chosen.
+    ``tips``: what each button does (``keep``'s, then ``other``'s)."""
     box = safe_message_box(parent, title, text, informative=informative, icon=QMessageBox.Icon.Warning,
                            buttons=QMessageBox.StandardButton.NoButton)
     keep_button = box.addButton(keep, QMessageBox.ButtonRole.RejectRole)
     other_button = box.addButton(other, QMessageBox.ButtonRole.DestructiveRole)
+    theme.mark_destructive(other_button)
+    for button, tip in zip((keep_button, other_button), tips, strict=True):
+        if tip:
+            button.setToolTip(help_tooltip(tip))
     box.setDefaultButton(keep_button)
     box.setEscapeButton(keep_button)
     box.exec()

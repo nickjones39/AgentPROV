@@ -334,7 +334,7 @@ def test_prov_and_sem_validate(mapped):
     from agentprov.sem.validate import validate_sem_document
     from agentprov.validate import validate_prov
 
-    profile = load_semantics_profile("geminicli.tools", 1)
+    profile = load_semantics_profile("geminicli.tools", 2)
     for crit, m in mapped.items():
         sem = validate_sem_document(m.sem, m.doc, catalogues=RuleRegistry.default(), mode="release", profile=profile)
         assert sem.ok, (crit, [f.code for f in sem.findings][:5])

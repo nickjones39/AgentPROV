@@ -56,7 +56,7 @@ def test_confirm_dialog_title_shows_the_placeholder_literally(qapp: Any, window:
     from agentprov_gui.ui import jobdialog
 
     label = "import · out" + PH + "x"
-    spec = SimpleNamespace(tier="R1", destructive=False, label=label, writes=(), notes=())
+    spec = SimpleNamespace(tier="R1", destructive=False, label=label, writes=(), notes=(), command="import", argv=())
     seen: list[str] = []
 
     def grab() -> None:

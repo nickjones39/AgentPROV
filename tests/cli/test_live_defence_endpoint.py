@@ -165,3 +165,30 @@ def test_a_cost_cap_is_refused_when_the_defence_endpoint_has_no_prices_of_its_ow
     _check_defence_caps(_args(max_calls=500), melon, spec)  # a call cap alone needs no prices
     loopback = {**spec, "endpoint": "ollama", "base_url": "http://127.0.0.1:11434/v1"}
     _check_defence_caps(_args(max_calls=500, max_cost_usd=1.0, price_in=1.0, price_out=1.0), melon, loopback)
+
+
+# ------------------------------------------------------------------------------------------------------------ AU-RN-3
+def _profile_ports(argv: list[str]) -> dict[str, str]:
+    pairs = [argv[i + 1] for i, a in enumerate(argv) if a == "-D"]
+    return {k: v for k, v in (p.split("=", 1) for p in pairs) if k.endswith("_PORT")}
+
+
+def test_a_loopback_defence_endpoint_on_another_port_gets_the_profile_s_second_loopback_port(tmp_path: Path) -> None:
+    """Under sandbox-exec a loopback agent (omlx :8000) and a loopback defence endpoint (ollama :11434, MELON's
+    embeddings) are both reached directly: the profile allows the agent's port and the defence's as LOOPBACK_PORT."""
+    from agentprov.cli.live.sandbox import wrap_argv
+    from agentprov.cli.run import _sandbox_targets
+
+    ollama = {"endpoint": "ollama", "base_url": "http://127.0.0.1:11434/v1"}
+    host, port, loopback, targets, second = _sandbox_targets("http://127.0.0.1:8000/v1", False, ollama, "agentdojo")
+    assert (port, loopback, targets, second) == (8000, True, [(host, 8000)], 11434)
+    argv = wrap_argv(["python"], staging_root=tmp_path, t2home_root=tmp_path, repo=tmp_path, home=tmp_path,
+                     egress_port=port, loopback_port=second)
+    assert _profile_ports(argv) == {"EGRESS_PORT": "8000", "LOOPBACK_PORT": "11434"}
+    # the same port, no defence endpoint, or a remote pair: the second slot stays the first one's
+    same = {"endpoint": "omlx", "base_url": "http://localhost:8000/v1"}
+    assert _sandbox_targets("http://127.0.0.1:8000/v1", False, same, "agentdojo")[4] is None
+    assert _sandbox_targets("http://127.0.0.1:8000/v1", False, None, "agentdojo")[4] is None
+    remote = {"endpoint": "openai", "base_url": "https://api.openai.com/v1"}
+    *_, targets, second = _sandbox_targets("https://openrouter.ai/api/v1", False, remote, "agentdojo")
+    assert second is None and targets == [("openrouter.ai", 443), ("api.openai.com", 443)]

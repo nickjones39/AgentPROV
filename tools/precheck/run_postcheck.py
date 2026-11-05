@@ -189,6 +189,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             if done.exists() and not a.force:
                 continue
             log = batch / f"{c.name}.{step}.{n}.log"
+            # an earlier run's CLI summary is never reduced as this run's: a --force rerun that dies before writing its
+            # own records summary None under its exit code
+            if summary is not None:
+                summary.unlink(missing_ok=True)
             started = time.time()
             with log.open("wb") as handle:
                 try:

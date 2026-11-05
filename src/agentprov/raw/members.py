@@ -65,7 +65,7 @@ from agentprov.io.workers import (
     WorkerLimitError,
     WorkerPool,
 )
-from agentprov.raw.origins import Origin, crc32_hex
+from agentprov.raw.origins import Origin, _lone_surrogate, crc32_hex
 from agentprov.raw.store import (
     ObjectMismatchError,
     PutResult,
@@ -547,6 +547,8 @@ def decode_members(data: bytes, limits: IngestLimits | None = None) -> list[Memb
     rows: list[MemberRow] = []
     try:
         for _, _, value in iter_jsonl(io.BytesIO(data), limits):
+            if _lone_surrogate(value):  # as decode_origins (D-1011): JCS cannot re-encode the row (UC-43)
+                raise MembersError("raw/members.jsonl holds a string with an escaped lone surrogate")
             rows.append(MemberRow.from_json(value))
     except IngestError as exc:
         raise MembersError(f"raw/members.jsonl is not strict JSONL ({exc.code})") from None

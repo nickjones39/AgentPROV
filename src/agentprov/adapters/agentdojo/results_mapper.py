@@ -50,8 +50,12 @@ from agentprov.adapters.agentdojo.mapper import (
     _loc,
     _Rec,
     declared_variants,
+    run_duration,
     tool_status,
 )
+from agentprov.adapters.agentdojo.not_inlined import ISSUE as I_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import RULE as R_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import not_inlined
 from agentprov.adapters.agentdojo.profile import FamilyTable, family_table
 from agentprov.adapters.agentdojo.redact import NAMESPACE_IRI, RULE as R_REDACTED, Redactor, parse_redact_rules
 from agentprov.adapters.agentdojo.results_reader import DIALECT_ID, FLAG_N_MISMATCH, MAPPED_VARIANTS
@@ -108,7 +112,8 @@ R_DURATION: Final = "rescont.duration_scope@1"
 R_LAST_PASS: Final = "rescont.last_pass_kept@1"
 R_SUITE_V1: Final = "rescont.suite_version_v1@1"
 R_SYSTEM: Final = "rescont.system_prompt_from_eval_script@1"
-R_REQUEST: Final = "rescont.request_built_from_messages@1"
+#: D-1063 (finding AU-RA-6): @2 is class I (the call input is inferred); @1, class D, is superseded
+R_REQUEST: Final = "rescont.request_built_from_messages@2"
 R_MELON: Final = "rescont.melon_block_message@1"
 R_REPEAT: Final = "rescont.repeat_prompt_copy@1"
 R_SPOT: Final = "rescont.spotlighting_delimiters@1"
@@ -249,6 +254,13 @@ class ResultsBuild:
     def issue(self, code: str, ids: Sequence[str], rule: str, *, severity: str = "warning", detail: str | None = None) -> None:
         self.ctx.issue(code, ids=list(ids), rule=self.ctx.rule(rule), severity=severity, detail=detail)  # type: ignore[arg-type]
 
+    def _not_inlined(self, records: Sequence[dict[str, Any]]) -> None:
+        """D-1063 (review UC-41; the D-934 pattern), after the redaction and surrogate passes: a string over 1 MiB is
+        replaced by its digest (:mod:`agentprov.adapters.agentdojo.not_inlined`), cited as given."""
+        changed = not_inlined(records, lambda p: self.ctx.rule(R_NOT_INLINED, p))
+        if changed:
+            self.issue(I_NOT_INLINED, changed, R_NOT_INLINED, severity="info")
+
     def quirk_on(self, quirk_id: str) -> bool:
         return self.fam.applies(quirk_id, self.facets)
 
@@ -313,6 +325,7 @@ class ResultsBuild:
         if redacted:
             self.ctx.issue("rescont.value_redacted", ids=["exec"], rule=self.ctx.rule(R_REDACTED), severity="info",
                            detail=str(redacted))
+        self._not_inlined((head, *records))
         for record in (head, *records):  # C.6.5 rule 1
             weaken_to_rule_class(record)
         cited = {str(ref).split(".", 1)[0] for r in (head, *records) for ref in r.get("rule", ())}
@@ -465,10 +478,12 @@ class ResultsBuild:
             body.append(rec)
 
     def _scopes(self, body: list[Any]) -> None:
-        run = _Rec(k="scope", id="run", kind="run", actor="agent", ev="O", by="source", src=[self.at("duration")],
-                   rule=[self.R(R_DURATION)],
-                   unk={"/status": "not_recorded", "/t/end": "not_recorded", "/t/start": "not_recorded"})
-        run.data["t"] = {"dur_s": run.enc(self.row["duration"], "/t/dur_s"), "dur_clock": "wall"}
+        # review UC-39: a duration outside the AER's range (negative, or beyond I-JSON) is kept raw and ambiguous (item 96)
+        t, dur_unk = run_duration(run := _Rec(k="scope", id="run", kind="run", actor="agent", ev="O", by="source",
+                                              src=[self.at("duration")], rule=[self.R(R_DURATION)]),
+                                  self.row["duration"])
+        run.data["unk"] = {"/status": "not_recorded", "/t/end": "not_recorded", "/t/start": "not_recorded", **dur_unk}
+        run.data["t"] = t
         body.append(run)
         if not self.messages:
             return
@@ -808,11 +823,14 @@ class ResultsBuild:
             pending = [pid for k, (pid, _call, linked) in enumerate(batch["calls"]) if not linked and k >= batch["results"]]
             if not pending:
                 continue
+            # AU-RA-5 (D-1063): both issues cite the rule's reading (D.5.4), as the TraceLogger and DRIFT mappers do, so an
+            # unverified harness infers the lost result (missing_tool_result is a loss code, H.3.2(2))
+            rule = self.cite.cite("agentdojo.unexecuted_trailing_calls@1")
             if batch["msg"] == self.last_assistant:
                 self.detect(Q_TRAILING)
-                self.issue("unexecuted_tool_call", pending, "agentdojo.unexecuted_trailing_calls@1")
+                self.issue("unexecuted_tool_call", pending, rule)
             else:
-                self.issue("missing_tool_result", pending, "agentdojo.unexecuted_trailing_calls@1", severity="error")
+                self.issue("missing_tool_result", pending, rule, severity="error")
 
     # ---------------------------------------------------------------------------------------------- judgements
     def _judgements(self, body: list[Any]) -> None:

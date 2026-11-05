@@ -1,0 +1,152 @@
+# Source profile `hilarytorn-trajectory-poisoning`: HilaryTorn/in-context-trajectory-poisoning, 990 TraceLogger logs of
+# gpt-4o-2024-05-13 on the slack suite: the baseline traces and the end-to-end runs of trajectory-poisoning attacks
+# (persona, seeded pairs, TAP) aimed at LLM agent monitors, 22 attack labels (phase 10d; shortlist row 16;
+# sources/agentdojo-format-candidates.md §3.17). The monitors are not part of the logs.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/hilarytorn@d71ab8bc2aa9.*).
+
+[profile]
+id = "hilarytorn-trajectory-poisoning"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "hilarytorn-trajectory-poisoning"
+family = "agentdojo"
+parts = ["head"]
+title = "In-context trajectory poisoning: AgentDojo 0.1.35 slack logs of gpt-4o (HilaryTorn/in-context-trajectory-poisoning)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/HilaryTorn/in-context-trajectory-poisoning"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", requirement = "agentdojo[transformers]==0.1.29 (requirements.txt)", logged_version = "0.1.35", version_identifies_code = false }
+
+# The pin covers the repository root (1,294 files): the traces, the attack and evaluation results and the scripts. The byte
+# total is not stated: 18 charts (PNG) were not fetched in phase 10c; the other 1,276 files hold 71,494,512 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "d71ab8bc2aa9db35ff443cc81e475e70ee8da215"
+date = "2026-05-26"
+expected_files = 1294
+note = "the default branch at 2026-10-11 (phase 10c); 990 logs under data/traces/"
+
+[licence]
+spdx = "MIT"
+holders = ["Hilary Torn"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin, (c) 2026 Hilary Torn; the logs embed AgentDojo benchmark text (MIT)"
+attribution = [
+  "HilaryTorn/in-context-trajectory-poisoning (MIT, (c) 2026 Hilary Torn), commit d71ab8bc2aa9db35ff443cc81e475e70ee8da215",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (requirements.txt pins 0.1.29, the logs say 0.1.35: the installed code is not identified)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["data/traces/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "data/traces/{arm?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the trace generator and the
+# attack scripts. The repository's agent-instruction file is never stored.
+context_artefacts = ["LICENSE", "README.md", "requirements.txt", "src/generate_traces.py", "src/e2e_evaluate.py", "src/priming_templates.py", "src/inject_priming.py"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# requirements.txt pins agentdojo 0.1.29 while every log records 0.1.35, so the code that wrote them is not
+# identified (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log, recognised by its upstream digest.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 45, origin_rule_applied = 45 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 45 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 990 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 6920, present_and_null = 6920 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

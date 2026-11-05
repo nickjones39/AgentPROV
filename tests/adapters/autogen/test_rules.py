@@ -4,6 +4,7 @@ coverage both ways."""
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 import tomllib
 from importlib import resources
@@ -20,12 +21,13 @@ ISSUE_CODES = {
     "aborted_attempt_events", "arguments_not_json", "block_effect_in_request_log", "block_subject_not_recorded",
     "guard_text_unjoined", "passage_not_in_document", "probe_join_missing", "response_unmatched",
     "task_template_mismatch", "tool_error_result",
+    "lone_surrogate_replaced", "content_not_inlined",  # catalogue version 2 (D-1063)
 }  # fmt: skip
 CODE_RULES = {"autogen.call_id_link@1", "autogen.execution_result_status@1", "autogen.arguments_decoded@1"}
 
 
 def catalogue():
-    return load_catalogue("autogen", 1, package=PACKAGE)
+    return load_catalogue("autogen", 2, package=PACKAGE)  # current since D-1063; v1 is archived
 
 
 def _doc() -> dict:
@@ -34,7 +36,7 @@ def _doc() -> dict:
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("autogen", 1, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("autogen", 2, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.subtypes == {"autogen.probe_document"}
     assert cat.types == {"autogen:memory_query", "autogen:memory_content"}
     data = (resources.files(PACKAGE) / "rules" / "autogen.rules.toml").read_bytes()
@@ -113,6 +115,10 @@ def test_every_declared_rule_is_exercised(tool_arm, staged):
                 cited |= _cited(support.map_unit_of(unit, aux, sem=True))
                 break
     cited |= set(CITED_RULES)
+    # D-1063: exercised by test_uc39_41.py (no fixture or staged run holds a lone surrogate or a 1 MiB string)
+    cited |= {"autogen.lone_surrogate_replaced@1", "autogen.content_not_inlined@1"}
+    # AU-RC-3 (row 182): cited for a tool result the mapper did not inline; test_semantics.py builds such a run
+    cited.add("autogen.payload_marker_not_inlined@1")
     twins = {r.replace("@1", "_unverified@1") for r in CODE_RULES}
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     assert citable - cited - twins == set(), sorted(citable - cited - twins)
@@ -131,7 +137,9 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(autogen\.[a-z_.]+@[0-9]+)"', source))
     assert literals and literals <= set(catalogue().rules)
     codes = {c.removeprefix("autogen.") for c in re.findall(r'"(autogen\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    # (agentprov.adapters.surrogates, called with the namespace; D-1063)
+    assert codes | {"lone_surrogate_replaced"} == ISSUE_CODES
 
 
 def test_profile_quirks_name_catalogue_rules():
@@ -140,3 +148,17 @@ def test_profile_quirks_name_catalogue_rules():
     family = load_profile(support.PROFILE).family_table()
     for quirk in family["quirk"]:
         assert all(r in catalogue().rules for r in quirk["rules"]), quirk["id"]
+
+
+def test_catalogue_version_1_is_archived_as_sealed_and_version_2_only_adds_the_d1063_rules():
+    """D-1063 (D-31): version 1, which the sealed corpus autogen-guard-placement-w2 records, ships byte-exact under
+    rules/archive/; version 2 keeps every version-1 rule and adds the lone-surrogate and not-inlined rules."""
+    archived = (resources.files(PACKAGE) / "rules" / "archive" / "autogen.rules.v1.toml").read_bytes()
+    v1, v2 = load_catalogue("autogen", 1, package=PACKAGE), catalogue()
+    assert hashlib.sha256(archived).hexdigest() == v1.digest == \
+        "2b7fb400c09b01d879f4baca12c3148402e35d33e6e4b07b07c1ec5e9a68f4c8"
+    # row 182 (AU-RC-3) adds autogen.payload_marker_not_inlined@1 to the unreleased version 2
+    assert set(v2.rules) - set(v1.rules) == {"autogen.lone_surrogate_replaced@1", "autogen.content_not_inlined@1",
+                                             "autogen.payload_marker_not_inlined@1"}
+    assert all(v2.rules[rid] == rule for rid, rule in v1.rules.items())
+    assert v2.issue_codes - v1.issue_codes == {"lone_surrogate_replaced", "content_not_inlined"}

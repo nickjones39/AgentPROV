@@ -43,9 +43,11 @@ __all__ = [
     "KeyStats",
     "aggregate",
     "execution_usage",
+    "lookup_key",
     "model_family",
     "quantile",
     "sample_corpus",
+    "usage_from_records",
 ]
 
 CHARS_PER_TOKEN: Final = 4
@@ -109,6 +111,12 @@ def execution_usage(path: Path | str) -> ExecutionUsage | None:
         records = list(iter_records(path))
     except Exception:  # an unreadable or tampered document is skipped, never repaired
         return None
+    return usage_from_records(records)
+
+
+def usage_from_records(records: Sequence[Mapping[str, Any]]) -> ExecutionUsage | None:
+    """The counts of one execution's AER records, header first (an already verified document: ``CorpusReader.read_aer``
+    gives them for a stored corpus's execution); ``None`` when the first record is not an execution header."""
     if not records or "ex" not in records[0]:
         return None
     profile = records[0].get("profile")
@@ -121,7 +129,7 @@ def execution_usage(path: Path | str) -> ExecutionUsage | None:
     model = None
     provider = None
     seconds = None
-    calls: list[dict[str, Any]] = []
+    calls: list[Mapping[str, Any]] = []
     judges: set[str] = set()  # ids of the judge actors
     for r in records:
         k = r.get("k")
@@ -315,6 +323,14 @@ def lookup(table: Mapping[Key, KeyStats], benchmark: str, suite: str, attack: st
            family: str | None, backend: str | None = None) -> tuple[KeyStats, str] | None:
     """The most specific key present: this model family on this backend, this family on any backend (or imports),
     any model on this backend, then any model anywhere; the attack exactly (None: benign)."""
+    hit = lookup_key(table, benchmark, suite, attack, family, backend)
+    return None if hit is None else (hit[1], hit[2])
+
+
+def lookup_key(table: Mapping[Key, KeyStats], benchmark: str, suite: str, attack: str | None, family: str | None,
+               backend: str | None = None, *, family_specific: bool | None = None) -> tuple[Key, KeyStats, str] | None:
+    """:func:`lookup` with the key found. ``family_specific``: ``True`` tries this model family's rows only, ``False``
+    the any-model rows only, ``None`` both (the family's first)."""
     tries = [((family or ""), (backend or ""), "this model family on this backend"),
              ((family or ""), "", "this model family"), ("", (backend or ""), "any model on this backend"),
              ("", "", "any model")]
@@ -323,9 +339,12 @@ def lookup(table: Mapping[Key, KeyStats], benchmark: str, suite: str, attack: st
         if (fam, back) in seen or (not fam and what.startswith("this model")) or (not back and "backend" in what):
             continue
         seen.add((fam, back))
-        hit = table.get((benchmark, suite, attack or "", fam, back))
+        if family_specific is not None and bool(fam) != family_specific:
+            continue
+        key = (benchmark, suite, attack or "", fam, back)
+        hit = table.get(key)
         if hit is not None:
-            return hit, what
+            return key, hit, what
     return None
 
 

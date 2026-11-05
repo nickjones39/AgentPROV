@@ -129,8 +129,9 @@ def test_the_mapper_redacts_tool_output_only():
     assert any(A1 in json.dumps(r.get("args")) for r in m.of("tool_execution"))
     (issue,) = [i for i in m.issues if i["code"] == "openhands.value_redacted"]
     assert issue["ids"] == [rec["id"]] and issue["rule"].startswith(RULE)
-    assert m.header["profile"]["version"] == 2 and m.header["rules"]["openhands"] == 2
-    assert A1 not in m.prov.prov_json.decode("utf-8", "replace").replace(json.dumps(A1)[1:-1] + "/proj\"", "") or True
+    assert m.header["profile"]["version"] == 3 and m.header["rules"]["openhands"] == 3
+    prov = m.prov.prov_json.decode("utf-8", "replace")  # no account span outside the model-authored argument
+    assert A1 not in prov.replace(json.dumps(f"look at /home/{A1}/proj")[1:-1], "") and A2 not in prov
 
 
 def test_the_label_is_stable_across_runs_and_a_clean_run_is_unchanged():

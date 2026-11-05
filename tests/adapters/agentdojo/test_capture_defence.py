@@ -48,7 +48,7 @@ def test_every_defended_session_maps_consistent_valid_and_agrees_with_its_native
     report = m.validate()
     assert report.ok and report.mode == "release", report.findings
     header = m.header
-    assert header["profile"]["id"] == "agentdojo-live" and header["profile"]["version"] == 3
+    assert header["profile"]["id"] == "agentdojo-live" and header["profile"]["version"] == 4  # 4: D-1063
     assert header["rules"]["defence"] == 1
     defence = header["ext"]["agentdojo"]["defence"]
     assert defence["entry"]["id"] == header["task"]["defense_id"]
@@ -109,7 +109,7 @@ def test_profiles_v1_and_v2_are_archived_and_allow_no_defence():
     for version in (1, 2):
         assert "defences" not in load_profile("agentdojo-live", version).data["family"]["agentdojo"]["live"]
     v3 = load_profile("agentdojo-live")
-    assert v3.version == 3 and "mandate_intent" in v3.data["family"]["agentdojo"]["live"]["defences"]
+    assert v3.version == 4 and "mandate_intent" in v3.data["family"]["agentdojo"]["live"]["defences"]
 
 
 #: D-31 (owner's criterion): the archived bytes are the ones scratch corpora recorded. v1: agentdojo-live@1 in
@@ -133,7 +133,7 @@ def test_the_archives_are_pinned(pid, version):
             / f"{pid}.profile.v{version}.toml")
     assert hashlib.sha256(path.read_bytes()).hexdigest() == ARCHIVE_SHA256[(pid, version)]
     assert load_profile(pid, version).sha256 == ARCHIVE_SHA256[(pid, version)]
-    assert load_profile(pid).version == 3
+    assert load_profile(pid).version == 4  # D-1063
 
 
 def test_melon_block_maps_the_masked_run_and_the_replaced_reply():

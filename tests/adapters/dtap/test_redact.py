@@ -6,6 +6,8 @@ the shipped label function and listed in a test copy of the profile. The real pr
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import re
 
@@ -68,7 +70,7 @@ def test_rule_grammar_is_closed(change, message):
 def test_the_shipped_profile_lists_six_labels_and_no_name():
     profile = load_profile("dtap-bench")
     rules = parse_redact_rules(profile.family_table()["redact"], "shipped")
-    assert profile.version == 3  # v3: D-934/D-935
+    assert profile.version == 4  # v3: D-934/D-935; v4: UC-40
     assert [r.id for r in rules] == ["host_account", "host_account_token", "host_account_dotted"]
     assert all(r.scope == "all_strings" and r.replacement == "acct-{span12}" for r in rules)
     # five PC-01 accounts and one other letter case of one of them; the same allowlist in every rule
@@ -256,7 +258,7 @@ def test_mapper_redacts_a_listed_account_everywhere_and_leaves_others(listed_pro
     assert head["evf"]["/ext/dtap/final_response"] == "D" and f"{RULE}#/ext/dtap/final_response" in head["rule"]
     (issue,) = [i for i in m.issues if i["code"] == "dtap.value_redacted"]
     assert issue["rule"] == RULE and issue["ids"] == ["exec"] and int(issue["detail"]) == len(redacted)
-    assert head["profile"]["version"] == 3 and head["rules"] == {"aer": 1, "dtap": 3}
+    assert head["profile"]["version"] == 4 and head["rules"] == {"aer": 1, "dtap": 4}
 
 
 def test_mapper_redacts_nothing_and_raises_no_issue_for_unlisted_accounts():
@@ -264,3 +266,122 @@ def test_mapper_redacts_nothing_and_raises_no_issue_for_unlisted_accounts():
     m = support.map_label(label, runs={label: data}, tasks={})
     assert LISTED.encode() in m.data and "dtap.value_redacted" not in m.codes()  # the shipped labels list neither name
     assert not any("redacted" in r.get("ext", {}).get("dtap", {}) for r in m.records)
+
+
+# ------------------------------------------------------------------------------------------------ UC-37: $utf16 strings
+def _utf16(text: str) -> dict[str, str]:
+    return {"$utf16": base64.b64encode(text.encode("utf-16-be", "surrogatepass")).decode("ascii")}
+
+
+def _decoded(node):
+    """Every string and key of an encoded record, each ``$utf16`` value decoded."""
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        if set(node) == {"$utf16"} and isinstance(node["$utf16"], str):
+            yield base64.b64decode(node["$utf16"]).decode("utf-16-be", "surrogatepass")
+            return
+        for key, item in node.items():
+            yield key
+            yield from _decoded(item)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _decoded(item)
+
+
+def test_apply_redacts_inside_a_utf16_string_and_keeps_its_form():
+    """UC-37: a string the encoder wrote as ``$utf16`` (a lone surrogate) is decoded, redacted and encoded again; a
+    literal member named ``$utf16`` (inside ``$lit``) is an ordinary string."""
+    red = _redactor()
+    record = {
+        "k": "message", "id": "m1", "ev": "O", "by": "source",
+        "parts": [{"t": "tool_result", "value": {
+            "a": _utf16(f"cat /home/{LISTED}/x \ud800"),  # stays $utf16 (the surrogate is outside the span)
+            "b": _utf16(f"/home/{OTHER}/y \udc00"),  # an unlisted account: untouched
+            "c": {"$lit": {"$utf16": f"/home/{LISTED}/z"}},
+        }}],
+        "src": [{"a": "a0", "p": "/trajectory/1"}],
+    }
+    unlisted = dict(record["parts"][0]["value"]["b"])
+    done = red.apply(record, lambda p: f"{RULE}#{p}")
+    value = record["parts"][0]["value"]
+    assert value["a"] == _utf16(f"cat /home/{_acct()}/x \ud800")
+    assert value["b"] == unlisted
+    assert value["c"] == {"$lit": {"$utf16": f"/home/{_acct()}/z"}}
+    assert {p for p, _rid in done} == {"/parts/0/value/a", "/parts/0/value/c/$lit/$utf16"}
+    assert record["evf"]["/parts/0/value/a"] == "D" and f"{RULE}#/parts/0/value/a" in record["rule"]
+    assert not any(LISTED in s for s in _decoded(record))
+
+
+def test_a_utf16_string_that_becomes_valid_text_is_a_plain_string():
+    label = span_label(LISTED + "\ud800", salt=SALT)
+    red = Redactor("dtap-bench", 2, parse_redact_rules([_rule([label], pattern="/home/(?P<span>[^/]+)")], "t"))
+    record = {"k": "message", "id": "m", "ev": "O",
+              "parts": [{"t": "tool_result", "value": _utf16(f"/home/{LISTED}\ud800/x")}]}
+    assert [p for p, _ in red.apply(record, str)] == ["/parts/0/value"]
+    assert record["parts"][0]["value"] == f"/home/acct-{label}/x"
+
+
+def test_mapper_redacts_a_listed_account_inside_a_utf16_value(listed_profile):
+    steps = [support.call("read_file", {}),
+             support.result("read_file", state={"out": f"cat: /home/{LISTED}/.ssh/config \ud83d"})]
+    m = support.map_steps(steps)
+    assert not any(LISTED in s for rec in [m.header, *m.records] for s in _decoded(rec))
+    (msg,) = [r for r in m.records if r.get("k") == "message" and r.get("role") == "tool"]
+    assert msg["parts"][0]["value"]["out"] == _utf16(f"cat: /home/{_acct()}/.ssh/config \ud83d")
+    rule = f"dtap-bench@{listed_profile.version}#host_account"
+    assert {"p": "/parts/0/value/out", "rule": rule} in msg["ext"]["dtap"]["redacted"]
+    (issue,) = [i for i in m.issues if i["code"] == "dtap.value_redacted"]
+    assert int(issue["detail"]) == 1
+
+
+# ------------------------------------------------------------------------------------------------ UC-38: then D-934
+BIG = "".join(hashlib.sha256(str(i).encode()).hexdigest() for i in range(1 << 15 + 1))[: (1 << 20) + 1]
+NOT_INLINED = "dtap.content_not_inlined@1"
+
+
+def _digest(value: str) -> dict[str, object]:
+    raw = value.encode("utf-8", "surrogatepass")
+    return {"not_inlined": {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}}
+
+
+def _citations_resolve(record) -> None:
+    from agentprov.aer.locators import pointer_exists
+
+    for ref in record.get("rule", []):
+        _rid, sep, pointer = ref.partition("#")
+        assert not sep or pointer_exists(record, pointer), ref
+    for entry in record.get("ext", {}).get("dtap", {}).get("redacted", []):
+        assert pointer_exists(record, entry["p"]), entry
+    for pointer in record.get("evf", {}):
+        assert pointer_exists(record, pointer), pointer
+
+
+@pytest.mark.parametrize("role", ["tool", "user"])
+def test_a_redacted_text_over_1_mib_moves_with_its_citations(listed_profile, role):
+    """UC-38: a redacted ``/parts/0/text`` that D-934 then moves to ``/parts/0/value`` takes its redaction citation, its
+    ``evf`` tag and its ``ext.dtap.redacted`` entry along; before, they dangled and the run was ``adapter_defect``."""
+    text = f"cat /home/{LISTED}/x\n" + BIG
+    first = {"role": "user", "state": text, "metadata": {}} if role == "user" else support.call("a", {})
+    m = support.map_steps([first, support.call("a", {}), support.result("a", state=text if role == "tool" else "ok")]
+                          if role == "user" else [first, support.result("a", state=text)])
+    (msg,) = [r for r in m.records if r.get("k") == "message" and r.get("role") == role]
+    redacted = text.replace(LISTED, _acct())
+    assert msg["parts"][0]["value"] == _digest(redacted) and "text" not in msg["parts"][0]
+    assert msg["evf"]["/parts/0/value"] == "D"
+    assert f"{RULE}#/parts/0/value" in msg["rule"] and f"{NOT_INLINED}#/parts/0/value" in msg["rule"]
+    assert not any(r.endswith("#/parts/0/text") for r in msg["rule"])
+    assert {"p": "/parts/0/value", "rule": f"dtap-bench@{listed_profile.version}#host_account"} \
+        in msg["ext"]["dtap"]["redacted"]
+    _citations_resolve(msg)
+
+
+def test_a_utf16_value_over_1_mib_is_its_digest():
+    """A ``$utf16`` value (a lone surrogate) over 1 MiB is not inlined as a whole, as a plain string is (D-934); before,
+    its base64 payload was replaced inside the ``$utf16`` form and the record was invalid."""
+    big = BIG + "\ud800"
+    m = support.map_steps([support.call("a", {}), support.result("a", state={"big": big})])
+    (msg,) = [r for r in m.records if r.get("k") == "message" and r.get("role") == "tool"]
+    assert msg["parts"][0]["value"]["big"] == _digest(big)
+    assert msg["evf"]["/parts/0/value/big"] == "D" and f"{NOT_INLINED}#/parts/0/value/big" in msg["rule"]
+    _citations_resolve(msg)

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from agentprov.migration.gate_c3 import facts, field_differences
 
 VECTORS = Path(__file__).resolve().parents[2] / "docs" / "architecture" / "examples" / "C"
+TOOLS = Path(__file__).resolve().parents[2] / "tools" / "migration"
 
 
 def _vector(name: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -70,3 +75,60 @@ def test_the_account_confound_and_the_run_error() -> None:
 def test_field_differences_lists_only_the_rule_inputs() -> None:
     old = {"attack_type": "benign", "n_turns": 3, "extra": 1}
     assert field_differences(old, {"attack_type": "benign", "n_turns": 4, "extra": 2}) == ["n_turns"]
+
+
+def _tool(name: str, monkeypatch: pytest.MonkeyPatch) -> Any:
+    monkeypatch.setattr(sys, "path", list(sys.path))  # the drivers put tools/ directories on the path
+    spec = importlib.util.spec_from_file_location(f"{name}_under_test", TOOLS / f"{name}.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_c3_driver_refuses_a_baseline_without_its_corpus_trees_and_never_passes_zero_traces(tmp_path, monkeypatch):
+    """AU-TRG-8: a wrong ``--baseline`` compared zero old rows and reported ok."""
+    c3 = _tool("gate_c3", monkeypatch)
+    with pytest.raises(SystemExit, match="not a directory"):
+        c3.require_trees(tmp_path)
+    (tmp_path / "corpus" / "corpus-prov").mkdir(parents=True)
+    with pytest.raises(SystemExit, match="corpus-og-agentdojo-runs-prov"):
+        c3.require_trees(tmp_path)
+    (tmp_path / "corpus" / c3.OG_TREE).mkdir()
+    c3.require_trees(tmp_path)
+    assert c3.verdict(True, {}, 0, object()) is False and c3.verdict(True, {}, 0, None) is False
+    assert c3.verdict(True, {}, 2, object()) is True and c3.verdict(True, {}, 2, None) is None
+    assert c3.verdict(True, {"x": "E"}, 2, object()) is False
+
+
+def test_the_c3_driver_main_writes_its_report_end_to_end(tmp_path, monkeypatch):
+    """AU-FR-1: ``main()``'s table loop bound ``verdict`` as a local, shadowing :func:`verdict`, so every run died before
+    writing ``--report``. Run ``main()`` over a synthetic baseline with the old side, the new side and the scorer stubbed."""
+    c3 = _tool("gate_c3", monkeypatch)
+    for tree in ("corpus-prov", c3.OG_TREE):
+        (tmp_path / "corpus" / tree).mkdir(parents=True)
+    rows = [{"item": f"corpus-prov/m/prov/atk/{n}", "rec": {}, "run_error": False, "row": None,
+             "verdict": {"scored": True, "unscored_reason": None, "attack_success": False, "rerun": False}}
+            for n in ("a", "b")]
+    monkeypatch.setattr(c3, "old_side", lambda *a, **k: (rows, {"identity": None, "replay_files": 0}))
+    monkeypatch.setattr(c3, "new_side", lambda *a, **k: ({r["item"]: {"rec": {}, "run_error": False} for r in rows}, {}))
+    monkeypatch.setattr(c3, "new_scorer", lambda: None)  # facts only: ok is null
+    report = tmp_path / "out" / "C3.json"
+    monkeypatch.setattr(sys, "argv", ["gate_c3", "--baseline", str(tmp_path), "--work", str(tmp_path / "work"),
+                                      "--report", str(report)])
+    assert c3.main() == 0
+    written = json.loads(report.read_text(encoding="utf-8"))
+    assert written["traces"] == 2 and written["mapped"] == 2 and written["ok"] is None
+    assert written["old"]["verdicts"] == [{"tree": "corpus-prov", "scored": True, "unscored_reason": None,
+                                           "attack_success": False, "count": 2}]
+
+
+def test_the_c2_sample_refuses_a_baseline_without_transcripts(tmp_path, monkeypatch):
+    """AU-TRG-8: a wrong ``--baseline`` sampled nothing, so C2 validated only its built-in fixture and reported ok."""
+    c2 = _tool("gate_c2", monkeypatch)
+    with pytest.raises(SystemExit, match="no transcript"):
+        c2.sample(tmp_path / "no-such-baseline")
+    (tmp_path / "corpus" / "corpus-prov" / "m" / "prov" / "atk").mkdir(parents=True)
+    (tmp_path / "corpus" / "corpus-prov" / "m" / "prov" / "atk" / "a.transcript.json").write_text("{}")
+    with pytest.raises(SystemExit, match="corpus-og-agentdojo-runs-prov"):  # one tree present, the other empty
+        c2.sample(tmp_path)

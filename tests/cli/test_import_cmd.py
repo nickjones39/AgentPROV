@@ -183,11 +183,11 @@ def test_until_sem_writes_the_sem_files_and_stops_before_prov(cli, tmp_path, see
     counters = run.json()["counters"]
     assert run.code == 0 and counters["annotated"] >= 1 and counters["derived"] == 0
     partial = tmp_path / "c.partial"
-    assert sorted(p.name for p in (partial / "sem").iterdir()) == ["agentdojo.suites-2"]
+    assert sorted(p.name for p in (partial / "sem").iterdir()) == ["agentdojo.suites-4"]
     assert len(list((partial / "sem").rglob("*.sem.jsonl"))) == counters["annotated"]
     assert not (partial / "prov").exists()
     manifest = json.loads((partial / "corpus.json").read_text())
-    assert manifest["formats"]["sem"] == "sem/0.1" and manifest["profiles"]["semantics"] == [{"id": "agentdojo.suites", "version": 2}]
+    assert manifest["formats"]["sem"] == "sem/0.1" and manifest["profiles"]["semantics"] == [{"id": "agentdojo.suites", "version": 4}]
     stages = [s["stage"] for s in json.loads((partial / "derivation.json").read_text())["stages"]]
     assert stages == ["aer", "sem"]
 
@@ -221,6 +221,18 @@ def test_compat_prov_spec_pipeline_filter_and_unknown_select_key(cli, tmp_path):
     assert cli(*base, "--prov-spec", "nonsense/1").code == 2
     assert cli(*base, "--pipeline", "gpt-4o").code == 5
     assert cli(*base, "--select", "colour=blue").code == 2
+
+
+def test_retry_failed_with_limit_or_sample_is_a_usage_error(cli, tmp_path):
+    """AU-IMP-1: --retry-failed drops every failed row before re-mapping, so a cap would leave the rows past it with no
+    index row or register entry while the snapshot is recorded whole. The CLI refuses the combination."""
+    base = ("import", "agentdojo", "--snapshot", "2024-06", "--corpus", str(tmp_path / "c"), "--input", str(tmp_path),
+            "--retry-failed")
+    for extra in (("--limit", "1"), ("--limit", "0"), ("--sample", "2")):
+        run = cli(*base, *extra)
+        assert run.code == 2, extra
+        assert "--retry-failed" in run.err and extra[0] in run.err
+    assert not (tmp_path / "c.partial").exists()
 
 
 def test_an_input_without_a_pin_check_is_refused(cli, tmp_path):
@@ -257,6 +269,36 @@ def test_a_dry_run_applies_the_output_tree_guards_of_the_real_run(cli, tmp_path,
     assert dry.code == 4
     assert not (corpus.parent / (corpus.name + ".partial")).exists()
     assert cli(*argv).code == 4
+
+
+@pytest.mark.parametrize("where", ["existing", "inside_sealed", "inside_input", "git_work_tree"])
+def test_the_output_guards_run_before_the_pin_is_acquired(cli, tmp_path, monkeypatch, where):
+    """AU-CLIA-12: the guards ran after the pin was resolved, so a dry run with an uncached pin printed 'would fetch' and
+    exited 0 for a --corpus the real run refuses, and a real --fetch --allow-network fetched the whole pin before
+    refusing. Both now exit 4 before any fetcher exists."""
+    import agentprov.raw.fetch as raw_fetch
+
+    def no_fetcher(*args, **kwargs):
+        raise AssertionError("a fetcher was built")
+
+    monkeypatch.setattr(raw_fetch, "Fetcher", no_fetcher)
+    (tmp_path / "in").mkdir()
+    (tmp_path / "in" / "a.json").write_text("{}")
+    sealed = tmp_path / "sealed"
+    sealed.mkdir()
+    (sealed / "corpus.json").write_text('{"sealed": true}')
+    (tmp_path / "repo" / ".git").mkdir(parents=True)
+    corpus = {"existing": sealed, "inside_sealed": sealed / "sub", "inside_input": tmp_path / "in" / "sub",
+              "git_work_tree": tmp_path / "repo" / "out"}[where]
+    cache = ("--cache-dir", str(tmp_path / "empty-cache"))
+    pinned = ("--input", str(tmp_path / "in"), "--verify-against-pin") if where == "inside_input" else ("--fetch",)
+    argv = ("import", "agentdojo", "--snapshot", "2024-06", *pinned, *cache, "--corpus", str(corpus))
+    for mode in ("--dry-run", "--allow-network"):
+        run = cli(*argv, mode)
+        assert run.code == 4, (mode, run.err)
+        assert "would fetch" not in run.err
+    assert not (tmp_path / "empty-cache").exists()
+    assert not (corpus.parent / (corpus.name + ".partial")).exists()
 
 
 def test_a_fetch_cache_inside_a_sealed_corpus_is_refused(cli, tmp_path, monkeypatch):
@@ -345,6 +387,8 @@ def test_fetch_without_allow_network_refuses_a_pin_the_cache_lacks(cli, tmp_path
               "--corpus", str(tmp_path / "c"), "--json")
     assert run.code == 4 and "[raw.fetch.not_cached]" in run.err, run.err
     assert no_sockets == [] and not (tmp_path / "c.partial").exists()
+    # AU-CLIA-13: the advice names the profile, runnable as printed (it said '--profile <id>')
+    assert "'agentprov fetch --profile agentdojo-upstream --pin 2024-06 --allow-network'" in run.err
 
 
 def test_a_fetch_that_used_the_network_is_noted_once_with_its_expectation_problems_once(monkeypatch):
@@ -445,3 +489,19 @@ def test_a_hang_up_flushes_the_index_and_releases_the_lock(cli, tmp_path, seeded
     monkeypatch.setattr(FeedbackSink, "emit", real_emit)
     resumed = cli(*args)
     assert resumed.code == 0 and resumed.json()["counters"]["skipped_resume"] == 2, resumed.err
+
+
+@needs_git
+def test_a_lowered_max_json_depth_does_not_stop_the_writer_opening_its_own_corpus(cli, tmp_path, seeded):
+    """AU-IMP-2 (class-0 part): --max-json-depth is an input limit. The CLI used to hand it to the CorpusWriter too,
+    which then could not parse the working corpus's own corpus.json (it nests deeper than the depth given), so the
+    second run of the same command failed with corpus.writer.document. ``--until raw`` parses no input."""
+    args = ("import", "agentdojo", "--snapshot", "2024-06", "--fetch", "--allow-network", "--cache-dir", str(seeded["cache"]),
+            "--corpus", str(tmp_path / "c"), "--in-process", "--until", "raw", "--max-json-depth", "3", "--json")
+    first = cli(*args)
+    assert first.code == 0, first.err
+    before = support.tree_bytes(tmp_path / "c.partial")
+    again = cli(*args)
+    assert again.code == 0, again.err
+    assert again.json()["counters"]["seen"] == 4
+    assert support.tree_bytes(tmp_path / "c.partial") == before

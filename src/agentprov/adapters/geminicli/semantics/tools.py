@@ -1,4 +1,4 @@
-"""The semantics profile ``geminicli.tools`` version 1 (docs/architecture D.23.8; C.14; EF E.7.1, E.7.3).
+"""The semantics profile ``geminicli.tools``, versions 1 and 2 (docs/architecture D.23.8; C.14; EF E.7.1, E.7.3).
 
 Data plus small pure functions over one AER. What the profile yields, per record in AER file order (the yield order is
 the annotation order):
@@ -9,6 +9,10 @@ the annotation order):
   fail-closed;
 - **tool_execution**: ``role``;
 - **judgement**: ``outcome`` ``geminicli.misalignment_elicited`` for ``elicited`` (origin ``checker``), holding iff true.
+
+The data are the directory ``geminicli.tools-<version>/``: version 1 declares the catalogue version 1 (read from
+``rules/archive/``, the sealed corpus code-agent-misalignment-w2 records it), version 2 is version 1's tables on the
+catalogue version 2 (D-1063: the lone-surrogate and not-inlined rules; D-31, H.2.5: one catalogue version per corpus).
 
 An annotation's ``ev`` is ``weakest(premise tags, rule classes)`` (C.6.5 rule 3). Reads only the AER; standard library
 and ``agentprov.{aer,sem}``.
@@ -34,7 +38,11 @@ if TYPE_CHECKING:
 __all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "GeminiToolsProfile", "build"]
 
 PROFILE_ID: Final = "geminicli.tools"
-PROFILE_VERSION: Final = 1
+PROFILE_VERSION: Final = 2
+PROFILE_VERSIONS: Final = (1, 2)  # 2: version 1's tables on the geminicli catalogue version 2 (D-1063)
+#: The ``geminicli`` catalogue version each profile version declares (D-31; H.2.5: one catalogue version per corpus):
+#: @1 reads the archived version 1, @2 reads version 2.
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
 DATA_FILES: Final = ("profile.toml", "tools.toml")
 EVIDENCE: Final = ("observed", "code")
 
@@ -92,7 +100,7 @@ def parse_tables(files: Mapping[str, bytes]) -> Tables:
     missing = [n for n in DATA_FILES if n not in files]
     extra = sorted(set(files) - set(DATA_FILES))
     if missing or extra:
-        raise ProfileDataError(f"geminicli.tools@1 data files: missing {missing}, unexpected {extra}")
+        raise ProfileDataError(f"{PROFILE_ID} data files: missing {missing}, unexpected {extra}")
     doc = {name: tomllib.loads(files[name].decode("utf-8")) for name in DATA_FILES}
     tools: dict[str, tuple[tuple[str, ...], str]] = {}
     for entry in doc["tools.toml"].get("tool", []):
@@ -112,14 +120,14 @@ def parse_tables(files: Mapping[str, bytes]) -> Tables:
 
 @dataclass(frozen=True)
 class GeminiToolsProfile:
-    """``geminicli.tools`` at version 1 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
+    """``geminicli.tools`` at version 1 or 2 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
 
     id: str
     version: int
     sha256: str
     tables: Tables
     classes: Mapping[str, str]
-    rules: Mapping[str, int] = field(default_factory=lambda: MappingProxyType({"geminicli": 1}))
+    rules: Mapping[str, int]  # the catalogue version this profile version declares (CATALOGUE_OF); no default
     ns: Mapping[str, Json] = field(default_factory=lambda: NS)
     taint_policy: TaintPolicy | None = None
 
@@ -198,15 +206,19 @@ class GeminiToolsProfile:
 
 
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> GeminiToolsProfile:
-    """Build ``geminicli.tools@1`` from its data files (called by :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
-    if (profile_id, version) != (PROFILE_ID, PROFILE_VERSION):
-        raise ProfileDataError(f"this code builds {PROFILE_ID}@{PROFILE_VERSION}, not {profile_id}@{version}")
+    """Build ``geminicli.tools`` at version 1 or 2 from its data files (called by
+    :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
+    if profile_id != PROFILE_ID or version not in PROFILE_VERSIONS:
+        raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, not "
+                               f"{profile_id}@{version}")
     tables = parse_tables(files)
-    catalogue = load_catalogue("geminicli", 1)
+    declared = CATALOGUE_OF[version]
+    catalogue = load_catalogue("geminicli", declared)
     classes: dict[str, str] = {}
     for ref in CITED_RULES:
         entry = catalogue.get(ref)
         if entry is None or not entry.citable:
-            raise ProfileDataError(f"{ref} is not an active rule of the geminicli catalogue v1")
+            raise ProfileDataError(f"{ref} is not an active rule of the geminicli catalogue v{declared}")
         classes[ref] = entry.cls
-    return GeminiToolsProfile(profile_id, version, sha256, tables, MappingProxyType(classes), taint_policy=tables.taint)
+    return GeminiToolsProfile(profile_id, version, sha256, tables, MappingProxyType(classes),
+                              MappingProxyType({"geminicli": declared}), taint_policy=tables.taint)

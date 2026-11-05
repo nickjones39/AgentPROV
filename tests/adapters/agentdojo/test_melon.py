@@ -103,7 +103,7 @@ def test_an_insert_of_another_defence_keeps_the_positional_rule():
 
 def test_the_profile_lists_the_logged_texts_and_drops_the_old_prompt_label():
     profile = load_profile("melon-agentdojo")
-    assert profile.version == 2
+    assert profile.version == 3  # 3: D-1063
     text = (p10d.REPO / "src/agentprov/adapters/agentdojo/profiles/melon-agentdojo.profile.toml").read_bytes()
     assert sha256_hex(text) == profile.sha256
     assert [v.label for v in family_table(profile).prompt_variants] == ["agentdojo_default"]

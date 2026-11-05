@@ -276,6 +276,12 @@ acquire (T0) ─► store (T0) ─► expand job (T1) ─► store members (T0) 
    0700, same filesystem), fsync, chmod 0444, `os.link` into the object path (atomic, fails if the target exists,
    so an object is never overwritten), re-hash on `FileExistsError` and fail loudly on a mismatch, then unlink the
    temporary file. An origin record is mandatory (K.5.7(1)).
+   > **As built (D-1068 P7).** A store built with `durable=False` skips the `fsync` of the object and of its shard
+   > directory, and nothing else (same hashing, cap, mode, `os.link` and digest checks). Only trees that are removed when
+   > the command ends and never become a corpus use it: the T1 input stores of `import`, `validate --corpus`, the
+   > withhold scan and the migration gate, and every store `recompute`/`derive` creates after its output writer is open
+   > (its T1 inputs), the whole private tree of `recompute --dry-run` and the trees of `verify` (`transient_stores`).
+   > A corpus's own store, kept by `import`, `derive --out` or `recompute --out`, stays durable.
 2. **Sniff (T0, magic bytes only).** The first 8 bytes choose the container handling: zip (`PK` 0x03 0x04 at offset
    0), gzip, bzip2, xz or zstd magic, or "document". T0 MUST NOT parse anything else. Dialect sniffing (D.2.3),
    which reads JSON keys, runs in T1.
@@ -607,6 +613,13 @@ same file).
    are (G.3.5): an NFD/NFC pair, or `A.json` next to `a.json`, would be one file on a case- or
    normalisation-insensitive volume.
 
+**(AU-NC-1)** The `--fetch` tree of a git pin (`GitPinTree`) applies the same rules of item 6 to every directory of
+the pinned tree. Both trees call the one function `agentprov.ingest.paths.sibling_verdicts`. A git path is bytes, so
+the NFC spelling of a name not in NFC is another path, as on a normalisation-sensitive file system. Such a name is
+`ingest.name.invalid` under its NFC label. A directory whose name is rejected is one register entry, and nothing below
+it is a candidate, as in `discover`. On macOS, `--input --verify-against-pin` labels such a file by its NFC name, which
+the pin's listing does not hold (`raw.origin.blob_mismatch`). So no way of importing one pin makes it a candidate.
+
 Every file AgentPROV writes has an ASCII name matching `[a-z0-9][a-z0-9._-]{0,127}` [landscape/secure_ingestion.md
 §6.2 rule 3]. Corpus paths come only from execution ids and digests (H.1.3).
 
@@ -799,6 +812,11 @@ subprocess.Popen(argv, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env, cwd=job_di
   >   kind.
   > - `validate` runs tiers 3–4 for `validate --corpus` over documents the parent read and verified (N.2.5 item 8).
   > - The `validate` pool gives its jobs the `prov` RSS cap (4 GiB, D-55); the global per-kind table is unchanged.
+  >
+  > **As built (D-1068 P2).** The argv may end with `--preload-semantics REFS` (comma-separated `<id>@<version>` refs
+  > matching `io.workers.PRELOAD_REF_RE`, at most 64; anything else is a protocol error) and `--preload-fidelity`. The pool
+  > derives them from its batch's job params (`semantics`, `fidelity`); they name what the job modules load before the
+  > audit hook (G.4.4). Without them a worker loads every shipped semantics profile and the D-550 cache context, as before.
 
 ### G.4.3 Limits
 
@@ -840,7 +858,12 @@ on 32 GB, the CPU count on 256 GB).
 ### G.4.4 Audit hook (defence in depth; network and subprocess only)
 
 After importing every module its job kinds need, the worker installs a small PEP 578 hook (`sys.addaudithook`)
-that raises `PermissionError` on (AD-10 row 19; R-45):
+that raises `PermissionError` on (AD-10 row 19; R-45).
+**As built (D-1068 P2):** "every module its job kinds need" includes what they load at import: the semantics profiles
+the argv names (all shipped ones without `--preload-semantics`) and, with `--preload-fidelity`, the D-550 cache context.
+A map or expand worker loads neither (about 1.3 s of start-up each). The pool sends a job only to a worker whose preload
+covers the profiles the job names and its cache flag, and otherwise starts one that does, so nothing is loaded after
+the hook because of a job. The hook covers:
 
 - network: `socket.connect`, `socket.bind`, `socket.getaddrinfo`, `socket.gethostbyname`, `socket.sendto`;
 - subprocess: `subprocess.Popen`, `os.system`, `os.exec`, `os.posix_spawn`, `os.spawn`, `os.fork`, `os.forkpty`.
@@ -897,6 +920,16 @@ No other file is opened (A-2 purity).
 A worker MAY serve up to `jobs_per_worker` jobs (default 64). It is replaced after that many jobs, after any job
 error or limit event, and after any job whose result is `FAIL`. Module-level caches MUST be pure functions of their
 inputs (A-2), so that reuse cannot change outputs. K's RPR-8 (identical output for any worker count) checks this.
+
+> **As built (D-1068 P1).** A worker outlives a batch (`WorkerPool.run`): at the end of a batch it is parked and the
+> next batch of the same pool takes it before starting a new one. It keeps its process, limits, audit hook and job count
+> (`jobs_per_worker` counts over its whole life), and nothing but module-level caches crosses batches. A worker is
+> parked only while the pool is open, fewer than the pool's worker count are parked, it may serve more jobs and its
+> lifetime peak memory is at most `ADMISSION_RETIRE_PEAK` (512 MiB, the D-554 bound); otherwise it is retired as
+> before. `WorkerPool.close()`, a `with` block, the pool's collection or the interpreter's exit stops the parked
+> workers and removes their job directories. A worker whose preload does not cover a job (G.4.4) is retired before it.
+> Before D-1068 every worker retired at the end of each batch: a 3,232-execution re-map started 158 workers and a warm
+> `validate --corpus` 105 (2/3 of its CPU).
 
 ### G.4.8 Determinism under `-I`
 
@@ -1267,7 +1300,11 @@ mapper adds issue `capture_redaction` and `unk … "withheld"` (C.13.5). If the 
 written and the session ends `errored` (C.13.5).
 
 **T0 re-scan of staging (R-51).** Because a hostile or buggy T2 can write a key into any staged file, T0 runs the
-same literal-value scan, with the values it read from `.env`, over **every** staged file before `put_stream`. A hit
+same literal-value scan, with the values it read from `.env` (or the key source given instead), the keys it passed to
+T2 and its own environment's values of the endpoint registry's key variables (`api_key_env`; never any other variable
+whose name only matches the scrub pattern, UC-22), over **every** staged file before `put_stream`; a zip (an Inspect
+`.eval` native log, D-666) is scanned member by member through the extraction-free reader of `agentprov.ingest`
+with its limits, and a member it refuses, or a zip it cannot open, counts as a hit (AU-LIVE-4). A hit
 quarantines the session: nothing from it is stored, the staging directory is kept outside every corpus for the
 user to inspect, and the run exits 1 with register code `capture.quarantined` (stage `capture`; an addition to HL
 H.6.3, G.11.1 row 20). The scan never prints the value.

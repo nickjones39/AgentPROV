@@ -54,7 +54,7 @@ def test_every_settings_control_has_a_tooltip(qapp: Any, tmp_path: Path, fake_ch
     dlg = SettingsDialog(settings)
     _settle(qapp)
     kinds = (QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QPlainTextEdit, QPushButton, QTableWidget)
-    controls = [w for w in dlg.tabs.findChildren(QWidget) if isinstance(w, kinds)
+    controls = [w for w in dlg.stack.findChildren(QWidget) if isinstance(w, kinds)
                 and not isinstance(w.parent(), (QSpinBox, QDoubleSpinBox, QComboBox))]  # (their own line edits)
     assert len(controls) >= 60  # the walk sees every pane (a vacuous pass would see none)
     bare = [w.accessibleName() or type(w).__name__ for w in controls if not w.toolTip()]
@@ -104,7 +104,10 @@ def test_moot_settings_show_no_tooltip(qapp: Any, tmp_path: Path, fake_checkout:
     from agentprov_gui.ui.safe import _SettingTipGate
 
     def in_use(widget: Any) -> bool:
-        (gate,) = widget.findChildren(_SettingTipGate)
+        from PySide6.QtCore import Qt
+
+        # the widget's own gate (a segmented control's segments have theirs: D-1060)
+        (gate,) = widget.findChildren(_SettingTipGate, options=Qt.FindChildOption.FindDirectChildrenOnly)
         return bool(gate.in_use())
 
     settings = Settings(QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat))
@@ -114,11 +117,12 @@ def test_moot_settings_show_no_tooltip(qapp: Any, tmp_path: Path, fake_checkout:
     _jobs, compute, _ci, dev = dlg.panes[:4]
     assert compute.body.isEnabled() and dev.body.isEnabled()
     assert in_use(compute.preset) and not in_use(compute.preset_name)
-    compute.preset.setCurrentText("named preset")
-    assert in_use(compute.preset_name)
-    assert not in_use(dev.seed)
+    assert compute.preset_name_row.isHidden()  # a row the choice makes moot is hidden too (D-1060 rule 3)
+    compute.preset.setCurrentText("Named preset")
+    assert in_use(compute.preset_name) and not compute.preset_name_row.isHidden()
+    assert not in_use(dev.seed) and dev.seed_row.isHidden()
     dev.mode.setCurrentText("random")
-    assert in_use(dev.seed)
+    assert in_use(dev.seed) and not dev.seed_row.isHidden()
     compute.queue.setEnabled(False)  # as on Windows (no job queue)
     assert not in_use(compute.queue)
     dlg.deleteLater()

@@ -1,4 +1,4 @@
-"""The semantics profile ``wirelog.tools`` version 1 (docs/architecture D.20.8; C.14; EF E.7.1, E.7.3).
+"""The semantics profile ``wirelog.tools`` versions 1 and 2 (docs/architecture D.20.8; C.14; EF E.7.1, E.7.3).
 
 Data plus small pure functions over one AER. What the profile yields, per record in AER file order (the yield order is
 the annotation order):
@@ -9,7 +9,10 @@ the annotation order):
   and, on a ``tool_call`` part, its ``role``; tool results: ``integrity`` (``untrusted`` where a payload is present or the
   text is an attacked first-batch document, else the producing tool's label, fail-closed), one ``injection_marker`` per
   payload fixture of the run (verbatim search, located by ``at``/``span``) and, where attacker content is present, an
-  ``author`` naming the attacker; any other part ``unknown``;
+  ``author`` naming the attacker; any other part ``unknown``. From version 2 (D-1063, review AU-RC-3) a result the AER
+  holds only as a digest (over 1 MiB, ``wirelog.content_not_inlined@1``) is not searched: its markers are ``gap``, it
+  has no author, and its integrity is the tool's ``untrusted`` label or else ``unknown``
+  (``wirelog.result_not_searched@1``);
 - **tool_execution**: ``role``;
 - **judgement**: ``outcome`` for ``hijack`` (``attack_succeeded``), ``exfiltration`` and ``silent``, only for a run with an
   attack and a checker origin.
@@ -41,6 +44,10 @@ __all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "WireLogToolsProfile", "bu
 
 PROFILE_ID: Final = "wirelog.tools"
 PROFILE_VERSION: Final = 1
+PROFILE_VERSIONS: Final = (1, 2)  # 2: version 1's tables on the wirelog catalogue version 2 (D-1063, regen-batch row 176)
+#: The ``wirelog`` catalogue version each profile version declares (D-31; H.2.5: one catalogue version per corpus):
+#: @1 reads the archived version 1, @2 reads version 2.
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
 DATA_FILES: Final = ("documents.toml", "profile.toml", "tools.toml")
 EVIDENCE: Final = ("observed", "code")
 
@@ -59,12 +66,16 @@ R_HIJACK: Final = "wirelog.hijack_meaning@1"
 R_EXFIL: Final = "wirelog.exfiltration_meaning@1"
 R_SILENT: Final = "wirelog.silent_meaning@1"
 R_TAINT: Final = "wirelog.taint_sink_untrusted@1"
+#: @2 only (D-1063, regen-batch row 181, review AU-RC-3): a tool result the AER holds only as a digest is not searched
+R_NOT_SEARCHED: Final = "wirelog.result_not_searched@1"
 _MEANING: Final = {"hijack": R_HIJACK, "exfiltration": R_EXFIL, "silent": R_SILENT}
 
-#: Every rule this profile cites (the catalogue test checks each exists, is active and has the class its annotations
-#: need).
-CITED_RULES: Final = (R_TABLE, R_UNKNOWN, R_AGENT, R_FIXTURE, R_TOOLDEFS, R_SYSTEM, R_TASK, R_INJECTED, R_MARKER, R_DOCUMENT,
-                      R_HIJACK, R_EXFIL, R_SILENT, R_TAINT, NORMALISER)
+#: Every rule this profile cites at version 1 (the catalogue test checks each exists, is active and has the class its
+#: annotations need); version 2 also cites R_NOT_SEARCHED (CITED_RULES lists every version's).
+CITED_RULES_V1: Final = (R_TABLE, R_UNKNOWN, R_AGENT, R_FIXTURE, R_TOOLDEFS, R_SYSTEM, R_TASK, R_INJECTED, R_MARKER,
+                         R_DOCUMENT, R_HIJACK, R_EXFIL, R_SILENT, R_TAINT, NORMALISER)
+CITED_RULES: Final = (*CITED_RULES_V1, R_NOT_SEARCHED)
+CITED_RULES_OF: Final = MappingProxyType({1: CITED_RULES_V1, 2: CITED_RULES})
 NS: Final[Mapping[str, Json]] = MappingProxyType({})
 
 
@@ -157,14 +168,14 @@ class _Run:
 
 @dataclass(frozen=True)
 class WireLogToolsProfile:
-    """``wirelog.tools`` at version 1 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
+    """``wirelog.tools`` at version 1 or 2 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
 
     id: str
     version: int
     sha256: str
     tables: Tables
     classes: Mapping[str, str]
-    rules: Mapping[str, int] = field(default_factory=lambda: MappingProxyType({"wirelog": 1}))
+    rules: Mapping[str, int]  # the catalogue version this profile version declares (CATALOGUE_OF); no default
     ns: Mapping[str, Json] = field(default_factory=lambda: NS)
     taint_policy: TaintPolicy | None = None
 
@@ -252,6 +263,9 @@ class WireLogToolsProfile:
         part = (record.get("parts") or [])[k]
         text = part.get("text")
         text_pointer = f"/parts/{k}/text" if "text" in part else f"/parts/{k}/value"
+        if self.version >= 2 and text is None and _digest_only(part.get("value")):
+            yield from self._not_searched(run, record, k, pid, text_pointer)
+            return
         haystack = text if isinstance(text, str) else json.dumps(part.get("value"), ensure_ascii=False,
                                                                  separators=(",", ":"), sort_keys=False)
         markers: list[tuple[str, str, tuple[int, int] | None]] = []  # (fixture, status, span)
@@ -285,6 +299,22 @@ class WireLogToolsProfile:
             else:
                 yield self._ann(run, pid, "author", {"actor": "att"}, (R_INJECTED, R_DOCUMENT), (Premise(mid, text_pointer),))
 
+    def _not_searched(self, run: _Run, record: Mapping[str, Any], k: int, pid: str, pointer: str) -> Iterator[Annotation]:
+        """@2 (D-1063, review AU-RC-3): a result the AER holds only as a digest (``wirelog.content_not_inlined@1``) was
+        not searched: each payload's marker is ``gap``, no author is asserted, and the integrity is the producing tool's
+        ``untrusted`` label, else ``unknown`` (fail-closed), never a reading of content the profile did not see."""
+        mid = str(record["id"])
+        name, premises = self._producer(run, record)
+        _roles, integrity, rules = self.tool_label(name)
+        if integrity == "untrusted":
+            yield self._ann(run, pid, "integrity", integrity, rules, premises)
+        else:
+            yield self._ann(run, pid, "integrity", "unknown", (R_NOT_SEARCHED,), (Premise(mid, pointer), *premises))
+        for fid, _payload in run.payloads:
+            value: dict[str, Json] = {"fixture": fid, "status": "gap", "normaliser": NORMALISER}
+            yield self._ann(run, pid, "injection_marker", value, (R_NOT_SEARCHED,),
+                            (Premise(mid, pointer), Premise(fid, "/content")))
+
     @staticmethod
     def _producer(run: _Run, record: Mapping[str, Any]) -> tuple[object, list[Premise]]:
         """The tool name of a result message: its generating execution's name (``None`` when not linked)."""
@@ -309,16 +339,25 @@ class WireLogToolsProfile:
                          premises)
 
 
+def _digest_only(value: object) -> bool:
+    """Whether a part value is a digest standing for content the AER does not hold (``{"not_inlined": ...}``)."""
+    return isinstance(value, dict) and set(value) == {"not_inlined"}
+
+
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> WireLogToolsProfile:
-    """Build ``wirelog.tools@1`` from its data files (called by :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
-    if (profile_id, version) != (PROFILE_ID, PROFILE_VERSION):
-        raise ProfileDataError(f"this code builds {PROFILE_ID}@{PROFILE_VERSION}, not {profile_id}@{version}")
+    """Build ``wirelog.tools`` at version 1 or 2 from its data files (called by
+    :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
+    if profile_id != PROFILE_ID or version not in PROFILE_VERSIONS:
+        raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, not "
+                               f"{profile_id}@{version}")
     tables = parse_tables(files)
-    catalogue = load_catalogue("wirelog", 1)
+    declared = CATALOGUE_OF[version]
+    catalogue = load_catalogue("wirelog", declared)
     classes: dict[str, str] = {}
-    for ref in CITED_RULES:
+    for ref in CITED_RULES_OF[version]:
         entry = catalogue.get(ref)
         if entry is None or not entry.citable:
-            raise ProfileDataError(f"{ref} is not an active rule of the wirelog catalogue v1")
+            raise ProfileDataError(f"{ref} is not an active rule of the wirelog catalogue v{declared}")
         classes[ref] = entry.cls
-    return WireLogToolsProfile(profile_id, version, sha256, tables, MappingProxyType(classes), taint_policy=tables.taint)
+    return WireLogToolsProfile(profile_id, version, sha256, tables, MappingProxyType(classes),
+                               MappingProxyType({"wirelog": declared}), taint_policy=tables.taint)

@@ -125,18 +125,29 @@ def test_local_consent_is_not_consent_for_an_api_endpoint(home: Path, tmp_path: 
 
 
 def test_a_local_entry_on_a_lan_address_is_an_api_endpoint(home: Path, tmp_path: Path, cli, real_model) -> None:
-    """D-721: until the egress proxy forwards LAN traffic, a LAN server (D-698) is classed api, so it needs the caps;
-    a local entry pointed at any other host is refused outright by the endpoint rules (D-698)."""
+    """D-1067 (amending D-721; AU-RN-8): a keyless LAN server (D-698) stays class api with the egress forward mode in
+    place, because its data leaves the machine: it needs the caps and API consent, and the messages say why. A local
+    entry pointed at any other host is refused outright by the endpoint rules (D-698)."""
     make_fake_env(home, "ok")
     real_model["env"] = {"LOCAL_LLM_BASE_URL": "http://192.168.1.20:11434/v1"}
     run = _real(cli, tmp_path, "--model", "ollama", "--model-id", "m", "--allow-lan-endpoint",
                 "--i-consent-to-local-run")
-    assert run.code == 4 and "needs its caps" in run.err and "not a local server on loopback" in run.err, run.err
+    assert run.code == 4 and "needs its caps" in run.err and "a LAN model server is an API endpoint" in run.err, run.err
+    free = ("--max-calls", "100", "--max-cost-usd", "1", "--price-in", "0", "--price-out", "0")  # it bills nothing
+    run = _real(cli, tmp_path, "--model", "ollama", "--model-id", "m", "--allow-lan-endpoint",
+                "--i-consent-to-local-run", *free)
+    assert run.code == 4 and "cli.refused.consent" in run.err and "a LAN model server is an API endpoint" in run.err
+    assert real_model["probe"] == 0
+    run = _real(cli, tmp_path, "--model", "ollama", "--model-id", "m", "--allow-lan-endpoint",
+                "--i-consent-to-api-costs", *free)
+    assert run.code == 4 and "probe reached" in run.err, run.err
+    assert "LAN model server: prompts and replies leave this machine" in run.err
+    assert real_model["probe"] == 1
     real_model["env"] = {"LOCAL_LLM_BASE_URL": "https://models.example.org/v1"}
     run = _real(cli, tmp_path, "--model", "ollama", "--model-id", "m", "--allow-custom-endpoint",
                 "--i-consent-to-local-run")
     assert run.code == 4 and "endpoint.url.not_loopback" in run.err, run.err
-    assert real_model["probe"] == 0
+    assert real_model["probe"] == 1
 
 
 # ---------------------------------------------------------------------------------------------- local endpoints

@@ -115,6 +115,67 @@ def test_exit_130_interrupted_still_writes_the_summary(cli, tmp_path, monkeypatc
     assert summary_file.read_bytes() == run.out.encode()
 
 
+@pytest.mark.parametrize("where", ["sink", "watcher"])
+def test_a_first_signal_while_main_closes_the_sink_or_the_watcher_still_writes_the_summary(cli, tmp_path, monkeypatch, check_summary, where):
+    """AU-CLIA-8: the teardown joins can block; a first SIGINT landing there ends the run as 130 with the summary written
+    and the progress file closed with its end line, instead of escaping main()."""
+    import json
+    import os
+
+    from agentprov.cli import control, feedback
+
+    cls, name = (feedback.FeedbackSink, "close") if where == "sink" else (control.ControlWatcher, "close")
+    original = getattr(cls, name)
+    fired: list[int] = []
+
+    def close(self, *args, **kwargs):
+        if not fired:
+            fired.append(1)
+            os.kill(os.getpid(), signal.SIGINT)  # the user's Ctrl-C / the job manager's SIGTERM arrives now
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(cls, name, close)
+    summary_file, progress = tmp_path / "s.json", tmp_path / "p.jsonl"
+    argv = ["--progress-file", str(progress), "--summary-json", str(summary_file), "--json"]
+    if where == "watcher":
+        argv += ["--control-file", str(tmp_path / "control.json")]
+    run = cli(*argv, "settings", "list")
+    assert fired and run.code == 130, run.err
+    document = json.loads(summary_file.read_bytes())
+    check_summary(document)
+    assert document["outcome"] == "interrupted" and document["exit_code"] == 130
+    assert "interrupted while finishing" in run.err
+    last = json.loads(progress.read_bytes().splitlines()[-1])
+    assert last["event"] == "end"
+
+
+def test_a_first_signal_inside_the_sinks_join_ends_the_progress_file_with_130(cli, tmp_path, monkeypatch, check_summary):
+    """AU-FR-4: ``FeedbackSink.close`` records the exit code before it joins the display thread, and the join is where it
+    blocks; a first signal landing there made main's retry ``close(130)`` a no-op, so the progress file's end line kept
+    the old exit code (0, ok) while the summary said 130, interrupted."""
+    import json
+    import threading
+
+    original = threading.Thread.join
+    fired: list[int] = []
+
+    def join(self, *args, **kwargs):
+        if self.name == "agentprov-feedback" and not fired:
+            fired.append(1)
+            raise KeyboardInterrupt  # the first Ctrl-C arrives while close waits for the display thread
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(threading.Thread, "join", join)
+    summary_file, progress = tmp_path / "s.json", tmp_path / "p.jsonl"
+    run = cli("--progress-file", str(progress), "--summary-json", str(summary_file), "--json", "settings", "list")
+    assert fired and run.code == 130, run.err
+    document = json.loads(summary_file.read_bytes())
+    check_summary(document)
+    assert document["outcome"] == "interrupted" and document["exit_code"] == 130
+    last = json.loads(progress.read_bytes().splitlines()[-1])
+    assert last["event"] == "end" and last["exit_code"] == 130 and last["outcome"] == "interrupted", last
+
+
 def test_usage_beats_unsupported_in_the_preflight_order(cli, tmp_path):
     # `import x` without --corpus is a usage error even though the source would end in exit 5
     assert cli("import", "agentdojo", "--snapshot", "2024-06", "--input", str(tmp_path)).code == 2
@@ -226,3 +287,27 @@ def test_an_integer_option_beyond_the_json_integer_domain_is_a_usage_error(cli, 
     """CC-15: 2^53 and above passed parsing and then broke the JCS summary and start log line (exit 70)."""
     run = cli(*argv, str(2**53))
     assert run.code == 2 and "at most 9007199254740991" in run.err, run.err
+
+
+def test_a_first_signal_inside_a_critical_section_is_raised_when_it_ends():
+    """AU-RN-7: inside ``interrupts_deferred`` the first signal is held and raised as Interrupted at the end of the
+    outermost section; a section ending with its own error keeps that error and drops the held signal."""
+    from agentprov.cli.common import Interrupted, interrupts_deferred
+
+    done: list[str] = []
+    with install_signal_handlers():
+        with pytest.raises(Interrupted) as caught:
+            with interrupts_deferred():
+                with interrupts_deferred():
+                    signal.raise_signal(signal.SIGINT)
+                    done.append("inner")
+                done.append("outer")
+    assert done == ["inner", "outer"] and caught.value.signal_name == "SIGINT"
+    with install_signal_handlers():  # a fresh count: a second signal under one installation exits the process
+        with pytest.raises(ValueError):
+            with interrupts_deferred():
+                signal.raise_signal(signal.SIGINT)
+                raise ValueError("the section's own error")
+        with interrupts_deferred():  # nothing is held over from the section that failed
+            done.append("clean")
+    assert done[-1] == "clean"

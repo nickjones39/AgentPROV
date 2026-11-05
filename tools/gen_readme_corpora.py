@@ -23,7 +23,8 @@ every machine):
   relation to the source and how it was matched (shown as found by web search);
 - ``tools/readme_corpora.toml``: one entry per registry part with its execution count and the committed report that
   records it, plus short curated notes. Every count is checked against its evidence file (the JSON pointer's value, or
-  the number written in a text file), so a number in the listing always has a committed source;
+  the number written in a text file where ``match`` anchors it), so a number in the listing always has a committed
+  source;
 - ``docs/reports/systematic-search/records-merged.jsonl``: the screening totals.
 
 Standard library plus ``agentprov.adapters``; reads no corpus; no network.
@@ -54,7 +55,7 @@ END = "<!-- END generated: corpora -->"
 BASES = ("sealed", "full import", "census", "trial import", "mapped in memory", "spec")
 UNITS = ("executions", "logs", "samples", "runs", "trajectories", "traces", "streams", "files")
 _COPYLEFT = re.compile(r"^(A|L)?GPL-")
-_ENTRY_KEYS = frozenset({"source", "part", "count", "unit", "basis", "evidence", "pointer", "where", "notes"})
+_ENTRY_KEYS = frozenset({"source", "part", "count", "unit", "basis", "evidence", "pointer", "match", "where", "notes"})
 
 
 class DataError(Exception):
@@ -112,7 +113,9 @@ def load_data() -> tuple[dict[tuple[str, str], dict[str, Any]], dict[str, str]]:
 
 
 def check_entry(entry: Mapping[str, Any]) -> None:
-    """A count names a basis, a unit and a committed evidence file that records exactly that number."""
+    """A count names a basis, a unit and a committed evidence file that records exactly that number: the value at its
+    JSON pointer, or in a text file the number on the line that ``match`` anchors (its fragments in order on one line,
+    ``{count}`` where the number stands), never merely somewhere in the file."""
     label = f"{entry['source']} · {entry['part']}"
     if "count" not in entry:
         if not entry.get("where"):
@@ -137,9 +140,16 @@ def check_entry(entry: Mapping[str, Any]) -> None:
         if value != count:
             raise DataError(f"{label}: {rel}{entry['pointer']} is {value!r}, the listing says {count}")
         return
-    text = path.read_text(encoding="utf-8")
-    if not re.search(rf"(?<![\d,.]){count:,}(?![\d]|,\d)|(?<![\d,.]){count}(?![\d]|,\d)", text):
-        raise DataError(f"{label}: {rel} does not state {count:,} (add a JSON pointer or cite the file that does)")
+    match = entry.get("match")
+    if (not isinstance(match, list) or not match or not all(isinstance(m, str) and m for m in match)
+            or sum(m.count("{count}") for m in match) != 1):
+        raise DataError(f"{label}: text evidence needs match = [...]: the fragments of the one line that states the "
+                        "count, in order, one of them holding {count} once")
+    number = rf"(?<![\d,.])(?:{count:,}|{count})(?![\d]|,\d)"
+    rx = r"[^\n]*?".join(re.escape(m).replace(re.escape("{count}"), number) for m in match)
+    if not re.search(rx, path.read_text(encoding="utf-8")):
+        raise DataError(f"{label}: {rel} does not state {count:,} where match = {match!r} anchors it (add a JSON "
+                        "pointer or cite the file that does)")
 
 
 def _repo_label(url: str) -> str:

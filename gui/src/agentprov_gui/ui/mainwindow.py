@@ -2,7 +2,10 @@
 
 A sidebar with sections (Corpora: Viewer; Jobs and Release arrive with G2; Help: Docs and Assistant, D-1010) | the
 active page. The Assistant opens as a tab of its own beside the page (D-1040), so the chat and the page it is about are
-one click apart; the tab bar shows only while the Assistant tab is open. On macOS, About and
+one click apart; the tab bar shows only while the Assistant tab is open. The frame follows the house style (D-1060): the
+sidebar is a source list (section headings in small capitals, a drawn glyph per page, a rounded selection from the
+theme; :class:`brand.SourceListDelegate`), the Qt toolbar and the status bar take the theme's tokens and are restyled
+when the appearance changes, and the job count in the status bar is a status badge. On macOS, About and
 Settings… sit in the App menu (Qt's ``AboutRole``/``PreferencesRole`` move them there) and Settings opens with ⌘,;
 elsewhere they are in the Help and Edit menus. Every action has a menu item; the Go menu switches pages (⌘1 …).
 """
@@ -15,15 +18,18 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QByteArray, Qt
-from PySide6.QtGui import QAction, QFont, QKeySequence
+from PySide6.QtCore import QByteArray, QSize, Qt
+from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QSizePolicy,
     QStackedWidget,
     QStatusBar,
     QTabBar,
@@ -36,9 +42,17 @@ from agentprov_gui.paths import agentprov_home, layout_cache_dir
 from agentprov_gui.platform import ACTIVITY_TIP, SEARCH_TIP, TOOLBAR_TIPS
 from agentprov_gui.settings import Settings
 from agentprov_gui.ui import theme
+from agentprov_gui.ui.brand import GLYPH_ROLE, SourceListDelegate, glyph_icon
 from agentprov_gui.ui.dialogs import AboutDialog, SettingsDialog
-from agentprov_gui.ui.safe import SafeLabel, set_control_tooltip, set_list_item_tooltip, set_tab_tooltip
-from agentprov_gui.ui.viewer import ViewerPage
+from agentprov_gui.ui.execution import render_values
+from agentprov_gui.ui.forms import StatusBadge
+from agentprov_gui.ui.safe import (
+    set_control_tooltip,
+    set_list_item_tooltip,
+    set_tab_tooltip,
+    set_tooltips_shown,
+)
+from agentprov_gui.ui.viewer import ViewerPage, verify_values
 
 __all__ = ["MainWindow"]
 
@@ -76,14 +90,22 @@ class MainWindow(QMainWindow):
         central = QWidget(self)
         lay = QHBoxLayout(central)
         lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
         self.sidebar = QListWidget(central)
         self.sidebar.setAccessibleName("Navigation")
+        self.sidebar.setObjectName("sidebar")
         self.sidebar.setMaximumWidth(232)
         self.sidebar.setMinimumWidth(160)
+        self.sidebar.setFrameShape(QFrame.Shape.NoFrame)
+        self.sidebar.setItemDelegate(SourceListDelegate(self.sidebar))  # the source list (D-1060)
+        self.sidebar.setMouseTracking(True)  # the hover row
+        self.sidebar.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # D-1040: tab 0 holds the page chosen in the sidebar; the Assistant opens as a second, closable tab
         self.tabs = QTabWidget(central)
         self.tabs.setAccessibleName("Window tabs")
         self.tabs.setDocumentMode(True)
+        self.tabs.tabBar().setDrawBase(False)  # no platform band behind the tabs (D-1060)
         self.tabs.setTabsClosable(True)
         self.tabs.setTabBarAutoHide(True)  # one tab (no Assistant): the window looks as it did
         self.pages = QStackedWidget(self.tabs)
@@ -98,26 +120,32 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         self.setStatusBar(QStatusBar(self))
         self.statusBar().setAccessibleName("Status")
+        self.statusBar().setSizeGripEnabled(sys.platform != "darwin")  # macOS windows resize from any edge
         self.viewer = ViewerPage(settings.corpus_roots, cache_dir if cache_dir is not None else layout_cache_dir(home),
-                                 settings.content_limit, self)
+                                 settings.content_limit, self, store=settings.store)
         self.viewer.set_exact_palette(settings.graph_palette == "exact")
         self.viewer.status_message.connect(lambda msg: self.statusBar().showMessage(msg))
         self.viewer.corpus_opened.connect(self._corpus_opened)
+        self.viewer.open_folder_requested.connect(self._open_dialog)  # the corpora list's Open Folder… (D-1060)
         self._add_section("Corpora")
         self._add_page("Viewer", self.viewer)
         self.runs: Any = None
         if jobs:
             self._jobs_pages(home or agentprov_home())
         self._help_pages()
+        self._updates()
         self.sidebar.currentRowChanged.connect(self._nav)
         self.tabs.currentChanged.connect(self._tab_changed)
         self.sidebar.setCurrentRow(1)
         self.action_map: dict[str, QAction] = {}
         self.chrome: Any = None
+        self.toolbar: Any = None
         self._running_ids: set[str] = set()
         self._menus()
         self._restore()
         self._install_chrome()
+        self._restyle()
+        QGuiApplication.styleHints().colorSchemeChanged.connect(lambda _scheme: self._restyle())
         self.viewer.refresh()
 
     # ------------------------------------------------------------------------------------------ G2 pages
@@ -137,6 +165,7 @@ class MainWindow(QMainWindow):
         self.package = PackagePage(self.runs.start, self.settings.checkout, self, revalidate=self._revalidate)
         self.viewer.revalidate_requested.connect(self._revalidate)
         self.viewer.render_requested.connect(self._render)
+        self.viewer.verify_requested.connect(self._verify)
         self._add_section("Jobs")
         self._add_page("Runs", self.runs)
         self._add_page("Logs", self.logs)
@@ -149,9 +178,10 @@ class MainWindow(QMainWindow):
         self.runs.open_log.connect(self._open_log)
         self.runs.jobs_changed.connect(self._jobs_changed)
         self.runs.view.selectionModel().currentRowChanged.connect(self._job_selected)
-        self.activity = SafeLabel("", name="Job activity", parent=self)
+        self.activity = StatusBadge("", name="Job activity", parent=self)  # words with a tint (D-1060)
         set_control_tooltip(self.activity, ACTIVITY_TIP)
         self.statusBar().addPermanentWidget(self.activity)
+        self._platform_check(self.manager.cli)
         self._version_check()
 
     def _help_pages(self) -> None:
@@ -161,6 +191,9 @@ class MainWindow(QMainWindow):
         from agentprov_gui.ui.help import AssistantPage, DocsPage
 
         self.docs = DocsPage(self.settings.checkout, self)
+        from agentprov_gui.ui.platformnotice import set_docs
+
+        set_docs(self.docs, partial(self.go, "Docs"))  # D-1064: a notice's "How to run it" opens its guide section
         self.assistant = AssistantPage(CliLocator.for_checkout(self.settings.checkout), self)
         self.assistant.hide()  # a tab once opened (D-1040); until then not a loose child over the page
         self.docs.status_message.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
@@ -170,7 +203,8 @@ class MainWindow(QMainWindow):
         self._add_page("Docs", self.docs)
         item = QListWidgetItem("Assistant")  # not a page of the stack: it opens the Assistant tab (D-1040)
         item.setData(Qt.ItemDataRole.UserRole, _ASSISTANT_ROW)
-        set_list_item_tooltip(item, PAGE_TIPS["Assistant"])
+        item.setData(GLYPH_ROLE, "Assistant")
+        set_list_item_tooltip(item, PAGE_TIPS["Assistant"], wrap=True)
         self.sidebar.addItem(item)
 
     def _verified(self, corpus: Path) -> str | None:
@@ -188,7 +222,12 @@ class MainWindow(QMainWindow):
     def _render(self, corpus: str, ex: str) -> None:
         """Viewer › Export Graph: the render job form for one execution (D-706; ``agentprov render``, D-654)."""
         self.go("Runs")
-        self.runs.new_job("render", {"corpus": corpus, "ex": ex})
+        self.runs.new_job("render", render_values(corpus, ex))
+
+    def _verify(self, corpus: str) -> None:
+        """Viewer › the notice's Verify…: the verify job form for the open corpus (G.8.6; ``agentprov verify``)."""
+        self.go("Runs")
+        self.runs.new_job("verify", verify_values(Path(corpus)))
 
     def _revalidate(self, corpus: str) -> None:
         self.go("Runs")
@@ -206,15 +245,17 @@ class MainWindow(QMainWindow):
     def _job_selected(self, *_: object) -> None:
         job = self.runs.selected
         if job is not None and job.state == "running":
-            self.system.follow_job(job.pid, job.record.get("pid_create_time"))
+            self.system.follow_job(job.pid, job.record.get("pid_create_time"), job.job_id)
 
     def _jobs_changed(self, running: int, ended: int) -> None:
-        self.activity.set_plain(f"● {running} running" if running else f"{ended} jobs")
+        self.activity.set_status(f"● {running} running" if running else f"{ended} jobs", "info" if running else "neutral")
         jobs = {j.job_id: j for j in self.manager.jobs.values()}
         now_running = {k for k, j in jobs.items() if j.state == "running"}
-        for job_id in self._running_ids - now_running:
-            self._job_ended(jobs[job_id])
-        self._running_ids = now_running
+        ended_ids, self._running_ids = self._running_ids - now_running, now_running
+        for job_id in ended_ids:
+            # AU-GUI-5: a job no longer listed (its folder removed, job.json unreadable for one read) gets no notice
+            if (job := jobs.get(job_id)) is not None:
+                self._job_ended(job)
         if self.chrome is not None:
             self.chrome.set_activity(running, ended)
             sel = self.runs.selected
@@ -275,21 +316,47 @@ class MainWindow(QMainWindow):
 
         submit(self, work, finished)
 
+    def _platform_check(self, cli: Any) -> None:
+        """D-1064: what this CLI refuses on this platform (``agentprov info --format json``'s ``platform`` member); the
+        pages disable those features with its message. Unknown (nothing disabled) until it answers or without a CLI."""
+        from agentprov_gui import platform_limits
+        from agentprov_gui.ui import platformnotice
+        from agentprov_gui.ui.worker import submit
+
+        platformnotice.apply(None)
+        if not cli.available:
+            return
+
+        def work(_s: object) -> platform_limits.PlatformLimits | None:
+            return platform_limits.fetch(cli)
+
+        def finished(limits: platform_limits.PlatformLimits | None) -> None:
+            if self.manager.cli is cli:  # else the checkout changed in Settings while this ran
+                platformnotice.apply(limits)
+
+        submit(self, work, finished)
+
+    def _platform_gate(self) -> None:
+        """D-1064: Run Live… stays in the File menu, disabled with the reason, where live runs are refused."""
+        from agentprov_gui import platform_limits
+        from agentprov_gui.ui.platformnotice import gate_action
+
+        if "runLive" in self.action_map:
+            gate_action(self.action_map["runLive"], platform_limits.current().get("live_runs"))
+
     # ------------------------------------------------------------------------------------------ navigation
     def _add_section(self, title: str) -> None:
+        """A section heading of the sidebar: not selectable; the delegate draws it in small grey capitals."""
         item = QListWidgetItem(title.upper())
         item.setFlags(Qt.ItemFlag.NoItemFlags)
-        font = QFont(item.font())
-        font.setBold(True)
-        font.setPointSizeF(max(font.pointSizeF() * 0.85, 9.0))
-        item.setFont(font)
         self.sidebar.addItem(item)
 
     def _add_page(self, title: str, page: QWidget) -> None:
         item = QListWidgetItem(title)
         item.setData(Qt.ItemDataRole.UserRole, self.pages.addWidget(page))
+        item.setData(GLYPH_ROLE, title)
         if title in PAGE_TIPS:
-            set_list_item_tooltip(item, PAGE_TIPS[title])
+            set_list_item_tooltip(item, PAGE_TIPS[title], wrap=True)
         self.sidebar.addItem(item)
 
     def _nav(self, row: int) -> None:
@@ -301,7 +368,7 @@ class MainWindow(QMainWindow):
             self.pages.setCurrentIndex(index)
             self.tabs.setTabText(0, item.text())
             self.assistant.set_page(item.text())  # D-1041: the page the Assistant's next message is about
-            set_tab_tooltip(self.tabs, 0, f"{item.text()}: the page chosen in the sidebar (not closable)")
+            set_tab_tooltip(self.tabs, 0, f"{item.text()}: the page chosen in the sidebar (not closable)", wrap=True)
             self.tabs.setCurrentIndex(0)
 
     def go(self, title: str) -> None:
@@ -323,7 +390,7 @@ class MainWindow(QMainWindow):
             index = self.tabs.addTab(self.assistant, "Assistant")
             self.tabs.tabBar().setAccessibleTabName(index, "Assistant chat")
             set_tab_tooltip(self.tabs, index, "The Assistant chat. Closing the tab keeps the conversation; New Chat "
-                                              "clears it.")
+                                              "clears it.", wrap=True)
         self.tabs.setCurrentIndex(index)
         if self.assistant.input.isEnabled():
             self.assistant.input.setFocus()
@@ -380,6 +447,11 @@ class MainWindow(QMainWindow):
         if self.runs is not None:
             self.action_map["runLive"] = self._action("Run Live…", self._run_live, "Ctrl+L")  # design §6.2
             file_menu.addAction(self.action_map["runLive"])
+            file_menu.setToolTipsVisible(True)  # D-1064: a disabled Run Live… says why (other items have no tooltip)
+            from agentprov_gui.ui.platformnotice import notifier
+
+            notifier().changed.connect(self._platform_gate)
+            self._platform_gate()
             self.action_map["newJob"] = self._action("New Job…", self._new_job_menu, "Ctrl+N")
             self.action_map["devRun"] = self._action("Dev Run…", self.runs.start_dev_run, None)
             file_menu.addAction(self.action_map["newJob"])
@@ -401,6 +473,13 @@ class MainWindow(QMainWindow):
         view_menu = bar.addMenu("&View")
         self.action_map["toggleSidebar"] = self._action("Toggle Sidebar", self._toggle_sidebar, "Ctrl+Meta+S")
         view_menu.addAction(self.action_map["toggleSidebar"])
+        # D-1060: the Viewer's side panes (⌥⌘0 is Text Size › Default, so the inspector takes ⌥⌘I)
+        for key, sequence in (("toggleCorpora", "Ctrl+Alt+1"), ("toggleInspector", "Ctrl+Alt+I")):
+            act = self.viewer.pane_actions[key]
+            act.setShortcut(QKeySequence(sequence))
+            act.triggered.connect(partial(self.go, "Viewer"))
+            self.action_map[key] = act
+            view_menu.addAction(act)
         size_menu = view_menu.addMenu("Text Size")
         size_menu.addAction(self._action("Bigger", lambda: self.scale_text(1.1), "Ctrl+Alt+="))
         size_menu.addAction(self._action("Smaller", lambda: self.scale_text(1 / 1.1), "Ctrl+Alt+-"))
@@ -425,6 +504,8 @@ class MainWindow(QMainWindow):
             bar.addMenu("Window")  # filled by the native layer (NSApp.windowsMenu), else left to the system
         help_menu = bar.addMenu("&Help")
         help_menu.addAction(self._action("About AgentPROV", self._about, None, QAction.MenuRole.AboutRole))
+        help_menu.addAction(self._action("Check for Updates…", lambda: self._about(check=True), None,
+                                         QAction.MenuRole.ApplicationSpecificRole))
         help_menu.addAction(self._action("AgentPROV Help", partial(self.go, "Docs"), "Ctrl+?"))
         help_menu.addAction(self._action("Ask the Assistant", self.open_assistant))
         help_menu.addAction(self._action("Keyboard Shortcuts", self._shortcuts))
@@ -473,7 +554,7 @@ class MainWindow(QMainWindow):
     def _search(self, text: str) -> None:
         """The toolbar search (the user's own input): the Viewer's id filter only (S15)."""
         self.go("Viewer")
-        self.viewer.ex_filter.setText(text.strip()[:200])
+        self.viewer.set_search(text.strip()[:200])
 
     def _install_chrome(self) -> None:
         from agentprov_gui.platform import native_chrome_enabled
@@ -485,6 +566,7 @@ class MainWindow(QMainWindow):
             if self.chrome is not None:
                 self._flags(self.chrome.flags)
                 self.chrome.set_subtitle("Viewer")
+                self.viewer.search_changed.connect(self.chrome.set_search)  # AU-NG-5: the field follows the Viewer
                 return
         self._qt_toolbar()
 
@@ -495,20 +577,58 @@ class MainWindow(QMainWindow):
         bar = QToolBar("Main", self)
         bar.setAccessibleName("Main toolbar")
         bar.setObjectName("main-toolbar")
+        bar.setMovable(False)
+        bar.setIconSize(QSize(16, 16))
+        bar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.toolbar = bar
         for key in ("toggleSidebar", "openCorpus", "reload", "newJob", "devRun"):
             if key in self.action_map:
                 bar.addAction(self.action_map[key])
                 button = bar.widgetForAction(self.action_map[key])
                 if button is not None:  # the action's own tooltip is only its name
                     set_control_tooltip(button, TOOLBAR_TIPS[key])
+                    button.setProperty("apvGlyph", key)  # its drawn glyph (on the button, so menus stay without)
         search = QLineEdit(bar)
         search.setAccessibleName("Search execution ids")
         search.setPlaceholderText("Search ids")
         set_control_tooltip(search, SEARCH_TIP + " (press Return).")
         search.setMaximumWidth(260)
         search.returnPressed.connect(lambda: self._search(search.text()))
+        self.viewer.search_changed.connect(lambda text: search.setText(text) if text != search.text() else None)
+        spacer = QWidget(bar)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        bar.addWidget(spacer)  # the search field on the right, as in the native toolbar
         bar.addWidget(search)
         self.addToolBar(bar)
+
+    def _restyle(self) -> None:
+        """The frame's colours from the theme's tokens (D-1060): the sidebar as a source list, the Qt toolbar and the
+        status bar on the summary colour with a hairline, and the toolbar's drawn glyphs. Called at start and whenever
+        the appearance changes (these sheets are the widgets' own, so the app-wide sheet's rebuild does not reach
+        them)."""
+        t = theme.tokens()
+        self.sidebar.setStyleSheet(
+            f"QListWidget#sidebar {{ background: {t.summary}; border: none; border-right: 1px solid {t.card_border};"
+            f" padding-top: 4px; outline: 0; }}")
+        self.statusBar().setStyleSheet(
+            f"QStatusBar {{ background: {t.summary}; color: {t.secondary}; border-top: 1px solid {t.hairline}; }}"
+            " QStatusBar::item { border: none; }")
+        if self.toolbar is not None:
+            self.toolbar.setStyleSheet(
+                f"QToolBar#main-toolbar {{ background: {t.summary}; border: none; border-bottom: 1px solid {t.hairline};"
+                f" padding: 4px 8px; spacing: 4px; }}"
+                f" QToolBar#main-toolbar QToolButton {{ color: {t.text}; background: transparent;"
+                f" border: 1px solid transparent; border-radius: 6px; padding: 3px 8px; }}"
+                f" QToolBar#main-toolbar QToolButton:hover {{ background: {t.hover}; }}"
+                f" QToolBar#main-toolbar QToolButton:pressed {{ background: {t.pressed}; }}"
+                f" QToolBar#main-toolbar QToolButton:focus {{ border: 1px solid {t.accent}; }}")
+            from PySide6.QtWidgets import QToolButton
+
+            for button in self.toolbar.findChildren(QToolButton):
+                key = button.property("apvGlyph")
+                if isinstance(key, str):
+                    button.setIcon(glyph_icon(key, QColor(t.secondary)))
+        self.sidebar.viewport().update()
 
     def _flags(self, flags: Any) -> None:
         theme.ACCESS.update(differentiate=bool(flags.differentiate_without_colour),
@@ -528,6 +648,7 @@ class MainWindow(QMainWindow):
         dlg = SettingsDialog(self.settings, self, pane=pane)
         if dlg.exec():
             theme.apply_scheme(self.settings.theme)
+            set_tooltips_shown(self.settings.show_tooltips)
             self.viewer.roots = self.settings.corpus_roots
             self.viewer.set_show_content_limit(self.settings.content_limit)
             self.viewer.set_exact_palette(self.settings.graph_palette == "exact")
@@ -554,10 +675,52 @@ class MainWindow(QMainWindow):
         if self.statusBar().currentMessage().startswith("Viewer only"):
             self.statusBar().clearMessage()
         self.runs.new_btn.setEnabled(True)  # the check below disables it again for a checkout without a usable CLI
+        self._platform_check(self.manager.cli)
         self._version_check()
 
-    def _about(self) -> None:
-        AboutDialog(self.settings.checkout, self).exec()
+    def _updates(self) -> None:
+        """Check for Updates (D-1065): one controller for About, the menu item and the start-up notice; its commands are
+        the configured CLI's (the jobs' manager, else the checkout's or the installed agentprov)."""
+        from agentprov_gui import updates as U
+        from agentprov_gui.ui.updates import UpdateController
+
+        def run(argv: list[str], timeout: float) -> tuple[int, bytes, bytes]:
+            if self.runs is not None:
+                return self.manager.call(argv, timeout=timeout)
+            from agentprov_gui.jobs.manager import CliLocator
+            from agentprov_gui.live.cli import call
+
+            return call(CliLocator.for_checkout(self.settings.checkout), argv, timeout=timeout)
+
+        self.updates = UpdateController(run, bundle=U.app_bundle(), gui=U.app_version(), parent=self)
+        self.updates.notice.connect(self._update_notice)
+
+    def start_update_check(self) -> None:
+        """The daily update check at start-up (``update check --if-stale`` unless ``update.auto_check`` is false); it
+        never blocks the window and stays silent when it fails (offline, no CLI)."""
+        self.updates.startup()
+
+    def _update_notice(self, check: Any) -> None:
+        """Once per new release: Update Now (About, the download and the confirmed install), Later (asked again at the
+        next start) or Skip This Version (``update.last_notified``)."""
+        from agentprov_gui.ui.updates import UpdateNotice
+
+        dlg = UpdateNotice(check, self)
+        dlg.exec()
+        if dlg.choice == "skip" and check.release is not None:
+            self.updates.skip(check.release)
+        elif dlg.choice == "update":
+            self._about(install=True)
+
+    def _about(self, *, check: bool = False, install: bool = False) -> None:
+        """About; ``check``: Help › Check for Updates… starts a check; ``install``: the notice's Update Now starts the
+        download (the install waits for its confirmation)."""
+        dlg = AboutDialog(self.settings.checkout, self, updates=self.updates)
+        if check:
+            self.updates.check_now()
+        elif install:
+            self.updates.download_and_install(dlg)
+        dlg.exec()
 
     def _shortcuts(self) -> None:
         from agentprov_gui.ui.safe import safe_message_box
@@ -611,6 +774,7 @@ SHORTCUTS = (
     "⌘8           the Assistant, in a tab beside the page; ⌘W closes the tab (the chat is kept), ⌘⇧] ⌘⇧[ switch "
     "between it and the page; in the Assistant, ⌘↩ sends\n"
     "⌘?           AgentPROV Help (the Docs page)\n"
+    "⌥⌘1 / ⌥⌘I   Viewer: show or hide the corpora list and the inspector (a collapsed pane's strip opens it too)\n"
     "Viewer tabs: Return or double-click opens an execution in a new tab; ⌘W closes it (on Corpora: the window), "
     "⌥⌘W closes the other tabs, ⇧⌘W closes the window, ⌘⇧] ⌘⇧[ next and previous tab (Ctrl+PgDown, Ctrl+PgUp "
     "elsewhere), ⌃Tab ⌃⇧Tab the sub-tabs, middle-click closes a tab\n"

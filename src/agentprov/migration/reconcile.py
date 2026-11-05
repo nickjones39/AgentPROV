@@ -8,15 +8,15 @@ index per kind, message and part index), and classifies every field:
 * ``equal``: present on both sides with the same JSON value;
 * ``native_only`` / ``v1_only``: present on one side only;
 * ``differs_expected(<rule>)``: present on both sides, different, and explained by a J.4.4 row;
-* ``differs_unexpected``: anything else. R3 passes when there is none and every lineage record agrees (it is
-  "reported", J.4.3: it never blocks a release).
+* ``differs_unexpected``: anything else. R3 passes when at least one pair was compared, there is none and every
+  lineage record agrees (it is "reported", J.4.3: it never blocks a release).
 
 A field present on one side only is counted under the J.4.4 row that explains it (:data:`EXPECTED_PRESENCE`); one that
 no row names is reported as ``unexplained`` presence, never hidden.
 
 **The projection.** Every record but the seal, minus the members that differ by design (J.4.4 row 1: ids, artefact
 origins, the source key, the adapter and profile, rule citations and evidence metadata; ``ev``/``by`` except for
-linkage), flattened to paths ``<kind>[<n>]/<member>/...``. The skip applies to a record's own members and to the ids
+linkage), flattened to paths ``<kind>[<n>]/<member>/...`` (an empty array or object is a leaf of its own). The skip applies to a record's own members and to the ids
 its ``after``/``input``/``related`` items name; payload below them (``args``, ``returned``, ``value``, ``ext``) is
 compared member by member, whatever the member is called. Actor records are keyed by their id (``actors/<id>/...``):
 both importers use the same role labels (``bench``, ``user``, ``agent``, ``env``, ``att``, ``def<n>``), so a reference
@@ -150,7 +150,9 @@ def pattern_of(path: str) -> str:
 
 
 def _flat(value: Any, path: str, out: dict[str, Any], skip: frozenset[str] = frozenset()) -> None:
-    if isinstance(value, Mapping):
+    if isinstance(value, Mapping | list) and not value:  # an empty [] or {} is a leaf: presence and type compare
+        out[path] = value
+    elif isinstance(value, Mapping):
         for name, item in value.items():
             if name not in skip:
                 _flat(item, f"{path}/{name}", out)
@@ -162,7 +164,7 @@ def _flat(value: Any, path: str, out: dict[str, Any], skip: frozenset[str] = fro
 
 
 def project(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """The comparison record of one AER (see the module docstring): field path -> JSON scalar."""
+    """The comparison record of one AER (see the module docstring): field path -> JSON scalar or empty ``[]``/``{}``."""
     out: dict[str, Any] = {}
     counts: Counter[str] = Counter()
     for record in records:
@@ -183,7 +185,7 @@ def _record(record: Mapping[str, Any], path: str, out: dict[str, Any]) -> None:
         if name in _SKIP:
             continue
         drop = _SKIP_ITEM.get(name)
-        if drop is not None and isinstance(item, list):
+        if drop is not None and isinstance(item, list) and item:
             for n, entry in enumerate(item):
                 _flat(entry, f"{path}/{name}/{n}", out, drop)
         else:
@@ -249,8 +251,9 @@ class ReconciliationReport:
 
     @property
     def passed(self) -> bool:
-        """No ``differs_unexpected`` field and every lineage record agrees (J.4.3)."""
-        return (not any(c == "differs_unexpected" for c, _p, _r in self.categories)
+        """At least one pair, no ``differs_unexpected`` field and every lineage record agrees (J.4.3). A report with
+        no pairs compared nothing (a wrong converted root matches no log) and never passes."""
+        return (self.pairs > 0 and not any(c == "differs_unexpected" for c, _p, _r in self.categories)
                 and set(self.lineage_verdicts) <= {"agree"})
 
     def to_json(self, *, with_lineage: bool = False) -> dict[str, Any]:

@@ -54,7 +54,7 @@ mode = "import"
 
 [[sources]]
 source_id = "{PROFILE}"
-profile = "{PROFILE}@1"
+profile = "{PROFILE}@2"
 parts = ["head"]
 
 [[sources.snapshots]]
@@ -64,7 +64,7 @@ alt_origins = []
 raw_policy = "include"
 
 [derive]
-sem_profiles = ["openhands.tools@2"]
+sem_profiles = ["openhands.tools@3"]
 prov_specs = ["agentprov-prov/0.1"]
 views = []
 options = {{ context_encoding = "members" }}
@@ -152,14 +152,14 @@ def _inputs() -> Any:
     from agentprov.corpus.package import LicenceFile, ProducerFacts, SealInputs
 
     package = resources.files("agentprov").joinpath("adapters", "openhands")
-    node = package.joinpath("semantics", "openhands.tools-2")
+    node = package.joinpath("semantics", "openhands.tools-3")
     return SealInputs(
         spec=SPEC.encode(),
         card=CARD.encode(),
         changes=CHANGES.encode(),
         statements=load_statements((_TESTS.parent / "corpora" / "datasheet-statements.toml").read_bytes()),
         source_profile=package.joinpath("profiles", f"{PROFILE}.profile.toml").read_bytes(),
-        semantics_profiles={"openhands.tools@2": {c.name: c.read_bytes() for c in sorted(node.iterdir(), key=lambda c: c.name)
+        semantics_profiles={"openhands.tools@3": {c.name: c.read_bytes() for c in sorted(node.iterdir(), key=lambda c: c.name)
                                                   if c.is_file()}},
         licence_files={"LICENSE": LicenceFile(b"test licence text\n", "supplied at sealing (test)")},
         producer=ProducerFacts(git_commit="0123456789abcdef0123456789abcdef01234567", git_tree_clean=True,
@@ -185,7 +185,7 @@ def test_the_decoded_hit_withholds_the_zip_at_object_level_and_no_execution(cli,
     (entry,) = document.entries
     assert entry.sha256 == working["container"]
     assert (entry.reason, entry.basis) == ("secret", "profile_rule")
-    assert entry.finding is not None and entry.finding.rule.startswith(f"{PROFILE}@1:")
+    assert entry.finding is not None and entry.finding.rule.startswith(f"{PROFILE}@2:")
     assert [p.to_json()["rules"] for p in document.policies] == [[{"id": "hf-token-shape", "kind": "pattern",
                                                                     "scope": "object"}]]
     assert document.executions == () or list(document.executions) == []

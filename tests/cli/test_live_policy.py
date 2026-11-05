@@ -37,13 +37,28 @@ END = ("session.end", {"status": "complete"})
     (True, "http://localhost:11434/v1", "local"),
     (True, "http://[::1]:8000/v1", "local"),
     (True, "https://models.example.org/v1", "api"),  # a local entry pointed off loopback is an API endpoint
-    (True, "http://192.168.1.20:1234/v1", "api"),  # LAN: not local until the egress proxy forwards it (D-721)
+    (True, "http://192.168.1.20:1234/v1", "api"),  # LAN: its data leaves the machine (D-1067, amending D-721)
+    (True, "http://[fd00::5]:1234/v1", "api"),
     (True, None, "api"),
     (False, "http://127.0.0.1:1234/v1", "api"),  # not a local entry, whatever its URL
     (False, "https://openrouter.ai/api/v1", "api"),
 ])
 def test_endpoint_class(local: bool, url: str | None, kind: str) -> None:
     assert endpoint_class(local_entry=local, base_url=url) == kind
+
+
+def test_the_api_reason_names_a_lan_model_server() -> None:
+    """AU-RN-8 / D-1067: a keyless LAN server is api because its data leaves the machine, and the reason says so."""
+    from agentprov.cli.live.policy import api_reason, is_lan_base_url
+
+    assert is_lan_base_url("http://192.168.1.20:11434/v1") and is_lan_base_url("http://10.0.0.7:8000/v1")
+    assert not is_lan_base_url("http://127.0.0.1:11434/v1") and not is_lan_base_url("https://lan.example/v1")
+    assert not is_lan_base_url(None) and not is_lan_base_url("http://[::1:8000/v1")
+    lan = api_reason(local_entry=True, base_url="http://192.168.1.20:11434/v1")
+    assert "LAN model server is an API endpoint" in lan and "leave this machine" in lan and "D-1067" in lan
+    assert api_reason(local_entry=True, base_url="https://models.example.org/v1") == \
+        "the resolved base URL is not a local server on loopback"
+    assert api_reason(local_entry=False, base_url="http://192.168.1.20:11434/v1") == "the endpoint entry is not local"
 
 
 def test_billing_counts_2xx_replies_and_sums_every_input_side_token() -> None:
@@ -192,8 +207,114 @@ def test_the_prior_spend_of_a_working_corpus_includes_its_recorded_probes(tmp_pa
     assert _prior_budget(argparse.Namespace(corpus=None), None) is None
 
 
+def test_the_prior_spend_charges_cells_started_but_never_ledgered(tmp_path) -> None:
+    """AU-LIVE-3: a resumed campaign's probe admission and budget charge every cell an earlier invocation started and
+    never ledgered (``live.caps.unledgered_cells``) a whole cell at the bound."""
+    import argparse
+    import json as _json
+
+    from agentprov.cli.run import _prior_budget, _prior_unledgered_cells
+    from agentprov.corpus.layout import CorpusLayout, partial_dir
+
+    partial = partial_dir(tmp_path / "corpus")
+    (partial / "raw" / "objects").mkdir(parents=True)
+    live = {"caps": {"probe_calls": 1, "unledgered_cells": 2}}
+    CorpusLayout(partial).manifest.write_text(_json.dumps({"live": live}), encoding="utf-8")
+    budget = Budget(_caps(max_calls=100, max_cost_usd=None, price_in=None, price_out=None))
+    prior = _prior_budget(argparse.Namespace(corpus=str(tmp_path / "corpus")), budget)
+    assert prior.calls == 1 + 2 * CELL_CALL_BOUND and prior.record()["unledgered_cells"] == 2
+    assert (prior.refusal(0) or "").startswith("cap_reached")  # 97 + 48 > 100
+    for bad in (None, {}, {"caps": {"unledgered_cells": -1}}, {"caps": {"unledgered_cells": True}}, {"caps": []}):
+        assert _prior_unledgered_cells(bad) == 0
+    assert _prior_unledgered_cells(live) == 2
+    costed = Budget(_caps(max_calls=None, max_cost_usd=10.0))
+    costed.charge_unledgered(1)
+    assert costed.cost_usd == pytest.approx(costed.cell_bound()[1])
+
+
 def test_a_probe_must_fit_the_cost_cap() -> None:
     budget = Budget(_caps(max_calls=1000, max_cost_usd=0.03))
     assert budget.probe_refusal() is None  # one call at the bound: 32,000 x 0.15 + 4,096 x 0.60 per Mtok
     budget.cost_usd = 0.03 - budget.call_bound_usd() / 2
     assert (budget.probe_refusal() or "").startswith("cap_reached: --max-cost-usd 0.03")
+
+
+def test_the_cell_bound_counts_the_billed_replies_of_the_llm_element() -> None:
+    """AU-LIVE-1: ``gateway_compat`` asks again (up to 8 attempts) on a malformed tool call or an upstream failure
+    answered 200, and every one of those replies is billed; one gateway cell billed 128 calls against a bound of 48, so
+    a cell was admitted under --max-calls 100 and overran it. The bound now counts each step at the element's billed
+    replies: 3 x 16 x 8 for gateway_compat, 3 x 16 x 3 for the AutoDojo fork's native element."""
+    from agentprov.cli.live.policy import (
+        STEP_ATTEMPTS_AUTODOJO_NATIVE,
+        STEP_ATTEMPTS_GATEWAY,
+        defence_cell_calls,
+        step_attempts,
+    )
+    from agentprov.cli.run import _defence_cell_calls
+
+    assert step_attempts("gateway_compat", "agentdojo") == STEP_ATTEMPTS_GATEWAY == 8
+    assert step_attempts("native", "autodojo") == STEP_ATTEMPTS_AUTODOJO_NATIVE == 3
+    assert step_attempts("native", "agentdojo") == step_attempts(None, "agentdyn") == 1
+    assert _defence_cell_calls(None, 8) == defence_cell_calls(None, 8) == 384
+    assert _defence_cell_calls(None, 3) == 144 and _defence_cell_calls(None) == CELL_CALL_BOUND
+    # a defence's own calls (tool_filter: one per pass, a stock client) are added, not multiplied
+    assert defence_cell_calls({"extra_calls_per_step": 0.0, "extra_calls_per_pass": 1.0}, 8) == 384 + 3
+
+
+def test_a_melon_cell_counts_its_masked_calls_at_the_llm_elements_billed_replies() -> None:
+    """AU-FR-2: MELON's masked re-run goes through the agent's own LLM element (the port wraps the pipeline's element),
+    so under ``gateway_compat`` each masked call may bill 8 replies too; its two embeddings a step use the defence
+    endpoint's client and are counted once. The bound was 528 against a worst case of 864."""
+    from pathlib import Path
+
+    from agentprov.cli.live.defences import load_registry, registry_path
+    from agentprov.cli.live.policy import defence_cell_calls, step_attempts
+    from agentprov.cli.run import _defence_cell_calls
+
+    reg = load_registry(registry_path(Path(__file__).resolve().parents[2]))
+    gateway = step_attempts("gateway_compat", "agentdojo")
+    for name in ("melon", "melon_sm", "melon_at"):
+        cost = reg[name].raw.get("cost")
+        assert defence_cell_calls(cost, gateway) == _defence_cell_calls(reg[name], gateway) == 384 + 384 + 96 == 864
+        assert defence_cell_calls(cost, 3) == 144 + 144 + 96 and defence_cell_calls(cost) == 48 + 48 + 96 == 192
+    assert defence_cell_calls(reg["tool_filter"].raw.get("cost"), gateway) == 384 + 3  # its own stock client
+    gateway_cell = log_billing(_log(*([_reply()] * 128), END))  # 16 steps of 8 billed replies (7 malformed)
+    budget = Budget(Caps(max_calls=100), cell_calls=384, step_calls=8)
+    assert (budget.refusal(0) or "").startswith("cap_reached: --max-calls 100")  # not admitted any more
+    budget = Budget(Caps(max_calls=10_000), cell_calls=384, step_calls=8)
+    budget.charge(gateway_cell, label="c")
+    assert budget.calls == 128 and budget.exceeded_bound == [] and budget.refusal(0) is None
+
+
+def test_a_probe_is_charged_and_admitted_at_the_llm_elements_billed_replies() -> None:
+    """AU-LIVE-1: the preflight probe runs through the same LLM element, so it may bill ``step_calls`` replies."""
+    from agentprov.cli.common import CommandResult
+    from agentprov.cli.run import _probe
+
+    budget = Budget(Caps(max_calls=100), step_calls=8)
+    budget.calls = 93
+    assert (budget.probe_refusal() or "").startswith("cap_reached: --max-calls 100")  # 93 + 8 > 100
+    budget.calls = 92
+    assert budget.probe_refusal() is None
+    campaign, prior = Budget(Caps(max_calls=1000), step_calls=8), Budget(Caps(max_calls=1000), step_calls=8)
+    _, calls = _probe(lambda: {"reachable": True, "roles_accepted": True}, CommandResult(), campaign, prior)
+    assert calls == 1 and campaign.calls == prior.calls == 8 and campaign.record()["probe_calls"] == 8
+
+
+def test_the_step_attempts_match_what_the_backend_declares() -> None:
+    """The constants mirror the backend's declared retry ceilings, read as source (the core imports no backend)."""
+    import re
+    from pathlib import Path
+
+    from agentprov.cli.live.policy import STEP_ATTEMPTS_AUTODOJO_NATIVE, STEP_ATTEMPTS_GATEWAY
+
+    src = Path(__file__).resolve().parents[2] / "backends/shared/src/agentprov_backend"
+    runner = (src / "runner.py").read_text(encoding="utf-8")
+    for item in ("agentdojo.retry_malformed_tool_json@1", "agentdojo.retry_upstream_failure@1"):
+        found = re.search(re.escape(item) + r'", "harness_policy", params=\{"max": (\d+)\}', runner)
+        assert found is not None and int(found.group(1)) == STEP_ATTEMPTS_GATEWAY
+    attempts = re.search(r"\n    _MAX_ATTEMPTS = (\d+)\n", (src / "_llm.py").read_text(encoding="utf-8"))
+    assert attempts is not None and int(attempts.group(1)) == STEP_ATTEMPTS_GATEWAY
+    autodojo = (src / "autodojo.py").read_text(encoding="utf-8")
+    found = re.search(r'"autodojo\.fork_malformed_json_retry@1", "harness_policy",\s*params=\{"max": (\d+)', autodojo)
+    assert found is not None and int(found.group(1)) == STEP_ATTEMPTS_AUTODOJO_NATIVE

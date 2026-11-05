@@ -113,6 +113,16 @@ def test_g0_fails_on_a_dirty_working_tree_and_on_a_changed_tracked_file(world):
     assert _status(report)["git.tracked_files"] == "pass"  # blobs are read from the lock commit, not the work tree
 
 
+def test_g0_sees_an_untracked_file_when_the_config_hides_untracked_files(world):
+    """AU-MSR-5: ``status.showUntrackedFiles=no`` in the old repository's config does not hide a planted file."""
+    repo, _, cfg = world
+    git(repo, "config", "status.showUntrackedFiles", "no")
+    assert gates.verify_baseline(cfg).verdict == "pass"  # the config alone changes nothing
+    (repo / "planted.py").write_text("x = 2\n")
+    report = gates.verify_baseline(cfg)
+    assert report.verdict == "fail" and _status(report)["git.status_clean"] == "fail"
+
+
 def test_g0_accepts_a_later_head_when_the_tag_resolves_to_the_lock_commit(world):
     repo, _, cfg = world
     (repo / "later.txt").write_text("later\n")

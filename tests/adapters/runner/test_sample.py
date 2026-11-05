@@ -205,8 +205,9 @@ def test_an_interrupted_completion_keeps_the_snapshot_partial(tmp_path, monkeypa
 
 def test_a_remap_replays_each_snapshot_with_its_own_selection(tmp_path):
     """NF-36: a re-map (recompute, verify --level rederive) imports each snapshot with the selection that snapshot
-    recorded, not with the last run's top-level one (which would complete s1 or refuse s2 on the re-map). A manifest
-    written before the per-snapshot record keeps its top-level selection for every snapshot."""
+    recorded, not with the last run's top-level one (which would complete s1 or refuse s2 on the re-map). The top-level
+    selection is never read for a snapshot (R7 removed the fallback for manifests written before the per-snapshot
+    record)."""
     from types import SimpleNamespace
 
     from agentprov.corpus.derive import Derivation
@@ -226,7 +227,7 @@ def test_a_remap_replays_each_snapshot_with_its_own_selection(tmp_path):
     for snapshot in legacy["sources"][0]["snapshots"]:
         del snapshot["selection"]
     derivation.manifest = legacy
-    assert derivation.import_arguments("s1")["limit"] == derivation.import_arguments("s2")["limit"] == 1
+    assert derivation.import_arguments("s1")["limit"] is derivation.import_arguments("s2")["limit"] is None
 
 
 def _recompute(tmp: Path, source: str, out: str, monkeypatch: Any, capsys: Any) -> None:

@@ -282,7 +282,7 @@ def _as_built_with_profile_v1(partial: Path) -> bytes:
 def test_a_corpus_built_with_an_archived_profile_version_is_sealed_with_it_d960(cli, setup):
     corpus, spec, licence = setup
     archived = _as_built_with_profile_v1(corpus.with_name("mini.partial"))
-    spec.write_text(ss.SPEC.replace('profile = "agentdojo-upstream@2"', 'profile = "agentdojo-upstream@1"'))
+    spec.write_text(ss.SPEC.replace('profile = "agentdojo-upstream@3"', 'profile = "agentdojo-upstream@1"'))
     run = cli("package", "--corpus", str(corpus), "--corpus-version", "0.1.0", "--spec", str(spec),
               "--licence-file", f"LICENSE={licence}", "--json")
     assert run.code == 0, run.err
@@ -293,7 +293,7 @@ def test_a_corpus_built_with_an_archived_profile_version_is_sealed_with_it_d960(
 
 def test_a_profile_version_the_package_does_not_ship_is_a_usage_error_d960(cli, setup):
     corpus, spec, licence = setup
-    spec.write_text(ss.SPEC.replace('profile = "agentdojo-upstream@2"', 'profile = "agentdojo-upstream@9"'))
+    spec.write_text(ss.SPEC.replace('profile = "agentdojo-upstream@3"', 'profile = "agentdojo-upstream@9"'))
     run = cli("package", "--corpus", str(corpus), "--corpus-version", "0.1.0", "--spec", str(spec),
               "--licence-file", f"LICENSE={licence}", "--dry-run", "--json")
     assert run.code == 2 and "ships no such version" in run.err

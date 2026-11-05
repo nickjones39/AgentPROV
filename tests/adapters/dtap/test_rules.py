@@ -20,6 +20,7 @@ ISSUE_CODES = {
     "user_step_not_logged", "final_response_differs", "source_truncation_marker", "judge_error", "judge_attempt_unresolved",
     "unjudged_attempt", "path_field_mismatch", "value_redacted",  # value_redacted: catalogue version 2 (D-607)
     "content_not_inlined",  # catalogue version 3 (D-934)
+    "lone_surrogate_replaced",  # catalogue version 4 (UC-40)
 }  # fmt: skip
 #: Rules the mapper and SEM cannot exercise on the fixtures: they are register-only (the reader's sniff) or are raised
 #: only on inputs no fixture holds; each is covered by the named test.
@@ -27,12 +28,12 @@ REGISTER_ONLY = {"dtap.synthetic_marker@1", "dtap.lfs_pointer@1"}
 
 
 def catalogue():
-    return load_catalogue("dtap", 3, package=PACKAGE)  # current since D-934
+    return load_catalogue("dtap", 4, package=PACKAGE)  # current since UC-40
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("dtap", 3, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("dtap", 4, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES
     assert cat.types == {"dtap:list_mcp_tools", "dtap:harness_error", "dtap:tool_name_list", "dtap:error_text"}
     assert cat.subtypes == {"dtap.attack_goal", "dtap.attack_goal_at_eval"}
@@ -104,6 +105,10 @@ def test_every_declared_rule_is_exercised(mapped):
     disclosures.add("dtap.value_redacted@1")
     # the not-inlined rule (D-934) is exercised by test_not_inlined_d934.py: no committed fixture holds a 1 MiB string
     disclosures.add("dtap.content_not_inlined@1")
+    # the lone-surrogate rule (UC-40) is exercised by test_surrogates_uc40.py: no committed fixture holds one
+    disclosures.add("dtap.lone_surrogate_replaced@1")
+    # AU-RC-3 (row 182): cited for a tool result the mapper did not inline; test_semantics.py builds such a run
+    disclosures.add("dtap.marker_not_inlined@1")
     # reserved rules are artefact-catalogue detector names, never citable (test_artefacts.py checks they stay uncited)
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     missing = citable - cited - REGISTER_ONLY - disclosures
@@ -150,7 +155,17 @@ def test_catalogue_version_1_is_archived_unchanged_and_version_2_only_adds_the_r
     # D-934: version 3 (current) keeps every version-2 rule and adds the not-inlined rule; v2 is archived as recorded
     archived2 = (SRC / "rules" / "archive" / "dtap.rules.v2.toml").read_bytes()
     assert hashlib.sha256(archived2).hexdigest() == load_catalogue("dtap", 2, package=PACKAGE).digest.removeprefix("sha256:")
-    v3 = catalogue()
+    v3 = load_catalogue("dtap", 3, package=PACKAGE)
     assert v3.version == 3 and set(v3.rules) - set(v2.rules) == {"dtap.content_not_inlined@1"}
     assert all(v3.rules[rid] == rule for rid, rule in v2.rules.items())
     assert v3.issue_codes - v2.issue_codes == {"content_not_inlined"}
+    # UC-40: version 4 (current) keeps every version-3 rule and adds the lone-surrogate rule; v3 is archived byte for byte
+    # as the sealed corpus dtap-bench-w2c records it (derivation.json rules_sha256)
+    archived3 = (SRC / "rules" / "archive" / "dtap.rules.v3.toml").read_bytes()
+    assert hashlib.sha256(archived3).hexdigest() == "fbd1d0385978f59272a9bce86b24fe7c45bd1d2d9c0dadb6475302ec71a4e92d"
+    assert v3.digest.removeprefix("sha256:") == hashlib.sha256(archived3).hexdigest()
+    v4 = catalogue()
+    # row 182 (AU-RC-3) adds dtap.marker_not_inlined@1 to the unreleased version 4
+    assert v4.version == 4 and set(v4.rules) - set(v3.rules) == {"dtap.lone_surrogate_replaced@1", "dtap.marker_not_inlined@1"}
+    assert all(v4.rules[rid] == rule for rid, rule in v3.rules.items())
+    assert v4.issue_codes - v3.issue_codes == {"lone_surrogate_replaced"}

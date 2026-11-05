@@ -4,13 +4,19 @@
     agentprov prices get ENDPOINT MODEL [--format text|json]
     agentprov prices set ENDPOINT MODEL --input USD --output USD [--cached-input USD] [--cache-write USD] [--as-of DATE]
     agentprov prices unset ENDPOINT MODEL
-    agentprov prices refresh --allow-network | --from-file RESPONSE.json [--fetched DATE]
+    agentprov prices refresh --allow-network [--if-stale] | --from-file RESPONSE.json [--fetched DATE]
+    agentprov prices status [--format text|json]
 
 Prices are USD per million tokens (:mod:`agentprov.estimate.prices`). An override wins over a refreshed OpenRouter
 snapshot, which wins over the shipped table where it is newer; a local endpoint costs nothing per token. ``refresh``
 reads one public URL (OpenRouter's model list, no key) and needs ``--allow-network`` (exit 4 without it); the
 response is untrusted, parsed strictly, and only ids and prices are kept. ``--from-file`` imports a response saved
 earlier instead (no network).
+
+D-1062: ``status`` says when the prices were last refreshed (the newest snapshot's date and the UTC time it was
+written) and whether a daily refresh is due. ``refresh --allow-network --if-stale`` is the desktop app's daily refresh
+when Run Live opens: it fetches only while the setting ``prices.auto_refresh`` is not false (unset: on) and no
+snapshot was written today (local time); otherwise it fetches nothing and says why (exit 0).
 """
 
 from __future__ import annotations
@@ -24,6 +30,7 @@ from typing import Any
 from agentprov.cli.common import CliUsageError, CommandResult, Context, safe_text
 
 LIST_FORMAT = "agentprov-prices-list/0.1"
+STATUS_FORMAT = "agentprov-prices-status/0.1"
 
 
 def register(sub: Any, shared: argparse.ArgumentParser) -> None:
@@ -59,6 +66,13 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
     source.add_argument("--allow-network", action="store_true", help="required to fetch (one public URL, no key)")
     source.add_argument("--from-file", metavar="RESPONSE.json", help="import a saved /api/v1/models response instead")
     r.add_argument("--fetched", metavar="YYYY-MM-DD", help="with --from-file: the date it was fetched (default: today)")
+    r.add_argument("--if-stale", action="store_true",
+                   help="with --allow-network: fetch only when the setting prices.auto_refresh is not false and no "
+                        "snapshot was written today (the desktop app's daily refresh, D-1062)")
+    st = actions.add_parser("status", parents=[shared],
+                            help="when the prices were last refreshed, and whether a daily refresh is due (no network)",
+                            allow_abbrev=False)
+    st.add_argument("--format", choices=["text", "json"], default="text")
 
 
 def _payload(obj: Any) -> bytes:
@@ -128,6 +142,22 @@ def _listing(home: Path, only: str | None) -> dict[str, Any]:
     }  # fmt: skip
 
 
+def status_document(home: Path, now: dt.datetime | None = None) -> dict[str, Any]:
+    """``agentprov prices status`` (D-1062): the newest refreshed snapshot (UTC times), the shipped table's date, the
+    overrides, the setting ``prices.auto_refresh`` and whether ``refresh --if-stale`` would fetch now."""
+    from agentprov import settings
+    from agentprov.estimate.prices import STALE_DAYS, load_overrides, refresh_due, snapshot_status
+
+    b = book(home)
+    snap = snapshot_status(home)
+    auto = settings.get("prices.auto_refresh", home=home) is not False
+    due = refresh_due(snap, now)
+    return {"format": STATUS_FORMAT, "stale_days": STALE_DAYS, "openrouter_snapshot": snap,
+            "shipped": {"rows": len(b.shipped), "as_of": b.shipped_header.get("as_of")},
+            "overrides": len(load_overrides(home)), "auto_refresh": auto, "refresh_due": due,
+            "refresh_would_fetch": auto and due}
+
+
 def run_prices(ctx: Context) -> CommandResult:
     from agentprov.cli.live.envs import agentprov_home
     from agentprov.estimate import prices as P
@@ -184,11 +214,28 @@ def run_prices(ctx: Context) -> CommandResult:
                             + ("removed" if removed else "was not set"))
         except P.PriceError as exc:
             raise CliUsageError(f"agentprov prices {action}: {exc}") from None
+    elif action == "status":
+        doc = status_document(home)
+        if args.format == "json":
+            result.payload = _payload(doc)
+        else:
+            snap = doc["openrouter_snapshot"]
+            result.output("refreshed OpenRouter snapshot: " + ("none" if snap is None else
+                          f"{snap['rows']} prices as of {snap['as_of']}, written {snap['written_at']} UTC "
+                          f"({snap['file']})"))
+            result.output(f"shipped table: {doc['shipped']['rows']} prices as of {doc['shipped']['as_of']}")
+            result.output(f"overrides: {doc['overrides']}")
+            result.output(f"daily refresh (prices.auto_refresh): {'on' if doc['auto_refresh'] else 'off'}; "
+                          + ("due today" if doc["refresh_due"] else "done today"))
     elif action == "refresh":
         result.payload = None
+        if args.if_stale and args.from_file is not None:
+            raise CliUsageError("agentprov prices refresh: --if-stale goes with --allow-network")
+        now = dt.datetime.now(dt.UTC)
         if args.from_file is not None:
             data = _read_response(Path(args.from_file))
-            fetched = _date(args.fetched, "--fetched") or dt.datetime.now(dt.UTC).date()
+            fetched = _date(args.fetched, "--fetched") or now.date()
+            via = "file"
         else:
             from agentprov.raw.fetch import NetworkRefusedError
 
@@ -197,9 +244,18 @@ def run_prices(ctx: Context) -> CommandResult:
             if not args.allow_network:
                 raise NetworkRefusedError("agentprov prices refresh reads OpenRouter's public model list: give "
                                           "--allow-network (or --from-file with a saved response)")
+            if args.if_stale:
+                doc = status_document(home, now)
+                if not doc["refresh_would_fetch"]:
+                    why = "the setting prices.auto_refresh is off" if not doc["auto_refresh"] else \
+                        "the prices were already refreshed today"
+                    result.output(f"prices: nothing fetched: {why}")
+                    result.counters = {"prices": 0}
+                    return result
             data = P.fetch_openrouter(transport())
-            fetched = dt.datetime.now(dt.UTC).date()
-        path, n = P.import_response(home, data, fetched=fetched)
+            fetched = now.date()
+            via = "network"
+        path, n = P.import_response(home, data, fetched=fetched, written_at=now, via=via)
         result.output(f"prices: {n} OpenRouter prices as of {fetched.isoformat()} into {path.name}")
         result.counters = {"prices": n}
     return result

@@ -34,7 +34,7 @@ def test_profile_pins_licence_import_and_family_schema():
     family = tomllib.loads((SRC / "profiles" / f"{support.PROFILE}.profile.toml").read_text(encoding="utf-8"))["family"]["agentops"]
     assert list(jsonschema.Draft202012Validator(schema).iter_errors(family)) == []
     jsonschema.Draft202012Validator.check_schema(json.loads((SRC / "ext.schema.json").read_text(encoding="utf-8")))
-    assert family["semantics_profile"] == {"id": "agentops.tools", "version": 2}
+    assert family["semantics_profile"] == {"id": "agentops.tools", "version": 3}
     assert family["task_table"]["rows"] == 100
 
 
@@ -94,7 +94,7 @@ def test_registry_entry_is_supported_and_apache_without_restriction():
     reg = get_source("agentops-bench")
     (part,) = reg.capabilities
     assert part.part == "pilot-v1-seeded" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == support.PROFILE and part.semantics == ("agentops.tools@2",) and part.corpus_id == "agentops-bench"
+    assert part.profile == support.PROFILE and part.semantics == ("agentops.tools@3",) and part.corpus_id == "agentops-bench"
     assert reg.licence.spdx == "Apache-2.0" and reg.licence.restrictions == () and reg.licence.policy == "include"
     assert resolve_factory(READERS["agentops.trace"]).__name__ == "AgentOpsTraceReader"
     assert resolve_factory(MAPPERS["agentops.trace"]).__name__ == "AgentOpsMapper"

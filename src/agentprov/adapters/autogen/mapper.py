@@ -38,7 +38,9 @@ from agentprov.adapters.autogen import ADAPTER_ID, DIALECT_ID, VARIANTS
 from agentprov.adapters.autogen.citation import citations
 from agentprov.adapters.autogen.dialect import LabelFacets, parse_label, parse_rows
 from agentprov.adapters.autogen.events import Event, RunEvents, load_run_events, sha16
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -97,6 +99,11 @@ R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
 R_AFTER_SUBJECT: Final = "aer.decision_after_subject@1"
 _MODEL_CALL_UNKNOWN: Final = ("/params", "/request", "/response", "/served_model", "/tools")
+#: the AER's integer domain (I-JSON, C.11.3): a typed count outside 0..2^53-1 cannot be stored as one; it stays
+#: verbatim in ``ext.autogen.usage_unmapped`` (D-1063, review UC-39; as D-1011 for adprov)
+_MAX_COUNT: Final = 2**53 - 1
+#: D-1063 (review UC-41): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as D-934
+R_NOT_INLINED: Final = "autogen.content_not_inlined@1"
 
 
 def _p(*tokens: str | int) -> str:
@@ -264,7 +271,10 @@ class _Build:
         item = unit.primary
         if not isinstance(item.value, dict) or item.locator.line is None:
             raise MalformedArtefact("the located item is not an AutoGen run row with a line locator")
-        self.v: dict[str, Any] = item.value
+        # D-1063 (review UC-40; the D-378 pass): an object key cannot be $utf16-wrapped, so a lone surrogate in a key is
+        # replaced before mapping; surrogates() discloses it
+        value, self.surrogate_keys = scrub_keys(item.value)
+        self.v: dict[str, Any] = value
         self.line: int = item.locator.line
         self.variant = item.variant
         facets, self.origin_key = _facets_of(item.artefact)
@@ -371,6 +381,8 @@ class _Build:
             value = strict_json_loads(raw, self.limits)
         except IngestError:
             return None
+        value, keys = scrub_keys(value)  # D-1063 (review UC-40): auxiliary objects are copied into ext
+        self.surrogate_keys |= keys
         return value if isinstance(value, dict) else None
 
     def _probe(self) -> tuple[dict[str, Any] | None, str | None]:
@@ -387,6 +399,8 @@ class _Build:
             for line, value in _rows(raw, self.limits):
                 if isinstance(value, dict) and value.get("id") == key:
                     self.probe_line = line
+                    value, keys = scrub_keys(value)  # D-1063 (review UC-40)
+                    self.surrogate_keys |= keys
                     return value, role
         self.issue("autogen.probe_join_missing", ["exec"], R_PROBE, severity="info")
         return None, None
@@ -431,8 +445,21 @@ class _Build:
                        detail=str(sum(len(a) for a in self.ev.aborted)))
         if self.outcome_only:
             self.issue("no_execution_observed", ["run"], R_NO_CALL)
-        yield self._header()
-        yield from body
+        records = [self._header(), *body]
+        surrogates(self, records, "autogen")  # D-1063 (review UC-40): the D-378 pass
+        yield from self._not_inlined(records)
+
+    def _not_inlined(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """D-1063 (review UC-41; the D-934 pattern): every string over 1 MiB becomes ``{"not_inlined": {sha256, bytes}}``
+        of its UTF-8 bytes (C.2.1(6)). A tool result's text becomes the part's value; any other text part an ``other``
+        part of its source type. Each such pointer is DERIVED under ``autogen.content_not_inlined@1``; one info issue
+        names the records."""
+        # AU-RC-1/AU-RC-2 (D-1063): the shared pass, which also moves every citation, unk key and ext.<ns>.redacted
+        # entry naming a moved pointer (UC-38) and digests a $utf16 value over its decoded text
+        ids = not_inlined(records, "autogen", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("autogen.content_not_inlined", ids, R_NOT_INLINED, severity="info")
+        return records
 
     # ---------------------------------------------------------------------------------------------- header
     def _task(self) -> tuple[dict[str, Any], dict[str, str], list[str], dict[str, str]]:
@@ -904,10 +931,12 @@ class _Build:
             part: dict[str, Any] = {"t": "tool_call", "name": rec.enc(c.get("name"), _p("parts", k, "name"))}
             try:
                 args = strict_json_loads(c["arguments"].encode("utf-8"), self.limits)
+                args, keys = scrub_keys(args)  # D-1063 (review UC-40): keys of the decoded arguments too
+                self.surrogate_keys |= keys
                 part["args"] = rec.enc(args, _p("parts", k, "args"))
                 self._parts_args[part_id(rec.id, k)] = args
                 rec.tag(_p("parts", k, "args"), self.cls(R_ARGS), self.R(R_ARGS, _p("parts", k, "args")))
-            except IngestError:
+            except (IngestError, UnicodeEncodeError):  # D-1063: a lone surrogate in the string is not UTF-8 JSON
                 part["args"] = rec.enc(c["arguments"], _p("parts", k, "args"))
                 self.issue("autogen.arguments_not_json", [part_id(rec.id, k)], R_ARGS, severity="info")
             part["args_raw"] = rec.enc(c["arguments"], _p("parts", k, "args_raw"))
@@ -936,11 +965,17 @@ class _Build:
             usage = resp.value.get("usage")
             if isinstance(usage, dict):
                 u = {}
+                unmapped = {}
                 for src_key, dst in (("prompt_tokens", "input_tokens"), ("completion_tokens", "output_tokens")):
                     if isinstance(usage.get(src_key), int) and not isinstance(usage.get(src_key), bool):
-                        u[dst] = usage[src_key]
+                        if 0 <= usage[src_key] <= _MAX_COUNT:
+                            u[dst] = usage[src_key]
+                        else:  # D-1063 (review UC-39): never a typed count the AER refuses; kept verbatim
+                            unmapped[src_key] = usage[src_key]
                 if u:
                     mc.data["usage"] = mc.enc(u, "/usage")
+                if unmapped:
+                    mc.x("usage_unmapped", unmapped)
             if agent == "selector" and isinstance(resp.value.get("content"), str):
                 mc.x("selected", resp.value["content"])
             mc.x("logged_t", {"request": req.value.get("t"), "response": resp.value.get("t")})

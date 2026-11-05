@@ -17,6 +17,10 @@ KEYS = {
     "assistant_text_wholly_escaped": ("WHOLLY_ESCAPED|aer|/message:assistant/parts/*/text",),
     "tool_text_python_repr": ("JSONSTR:python_repr:dict|aer|/message:tool/parts/*/text", "JSONSTR:python_repr:list|aer|/message:tool/parts/*/text"),
 }
+# DTap-Bench writes the model's messages with role ``agent`` (tools/analysis/message_roles.py groups it with
+# ``assistant``), and the scan's pointers keep the role verbatim: each assistant key also matches its agent form.
+KEYS = {name: (*keys, *(k.replace("/message:assistant/", "/message:agent/") for k in keys if "/message:assistant/" in k))
+        for name, keys in KEYS.items()}
 
 
 def main() -> int:

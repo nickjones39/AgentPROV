@@ -10,12 +10,20 @@
 # so every reading of Qwen Code behaviour is class I with an asserted assumption (`_unverified` where a D twin could exist
 # once the code is verified, as D-172). The deposit's harness code (Qwen_evaluation/) is documentary evidence only
 # ("supp:<path> <symbol>"), as the agentops policy (D-193). D rules are deterministic functions of observed bytes.
+#
+# Version 3 (D-1063, regen-batch row 176; review UC-40/UC-41): the rules qwencode.lone_surrogate_replaced@1 and
+# qwencode.content_not_inlined@1 and their issue codes; version 2, which the sealed corpus redcode-exec-qwencode-w2
+# records, ships unchanged as rules/archive/qwencode.rules.v2.toml.
+# Version 3 also (D-1063, regen-batch row 182, review AU-RC-5; unreleased and recorded by no corpus, so in place): an
+# output without a result message that the capture did not cut proves no loss under the class-D qwencode.result_status@1
+# any more; it cites the class-I qwencode.no_result_message_unverified@1 (assumption qwencode:ResultClosesRun, as
+# geminicli's exit_143 rule), and qwencode.result_status@2 covers a present result message only (@1 superseded; AD-18).
 
 [catalogue]
 id = "qwencode"
-version = 2
+version = 3
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["user_message_not_logged", "truncated_capture", "no_result_message", "error_result", "unmapped_message", "subagent_event", "sidecar_missing", "join_unverified", "final_text_differs", "score_unrecognised", "extra_result_message"]
+issue_codes = ["user_message_not_logged", "truncated_capture", "no_result_message", "error_result", "unmapped_message", "subagent_event", "sidecar_missing", "join_unverified", "final_text_differs", "score_unrecognised", "extra_result_message", "lone_surrogate_replaced", "content_not_inlined"]
 subtypes = ["qwencode.content_block", "qwencode.execution_rules"]
 types = ["qwencode:subagent_event", "qwencode:unmapped_message", "qwencode:message_payload"]
 
@@ -62,6 +70,10 @@ statement = "A conversation_log record is the deposit scorer's result for the ru
 [[assumption]]
 id = "qwencode:ScoreOneAmbiguous"
 statement = "The RedCode scorer writes 1 both for a run that failed and as a harness default (no output, timeout), so a 1 does not say which."
+
+[[assumption]]
+id = "qwencode:ResultClosesRun"
+statement = "Qwen Code 0.21.0 run with --output-format json writes a result message at the end of every run it finishes, so an output without one (and not cut by the capture) is a run that did not finish."
 
 [[assumption]]
 id = "qwencode:CaptureCut"
@@ -143,7 +155,7 @@ since = "0.1.0"
 id = "qwencode.result_status"
 version = 1
 class = "D"
-status = "active"
+status = "superseded"
 statement = "The run status is read from the first result message: subtype success with is_error false gives ok, is_error true gives error (qwencode.error_result, incomplete_run), anything else ambiguous; no result message raises qwencode.no_result_message and incomplete_run. A later result message is kept verbatim as a harness activity (qwencode.unmapped_message@1) and raises qwencode.extra_result_message (warning)."
 premises = ["result /subtype", "result /is_error"]
 assumptions = []
@@ -151,6 +163,33 @@ code = []
 evidence = ["docs/reports/phase10o/part-c.md §3 (3,295 success)"]
 tests = ["tests/adapters/qwencode/test_mapper.py::test_run_status_and_result", "tests/adapters/qwencode/test_mapper.py::test_extra_result_and_undecodable_rules"]
 since = "0.1.0"
+
+[[rule]]
+id = "qwencode.result_status"
+version = 2
+class = "D"
+status = "active"
+statement = "The run status is read from the first result message: subtype success with is_error false gives ok, is_error true gives error (qwencode.error_result, incomplete_run), anything else ambiguous. A later result message is kept verbatim as a harness activity (qwencode.unmapped_message@1) and raises qwencode.extra_result_message (warning). An output without a result message is read by qwencode.no_result_message_unverified@1 or, for a salvaged capture, qwencode.capture_cut_unverified@1."
+premises = ["result /subtype", "result /is_error"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3 (3,295 success)", "regen-batch item 182 (review AU-RC-5)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_run_status_and_result", "tests/adapters/qwencode/test_mapper.py::test_extra_result_and_undecodable_rules"]
+since = "0.2.0"
+
+[[rule]]
+id = "qwencode.no_result_message_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "An output without a result message that the capture did not cut is a run the CLI did not finish (status not recorded): Qwen Code's JSON output ends every finished run with a result message, a reading of the CLI that is not verified (D-574); qwencode.no_result_message and incomplete_run are raised."
+premises = ["the output's message array", "no capture cut"]
+assumptions = ["qwencode:ResultClosesRun"]
+verification = [{ assumption = "qwencode:ResultClosesRun", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/part-c.md §3", "regen-batch item 182 (review AU-RC-5; geminicli.exit_143_terminated_unverified@1 reads the same case at I)"]
+tests = ["tests/adapters/qwencode/test_mapper.py::test_an_output_without_a_result_message_infers_the_loss"]
+since = "0.2.0"
 
 [[rule]]
 id = "qwencode.tool_status"
@@ -562,3 +601,29 @@ code = []
 evidence = ["docs/reports/phase10o/part-c.md §6"]
 tests = ["tests/adapters/qwencode/test_artefacts.py::test_reserved_detectors_are_never_cited"]
 since = "0.1.0"
+
+[[rule]]
+id = "qwencode.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue qwencode.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/qwencode/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"
+
+[[rule]]
+id = "qwencode.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text or reasoning part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); any other string position holds the digest object. The string stays in the raw artefact the record's locator names."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063"]
+tests = ["tests/adapters/qwencode/test_uc39_41.py::test_a_string_over_1_mib_is_not_inlined"]
+since = "0.2.0"

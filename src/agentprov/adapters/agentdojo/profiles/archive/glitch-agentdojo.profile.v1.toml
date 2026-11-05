@@ -1,0 +1,169 @@
+# Source profile `glitch-agentdojo`: the AgentDojo part (17_agentdojo/) of zanethomas1430-code/Glitch, 1,844 TraceLogger
+# logs of gpt-4o-2024-05-13 and claude-haiku-4-5, each undefended and behind the Glitch gateway (`-glitch`), on all four
+# suites (phase 10d; shortlist row 14; sources/agentdojo-format-candidates.md §3.15).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/glitch@713bb2961fa1.*).
+#
+# The gateway's denials, logged as tool errors beginning 'DENIED by the gateway:' in the -glitch arms, are defence
+# decisions, not executions (quirk agentdojo.defence_denial_message, routing R1, D-113).
+
+[profile]
+id = "glitch-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "glitch-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "Glitch on AgentDojo: AgentDojo 0.1.35 logs of an external tool-call gateway (zanethomas1430-code/Glitch)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/zanethomas1430-code/Glitch"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", requirement = "not declared in the repository", version_identifies_code = false }
+
+# The pin covers the repository root (2,762 files, 25,994,554 bytes; all fetched): the 1,844 logs and runs/index.jsonl
+# under 17_agentdojo/runs/, the AgentDojo harness of the suite (17_agentdojo/*.py) and the rest of the Glitch suite.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "713bb2961fa16980ca8085d372adb200a66cad71"
+date = "2026-10-07"
+expected_files = 2762
+expected_bytes = 25994554
+note = "the default branch at 2026-10-11 (phase 10c); logs dated 2026-10-05"
+
+[licence]
+spdx = "MIT"
+holders = ["Zane Thomas"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin, (c) 2026 Zane Thomas; the logs embed AgentDojo benchmark text (MIT)"
+attribution = [
+  "zanethomas1430-code/Glitch (MIT, (c) 2026 Zane Thomas), commit 713bb2961fa16980ca8085d372adb200a66cad71",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; install not declared in the repository)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["17_agentdojo/runs/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "17_agentdojo/runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the AgentDojo harness of the
+# Glitch suite, its run index and the documents.
+context_artefacts = ["LICENSE", "README.md", "17_agentdojo/README.md", "17_agentdojo/RESULTS.md", "17_agentdojo/OFFLINE.md", "17_agentdojo/dojo_gateway.py", "17_agentdojo/pipeline.py", "17_agentdojo/run_dojo.py", "17_agentdojo/runs/index.jsonl"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = ["glitch"]
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", workspace = "agentdojo", travel = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the AgentDojo installation is not declared in the repository; the logs record only the distribution
+# version string (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in 1,675 logs, recognised by its upstream digest. The 466-character
+# prompt of the 169 claude-haiku-4-5-glitch logs: its lines are in 17_agentdojo/pipeline.py at the pin
+# (assembled in code), so it is recognised by the digest of the logged text only.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+  { label = "glitch_claude_prompt", source = "zanethomas1430-code/Glitch@713bb2961fa16980ca8085d372adb200a66cad71:17_agentdojo/pipeline.py", sha256 = "ba82aafef4327a44ca1a97bdc7f3d3f11ac057cc67f6fa12548db538a89b8590", note = "the lines of the logged text occur in pipeline.py; recognised by digest", applies = { variant = ["v1.k14"], pipeline_dir = ["claude-haiku-4-5-glitch"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 298, origin_rule_applied = 298 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 72 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 1, logs = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 1815 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 7194, present_and_null = 7194 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# Routing R1 (D-113): the gateway's denials (out of scope, closed egress); other errors stay tool errors.
+params = { denials = [
+  { defences = ["glitch"], error_prefix = ["DENIED by the gateway: "] },
+] }
+observed = { head = { denials = 531 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

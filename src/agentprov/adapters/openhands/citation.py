@@ -36,6 +36,7 @@ INDEPENDENT: Final = frozenset({
     "openhands.redcode_prompt_join@1",
     "openhands.redcode_request_type@1",
     "openhands.value_redacted@1",  # D-606: a profile-specified transformation by AgentPROV
+    "openhands.lone_surrogate_replaced@1",  # D-1063: a text transformation by AgentPROV (the D-378 pass)
 })
 
 

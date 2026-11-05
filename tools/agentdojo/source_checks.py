@@ -14,7 +14,7 @@ independent test of the whole import path, not of the census alone.
   execution, is the error verbatim, and calls a tool the mode gates).
 * ``survey``: the aggregates of verify/agent-security-tools-survey.md §2.4 (benign utility, utility under attack, mean
   security over the 949 attack pairs, solvability, per model), the message totals of §2.3, the 11 run errors (all
-  gpt-oss) and the 48 iteration-capped traces per model.
+  gpt-oss) and the 48 iteration-capped traces (their total; the per-model split is reported, not compared).
 """
 
 from __future__ import annotations
@@ -128,8 +128,8 @@ def survey(aers: list[list[dict[str, Any]]]) -> dict[str, Any]:
             if r.get("k") == "message":
                 roles[str(r["role"])] += 1
                 calls += sum(1 for p in r.get("parts", ()) if p.get("t") == "tool_call")
-    def pct(pair: list[int]) -> float:
-        return round(100.0 * pair[0] / pair[1], 1)
+    def pct(pair: list[int]) -> float | None:  # None: the model has no log of this kind
+        return round(100.0 * pair[0] / pair[1], 1) if pair[1] else None
     rates = {m: {"benign_utility": pct(b["benign_utility"]), "attack_utility": pct(b["attack_utility"]),
                  "attack_security": pct(b["attack_security"]), "solvability_utility": pct(b["solvability_utility"]),
                  "n": [b["benign_utility"][1], b["attack_utility"][1], b["solvability_utility"][1]]} for m, b in sorted(per.items())}
@@ -143,6 +143,8 @@ def survey(aers: list[list[dict[str, Any]]]) -> dict[str, Any]:
         "message_roles": _pair(dict(roles), {"assistant": 13599, "system": 3243, "tool": 11237, "user": 3243}),
         "tool_calls": _pair(calls, 11286),
         "run_errors_per_model": _pair(dict(errors), {"gpt-oss:120b": 11}),
+        # the investigation gives the total only (48 traces, 49 unexecuted calls); the per-model split is reported
+        "iteration_capped": {**_pair(sum(capped.values()), 48), "per_model": dict(sorted(capped.items()))},
     }
 
 

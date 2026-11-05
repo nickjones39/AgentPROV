@@ -1,4 +1,4 @@
-"""The semantics profile ``qwencode.tools``, versions 1 and 2 (docs/architecture D.24.7; C.14; EF E.7.1, E.7.3).
+"""The semantics profile ``qwencode.tools``, versions 1 to 3 (docs/architecture D.24.7; C.14; EF E.7.1, E.7.3).
 
 Data plus small pure functions over one AER. What the profile yields, per record in AER file order (the yield order is
 the annotation order):
@@ -14,7 +14,8 @@ the annotation order):
 
 The data are the directory ``qwencode.tools-<version>/``; version 1 declares the catalogue version 1 (read from
 ``rules/archive/``) and version 2 the catalogue version 2 (D-31, the twins owner's ruling of 2026-10-21, option A, as
-``agentdojo.suites``).
+``agentdojo.suites``). Version 3 is version 2's tables on the catalogue version 3 (D-1063: the lone-surrogate and
+not-inlined rules; H.2.5).
 
 An annotation's ``ev`` is ``weakest(premise tags, rule classes)`` (C.6.5 rule 3). Reads only the AER; standard library
 and ``agentprov.{aer,sem}``.
@@ -40,11 +41,11 @@ if TYPE_CHECKING:
 __all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "QwenToolsProfile", "build"]
 
 PROFILE_ID: Final = "qwencode.tools"
-PROFILE_VERSION: Final = 2
-PROFILE_VERSIONS: Final = (1, 2)
+PROFILE_VERSION: Final = 3
+PROFILE_VERSIONS: Final = (1, 2, 3)  # 3: version 2's tables on catalogue qwencode 3 (D-1063)
 #: The ``qwencode`` catalogue version each profile version declares and reads (D-31; H.2.5: one catalogue version per
 #: corpus): @1 stays on the archived catalogue version 1, which the scratch trial corpora recorded; @2 reads version 2.
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3})
 DATA_FILES: Final = ("profile.toml", "tools.toml")
 EVIDENCE: Final = ("observed", "code")
 
@@ -139,7 +140,7 @@ def parse_tables(files: Mapping[str, bytes], version: int = PROFILE_VERSION) -> 
 
 @dataclass(frozen=True)
 class QwenToolsProfile:
-    """``qwencode.tools`` at version 1 or 2 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
+    """``qwencode.tools`` at version 1, 2 or 3 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
 
     id: str
     version: int

@@ -28,7 +28,7 @@ SOURCES = {s.name: s for s in p10d.SOURCES}
 
 @pytest.mark.parametrize("profile_id", sorted(RECORDED_V1))
 def test_version_2_with_the_recorded_version_1_archived(profile_id):
-    assert load_profile(profile_id).version == 2
+    assert load_profile(profile_id).version == 3 and load_profile(profile_id, 2).version == 2  # 3: D-1063
     archived = load_profile(profile_id, 1)
     assert archived.version == 1 and archived.sha256 == RECORDED_V1[profile_id]
 

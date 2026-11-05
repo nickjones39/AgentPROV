@@ -20,7 +20,7 @@ ISSUE_CODES = {
     "filtered_events", "content_not_inlined", "not_executed_notice", "harness_error", "call_not_in_response",
     "unmapped_event", "task_text_not_seen", "join_after_rewrite", "join_unverified", "summary_entry_missing",
     "state_missing", "eval_missing", "served_model_varies", "unexpected_cause_target", "lone_observation",
-    "value_redacted",
+    "value_redacted", "lone_surrogate_replaced",  # lone_surrogate_replaced: catalogue version 3 (D-1063)
 }  # fmt: skip
 #: Detectors of the artefact catalogue that sealing or the release scan apply, never the mapper (D-602, D-606).
 RESERVED = {"openhands.deposit_secret_withheld@1", "openhands.fixture_secret_shape@1"}
@@ -35,8 +35,8 @@ def _raw():
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
-    cat = load_catalogue("openhands", 2, package=PACKAGE)  # D-31 bump with D-606; v1 is archived
-    assert (cat.namespace, cat.version, cat.format) == ("openhands", 2, "agentprov-rule-catalogue/0.1")
+    cat = load_catalogue("openhands", 3, package=PACKAGE)  # D-1063; v1 (D-31 bump with D-606) and v2 are archived
+    assert (cat.namespace, cat.version, cat.format) == ("openhands", 3, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES
     data = (resources.files(PACKAGE) / "rules" / "openhands.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -110,7 +110,7 @@ def _variants() -> list[support.Mapped]:
 
 
 def test_every_emitted_rule_and_issue_is_declared(mapped):
-    cat = load_catalogue("openhands", 2, package=PACKAGE)
+    cat = load_catalogue("openhands", 3, package=PACKAGE)
     for fid, m in mapped.items():
         assert {r for r in _cited(m) if r.startswith("openhands.")} <= set(cat.rules), fid
         for issue in m.issues:
@@ -128,6 +128,8 @@ def test_every_declared_rule_is_exercised(mapped):
     covered_elsewhere = {r for r in _raw() if "_unverified@" in r and r.replace("_unverified@", "@") in _raw()}
     covered_elsewhere |= {"openhands.taint_sink_untrusted@1", "openhands.unknown_tool@1"} | RESERVED
     covered_elsewhere |= {"openhands.value_redacted@1"}  # test_redact.py (no committed fixture holds an account path)
+    # D-1063: test_uc39_41.py (no committed fixture holds a lone surrogate)
+    covered_elsewhere |= {"openhands.lone_surrogate_replaced@1"}
     declared = set(_raw())
     assert sorted(declared - cited - covered_elsewhere) == []
     assert set(CITED_RULES) <= declared

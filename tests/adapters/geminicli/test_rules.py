@@ -17,17 +17,18 @@ ISSUE_CODES = {
     "label_field_mismatch", "sidecar_missing", "sidecar_unparseable", "cli_model_alias", "cli_error_result",
     "no_result_event", "events_after_result", "subagent_internals_unobserved", "cli_notice", "unmapped_event",
     "manifest_differs", "verdict_meta_disagree",
+    "lone_surrogate_replaced", "content_not_inlined",  # catalogue version 2 (D-1063, review UC-40/UC-41)
 }  # fmt: skip
 TYPES = {"geminicli:cli_notice", "geminicli:notice_text", "geminicli:unmapped_event", "geminicli:event_payload"}
 
 
 def catalogue():
-    return load_catalogue("geminicli", 1, package=PACKAGE)
+    return load_catalogue("geminicli", 2, package=PACKAGE)  # current since D-1063
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("geminicli", 1, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("geminicli", 2, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.subtypes == set() and cat.types == TYPES
     data = (resources.files(PACKAGE) / "rules" / "geminicli.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -93,6 +94,9 @@ def test_every_declared_rule_is_exercised(mapped):
     verdict["agent"] = "codex_cli"
     cited |= _cited(support.modified("ok_with_text_and_calls", aux={"verdict.json": json.dumps(verdict).encode()}))
     cited |= set(CITED_RULES)  # the profile's rules are checked annotation by annotation in test_semantics.py
+    # D-1063 (review UC-40/UC-41): exercised by test_uc39_41.py (no committed fixture holds a lone surrogate or a 1 MiB
+    # string)
+    cited |= {"geminicli.lone_surrogate_replaced@1", "geminicli.content_not_inlined@1"}
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     assert citable - cited == set(), sorted(citable - cited)
 
@@ -102,7 +106,9 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(geminicli\.[a-z_.0-9]+@[0-9]+)"', source))
     assert literals <= set(catalogue().rules) and literals
     codes = {c.removeprefix("geminicli.") for c in re.findall(r'"(geminicli\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    # (agentprov.adapters.surrogates), which the mapper runs (D-1063)
+    assert codes == ISSUE_CODES - {"lone_surrogate_replaced"} and "surrogates(self, records, NAMESPACE)" in source
 
 
 def test_profile_quirks_and_pairing_name_catalogue_rules():

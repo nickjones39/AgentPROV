@@ -371,6 +371,12 @@ def test_sec12_only_the_exact_t1_worker_argv_is_allowed():
     assert harness.is_t1_worker_launch(ok)
     assert harness.is_t1_worker_launch([*ok, "--store-root", "/tmp/x", "--test-kinds"])
     assert harness.is_t1_worker_launch([*ok, "--test-kinds"])
+    assert harness.is_t1_worker_launch([*ok, "--preload-semantics", "", "--preload-fidelity"])  # D-1068 P2
+    assert harness.is_t1_worker_launch([*ok, "--store-root", "/tmp/x", "--preload-semantics", "a.b@1,c_d.e@12"])
+    assert not harness.is_t1_worker_launch([*ok, "--preload-semantics", "a.b@1;rm"])  # outside the ref grammar
+    assert not harness.is_t1_worker_launch([*ok, "--preload-semantics", "../x@1"])
+    assert not harness.is_t1_worker_launch([*ok, "--preload-fidelity"])  # only after a ref list
+    assert not harness.is_t1_worker_launch([*ok, "--preload-semantics"])
     assert not harness.is_t1_worker_launch(" ".join(ok))  # a command string (shell form)
     assert not harness.is_t1_worker_launch(["/bin/sh", "-c", " ".join(ok)])
     assert not harness.is_t1_worker_launch(["python3", *ok[1:]])  # another interpreter

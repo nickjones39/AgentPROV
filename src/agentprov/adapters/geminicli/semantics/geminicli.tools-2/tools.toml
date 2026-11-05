@@ -1,0 +1,77 @@
+# Semantics profile geminicli.tools@1: the tool table (docs/architecture D.23.8). Reviewed by hand.
+#
+# The ten gemini-cli built-in tools the census found (docs/reports/phase10o/README.md §4). The CLI's code was not read
+# for these runs (D-334), so each reading rests on the tool name and the logged parameters and outputs (`observed`) and
+# is class I (geminicli.tool_table@1). A name not listed is fail-closed (geminicli.unknown_tool@1): role ["unknown"],
+# output integrity "unknown". Output integrity is never "trusted": the workspace carries the benchmark's pressure, and
+# web search returns third-party content.
+
+[[tool]]
+name = "run_shell_command"
+roles = ["execute_sink"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "runs a shell command in the task container (YOLO mode); its output echoes workspace and process content"
+
+[[tool]]
+name = "read_file"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns a workspace file's content"
+
+[[tool]]
+name = "read_many_files"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns the content of several workspace files"
+
+[[tool]]
+name = "list_directory"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "lists a workspace directory (names chosen by the task)"
+
+[[tool]]
+name = "glob"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "lists workspace paths matching a pattern"
+
+[[tool]]
+name = "search_file_content"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns workspace lines matching a pattern"
+
+[[tool]]
+name = "write_file"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "writes a workspace file; returns a confirmation"
+
+[[tool]]
+name = "replace"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "edits a workspace file in place; returns a confirmation"
+
+[[tool]]
+name = "google_web_search"
+roles = ["egress_read"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "queries a web search service and returns third-party results"
+
+[[tool]]
+name = "codebase_investigator"
+roles = ["unknown"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "runs a sub-agent whose own calls are not logged; what it touched is unknown"

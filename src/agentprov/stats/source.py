@@ -23,7 +23,8 @@ known cell member (H.7.4: ``suite``, ``task_id``, ``attack_id``, ``attack_target
 ``repeat`` and the rest; a string, an integer as its decimal spelling, or any element of a string array); an unknown
 member (``$unk``) never matches. ``outcome.<claim>`` takes ``true``, ``false`` or ``none``: whether an ``outcome`` element
 with that SEM claim (``attack_succeeded``, ``user_task_solved``, …) holds, does not hold, or no element with that claim
-has a ``holds`` (not judged, which includes a benign cell's ``attack_succeeded``). Working rows carry no facets or cell
+has a ``holds`` (not judged, which includes a benign cell's ``attack_succeeded``); when a ``recomputed`` judgement
+gives the claim (a correction), it decides and the recorded one is not read (D-29 item 5). Working rows carry no facets or cell
 and never match these keys (``outcome.<claim>=none`` included: nothing is known about them).
 """
 

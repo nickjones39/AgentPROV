@@ -1,0 +1,185 @@
+# Source profile `mandate-agentdojo-eval`: jwilliamsc/mandate-agentdojo-eval, 396 AgentDojo 0.1.35 TraceLogger logs of one
+# model (gpt-4o-2024-05-13) on the banking suite, three pipelines (undefended, Mandate `envelope`, Mandate `intent`)
+# (docs/architecture D.4.4, D.6.15; I.1.1 row mandate-agentdojo-eval; sources/mandate-agentdojo-eval.md, verify/...).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since the D-31 bumps
+# (2026-10-13); version 1 (the bytes the stored corpora recorded) ships under profiles/archive/mandate-agentdojo-eval.profile.v1.toml.
+# The `[family.agentdojo]` part is checked against the closed
+# schema `family.schema.json` of this family (D.4.1). The quirks' `observed` counts are measured over the full pinned
+# snapshot (tools/agentdojo/profile_census.py, tests/full_corpus/test_profile_census.py; docs/reports/mandate/): `declines`
+# (240) and the prepass `files` (27) are the investigation's figures, reproduced; every other count had no investigation
+# figure and is the phase-10 census's own measurement (it is stated against the verify report where that report implies it).
+
+[profile]
+id = "mandate-agentdojo-eval"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "mandate-agentdojo-eval"
+family = "agentdojo"
+parts = ["head"]
+title = "Mandate-AgentDojo-Eval: AgentDojo 0.1.35 banking logs of an action-gating defence (jwilliamsc/mandate-agentdojo-eval)"
+evidence = ["sources/mandate-agentdojo-eval.md", "verify/mandate-agentdojo-eval.md"]
+
+[source]
+canonical_repo = "https://github.com/jwilliamsc/mandate-agentdojo-eval"
+paper = "none found (verify/mandate-agentdojo-eval.md §1)"
+package = { name = "agentdojo", requirement = "agentdojo==0.1.35", wheel_sha256 = "364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd", version_identifies_code = false }
+# The one commit of the repository. The digest is over the 396 files of runs/ (verify/mandate-agentdojo-eval.md §1): the
+# sha256 of the lines "<path relative to runs/> <sha256 of the file>", sorted, joined by "\n" and ended by "\n" (without the
+# final newline the digest is 3d1ea264...). tests/adapters/agentdojo/test_mandate.py recomputes it from the pinned tree.
+corpus_digest = "a8f4a9d726073fb142e7580a18f65d8985095ac23658dd1b7c4cb178eac9bd5e"
+corpus_digest_recipe = "sha256 of '\\n'.join(sorted(path_relative_to_runs + ' ' + sha256_hex(file))) + '\\n' over the 396 files of runs/"
+
+# No `tree`: the pin covers the repository root so that the context artefacts (the harness, README, requirements and
+# LICENSE at the root) are vouched for by the same pinned listing as the logs. The repository holds 401 files
+# (3,137,054 bytes): the 396 logs of runs/ (3,103,968 bytes; git tree 11b6d0e40fc50944ad1fe968bb17ed780d25b7b6) and five
+# root files. D.4.4 gives 396, the count of selected files.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "fa62a977584962f7b4b24a40772a83345fd920d4"
+date = "2026-08-17"
+expected_files = 401
+expected_bytes = 3137054
+note = "the only commit; 396 logs under runs/ (tree 11b6d0e40fc50944ad1fe968bb17ed780d25b7b6, 3103968 bytes) plus .gitignore, LICENSE, README.md, agentdojo_mandate_eval.py and requirements.txt"
+
+[licence]
+spdx = "MIT"
+holders = ["Mandate Labs (asserted; publisher unverified)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT as declared; publisher unverified"
+attribution = ["LICENSE (MIT, Copyright (c) 2026 Mandate Labs)", "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs"]
+unassessed = [
+  "publisher identity: the repository owner jwilliamsc is not verifiably the Mandate Labs of the LICENSE (two GitHub organisations of that name exist, both without public repositories)",
+  "model-provider terms on redistributing model outputs",
+]
+
+[lineage]
+built_on = ["agentdojo==0.1.35 (PyPI wheel 364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd; the install method is not observable)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2, mandate = 1 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# The harness that wrote the logs and the repository's own documents are stored as supporting artefacts (role supporting)
+# and are never mapped as executions.
+context_artefacts = ["agentdojo_mandate_eval.py", "README.md", "requirements.txt", "LICENSE"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_name_minus_suffix"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+# D.4.4 writes -mandate_(envelope|scoped|intent)$; the group wraps the whole suffix so that the defence actor is named
+# mandate_<mode> (a bare "intent" or "envelope" names no defence) and the hook reads the mode from it (D.6.15).
+defence_suffix_regex = "-(mandate_(?:envelope|scoped|intent))$"
+rule = "mandate.model_from_pipeline_name@1"
+collision_note = "pipeline name gpt-4o-2024-05-13 equals upstream; ids are source-qualified by ex"
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+
+[family.agentdojo.harness]
+# requirements.txt pins the distribution (agentdojo==0.1.35), which identifies a code range, not a commit; the logs record
+# only the distribution version string, which is not a code identity (package_version_not_code_identity)
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the logs are agentdojo 0.1.35 (the 0.1.30+ family, read at the 0.1.35 sources and
+# the head pin) run by the evaluation script of the pinned repository; a rule cited only at c274885 is I here.
+verified_code = [
+  { commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", note = "agentdojo 0.1.35 sources (requirements.txt pins agentdojo==0.1.35)" },
+  { commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", note = "the upstream head pin, in the 0.1.30+ family that writes v1.k14" },
+  { commit = "fa62a977584962f7b4b24a40772a83345fd920d4", note = "the evaluation script at the source pin (mandate.decline_prefix@1)" },
+]
+# The default prompt (469 characters): every one of the 396 logs carries it, and it is the text of the `default` key of
+# system_messages.yaml in the agentdojo 0.1.35 wheel (read from the wheel with the safe YAML loader; the same text as at the
+# head pin 089ed468 of the agentdojo-upstream profile).
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "pypi:agentdojo==0.1.35 (wheel sha256 364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd):agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 27, origin_rule_applied = 27 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 27 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+note = "up to three passes on one mutated environment (verify §0 item 4); only a null final content reveals them, and no Mandate log has one"
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+note = "391 = 396 minus the 5 tool-free runs (verify §2)"
+observed = { head = { files = 391 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+note = "agentdojo_package_version is 0.1.35 in all 396 logs; it is importlib.metadata's version of the installed distribution, so a git install reporting 0.1.35 is indistinguishable from the PyPI wheel"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 1390, present_and_null = 1390 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.mandate_decline"
+applies = { pipeline_dir = ["*-mandate_*"] }
+rules = ["mandate.decline_prefix@1", "mandate.allow_inferred@1"]
+params = { prefix = "MANDATE_DECLINE:", content_equals_error = true, gated = { envelope = ["send_money", "schedule_transaction", "update_scheduled_transaction"], scoped = ["send_money", "schedule_transaction", "update_scheduled_transaction", "update_password", "update_user_info"], intent = ["send_money", "schedule_transaction", "update_scheduled_transaction", "update_password", "update_user_info"] } }
+note = "scoped is listed from the harness code (agentdojo_mandate_eval.py l. 191); no scoped log is released. allowed_inferred = 143 is the verify report's derived allows (6 envelope + 137 intent, §3.4)"
+observed = { head = { declines = 240, allowed_inferred = 143 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

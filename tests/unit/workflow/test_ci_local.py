@@ -60,6 +60,19 @@ def test_core_runs_the_merge_gate_through_the_queue(tmp_path: Path) -> None:
         with pytest.raises(SystemExit):
             cl.suite_workers({"AGENTPROV_SUITE_WORKERS": bad})
     assert "suite_queue.py" in (REPO / "README.md").read_text(encoding="utf-8")
+
+
+def test_core_installs_the_render_and_shacl_extras_before_the_suite(tmp_path: Path) -> None:
+    """2026-11-05 (gaps G1, G2): without the extras the render, SEC-11 pydot-ban and SHACL tests skipped in every lane."""
+    ctx = cl.Context(root=tmp_path, rundir=tmp_path, label="x", allow_network=False)
+    steps = cl._core(ctx)
+    (sync,) = [s for s in steps if s.sync]
+    assert sync.argv[:3] == ("uv", "sync", "--locked") and set(cl.CORE_EXTRAS) <= set(sync.argv)
+    assert {"render", "shacl"} == {sync.argv[i + 1] for i, a in enumerate(sync.argv) if a == "--extra"}
+    suite = next(i for i, s in enumerate(steps) if "tools/suite_queue.py" in s.argv)
+    assert steps.index(sync) < suite
+    for extra in ("render", "shacl"):  # the extras exist in pyproject.toml
+        assert re.search(rf"^{extra} = \[", (REPO / "pyproject.toml").read_text(encoding="utf-8"), re.M), extra
     if (REPO / "AGENTS.md").is_file():  # the development repository only (the public export leaves it out, D-1004)
         assert "suite_queue.py" in (REPO / "AGENTS.md").read_text(encoding="utf-8")
 

@@ -12,10 +12,14 @@
 # the execution rules are members of the deposit's supplementary zip, the `supp` context pin; the CLI does not wire a
 # profile's context pins yet and a context tree cannot be an archive (both routed: D-530, phase-10i-context), so the
 # product import of this part waits for D-530. Scratch trials use tools/qwencode/trial_import.py (trial only).
+#
+# Version 3 (D-1063, regen-batch row 176): catalogue qwencode 3 and semantics qwencode.tools@3 (the lone-surrogate and
+# not-inlined rules); version 2, which the sealed corpus redcode-exec-qwencode-w2 records, ships as
+# profiles/archive/redcode-exec-qwencode.profile.v2.toml.
 
 [profile]
 id = "redcode-exec-qwencode"
-version = 2
+version = 3
 format = "agentprov-source-profile/0.1"
 source_id = "redcode-exec-qwencode"
 family = "qwencode"
@@ -79,7 +83,7 @@ content_dedup = "never"
 dialect = "qwencode.json"
 mapper = "qwencode.json"
 variants = ["v0.21"]
-rules = { aer = 1, qwencode = 2 }
+rules = { aer = 1, qwencode = 3 }
 include = [
   "results/Qwen/*/S*/*/trajectory/qwen_*.json",
   "results/Qwen/*/S*/*/trajectory/_full_api_request_sample.json",
@@ -108,7 +112,7 @@ targets = ["S1", "S2", "S3"]
 languages = ["python", "bash"]
 tools = ["agent", "edit", "glob", "grep_search", "list_directory", "read_file", "run_shell_command", "todo_write", "write_file"]
 pairing = "qwencode.tool_use_id_link_unverified@1"
-semantics_profile = { id = "qwencode.tools", version = 2 }
+semantics_profile = { id = "qwencode.tools", version = 3 }
 
 [[family.qwencode.quirk]]
 id = "qwencode.truncated_capture"

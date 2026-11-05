@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import re
 import tomllib
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from functools import cache
 from importlib import resources
@@ -530,11 +530,3 @@ def claim_parts(claim: str) -> tuple[str, str | None]:
     if match is None:
         raise ValueError("not a claim")
     return match.group(1), match.group(2)
-
-
-def iter_entries(catalogues: Iterable[ArtefactCatalogue]) -> list[ArtefactEntry]:
-    """All entries of ``catalogues`` in a deterministic order (by family, then id)."""
-    out: list[ArtefactEntry] = []
-    for catalogue in sorted(catalogues, key=lambda c: (c.family, c.version)):
-        out.extend(catalogue.entries)
-    return out

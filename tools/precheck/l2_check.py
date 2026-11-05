@@ -714,12 +714,14 @@ def determinism(a: Path, b: Path) -> dict[str, Any]:
 
 def seal_copy(root: Path, timeout: float) -> dict[str, Any]:
     """Seal a copy of the scratch corpus with a generated scratch spec, then ``verify --level chain --release``."""
+    from agentprov.io import remove
+
     manifest = json.loads((root / "corpus.json").read_text(encoding="utf-8"))
     final = root.with_name(root.name.removesuffix(".partial") + "-sealcopy")
     partial = final.with_name(final.name + ".partial")
     for stale in (final, partial):
         if stale.exists():
-            shutil.rmtree(stale)
+            remove.rmtree(stale)  # a sealed copy is read-only (agentprov.corpus.protect)
     shutil.copytree(root, partial)
     source = (manifest.get("sources") or [{}])[0]
     profile = source.get("profile") or {}

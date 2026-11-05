@@ -6,6 +6,8 @@
 * **Structure is always visible**: ids, kinds, evidence classes, rule ids, locators, unknown reasons, digests and sizes,
   each escaped as one line (S3).
 * Trees are populated lazily (a 4 MB PROV document has tens of thousands of attributes).
+* **One style** (D-1060): column headers in plain words (the raw field name in the header tooltip), zebra rows and one
+  row height from the theme (:func:`tidy_view`), facts as a grey caption line, Show content as a switch.
 """
 
 from __future__ import annotations
@@ -18,16 +20,18 @@ from agentprov.aer.reader import AerDocument
 from agentprov.corpus.register import RegisterEntry
 from agentprov.render import style
 from agentprov.sem.types import SemDocument
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QCheckBox,
     QComboBox,
     QHBoxLayout,
     QHeaderView,
+    QSizePolicy,
     QSplitter,
+    QTableView,
     QTableWidget,
     QTableWidgetItem,
+    QTreeView,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -35,9 +39,12 @@ from PySide6.QtWidgets import (
 )
 
 from agentprov_gui import text as T
+from agentprov_gui.ui import theme
+from agentprov_gui.ui.forms import Switch, caption
 from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, set_control_tooltip, set_header_tooltips
 
-__all__ = ["AerTab", "ProvJsonTab", "RegisterTab", "SemTab", "ValidationTab", "fill_rows"]
+__all__ = ["AerTab", "ProvJsonTab", "RegisterTab", "SemTab", "ValidationTab", "content_switch", "facts_line",
+           "field_tip", "fill_rows", "inline_caption", "tidy_view"]
 
 _EV: Final = "evidence class: O observed (the source recorded it), D derived (computed by a rule), I inferred"
 
@@ -67,6 +74,94 @@ def field_display(name: str, value: Any, *, structural: bool, show: bool, locato
     return T.fenced(text, f"{locator}/{name}", limit)
 
 
+def field_tip(tip: str, raw: str, what: str = "field") -> str:
+    """A header tooltip: what the column holds, then the raw field name it shows (the header says it in plain words)."""
+    return f"{tip}\n\nThe {what}: {raw}"
+
+
+class _RowHeight(QObject):
+    """Keeps a table's rows one line of its font tall plus the grid's padding, also after View › Bigger or Smaller."""
+
+    def __init__(self, view: QTableView) -> None:
+        super().__init__(view)
+        self.view = view
+        self.apply()
+
+    def apply(self) -> None:
+        self.view.verticalHeader().setDefaultSectionSize(self.view.fontMetrics().height() + theme.SPACE)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.FontChange:
+            self.apply()
+        return False
+
+
+def tidy_view(view: QTableView | QTreeView) -> None:
+    """A Viewer table or tree in the one style (D-1060): zebra rows (the theme's alternate background), rows one line
+    tall, no grid lines, header labels left-aligned and never bold for the current cell."""
+    view.setAlternatingRowColors(True)
+    if isinstance(view, QTableView):
+        view.setShowGrid(False)
+        view.verticalHeader().setVisible(False)
+        view.installEventFilter(_RowHeight(view))
+        header = view.horizontalHeader()
+    else:
+        header = view.header()
+    header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+    header.setHighlightSections(False)
+
+
+def inline_caption(text: str, *, name: str, parent: QWidget) -> SafeLabel:
+    """A short grey label on one line beside a control (it keeps its width; :func:`forms.caption` wraps instead)."""
+    label = caption(text, name=name, parent=parent)
+    label.setWordWrap(False)
+    label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+    return label
+
+
+def narrow_combo(box: QComboBox, chars: int = 14) -> None:
+    """A combo box whose width follows ``chars`` characters, not its longest item (the popup shows the whole text), so
+    a long profile or specification name never widens a narrow pane."""
+    box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    box.setMinimumContentsLength(chars)
+
+
+def facts_line(name: str, parent: QWidget) -> SafeLabel:
+    """A pane's facts (sizes, digests, counts): a grey caption line that wraps rather than widening the pane."""
+    return caption("", name=name, parent=parent)
+
+
+#: S2: what the Show content switch does, beside it
+CONTENT_NOTE: Final = "this pane only · escaped, fenced, cut at the limit"
+CONTENT_TIP: Final = ("Show the data values in this pane (messages, tool output and other source text), escaped, fenced "
+                      "as data and cut at the Settings limit. It turns off again for each execution.")
+
+
+def content_switch(parent: QWidget, name: str, slot: Callable[[bool], None], tip: str = CONTENT_TIP,
+                   note_text: str = CONTENT_NOTE) -> tuple[QWidget, Switch]:
+    """A pane's Show content switch (S2: off in every new pane, never kept) with its label and grey note: the row and
+    the switch, whose accessible name is ``name`` (the one the parity table maps)."""
+    row = QWidget(parent)
+    row.setAccessibleName(f"{name}: row")
+    lay = QHBoxLayout(row)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lay.setSpacing(6)
+    switch = Switch(name=name, parent=row)
+    label = SafeLabel("Show content", name=f"{name}: label", parent=row, selectable=False)
+    label.setBuddy(switch)
+    lay.addWidget(label)
+    if note_text:  # wraps in a narrow pane (the Viewer's inspector) rather than widening it
+        note = caption(note_text, name=f"{name}: note", parent=row)
+        note.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        note.setMinimumWidth(80)
+        lay.addWidget(note, 1)
+    lay.addWidget(switch)
+    set_control_tooltip(switch, tip)
+    set_control_tooltip(label, tip)
+    switch.toggled.connect(slot)
+    return row, switch
+
+
 def fill_rows(table: QTableWidget, rows: Iterable[Iterable[str]]) -> None:
     rows = [list(r) for r in rows]
     table.setRowCount(len(rows))
@@ -81,21 +176,12 @@ def _table(headers: list[str], name: str, parent: QWidget) -> QTableWidget:
     table = QTableWidget(0, len(headers), parent)
     table.setAccessibleName(name)
     table.setHorizontalHeaderLabels(headers)
-    table.verticalHeader().setVisible(False)
     table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
     table.horizontalHeader().setStretchLastSection(True)
     table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+    tidy_view(table)
     return table
-
-
-def _content_switch(parent: QWidget, pane: str, slot: Callable[[bool], None]) -> QCheckBox:
-    cb = QCheckBox("Show content (this pane only; escaped, fenced, truncated)", parent)
-    cb.setAccessibleName(f"Show content in the {pane} pane")
-    set_control_tooltip(cb, "Show the data values in this pane (messages, tool output and other source text), escaped, "
-                            "fenced as data and cut at the Settings limit. It turns off again for each execution.")
-    cb.toggled.connect(slot)
-    return cb
 
 
 # ----------------------------------------------------------------------------------------------- PROV-JSON
@@ -114,27 +200,32 @@ class ProvJsonTab(QWidget):
         self.locator = ""
         self.limit = T.CONTENT_CHARS_DEFAULT
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, theme.SPACE, 0, 0)
         top = QHBoxLayout()
         self.spec = QComboBox(self)
         self.spec.setAccessibleName("PROV specification")
+        narrow_combo(self.spec)
         set_control_tooltip(self.spec, "The PROV document to show: the corpus holds one per provenance specification")
         top.addWidget(self.spec)
-        self.info = SafeLabel("", name="PROV document facts", parent=self)
-        if stacked:  # narrow beside the graph: the facts get a wrapping line of their own
+        self.info = facts_line("PROV document facts", self)
+        if stacked:  # narrow beside the graph: the facts get a line of their own
             top.addStretch(1)
         else:
             top.addWidget(self.info, 1)
-        self.show_cb = _content_switch(self, "PROV-JSON", self._toggle)
-        top.addWidget(self.show_cb)
+        self.show_row, self.show_cb = content_switch(self, "Show content in the PROV-JSON pane", self._toggle)
+        if not stacked:
+            top.addWidget(self.show_row)
         lay.addLayout(top)
-        if stacked:
-            self.info.setWordWrap(True)
+        if stacked:  # the facts, then Show content, each on a line of its own (a narrow pane)
             lay.addWidget(self.info)
+            lay.addWidget(self.show_row)
         split = QSplitter(Qt.Orientation.Vertical if stacked else Qt.Orientation.Horizontal, self)
         self.tree = QTreeWidget(split)
         self.tree.setAccessibleName("PROV-JSON tree")
-        self.tree.setHeaderLabels(["statement", "value"])
-        set_header_tooltips(self.tree, ["The bundle, section, statement or attribute", "Its value"])
+        self.tree.setHeaderLabels(["Statement", "Value"])
+        set_header_tooltips(self.tree, ["The bundle, section, statement or attribute (its PROV-JSON key)",
+                                        "Its value (data hidden until Show content)"])
+        tidy_view(self.tree)
         self.tree.setColumnWidth(0, 360)
         self.tree.itemExpanded.connect(self._expand)
         self.tree.currentItemChanged.connect(self._current)
@@ -308,28 +399,33 @@ class AerTab(QWidget):
         self.locator = ""
         self.limit = T.CONTENT_CHARS_DEFAULT
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, theme.SPACE, 0, 0)
         top = QHBoxLayout()
-        self.info = SafeLabel("", name="AER facts", parent=self)
+        self.info = facts_line("AER facts", self)
         top.addWidget(self.info, 1)
-        self.show_cb = _content_switch(self, "AER", lambda _on: self._refresh())
-        top.addWidget(self.show_cb)
+        self.show_row, self.show_cb = content_switch(self, "Show content in the AER pane", lambda _on: self._refresh())
+        top.addWidget(self.show_row)
         lay.addLayout(top)
         split = QSplitter(Qt.Orientation.Horizontal, self)
         self.tree = QTreeWidget(split)
         self.tree.setAccessibleName("AER records")
-        self.tree.setHeaderLabels(["id", "kind", "ev", "by", "rule", "src", "unk", "after"])
-        set_header_tooltips(self.tree, [
-            "The record's local id (exec for the header, seal for the trailer)",
-            "The record kind (message, model_call, tool_execution, …); the groups count each kind",
-            "The record's " + _EV,
-            "The party that attests the record's observed fields",
-            "The rules that justify its derived and inferred fields",
-            "Locators into the raw evidence",
-            "Declared unknowns: the field that would hold the value, and why it is unknown",
-            "The records that happen before this one, with the basis (causal, time, position or protocol)"])
+        self.tree.setHeaderLabels(["Record", "Kind", "Evidence", "Attested by", "Rules", "Evidence locators",
+                                   "Unknowns", "After"])
+        set_header_tooltips(self.tree, [field_tip(tip, raw, "AER member") for tip, raw in (
+            ("The record's local id (exec for the header, seal for the trailer)", "id"),
+            ("The record kind (message, model_call, tool_execution, …); the groups count each kind", "k"),
+            ("The record's " + _EV, "ev"),
+            ("The party that attests the record's observed fields", "by"),
+            ("The rules that justify its derived and inferred fields", "rule"),
+            ("Locators into the raw evidence", "src"),
+            ("Declared unknowns: the field that would hold the value, and why it is unknown", "unk"),
+            ("The records that happen before this one, with the basis (causal, time, position or protocol)", "after"),
+        )])  # fmt: skip
+        tidy_view(self.tree)
         self.tree.currentItemChanged.connect(lambda *_: self._refresh())
-        self.fields = _table(["field", "value"], "AER record fields", split)
-        set_header_tooltips(self.fields, ["A field of the selected record", "Its value (data hidden until Show content)"])
+        self.fields = _table(["Field", "Value"], "AER record fields", split)
+        set_header_tooltips(self.fields, ["A field of the selected record (its AER member name)",
+                                          "Its value (data hidden until Show content)"])
         split.addWidget(self.tree)
         split.addWidget(self.fields)
         split.setStretchFactor(0, 3)
@@ -386,27 +482,30 @@ class AerTab(QWidget):
 # ----------------------------------------------------------------------------------------------- SEM
 class SemTab(QWidget):
     HEADERS: Final = ["id", "target", "type", "value", "ev", "rule", "premises", "method", "confidence"]
+    TITLES: Final = ["Annotation", "Target", "Type", "Value", "Evidence", "Rules", "Premises", "Method", "Confidence"]
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAccessibleName("SEM")
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, theme.SPACE, 0, 0)
         top = QHBoxLayout()
         self.profile = QComboBox(self)
         self.profile.setAccessibleName("Semantics profile")
+        narrow_combo(self.profile)
         set_control_tooltip(self.profile, "The semantics profile whose annotations are shown")
         self.profile.currentTextChanged.connect(self._show)
         top.addWidget(self.profile)
-        self.info = SafeLabel("", name="SEM facts", parent=self)
+        self.info = facts_line("SEM facts", self)
         top.addWidget(self.info, 1)
         lay.addLayout(top)
-        self.table = _table(self.HEADERS, "SEM annotations", self)
-        set_header_tooltips(self.table, [
+        self.table = _table(self.TITLES, "SEM annotations", self)
+        set_header_tooltips(self.table, [field_tip(tip, raw, "SEM member") for tip, raw in zip((
             "The annotation id", "The AER record (or part) annotated",
             "The annotation type (integrity, channel, role, injection_marker, outcome, author or a profile's own)",
             "The annotation's value", "The annotation's " + _EV, "The rules that produced it",
             "The AER fields (or earlier annotations) it reads", "The method of an inferred annotation",
-            "The confidence of an inferred annotation (0 to 1)"])
+            "The confidence of an inferred annotation (0 to 1)"), self.HEADERS, strict=True)])
         lay.addWidget(self.table, 1)
         self.docs: dict[str, SemDocument] = {}
         self.errors: dict[str, str] = {}
@@ -436,19 +535,22 @@ class SemTab(QWidget):
 # ----------------------------------------------------------------------------------------------- register, validation
 class RegisterTab(QWidget):
     HEADERS: Final = ["code", "severity", "stage", "disposition", "rule", "detail", "ids", "owner"]
+    TITLES: Final = ["Issue", "Severity", "Stage", "Disposition", "Rule", "Detail", "Records", "Owner"]
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAccessibleName("Register")
         lay = QVBoxLayout(self)
-        self.info = SafeLabel("", name="Register facts", parent=self)
+        lay.setContentsMargins(0, theme.SPACE, 0, 0)
+        self.info = facts_line("Register facts", self)
         lay.addWidget(self.info)
-        self.table = _table(self.HEADERS, "Register entries for this execution", self)
-        set_header_tooltips(self.table, [
+        self.table = _table(self.TITLES, "Register entries for this execution", self)
+        set_header_tooltips(self.table, [field_tip(tip, raw, "register field") for tip, raw in zip((
             "The issue code", "info, warning or error (a warning makes the status ok with issues, an error failed)",
             "The pipeline stage that raised it", "What happened to the execution: sealed, not imported, failed or withheld",
             "The rule that raised it", "Generated text (never raw content)", "The AER records concerned",
-            "The corpus and source that own the execution, for an execution owned elsewhere or a duplicate"])
+            "The corpus and source that own the execution, for an execution owned elsewhere or a duplicate"),
+            self.HEADERS, strict=True)])
         lay.addWidget(self.table, 1)
 
     def set_entries(self, entries: list[RegisterEntry], error: str | None) -> None:
@@ -469,10 +571,12 @@ class ValidationTab(QWidget):
         super().__init__(parent)
         self.setAccessibleName("Validation")
         lay = QVBoxLayout(self)
-        self.info = SafeLabel("", name="Validation facts", parent=self)
+        lay.setContentsMargins(0, theme.SPACE, 0, 0)
+        self.info = facts_line("Validation facts", self)
         lay.addWidget(self.info)
-        self.table = _table(["check", "result", "detail"], "Validation checks", self)
-        set_header_tooltips(self.table, ["The validation check", "Its result", "The check's other recorded fields"])
+        self.table = _table(["Check", "Result", "Detail"], "Validation checks", self)
+        set_header_tooltips(self.table, ["The validation check (its id in the validation row)", "Its result",
+                                         "The check's other recorded fields"])
         lay.addWidget(self.table, 1)
 
     def set_row(self, row: Mapping[str, Any] | None, error: str | None) -> None:

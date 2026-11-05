@@ -7,8 +7,9 @@ which never relies on the central directory: it walks the **local file headers**
 * A stored entry (method 0) whose size the header gives is read by that size, and its bytes are what the cut left of it.
 * A deflated entry (method 8) is streamed through zlib up to the end of its deflate stream or the end of the object,
   whichever comes first; the decoded bytes are what any reader of that entry recovers.
-* An encrypted entry, another method, and a stored entry of unknown size (general-purpose flag bit 3 with sizes 0) are
-  **not read**: a row with a closed code, which keeps the archive unscanned.
+* An encrypted entry, another method, a stored entry of unknown size (general-purpose flag bit 3 with sizes 0) and a
+  stored entry whose compressed and uncompressed sizes differ (a forged header, UC-44) are **not read**: a row with a
+  closed code, which keeps the archive unscanned.
 * A deflate stream that breaks (invalid data) gives what it decoded so far; nothing after the break in that entry decodes
   in any reader, and the walk goes on with the next local header.
 * A local header with an empty name is not an entry. After each entry, and on any bytes that are not a local header,
@@ -149,16 +150,19 @@ def job_zip_local(ctx: JobContext) -> dict[str, Any]:
                 code = "ingest.archive.method"
             elif method == 0 and not sized:
                 code = "ingest.archive.format"  # a stored entry of unknown length cannot be delimited
+            elif method == 0 and csize != usize:
+                code = "ingest.archive.format"  # a stored entry's two sizes must be equal: the header lies (UC-44)
             if code is not None:
                 counters["not_read"] += 1
                 ctx.emit({"row": {"index": index, "label": label, "code": code}})
-                pos = data_at + csize if sized and csize else _next_header(handle, data_at, end)
+                skip = sized and csize and (method != 0 or csize == usize)  # a lying header's size is not followed
+                pos = data_at + csize if skip else _next_header(handle, data_at, end)
                 continue
             if method == 0:
                 if usize > limits.max_member_bytes:
                     raise IngestError("ingest.archive.size", "a stored entry exceeds the member bound")
                 handle.seek(data_at)
-                content = handle.read(min(csize, end - data_at))
+                content = handle.read(min(csize, limits.max_member_bytes, end - data_at))
                 ended = "cut" if len(content) < csize else "end"
                 consumed = len(content)
             else:

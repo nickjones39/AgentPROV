@@ -169,7 +169,7 @@ def test_header_task_and_ext(mapped):
         assert ("att" in {r["id"] for r in m.of("actor")}) == adversarial, crit
         assert header["ext"]["agentops"]["join"]["status"] == "joined" and header["artifacts"][1]["role"] == "supporting"
         assert header["ns"] == {"agentops": "https://w3id.org/agentprov/ns/agentops#"}
-        assert header["rules"] == {"aer": 1, "agentops": 2}
+        assert header["rules"] == {"aer": 1, "agentops": 3}
         assert not _issues(m, "agentops.final_output_differs"), crit
     derived = support.modified("clean_safety_plain", lambda v: v["trace"].update(final_output="something else"))
     assert len(_issues(derived, "agentops.final_output_differs")) == 1

@@ -22,7 +22,7 @@ def _profile():
 
 def test_the_profile_loads_with_its_rules_and_taint_policy():
     profile = _profile()
-    assert (profile.id, profile.version, dict(profile.rules)) == ("openhands.tools", 2, {"openhands": 2})
+    assert (profile.id, profile.version, dict(profile.rules)) == ("openhands.tools", 3, {"openhands": 3})
     assert profile.taint_policy is not None and profile.taint_policy.rule == "openhands.taint_sink_untrusted@1"
     assert set(profile.classes) == set(CITED_RULES)
     assert load_semantics_profile("openhands.tools", support.SEM_VERSION).sha256 == profile.sha256

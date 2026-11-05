@@ -105,6 +105,21 @@ def test_instrumentation_declares_the_max_tokens_mode_and_temperature(tmp_path):
     assert req["max_tokens"] == 16000 and req["temperature"] == 0.5
 
 
+def test_a_thinking_budget_is_declared_as_the_stock_element_sends_it(tmp_path):
+    # UC-21: with thinking_budget_tokens the stock AnthropicLLM sends temperature 1 and max_tokens + the budget; the
+    # items say what the built element sends, never "temperature not transmitted" or the configured max_tokens alone
+    agent = {**ANTHROPIC, "params": {**ANTHROPIC["params"], "max_tokens": 4000, "thinking_budget_tokens": 2048}}
+    run = run_cell(tmp_path, CELL, agent, [MessagesReply.text(ANSWER)])
+    (req,) = _requests(run)
+    assert req["temperature"] == 1 and req["max_tokens"] == 6048
+    assert req["thinking"] == {"type": "enabled", "budget_tokens": 2048}
+    items = {i["id"]: i for i in run.of("instrumentation")[0]["data"]["items"]}
+    assert "agentdojo.temperature_not_transmitted@1" not in items
+    assert items["agentdojo.anthropic_max_tokens@1"]["params"] == {
+        "max_tokens": 4000, "mode": "explicit", "stock_default": 1024, "thinking_budget_tokens": 2048,
+        "sent": {"max_tokens": 6048, "temperature": 1}}
+
+
 @pytest.mark.parametrize("params", [
     {},
     {"max_tokens": 1024},

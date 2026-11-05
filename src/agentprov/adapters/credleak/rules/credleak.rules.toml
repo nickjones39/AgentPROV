@@ -11,12 +11,16 @@
 # is verified. Every rule that rests on harness behaviour is class I with an `asserted` assumption; the D rules are
 # deterministic functions of observed fields (their names and structure), declare no assumption, cite no code and cite
 # the census (docs/reports/phase10k/census.md) in `evidence`. The deposit's README never makes a rule D.
+#
+# Version 3 (D-1063, regen-batch row 176; review UC-40/UC-41): the rules credleak.lone_surrogate_replaced@1 and
+# credleak.content_not_inlined@1 and their issue codes; version 2, which the sealed corpus credleak-p15b-w2b records,
+# ships unchanged as rules/archive/credleak.rules.v2.toml.
 
 [catalogue]
 id = "credleak"
-version = 2
+version = 3
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["path_outside_grammar", "turn_number_mismatch", "cell_run_disagree", "invocation_error", "value_redacted"]
+issue_codes = ["path_outside_grammar", "turn_number_mismatch", "cell_run_disagree", "invocation_error", "value_redacted", "lone_surrogate_replaced", "content_not_inlined"]
 subtypes = []
 types = []
 
@@ -459,3 +463,31 @@ code = []
 evidence = ["docs/reports/phase10k/census.md §2"]
 tests = ["tests/adapters/credleak/test_artefacts.py::test_reserved_detectors_are_never_cited"]
 since = "0.1.0"
+
+# D-1063 (catalogue version 3; regen-batch row 176; review UC-40): the D-378 lone-surrogate pass.
+[[rule]]
+id = "credleak.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue credleak.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/credleak/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"
+
+# D-1063 (catalogue version 3; regen-batch row 176; review UC-41): strings over 1 MiB, the D-934 pattern.
+[[rule]]
+id = "credleak.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text or reasoning part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); any other string position holds the digest object. The string stays in the raw artefact the record's locator names."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063"]
+tests = ["tests/adapters/credleak/test_uc39_41.py::test_a_string_over_1_mib_is_not_inlined"]
+since = "0.2.0"

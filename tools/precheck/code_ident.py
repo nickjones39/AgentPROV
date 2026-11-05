@@ -1,14 +1,16 @@
-"""Record the code identity of each Level-2 scratch import (orchestrator request 2026-10-15): which commit and which stage
-code produced it, so a difference between waves (old base vs merged main) can be attributed.
+"""Record the code identity of each Level-2 scratch import (orchestrator request 2026-10-15): which stage code produced
+it, and the commit its Level-2 check ran at, so a difference between waves (old base vs merged main) can be attributed.
 
     uv run python tools/precheck/code_ident.py --corpus-id C --part P     # one part
     uv run python tools/precheck/code_ident.py --all                        # every part with an l2-<part>.json
 
 Reads ``docs/reports/precheck/data/C/l2-P.json`` (``code``: the git commit l2_check ran at) and the scratch corpus's
 ``derivation.json`` and ``corpus.json`` (``~/.agentprov/migration-work/precheck/C/l2-P-j2.partial``) and writes
-``docs/reports/precheck/data/C/code-P.json``: commit, tracked changes, lockfile digest, Python version, and per stage
-(aer, sem, prov, validation, ...) the engine and adapter code digests, the function digest, profile and rule-catalogue
-digests and limits digest, exactly as the derivation records them. Digests only; no path is written.
+``docs/reports/precheck/data/C/code-P.json``: ``commit`` and ``tracked_changes`` of the l2_check run (a check re-run on
+a kept scratch import records its own commit, not the import's), and from the scratch import the lockfile digest, Python
+version, and per stage (aer, sem, prov, validation, ...) the engine and adapter code digests, the function digest,
+profile and rule-catalogue digests and limits digest, exactly as the derivation records them. The stage digests, not
+the commit, identify the code that produced the import. Digests only; no path is written.
 """
 
 from __future__ import annotations
@@ -44,7 +46,7 @@ def ident(corpus_id: str, part: str) -> dict[str, Any]:
         "format": "agentprov-precheck-code/0.1",
         "corpus_id": corpus_id,
         "part": part,
-        "commit": (l2.get("code") or {}).get("commit"),
+        "commit": (l2.get("code") or {}).get("commit"),  # the l2_check run's commit, not the scratch import's
         "tracked_changes": (l2.get("code") or {}).get("tracked_changes"),
         "lockfile_sha256": derivation.get("lockfile_sha256"),
         "python": derivation.get("python"),

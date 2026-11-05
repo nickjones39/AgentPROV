@@ -70,4 +70,4 @@ def test_page_tooltip_only_while_enabled(qapp: Any, window: Any, mini_corpus: Pa
     v = _open(qapp, window, mini_corpus)
     assert v.preview.open_btn.isEnabled()
     assert "tab of its own" in _hover(qapp, window, v.preview.open_btn)
-    assert "contains this text" in _hover(qapp, window, v.ex_filter)
+    assert "contains this text" in _hover(qapp, window, v.corpora_filter)

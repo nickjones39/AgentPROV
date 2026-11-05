@@ -18,6 +18,20 @@ export GIT_NO_LAZY_FETCH=1
 ACQ=$HOME/.agentprov/cache/acquisitions.jsonl
 CPU=${D358_CPU:-4}
 MEM=$(( CPU * 2 ))
+# the afe7038 validator exits 1 in every ROPE batch (file mode skips V35 and the tiers it does not implement), so xargs'
+# status cannot tell that from a failed batch (GNU xargs exits 123, BSD xargs 1); above 123 a batch was killed or could
+# not run. The verdict is read from the batch rows: every AER counted once, no error, failure or warning, and no issue
+# other than a skipped check. Usage: python -I -c "$ROPE_CHECK" ROWS.jsonl AER-DIR
+ROPE_CHECK='
+import json, pathlib, sys
+rows = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8") if line.strip()]
+files = sum(1 for _ in pathlib.Path(sys.argv[2]).rglob("*.aer.jsonl"))
+total = {k: sum(row["counters"].get(k, 0) for row in rows) for k in ("files", "errors", "failed", "warnings")}
+codes = sorted({code for row in rows for code in row["issues_by_code"]} - {"validate.check.skipped"})
+print("batches", len(rows), "aer files", files, "totals", total, "other codes", codes)
+ok = bool(rows) and total["files"] == files and not (total["errors"] or total["failed"] or total["warnings"] or codes)
+sys.exit(0 if ok else 1)
+'
 
 typeset -A SRC ARGS
 SRC[agentharm]=ast-survey-agentharm-p10;        ARGS[agentharm]="agent-security-tools-survey --snapshot agentharm --input $I/survey --verify-against-pin"
@@ -61,12 +75,21 @@ for n in $names; do
   $PY -I tools/regen/tree_compare.py $C/${SRC[$n]}.pre-regen.partial $out.partial --report $L/d358-$n-tree.json $allow
   rc=$?
   echo "$(date -u +%FT%TZ) compare $n rc=$rc" >> $L/d358.log
+  if [ $rc -ne 0 ]; then
+    echo "$(date -u +%FT%TZ) STOP $n: the trees differ or could not be compared" >> $L/d358.log
+    echo "compare $n failed rc=$rc"; exit 1
+  fi
   if [ $n = rope ]; then
     # pipeline-perf's aer.blob.digest (AER-V35) finding: every re-imported ROPE AER through the afe7038 validator
     : > $L/d358-rope-validate-afe7038.jsonl
     find $out.partial/aer -name '*.aer.jsonl' -print0 | sort -z | xargs -0 -n 500 \
       $B/.venv/bin/python -m agentprov validate --release --store $out.partial/raw --json -q >> $L/d358-rope-validate-afe7038.jsonl
-    echo "$(date -u +%FT%TZ) rope afe7038 validator: $(grep -c . $L/d358-rope-validate-afe7038.jsonl) batches" >> $L/d358.log
+    rc=${pipestatus[-1]}
+    echo "$(date -u +%FT%TZ) rope afe7038 validator: $(grep -c . $L/d358-rope-validate-afe7038.jsonl) batches, xargs rc=$rc" >> $L/d358.log
+    if [ $rc -gt 123 ] || ! $PY -I -c "$ROPE_CHECK" $L/d358-rope-validate-afe7038.jsonl $out.partial/aer >> $L/d358.log; then
+      echo "$(date -u +%FT%TZ) STOP $n: the afe7038 validator batches did not pass" >> $L/d358.log
+      echo "rope afe7038 validator failed"; exit 1
+    fi
   fi
   touch $L/d358-$n.done
 done

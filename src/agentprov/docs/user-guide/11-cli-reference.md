@@ -44,7 +44,11 @@ Commands in this reference (subcommands indented):
   - [`agentprov prices set`](#agentprov-prices-set)
   - [`agentprov prices unset`](#agentprov-prices-unset)
   - [`agentprov prices refresh`](#agentprov-prices-refresh)
+  - [`agentprov prices status`](#agentprov-prices-status)
 - [`agentprov estimate`](#agentprov-estimate)
+- [`agentprov priors`](#agentprov-priors)
+  - [`agentprov priors build`](#agentprov-priors-build)
+  - [`agentprov priors show`](#agentprov-priors-show)
 - [`agentprov jobs`](#agentprov-jobs)
   - [`agentprov jobs start`](#agentprov-jobs-start)
   - [`agentprov jobs list`](#agentprov-jobs-list)
@@ -53,6 +57,7 @@ Commands in this reference (subcommands indented):
   - [`agentprov jobs stop`](#agentprov-jobs-stop)
   - [`agentprov jobs drain`](#agentprov-jobs-drain)
   - [`agentprov jobs resume`](#agentprov-jobs-resume)
+  - [`agentprov jobs cancel`](#agentprov-jobs-cancel)
   - [`agentprov jobs kill`](#agentprov-jobs-kill)
   - [`agentprov jobs prune`](#agentprov-jobs-prune)
 - [`agentprov batch`](#agentprov-batch)
@@ -69,6 +74,12 @@ Commands in this reference (subcommands indented):
   - [`agentprov devrun list`](#agentprov-devrun-list)
   - [`agentprov devrun prune`](#agentprov-devrun-prune)
 - [`agentprov assist`](#agentprov-assist)
+- [`agentprov update`](#agentprov-update)
+  - [`agentprov update check`](#agentprov-update-check)
+  - [`agentprov update status`](#agentprov-update-status)
+  - [`agentprov update download`](#agentprov-update-download)
+  - [`agentprov update install`](#agentprov-update-install)
+  - [`agentprov update rollback`](#agentprov-update-rollback)
 
 ## agentprov
 
@@ -119,11 +130,13 @@ positional arguments:
     keys                endpoint keys in the OS keychain (names only are ever shown)
     prices              list, set or refresh the model prices the estimate uses
     estimate            the cost and time of a live run before it starts (p50/p90; no model call)
+    priors              build or show the estimate's local priors (your sealed corpora)
     jobs                start, list, follow, stop or prune detached jobs
     batch               ordered job lists that run as one job
     devrun              dev runs: a few samples of every part, imported and checked
     assist              ask the AgentPROV Assistant how to do something (a model answers from
                         AgentPROV's docs and code)
+    update              check for a new release; download, verify and install it
 
 options:
   -h, --help            show this help message and exit
@@ -183,8 +196,8 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --source SOURCE       same as SOURCE
-  --matrix              the compatibility matrix (needs the claims library; deferred)
-  --must-not-claim      the must-not-claim items (need the claims library; deferred)
+  --matrix              the compatibility matrix (not built yet; refused)
+  --must-not-claim      the must-not-claim items (not built yet; refused)
   --format {text,markdown,json}
                         payload format (default text)
 
@@ -414,7 +427,8 @@ stages:
   --prov-spec SPEC      PROV spec (repeatable; default agentprov-prov/0.1)
 
 mode:
-  --retry-failed        re-process units whose row has status failed
+  --retry-failed        re-process units whose row has status failed (all of them: no --limit or
+                        --sample)
   --release             release mode: strict checks, no filters, no --limit, no --in-process
   --skip-prov-conformance
                         dev mode only, not advisable: skip the W3C PROV conformance check (tier
@@ -645,7 +659,8 @@ local model servers (D-691..D-694):
                         a served model id that may differ from the requested one (repeatable;
                         recorded; A12)
   --allow-lan-endpoint  allow a local endpoint on a literal private LAN address (D-698): prompts
-                        and replies leave this machine over plain http; keyless; recorded
+                        and replies leave this machine over plain http; keyless; recorded; an API
+                        endpoint run (D-1067): the caps and --i-consent-to-api-costs apply
   --no-hash-weights     record a local model's weight files by size only (weights_hashed false)
 
 control:
@@ -2552,6 +2567,8 @@ positional arguments:
     unset               remove an override
     refresh             fetch OpenRouter's model list into a dated snapshot (network; confirm
                         first)
+    status              when the prices were last refreshed, and whether a daily refresh is due
+                        (no network)
 
 options:
   -h, --help            show this help message and exit
@@ -2816,7 +2833,7 @@ usage: agentprov prices refresh [-h] [--version] [-v] [-q] [--log-format {text,j
                                 [--control-file PATH] [--show-content] [--content-chars N]
                                 [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
                                 [--break-stale-lock] [--allow-network | --from-file RESPONSE.json]
-                                [--fetched YYYY-MM-DD]
+                                [--fetched YYYY-MM-DD] [--if-stale]
 
 options:
   -h, --help            show this help message and exit
@@ -2824,6 +2841,58 @@ options:
   --from-file RESPONSE.json
                         import a saved /api/v1/models response instead
   --fetched YYYY-MM-DD  with --from-file: the date it was fetched (default: today)
+  --if-stale            with --allow-network: fetch only when the setting prices.auto_refresh is
+                        not false and no snapshot was written today (the desktop app's daily
+                        refresh, D-1062)
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov prices status
+
+```text
+usage: agentprov prices status [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                               [--log-file PATH] [--log-content]
+                               [--progress {off,summary,status,steps,trace}]
+                               [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                               [--progress-interval SECONDS] [--progress-max-bytes N]
+                               [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                               [--summary-json PATH] [--max-listed N] [--no-colour]
+                               [--break-stale-lock] [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --format {text,json}
 
 global options:
   --version             show versions and exit
@@ -2992,7 +3061,8 @@ local model servers (D-691..D-694):
                         a served model id that may differ from the requested one (repeatable;
                         recorded; A12)
   --allow-lan-endpoint  allow a local endpoint on a literal private LAN address (D-698): prompts
-                        and replies leave this machine over plain http; keyless; recorded
+                        and replies leave this machine over plain http; keyless; recorded; an API
+                        endpoint run (D-1067): the caps and --i-consent-to-api-costs apply
   --no-hash-weights     record a local model's weight files by size only (weights_hashed false)
 
 control:
@@ -3043,6 +3113,163 @@ estimate:
   --format {text,json}  json: one agentprov-estimate/0.1 document on stdout
 ```
 
+## agentprov priors
+
+```text
+usage: agentprov priors [-h] [--version] [-v] [-q] [--log-format {text,json}] [--log-file PATH]
+                        [--log-content] [--progress {off,summary,status,steps,trace}]
+                        [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                        [--progress-interval SECONDS] [--progress-max-bytes N]
+                        [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                        [--summary-json PATH] [--max-listed N] [--no-colour] [--break-stale-lock]
+                        ACTION ...
+
+``agentprov priors``: the estimate's local priors, built from your own sealed corpora (D-1062).
+
+positional arguments:
+  ACTION
+    build               count your sealed corpora into $AGENTPROV_HOME/estimate/priors-local.json
+    show                the priors the estimate uses: local, shipped or both
+
+options:
+  -h, --help            show this help message and exit
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov priors build
+
+```text
+usage: agentprov priors build [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                              [--log-file PATH] [--log-content]
+                              [--progress {off,summary,status,steps,trace}]
+                              [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                              [--progress-interval SECONDS] [--progress-max-bytes N]
+                              [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                              [--summary-json PATH] [--max-listed N] [--no-colour]
+                              [--break-stale-lock] [--corpus DIR] [--jobs N] [--min-executions N]
+                              [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --corpus DIR          a sealed corpus to read (repeatable; default: every sealed corpus under
+                        $AGENTPROV_HOME/corpora, the highest version of each)
+  --jobs N              worker processes (0 = host default)
+  --min-executions N    leave out a row with fewer executions (default 5, as the shipped priors)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov priors show
+
+```text
+usage: agentprov priors show [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                             [--log-file PATH] [--log-content]
+                             [--progress {off,summary,status,steps,trace}]
+                             [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                             [--progress-interval SECONDS] [--progress-max-bytes N]
+                             [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                             [--summary-json PATH] [--max-listed N] [--no-colour]
+                             [--break-stale-lock] [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
 ## agentprov jobs
 
 ```text
@@ -3067,6 +3294,8 @@ positional arguments:
     drain               finish the units in flight, start no new ones (needs --with-control-file)
     resume              start the job's request again (the CLI's resume rules decide what is
                         redone)
+    cancel              stop the job (when it runs) and mark it cancelled, so resume refuses it
+                        (D-1061); nothing is deleted
     kill                force kill the job's whole process tree
     prune               delete old ended jobs (lists them without --yes)
 
@@ -3133,7 +3362,8 @@ options:
   --slot {network,backends}
                         a global slot (one job at a time)
   --with-control-file   give the job a control file (drain, D-394)
-  --queue-cpu N         run through the machine-wide job queue reserving N CPUs
+  --queue-cpu N         run through the machine-wide job queue reserving N CPUs (macOS and Linux;
+                        refused on Windows)
   --progress-level {status,steps}
   --tool tools/NAME.py  run one repository tool of this checkout instead of agentprov (ARGV are
                         its arguments)
@@ -3487,6 +3717,58 @@ global options:
   --break-stale-lock    writers only: remove a lock whose pid is dead
 ```
 
+### agentprov jobs cancel
+
+```text
+usage: agentprov jobs cancel [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                             [--log-file PATH] [--log-content]
+                             [--progress {off,summary,status,steps,trace}]
+                             [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                             [--progress-interval SECONDS] [--progress-max-bytes N]
+                             [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                             [--summary-json PATH] [--max-listed N] [--no-colour]
+                             [--break-stale-lock]
+                             ID
+
+positional arguments:
+  ID
+
+options:
+  -h, --help            show this help message and exit
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
 ### agentprov jobs kill
 
 ```text
@@ -3614,7 +3896,7 @@ positional arguments:
     start               start the batch's driver job
     resume              start a new driver for a batch whose driver ended
     run                 advance the batch in the foreground until it is done (the driver)
-    stop                stop the driver (the steps it started keep running)
+    stop                stop the driver (the steps it started keep running unless --steps)
     list                the batches, newest first
     show                one batch and its steps
 
@@ -3889,7 +4171,7 @@ usage: agentprov batch stop [-h] [--version] [-v] [-q] [--log-format {text,json}
                             [--progress-interval SECONDS] [--progress-max-bytes N]
                             [--control-file PATH] [--show-content] [--content-chars N] [--json]
                             [--summary-json PATH] [--max-listed N] [--no-colour]
-                            [--break-stale-lock] [--steps]
+                            [--break-stale-lock] [--steps] [--wait S] [--format {text,json}]
                             ID
 
 positional arguments:
@@ -3897,7 +4179,11 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --steps               also stop the running steps (one SIGTERM each)
+  --steps               stop the whole batch: also every running or queued step job (a graceful
+                        stop each, as 'agentprov jobs stop')
+  --wait S              seconds to wait for the stopped jobs to end before recording how they
+                        ended (0: do not wait; default 10)
+  --format {text,json}
 
 global options:
   --version             show versions and exit
@@ -4367,4 +4653,367 @@ global options:
   --break-stale-lock    writers only: remove a lock whose pid is dead
 ```
 
+## agentprov update
+
+```text
+usage: agentprov update [-h] [--version] [-v] [-q] [--log-format {text,json}] [--log-file PATH]
+                        [--log-content] [--progress {off,summary,status,steps,trace}]
+                        [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                        [--progress-interval SECONDS] [--progress-max-bytes N]
+                        [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                        [--summary-json PATH] [--max-listed N] [--no-colour] [--break-stale-lock]
+                        ACTION ...
+
+``agentprov update``: Check for Updates, a verified download and the desktop bundle's install
+(D-1065).
+
+positional arguments:
+  ACTION
+    check               ask GitHub for the newest release and compare it with what is installed
+                        (network)
+    status              the cached check, the setting update.auto_check and whether a check is due
+                        (no network)
+    download            download this platform's bundle and SHA256SUMS (and its signature) and
+                        verify them (network)
+    install             install the verified download into the desktop app's folder (--confirm
+                        --bundle), or print the command that upgrades a pip or uv tool install
+    rollback            swap the desktop app with the version the last install kept beside it
+
+options:
+  -h, --help            show this help message and exit
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov update check
+
+```text
+usage: agentprov update check [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                              [--log-file PATH] [--log-content]
+                              [--progress {off,summary,status,steps,trace}]
+                              [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                              [--progress-interval SECONDS] [--progress-max-bytes N]
+                              [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                              [--summary-json PATH] [--max-listed N] [--no-colour]
+                              [--break-stale-lock] [--allow-network] [--if-stale] [--bundle PATH]
+                              [--gui-version VERSION]
+                              [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
+                              [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --allow-network       required (one public URL, no key)
+  --if-stale            fetch only when the setting update.auto_check is not false and no check
+                        was made today (local time): the desktop app's daily check; otherwise
+                        report the cached check
+  --bundle PATH         the desktop app's folder (AgentPROV.app, or the AgentPROV folder on Linux
+                        and Windows); the desktop app passes its own
+  --gui-version VERSION
+                        the desktop app's version (default: from the bundle where it records it,
+                        macOS)
+  --platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}
+                        the bundle platform (default: this machine's)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov update status
+
+```text
+usage: agentprov update status [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                               [--log-file PATH] [--log-content]
+                               [--progress {off,summary,status,steps,trace}]
+                               [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                               [--progress-interval SECONDS] [--progress-max-bytes N]
+                               [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                               [--summary-json PATH] [--max-listed N] [--no-colour]
+                               [--break-stale-lock] [--bundle PATH] [--gui-version VERSION]
+                               [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
+                               [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --bundle PATH         the desktop app's folder (AgentPROV.app, or the AgentPROV folder on Linux
+                        and Windows); the desktop app passes its own
+  --gui-version VERSION
+                        the desktop app's version (default: from the bundle where it records it,
+                        macOS)
+  --platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}
+                        the bundle platform (default: this machine's)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov update download
+
+```text
+usage: agentprov update download [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                 [--log-file PATH] [--log-content]
+                                 [--progress {off,summary,status,steps,trace}]
+                                 [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                                 [--progress-interval SECONDS] [--progress-max-bytes N]
+                                 [--control-file PATH] [--show-content] [--content-chars N]
+                                 [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
+                                 [--break-stale-lock] [--allow-network] [--dir DIR]
+                                 [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
+                                 [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --allow-network       required (GitHub's release files)
+  --dir DIR             the staging folder (default: $AGENTPROV_HOME/update/staging/PLATFORM)
+  --platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}
+                        the bundle platform (default: this machine's)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov update install
+
+```text
+usage: agentprov update install [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                [--log-file PATH] [--log-content]
+                                [--progress {off,summary,status,steps,trace}]
+                                [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                                [--progress-interval SECONDS] [--progress-max-bytes N]
+                                [--control-file PATH] [--show-content] [--content-chars N]
+                                [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
+                                [--break-stale-lock] [--confirm] [--dir DIR] [--bundle PATH]
+                                [--gui-version VERSION]
+                                [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
+                                [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --confirm             required with --bundle: replace the app's folder
+  --dir DIR             the staging folder download used
+  --bundle PATH         the desktop app's folder (AgentPROV.app, or the AgentPROV folder on Linux
+                        and Windows); the desktop app passes its own
+  --gui-version VERSION
+                        the desktop app's version (default: from the bundle where it records it,
+                        macOS)
+  --platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}
+                        the bundle platform (default: this machine's)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov update rollback
+
+```text
+usage: agentprov update rollback [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                 [--log-file PATH] [--log-content]
+                                 [--progress {off,summary,status,steps,trace}]
+                                 [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                                 [--progress-interval SECONDS] [--progress-max-bytes N]
+                                 [--control-file PATH] [--show-content] [--content-chars N]
+                                 [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
+                                 [--break-stale-lock] [--yes] --bundle PATH
+                                 [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
+                                 [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --yes                 required: replace the app's folder
+  --bundle PATH         the desktop app's folder
+  --platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}
+                        the bundle platform (default: this machine's)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
 <!-- END generated: cli -->
+
+## Updating
+
+`agentprov update` is Check for Updates in the terminal (D-1065): `check --allow-network` compares the newest release
+of `nickjones39/AgentPROV` with what is installed (`status` reads the last answer without the network), `download
+--allow-network` fetches and checks this platform's bundle against the release's signed `SHA256SUMS`, `install
+--confirm --bundle PATH` swaps it into the app's folder and keeps the previous version, and `rollback --yes --bundle
+PATH` swaps back. Without `--bundle`, `install` prints the command that upgrades a `uv tool`, `pipx` or `pip` install
+of the command-line program. The per-platform details are in [the desktop app chapter](08-desktop-app.md#updating).

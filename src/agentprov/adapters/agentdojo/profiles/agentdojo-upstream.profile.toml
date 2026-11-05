@@ -13,10 +13,12 @@
 # Every `head` count of the investigation was reproduced; two of its keys were renamed to the generic quantities they
 # count (gemini_logs_with_colliding_empty_ids = logs_with_colliding_empty_ids, gpt_logs_with_duplicate_ids =
 # logs_with_repeated_ids: all such logs are in those pipelines).
+# Version 3 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 2 ships under profiles/archive/agentdojo-upstream.profile.v2.toml.
 
 [profile]
 id = "agentdojo-upstream"
-version = 2
+version = 3
 format = "agentprov-source-profile/0.1"
 source_id = "agentdojo"
 family = "agentdojo"
@@ -105,7 +107,7 @@ content_dedup = "never"
 dialect = "agentdojo.tracelogger"
 mapper = "agentdojo.tracelogger"
 variants = ["v0.k11", "v1.k14", "v1.k14.incomplete"]
-rules = { aer = 1, agentdojo = 2 }
+rules = { aer = 1, agentdojo = 3 }
 include = ["runs/**/*.json"]
 exclude = [
   { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
@@ -168,7 +170,7 @@ version_when_absent = { rule = "agentdojo.benchmark_era_from_commit@1" }
 # origin without `introduced_in_commit` (no history index at import time) gets neither field.
 history = { repo = "https://github.com/ethz-spylab/agentdojo", table = { path = "tables/agentdojo-history.table.toml", sha256 = "0aa299348176a3dff20f0ec7ae56e3c4f5a4461c1d61559d3869bf0bed54fcf8" } }
 dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
-semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+semantics_profile = { id = "agentdojo.suites", version = 4 }  # D-31 and item 1: regenerated corpora read @2
 
 [family.agentdojo.harness]
 code_identity = "unpinned"

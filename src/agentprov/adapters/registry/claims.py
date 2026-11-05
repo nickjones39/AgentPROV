@@ -257,7 +257,12 @@ CLAIMS: Final[Mapping[str, DatasheetClaim]] = {c.id: c for c in (
                    lambda m: _counts(m)["by_status"]["failed"] == 0),
     DatasheetClaim("no_outcome_only_records", "The corpus holds no outcome-only or scenario record.",
                    lambda m: _counts(m)["by_unit"]["outcome_only"] == 0 and _counts(m)["by_unit"]["scenario"] == 0),
-    DatasheetClaim("raw_included", "The raw evidence of every snapshot is included in the corpus.",
+    # AU-BND-3: withholding narrows a release object by object without changing a snapshot's raw policy (D-233), so the
+    # sentence names the withheld items (the datasheet's "Withheld items" line counts them, zero included) and stays true
+    # for a corpus that withholds; the predicate is unchanged
+    DatasheetClaim("raw_included",
+                   "The raw evidence of every snapshot is included in the corpus, except any item withheld from this "
+                   "release, which the Withheld items line counts and WITHHELD.json lists.",
                    lambda m: all(s["raw_policy"] == "include" for src in m["sources"] for s in src["snapshots"])),
     DatasheetClaim("validation_strict", "Validation ran in strict mode, with no gating check skipped.",
                    lambda m: m["validation"]["mode"] == "strict"

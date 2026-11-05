@@ -44,8 +44,64 @@ def test_queue_cpu_is_refused_on_windows(windows: None, root: Path, tmp_path: Pa
     manager = JobManager(tmp_path / "home", environ={}, root=root)
     with pytest.raises(SpawnRefused) as exc:
         manager.spawn(JobRequest(("info",), queue_cpu=2))
-    assert exc.value.code == "jobs.queue.unavailable" and "macOS and Linux" in str(exc.value)
+    assert exc.value.code == "platform.unsupported" and exc.value.exit_code == 4  # D-1064: the platform table's refusal
+    assert str(exc.value).startswith("The machine-wide job queue (--queue-cpu, tools/suite_queue.py) is available on "
+                                     "macOS and Linux. On Windows it is not available: ")
     assert not any(manager.jobs_dir.iterdir())  # nothing left behind
+
+
+def test_queue_cpu_is_refused_when_the_platform_table_sees_windows(root: Path, tmp_path: Path,
+                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-1064: the refusal follows ``agentprov.platforms`` too (``platform.system``), not only :func:`on_windows`."""
+    monkeypatch.setattr(mod, "on_windows", lambda: False)
+    monkeypatch.setattr("agentprov.platforms.host", lambda: ("Windows", "arm64"))
+    manager = JobManager(tmp_path / "home", environ={}, root=root)
+    with pytest.raises(SpawnRefused) as exc:
+        manager.spawn(JobRequest(("info",), queue_cpu=2))
+    assert exc.value.code == "platform.unsupported"
+    monkeypatch.setattr("agentprov.platforms.host", lambda: ("Linux", "x86_64"))
+    mod.check_queue_platform()  # macOS and Linux: not refused
+
+
+def test_a_batch_step_refused_for_the_platform_fails_at_once(windows: None, root: Path, tmp_path: Path) -> None:
+    """A step whose ``queue_cpu`` cannot run here fails with the refusal's code instead of being retried each tick."""
+    from agentprov.jobs.batch import Batch, BatchStep, advance
+
+    manager = JobManager(tmp_path / "home", environ={}, root=root)
+    batch = Batch.new(manager.home, "b", [BatchStep(JobRequest(("info",), queue_cpu=2))])
+    advance(batch, manager, validate=lambda argv: None, pin_now=lambda: None, driver_job_id=None)
+    assert (batch.steps[0].state, batch.steps[0].note) == ("failed", "platform.unsupported")
+
+
+def test_prune_keeps_the_record_of_a_job_with_a_file_held_open(tmp_path: Path,
+                                                               monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-RT-4: Windows refuses to delete a file another process holds open (the GUI's log tail); simulated with an
+    ``os.unlink`` that refuses ``log.jsonl``. The job keeps its job.json, is not counted, and a later prune deletes it."""
+    import os
+
+    from agentprov.jobs.record import JOB_FORMAT, list_jobs
+
+    manager = JobManager(tmp_path / "home", environ={}, root=None)
+    job_id = mod.new_job_id()
+    directory = manager.jobs_dir / job_id
+    directory.mkdir(parents=True)
+    mod.atomic_write_json(directory / "job.json", {"format": JOB_FORMAT, "job_id": job_id,
+                                                   "created": "2026-01-01T00:00:00Z", "argv": ["x"]})
+    mod.atomic_write_json(directory / "ended.json", {"exit_code": 0, "outcome": "ok", "how": "waited",
+                                                     "observed": "2026-01-01T00:00:00Z"})
+    (directory / "log.jsonl").write_bytes(b"{}\n")
+    real = os.unlink
+
+    def unlink(path: Any, *, dir_fd: Any = None) -> None:
+        if os.fsdecode(path).endswith("log.jsonl"):
+            raise PermissionError(32, "The process cannot access the file", os.fsdecode(path))
+        real(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "unlink", unlink)
+    assert manager.delete(manager.prune_candidates(keep=0)) == 0
+    assert (directory / "job.json").exists() and [j.job_id for j in list_jobs(manager.home)] == [job_id]
+    monkeypatch.setattr(os, "unlink", real)
+    assert manager.delete(manager.prune_candidates(keep=0)) == 1 and not directory.exists()
 
 
 class _Proc:

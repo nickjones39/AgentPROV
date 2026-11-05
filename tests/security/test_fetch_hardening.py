@@ -62,10 +62,24 @@ def test_no_working_tree_and_no_upstream_file_exists_outside_the_object_database
 def test_a_symlink_blob_is_data_and_never_resolved(tmp_path):
     up = make_upstream(tmp_path)
     fetcher = up.fetcher(tmp_path / "c", allow_network=True)
-    fetcher.fetch(up.recipe())
-    (link,) = [b for b in fetcher.iter_git_blobs(up.recipe()) if b.entry.is_symlink]
+    target_name = Path(SYMLINK_TARGET).name
+    opened: list[str] = []
+    watching = [True]
+
+    def hook(event: str, args: tuple) -> None:  # inert after the test (an audit hook cannot be removed)
+        if watching[0] and event == "open" and args and isinstance(args[0], (str, bytes, os.PathLike)):
+            if Path(os.fsdecode(args[0])).name == target_name:
+                opened.append(os.fsdecode(args[0]))
+
+    sys.addaudithook(hook)
+    try:
+        fetcher.fetch(up.recipe())
+        blobs = list(fetcher.iter_git_blobs(up.recipe()))
+    finally:
+        watching[0] = False
+    (link,) = [b for b in blobs if b.entry.is_symlink]
     assert link.data == SYMLINK_TARGET.encode() and link.entry.mode == "120000"
-    assert not Path(SYMLINK_TARGET).exists() or True  # the target text is never opened by the fetcher
+    assert opened == []  # the fetcher never opens the link's target (nor any file of that name)
 
 
 @needs_git

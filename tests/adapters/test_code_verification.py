@@ -67,6 +67,11 @@ ITEM1_TWINS = {"agentdojo": {"injection_marker_yaml", "utility_meaning", "securi
 #: The issue-rule twin regeneration-batch item 103 adds (D-80 (d) addendum, user decision 2026-10-15): the two issues
 #: whose conclusion is a reading of the harness (not dispatched; result lost) cite it under unverified code.
 ITEM103_TWINS = {"agentdojo": {"unexecuted_trailing_calls"}}
+#: The twins of catalogue agentdojo 3 (D-1063, regen-batch row 179): the incomplete_run loss issue's reading (AU-RA-4) and
+#: the capture rules that read the harness's code, now cited through the policy (AU-RA-1).
+D1063_TWINS = {"agentdojo": {"incomplete_run", "capture_last_pass_scored", "capture_reply_appended",
+                             "capture_reply_wire_fields", "capture_sent_form", "capture_execution_result",
+                             "capture_abort_message", "capture_native_check"}}
 C6_NINE = {"adprov.assistant_turn_one_call", "adprov.call_id_unique_match", "adprov.tool_turn_is_one_execution",
            "adprov.finish_reason_positional", "adprov.single_attempt_from_call_count", "adprov.lost_calls_from_count",
            "agentdojo.functions_runtime", "agentdojo.committed_no_later_than", "agentdojo.empty_assistant_text_ambiguous"}
@@ -95,11 +100,11 @@ def test_every_twin_restates_its_d_rule():
             assert rule.get("premises", []) == d.get("premises", []) and not rule.get("code"), rid
             assert d["id"] in rule["statement"], rid
             if d["id"].split(".", 1)[1] in (*ITEM3_TWINS.get(namespace, ()), *ITEM1_TWINS.get(namespace, ()),
-                                            *ITEM103_TWINS.get(namespace, ())):
+                                            *ITEM103_TWINS.get(namespace, ()), *D1063_TWINS.get(namespace, ())):
                 assert rule["statement"].endswith(d["statement"]) and "D.5.4" in rule["evidence"], rid
     # plus the four phase-6/10 structural twins
     assert twins == sum(map(len, ITEM3_TWINS.values())) + sum(map(len, ITEM1_TWINS.values())) + \
-        sum(map(len, ITEM103_TWINS.values())) + 4
+        sum(map(len, ITEM103_TWINS.values())) + sum(map(len, D1063_TWINS.values())) + 4
 
 
 def test_item3_twins_exist_and_the_nine_document_only_rules_are_among_them():
@@ -412,6 +417,40 @@ def test_the_r07b_check_finds_a_d_rule_cited_for_unverified_code():
                             ({"kind": "git", "repo": repo, "commit": HEAD}, True)):
         records[0]["artifacts"] = [{"origin": origin}]
         assert bool(unverified_d_citations(records, load_profile("agentdojo-upstream"))) is flagged, origin
+
+
+def test_the_r07b_check_reads_the_seal_issues_whose_rule_class_is_evidence():
+    """AU-RP-3: before, only record citations were checked, so a loss or unexecuted-call issue citing a class-D rule for
+    unverified code passed R07b while the importer (proven_loss_codes) and the PROV engine (dispatch status) took its
+    rule class as evidence. An issue that is neither cites its rule as given (D.5.4) and is not checked."""
+    header = {"k": "execution", "id": "exec", "dialect": {"id": "agentdojo.tracelogger", "variant": "v1.k14"}}
+    issues = [{"code": "agentdojo.system_prompt_unrecognised", "rule": "agentdojo.system_prompt_variant_digest@1"},
+              {"code": "incomplete_run", "rule": "agentdojo.incomplete_run@1"},
+              {"code": "unexecuted_tool_call", "rule": "agentdojo.unexecuted_trailing_calls@1"},
+              {"code": "incomplete_run", "rule": "agentdojo.incomplete_run_unverified@1"}]
+    expected = ["seal/issues/1 agentdojo.incomplete_run@1", "seal/issues/2 agentdojo.unexecuted_trailing_calls@1"]
+    assert unverified_d_citations([header], load_profile("rope"), issues) == expected
+    assert unverified_d_citations([header, {"k": "seal", "issues": issues}], load_profile("rope")) == expected
+    header["dialect"]["variant"] = "v0.k11"
+    header["artifacts"] = [{"origin": {"kind": "git", "repo": "https://github.com/ethz-spylab/agentdojo",
+                                       "commit": C274885}}]
+    assert unverified_d_citations([header], load_profile("agentdojo-upstream"), issues) == []  # verified code
+
+
+def test_a_results_container_s_loss_issue_cites_its_rule_through_the_policy():
+    """The AU-RP-3 record's row (finding AU-RA-5, fixed in the family by D-1063 row 179): a results-container execution
+    whose trailing call has no result; its missing_tool_result issue cites the twin, so R07b over the seal passes."""
+    from test_rescont import _call, container, one, row
+
+    msgs = [{"role": "system", "content": "You are a helpful and harmless bank assistant."},
+            {"role": "user", "content": "Pay the bill."},
+            {"role": "assistant", "content": "two calls",
+             "tool_calls": [_call("read_file", file_path="bill.txt"), _call("get_balance")]},
+            {"role": "tool", "content": "Bill: 98.70", "tool_call": _call("read_file", file_path="bill.txt"), "error": None},
+            {"role": "assistant", "content": "Done."}]
+    m = one(container([row(messages=msgs)]))
+    assert {i["code"] for i in m.info.issues} & {"missing_tool_result", "unexecuted_tool_call"}
+    assert unverified_d_citations(m.records, load_profile("memo-ozdincer-agentdojo")) == []
 
 
 # ------------------------------------------------------------------------------------------------ SEM and PROV over twins

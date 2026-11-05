@@ -16,16 +16,18 @@ SRC = support.REPO / "src" / "agentprov" / "adapters" / "mcphunt"
 ISSUE_CODES = {
     "canary_flagged", "task_prompt_differs", "args_unparsed", "result_truncated_in_message", "result_differs",
     "unknown_server", "turn_misaligned", "unplaced_message",
+    "lone_surrogate_replaced",  # catalogue version 3 (D-1063, review UC-40)
+    "content_not_inlined",  # catalogue version 3 (D-1063, regen-batch row 181, review AU-NC-308)
 }  # fmt: skip
 
 
 def catalogue():
-    return load_catalogue("mcphunt", 2, package=PACKAGE)  # D-31 bump with regen items 38-41; v1 is archived
+    return load_catalogue("mcphunt", 3, package=PACKAGE)  # D-1063 (UC-40); v1 and v2 are archived
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("mcphunt", 2, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("mcphunt", 3, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.subtypes == set() and cat.types == set()
     data = (resources.files(PACKAGE) / "rules" / "mcphunt.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -80,7 +82,9 @@ def test_every_declared_rule_is_exercised(mapped):
     derived = {"mcphunt.unknown_server@1", "mcphunt.canary_flagged@1", "mcphunt.taint_guard_unverified@1",
                "mcphunt.result_message_differs@1", "mcphunt.unreadable_document@1",
                "mcphunt.unplaced_message@1",  # derived inputs: test_mapper.py, test_regen_items.py
-               "mcphunt.lfs_pointer@1"}  # a reader register detail, never cited by a record: test_dialect.py
+               "mcphunt.lfs_pointer@1",  # a reader register detail, never cited by a record: test_dialect.py
+               "mcphunt.lone_surrogate_replaced@1",  # D-1063 (UC-40): no fixture holds a lone surrogate; test_uc39_41.py
+               "mcphunt.content_not_inlined@1"}  # D-1063 (AU-NC-308): no fixture string over 1 MiB; test_uc39_41.py
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     assert citable - cited - derived == set(), sorted(citable - cited - derived)
 
@@ -90,7 +94,8 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(mcphunt\.[a-z_.]+@[0-9]+)"', source))
     assert literals <= set(catalogue().rules) and literals
     codes = {c.removeprefix("mcphunt.") for c in re.findall(r'"(mcphunt\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    assert codes == ISSUE_CODES - {"lone_surrogate_replaced"} and "surrogates(self, records, \"mcphunt\")" in source
 
 
 def test_profile_quirks_name_catalogue_rules():

@@ -78,10 +78,12 @@ def work(job: tuple[str, str, bytes]) -> dict[str, Any]:
 def run(cache: Path, baseline: Path, *, workers: int, limit: int | None) -> dict[str, Any]:
     from agentprov.migration.reconcile import ReconciliationReport
 
+    root = baseline / CONVERTED
+    if not root.is_dir():  # a wrong --baseline would walk nothing and leave every native log unmatched (AU-MSR-3)
+        raise SystemExit(f"r3_reconcile: the converted tree {root} is not a directory (check --baseline)")
     entries = scan.list_blobs(cache)
     if limit is not None:
         entries = entries[:limit]
-    root = baseline / CONVERTED
     listing = scan.converted_listing(root)
     report = ReconciliationReport()
     unmatched: list[str] = []

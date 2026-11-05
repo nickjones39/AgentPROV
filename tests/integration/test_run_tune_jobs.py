@@ -11,7 +11,7 @@ import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -172,3 +172,100 @@ def test_tune_jobs_needs_a_preset_and_uncalibrated_presets_do_not_run_live(cli: 
     live = cli("run", "agentdojo", "--m5ultra", "--corpus", str(tmp_path / "c"), "--campaign", "t", "--suite",
                "banking", "--model", "omlx", "--model-id", "m", *FACTS)
     assert live.code == 5 and "uncalibrated preset m5ultra" in live.err, live.err
+
+
+@pytest.fixture
+def no_drain() -> Any:
+    from agentprov import drain
+
+    drain.reset()
+    yield drain
+    drain.reset()
+
+
+@pytest.mark.parametrize("when", ["after_arm_1", "inside_arm_2"])
+def test_a_drained_sweep_records_no_unrun_arm_and_a_rerun_measures_it(cli: Callable[..., Run], home: Path,
+                                                                        tmp_path: Path, script: str, no_drain: Any,
+                                                                        monkeypatch: pytest.MonkeyPatch,
+                                                                        when: str) -> None:
+    """AU-RN-1: a drain (the GUI's Drain, ``--control-file``) accepted during the sweep starts no further arm, writes no
+    arm file for an arm it cut short or never started, and recommends nothing; a re-run measures those arms."""
+    from agentprov.cli.live import campaign as cmod
+
+    real_ingest, real_run = cmod.Campaign._ingest, cmod.Campaign.run
+    armed = {"on": True}
+
+    def ingest(self: Any, result: Any) -> Any:  # accepted just after arm 1's only attempt is ingested
+        entry = real_ingest(self, result)
+        if armed["on"] and when == "after_arm_1" and self.writer.final_dir.name == "jobs-1":
+            no_drain.request()
+        return entry
+
+    def run(self: Any, cells: Any, **kw: Any) -> Any:  # accepted as arm 2 starts: none of its units is attempted
+        if armed["on"] and when == "inside_arm_2" and self.writer.final_dir.name == "jobs-2":
+            no_drain.request()
+        return real_run(self, cells, **kw)
+
+    monkeypatch.setattr(cmod.Campaign, "_ingest", ingest)
+    monkeypatch.setattr(cmod.Campaign, "run", run)
+    out = tmp_path / "sweep"
+    first = _sweep(cli, out, script)
+    assert first.code == 0, first.err
+    doc = json.loads((out / "tune-jobs.json").read_text())
+    assert [(a["jobs"], a["status"], a.get("reason")) for a in doc["arms"]] == [(1, "ran", None),
+                                                                                (2, "skipped", "drained")]
+    assert doc["recommendation"]["jobs"] is None and doc["recommendation"]["drained"] is True
+    assert (out / "arms" / "jobs-1.json").is_file() and not (out / "arms" / "jobs-2.json").exists()
+    assert (out / "jobs-2.partial").is_dir() is (when == "inside_arm_2")
+    armed["on"] = False
+    no_drain.reset()
+    again = _sweep(cli, out, script)
+    assert again.code == 0, again.err
+    doc = json.loads((out / "tune-jobs.json").read_text())
+    assert doc["reused_arms"] == [1] and [a["status"] for a in doc["arms"]] == ["ran", "ran"]
+    assert doc["arms"][1]["cells"]["attempted"] == 1 and doc["recommendation"]["jobs"] in (1, 2)
+    assert (out / "arms" / "jobs-2.json").is_file()
+
+
+def test_each_corpus_of_a_capped_sweep_records_its_own_spend_and_the_sweep_keeps_to_the_caps(
+        cli: Callable[..., Run], home: Path, tmp_path: Path, script: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-RN-2: the caps are per corpus (D-725), so the warm-up and each arm record only their own billed calls in
+    live.caps; the sweep as a whole still starts a cell only while its total fits the caps."""
+    from agentprov.cli.live import policy
+
+    # the fake worker's capture logs carry no llm.response: each is billed 10 calls
+    monkeypatch.setattr(policy, "log_billing", lambda log, limits=None: policy.LogBilling(billed_calls=10))
+    out = tmp_path / "sweep"
+    assert _sweep(cli, out, script, "--max-calls", "800").code == 0
+    caps = {p.name.split(".")[0]: json.loads((p / "corpus.json").read_text())["live"]["caps"]
+            for p in out.iterdir() if (p / "corpus.json").is_file()}
+    assert sorted(caps) == ["jobs-1", "jobs-2", next(k for k in caps if k.startswith("warmup-"))]
+    assert {k: c["billed_calls"] for k, c in caps.items()} == dict.fromkeys(caps, 10)
+    assert all("probe_calls" not in c for c in caps.values())  # scripted: no probe
+    # 400 calls: each corpus alone would admit a cell (384 at most), the sweep's third would not (20 + 384 > 400)
+    tight = tmp_path / "tight"
+    run = _sweep(cli, tight, script, "--max-calls", "400")
+    doc = json.loads((tight / "tune-jobs.json").read_text())
+    arm2 = doc["arms"][1]
+    assert arm2["cells"]["attempted"] == 0 and "cap_reached: --max-calls 400" in arm2["stopped"][0], run.err
+    assert json.loads((tight / "jobs-1.partial" / "corpus.json").read_text())["live"]["caps"]["billed_calls"] == 10
+
+
+def test_a_sweep_never_moves_an_arm_corpus_a_live_writer_holds(cli: Callable[..., Run], home: Path, tmp_path: Path,
+                                                               script: str) -> None:
+    """AU-RN-4: an unfinished arm's corpus is renamed aside only when no live writer holds its lock (here another
+    sweep's arm 1 on the same --tune-out): the sweep is refused and nothing is moved; once released, it runs."""
+    from agentprov.corpus.writer import CorpusWriter
+
+    out = tmp_path / "sweep"
+    (out / "arms").mkdir(parents=True)
+    held = CorpusWriter(out / "jobs-1", command="run").open()
+    try:
+        run = _sweep(cli, out, script)
+        assert run.code == 4 and "held by another writer" in run.err, run.err
+        assert held.layout.lock.is_file() and not any("interrupted" in p.name for p in out.iterdir())
+    finally:
+        held.close()
+    again = _sweep(cli, out, script)
+    assert again.code == 0, again.err
+    assert any(p.name.startswith("jobs-1.partial.interrupted-") for p in out.iterdir())

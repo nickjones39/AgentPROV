@@ -4,7 +4,10 @@
 # Rules are immutable once released: a change of statement, class or behaviour mints @n+1 and bumps `version`
 # (AD-18). Nothing is released yet (v0.1 is in development), so its rules keep @1;
 # the file is at version 2 since the D-31 bumps (2026-10-13), and version 1 (the bytes the stored corpora recorded) ships
-# under rules/archive/adprov.rules.v1.toml.
+# under rules/archive/adprov.rules.v1.toml. Version 3 (D-1063, regen-batch row 180; audit AU-RB-6, review UC-41) mints
+# adprov.temperature_not_transmitted@2 (class I) and adprov.run_interval_scope@2 (with its code), superseding their @1
+# (class D citing no code, against D-27 c6), and adds adprov.content_not_inlined@1 and its issue code; version 2, which
+# the sealed corpus adprov-v1-release-rg2 records, ships under rules/archive/adprov.rules.v2.toml.
 #
 # The rule names are those of the D.5.4 index. Rules marked "added in phase 4" are not in the D.5.4 index; they were
 # needed by the transcript/v1 mapping and are reported for the next spec round (AGENTS.md section 0).
@@ -16,7 +19,7 @@
 
 [catalogue]
 id = "adprov"
-version = 2
+version = 3
 format = "agentprov-rule-catalogue/0.1"
 issue_codes = [
   "tool_call_id_mismatch",
@@ -25,7 +28,8 @@ issue_codes = [
   "v1_layout_unexpected_order",
   "v1_layout_unknown_member",
   "tool_timing_overwritten",
-  "lone_surrogate_replaced"
+  "lone_surrogate_replaced",
+  "content_not_inlined"
 ]
 subtypes = []
 types = []
@@ -126,13 +130,30 @@ since = "0.1.0"
 id = "adprov.temperature_not_transmitted"
 version = 1
 class = "D"
-status = "active"
+status = "superseded"
 statement = "A configured temperature of 0.0 was not transmitted (agentdojo 0.1.35 sends `temperature or NOT_GIVEN`): meta.model_config.temperature is configured, never transmitted."
 premises = ["/meta/model_config/temperature"]
 assumptions = []
 evidence = ["audit/capture.md §3"]
 tests = ["tests/adapters/adprov/test_mapping.py::test_c16_2_vector_is_reproduced"]
 since = "0.1.0"
+
+[[rule]]
+id = "adprov.temperature_not_transmitted"
+version = 2
+class = "I"
+status = "active"
+statement = "A configured temperature of 0.0 was not transmitted (agentdojo 0.1.35 sends `temperature or NOT_GIVEN`): meta.model_config.temperature is configured, never transmitted. Inferred (D-27 c6): the request path that drops a falsy temperature is the one the writer's shorthand backends take (its _CompatLLM, an agentdojo OpenAILLM), cited below; a run started from an AgentDojo model id was built by AgentDojo's own pipeline factory with another LLM class, and the transcript does not record which class ran, so no profile can verify the reading for every released transcript."
+premises = ["/meta/model_config/temperature"]
+assumptions = []
+code = [
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/agent_pipeline/llms/openai_llm.py", lines = "162", note = "chat_completion_request: temperature=temperature or NOT_GIVEN" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/runtime.py", lines = "179-187, 277-295", note = "_CompatLLM passes self.temperature (OpenAILLM's 0.0) to chat_completion_request or to the same `temperature or NOT_GIVEN` request" },
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/runtime.py", lines = "515-520", note = "build_llm: only the shorthands get _CompatLLM; generate._make_pipeline hands any other model id to AgentDojo" },
+]
+evidence = ["audit/capture.md §3", "DECISIONS D-27 c6", "regen-batch item 180 (AU-RB-6)"]
+tests = ["tests/adapters/adprov/test_rule_table_v3.py::test_the_document_only_d_rules_are_superseded"]
+since = "0.2.0"
 
 [[rule]]
 id = "adprov.model_names_registration"
@@ -393,13 +414,29 @@ since = "0.1.0"
 id = "adprov.run_interval_scope"
 version = 1
 class = "D"
-status = "active"
+status = "superseded"
 statement = "started_at and ended_at bracket environment load and scoring."
 premises = ["/meta/started_at", "/meta/ended_at"]
 assumptions = []
 evidence = ["audit/capture.md §4.2.2"]
 tests = []
 since = "0.1.0"
+
+[[rule]]
+id = "adprov.run_interval_scope"
+version = 2
+class = "D"
+status = "active"
+statement = "started_at and ended_at bracket environment load and scoring."
+premises = ["/meta/started_at", "/meta/ended_at"]
+assumptions = []
+code = [
+  { repo = "https://github.com/nickjones39/agentdojo-prov", commit = "579a908354b93361efe0905ffb7623256aa96a06", path = "agentdojo_prov/generate.py", lines = "503-510, 581-588", note = "started_at before and ended_at after suite.run_task_with_pipeline (benign and injection cells); the converter writes both null (convert_runs.py 159-160)" },
+  { repo = "https://github.com/ethz-spylab/agentdojo", commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", path = "src/agentdojo/task_suite/task_suite.py", lines = "339-420", note = "run_task_with_pipeline loads the environment (366) and scores utility and security (400-420)" },
+]
+evidence = ["audit/capture.md §4.2.2", "DECISIONS D-27 c6", "regen-batch item 180 (AU-RB-6: @1 cited no code)"]
+tests = ["tests/adapters/adprov/test_rule_table_v3.py::test_the_document_only_d_rules_are_superseded"]
+since = "0.2.0"
 
 [[rule]]
 id = "adprov.timing_stub_is_unknown"
@@ -564,3 +601,15 @@ evidence = ["docs/reports/analysis/research/A4-escaping.md F-01", "DECISIONS D-2
 tests = ["tests/adapters/test_item7_surrogates.py::test_scrub_record_replaces_typed_positions_and_keeps_json_values"]
 since = "0.1.0"
 
+[[rule]]
+id = "adprov.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text, reasoning or refusal part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); any other Json position (tool arguments, an injection payload, ext members) holds the digest object. The pointer cites this rule and the seal lists the records under the info issue adprov.content_not_inlined. The string stays in the raw artefact the record's locator names, and the transcript/v1 view cannot rebuild such a turn. A transformation by AgentPROV, independent of the producing code (the D-934 pattern; review UC-41, DECISIONS D-1063)."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063", "regen-batch item 180"]
+tests = ["tests/adapters/adprov/test_uc41_not_inlined.py::test_a_tool_result_over_1_mib_is_its_digest_value"]
+since = "0.2.0"

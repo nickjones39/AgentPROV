@@ -65,11 +65,13 @@ def _template(tmp_path_factory: Any, corpus_id: str, derived: str, version: str)
 
 def sealed(tmp_path_factory: Any, where: Path, corpus_id: str = "mini-mit", derived: str = "inherit",
            version: str = "0.1.0") -> Path:
-    """A fresh copy of the sealed template ``(corpus_id, derived, version)`` at ``where/<corpus_id>``."""
+    """A fresh copy of the sealed template ``(corpus_id, derived, version)`` at ``where/<corpus_id>``. The template is
+    read-only as every sealed tree is, and ``copytree`` copies the modes, so the copy's protection is lifted
+    (:func:`seal_support.writable`): tests edit their copies."""
     dest = where / corpus_id
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(_template(tmp_path_factory, corpus_id, derived, version), dest, symlinks=True)
-    return dest
+    return ss.writable(dest)
 
 
 def manifest(root: Path) -> dict[str, Any]:

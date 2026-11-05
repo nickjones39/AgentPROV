@@ -197,12 +197,12 @@ def test_a_failed_spawn_releases_its_admission_ticket(fresh_admission, monkeypat
     real_init = workers._Worker.__init__
     calls = {"n": 0}
 
-    def failing_init(self, pool):  # type: ignore[no-untyped-def]
+    def failing_init(self, pool, *rest):  # type: ignore[no-untyped-def]
         if pool.charge is not None:  # the internal calibration pool (no charge) spawns first: let it
             calls["n"] += 1
             if calls["n"] == 1:  # the first worker of a charged pool, after its job was admitted
                 raise OSError(24, "Too many open files (simulated spawn failure)")
-        real_init(self, pool)
+        real_init(self, pool, *rest)
 
     monkeypatch.setattr(workers._Worker, "__init__", failing_init)
     with pytest.raises(OSError):

@@ -11,8 +11,9 @@ Usage, from inside a session's worktree::
 
 Each session owns one file, ``<sessions-dir>/<name>.json``. The sessions directory is ``$AGENTPROV_SESSIONS_DIR``, else
 ``$AGENTPROV_HOME/sessions``, else ``~/.agentprov/sessions``. ``<name>`` is ``--name``, else ``$AGENTPROV_SESSION_NAME``,
-else the current branch, made safe for a file name. The schema is ``agentprov-session-status/1``
-(``docs/workflow/schemas/session-status-1.schema.json``). ``tools/queue_status.py`` reads every file and flags stalls.
+else the current branch (on a detached HEAD ``detached-`` and a hash of the worktree's path), made safe for a file
+name. The schema is ``agentprov-session-status/1`` (``docs/workflow/schemas/session-status-1.schema.json``).
+``tools/queue_status.py`` reads every file and flags stalls.
 
 * ``branch``, ``head``, ``worktree``, ``dirty`` and ``base`` (ahead/behind ``origin/main``) are computed from git in the
   current directory on every write, so a session never types a commit id.
@@ -42,7 +43,15 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _workflow import agentprov_home, git_ok, read_json, safe_name, utc_now, write_json_atomic  # noqa: E402
+from _workflow import (  # noqa: E402
+    agentprov_home,
+    detached_session,
+    git_ok,
+    read_json,
+    safe_name,
+    utc_now,
+    write_json_atomic,
+)
 
 SCHEMA = "agentprov-session-status/1"
 STATES = ("building", "suite-running", "green", "waiting-for-user", "waiting-for-slot", "waiting-on-session",
@@ -202,7 +211,8 @@ def _waits_on(state: str, given: list[str] | None, old: Mapping[str, Any] | None
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(allow_abbrev=False, description=__doc__.split("\n\n")[0])
-    p.add_argument("--name", help="session name (default $AGENTPROV_SESSION_NAME, else the current branch)")
+    p.add_argument("--name", help="session name (default $AGENTPROV_SESSION_NAME, else the current branch; detached: "
+                                "detached-<hash of the worktree path>)")
     p.add_argument("--sessions-dir", type=Path, help="default $AGENTPROV_SESSIONS_DIR, else $AGENTPROV_HOME/sessions")
     p.add_argument("--base", default="origin/main", help="ref for ahead/behind (default origin/main)")
     p.add_argument("-C", dest="cwd", type=Path, default=Path.cwd(), help="worktree to describe (default: here)")
@@ -231,7 +241,8 @@ def main(argv: list[str] | None = None) -> int:
         p.error("--head needs --branch")
 
     cwd = a.cwd.resolve()
-    branch = a.branch or git_ok(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd) or "detached"
+    branch = (a.branch or git_ok(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd)
+              or detached_session(git_ok(["rev-parse", "--show-toplevel"], cwd) or cwd))
     try:
         name = safe_name(a.name or os.environ.get("AGENTPROV_SESSION_NAME") or branch)
     except ValueError as exc:

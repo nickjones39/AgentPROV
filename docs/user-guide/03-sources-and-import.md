@@ -148,7 +148,7 @@ Run the same command again and nothing is redone: the second run reports `0 unit
 | `--until raw\|aer\|sem\|prov\|validation` | stop after a stage |
 | `--jobs N` | worker processes (0 = the host default). Output is byte-identical for every N |
 | `--dry-run` | run every in-memory stage and write nothing; with `--artefacts`, print the source-data artefact table |
-| `--retry-failed` | re-process units whose index row has status `failed` |
+| `--retry-failed` | re-process units whose index row has status `failed` (all of them: it cannot be combined with `--limit` or `--sample`) |
 | `--skip-prov-conformance` | dev mode only, **not advisable**: skips tier 4; the corpus is marked unvalidated and cannot be sealed until a full `recompute --out` validates it |
 
 ### Issues, quirks and artefacts

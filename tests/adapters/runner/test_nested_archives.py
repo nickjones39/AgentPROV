@@ -351,6 +351,21 @@ def test_a_truncated_direct_log_and_its_complete_nested_copy_are_never_related(t
     assert subjects["ingest.archive.format"] == ["logs.zip!/logs/x.eval"] and "dedup.collapsed" not in subjects
 
 
+def test_a_copy_of_a_refused_container_is_refused_like_it_never_collapsed(tmp_path, monkeypatch):
+    """AU-RP-4: before, the second of two byte-identical .eval files that are not archives (empty, as in the sealed
+    controlarena-persistent snapshots) was dedup.collapsed / sealed into a container that was never imported."""
+    _profile(monkeypatch)
+    pin, tree = _split(tmp_path / "in", _zip({"logs/a.eval": b"", "logs/b.eval": b"", "logs/c.eval": _eval(3)}))
+    report = _import(tree, pin, tmp_path / "c", limits=SMALL)
+    assert report.counters["mapped"] == 1 and report.counters["duplicates"] == 0
+    subjects = _subjects(tmp_path / "c.partial")
+    assert "dedup.collapsed" not in subjects
+    refused = [e for e in _jsonl(tmp_path / "c.partial" / "register.jsonl") if e["subject"].get("path", "").endswith(
+        ("a.eval", "b.eval"))]
+    assert len(refused) == 2 and {e["disposition"] for e in refused} == {"not_imported"}
+    assert len({e["code"] for e in refused}) == 1
+
+
 def test_a_second_snapshot_with_the_direct_copy_collapses_on_the_eval(tmp_path, monkeypatch):
     _profile(monkeypatch)
     pin, tree, _inner = _nested_input(tmp_path)

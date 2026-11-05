@@ -8,6 +8,7 @@ sealed manifest's ``validation`` member, ``linkage_resolved_pct`` included (clai
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -54,6 +55,30 @@ def test_release_asks_for_shacl_which_is_not_built_so_it_fails_as_skipped(cli, s
     assert document["issues_by_code"] == {"validate.check.skipped": 1}
     assert any("tier regression: not applicable" in n for n in document["notices"])
     assert document["counters"]["results_reproduced"] == 3
+
+
+def test_release_adds_every_applicable_tier_to_a_tiers_list(cli, sealed):
+    """AU-CLIA-14: ``--release --tiers aer`` ran one tier and passed (exit 0), while ``--release`` alone fails for the
+    skipped shacl tier. N.2.5(1): ``--release`` adds every applicable tier, so both runs are the same."""
+    alone = cli("validate", "--corpus", str(sealed), "--release", "--json").json()
+    run = cli("validate", "--corpus", str(sealed), "--release", "--tiers", "aer", "--json")
+    assert run.code == 1
+    document = run.json()
+    assert document["counters"]["tiers_run"] == alone["counters"]["tiers_run"] == 4
+    assert document["counters"]["checks_skipped"] == 1 and document["issues_by_code"] == {"validate.check.skipped": 1}
+    assert any("--release runs every applicable tier: added sem, prov, linkage, shacl, regression to --tiers" in n
+               for n in document["notices"])
+
+
+def test_an_unreadable_settings_file_does_not_stop_validation(cli, sealed):
+    """AU-CLIA-1: the tier-4 cache cap is advisory (D-894); a settings.json that is not strict JSON left every corpus
+    command at exit 2 (usage). It now validates with the cache's default cap and says so in a notice."""
+    home = os.environ["AGENTPROV_HOME"]
+    with open(os.path.join(home, "settings.json"), "w", encoding="utf-8") as fh:
+        fh.write('{"format": "agentprov-settings/0.1", "values": {}, }\n')
+    run = cli("validate", "--corpus", str(sealed), "--json")
+    assert run.code == 0
+    assert any("tier-4 round-trip cache cap is left at its default" in n for n in run.json()["notices"])
 
 
 def test_the_summary_names_a_skipped_tier_and_why(cli, sealed):
@@ -160,3 +185,79 @@ def test_an_integer_option_beyond_the_json_domain_is_a_usage_error(cli, sealed):
     for flag in ("--jobs", "--sample"):
         run = cli("validate", "--corpus", str(sealed), flag, str(2**53))
         assert run.code == 2 and "at most 9007199254740991" in run.err, (flag, run.err)
+
+
+def _withhold_first_artefact(sealed: Path, *, listed: bool = True) -> str:
+    """Object-level withholding as sealing does it (H.4.5 item 2; D-231): the bytes of a raw object that a released
+    execution cites leave ``raw/objects/`` and ``WITHHELD.json`` lists the object; the execution stays released.
+    Returns the execution id. With ``listed=False`` the object is only missing (no ledger entry)."""
+    from agentprov.corpus.reader import CorpusReader
+    from agentprov.corpus.withheld import WithheldDocument, WithheldObject, encode_withheld, sorted_origins
+
+    reader = CorpusReader.open(sealed)
+    row = reader.index()[0]
+    digest = str(reader.read_aer(row).header["artifacts"][0]["sha256"]).removeprefix("sha256:")
+    origins = sorted_origins(o.origin.to_json() for o in reader.origins() if o.sha256 == digest)
+    (stored,) = (sealed / "raw" / "objects" / digest[:2]).glob(digest + "*")
+    stored.rename(sealed.parent / stored.name)  # where the private sidecar would keep it
+    if listed:
+        entry = WithheldObject(sha256=digest, origins=origins, reason="personal_data", basis="container",
+                               public_note="an archive that holds a withheld member object (AD-12)")
+        (sealed / "WITHHELD.json").write_bytes(encode_withheld(WithheldDocument(entries=(entry,))))
+    return row.ex
+
+
+def test_an_object_the_corpus_version_withholds_is_skipped_not_missing(cli, sealed):
+    """Object-level withholding (H.4.5 item 2): a released execution may cite a raw object whose bytes the sealed tree
+    withholds. ``verify --level chain`` counts it ``raw_withheld``; ``validate --corpus`` reported every such execution
+    as failed with ``aer.blob.missing`` (all 1,055 of ast-survey-agentharm-rg2, all 1,747 of fragfuse-agentharm-w2, 6 in
+    500 of dtap-bench-w2c). The checks that need the bytes cannot run: they are skipped, not passed and not failed."""
+    ex = _withhold_first_artefact(sealed)
+    report = sealed.parent / "report.json"
+    with fs_guard.unchanged(sealed):
+        run = cli("validate", "--corpus", str(sealed), "--report", str(report), "--json")
+    assert run.code == 0, run.json()["failures"]
+    summary = run.json()
+    assert summary["counters"]["passed"] == 3 and summary["counters"]["aer_withheld"] == 1
+    assert any("WITHHELD.json" in n and "skipped, not passed" in n for n in summary["notices"])
+    row = next(r for r in json.loads(report.read_text("utf-8"))["results"] if r["ex"] == ex)
+    assert row["aer"]["errors"] == [] and row["aer"]["verdict"] == "pass"
+    assert any("WITHHELD.json" in s for s in row["aer"]["skipped"])
+
+    strict = cli("validate", "--corpus", str(sealed), "--strict", "--json")  # D8: a skipped check fails --strict
+    assert strict.code == 1
+    document = strict.json()
+    assert document["issues_by_code"] == {"validate.failed": 1}  # never validate.results.differ: the stored row
+    assert document["failures"][0]["subject"] == {"ex": ex}  # was made before the bytes were withheld
+    counters = document["counters"]
+    assert counters["results_reproduced"] == 2 and counters["results_differ"] == 0
+    assert counters["results_not_compared"] == 1 and counters["aer_withheld"] == 1
+    assert any("WITHHELD.json" in n and "fails --strict" in n for n in document["notices"])
+
+
+def test_an_absent_object_the_ledger_does_not_list_is_still_missing(cli, sealed):
+    """Fail closed: only an object ``WITHHELD.json`` lists is accounted for; any other absence stays ``aer.blob.missing``."""
+    _withhold_first_artefact(sealed, listed=False)
+    run = cli("validate", "--corpus", str(sealed), "--report", "-")
+    assert run.code == 1
+    report = json.loads(run.out)
+    assert report["counters"]["failed"] == 1 and "aer_withheld" not in report["counters"]
+    assert [r["aer"]["errors"] for r in report["results"] if r["verdict"] == "fail"] == [["aer.blob.missing"]]
+
+
+@pytest.mark.parametrize("n", [0, 1, 2, 3, 5])
+def test_p8_a_streamed_sample_validates_the_executions_and_rows_the_full_run_gives(sealed, n):
+    """P8: the parent keeps only the sampled rows (the n smallest sample keys, one pass over the index); they are the
+    executions ``sample_executions`` chooses, and their result rows equal the full run's rows for them."""
+    from agentprov.corpus.reader import CorpusReader
+    from agentprov.corpus.validation import validate_corpus
+    from agentprov.corpus.verify import sample_executions
+
+    full = validate_corpus(CorpusReader.open(sealed), mode="release")
+    sampled = validate_corpus(CorpusReader.open(sealed), mode="release", sample=n, seed="p8")
+    every = [row["ex"] for row in full.rows]
+    chosen = sample_executions(every, n, "p8")
+    assert [row["ex"] for row in sampled.rows] == chosen
+    assert sampled.rows == [row for row in full.rows if row["ex"] in chosen]
+    assert sampled.sample == {"n": len(chosen), "of": len(every), "seed": "p8"}
+    assert sampled.counters["results_reproduced"] == len(chosen) and not sampled.failures

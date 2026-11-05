@@ -96,3 +96,30 @@ def test_triage_context_helpers(pc) -> None:
     assert pc._json_key(data, data.rindex(b"/home/")) == "path"
     assert pc._tail_class(b"/miniconda3/lib/python3.12/site-packages/a.py") == "toolchain"
     assert pc._tail_class(b"/Documents/report.txt") == "user_dirs" and pc._tail_class(b"/notes.txt") == "other"
+
+
+def test_a_forced_rerun_that_writes_no_summary_never_reduces_the_old_one(tmp_path: Path,
+                                                                         monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-TRG-9 (``tools/precheck/run_postcheck.py``): the earlier run's ``--summary-json`` was reduced under the exit
+    code of a ``--force`` rerun that died before writing its own."""
+    sys.path.insert(0, str(TOOLS))
+    try:
+        import run_postcheck as rp
+    finally:
+        sys.path.remove(str(TOOLS))
+    monkeypatch.setenv("AGENTPROV_PRECHECK_ROOT", str(tmp_path / "pre"))
+    monkeypatch.setattr(rp, "DATA", tmp_path / "data")
+    corpus = rp.Corpus("c", ())
+    monkeypatch.setattr(rp, "CORPORA", (corpus,))
+    summary = tmp_path / "pre" / "postcheck" / "_batch" / "c.verify.summary.json"
+    done = tmp_path / "data" / "c" / "verify.json"
+    dies = [sys.executable, "-c", "raise SystemExit(3)"]  # the CLI fails before it writes --summary-json
+    monkeypatch.setattr(rp, "commands", lambda c: [("verify", dies, done, summary)])
+    summary.parent.mkdir(parents=True)
+    summary.write_text(json.dumps({"outcome": "ok", "counters": {"executions_checked": 17664, "failed": 0},
+                                   "issues_by_code": {"checksums.absent": 1}}), encoding="utf-8")
+    done.parent.mkdir(parents=True)
+    done.write_text("{}", encoding="utf-8")
+    assert rp.main(["--force", "--steps", "verify"]) == 0
+    reduced = json.loads(done.read_text(encoding="utf-8"))
+    assert reduced["exit_code"] == 3 and reduced["summary"] is None and "outcome" not in reduced

@@ -3,10 +3,12 @@
 The source registry (``agentprov.adapters.registry``) is rendered per part, with its gated statuses and caveats, through
 ``agentprov.adapters.registry.render``: nothing about a source is hand-written, and no status is printed that the
 registry does not hold. ``info SOURCE`` (or ``--source``) adds the part details, the shipped profiles and their pins, the
-licence policy and the evidence references. ``--matrix`` and ``--must-not-claim`` need the claims library of D.3.1
-(``registry/claims.py``), which is not part of this build, and refuse with exit 5. Also reported: the version axes, the
+licence policy and the evidence references. ``--matrix`` and ``--must-not-claim`` refuse with exit 5: the claims library
+of D.3.1 (``registry/claims.py``) ships and lints corpus cards, but ``info`` does not render the compatibility matrix or
+the must-not-claim items yet (AU-CLIA-5). Also reported: the version axes, the
 installed extras and tools, the interpreter and its advisory (AD-16), ``$AGENTPROV_HOME``, built backend environments,
-the probed host profile and the isolation grade (D-7). It runs no benchmark and uses no network.
+the probed host profile and the isolation grade (D-7), and the features this platform cannot use (``platform``, from
+``agentprov.platforms``, D-1064). It runs no benchmark and uses no network.
 
 ``info`` never runs a subprocess other than the host probes of ``agentprov.host`` and the allocation-rate calibration
 worker that grades the isolation (the same calibration the worker pool uses).
@@ -41,7 +43,10 @@ _REGISTRY_NOTE: Final = (
     "Statuses are the gated values of the registry (D.3.2): supported only after the full pinned snapshot is imported "
     "through agentprov import with zero crashes and the counts are recorded in docs/reports/ (HON-10)."
 )
-_CLAIMS_NOTE: Final = "The claims library (agentprov.adapters.registry.claims, D.3.1) is not part of this build."
+_CLAIMS_NOTE: Final = (
+    "The claims library (agentprov.adapters.registry.claims, D.3.1) is present and lints corpus cards (validate --card); "
+    "info does not render the compatibility matrix or the must-not-claim items yet."
+)
 _EXTRAS: Final = (("live", "dotenv"), ("render", "pydot"), ("shacl", "pyshacl"), ("zenodo", "agentprov_zenodo"))
 _TOOLS: Final = ("git", "uv", "dot")
 _ENV_MARKER: Final = "AGENTPROV_ENV.json"
@@ -62,8 +67,8 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
     p.add_argument("source", nargs="?", metavar="SOURCE", help="a registered source id: parts, profiles, pins, licence")
     p.add_argument("--source", dest="source_opt", metavar="SOURCE", help="same as SOURCE")
     what = p.add_mutually_exclusive_group()
-    what.add_argument("--matrix", action="store_true", help="the compatibility matrix (needs the claims library; deferred)")
-    what.add_argument("--must-not-claim", action="store_true", help="the must-not-claim items (need the claims library; deferred)")
+    what.add_argument("--matrix", action="store_true", help="the compatibility matrix (not built yet; refused)")
+    what.add_argument("--must-not-claim", action="store_true", help="the must-not-claim items (not built yet; refused)")
     p.add_argument("--format", choices=["text", "markdown", "json"], default="text", help="payload format (default text)")
 
 
@@ -171,7 +176,18 @@ def collect() -> dict[str, Any]:
             "backend_environments": _backend_environments(home),
         },
         "host": {"profile": host, "isolation": isolation},
+        "platform": _platform(),
     }
+
+
+def _platform() -> dict[str, Any]:
+    """D-1064: the features with a known limit on this platform (``agentprov.platforms``), with why and where they
+    work; the desktop app disables them from this member."""
+    from agentprov.platforms import host, unavailable_here
+
+    system, machine = host()
+    return {"system": safe_text(system, 80), "machine": safe_text(machine, 80),
+            "unavailable": [hit.to_json() for hit in unavailable_here()]}
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -236,6 +252,13 @@ def render(data: dict[str, Any], fmt: str) -> str:
         lines.append(f"  {name:<17} {value}  ({cap['how']})")
     reasons = f" ({'; '.join(iso['reasons'])})" if iso["reasons"] else ""
     lines.append(f"  isolation grade   {iso['grade']}{reasons}; calibration {iso['calibration']}")
+    plat = data["platform"]
+    lines += head("Platform")
+    lines.append(f"  system / arch     {plat['system']} / {plat['machine']}")
+    if not plat["unavailable"]:
+        lines.append("  unavailable here  none (no known platform limit applies)")
+    for hit in plat["unavailable"]:
+        lines.append(f"  unavailable here  {hit['message']}")
     return "\n".join(lines)
 
 
@@ -302,8 +325,8 @@ def render_source(detail: dict[str, Any]) -> str:
 
 def _needs_claims(what: str, label: str) -> UnsupportedCapability:
     return UnsupportedCapability(
-        f"{what} needs the claims library, which is not part of this build",
-        refusal=Refusal(id=label, mode="info", status="the claims library is not part of this build", lines=(_CLAIMS_NOTE,)),
+        f"{what} is not built yet: info does not render it",
+        refusal=Refusal(id=label, mode="info", status="not built yet", lines=(_CLAIMS_NOTE,)),
         code="cli.unsupported.info",
     )
 
@@ -319,7 +342,9 @@ def _source_info(source: str, args: argparse.Namespace) -> CommandResult:
         raise CliUsageError(f"agentprov info: {safe_text(source, 80)!r} is not a registered source; registered: {known}") from None
     result = CommandResult()
     result.counters = {"parts": len(detail["parts"])}
-    text = jcs_bytes(detail) + b"\n" if args.format == "json" else (render_source(detail) + "\n").encode("utf-8")
+    # D-1064: the same platform member as plain info (no host probe), for the live-run form's per-source call
+    text = jcs_bytes({**detail, "platform": _platform()}) + b"\n" if args.format == "json" else \
+        (render_source(detail) + "\n").encode("utf-8")
     if args.json:
         for line in text.decode("utf-8").splitlines():
             result.info(line)

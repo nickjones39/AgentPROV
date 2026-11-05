@@ -3,8 +3,10 @@
 
 G.4.1 lets SEM, PROV and validation run in T1 (MAY). The import pipeline runs them here because ``validate_prov`` is the
 dominant cost of an import (about 0.4 s per AgentDojo execution) and the parent must stay free for the write gate. The
-module imports the SEM and PROV engines, the validators and **every shipped semantics profile** at module level, so a
-worker loads them before its audit hook is installed (G.4.4); a job reads nothing but its input.
+module imports the SEM and PROV engines and the validators at module level, and loads the semantics profiles of
+:func:`agentprov.io.workers.worker_preload` (D-1068 P2: in a worker, the profiles its pool's jobs name, given on its argv;
+elsewhere, every shipped profile), so a worker loads them before its audit hook is installed (G.4.4); a job reads
+nothing but its input. The pool sends a job only to a worker that loaded every profile the job names.
 
 Input 0 is the sealed AER file, read by digest from the pipeline's scratch store and re-hashed (G.4.5). Params:
 ``semantics`` (profile references ``<id>@<version>`` to annotate with, in order), ``derive`` (run the PROV stage; false
@@ -29,9 +31,10 @@ from __future__ import annotations
 
 from typing import Any, Final, Literal
 
-from agentprov.adapters.semantics_profiles import load_all_semantics_profiles
+from agentprov.adapters.semantics_profiles import load_all_semantics_profiles, load_named_semantics_profiles
 from agentprov.aer.reader import load_aer_bytes
 from agentprov.errors import AgentProvError
+from agentprov.io.workers import worker_preload
 from agentprov.prov.engine import ProvDerivationError, derive
 from agentprov.prov.specs import SPEC_ID
 from agentprov.sem.engine import annotate, dumps_sem
@@ -44,9 +47,13 @@ from agentprov.validate.tiers import report_outcomes
 __all__ = ["PROFILES", "job_prov", "tier3_checks", "tier4_row"]
 
 SUPPORTED_SPECS: Final = (SPEC_ID,)
-#: Every shipped semantics profile, ``<id>@<version>`` -> profile (loaded at import, before the audit hook).
-PROFILES: Final[dict[str, SemanticsProfile]] = load_all_semantics_profiles()
-context_digest()  # the round-trip cache context reads package and library files: before the audit hook (G.4.4)
+_PRELOAD: Final = worker_preload()
+#: The shipped semantics profiles this process loaded, ``<id>@<version>`` -> profile (at import, before the audit hook):
+#: every one, or in a worker the ones its pool's jobs name (D-1068 P2).
+PROFILES: Final[dict[str, SemanticsProfile]] = (
+    load_all_semantics_profiles() if _PRELOAD.semantics is None else load_named_semantics_profiles(_PRELOAD.semantics))
+if _PRELOAD.fidelity:
+    context_digest()  # the round-trip cache context reads package and library files: before the audit hook (G.4.4)
 
 
 def tier4_row(report: Any, *, strict: bool) -> dict[str, Any]:

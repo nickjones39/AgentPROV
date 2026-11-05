@@ -1,0 +1,76 @@
+# Semantics profile mcphunt.tools@1: the MCP tool table by server (docs/architecture D.21.8). Reviewed by hand.
+#
+# The eight servers of the MCPHunt pipeline and the 31 tools the census saw (docs/reports/phase10m/ part B). The tools
+# are real MCP servers run in a sandbox the pipeline built and seeded with planted credentials, so no output is
+# "trusted": local reads return the seeded workspace, database, history or graph ("unknown"); web reads return
+# third-party pages ("untrusted"). Roles follow EF E.7.1. A server or tool not listed is fail-closed (mcphunt.unknown_tool@1).
+
+[[server]]
+name = "filesystem"
+channel = "file"
+tools = [
+  { name = "read_file", roles = ["content_source"], integrity = "unknown" },
+  { name = "list_directory", roles = ["content_source"], integrity = "unknown" },
+  { name = "search_files", roles = ["content_source"], integrity = "unknown" },
+  { name = "get_file_info", roles = ["content_source"], integrity = "unknown" },
+  { name = "write_file", roles = ["write_sink"], integrity = "unknown" },
+  { name = "create_directory", roles = ["write_sink"], integrity = "unknown" },
+  { name = "move_file", roles = ["write_sink"], integrity = "unknown" },
+]
+
+[[server]]
+name = "shell"
+channel = "shell"
+tools = [{ name = "execute_command", roles = ["execute_sink"], integrity = "unknown" }]
+
+[[server]]
+name = "sqlite"
+channel = "database"
+tools = [
+  { name = "read_query", roles = ["content_source"], integrity = "unknown" },
+  { name = "list_tables", roles = ["content_source"], integrity = "unknown" },
+  { name = "describe_table", roles = ["content_source"], integrity = "unknown" },
+  { name = "write_query", roles = ["write_sink"], integrity = "unknown" },
+]
+
+[[server]]
+name = "git"
+channel = "vcs"
+tools = [
+  { name = "git_log", roles = ["content_source"], integrity = "unknown" },
+  { name = "git_show", roles = ["content_source"], integrity = "unknown" },
+  { name = "git_status", roles = ["content_source"], integrity = "unknown" },
+  { name = "git_diff_unstaged", roles = ["content_source"], integrity = "unknown" },
+]
+
+[[server]]
+name = "memory"
+channel = "memory"
+tools = [
+  { name = "read_graph", roles = ["content_source"], integrity = "unknown" },
+  { name = "search_nodes", roles = ["content_source"], integrity = "unknown" },
+  { name = "create_entities", roles = ["write_sink"], integrity = "unknown" },
+  { name = "add_observations", roles = ["write_sink"], integrity = "unknown" },
+  { name = "delete_entities", roles = ["write_sink"], integrity = "unknown" },
+]
+
+[[server]]
+name = "time"
+channel = "time"
+tools = [{ name = "get_current_time", roles = ["neutral"], integrity = "unknown" }]
+
+[[server]]
+name = "fetch"
+channel = "web"
+tools = [{ name = "fetch", roles = ["egress_read"], integrity = "untrusted" }]
+
+[[server]]
+name = "browser"
+channel = "web"
+tools = [
+  { name = "browser_navigate", roles = ["egress_read"], integrity = "untrusted" },
+  { name = "browser_snapshot", roles = ["content_source"], integrity = "untrusted" },
+  { name = "browser_click", roles = ["egress_read"], integrity = "untrusted" },
+  { name = "browser_type", roles = ["send_sink"], integrity = "untrusted" },
+  { name = "browser_fill_form", roles = ["send_sink"], integrity = "untrusted" },
+]

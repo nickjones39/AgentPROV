@@ -11,10 +11,12 @@
 # (adapters/agentdojo/drift_mapper.py, D-270). The `observed` counts are measured by mapping every file of each full pinned
 # snapshot and reproduced by the phase-10l census (docs/reports/phase10l/census.md), which reads the source bytes
 # independently.
+# Version 2 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 1 ships under profiles/archive/drift.profile.v1.toml.
 
 [profile]
 id = "drift"
-version = 1
+version = 2
 format = "agentprov-source-profile/0.1"
 source_id = "drift"
 family = "agentdojo"
@@ -86,7 +88,7 @@ content_dedup = "never"
 dialect = "agentdojo.tracelogger"
 mapper = "agentdojo.tracelogger"
 variants = ["drift.k18.conversations"]
-rules = { aer = 1, agentdojo = 2, drift = 1 }
+rules = { aer = 1, agentdojo = 3, drift = 1 }
 include = ["runs/**/*.json"]
 exclude = [
   { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
@@ -110,7 +112,7 @@ version_field = "benchmark_version"
 # AgentDyn registers its suites under every version key, so there it is not (D-278)
 version_label_semantics = "suite_version_for_agentdojo_suites_only"
 dos_attacks = []
-semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+semantics_profile = { id = "agentdojo.suites", version = 4 }  # D-31 and item 1: regenerated corpora read @2
 
 [family.agentdojo.harness]
 # No log names its code; the head runs were produced by code states before or between the pinned commits (verify §3, §5),

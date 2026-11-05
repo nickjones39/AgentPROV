@@ -1,0 +1,173 @@
+# Source profile `kongminos-agentdojo`: kongminOS/jspace-agentdojo-950, 950 TraceLogger logs (874 attacked with
+# tool_knowledge, 76 benign) on workspace, banking and travel, with a recomputation script (phase 10d; shortlist row 18;
+# sources/agentdojo-format-candidates.md §3.18).
+#
+# The model is in no log (pipeline_name `local`): it is asserted from the README's statement, class I (D-92, D-105).
+# Every call id is null (3,311 calls): links are positional.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18). Version 2 (D-590, regeneration-batch item 134; D-31 owner ruling 2026-10-21): the pre-check scratch
+# corpora recorded version 1, which ships byte for byte under profiles/archive/kongminos-agentdojo.profile.v1.toml;
+# version 2 adds the quirk `agentdojo.local_model_raw_completion` (pre-check PC-kongminos-agentdojo-02). The quirks'
+# `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/kongminos@f341af69498e.*).
+
+[profile]
+id = "kongminos-agentdojo"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "kongminos-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "jspace-agentdojo-950: AgentDojo 0.1.35 tool_knowledge logs of DeepSeek V4-Flash (kongminOS/jspace-agentdojo-950)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/kongminOS/jspace-agentdojo-950"
+paper = "an article named in the README (not identified further)"
+package = { name = "agentdojo", requirement = "not declared", version_identifies_code = false }
+
+# The pin covers the repository root (957 files): the logs, the recomputation script, the README and LICENSE. The byte
+# total is not stated: four article images were not fetched in phase 10c; the other 953 files hold 15,680,054 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "f341af69498ee36a8d1a2e69040ab70bd8e20a01"
+date = "2026-08-22"
+expected_files = 957
+note = "the only branch at 2026-10-11 (phase 10c); 950 logs under data/<run set>/local/"
+
+[licence]
+spdx = "MIT"
+holders = ["kongminOS"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin, (c) 2026 kongminOS, and the README licence section (derived data released under MIT); the logs embed AgentDojo benchmark text (MIT)"
+attribution = [
+  "kongminOS/jspace-agentdojo-950 (MIT, (c) 2026 kongminOS), commit f341af69498ee36a8d1a2e69040ab70bd8e20a01",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; installation not declared)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["data/*/*/*/*/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "data/{run_set}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions.
+context_artefacts = ["LICENSE", "README.md", "recompute_agentdojo.py"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "config_tag_never_model"
+table = { path = "tables/kongminos_pipeline_dirs.toml", sha256 = "efd046b9cb8ff2b7526a0f65fdb1f8ac13257d1fee1e9419ae37e229608e4754" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", banking = "agentdojo", travel = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no AgentDojo installation is declared; the logs record only the distribution version string
+# (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log, recognised by its upstream digest.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14"] } },
+]
+
+# D-590: the logs were written through AgentDojo 0.1.35's LocalLLM (pipeline directory and pipeline_name `local`), which
+# parses only the first `<function=` tag of a raw completion. Turns with more tags than parsed calls are flagged, never
+# re-parsed (class I, so no `_unverified` twin is needed). Pre-check counts: 478 turns in 154 logs, 17 of them a final
+# turn with a tag and no parsed call.
+[[family.agentdojo.quirk]]
+id = "agentdojo.local_model_raw_completion"
+applies = { pipeline_dir = ["local"] }
+rules = ["agentdojo.local_model_tag_count@1"]
+observed = { head = { turns_more_tags_than_calls = 478, turns_tags_no_calls = 17 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 106, origin_rule_applied = 106 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 30 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 25, logs = 25 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 907 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 3311, present_and_null = 3311 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { head = { null_ids = 3311, logs_with_null_ids = 907 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

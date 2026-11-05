@@ -55,6 +55,28 @@ def test_queue_dir_resolution(sq, tmp_path: Path) -> None:
     assert sq.queue_dir({}) == Path.home() / ".agentprov" / "locks" / "suite-queue"
 
 
+def test_a_literal_tilde_resolves_to_the_home_queue_as_queue_status_does(sq, tmp_path: Path) -> None:
+    """AU-TWF-4: a literal ``~`` (a plist, a dotenv file, a single-quoted export) is expanded, so every worktree shares
+    one queue, and ``tools/queue_status.py`` reads the same directory; ``--queue-dir`` is expanded too."""
+    import queue_status  # tools/ is on sys.path (the sq fixture)
+
+    home = Path.home()
+    for environ, expected in (({"AGENTPROV_HOME": "~/x"}, home / "x" / "locks" / "suite-queue"),
+                              ({"AGENTPROV_SUITE_QUEUE_DIR": "~/q"}, home / "q"),
+                              ({"AGENTPROV_HOME": str(tmp_path)}, tmp_path / "locks" / "suite-queue"),
+                              ({}, home / ".agentprov" / "locks" / "suite-queue")):
+        assert sq.queue_dir(environ) == expected
+        assert queue_status.suite_queue_dir(environ) == expected
+    assert sq.pycache_prefix({"AGENTPROV_PYCACHE_PREFIX": "~/p"}) == home / "p"
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    done = subprocess.run([sys.executable, str(TOOL), "--queue-dir", "~/q", "--status"], cwd=tmp_path,
+                          capture_output=True, text=True, timeout=60, env={**os.environ, "HOME": str(fake_home)})
+    assert done.returncode == 0, done.stderr
+    assert f"queue dir: {fake_home / 'q'}" in done.stdout
+    assert (fake_home / "q" / "tickets").is_dir() and not (tmp_path / "~").exists()
+
+
 def test_stale_and_reused_pid_tickets_are_removed_in_order(sq, tmp_path: Path) -> None:
     tickets = tmp_path / "tickets"
     tickets.mkdir()

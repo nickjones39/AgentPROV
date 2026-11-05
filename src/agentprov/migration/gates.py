@@ -356,7 +356,7 @@ def _agentprov_identity() -> dict[str, Any]:
     commit = _git_text(REPO_ROOT, "rev-parse", "HEAD")
     if commit is None or len(commit) != 40:
         return {"version": __version__, "commit": None, "dirty": None}
-    status = _git(REPO_ROOT, "status", "--porcelain")
+    status = _git(REPO_ROOT, "status", "--porcelain", "--untracked-files=all")
     return {"version": __version__, "commit": commit, "dirty": bool(status.stdout.strip()) if status.returncode == 0 else None}
 
 
@@ -439,7 +439,8 @@ def _check_existing_tags(repo: Path, lock: BaselineLock) -> Check:
 
 
 def _check_status(repo: Path) -> Check:
-    done = _git(repo, "status", "--porcelain")
+    # explicit, so a status.showUntrackedFiles=no in the repository's or the user's config cannot hide a planted file
+    done = _git(repo, "status", "--porcelain", "--untracked-files=all")
     if done.returncode != 0:
         return Check("git.status_clean", FAIL, "git status failed")
     lines = done.stdout.splitlines()

@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import hashlib
 import io
-import zlib
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,7 +45,6 @@ __all__ = [
     "ArchiveMember",
     "ArchiveSet",
     "ArchiveSource",
-    "member_digest",
 ]
 
 #: The deposit format's own member bound (D-42 item 9: no ZIP64, so a member stays below 2**31 - 1 bytes; the builder
@@ -219,17 +217,6 @@ class ArchiveSet:
                 while stream.read(_CHUNK):
                     pass
         return self._digests[label]
-
-
-def member_digest(archive: ArchiveSet, label: str) -> tuple[str, int, str]:
-    """``(sha256 hex, size, crc32 hex)`` of one member, streamed."""
-    sha, crc, size = hashlib.sha256(), 0, 0
-    with archive.open(label) as stream:
-        while chunk := stream.read(_CHUNK):
-            sha.update(chunk)
-            crc = zlib.crc32(chunk, crc)
-            size += len(chunk)
-    return sha.hexdigest(), size, f"{crc:08x}"
 
 
 class ArchiveSource:

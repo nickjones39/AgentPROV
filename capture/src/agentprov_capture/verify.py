@@ -162,6 +162,7 @@ def verify_chain(lines: Sequence[bytes], events: Sequence[Mapping[str, Any] | No
 
     actors: frozenset[str] = frozenset()
     sealed_at: int | None = None
+    early_end = False
     n_verified = 0
     failed = False
 
@@ -219,10 +220,17 @@ def verify_chain(lines: Sequence[bytes], events: Sequence[Mapping[str, Any] | No
                 break
             actors = frozenset(declared)
         elif i == 1:
-            if kind != "instrumentation":
+            # an early end (UC-20): the session stopped before its instrumentation was written, so the writer's
+            # close() (an ``error`` then ``session.end``) or the parent's ``session.end`` follows session.start
+            early_end = kind in ("error", "session.end")
+            if kind != "instrumentation" and not early_end:
                 _fail(issues, "cap.chain.bad_second_event", i, "the second event must be instrumentation")
                 n_verified, failed = i, True
                 break
+        elif early_end and kind != "session.end":
+            _fail(issues, "cap.chain.misplaced_event", i, "only session.end may follow an early end")
+            n_verified, failed = i, True
+            break
         elif kind in ("session.start", "instrumentation"):
             _fail(issues, "cap.chain.misplaced_event", i, f"{kind} is only valid at its fixed place")
             n_verified, failed = i, True

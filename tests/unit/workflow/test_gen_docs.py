@@ -244,20 +244,6 @@ def test_adopt_reports_entries_missing_from_the_file(docs_repo: Path, capsys: py
     assert (docs_repo / "docs/architecture/decisions/D-1.md").is_file()  # never deleted
 
 
-@pytest.mark.parametrize("rel", ["docs/architecture/DECISIONS.md", "docs/reports/analysis/regen-batch.md", "AGENTS.md"])
-def test_todays_files_split_byte_identically(rel: str, tmp_path: Path) -> None:
-    """Migration readiness: a copy of today's file splits into fragments that regenerate it byte for byte."""
-    target = next(t for t in gd.TARGETS.values() if t.path == rel)
-    if (REPO / target.directory).exists():
-        pytest.skip(f"{target.name} is already migrated (tests/repo checks the generated file)")
-    if gd.left_out(REPO, target):
-        pytest.skip(f"{rel} is not in this tree (the public export leaves it out, D-1004)")
-    (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(REPO / rel, tmp_path / rel)
-    assert gd.split(tmp_path, target) > 0
-    assert gd.generate(tmp_path, target).encode("utf-8") == (REPO / rel).read_bytes()
-
-
 def _post_split_branch(docs_repo: Path) -> None:
     """``main`` is split and has an entry written by hand under its own file name; the branch starts after that."""
     assert _gd(docs_repo, "--split", "decisions", "agents") == 0
@@ -383,3 +369,30 @@ def test_the_decisions_parts_stay_well_under_the_repository_limit() -> None:
     """D-1003: no generated decisions file nears tests/repo's 1 MiB cap."""
     files = gd.generate_files(REPO, gd.TARGETS["decisions"])
     assert len(files) > 1 and max(len(t.encode("utf-8")) for t in files.values()) < (1 << 20) // 2
+
+
+@pytest.mark.parametrize("parts", [False, True])
+def test_an_entry_without_a_final_newline_is_refused(docs_repo: Path, parts: bool,
+                                                     capsys: pytest.CaptureFixture[str]) -> None:
+    """AU-TWF-7: concatenated as it is, a fragment without a final newline glues the next entry onto its last line
+    (and out of reserve_id's scan); --check and --write refuse it, naming the file, and write nothing."""
+    if parts:
+        _parts_repo(docs_repo)
+    else:
+        assert _gd(docs_repo, "--split", "decisions") == 0
+        commit(docs_repo, "migrate decisions")
+    d = docs_repo / "docs/architecture/decisions"
+    write(d, "D-10.md", "- **D-10 (2026-11-05, a).** Tenth.")
+    write(d, "D-11.md", "- **D-11 (2026-11-05, b).** Eleventh.\n")
+    before = git(docs_repo, "status", "--porcelain", "--", "docs/architecture/DECISIONS.md",
+                 "docs/architecture/decision-log")
+    capsys.readouterr()
+    assert _gd(docs_repo, "--check", "decisions") == 2
+    assert _gd(docs_repo, "--write", "decisions") == 2
+    out = capsys.readouterr().out
+    assert out.count("docs/architecture/decisions/D-10.md: no final newline") == 2
+    assert git(docs_repo, "status", "--porcelain", "--", "docs/architecture/DECISIONS.md",
+               "docs/architecture/decision-log") == before
+    write(d, "D-10.md", "")
+    assert _gd(docs_repo, "--check", "decisions") == 2
+    assert "D-10.md: empty" in capsys.readouterr().out

@@ -28,11 +28,14 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QPen
 from PySide6.QtWidgets import (
     QDialog,
+    QFrame,
     QGraphicsLineItem,
     QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsSimpleTextItem,
     QGraphicsView,
+    QHBoxLayout,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -40,7 +43,9 @@ from PySide6.QtWidgets import (
 from agentprov_gui import text as T
 from agentprov_gui.jobs.manager import allowlisted_env
 from agentprov_gui.preview.model import BANNER
-from agentprov_gui.ui.safe import SafeLabel
+from agentprov_gui.ui import forms
+from agentprov_gui.ui.forms import StatusBadge
+from agentprov_gui.ui.safe import set_control_tooltip
 
 __all__ = ["PreviewWindow"]
 
@@ -58,16 +63,53 @@ class PreviewWindow(QDialog):
         self.setAccessibleName("Live preview")
         self.resize(900, 640)
         self.sessions_fn = sessions
-        lay = QVBoxLayout(self)
-        banner = SafeLabel(BANNER, name="Preview banner", parent=self)
-        banner.setWordWrap(True)
+        # the form style (D-1060): a page with the state as a badge and the banner as its caption, the graph in a card,
+        # Close bottom right
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        page = QWidget(self)
+        page.setProperty("apvRole", "page")
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(24, 20, 24, 16)
+        lay.setSpacing(8)
+        top = QHBoxLayout()
+        top.setSpacing(10)
+        self.badge = StatusBadge("Provisional · not corpus provenance", name="Preview state", kind="warn", parent=page)
+        set_control_tooltip(self.badge, "A provisional graph from the capture stream while the run records it. It is "
+                                        "not corpus provenance: the engine derives the real PROV after recording, and "
+                                        "the Viewer shows that.")
+        top.addWidget(self.badge)
+        self.status = forms.caption("Waiting for the run's sessions…", name="Preview status", parent=page,
+                                    role="secondary")
+        top.addWidget(self.status, 1)
+        lay.addLayout(top)
+        banner = forms.caption(BANNER, name="Preview banner", parent=page)
         lay.addWidget(banner)
-        self.status = SafeLabel("Waiting for the run's sessions…", name="Preview status", parent=self)
-        lay.addWidget(self.status)
+        card = QFrame(page)
+        card.setProperty("apvRole", "card")
+        card.setAccessibleName("Provisional graph card")
+        inner = QVBoxLayout(card)
+        inner.setContentsMargins(1, 1, 1, 1)
         self.scene = QGraphicsScene(self)
-        self.view = QGraphicsView(self.scene, self)
+        self.view = QGraphicsView(self.scene, card)
+        self.view.setFrameShape(QFrame.Shape.NoFrame)
         self.view.setAccessibleName("Provisional graph (preview)")
-        lay.addWidget(self.view, 1)
+        inner.addWidget(self.view)
+        lay.addWidget(card, 1)
+        outer.addWidget(page, 1)
+        footer = QWidget(self)
+        footer.setProperty("apvRole", "footer")
+        bar = QHBoxLayout(footer)
+        bar.setContentsMargins(20, 12, 20, 12)
+        bar.addStretch(1)
+        close = QPushButton("Close", footer)
+        close.setAccessibleName("Close the live preview")
+        close.setDefault(True)
+        close.clicked.connect(self.close)
+        set_control_tooltip(close, "Closes the preview and stops its helper; the run is unaffected.")
+        bar.addWidget(close)
+        outer.addWidget(footer)
         self.nodes: dict[str, dict[str, Any]] = {}  # id -> {kind, label, session, order, items}
         self.edges: list[tuple[str, str, str]] = []
         self.watched: set[str] = set()

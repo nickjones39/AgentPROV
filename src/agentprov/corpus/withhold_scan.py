@@ -235,12 +235,12 @@ def scan_archives(
             return serial_scan(root, locator, part, chunks)
 
     scratch = _scratch_dir()
+    readers: queue.SimpleQueue[_Reader] = queue.SimpleQueue()
     try:
-        readers: queue.SimpleQueue[_Reader] = queue.SimpleQueue()
         count = root_readers(workers, in_process=in_process)
         failure: str | None = None
         for i in range(count):
-            store = RawObjectStore(scratch / f"raw-{i}", limits=limits)
+            store = RawObjectStore(scratch / f"raw-{i}", limits=limits, durable=False)  # D-1068 P7: T1 inputs
             try:
                 pool = WorkerPool(store_root=store.objects_dir, workers=1, in_process=in_process, release=release)
             except AgentProvError as exc:  # isolation or the interpreter guard: nothing can be read decoded
@@ -304,6 +304,13 @@ def scan_archives(
             if problem is not None:
                 unscanned[sha] = problem
     finally:
+        while True:  # D-1068 P1: each reader's pool kept its worker root after root
+            try:
+                done = readers.get_nowait()
+            except queue.Empty:
+                break
+            if done.walk.pool is not None:
+                done.walk.pool.close()
         remove.rmtree(scratch, ignore_errors=True)
     return DecodedScan(hits, unscanned, frozenset(partial))
 

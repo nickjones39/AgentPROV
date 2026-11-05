@@ -19,7 +19,8 @@ lockfile, so benchmark code never shares an environment with the core.
 repository before each release (D-1011). The release bundles are built natively, each on a GitHub-hosted runner of its
 own operating system and architecture. Before 0.1.1, bundles built from `main` passed the clean-machine tests (G5) on
 clean Ubuntu 24.04 (aarch64) and Windows 11 ARM64 machines, and under emulation on Ubuntu 22.04 x86_64 and Windows
-x86_64; Windows has no live runs in v0.1 (D-867). Treat other platforms as untested; cross-platform use is not guaranteed.
+x86_64. Live runs work on macOS and Linux; on Windows they are not available yet ([Platforms](07-live-runs.md#platforms) has
+what is refused there and why; D-867, D-1064). Treat other platforms as untested; cross-platform use is not guaranteed.
 AgentPROV probes the host instead of branching on the operating system, and reports the isolation it can give its
 worker processes (see `Host` below). Windows has no CPU limit for workers and assigns the Job Object after the process
 starts ([G.4.12](https://github.com/nickjones39/AgentPROV/blob/main/docs/architecture/G_security.md)).
@@ -54,7 +55,7 @@ Any CPython 3.14.8 or later works; `uv python install` is only needed when none 
 is installed the same way (`uv python install 3.12`) before `agentprov backends build` (chapter 7).
 
 ```text
-agentprov 0.1.1
+agentprov 0.2.0
 formats: aer/0.2 sem/0.1 capture/0.1 agentprov-prov/0.1 apv 0.2.0 agentprov-corpus/0.2
 python 3.14.8 (interpreter_advisory: none)
 ```

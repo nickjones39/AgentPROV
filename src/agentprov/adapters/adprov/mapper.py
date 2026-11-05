@@ -21,6 +21,7 @@ Pure (A-2): the output is a function of the unit's bytes, this code, the profile
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import re
 from collections.abc import Iterator, Mapping, Sequence
@@ -34,10 +35,11 @@ from agentprov.adapters.adprov.dialect import (
     VARIANT,
 )
 from agentprov.adapters.code_verification import Citations, parse_verified_code, weaken_to_rule_class
-from agentprov.adapters.surrogates import scrub_keys, surrogates
+from agentprov.adapters.surrogates import JSON_FIELDS, scrub_keys, surrogates
 from agentprov.adapters.protocols import AerRecord, MappingContext
 from agentprov.adapters.types import ExecutionUnit
-from agentprov.aer.canon import LexHints, encode_value, json_pointer
+from agentprov.aer.canon import LexHints, encode_value, json_pointer, pointer_escape
+from agentprov.aer.evidence import effective_tag, effective_tags, tag_class
 from agentprov.aer.ids import part_id
 from agentprov.errors import MalformedArtefact
 from agentprov.io.canonical import jcs_bytes
@@ -67,6 +69,11 @@ _MAX_COUNT: Final = 2**53 - 1
 #: dozen calls): the file is refused rather than mapped to that many records (D-1011)
 MAX_LOST_CALLS: Final = 4096
 _MODEL_CALL_UNKNOWN: Final = ("/params", "/request", "/response", "/t", "/tools", "/usage")
+#: D-1063 (review UC-41; the D-934 pattern): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6),
+#: AER-V01). Cited as given: a transformation by AgentPROV, independent of the code that wrote the transcript.
+R_NOT_INLINED: Final = "adprov.content_not_inlined@1"
+_MIB: Final = 1 << 20
+_META_FIELDS: Final = frozenset({"k", "id", "ev", "by", "evf", "rule", "src", "unk", "after"})
 #: the placeholders AER-V17 refuses in a typed field (aer/validate.py; the agentdojo mapper reads them the same way): a
 #: version or model id holding one was not recorded, and a task identity holding one is malformed (D-1011 fuzz finding)
 _PLACEHOLDERS: Final = frozenset({"", "0", "unknown", "none", "null", "n/a", "na", "-"})
@@ -95,6 +102,56 @@ def _reversed(start: str, end: str) -> bool:
         return value[:19], frac.ljust(40, "0")
 
     return key(start) > key(end)
+
+
+def _too_long(text: str) -> bool:
+    return len(text) * 4 > _MIB and len(text.encode("utf-8", "surrogatepass")) > _MIB
+
+
+def _not_inlined(text: str) -> dict[str, Any]:
+    raw = text.encode("utf-8", "surrogatepass")
+    return {"not_inlined": {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}}
+
+
+def _slim(node: Any, tokens: tuple[str, ...], found: list[str]) -> Any:
+    """``node`` with every string over 1 MiB replaced by its digest object where the AER takes one: in a Json position
+    (a pointer through a Json field, as encoded: a ``$utf16`` value counts by its decoded text) or as a message part's
+    ``text``, which :func:`_retype` then moves. ``found`` collects the replaced pointers (D-1063, review UC-41)."""
+    json_position = any(t in JSON_FIELDS for t in tokens)
+    if isinstance(node, str):
+        part_text = len(tokens) == 3 and tokens[0] == "parts" and tokens[2] == "text"
+        if (json_position or part_text) and _too_long(node):
+            found.append("".join("/" + pointer_escape(t) for t in tokens))
+            return _not_inlined(node)
+        return node
+    if isinstance(node, dict):
+        wrapped = node.get("$utf16") if len(node) == 1 else None
+        if json_position and isinstance(wrapped, str):
+            text = base64.b64decode(wrapped).decode("utf-16-be", "surrogatepass")
+            if len(wrapped) > _MIB or _too_long(text):
+                found.append("".join("/" + pointer_escape(t) for t in tokens))
+                return _not_inlined(text)
+            return node
+        return {k: _slim(v, (*tokens, str(k)), found) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_slim(v, (*tokens, str(i)), found) for i, v in enumerate(node)]
+    return node
+
+
+def _retype(record: dict[str, Any], pointer: str) -> str:
+    """A replaced ``/parts/<k>/text`` cannot stay a typed string: a tool result keeps the digest as its Json value, a
+    text, reasoning or refusal part becomes an ``other`` part of its source type. Returns the digest's pointer."""
+    tokens = pointer.split("/")[1:]
+    if len(tokens) != 3 or tokens[0] != "parts" or tokens[2] != "text" or not tokens[1].isdigit():
+        return pointer
+    k = int(tokens[1])
+    part = record["parts"][k]
+    value = part.pop("text")
+    if part.get("t") == "tool_result":
+        part["value"] = value
+    else:
+        record["parts"][k] = {"t": "other", "type": str(part.get("t")), "value": value}
+    return f"/parts/{k}/value"
 
 
 def _tool_status(error: object) -> str:
@@ -280,9 +337,43 @@ class _Build:
         header = self._header(attempts)
         records = [header, *(record.done() if isinstance(record, _Rec) else record for record in body)]
         surrogates(self, records, "adprov")
+        self._not_inlined(records)
         for record in records:  # C.6.5 rule 1: no field stronger than an I rule (a twin) that justifies it
             weaken_to_rule_class(record)
         yield from records
+
+    def _not_inlined(self, records: Sequence[dict[str, Any]]) -> None:
+        """D-1063 (review UC-41; the D-934 pattern): every string over 1 MiB in a Json position, and every message
+        part's text over 1 MiB, becomes ``{"not_inlined": {sha256, bytes}}`` of its UTF-8 bytes (C.2.1(6)); a part's
+        text moves (:func:`_retype`). Each such pointer is DERIVED (INFERRED where the record or the field already was)
+        under ``adprov.content_not_inlined@1``, cited as given; one info issue names the records. The string stays in
+        the raw artefact. A typed string field of any other kind over 1 MiB is left as it is (the writer refuses it)."""
+        ids: list[str] = []
+        for record in records:
+            found: list[str] = []
+            for key in [k for k in record if k not in _META_FIELDS]:
+                record[key] = _slim(record[key], (key,), found)
+            if not found:
+                continue
+            moved = {pointer: _retype(record, pointer) for pointer in found}
+            evf = {moved.get(k, k): v for k, v in (record.get("evf") or {}).items()}
+            rules: list[str] = []
+            for ref in record.get("rule", ()):
+                rid, hash_, at = ref.partition("#")
+                rules.append(f"{rid}#{moved[at]}" if hash_ and at in moved else ref)
+            for pointer in moved.values():
+                weak = record.get("ev") == "I" or tag_class(effective_tag({**record, "evf": evf}, pointer)) == "I"
+                evf[pointer] = "I" if weak else "D"
+                ref = self.ctx.rule(R_NOT_INLINED, pointer)
+                if ref not in rules:
+                    rules.append(ref)
+            record["evf"], record["rule"] = evf, rules
+            if "by" in record and "O" not in effective_tags(record):  # no bare O left: no party (C.6.2, AER-V12)
+                del record["by"]
+            ids.append(str(record["id"]))
+        if ids:
+            self.issue("adprov.content_not_inlined", ids, R_NOT_INLINED, severity="info",
+                       detail="strings over 1 MiB replaced by their digest (the raw artefact keeps them)")
 
     # ---------------------------------------------------------------------------------------------- layout checks
     def _check_top(self) -> None:
@@ -663,6 +754,9 @@ class _Build:
                 raise MalformedArtefact(f"meta.{key}: unexpected value type")
         wall = meta.get("wall_clock_s")
         if isinstance(wall, int | float) and not isinstance(wall, bool):
+            if not 0 <= wall <= _MAX_COUNT:  # review UC-39: no AER duration (C.8.3 dur_s >= 0, the I-JSON domain), and
+                # the transcript/v1 view could not rebuild it from anywhere else: refused, as a time out of range (D-1011)
+                raise MalformedArtefact("meta.wall_clock_s is outside the AER's duration range")
             t["dur_s"] = rec.enc(wall, "/t/dur_s")
             t["dur_clock"] = "wall" if self.converted else "monotonic"
             src.append(_loc("/meta/wall_clock_s"))
@@ -856,10 +950,13 @@ class _Build:
             pending = [pid for k, (pid, _call, linked) in enumerate(batch["calls"]) if not linked and k >= batch["results"]]
             if not pending:
                 continue
+            # cited through the D.5.4 reading, as the agentdojo and DRIFT mappers do (AU-RB-2, D-1063): the PROV engine
+            # takes this rule's class as the ceiling of the part's dispatch status
+            rule = self.cite.cite("agentdojo.unexecuted_trailing_calls@1")
             if n == len(assistants) - 1:
-                self.issue("unexecuted_tool_call", pending, "agentdojo.unexecuted_trailing_calls@1")
+                self.issue("unexecuted_tool_call", pending, rule)
             else:
-                self.issue("missing_tool_result", pending, "agentdojo.unexecuted_trailing_calls@1", severity="error")
+                self.issue("missing_tool_result", pending, rule, severity="error")
 
     def _check_turn_layout(self, rec: _Rec, turn: Mapping[str, Any], template: str) -> None:
         """J.3.2: record a non-canonical member order (``ext.adprov.keys``) and unknown members (``ext.adprov.extra``)."""
@@ -1092,9 +1189,8 @@ class _Build:
         if munk:
             msg.data["unk"] = munk
         body.append(msg)
-        if problem is not None:
-            rule = "adprov.call_id_unique_match@1" if problem == "adprov.tool_call_id_mismatch" else "agentdojo.positional_match@1"
-            self.issue(problem, [te_id, mid], rule)
+        if problem is not None:  # the rule that read the link (by unique id or by position), through its D.5.4 reading
+            self.issue(problem, [te_id, mid], self.cite.cite(link_rule))  # AU-RB-2 (D-1063)
         return te_id, mid
 
     # ---------------------------------------------------------------------------------------------- state changes

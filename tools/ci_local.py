@@ -17,7 +17,8 @@ same checks must be runnable here, and the release checklist (K.19.1) and the me
 same dispatch-only jobs, the same lockfiles. The local commands differ where a runner differs:
 
 * ``core`` runs the merge gate itself, the full suite through ``tools/suite_queue.py -- pytest -n N ...`` (the queue
-  serialises heavy work across sessions), plus mypy, which ``ci.yml`` does not run. ``N`` is
+  serialises heavy work across sessions), plus mypy, which ``ci.yml`` does not run. Its environment has the
+  ``render`` and ``shacl`` extras (:data:`CORE_EXTRAS`), so the render, pydot-ban and SHACL tests run in the gate. ``N`` is
   ``$AGENTPROV_SUITE_WORKERS``, else :func:`suite_workers` (10 on the 12-core M2 Max, 24 on the 36-core Mac Studio). It runs on this machine's OS only;
   the OS matrix stays a GitHub job.
 * Environment syncs use ``--offline`` unless ``--allow-network`` is given; a sync that needs a download reports
@@ -60,6 +61,8 @@ OSV_LOCKFILES = ("uv.lock", "backends/shared/uv.lock", "backends/agentdojo/uv.lo
                  "backends/agentdyn/uv.lock", "backends/inspect/envs/agentharm/uv.lock", "gui/uv.lock")
 CORE_MARKERS = "not network and not backend_agentdojo and not backend_autodojo and not full_corpus"
 SUITE_OPTIONS = ("--dist", "loadgroup", "-p", "no:randomly", "-p", "no:cacheprovider")
+#: The optional extras the ``core`` job installs before the suite (the render tests also need Graphviz ``dot``).
+CORE_EXTRAS = ("--extra", "render", "--extra", "shacl")
 
 
 def suite_workers(environ: Mapping[str, str] = os.environ, cpus: int | None = None) -> int:
@@ -123,7 +126,9 @@ def _core(ctx: Context) -> list[Step]:
     py = (*UV_RUN, "python", "-c")
     return [
         *_lock_steps(ctx),
-        Step("sync (locked)", ("uv", "sync", "--locked"), sync=True),
+        # the render and shacl extras, so the gate runs the render, SEC-11 pydot-ban and SHACL tests instead of
+        # skipping them (2026-11-05: no lane installed them)
+        Step("sync (locked, render and shacl extras)", ("uv", "sync", "--locked", *CORE_EXTRAS), sync=True),
         Step("interpreter floor 3.14.8", (*py, "import sys; print(sys.version); assert sys.version_info >= (3, 14, 8)")),
         Step("no backend packages in the core environment", (*py, (
             "import importlib.util as u, sys; bad = [m for m in ('agentdojo', 'agentprov_backend', 'openai', 'httpx', "

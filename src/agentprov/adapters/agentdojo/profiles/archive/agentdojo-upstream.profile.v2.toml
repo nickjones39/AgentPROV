@@ -1,0 +1,324 @@
+# Source profile `agentdojo-upstream`: ethz-spylab/agentdojo native TraceLogger run logs (docs/architecture D.4.3;
+# D.6; I.1.1 rows agentdojo · head and agentdojo · 2024-06; J.4.1).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since the D-31 bumps
+# (2026-10-13); version 1 (the bytes the stored corpora recorded) ships under profiles/archive/agentdojo-upstream.profile.v1.toml.
+# The `[family.agentdojo]` part is checked against the
+# closed schema `family.schema.json` of this family (D.4.1).
+#
+# Phase 6 maps the `2024-06` part (`v0.k11`); phase 10 maps the `head` part (`v0.k11`, `v1.k14`, `v1.k14.incomplete`;
+# D.6.12). The quirks' `observed` counts are per part and are measured over the full pinned snapshot of the part
+# (D.6.10 item 3; tools/agentdojo/profile_census.py, tests/full_corpus/test_profile_census.py; docs/reports/agentdojo/).
+# Every `head` count of the investigation was reproduced; two of its keys were renamed to the generic quantities they
+# count (gemini_logs_with_colliding_empty_ids = logs_with_colliding_empty_ids, gpt_logs_with_duplicate_ids =
+# logs_with_repeated_ids: all such logs are in those pipelines).
+
+[profile]
+id = "agentdojo-upstream"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "agentdojo"
+family = "agentdojo"
+parts = ["head", "2024-06"]
+title = "AgentDojo upstream native TraceLogger run logs (ethz-spylab/agentdojo runs/)"
+evidence = ["sources/agentdojo.md", "verify/agentdojo.md", "audit/legacy_replay.md §2", "landscape/trace_formats.md §3.10"]
+
+[source]
+canonical_repo = "https://github.com/ethz-spylab/agentdojo"
+paper = "arXiv:2406.13352"
+concept_doi = "10.5281/zenodo.12528188"
+package = { name = "agentdojo", pypi_latest = "0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60"
+date = "2026-06-02"
+tree = "runs/"
+tree_sha1 = "472cbb2e5f7b6411bc349b192fb781180b76437c"
+expected_files = 36679
+expected_bytes = 426293413
+
+[[source.pins]]
+role = "release_tag_v0_1_35"
+kind = "git"
+commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b"
+date = "2025-10-27"
+note = "runs/ subtree identical to head; code of the PyPI 0.1.35 wheel"
+
+[[source.pins]]
+role = "2024-06"
+part = "2024-06"
+primary = true
+kind = "git"
+commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94"
+date = "2024-06-05"
+tree = "runs/"
+tree_sha1 = "1227480d637f06ac435c809ab39803afa72f78fc"
+expected_files = 18241
+expected_bytes = 188873874
+note = "18,241 logs: all 18,234 AgentDojo-PROV legacy blobs plus 7 Mixtral logs; the baseline copy's exact source commit is undecidable (also contained at 15de4430…, ae8d2c01…)"
+
+[[source.pins]]
+role = "pre_travel_rerun"
+kind = "git"
+commit = "15de44300d058039298223eff2a185997ce3fe56"
+date = "2024-07-15"
+note = "last state before the 2024-07-16/17 travel and Llama re-runs; the 4,052 superseded executions are retrievable here"
+
+[[source.pins]]
+role = "zenodo_head"
+kind = "zenodo"
+doi = "10.5281/zenodo.17458493"
+member_prefix = "ethz-spylab-agentdojo-a75aba7/runs/"
+note = "v0.1.35 archive; runs/ equals head; alternative origin"
+
+[[source.pins]]
+role = "zenodo_2024_06"
+kind = "zenodo"
+doi = "10.5281/zenodo.12742856"
+note = "v0.1.8 archive; runs/ subtree d1c9178a… contains all 18,234 baseline blobs (v0.1.7: 10.5281/zenodo.12528189, 10.5281/zenodo.12528333); alternative origin"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti", "Jie Zhang", "Mislav Balunovic", "Luca Beurer-Kellner", "Marc Fischer", "Florian Tramèr"]
+data_licence = "none"
+policy = "include"
+basis = "MIT by repository; data licence not separately stated"
+attribution = ["LICENSE (MIT, (c) 2024 Debenedetti et al.)", "CITATION.bib: arXiv:2406.13352"]
+unassessed = ["model-provider terms on redistributing model outputs", "Llama 3.3 / Meta-SecAlign output licences"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = [
+  { of = "agentdojo-inspect", path = "runs/**", relation = "mirror", owner = "agentdojo" },
+  { of = "adprov-v1", part = "converted-legacy", path = "corpus-og-agentdojo-runs-prov/**", relation = "derived_conversion", owner = "agentdojo" },
+  { of = "agent-security-tools-survey", part = "zenodo-bundled-runs", path = "zenodo:codesafe/agentdojo/agentdojo/runs/**", relation = "mirror", owner = "agentdojo" },
+]
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v0.k11", "v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "runs/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+opt_in_parts = [
+  { part = "history", note = "7,867 runs/ versions (path, blob; 7,114 distinct blobs) held by neither pin in the head pin's history; per-blob commit provenance; never mixed silently with head. Of the 11,173 distinct blobs absent from head, the other 4,059 are the 2024-06 part's (D-207)" },
+]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+defence_suffixes = ["repeat_user_prompt", "spotlighting_with_delimiting", "tool_filter", "transformers_pi_detector"]
+on_dir_name_mismatch = "issue:agentdojo.pipeline_name_mismatch"
+
+[[family.agentdojo.identity.dir]]
+pipeline_dir = "Meta-SecAlign-70B*"
+pipeline_name = ["local", "local-repeat_user_prompt"]
+model = "facebook/Meta-SecAlign-70B"
+rule = "agentdojo.local_dir_model_identity@1"
+basis = "directory name; HF id claimed in upstream PR #96/#97"
+
+[[family.agentdojo.identity.dir]]
+pipeline_dir = "meta-llama_Llama-3.3-70B-Instruct*"
+pipeline_name = ["local", "local-repeat_user_prompt"]
+model = "meta-llama/Llama-3.3-70B-Instruct"
+rule = "agentdojo.local_dir_model_identity@1"
+basis = "directory name; HF id claimed in upstream PR #96/#97"
+
+[[family.agentdojo.identity.dir]]
+pipeline_dir = "meta-llama_Llama-3-70b-chat-hf"
+pipeline_name = ["meta-llama_Llama-3-70b-chat-hf"]
+model = "meta-llama/Llama-3-70b-chat-hf"
+rule = "agentdojo.pipeline_dir_is_model_identity@1"
+basis = "ModelsEnum.LLAMA_3 at c274885 (make_pipeline.py l. 33-47); TraceLogger.save replaces '/' by '_' (logging.py l. 239)"
+
+[[family.agentdojo.identity.dir]]
+pipeline_dir = "mistralai_Mixtral-8x7B-Instruct-v0.1"
+pipeline_name = ["mistralai_Mixtral-8x7B-Instruct-v0.1"]
+model = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+rule = "agentdojo.pipeline_dir_is_model_identity@1"
+basis = "ModelsEnum.MISTRALAI_MIXTRAL_8X7B_INSTRUCT_V0_1 at c274885 (make_pipeline.py l. 33-47); TraceLogger.save replaces '/' by '_' (logging.py l. 239)"
+
+[family.agentdojo.identity.id_style_corroboration]
+"call_*" = "openai"
+"toolu_*" = "anthropic"
+"tool_call_??????????" = "client_generated_random"
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", travel = "agentdojo", banking = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+version_when_absent = { rule = "agentdojo.benchmark_era_from_commit@1" }
+# Phase 10 (D.6.16): the table that turns a git origin's `introduced_in_commit` into the two history fields. Generated by
+# tools/agentdojo/history_table.py from the blobless full history of the two pins (head 089ed468, 2024-06 c274885); an
+# origin without `introduced_in_commit` (no history index at import time) gets neither field.
+history = { repo = "https://github.com/ethz-spylab/agentdojo", table = { path = "tables/agentdojo-history.table.toml", sha256 = "0aa299348176a3dff20f0ec7ae56e3c4f5a4461c1d61559d3869bf0bed54fcf8" } }
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+
+[family.agentdojo.harness]
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "yaml"
+# D.5.4 "Citation of D rules" (D-24): a D rule is cited at D only for a record whose producing code its catalogue `code`
+# list cites; any other record cites its `_unverified` twin (class I). A v0.k11 log introduced in the history of the
+# 2024-06 pin c274885 is the June-2024 code it holds (the catalogues' June-2024 citations; facet introduced_under from
+# the history table, D-84); a v0.k11 log introduced later, or with no known introducing commit, is code no pin covers
+# and cites the twins. The v1.k14 logs are the 0.1.30+ code family, read at
+# the 0.1.35 sources (a75aba76) and the head pin. A rule cited only at c274885 is therefore I for v1.k14 (D-24).
+verified_code = [
+  { commit = "c274885610efaaafec38b6d3eb07152ba7ff3f94", applies = { variant = ["v0.k11"], introduced_under = ["c274885610efaaafec38b6d3eb07152ba7ff3f94"] }, note = "the 2024-06 pin: the June-2024 runner and logger, for a log introduced in its history (D-84: a v0.k11 log introduced after it, or with no known introducing commit, is code no pin covers)" },
+  { commit = "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b", applies = { variant = ["v1.k14", "v1.k14.incomplete"] }, note = "0.1.35 sources, in the 0.1.30+ family that writes v1.k14" },
+  { commit = "089ed468cf3ed0322acc66b0211f26d9d90dbf60", applies = { variant = ["v1.k14", "v1.k14.incomplete"] }, note = "the head pin, in the 0.1.30+ family that writes v1.k14" },
+]
+# Phase 10 (D.6.12 item 9): the default prompt of the head code, pinned by the SHA-256 of its text (the `default` value
+# of system_messages.yaml at the head pin, read with the safe YAML loader; 469 characters). D-207 (regen-batch item 17):
+# the full history holds one code state of that text (at all 547 commits that carry the file), so it labels the
+# `v0.k11` logs too; phases 6 and 10 left them unlabelled because no pin covered their code. The label is a digest fact
+# about the text (a code-independent rule, D.5.4). The spotlighting_with_delimiting run directory carries the default
+# plus the defence's sentence in its two code states: with a typographic apostrophe up to 40085c0 (2024-06-18), and an
+# ASCII one after it (the head text). The text is kept verbatim either way.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v0.k11", "v1.k14", "v1.k14.incomplete"] } },
+  { label = "agentdojo_default_spotlighting", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/agent_pipeline/agent_pipeline.py", sha256 = "2954962b7689663e8083fd5872aa5b1368437f16cc16cec7c0121d603a13eb03", note = "the default of system_messages.yaml plus the spotlighting_with_delimiting sentence (l. 267-273); 147 head logs introduced at 52df3bc", applies = { variant = ["v0.k11"], pipeline_dir = ["*-spotlighting_with_delimiting"] } },
+  { label = "agentdojo_default_spotlighting_2024_06", source = "ethz-spylab/agentdojo@c274885610efaaafec38b6d3eb07152ba7ff3f94:src/function_calling_pi/agent_pipeline/make_pipeline.py", sha256 = "d9524c738d6b735b847035fc33208a91252282826ef6e25050ffb8d1a78426b5", note = "the default plus the spotlighting_with_delimiting sentence at c274885 (l. 185-191, typographic apostrophe); the 753 logs of the 2024-06 pin", applies = { variant = ["v0.k11"], pipeline_dir = ["*-spotlighting_with_delimiting"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { "2024-06" = { files = 2031, origin_rule_applied = 2014 }, head = { files = 3560, origin_rule_applied = 3546 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.dos_security_not_utility"
+applies = { attack_dir = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"] }
+rules = ["agentdojo.dos_security_rule@1", "agentdojo.dos_placeholder_injection_task@1"]
+observed = { "2024-06" = { files = 485 }, head = { files = 485 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { "2024-06" = { null_final_logs = 47 }, head = { null_final_logs = 82 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { "2024-06" = { files = 432 }, head = { files = 804 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.empty_messages_with_outcome"
+applies = { pipeline_dir = ["claude-3-opus-20240229"] }
+rules = ["agentdojo.no_execution_observed@1"]
+observed = { "2024-06" = { files = 207 }, head = { files = 207 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.run_error_imposes_outcome"
+applies = {}
+rules = ["agentdojo.run_error_imposed_outcome@1"]
+params = { utility = false, security = true }
+observed = { "2024-06" = { files = 106 }, head = { files = 105 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = {}
+rules = ["agentdojo.incomplete_run@1"]
+observed = { "2024-06" = { files = 4 }, head = { files = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1", "agentdojo.positional_match@1"]
+params = { empty_string = ["gemini-*"], key_absent = ["command-r*"], null = ["Meta-SecAlign-70B*", "meta-llama_Llama-3.3-70B-Instruct*"], client_random = ["meta-llama_Llama-3-70b-chat-hf"], duplicates_possible = ["gpt-*"] }
+observed = { "2024-06" = { logs_with_absent_or_empty_ids = 2799, calls_id_absent = 4413, calls_id_empty = 4522, logs_with_duplicate_ids = 0 }, head = { logs_with_absent_or_empty_ids = 5239, calls_id_absent = 4690, calls_id_empty = 12583, calls_id_null = 47227, logs_with_null_ids = 10595, logs_with_duplicate_ids = 0, logs_with_colliding_empty_ids = 2725, logs_with_repeated_ids = 213 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 10595 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 11765 } }
+note = "agentdojo_package_version is importlib.metadata's version of the installed distribution (logging.py l. 176-181 at 089ed468), never a code identity; 'unknown' (PackageNotFoundError) is a sentinel: the bench actor declares /code not_recorded (C.7.3)"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { "2024-06" = { calls = 153, logs = 145 }, head = { calls = 815, logs = 800 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.pi_detector_redaction"
+applies = { pipeline_dir = ["*-transformers_pi_detector"] }
+rules = ["agentdojo.pi_detector_sentinel@1"]
+params = { sentinel = "<Data omitted because a prompt injection was detected>" }
+observed = { "2024-06" = { logs = 624, redactions = 2154 }, head = { logs = 622, redactions = 2138 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.tool_filter_aux_llm"
+applies = { pipeline_dir = ["*-tool_filter"] }
+rules = ["agentdojo.tool_filter_aux_message@1"]
+observed = { "2024-06" = { logs = 753, logs_with_filter_messages = 753 }, head = { logs = 753, logs_with_filter_messages = 753 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.repeat_user_prompt_reinsertion"
+applies = { pipeline_dir = ["*-repeat_user_prompt"] }
+rules = ["agentdojo.repeat_user_prompt_copy@1"]
+observed = { "2024-06" = { logs = 793, logs_with_copies = 774 }, head = { logs = 6600, logs_with_copies = 5998 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { pipeline_dir = ["*-spotlighting_with_delimiting"] }
+rules = ["agentdojo.spotlighting_content@1"]
+observed = { "2024-06" = { logs = 753, logs_with_tool_results = 745 }, head = { logs = 753, logs_with_tool_results = 744 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.local_model_raw_completion"
+applies = { pipeline_dir = ["Meta-SecAlign-70B*", "meta-llama_Llama-3.3-70B-Instruct*"] }
+rules = ["agentdojo.local_model_tag_count@1"]
+observed = { head = { turns_more_tags_than_calls = 2996, turns_tags_no_calls = 1192 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { "2024-06" = { present = 0 }, head = { present = 61461, present_and_null = 61461 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.generation_mixing_per_file"
+applies = {}
+rules = ["agentdojo.benchmark_era_from_commit@1", "agentdojo.committed_no_later_than@1"]
+params = { infer_per = "file" }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.run_error_imposed_outcome@1",
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

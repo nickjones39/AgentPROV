@@ -41,6 +41,9 @@ from agentprov.adapters.agentdojo.citation import citations
 from agentprov.adapters.agentdojo.dialect import DIALECT_ID, FLAG_MALFORMED
 from agentprov.adapters.agentdojo.history_table import origin_introduced_under
 from agentprov.adapters.agentdojo.identity import Identity, resolve
+from agentprov.adapters.agentdojo.not_inlined import ISSUE as I_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import RULE as R_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import not_inlined
 from agentprov.adapters.agentdojo.mapper import (
     ADAPTER_ID,
     ADAPTER_VERSION,
@@ -270,6 +273,13 @@ class DriftBuild:
     def issue(self, code: str, ids: Sequence[str], rule: str, *, severity: str = "warning", detail: str | None = None) -> None:
         self.ctx.issue(code, ids=list(ids), rule=self.ctx.rule(rule), severity=severity, detail=detail)  # type: ignore[arg-type]
 
+    def _not_inlined(self, records: Sequence[dict[str, Any]]) -> None:
+        """D-1063 (review UC-41; the D-934 pattern), after the redaction and surrogate passes: a string over 1 MiB is
+        replaced by its digest (:mod:`agentprov.adapters.agentdojo.not_inlined`), cited as given."""
+        changed = not_inlined(records, lambda p: self.ctx.rule(R_NOT_INLINED, p))
+        if changed:
+            self.issue(I_NOT_INLINED, changed, R_NOT_INLINED, severity="info")
+
     def quirk_on(self, quirk_id: str) -> bool:
         return self.fam.applies(quirk_id, self.facets)
 
@@ -349,6 +359,7 @@ class DriftBuild:
         _ambiguous_tool_names(records)  # item 97 (R-10j-5): as the TraceLogger build (item 87, CD-10)
         redact_records(self.redactor, self.ctx, head, records)
         surrogates(self, (head, *records), "agentdojo")
+        self._not_inlined((head, *records))
         for record in (head, *records):  # C.6.5 rule 1
             weaken_to_rule_class(record)
         cited = {str(ref).split(".", 1)[0] for r in (head, *records) for ref in r.get("rule", ())}
@@ -912,6 +923,8 @@ class DriftBuild:
             ids.append(jid)
         if missing or null_outcome:
             code = "no_outcome_recorded" if not ids and not self.messages else "incomplete_run"
-            self.issue(code, ["run"], "agentdojo.incomplete_run@1")
+            # AU-RA-4 (D-1063): a loss issue cites its rule's reading (D.5.4), as the TraceLogger build does
+            rule = self.cite.cite("agentdojo.incomplete_run@1") if code == "incomplete_run" else "agentdojo.incomplete_run@1"
+            self.issue(code, ["run"], rule)
         if not self.messages:
             self.issue("no_execution_observed", ["exec"], "agentdojo.no_execution_observed@1")

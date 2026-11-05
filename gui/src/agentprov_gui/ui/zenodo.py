@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 from pathlib import Path
 from typing import Any, ClassVar, Final
 
@@ -23,18 +24,19 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QHBoxLayout,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
 from agentprov_gui import text as T
 from agentprov_gui import zenodo_run
-from agentprov_gui.ui.safe import ReadOnlyText, SafeForm, SafeLabel, ask, set_control_tooltip
+from agentprov_gui.ui.forms import CommandCard, FormSection, SegmentedControl, heading
+from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, ask, set_control_tooltip
 from agentprov_gui.ui.settings_panes import CliSettingsPane
 
 __all__ = ["ZenodoDraftsDialog", "ZenodoPane", "creators_of", "release_toml_template"]
@@ -144,7 +146,11 @@ CROSS_LINK_WARNING: Final = (
 
 
 class ZenodoDraftsDialog(QDialog):
-    """Package › Create Zenodo drafts…: the collection's uploader runs, one after another, in a terminal pane."""
+    """Package › Create Zenodo drafts…: the collection's uploader runs, one after another, in a terminal pane. The
+    form style (D-1060): the target, communities and deposits as one section, a command card with the uploader runs
+    Start would make (built by :meth:`plan_commands` from the same parse and plan as :meth:`start`, after
+    :meth:`program`), the terminal pane and the typed phrase, then Stop bottom left, Close and Start bottom right.
+    No button is a default one, so Return in a field never starts the uploader."""
 
     def __init__(self, cli: Any, checkout: Path | None, parent: QWidget | None = None, *, deposits: str = "",
                  settings: dict[str, Any] | None = None, env: dict[str, str] | None = None) -> None:
@@ -157,78 +163,130 @@ class ZenodoDraftsDialog(QDialog):
         self.output = ""
         #: asked before a run that cross-links two or more drafts (D-949); tests replace it
         self.confirm_cross_link = self._ask_cross_link
-        lay = QVBoxLayout(self)
-        lay.addWidget(SafeLabel(
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        body = QWidget(self)
+        body.setProperty("apvRole", "page")
+        lay = QVBoxLayout(body)
+        lay.setContentsMargins(24, 20, 24, 16)
+        lay.setSpacing(14)
+        outer.addWidget(body, 1)
+        notice = SafeLabel(
             "Creates and cross-links UNPUBLISHED drafts only. Nothing is published: review each draft on Zenodo's website "
             "and press Publish there yourself. The token comes from Settings › Keys (the OS keychain).",
-            name="Zenodo drafts notice", parent=self))
-        form = SafeForm()
-        self.target = QComboBox(self)
-        self.target.addItems(list(TARGET_LABELS.values()))
-        form.add("Target", self.target,
-                 "Where the drafts are made: the Zenodo sandbox (sandbox.zenodo.org, for trials) or production "
-                 "(zenodo.org). Settings › Zenodo preselects it; every run passes it as --target.")
-        self.communities = QLineEdit(self)
-        form.add("Communities (comma-separated)", self.communities,
-                 "Zenodo community identifiers each draft is offered to (--community); each community's curators "
-                 "accept or decline it. Prefilled from Settings › Zenodo.")
-        self.deposits = QPlainTextEdit(self)
+            name="Zenodo drafts notice", parent=body)
+        notice.setWordWrap(True)
+        notice.setProperty("apvRole", "secondary")
+        lay.addWidget(notice)
+        sec = FormSection("Drafts", parent=body)
+        settings = settings or {}
+        preselect = str(settings.get("zenodo.target_preselect", "sandbox"))
+        targets = list(TARGET_LABELS)
+        self.target = SegmentedControl([(TARGET_LABELS[key].split(" (", 1)[0], key) for key in targets],
+                                       name="Target", parent=sec.card,
+                                       current=targets.index(preselect) if preselect in targets else 0)
+        for i, key in enumerate(targets):
+            self.target.set_tip(i, f"Makes the drafts on {zenodo_run.TARGETS[key]}"
+                                   + (", for trials." if key == "sandbox" else "."))
+        self.target_row = sec.add_row(
+            "Target", self.target,
+            tip="Where the drafts are made: the Zenodo sandbox (sandbox.zenodo.org, for trials) or production "
+                "(zenodo.org). Settings › Zenodo preselects it; every run passes it as --target.")
+        self.target.currentIndexChanged.connect(lambda _i: self._target_changed())
+        self.communities = QLineEdit(sec.card)
+        self.communities.setPlaceholderText("Not set")
+        sec.add_row("Communities", self.communities, caption_text="Community identifiers, comma-separated",
+                    tip="Zenodo community identifiers each draft is offered to (--community); each community's curators "
+                        "accept or decline it. Prefilled from Settings › Zenodo.")
+        self.deposits = QPlainTextEdit(sec.card)
+        self.deposits.setAccessibleName("Deposits")
         self.deposits.setTabChangesFocus(True)
+        self.deposits.setMinimumHeight(64)
+        self.deposits.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.deposits.setPlaceholderText("DEPOSIT_DIR sha256:ROOT [sha256:ROOT ...], one per line; the first is the "
                                          "umbrella (one deposit per licence class). An index umbrella (package --index) "
                                          "is named alone, with no root digest")
         self.deposits.setPlainText(deposits)
-        form.add("Deposits (first line: the umbrella)", self.deposits,
-                 "One deposit per line: its directory and the root digest of each corpus in it. The first line is the "
-                 "umbrella the others are cross-linked to; an index umbrella (package --index) is named alone.")
-        lay.addLayout(form)
-        settings = settings or {}
-        self.target.setCurrentText(TARGET_LABELS.get(str(settings.get("zenodo.target_preselect", "sandbox")),
-                                                     TARGET_LABELS["sandbox"]))
+        sec.add_row("Deposits", self.deposits, top=True,
+                    caption_text="One per line: the folder and its root digests. The first line is the umbrella.",
+                    tip="One deposit per line: its directory and the root digest of each corpus in it. The first line "
+                        "is the umbrella the others are cross-linked to; an index umbrella (package --index) is named "
+                        "alone.")
+        lay.addWidget(sec)
         communities = settings.get("zenodo.communities")
         if isinstance(communities, list):
             self.communities.setText(", ".join(T.line(c, 100) for c in communities))
-        self.terminal = ReadOnlyText(name="Uploader terminal", parent=self, wrap=True)
+        self._target_changed()
+        self.command_card = CommandCard(parent=body, name="Uploader commands", title="Terminal commands",
+                                        program=shlex.join(self.program()))
+        lay.addWidget(self.command_card)
+        lay.addWidget(heading("Uploader terminal", parent=body))
+        self.terminal = ReadOnlyText(name="Uploader terminal", parent=body, wrap=True)
         set_control_tooltip(self.terminal, "The uploader's output: its notes and the consent screen of each run, which "
                                            "names the phrase to type below.")
+        self.terminal.setMinimumHeight(100)
         lay.addWidget(self.terminal, 1)
         row = QHBoxLayout()
-        self.typed = QLineEdit(self)
+        row.setSpacing(8)
+        self.typed = QLineEdit(body)
         self.typed.setAccessibleName("Typed confirmation phrase")
         self.typed.setPlaceholderText("type the phrase the uploader asks for, then Send")
         self.typed.returnPressed.connect(self.send)
         set_control_tooltip(self.typed, "Type the confirmation phrase the running uploader asks for, then press "
                                         "Send or Return.")
         row.addWidget(self.typed, 1)
-        self.send_btn = QPushButton("Send", self)
+        self.send_btn = QPushButton("Send", body)
         self.send_btn.setAccessibleName("Send the typed line to the uploader")
         self.send_btn.clicked.connect(self.send)
         set_control_tooltip(self.send_btn, "Sends the typed line to the running uploader, as if typed in a terminal.")
-        self.start_btn = QPushButton("Start", self)
+        row.addWidget(self.send_btn)
+        lay.addLayout(row)
+        footer = QWidget(self)
+        footer.setProperty("apvRole", "footer")
+        foot = QHBoxLayout(footer)
+        foot.setContentsMargins(20, 12, 20, 12)
+        foot.setSpacing(10)
+        self.stop_btn = QPushButton("Stop", footer)
+        self.stop_btn.setAccessibleName("Stop the Zenodo draft uploader")
+        self.stop_btn.clicked.connect(self.stop)
+        set_control_tooltip(self.stop_btn, "Stops the current uploader run; the remaining runs are not started.")
+        foot.addWidget(self.stop_btn)
+        foot.addStretch(1)
+        close = QPushButton("Close", footer)
+        close.setAccessibleName("Close")
+        close.clicked.connect(self.reject)
+        set_control_tooltip(close, "Closes the dialog; a running uploader is stopped. Nothing is published.")
+        foot.addWidget(close)
+        self.start_btn = QPushButton("Start", footer)
         self.start_btn.setAccessibleName("Start the Zenodo draft uploader")
+        self.start_btn.setProperty("apvRole", "primary")
         self.start_btn.clicked.connect(self.start)
         set_control_tooltip(self.start_btn, "Runs the draft-only uploader: it creates or resumes a draft for each "
                                             "deposit without a complete receipt, then cross-links them when there are "
                                             "two or more. Each run asks for its own typed phrase; nothing is "
                                             "published.")
-        self.stop_btn = QPushButton("Stop", self)
-        self.stop_btn.setAccessibleName("Stop the Zenodo draft uploader")
-        self.stop_btn.clicked.connect(self.stop)
-        set_control_tooltip(self.stop_btn, "Stops the current uploader run; the remaining runs are not started.")
-        for b in (self.send_btn, self.start_btn, self.stop_btn):
-            row.addWidget(b)
-        lay.addLayout(row)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, self)
-        buttons.rejected.connect(self.reject)
-        lay.addWidget(buttons)
+        foot.addWidget(self.start_btn)
+        outer.addWidget(footer)
+        for button in self.findChildren(QPushButton):  # Return never starts the uploader: only a click on Start does
+            button.setAutoDefault(False)
+            button.setDefault(False)
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self._pump)
+        self._plan_timer = QTimer(self)  # the command card follows the fields a moment after the last keystroke
+        self._plan_timer.setSingleShot(True)
+        self._plan_timer.setInterval(250)
+        self._plan_timer.timeout.connect(self._update_commands)
+        self.deposits.textChanged.connect(self._plan_timer.start)
+        self.communities.textChanged.connect(lambda _t: self._plan_timer.start())
+        self.target.currentIndexChanged.connect(lambda _i: self._plan_timer.start())
         if not zenodo_run.available():
             self.start_btn.setEnabled(False)
             self._show("A pseudo-terminal is not available on this system (macOS and Linux only): run "
                        "tools/zenodo_draft.py in a terminal instead.\n")
         self._idle()
+        self._update_commands()
 
     # ------------------------------------------------------------------------------------------ state
     def _idle(self) -> None:
@@ -245,10 +303,43 @@ class ZenodoDraftsDialog(QDialog):
         self.terminal.set_plain_keep(self.output, follow_end=True)
 
     def chosen_target(self) -> str:
-        return next((k for k, v in TARGET_LABELS.items() if v == self.target.currentText()), "sandbox")
+        data = self.target.currentData()
+        return data if isinstance(data, str) and data in zenodo_run.TARGETS else "sandbox"
+
+    def program(self) -> list[str]:
+        """The uploader as the checkout's interpreter runs it: ``python -I -m agentprov_zenodo``."""
+        return [*(getattr(self.cli, "python", None) or ("python",)), "-I", "-m", zenodo_run.MODULE]
 
     def argv(self, step: zenodo_run.Step) -> list[str]:
-        return [*self.cli.python, "-I", "-m", zenodo_run.MODULE, *step.args]
+        return [*self.program(), *step.args]
+
+    def _target_changed(self) -> None:
+        target = self.chosen_target()
+        host = zenodo_run.TARGETS[target]
+        self.target_row.set_caption(f"{host}, for trials" if target == "sandbox" else
+                                    f"{host}: a draft becomes a public record once you publish it there")
+
+    def plan_commands(self) -> tuple[list[tuple[str, tuple[str, ...]]], str]:
+        """The uploader runs Start would make for the fields as they are (the same parse and plan as :meth:`start`),
+        as the command card's ``(comment, arguments)`` pairs after :meth:`program`, or a note saying why there are
+        none. No token is ever among them: every run passes ``--keychain``."""
+        try:
+            deposits = zenodo_run.parse_deposits(self.deposits.toPlainText())
+            communities = zenodo_run.parse_communities(self.communities.text())
+            plan = zenodo_run.plan_steps(deposits, self.chosen_target(), communities)
+        except ValueError as exc:
+            return [], f"The uploader's commands appear once the fields are valid: {exc}"
+        if not getattr(self.cli, "python", None):
+            return [], "No checkout with a Python environment is configured (Settings › General)."
+        if not deposits:
+            return [], "List a deposit to see the uploader's commands."
+        if not plan.steps:
+            return [], "Nothing to do: " + "; ".join(plan.notes)
+        return [(step.what, step.args) for step in plan.steps], ""
+
+    def _update_commands(self) -> None:
+        commands, note = self.plan_commands()
+        self.command_card.set_commands(commands, note=note)
 
     # ------------------------------------------------------------------------------------------ actions
     def start(self) -> None:

@@ -45,9 +45,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from agentprov_backend import messages as _messages
-from agentprov_backend._jsonval import encode_value, escape_text
+from agentprov_backend._jsonval import MAX_SAFE_INT, encode_value, escape_text
 
-__all__ = ["GatewayLLM", "LlmSpan", "SpannedLLM", "WireRecorder", "decode_json_body", "response_facts"]  # noqa: F822
+__all__ = ["GatewayLLM", "LlmSpan", "SpannedLLM", "WireRecorder", "decode_json_body",  # noqa: F822
+           "response_facts", "usage_out_of_range"]
 
 _NON_PARAM_KEYS = frozenset({"model", "messages", "tools"})
 #: The Messages API carries the system prompt in its own member: content, not a parameter.
@@ -77,7 +78,27 @@ def decode_json_body(body: bytes) -> Any:
 
 
 def _nonneg_int(v: Any) -> int | None:
-    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+    """A usage count a capture event can hold: a non-negative integer within 2^53-1 (I-JSON, C.13.10 item 5)."""
+    return v if isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= MAX_SAFE_INT else None
+
+
+def _too_large(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool) and v > MAX_SAFE_INT
+
+
+def usage_out_of_range(decoded: Any) -> list[str]:
+    """The ``usage`` members of a decoded chat-completion body whose count is beyond 2^53-1, as ``/``-joined provider
+    member names (AU-NC-201). :func:`response_facts` leaves them out of ``usage``; the recorder names them in a note
+    ``agentdojo/usage_out_of_range`` (the response blob keeps the value)."""
+    usage = decoded.get("usage") if isinstance(decoded, Mapping) else None
+    if not isinstance(usage, Mapping):
+        return []
+    out = [src for src in ("prompt_tokens", "completion_tokens", "total_tokens") if _too_large(usage.get(src))]
+    for parent, key in (("completion_tokens_details", "reasoning_tokens"), ("prompt_tokens_details", "cached_tokens")):
+        details = usage.get(parent)
+        if isinstance(details, Mapping) and _too_large(details.get(key)):
+            out.append(f"{parent}/{key}")
+    return out
 
 
 def response_facts(decoded: Any) -> dict[str, Any]:
@@ -296,8 +317,13 @@ class WireRecorder:
                 return
             if 200 <= status < 300 and message is not None and message.streamed and not message.complete:
                 s.note("agentdojo", "stream_incomplete", {"call": call})
+            too_large = _messages.usage_out_of_range(message)
         else:
-            facts = response_facts(decode_json_body(body))
+            decoded = decode_json_body(body)
+            facts = response_facts(decoded)
+            too_large = usage_out_of_range(decoded)
+        if too_large:  # left out of `usage`: a capture event holds integers within 2^53-1 only (AU-NC-201)
+            s.note("agentdojo", "usage_out_of_range", {"call": call, "members": too_large})
         if 200 <= status < 300 and span is not None:
             span._set_pending(call, status, blob, facts, lambda: self.headers_note(call, "response", headers))
             return

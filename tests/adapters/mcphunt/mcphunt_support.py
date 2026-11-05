@@ -138,5 +138,6 @@ def modified(criterion: str, change: Callable[[dict[str, Any]], None], *, sem: b
                           flags=item.flags, value=value)
     return map_item(derived, sem=sem, prov=prov)
 
-#: The semantics profile version the current profile selects (D-31 bump with regen items 38-41; @1 reads catalogue v1).
-SEM_VERSION = 2
+#: The semantics profile version the current profile selects (D-31 bump with regen items 38-41; @1 reads catalogue v1;
+#: version 3 since D-1063, @2's tables on catalogue version 3).
+SEM_VERSION = 3

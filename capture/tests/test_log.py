@@ -420,3 +420,159 @@ def test_every_write_descriptor_is_opened_in_binary_mode() -> None:
     assert calls, "the writer opens files with os.open"
     for call in calls:
         assert "_BINARY" in ast.unparse(call.args[1]), ast.unparse(call)
+
+
+# ----------------------------------------------------------------------------------------------- untrusted values (UC-19)
+
+
+def _events(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_bytes().splitlines()]
+
+
+RESPONSE = {"call": "c0", "status": "kept"}
+
+
+def test_a_lone_surrogate_in_a_reply_field_is_escaped_and_noted_not_raised(tmp_path: Path) -> None:
+    log = new_log(tmp_path)
+    start(log)
+    seq = log.emit("llm.response", {**RESPONSE, "served_model": "m\ud800x", "response_id": "r\\u0041"}, pass_=0)
+    log.close("complete")
+    events = _events(log.path)
+    data = events[seq]["data"]
+    assert data["served_model"] == "m\\ud800x"  # the lone surrogate as its escape, lossless and unambiguous
+    assert data["response_id"] == "r\\u0041"  # a valid string is never touched
+    (note,) = [e for e in events if e["type"] == "note"]
+    assert note["seq"] == seq + 1 and note["data"]["ns"] == "capture" and note["data"]["kind"] == "value_adjusted"
+    assert note["data"]["payload"] == {"event_seq": seq, "changes": [
+        {"field": "served_model", "p": "", "change": "lone_surrogates_escaped"}], "n": 1}
+    report = verify_file(log.path)
+    assert report.sealed and not report.issues
+
+
+def test_an_escaped_lone_surrogate_cannot_pass_for_literal_text(tmp_path: Path) -> None:
+    log = new_log(tmp_path)
+    start(log)
+    seq = log.emit("note", {"ns": "x", "kind": "k", "payload": {"\ud801key": "a\\ud800\ud800"}})
+    events = _events(log.path)
+    assert events[seq]["data"]["payload"] == {"\\ud801key": "a\\u005cud800\\ud800"}  # a literal backslash-u differs
+    assert events[seq + 1]["data"]["payload"]["changes"] == [
+        {"field": "payload", "p": "/\\ud801key", "change": "name_escaped"},
+        {"field": "payload", "p": "/\\ud801key", "change": "lone_surrogates_escaped"}]
+
+
+def test_a_member_nested_too_deep_is_stored_as_a_blob_and_noted(tmp_path: Path) -> None:
+    deep: Any = "leaf"
+    for _ in range(260):
+        deep = {"a": deep}
+    log = new_log(tmp_path)
+    start(log)
+    seq = log.emit("tool.dispatch", {"occ": "o0", "provider_call_id": "call_0", "name": "f", "args": deep},
+                   pass_=0, actor="env")
+    log.close("complete")
+    events = _events(log.path)
+    ref = events[seq]["data"]["args"]
+    assert set(ref) == {"$blob", "bytes", "media"} and ref["media"] == "application/json"
+    digest = ref["$blob"].split(":", 1)[1]
+    blob = (tmp_path / "raw" / "blobs" / "sha256" / digest[:2] / digest).read_bytes()
+    assert json.loads(blob) == deep
+    (note,) = [e for e in events if e["type"] == "note"]
+    assert note["data"]["payload"]["changes"] == [{"field": "args", "p": "", "change": "stored_as_blob_too_deep"}]
+    report = verify_file(log.path)
+    assert report.sealed and not report.issues
+
+
+@pytest.mark.parametrize("leaf", ["sk-proj-" + "A" * 40, "pre SENTINEL-SECRET-VALUE-123456 post"])
+def test_a_deep_member_holding_a_pattern_or_secret_is_written_under_a_redactor(tmp_path: Path, leaf: str) -> None:
+    """AU-NC-202: the redactor cannot locate places in a blob deeper than its limit, so it points at "" (as for
+    non-JSON media) instead of refusing the blob and poisoning the session."""
+    from agentprov_capture.redact import Redactor, Secret
+
+    deep: Any = leaf
+    for _ in range(250):
+        deep = {"a": deep}
+    log = new_log(tmp_path, redactor=Redactor([Secret("K", "SENTINEL-SECRET-VALUE-123456")]))
+    start(log)
+    seq = log.emit("tool.dispatch", {"occ": "o0", "provider_call_id": None, "name": "t", "args": deep},
+                   pass_=0, actor="env")
+    assert not log.poisoned
+    log.close("complete")
+    events = _events(log.path)
+    data = events[seq]["data"]
+    digest = data["args"]["$blob"].split(":", 1)[1]
+    blob = (tmp_path / "raw" / "blobs" / "sha256" / digest[:2] / digest).read_bytes()
+    assert b"SENTINEL-SECRET-VALUE-123456" not in blob
+    notes = {e["data"]["kind"]: e["data"]["payload"] for e in events if e["type"] == "note"}
+    assert notes["value_adjusted"]["changes"] == [{"field": "args", "p": "", "change": "stored_as_blob_too_deep"}]
+    if leaf.startswith("sk-"):
+        assert notes["secret_pattern"]["blob"] == f"sha256:{digest}" and notes["secret_pattern"]["p"] == ""
+    else:
+        assert data["redactions"] == [{"blob": f"sha256:{digest}", "p": "", "rule": "cap.secret.env_value@1"}]
+    report = verify_file(log.path)
+    assert report.sealed and not report.issues and report.status == "complete"
+
+
+# ----------------------------------------------------------------------------------------------- fixed order (UC-20)
+
+
+def test_a_flag_on_session_start_is_noted_after_instrumentation(tmp_path: Path) -> None:
+    from cap_support import INSTRUMENTATION, session_start_data
+
+    from agentprov_capture.redact import Redactor
+
+    log = new_log(tmp_path, redactor=Redactor())
+    cell = {**session_start_data()["cell"], "task_id": "sk-abcdefghijklmnopqrstuvwx"}
+    assert log.emit("session.start", session_start_data(cell=cell)) == 0
+    assert log.emit("instrumentation", {"items": INSTRUMENTATION}) == 1
+    log.close("complete")
+    events = _events(log.path)
+    assert [e["type"] for e in events] == ["session.start", "instrumentation", "note", "session.end"]
+    assert events[2]["data"]["kind"] == "secret_pattern" and events[2]["data"]["payload"]["event_seq"] == 0
+    report = verify_file(log.path)
+    assert report.sealed and not report.issues
+
+
+@pytest.mark.parametrize("poisoned", [False, True])
+def test_a_log_closed_before_its_instrumentation_is_an_early_end_not_a_damaged_chain(tmp_path: Path,
+                                                                                      poisoned: bool) -> None:
+    from cap_support import session_start_data
+
+    log = new_log(tmp_path)
+    log.emit("session.start", session_start_data())
+    if poisoned:
+        log._poison_now("redaction", "RedactionError")  # as when the instrumentation event's scan fails
+    log.close("errored")
+    report = verify_file(log.path)
+    assert report.sealed and not report.issues and report.status == "errored"
+    assert [e["type"] for e in _events(log.path)][1:] == (["error", "session.end"] if poisoned else ["session.end"])
+
+
+def test_a_parent_seal_after_session_start_only_is_an_early_end(tmp_path: Path) -> None:
+    from cap_support import session_start_data
+
+    log = new_log(tmp_path)
+    log.emit("session.start", session_start_data())
+    log.abandon()
+    assert append_terminal(log.path, "aborted") is not None
+    report = verify_file(log.path)
+    assert report.sealed and not report.issues and report.status == "aborted"
+
+
+def test_after_an_early_end_nothing_but_session_end_may_follow(tmp_path: Path) -> None:
+    import rfc8785
+    from cap_support import session_start_data
+
+    log = new_log(tmp_path)
+    log.emit("session.start", session_start_data())
+    log.close("errored")
+    lines = log.path.read_bytes().splitlines(keepends=True)
+    first = json.loads(lines[0])
+
+    def ev(seq: int, type_: str, data: dict[str, Any], prev: bytes) -> bytes:
+        return rfc8785.dumps({"seq": seq, "type": type_, "ts": first["ts"], "mono_ns": 0, "pass": None, "actor": None,
+                              "prev": line_hash(prev), "data": data}) + b"\n"
+
+    l1 = ev(1, "error", {"where": "cell", "exception": {"type": "X", "message": ""}, "fatal": True}, lines[0])
+    l2 = ev(2, "pass.start", PASS_START, l1)  # not a terminal event: the early end is broken
+    l3 = ev(3, "session.end", {"status": "errored", "n_events": 4, "appended_by": "worker"}, l2)
+    log.path.write_bytes(lines[0] + l1 + l2 + l3)
+    assert "cap.chain.misplaced_event" in [i.code for i in verify_file(log.path).issues]

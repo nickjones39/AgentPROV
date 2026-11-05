@@ -59,11 +59,12 @@ Population: 48 corpora, 59 listed parts. Examined: 48. Readiness: blocked 8, rea
 
 ## Code identity per part (Level 2)
 
-The commit each part's scratch import ran at, and the stage code digests (``code-<part>.json``). Parts with
-equal stage digests ran the same mapping, SEM, PROV and validation code even where the commit differs (docs
-or tool commits only).
+The commit each part's Level-2 check (`l2_check.py`) last ran at, and the stage code digests of the part's
+scratch import (``code-<part>.json``). A check re-run on a kept import records its own commit, not the
+import's. Parts with equal stage digests ran the same mapping, SEM, PROV and validation code even where the
+commit differs (docs or tool commits only).
 
-| Corpus | Part | Commit | aer | sem | prov | validation |
+| Corpus | Part | Check commit | aer | sem | prov | validation |
 |---|---|---|---|---|---|---|
 | adprov-v1 | release | `d97d3a57` | `24df84b5e307` | `ae0ee532dde7` | `d57bd291d3cc` | `d3f9995f61bf` |
 | agentdojo-upstream | 2024-06 | `d97d3a57` | `24df84b5e307` | `ae0ee532dde7` | `d57bd291d3cc` | `d3f9995f61bf` |

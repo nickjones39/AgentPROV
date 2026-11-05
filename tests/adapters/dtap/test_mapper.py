@@ -45,7 +45,7 @@ def test_header_identity_task_and_ext_schema(mapped):
     for fid, m in mapped.items():
         h = m.header
         assert h["dialect"] == {"id": "dtap.trajectory", "variant": "v1"} and h["profile"]["id"] == "dtap-bench"
-        assert h["source_key"]["loc"] == {"p": ""} and h["rules"] == {"aer": 1, "dtap": 3}
+        assert h["source_key"]["loc"] == {"p": ""} and h["rules"] == {"aer": 1, "dtap": 4}
         assert h["task"]["benchmark"] == "dtap" and {"a": "a0", "o": "/path"} in h["src"]
         assert h["unk"]["/task/defense_id"] == "not_recorded"
         for record in m.records:

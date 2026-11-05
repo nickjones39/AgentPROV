@@ -36,7 +36,7 @@ PROTECTED = ("src/agentprov/aer/", "src/agentprov/prov/", "src/agentprov/validat
 
 
 def test_the_branch_touches_only_the_family():
-    changed = changed_or_skip(support.REPO)  # the merge base with origin/main or main, the newer
+    changed = changed_or_skip(support.REPO, family="geminicli")  # the merge base with origin/main or main, the newer
     if not any(p.startswith("src/agentprov/adapters/geminicli/") for p in changed):
         pytest.skip("this branch does not change the geminicli family")
     assert [p for p in changed if p.startswith(PROTECTED)] == []

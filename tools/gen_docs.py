@@ -17,7 +17,8 @@ different files. The generated file still conflicts, and is resolved by running 
 
 **Rules.**
 
-* Fragments are verbatim: the generated file is the plain concatenation of its parts, with no front matter.
+* Fragments are verbatim: the generated file is the plain concatenation of its parts, with no front matter. An entry
+  fragment must end with a line break; ``--check`` and ``--write`` refuse one that is empty or does not.
 * Order: ``_legacy-order-<list>.txt``, written once by ``--split`` and never appended, holds the order of the entries
   that existed at migration. Newer entries follow, sorted by number (decisions) or by file name. So no later branch
   edits a shared file to add an entry.
@@ -312,6 +313,16 @@ def ordered_items(directory: Path, part: ListPart, sort_key: Callable[[str], tup
     return [folder / n for n in [*legacy, *newer]]
 
 
+def read_entry(root: Path, path: Path) -> str:
+    """A list fragment's text. ValueError when it is empty or has no final newline: concatenated as it is, the next
+    entry would be glued onto its last line (inside its bullet, and out of ``reserve_id``'s line-anchored scan)."""
+    text = path.read_text(encoding="utf-8")
+    if not text.endswith("\n"):
+        raise ValueError(f"{path.relative_to(root).as_posix()}: {'empty' if not text else 'no final newline'}; "
+                         "an entry fragment must end with a line break")
+    return text
+
+
 def generate(root: Path, target: Target) -> str:
     directory = root / target.directory
     out = []
@@ -320,7 +331,7 @@ def generate(root: Path, target: Target) -> str:
             path = directory / part.name
             out.append(path.read_text(encoding="utf-8") if path.is_file() else "")
         else:
-            out.extend(p.read_text(encoding="utf-8") for p in ordered_items(directory, part, target.sort_key))
+            out.extend(read_entry(root, p) for p in ordered_items(directory, part, target.sort_key))
     return "".join(out)
 
 
@@ -343,7 +354,7 @@ def generate_files(root: Path, target: Target) -> dict[str, str]:
         number = target.sort_key(path.name)[0]
         if isinstance(number, int) and number < 10**9:
             bucket = number // parts.width
-        buckets.setdefault(bucket, []).append(path.read_text(encoding="utf-8"))
+        buckets.setdefault(bucket, []).append(read_entry(root, path))
     stem, folder = Path(target.path).stem, _parts_dir(target, parts)
     out: dict[str, str] = {}
     rows = []

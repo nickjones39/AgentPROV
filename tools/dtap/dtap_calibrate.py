@@ -233,6 +233,10 @@ def main(argv: list[str] | None = None) -> int:
         ("DT01", "env_vars value in an AER agent text", has("a03|agent_messages"), _env_sentinel(sentinel)),
         ("DT01", "env_vars key in a SEM record", has("a03|agent_messages"), _env_key_in_sem),
     ]
+    def env_hits(work: Path) -> int:
+        env = dc.envvars(work, a.tasks, [], a.work, 8)
+        return sum(v for part in ("values", "key_literal") for k, v in env[part]["counts"].items() if "not_in_own_raw" in k)
+
     results: list[dict[str, Any]] = []
     for n, (check, what, want, mutate_spec) in enumerate(faults):
         candidates = [r for r in clean if want(r)][:25]  # the first by id whose copy the fault applies to
@@ -242,9 +246,12 @@ def main(argv: list[str] | None = None) -> int:
             results.append(res)
             continue
         applied = False
+        baseline = 0
         for base_row in candidates:
             row = index[base_row["ex"]]
             work = copy_execution(root, row, a.work / f"f{n:02d}")
+            if check == "DT01":  # the scan rows do not run DT01: check the unmutated copy here
+                baseline = env_hits(work)
             mutate = mutate_spec
             if mutate is None:  # configured_only -> D in the assessment bundle
                 sem_lines = _read(work / next(iter(row["paths"]["sem"].values())))
@@ -256,10 +263,10 @@ def main(argv: list[str] | None = None) -> int:
                 break
         res["ex"] = row["ex"]
         if check == "DT01":
-            env = dc.envvars(work, a.tasks, [], a.work, 8)
-            hits = sum(v for part in ("values", "key_literal") for k, v in env[part]["counts"].items() if "not_in_own_raw" in k)
-            res["result"] = "detected" if applied and hits else "missed"
+            hits = env_hits(work)
+            res["result"] = "baseline_hit" if baseline else ("detected" if applied and hits else "missed")
             res["hits_not_in_own_raw"] = hits
+            res["baseline_hits_not_in_own_raw"] = baseline
         else:
             got = run_check(work, row)
             res["result"] = "detected" if applied and got["fail"].get(check) else ("not_applied" if not applied else "missed")

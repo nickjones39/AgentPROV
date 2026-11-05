@@ -9,6 +9,7 @@ fixtures. No fixture text is printed.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import tomllib
 from importlib import resources
@@ -88,3 +89,26 @@ def test_phase10_extract_reads_role_agent_and_keeps_roles_verbatim(mapped):
 def test_phase10_aggregate_groups_verbatim_roles():
     aggregate = _load(TOOLS / "analysis" / "phase10_aggregate.py")
     assert aggregate.is_assistant("agent") and aggregate.group_counts({"agent": 2})["assistant"] == 2
+
+
+def test_phase10_aggregate_composition_reads_role_agent():
+    """AU-TRS-7: the verified-complete composition read only role ``assistant`` from the verbatim role counts."""
+    aggregate = _load(TOOLS / "analysis" / "phase10_aggregate.py")
+    row = {"ex": "ex_1", "integrity": [], "source_sha": "s", "status": "ok", "completeness": "verified_complete",
+           "unit": "agent_execution", "run_error": False, "n_messages": 4, "roles": {"user": 1, "agent": 2, "tool": 1},
+           "seal_issues": [], "judgements": [], "model": "m", "variant": "v1", "profile": "dtap-bench@1"}
+    composition = aggregate.analyse([row])["verified_complete_composition"]
+    assert composition == {"unit=agent_execution|run_error=False|n_msgs=>0|assistant=True": 1}
+
+
+def test_exam2_bymodel_counts_a_dtap_agent_hit(tmp_path, monkeypatch, capsys):
+    """AU-TRS-7: exam2_bymodel's keys named only ``/message:assistant/`` pointers, never DTap's ``/message:agent/``."""
+    bymodel = _load(TOOLS / "analysis2" / "exam2_bymodel.py")
+    scan = tmp_path / "scan.jsonl"
+    rows = [{"model": "m", "hits": {"LIT_ESC|aer|/message:agent/parts/*/args/~": 1}},
+            {"model": "m", "hits": {"VARIATION|aer|/message:assistant/parts/*/text": 2}}]
+    scan.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["exam2_bymodel.py", str(scan)])
+    assert bymodel.main() == 0
+    counts = json.loads(capsys.readouterr().out)["scan.jsonl"]["m"]
+    assert counts == {"executions": 2, "args_literal_escape": 1, "assistant_text_variation_selector": 1}

@@ -79,10 +79,12 @@ def verify(cli: Callable[..., Run], root: Path, *flags: str) -> Run:
 def is_t1_worker_launch(argv: Any) -> bool:
     """True only for the exact argv :class:`agentprov.io.workers._Worker` builds for a T1 worker: this interpreter,
     ``-I -B -m agentprov.worker --protocol <PROTOCOL> --cpu-hard N --nofile N --as-bytes N``, then optionally
-    ``--store-root PATH`` and optionally ``--test-kinds``, in that order and nothing else (G.4; K.12.6(a): a process
-    AgentPROV starts with an argv built from no data). A string command, another interpreter, another module, a shell
-    or any extra argument is not one."""
-    from agentprov.io.workers import PROTOCOL
+    ``--store-root PATH``, optionally ``--test-kinds`` and optionally ``--preload-semantics REFS`` (comma-separated
+    refs of the profile-reference grammar ``PRELOAD_REF_RE``, nothing else) followed by an optional
+    ``--preload-fidelity`` (D-1068 P2), in that order and nothing else (G.4; K.12.6(a): a process AgentPROV starts with
+    an argv built from no data). A string command, another interpreter, another module, a shell or any extra argument
+    is not one."""
+    from agentprov.io.workers import PRELOAD_MAX_REFS, PRELOAD_REF_RE, PROTOCOL
 
     if not isinstance(argv, (list, tuple)) or not all(isinstance(a, str) for a in argv):
         return False
@@ -98,7 +100,16 @@ def is_t1_worker_launch(argv: Any) -> bool:
         if len(rest) < 2 or not rest[1] or rest[1].startswith("-"):
             return False
         rest = rest[2:]
-    return rest in ([], ["--test-kinds"])
+    if rest[:1] == ["--test-kinds"]:
+        rest = rest[1:]
+    if rest[:1] == ["--preload-semantics"]:
+        refs = rest[1].split(",") if len(rest) > 1 and rest[1] else []
+        if len(rest) < 2 or len(refs) > PRELOAD_MAX_REFS or not all(PRELOAD_REF_RE.fullmatch(r) for r in refs):
+            return False
+        rest = rest[2:]
+        if rest[:1] == ["--preload-fidelity"]:
+            rest = rest[1:]
+    return rest == []
 
 
 # ------------------------------------------------------------------------------------------------ open spy

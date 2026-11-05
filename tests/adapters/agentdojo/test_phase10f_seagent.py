@@ -88,8 +88,8 @@ def test_profile_pin_licence_and_import_table():
     assert data["licence"]["spdx"] == "CC-BY-4.0" and data["licence"]["policy"] == "include" and data["licence"]["attribution"]
     imp = data["import"]
     assert tuple(imp["variants"]) == ("v1.k14",) and imp["dialect"] == imp["mapper"] == "agentdojo.tracelogger"
-    assert dict(imp["rules"]) == {"aer": 1, "agentdojo": 2}
-    assert profile.version == 2 and profile.parts == ("head",)  # D-591 (version 1 archived, D-31)
+    assert dict(imp["rules"]) == {"aer": 1, "agentdojo": 3}  # D-1063
+    assert profile.version == 3 and profile.parts == ("head",)  # D-591 (version 1 archived, D-31); 3: D-1063
 
 
 def test_registry_part_is_sealed_with_its_own_corpus():
@@ -101,7 +101,7 @@ def test_registry_part_is_sealed_with_its_own_corpus():
         f"full pinned snapshot imported through agentprov import in wave 2 and sealed as {PROFILE} 0.1.0 ("
     )
     assert [s.corpus_id for s in part.sealed] == [PROFILE]
-    assert part.semantics == ("agentdojo.suites@2",) and registration.licence.spdx == "CC-BY-4.0"  # D-31 and item 1
+    assert part.semantics == ("agentdojo.suites@4",) and registration.licence.spdx == "CC-BY-4.0"  # D-31, item 1, D-1063
     assert registration.licence.attribution == tuple(load_profile(PROFILE).data["licence"]["attribution"])
 
 

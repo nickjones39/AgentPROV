@@ -31,7 +31,9 @@ from agentprov.cli import devrun as devrun_cmd  # D-705
 from agentprov.cli import jobs as jobs_cmd  # D-704
 from agentprov.cli import keys as keys_cmd  # D-702
 from agentprov.cli import prices as prices_cmd  # D-701
+from agentprov.cli import priors as priors_cmd  # D-1062
 from agentprov.cli import settings_cmd  # D-703
+from agentprov.cli import update as update_cmd  # D-1065
 from agentprov.cli import verify as verify_cmd
 from agentprov.cli import assist as assist_cmd  # D-1010
 from agentprov.cli.common import (
@@ -69,7 +71,7 @@ __all__ = ["COMMANDS", "build_parser", "main"]
 COMMANDS = (
     "info", "validate", "import", "fetch", "run", "backends", "migrate", "render", "inspect", "purge", "stats", "package",
     "derive", "recompute", "verify", "models", "settings", "keys", "prices", "estimate", "jobs", "batch", "devrun",
-    "assist",
+    "assist", "priors", "update",
 )
 
 _LOG = logging.getLogger("agentprov.cli")
@@ -105,10 +107,12 @@ def build_parser() -> CliArgumentParser:
     keys_cmd.register(sub, shared)
     prices_cmd.register(sub, shared)
     estimate_cmd.register(sub, shared)
+    priors_cmd.register(sub, shared)
     jobs_cmd.register(sub, shared)
     batch_cmd.register(sub, shared)
     devrun_cmd.register(sub, shared)
     assist_cmd.register(sub, shared)
+    update_cmd.register(sub, shared)
     return parser
 
 
@@ -168,6 +172,15 @@ def _result_from_exception(exc: BaseException, args: Any) -> CommandResult:
     return result
 
 
+def _interrupted_in_teardown(result: CommandResult) -> int:
+    """A first interrupt that landed while ``main`` closed the control watcher or the feedback sink (AU-CLIA-8): the
+    command's own work has ended, the run ends as interrupted. Returns the exit code, 130."""
+    if not any(notice.startswith("interrupted") for notice in result.notices):
+        result.error("agentprov: interrupted while finishing")
+        result.notices.append("interrupted")
+    return exit_code_for(KeyboardInterrupt())
+
+
 def _print_messages(result: CommandResult, args: Any, show_info: bool) -> None:
     for kind, text in result.messages:
         if kind == "info" and not show_info:
@@ -187,10 +200,12 @@ def _write_summary(args: Any, command: str, exit_code: int, result: CommandResul
         max_listed=args.max_listed,
     )
     data = jcs_bytes(summary) + b"\n"
-    if args.summary_json:
-        atomic_write_bytes(Path(args.summary_json), data)
-    if args.json:
-        write_stdout_bytes(sys.stdout, data)
+    try:
+        if args.summary_json:
+            atomic_write_bytes(Path(args.summary_json), data)
+    finally:  # AU-CLIA-6: a file that cannot be written must not cost the --json caller its stdout copy
+        if args.json:
+            write_stdout_bytes(sys.stdout, data)
 
 
 def _preflight_outputs(args: Any) -> None:
@@ -204,6 +219,8 @@ def _preflight_outputs(args: Any) -> None:
             continue
         parent = Path(value).parent
         if not parent.is_dir():
+            if flag == "--summary-json":
+                args.summary_json = None  # AU-CLIA-6: the refusal's own summary cannot land there either
             raise CliUsageError(f"agentprov: {flag}: the directory {safe_text(str(parent), 200)!r} does not exist")
         if flag == "--control-file":
             continue  # read, never written
@@ -314,16 +331,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             _LOG.debug("command failed", exc_info=exc if not isinstance(exc, KeyboardInterrupt) else None)
         finally:
             outcome = None
+            # AU-CLIA-8: each close below can block joining a thread (up to 2 s), and a first SIGINT/SIGTERM (or the
+            # watcher's last poll taking the stop path) can land there; it ends the run as interrupted (130) and the
+            # teardown goes on, so the summary and the sink's end line are still written. A second signal exits at once.
             if watcher is not None:
-                watcher.close()
+                try:
+                    watcher.close()
+                except KeyboardInterrupt:
+                    exit_code = _interrupted_in_teardown(result)
+                    watcher.close()  # its stop is set: join once more
                 notice = watcher.notice()
                 if notice is not None:
                     result.notices.append(notice)
                 if watcher.effect == "drain" and exit_code == 0:
                     outcome = "drained"  # D-394: the command finished its in-flight units and stopped early
             if sink is not None:
-                sink.close(exit_code, outcome=outcome)
+                try:
+                    sink.close(exit_code, outcome=outcome)
+                except KeyboardInterrupt:
+                    exit_code = _interrupted_in_teardown(result)
+                    sink.close(exit_code)  # after an interrupted join: records 130 for the end line and joins again
         try:
+            if args.json and result.payload is not None:
+                # AU-CLIA-11 (N.1.4; CC-23): with --json stdout carries exactly one JSON document, the summary; a
+                # command's own payload goes to stderr, as stats routes its (as output: --progress off or -q must not
+                # drop what was asked for)
+                for line in result.payload.decode("utf-8", "replace").splitlines():
+                    result.output(line)
+                result.payload = None
             _print_messages(result, args, show_info)
             if result.payload is not None:
                 write_stdout_bytes(sys.stdout, result.payload)

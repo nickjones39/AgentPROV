@@ -26,6 +26,9 @@ ALLOWED = (
     # and their catalogue tests; data, never a protected core folder
     "src/agentprov/adapters/*/artefacts.toml", "tests/adapters/*/test_artefacts.py", "tests/adapters/agentdojo/test_profile.py",
     "tests/adapters/*/test_new_family_no_core_change.py",
+    # the shared not-inlined pass (D-1063, regen-batch row 181), adapter code, and its line in the family's aer closure;
+    # row 186 merged it into adapters/not_inlined.py and removed adapters/inline_limit.py
+    "src/agentprov/adapters/inline_limit.py", "src/agentprov/adapters/not_inlined.py", "src/agentprov/stage_scopes.py",
 )
 PROTECTED = ("src/agentprov/aer/", "src/agentprov/prov/", "src/agentprov/validate/", "src/agentprov/corpus/",
              "src/agentprov/adapters/runner/", "src/agentprov/raw/", "src/agentprov/ingest/", "src/agentprov/worker.py")
@@ -34,7 +37,7 @@ PROTECTED = ("src/agentprov/aer/", "src/agentprov/prov/", "src/agentprov/validat
 
 
 def test_the_branch_touches_only_the_family():
-    changed = changed_or_skip(support.REPO)  # the merge base with origin/main or main, the newer
+    changed = changed_or_skip(support.REPO, family="openhands")  # the merge base with origin/main or main, the newer
     if not any(p.startswith("src/agentprov/adapters/openhands/") for p in changed):
         pytest.skip("this branch does not change the openhands family")
     assert not [p for p in changed if p.startswith(PROTECTED)]

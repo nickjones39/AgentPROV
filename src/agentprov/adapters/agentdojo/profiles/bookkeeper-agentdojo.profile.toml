@@ -8,10 +8,12 @@
 # `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
 # the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
 # census (~/.agentprov/migration-work/phase10c/census/bookkeeper@0fe09bb6e8c0.*).
+# Version 2 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 1 ships under profiles/archive/bookkeeper-agentdojo.profile.v1.toml.
 
 [profile]
 id = "bookkeeper-agentdojo"
-version = 1
+version = 2
 format = "agentprov-source-profile/0.1"
 source_id = "bookkeeper-agentdojo"
 family = "agentdojo"
@@ -61,7 +63,7 @@ content_dedup = "never"
 dialect = "agentdojo.tracelogger"
 mapper = "agentdojo.tracelogger"
 variants = ["v1.k14", "v1.k14.incomplete"]
-rules = { aer = 1, agentdojo = 2 }
+rules = { aer = 1, agentdojo = 3 }
 include = ["runs/agentdojo/*/*/*/*/*/*.json"]
 exclude = [
   { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
@@ -85,7 +87,7 @@ suites = { banking = "agentdojo" }
 version_field = "benchmark_version"
 version_label_semantics = "suite_version"
 dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
-semantics_profile = { id = "agentdojo.suites", version = 2 }
+semantics_profile = { id = "agentdojo.suites", version = 4 }
 
 [family.agentdojo.harness]
 # no AgentDojo installation is declared for the runs; the logs record only the distribution version string

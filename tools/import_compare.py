@@ -48,9 +48,14 @@ def compare(a: Path, b: Path, whole: bool) -> dict[str, Any]:
     index_a, index_b = _rows(a / "executions.jsonl", "ex"), _rows(b / "executions.jsonl", "ex")
     val_a, val_b = _rows(a / "validation" / "results.jsonl", "ex"), _rows(b / "validation" / "results.jsonl", "ex")
     reg_a, reg_b = _rows(a / "register.jsonl", "subject"), _rows(b / "register.jsonl", "subject")
-    result: dict[str, Any] = {"executions_b": len(index_b), "index_rows_equal": 0, "aer_equal": 0, "prov_equal": 0,
-                              "validation_rows_equal": 0, "register_entries_equal": 0, "missing_in_a": 0}
-    for ex, (row_b,) in index_b.items():
+    result: dict[str, Any] = {"executions_b": len(index_b), "index_rows_equal": 0, "aer_equal": 0, "prov_files": 0,
+                              "prov_equal": 0, "validation_rows_equal": 0, "register_entries_equal": 0,
+                              "missing_in_a": 0, "duplicate_in_b": 0}
+    for ex, rows_b in index_b.items():
+        if len(rows_b) != 1:  # one execution, two index rows: a defect of --b, reported instead of compared
+            result["duplicate_in_b"] += 1
+            continue
+        row_b = rows_b[0]
         if ex not in index_a:
             result["missing_in_a"] += 1
             continue
@@ -59,6 +64,7 @@ def compare(a: Path, b: Path, whole: bool) -> dict[str, Any]:
         aer = row["paths"]["aer"]
         result["aer_equal"] += (a / aer).read_bytes() == (b / aer).read_bytes()
         for spec in (row["paths"].get("prov") or {}).values():
+            result["prov_files"] += 1
             result["prov_equal"] += (a / spec["json"]).read_bytes() == (b / spec["json"]).read_bytes()
         result["validation_rows_equal"] += val_a.get(ex) == val_b.get(ex)
         result["register_entries_equal"] += sorted(reg_a.get(ex, [])) == sorted(reg_b.get(ex, []))
@@ -66,20 +72,20 @@ def compare(a: Path, b: Path, whole: bool) -> dict[str, Any]:
         fa, fb = _files(a), _files(b)
         result["whole_tree"] = {"files_a": len(fa), "files_b": len(fb), "identical": fa == fb,
                                 "differing": sorted(k for k in set(fa) | set(fb) if fa.get(k) != fb.get(k))[:20]}
-    n = result["executions_b"] - result["missing_in_a"]
-    result["all_equal"] = result["missing_in_a"] == 0 and all(
+    n = result["executions_b"] - result["missing_in_a"] - result["duplicate_in_b"]
+    result["all_equal"] = result["missing_in_a"] == 0 and result["duplicate_in_b"] == 0 and all(
         result[k] == n for k in ("index_rows_equal", "aer_equal", "validation_rows_equal", "register_entries_equal")
-    ) and (not whole or result["whole_tree"]["identical"])
+    ) and result["prov_equal"] == result["prov_files"] and (not whole or result["whole_tree"]["identical"])
     return result
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--a", type=Path, required=True)
     parser.add_argument("--b", type=Path, required=True)
     parser.add_argument("--whole", action="store_true", help="also require identical trees")
     parser.add_argument("--out", type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     result = compare(args.a, args.b, args.whole)
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.out:

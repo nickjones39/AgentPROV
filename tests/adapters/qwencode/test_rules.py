@@ -17,17 +17,18 @@ ISSUE_CODES = {
     "user_message_not_logged", "truncated_capture", "no_result_message", "error_result", "unmapped_message",
     "subagent_event", "sidecar_missing", "join_unverified", "final_text_differs", "score_unrecognised",
     "extra_result_message",
+    "lone_surrogate_replaced", "content_not_inlined",  # catalogue version 3 (D-1063, review UC-40/UC-41)
 }  # fmt: skip
 TYPES = {"qwencode:subagent_event", "qwencode:unmapped_message", "qwencode:message_payload"}
 
 
 def catalogue():
-    return load_catalogue("qwencode", 2, package=PACKAGE)
+    return load_catalogue("qwencode", 3, package=PACKAGE)  # current since D-1063
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("qwencode", 2, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("qwencode", 3, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.subtypes == {"qwencode.content_block", "qwencode.execution_rules"} and cat.types == TYPES
     data = (resources.files(PACKAGE) / "rules" / "qwencode.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -94,7 +95,13 @@ def test_every_declared_rule_is_exercised(mapped):
     member = f"results/Qwen/{f.model}/{f.target}/{f.language}/conversation_log/index{f.scenario}.json"
     cited |= _cited(support.modified("python", supp={member: b"[]"}))
     cited |= set(CITED_RULES)  # the profile's rules are checked annotation by annotation in test_semantics.py
-    citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
+    # D-1063 (review UC-40/UC-41): exercised by test_uc39_41.py (no committed fixture holds a lone surrogate or a 1 MiB
+    # string)
+    cited |= {"qwencode.lone_surrogate_replaced@1", "qwencode.content_not_inlined@1"}
+    # AU-RC-5 (row 182): exercised by test_mapper.py (no committed fixture lacks its result message without a cut)
+    cited.add("qwencode.no_result_message_unverified@1")
+    # a superseded rule stays citable for the corpora that recorded it; the current mapper cites its successor
+    citable = {rid for rid, rule in catalogue().rules.items() if rule.citable and rule.status == "active"}
     assert citable - cited == set(), sorted(citable - cited)
 
 
@@ -104,7 +111,9 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(qwencode\.[a-z_.0-9]+@[0-9]+)"', source))
     assert literals <= set(catalogue().rules) and literals
     codes = {c.removeprefix("qwencode.") for c in re.findall(r'"(qwencode\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    # (agentprov.adapters.surrogates), which the mapper runs (D-1063)
+    assert codes == ISSUE_CODES - {"lone_surrogate_replaced"} and "surrogates(self, records, NAMESPACE)" in source
 
 
 def test_profile_quirks_and_pairing_name_catalogue_rules():

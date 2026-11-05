@@ -130,3 +130,23 @@ def host_with(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
         return profile
 
     return make
+
+
+#: D-1064: what ``sysconfig.get_platform`` and ``platform.machine`` report for each simulated Windows architecture.
+WINDOWS_ARCHES: dict[str, tuple[str, str]] = {"x86_64": ("win-amd64", "AMD64"), "arm64": ("win-arm64", "ARM64")}
+
+
+@pytest.fixture
+def simulate_host(monkeypatch: pytest.MonkeyPatch) -> Callable[[str, str], None]:
+    """``simulate_host(system, arch)``: make ``agentprov.platforms.host`` see that platform (D-1064). ``platform.system``,
+    ``platform.machine`` and ``sysconfig.get_platform`` are patched; ``os.name`` is not (``pathlib`` reads it)."""
+    import platform
+    import sysconfig
+
+    def simulate(system: str, arch: str) -> None:
+        plat, machine = WINDOWS_ARCHES[arch] if system == "Windows" else (f"{system.lower()}-{arch}", arch)
+        monkeypatch.setattr(platform, "system", lambda: system)
+        monkeypatch.setattr(platform, "machine", lambda: machine)
+        monkeypatch.setattr(sysconfig, "get_platform", lambda: plat)
+
+    return simulate

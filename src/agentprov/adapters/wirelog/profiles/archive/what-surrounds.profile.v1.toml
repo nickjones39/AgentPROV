@@ -1,0 +1,149 @@
+# Source profile `what-surrounds`: "What surrounds an injection decides whether it works" (Zenodo 21944598 v1.0.0;
+# docs/architecture D.20; DECISIONS D-280..D-285; docs/reports/phase10m/).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The [family.wirelog] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10m census of every member of the
+# pinned zip, read in memory (docs/reports/phase10m/zenodo-21944598.census.json).
+#
+# What the runs are: 1,334 tool-use trials of seven production models on AWS Bedrock (a support-ticket task with a
+# read_file and a send_email tool; MCPTox paradigms P1-P3 delivered through tool descriptions, parameter descriptions or
+# tool results, under several system-prompt context conditions; a first batch of five poisoned-ticket variants). The
+# tools are SYNTHETIC by design (D-284): read_file answers from the harness's own documents and send_email sends nothing.
+# The data record that a call was made and what the harness answered, never that a file was read or a mail was sent.
+#
+# Input: one deposit file, a zip whose members are the run files (an archive input, D-200). The 22 top-level files other
+# than results.csv and attacks.json (code, paper, licences) are outside the include globs: not_selected members, never
+# decompressed (wirelog.non_run_member@1, reserved).
+
+[profile]
+id = "what-surrounds"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "what-surrounds"
+family = "wirelog"
+parts = ["runs-named"]
+title = "What surrounds an injection decides whether it works: 1,334 Bedrock Converse tool-use trials of seven models (Zenodo 21944598)"
+evidence = ["docs/reports/systematic-search/candidates/phase10e-candidates.md §3.14", "docs/reports/phase10m/README.md"]
+
+[source]
+canonical_repo = "https://doi.org/10.5281/zenodo.21944598"
+paper = "What surrounds an injection decides whether it works: context and channel effects in tool-metadata attacks on seven production LLM agents (Asif, 2026; Zenodo concept 10.5281/zenodo.21944597)"
+package = { name = "prompt-injection-study", requirement = "harness scripts in the same zip, without a commit; producing code not identified (D-282)", version_identifies_code = false }
+
+[[source.pins]]
+role = "runs"
+part = "runs-named"
+primary = true
+kind = "zenodo"
+doi = "10.5281/zenodo.21944598"
+record = 21944598
+version = "1.0.0"
+file = "prompt-injection-study.zip"
+sha256 = "08e60afd5ba0c0c044afd005c015cbc539428255240f1ea2a555feb800079454"
+md5 = "a5ce4a134c610e493e95096abb69f8b3"
+size = 6354708
+date = "2026-08-15"
+note = "fetched 2026-10-12 (phase 10e, user-approved); the md5 equals the record's checksum; the only version of concept 21944597"
+
+[licence]
+spdx = "CC-BY-4.0"
+holders = ["Shaban Asif (the record's creator)"]
+data_licence = "CC-BY-4.0"
+policy = "include"
+basis = "CC-BY-4.0 on the Zenodo record; LICENSE-DATA in the zip: runs_named/, results.csv, attacks.json and PAPER.md under CC BY 4.0, code under MIT"
+attribution = [
+  "Asif, S. (2026). What surrounds an injection decides whether it works: context and channel effects in tool-metadata attacks on seven production LLM agents. Data and code. Zenodo. https://doi.org/10.5281/zenodo.21944598 (CC BY 4.0)",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "wirelog.request_response"
+mapper = "wirelog.run_dir"
+variants = ["bedrock-converse", "anthropic-messages"]
+rules = { aer = 1, wirelog = 1 }
+include = ["runs_named/*/*", "results.csv", "attacks.json"]
+layout = "runs_named/{model}__{arm}__{NNNN}/request.json"
+
+[family.wirelog]
+benchmark = "what-surrounds"
+harness = "what-surrounds harness (run_channels.py, run_trials.py, driver_*.py)"
+scorer = "what-surrounds scoring (score.py, reclassify.py, verify_stats.py)"
+tool_runtime = "what-surrounds synthetic dispatcher"
+provider = "aws-bedrock"
+synthetic_tools = true
+final_stop_reason = "end_turn"
+max_requests = 6
+send_tool = "send_email"
+recipient_arg = "to"
+no_attack_arms = ["clean"]
+code_only_payload_arms = ["soft", "imperative", "urgent_authority", "operator_spoof"]
+semantics_profile = { id = "wirelog.tools", version = 1 }
+
+# The three task prompts, by the SHA-256 of their UTF-8 text (wirelog.task_prompt_table@1).
+tasks = [
+  { id = "read_ticket", sha256 = "13f58c5f71679049f98a1784775d3d0be3dc75f5cdafccd28178706906ccea81", runs = 1244 },
+  { id = "read_and_email_ticket", sha256 = "abc4b4b6ca753b092d42d0d93eb4b772b1ed253513b6899b793fbc2d582932eb", runs = 60 },
+  { id = "read_ticket_with_context_prefix", sha256 = "0b60fb47796f6fbae8cdb73958eec0e79dc0991f595bc43b668ab71cbccc4f38", runs = 30 },
+]
+
+# Arm -> the attacks.json retargeted_payloads key the arm delivers (wirelog.payload_table@1): the whole poisoned
+# description in the tool-description and parameter arms, the injected sentence in the tool-result arms.
+[family.wirelog.payloads]
+mcptox_p1 = "P1_tool_description"
+mcptox_p2 = "P2_tool_description"
+mcptox_p3 = "P3_param_description"
+mcptox_p1_toolresult = "P1_core"
+mcptox_p2_toolresult = "P2_core"
+mcptox_p2_toolresult_sysctx = "P2_core"
+mcptox_p2_sys_generic = "P2_tool_description"
+mcptox_p2_sys_explicit = "P2_tool_description"
+mcptox_p2_sys_generic_b = "P2_tool_description"
+mcptox_p2_sys_generic_role = "P2_tool_description"
+mcptox_p2_sys_generic_long = "P2_tool_description"
+mcptox_p2_userprefix_long = "P2_tool_description"
+
+[[family.wirelog.quirk]]
+id = "wirelog.synthetic_tools"
+rules = ["wirelog.synthetic_tool_runtime_unverified@1"]
+note = "read_file returns the harness's own document, send_email sends nothing and returns 'Email sent.' (D-284)"
+observed = { results = 2001, read_file = 1245, send_email = 756 }
+
+[[family.wirelog.quirk]]
+id = "wirelog.anthropic_messages_run"
+rules = ["wirelog.call_id_unique_match@1"]
+note = "run 0001 holds Anthropic Messages bodies; no shipped script sends them (D-283)"
+observed = { runs = 1 }
+
+[[family.wirelog.quirk]]
+id = "wirelog.multi_result_messages"
+rules = ["wirelog.result_block_message@1"]
+observed = { wire_messages = 141, two_blocks = 138, three_blocks = 3 }
+
+[[family.wirelog.quirk]]
+id = "wirelog.meta_rewritten"
+rules = ["wirelog.meta_rewritten@1"]
+observed = { runs = 358 }
+
+[[family.wirelog.quirk]]
+id = "wirelog.final_texts_not_logged"
+rules = ["wirelog.final_texts_not_logged@1"]
+observed = { runs = 154 }
+
+[[family.wirelog.quirk]]
+id = "wirelog.payload_not_delivered"
+rules = ["wirelog.payload_located@1"]
+observed = { runs = 1 }
+
+[[family.wirelog.quirk]]
+id = "wirelog.first_batch_payloads_in_code_only"
+rules = ["wirelog.first_batch_document@1"]
+note = "the five ticket variants of the first batch are constants of run_trials.py, not data; their delivered documents are recognised by digest"
+observed = { runs = 358, attacked = 288 }

@@ -14,10 +14,12 @@
 # runs/<pipeline dir>/... . 21,999 logs hold 18,739 distinct byte strings: the authors re-packed some runs into several
 # experiments (gpt-4o-mini-2024-07-18 in exp4, exp5 and exp7; the current_models arms again inside exp5), and the importer
 # collapses each copy into its first execution (dedup.collapsed, H.7.2). Record 22973266 (v1.0) is wholly contained.
+# Version 2 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 1 ships under profiles/archive/authority-caps-agentdojo.profile.v1.toml.
 
 [profile]
 id = "authority-caps-agentdojo"
-version = 1
+version = 2
 format = "agentprov-source-profile/0.1"
 source_id = "authority-caps-agentdojo"
 family = "agentdojo"
@@ -70,7 +72,7 @@ content_dedup = "never"
 dialect = "agentdojo.tracelogger"
 mapper = "agentdojo.tracelogger"
 variants = ["v1.k14", "v1.k14.incomplete"]
-rules = { aer = 1, agentdojo = 2 }
+rules = { aer = 1, agentdojo = 3 }
 # level 1 (original-study/experiments/*/runs/...) and the members of the nested tars (runs/...), each matched by its
 # own member label (D-380)
 include = ["original-study/experiments/*/runs/*/*/*/*/*.json", "runs/*/*/*/*/*.json"]
@@ -103,7 +105,7 @@ suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", wor
 version_field = "benchmark_version"
 version_label_semantics = "suite_version"
 dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
-semantics_profile = { id = "agentdojo.suites", version = 2 }
+semantics_profile = { id = "agentdojo.suites", version = 4 }
 
 [family.agentdojo.harness]
 # agentdojo 0.1.35 per the logs; the deposit's runners (original-study/code/replication/, source-snapshots/) were not

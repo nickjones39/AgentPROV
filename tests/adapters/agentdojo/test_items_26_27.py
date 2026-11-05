@@ -42,7 +42,7 @@ def test_a_live_agentdyn_cell_reads_its_benchmark_from_the_suites_map(monkeypatc
     head = m.header
     assert head["task"]["benchmark"] == "agentdyn" and head["ext"]["agentdojo"]["cell_benchmark"] == "agentdojo"
     assert head["evf"]["/task/benchmark"] == "D" and any(r.startswith(SUITE_BENCHMARK) for r in head["rule"])
-    assert head["rules"]["agentdyn"] == 2
+    assert head["rules"]["agentdyn"] == 3  # D-1063
 
 
 def test_a_live_agentdojo_cell_is_unchanged(monkeypatch):

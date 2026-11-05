@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -23,14 +24,22 @@ from typing import Any
 PROFILE = "autogen-guard-placement"
 
 
+def _refuse_real_corpora(corpus: Path) -> None:
+    """Trial imports write scratch corpora only: refuse a corpus inside ``$AGENTPROV_HOME/corpora`` (default
+    ``~/.agentprov``) or ``~/.agentprov/corpora``, compared after resolving the path (relative paths, symlinks)."""
+    target = corpus.expanduser().resolve()
+    for home in (os.environ.get("AGENTPROV_HOME") or "~/.agentprov", "~/.agentprov"):
+        if target.is_relative_to((Path(home).expanduser() / "corpora").resolve()):
+            raise SystemExit("trial imports never write into $AGENTPROV_HOME/corpora")
+
+
 def run(zip_path: Path, corpus: Path, jobs: int) -> dict[str, Any]:
     from agentprov.adapters.profiles import load_profile
     from agentprov.adapters.runner.importer import ArchiveTree, import_source
     from agentprov.corpus.writer import CorpusWriter
     from agentprov.ingest.limits import IngestLimits
 
-    if str(corpus.resolve()).startswith(str((Path.home() / ".agentprov" / "corpora").resolve())):
-        raise SystemExit("trial imports never write into ~/.agentprov/corpora")
+    _refuse_real_corpora(corpus)
     profile = load_profile(PROFILE)
     (pin,) = [dict(p) for p in profile.data["source"]["pins"] if p.get("primary") is True]
     data = zip_path.read_bytes()

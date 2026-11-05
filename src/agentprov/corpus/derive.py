@@ -34,10 +34,12 @@ across file systems).
 **Comparison** (H.8.4). Per execution: the AER bytes and execution digest, the SEM digest per profile, the PROV file
 sha256 per spec, the validation-row JCS digest and the view bytes; bytes and digests only, never parsed-object equality.
 Classes: ``identical``; ``changed_explained`` (a declared version of the changed stage, or of a stage upstream of it,
-differs: adapter, profile and catalogue versions, spec, options, format, mode, library versions; code digests are not
-declared versions); ``unexplained_change`` (exit 1); ``failed``; ``unverified`` (a catalogue or profile version the
+differs: adapter, profile and catalogue versions, spec, options, format, mode, library versions; code digests and the
+software version ``engine`` are not declared versions, D-1050); ``unexplained_change`` (exit 1); ``failed``; ``unverified`` (a catalogue or profile version the
 package does not ship). A code-digest-only change with identical outputs passes. Index-row deltas outside the outputs
-(completeness, status, issues, ...) are counted separately as ``index_refreshed``. Corpus-level files (register,
+(completeness, status, issues, ...) are counted separately as ``index_refreshed``; on a sealed source they exit 1 as
+``verify --level rederive`` fails them (CB-11), unless a declared version differs and ``--strict`` is off (AU-BND-5).
+Corpus-level files (register,
 origins, members) are compared too; an unexplained difference there also exits 1 (HL-T14).
 
 **Round-trip cache** (D-550, :mod:`agentprov.validate.cache`). With a ``validation_cache`` (set by the caller), each
@@ -99,8 +101,8 @@ from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.io.workers import KIND_RSS_BYTES, Job, JobResult, WorkerLimits, WorkerPool, prov_charge
 from agentprov.progress import NULL_PROGRESS, Progress, ProgressEvent
 from agentprov.prov.specs import COMPAT_SPEC_ID, REGRESSION_ORACLE, SPEC_ID
-from agentprov.raw.members import MemberLog, decode_members, encode_members
-from agentprov.raw.origins import OriginLog
+from agentprov.raw.members import MemberLog, MemberRow, decode_members, encode_members
+from agentprov.raw.origins import OriginLog, OriginRow
 from agentprov.raw.store import RawObjectStore
 from agentprov.sem.reader import load_sem_bytes
 from agentprov.sem.types import SemDocument
@@ -260,8 +262,11 @@ def declared_identity(definition: Mapping[str, Any]) -> dict[str, Any]:
 
     ``limits_sha256`` is not a declared version either (D-31 addendum, user decision 2026-10-13, regen-plan F-1(b)): a
     change of the ingest limits is reported as a notice but explains no output difference, so a changed AER must be
-    explained by a code, profile or catalogue version."""
-    out = {k: v for k, v in definition.items() if k not in _CODE_KEYS and k != "limits_sha256"}
+    explained by a code, profile or catalogue version.
+
+    ``engine`` (``agentprov@<software version>``) is not a declared version either (D-1050, H.8.4(2)): the software
+    version moves with every release whatever a stage did, like a code digest, so it explains no output difference."""
+    out = {k: v for k, v in definition.items() if k not in _CODE_KEYS and k not in ("limits_sha256", "engine")}
     if out.get("stage") == "aer":
         out.pop("profile_sha256", None)
         out.pop("rules_sha256", None)
@@ -540,12 +545,18 @@ class RederiveReport:
     stage_changes: dict[str, bool] = field(default_factory=dict)
     recomputed: list[str] = field(default_factory=list)
     strict: bool = False
+    sealed: bool = False  # the source is a sealed corpus
 
     @property
     def exit_code(self) -> int:
         c = self.counters
         bad = c.get("unexplained_change", 0) or c.get("failed", 0) or c.get("corpus_unexplained", 0)
         if self.strict and c.get("unverified", 0):
+            bad = 1
+        # AU-BND-5, as verify --level rederive judges it (CB-11; H.8.4(1), (2)): a sealed index row that differs from its
+        # re-derivation outside the outputs is a difference, unexplained unless a declared version differs (then it is
+        # unverified, which fails only under --strict)
+        if self.sealed and c.get("index_refreshed", 0) and (self.strict or not any(self.stage_changes.values())):
             bad = 1
         return 1 if bad else 0
 
@@ -614,6 +625,8 @@ class Derivation:
         self.src_stages = _stages_of(self.src_derivation)
         self.src_rows: list[IndexRow] = [r for r in source.index() if self.scope is None or r.ex in self.scope]
         self.src_by_ex = {row.ex: row for row in self.src_rows}
+        if self.scope is not None:  # P8: a scoped derivation keeps its own rows; the reader need not keep every row
+            source.release_index()
         self.prov_cap = self._prov_cap()
         self.registry = RuleRegistry.default()
         self.notices: list[str] = []
@@ -647,6 +660,7 @@ class Derivation:
         self._hints: dict[str, str] = {}
         self._hint_refs: Counter[str] = Counter()
         self._recomputed_ex: list[str] = []
+        self._closure: frozenset[str] | None = None  # P4: input_closure(), computed once
 
     # -------------------------------------------------------------------------------------- inputs first
     def listed_objects(self) -> dict[str, bool]:
@@ -659,14 +673,35 @@ class Derivation:
                 listed[ref.sha256] = listed.get(ref.sha256, False) or ref.included
         return dict(sorted(listed.items()))
 
+    def input_closure(self) -> frozenset[str] | None:
+        """The raw objects a scoped re-derivation (``verify --level rederive --sample``) reads, or ``None`` when every
+        execution is re-derived (P4). The closure of the scoped rows' ``raw`` entries under: the containers of a member
+        object (``raw/members.jsonl``, every container, transitively: a re-map expands the outermost one again, AD-12),
+        and the D-315 groups (:func:`agentprov.corpus.withhold.linked_objects`): a split descriptor with its byte parts
+        (D-249) and a carved blob with its source (D-218), each group whole, in both directions. Hex digests."""
+        if self.scope is None:
+            return None
+        if self._closure is None:
+            self._closure = raw_input_closure((ref.sha256 for row in self.src_rows for ref in row.raw),
+                                              self.src.members(), self.src.origins())
+        return self._closure
+
     def check_inputs(self) -> None:
         """Re-hash every raw object the source lists and check the recorded catalogue and profile digests (H.8.5;
-        baseline R5). Writes nothing. Raises :class:`RawDigestError` on a missing or tampered object."""
+        baseline R5). Writes nothing. Raises :class:`RawDigestError` on a missing or tampered object.
+
+        P4: a scoped re-derivation re-hashes only its :meth:`input_closure`. Every other listed object is still checked
+        to be present (from one listing of the store), so a missing object, an absence on purpose and an unavailable
+        reference are counted and refused exactly as before; its bytes were re-hashed by ``verify``'s ``chain`` level,
+        which runs first, and the sample's re-derivation never reads them."""
         store = self.src.raw_store()
         self.absent = self._accounted_absences()
+        closure = self.input_closure()
+        stored = frozenset(store.digests()) if closure is not None else frozenset()
         checked = 0
         for sha, included in self.listed_objects().items():
-            if not store.has(sha):
+            outside = closure is not None and sha not in closure
+            if not (sha in stored if outside else store.has(sha)):
                 kind = self.absent.get(sha)
                 if kind is not None:  # BF-20, CB-6: absent on purpose; the executions that need it are unverified
                     self.counters[f"{kind}_unavailable"] += 1
@@ -674,6 +709,8 @@ class Derivation:
                 if included:
                     raise RawDigestError("a raw object the source lists is missing from its store", code="raw.object.missing")
                 self.counters["referenced_unavailable"] += 1
+                continue
+            if outside:
                 continue
             try:
                 store.verify(sha)
@@ -993,19 +1030,28 @@ class Derivation:
         if existing is not None:
             self.notices.append("resuming an interrupted derivation in the existing .partial tree")
         writer.absent_ok = frozenset(self.absent)
+        closure = self.input_closure()  # P4: a scoped re-derivation stages only the objects its executions read
+
+        def staged(digests: Iterable[str]) -> list[str]:
+            return [sha for sha in digests if closure is None or sha in closure]
+
         if self.plan.remap:
             if self.plan.link_raw:
-                self._copy_objects(writer, self._non_member_objects())
+                self._copy_objects(writer, staged(self._non_member_objects()))
             writer.register.extend(unreproducible)
         else:
-            self._copy_objects(writer, list(self.listed_objects()))
+            self._copy_objects(writer, staged(self.listed_objects()))
             writer.origins = OriginLog(self.src.origins())
             writer.members = MemberLog(self.src.members())
             carried = [e for e in self.src.register() if not ("ex" in e.subject and self._recomputes_stage_entry(e))]
             writer.register.extend(carried)
             self._codes_by_ex = _codes_by_ex(carried)
-        for label, target in ((TOMBSTONES_FILE, writer.layout.tombstones), (REFERENCES_FILE, writer.layout.references)):
-            if self.src.exists(label):  # CB-6: the purge record and the references stay with NEW, byte for byte
+        for label, target in ((TOMBSTONES_FILE, writer.layout.tombstones), (REFERENCES_FILE, writer.layout.references),
+                              (WITHHELD, writer.layout.withheld)):
+            # CB-6: the purge record, the references and (AU-BND-7) the withholding record stay with NEW, byte for byte:
+            # NEW carries the origins rows and release.withheld entries of what the source withholds, so it carries the
+            # record that accounts for those objects' absence too
+            if self.src.exists(label):
                 atomic_write_bytes(target, self.src.read_bytes(label))
         writer.write_document(writer.layout.manifest, self._base_manifest())
 
@@ -1964,7 +2010,7 @@ class Derivation:
     def compare(self, new: CorpusReader, new_stages: Mapping[Any, Mapping[str, Any]]) -> RederiveReport:
         """H.8.4 comparison of ``NEW`` with the source (see the module docstring)."""
         report = RederiveReport(command=self.plan.command, corpus_id=str(self.manifest.get("corpus_id") or ""),
-                                strict=self.plan.strict)
+                                strict=self.plan.strict, sealed=self.src.sealed)
         changed_stage: dict[str, bool] = {}
         for name in _ORDER:
             olds, nows = stages_named(self.src_stages, name), stages_named(new_stages, name)
@@ -1983,7 +2029,8 @@ class Derivation:
         report.recomputed = list(self.plan.recomputed)
         counts: Counter[str] = Counter({name: 0 for name in (*CLASSES, "index_refreshed")})
         new_rows = {row.ex: row for row in new.index() if self.scope is None or row.ex in self.scope}
-        old_validation = {r["ex"]: r for r in self.src.validation_results()}
+        old_validation = {r["ex"]: r for r in self.src.iter_validation_results()  # P8: a sample keeps its own rows
+                          if self.scope is None or r["ex"] in self.scope}
         shown = 0
         for ex in sorted(set(new_rows) | set(self.src_by_ex)):
             old_row, new_row = self.src_by_ex.get(ex), new_rows.get(ex)
@@ -2015,6 +2062,10 @@ class Derivation:
             self.notices.append("a sample was re-derived: the corpus-level files (register, origins, members) were not "
                                 "compared")
         counts["corpus_unexplained"] = corpus_bad
+        if report.sealed and counts["index_refreshed"]:  # AU-BND-5: why such a run exits 1 (RederiveReport.exit_code)
+            self.notices.append(f"{counts['index_refreshed']} index row(s) of the sealed source differ from the "
+                                "re-derivation outside their outputs (status, issues, completeness, facets); a sealed row "
+                                "re-derives unchanged unless a declared version differs (CB-11, H.8.4)")
         counts["selected"] = len(self.src_rows)
         counts["stages_run"] = len(self.plan.recomputed)
         counts.update({k: v for k, v in self.counters.items() if k not in counts})
@@ -2146,6 +2197,32 @@ class Derivation:
             out.append({"ex": old.ex, "output": output, "line": line, "old": first_old, "new": first_new,
                         "semantic": semantic})
         return out
+
+
+def raw_input_closure(objects: Iterable[str], members: Iterable[MemberRow], origins: Iterable[OriginRow]) -> frozenset[str]:
+    """The raw objects needed to re-derive executions whose ``raw`` entries are ``objects`` (P4; hex digests): those
+    objects, every container of a member object (``raw/members.jsonl``; transitively, each container of a member held in
+    several), and each D-315 group touched (:func:`agentprov.corpus.withhold.linked_objects`: a split descriptor and its
+    byte parts, D-249; a carved blob and its source, D-218), whole, until nothing is added."""
+    from agentprov.corpus.withhold import linked_objects
+
+    containers: dict[str, set[str]] = {}
+    for member in members:
+        if member.sha256 is not None:
+            containers.setdefault(member.sha256, set()).add(member.container)
+    linked: dict[str, set[str]] = {}
+    for _kind, group in linked_objects(origins):
+        for sha in group:
+            linked.setdefault(sha, set()).update(group)
+    closure: set[str] = set()
+    pending = list(objects)
+    while pending:
+        sha = pending.pop()
+        if sha and sha not in closure:
+            closure.add(sha)
+            pending.extend(containers.get(sha, ()))
+            pending.extend(linked.get(sha, ()))
+    return frozenset(closure)
 
 
 def _tier_failure(entry: RegisterEntry) -> bool:

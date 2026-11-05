@@ -1,11 +1,11 @@
 <h1 align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/agentprov-wordmark-on-dark.svg"><img src="docs/images/brand/agentprov-wordmark.svg" alt="AgentPROV" width="440"></picture></h1>
 
 <p align="center">
-  <a href="https://doi.org/10.5281/zenodo.23848609"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23848609.svg" alt="Software DOI on Zenodo"></a>
+  <a href="https://doi.org/10.5281/zenodo.23970107"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.23970107.svg" alt="Software DOI on Zenodo"></a>
   <a href="https://w3id.org/agentprov/#corpora"><img src="https://img.shields.io/badge/corpora-Zenodo-1682D4" alt="Corpora on Zenodo"></a>
   <a href="https://w3id.org/agentprov/#cite"><img src="https://img.shields.io/badge/paper-in%20preparation-lightgrey" alt="Paper: in preparation"></a>
   <a href="https://w3id.org/agentprov/docs/"><img src="https://img.shields.io/badge/docs-user%20guide-0A7BBB" alt="User guide"></a>
-  <a href="https://github.com/nickjones39/AgentPROV/releases/tag/v0.1.1"><img src="https://img.shields.io/badge/release-v0.1.1-2EA043" alt="Release v0.1.1"></a>
+  <a href="https://github.com/nickjones39/AgentPROV/releases/tag/v0.2.0"><img src="https://img.shields.io/badge/release-v0.2.0-2EA043" alt="Release v0.2.0"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-yellow" alt="Licence: MIT"></a>
   <a href="https://www.w3.org/TR/prov-overview/"><img src="https://img.shields.io/badge/W3C-PROV-005A9C" alt="W3C PROV"></a>
 </p>
@@ -257,10 +257,10 @@ takes `--defence NAME` (ten registered defences); the others run undefended. See
 corpus itself: every write runs as an `agentprov` command it shows you first. Corpus content stays hidden until you ask
 for it. Live runs and packaging start from the same job runner; the draft-only Zenodo uploader runs in a terminal pane
 of the Package page's Create Zenodo drafts dialog. Help › Docs shows this user guide, and Help › Assistant answers
-how-to questions with a model you choose, local or an API provider (`agentprov assist`, D-1010). The v0.1.1 release
+how-to questions with a model you choose, local or an API provider (`agentprov assist`, D-1010). The v0.2.0 release
 carries bundles for macOS (Apple silicon and Intel, signed ad hoc), Windows (ARM64 and x64) and Linux (aarch64 and
 x86_64), each built natively on its own GitHub-hosted runner with its `bundle-report.json` (D-1011); see the [release
-notes](docs/release-notes/v0.1.1.md). The v0.1.0 bundles were tested on clean machines (Linux aarch64, Windows ARM64)
+notes](docs/release-notes/v0.2.0.md). The v0.1.0 bundles were tested on clean machines (Linux aarch64, Windows ARM64)
 and under emulation (Linux and Windows x86_64) (D-750, G5).
 
 ```bash
@@ -370,7 +370,7 @@ Please cite the software as below. [`CITATION.cff`](CITATION.cff) holds the same
 @software{jones_agentprov_2026,
   author  = {Jones, Nicholas},
   title   = {AgentPROV: execution provenance for LLM-agent security research},
-  version = {0.1.1},
+  version = {0.2.0},
   year    = {2026},
   license = {MIT},
   url     = {https://github.com/nickjones39/AgentPROV}

@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     from agentprov_gui.ui import theme
     from agentprov_gui.ui.brand import app_icon
     from agentprov_gui.ui.mainwindow import MainWindow
-    from agentprov_gui.ui.safe import safe_message_box
+    from agentprov_gui.ui.safe import install_tooltip_filter, safe_message_box
 
     app = QApplication(sys.argv[:1])
     app.setApplicationName("AgentPROV")
@@ -166,7 +166,9 @@ def main(argv: list[str] | None = None) -> int:
                          informative="Only one GUI drives the job queue at a time (S10).").exec()
         return 1
     settings = Settings()
+    install_tooltip_filter(app, shown=settings.show_tooltips)  # every tooltip just below the pointer, or none
     theme.apply_scheme(settings.theme)
+    theme.apply_style(app)  # D-1060: the one app-wide style sheet, from the light or dark tokens
     window = MainWindow(settings)
     window.show()
     if args.smoke:
@@ -181,6 +183,9 @@ def main(argv: list[str] | None = None) -> int:
     log.info("start gui=%s", __version__)
     if args.corpus:
         window.viewer.open_path(Path(args.corpus))
+    from PySide6.QtCore import QTimer
+
+    QTimer.singleShot(1500, window.start_update_check)  # D-1065: the daily check, once the window is up
     code = app.exec()
     lock.unlock()
     return int(code)

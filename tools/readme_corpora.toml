@@ -3,8 +3,10 @@
 #
 # - count, unit, basis, evidence: the number, what it counts (Inspect samples, AgentDojo-family logs, runs, ... are one
 #   execution each), how it was obtained (full import, census, trial import, mapped in memory, spec) and the
-#   repo-relative file that records it. With `pointer` (RFC 6901) the JSON value must equal `count`; without it the
-#   text file must state the number (1234 or 1,234). The generator and tests/repo/test_readme_corpora.py check both.
+#   repo-relative file that records it. With `pointer` (RFC 6901) the JSON value must equal `count`; without it,
+#   `match` anchors the number in the text file: fragments found in order on one line, one of them holding `{count}`
+#   where the number (1234 or 1,234) stands, so a number stated elsewhere in the file does not count. The generator and
+#   tests/repo/test_readme_corpora.py check both.
 # - where: instead of a count, when no committed file records one (say where it can be found).
 # - notes: caveats the profile data does not carry (decision ids). Withholding rules, copyleft, licence policy and use
 #   restrictions are read from the registry and the profiles, so they are not repeated here.
@@ -57,6 +59,7 @@ count = 36666
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `agentdojo-upstream-head` 0.1.0 |", "| ok, {count} executions,"]
 notes = ["207 outcome-only logs"]
 
 [[part]]
@@ -66,6 +69,7 @@ count = 18231
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `agentdojo-upstream-2024-06` 0.1.0 |", "| ok, {count} executions,"]
 notes = ["207 outcome-only logs"]
 
 [[part]]
@@ -80,6 +84,7 @@ count = 38154
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `agentdyn-a` 0.1.0 |", "| ok, {count} executions,"]
 
 [[part]]
 source = "agentdyn"
@@ -88,6 +93,7 @@ count = 5167
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `agentdyn-b` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "agentdyn"
@@ -96,6 +102,7 @@ count = 4244
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `agentdyn-c` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "agentdyn"
@@ -109,6 +116,7 @@ count = 16175
 unit = "executions"
 basis = "spec"
 evidence = "src/agentprov/adapters/agentdojo/profiles/agentdyn.profile.toml"
+match = ["{count} distinct executions"]
 notes = [
   "opt-in part of 16,795 superseded git blobs; fingerprint deduplication deferred to v0.2",
   "first slice pinned at 785b9127: the 621 logs (620 drift.k18.messages, one v1.k14.incomplete) of runs/gpt-4o-mini-2024-07-18-drift/ (R-10j-2, regeneration-batch item 95), not fetched or imported in v0.1",
@@ -147,6 +155,7 @@ count = 10774
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `rope` 0.1.0 |", "| ok, {count} executions,"]
 
 [[part]]
 source = "adprov-v1"
@@ -155,6 +164,7 @@ count = 17656
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `adprov-v1-release` 0.1.0 |", "| ok, {count} executions,"]
 
 [[part]]
 source = "adprov-v1"
@@ -168,6 +178,7 @@ count = 1055
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `ast-survey-agentharm` 0.1.0 |", "| ok, {count} executions,"]
 
 [[part]]
 source = "agent-security-tools-survey"
@@ -176,6 +187,7 @@ count = 3232
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `ast-survey-agentdojo` 0.1.0 |", "| ok, {count} executions,"]
 
 [[part]]
 source = "mandate-agentdojo-eval"
@@ -184,6 +196,7 @@ count = 396
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/pre-release-checks.md"
+match = ["| `mandate-agentdojo-eval` 0.1.0 |", "| ok, {count} executions,"]
 
 [[part]]
 source = "dtap"
@@ -192,6 +205,7 @@ count = 67708
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `dtap-bench-w2c` (addendum) |", "reader | {count} |"]
 notes = [
   "the census counts 67,808 trajectory files: 67,806 parseable, 20 synthetic (not executions)",
   "five harness-host account paths redacted over every AER string by a labels allowlist (D-607); raw ships as pinned (D-186)",
@@ -204,6 +218,7 @@ count = 1558
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `openagentsafety` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "redcode-exec-openhands"
@@ -212,6 +227,7 @@ count = 5459
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `redcode-exec-openhands` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "foobench"
@@ -225,6 +241,7 @@ count = 174
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `aiauthz-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "bookkeeper-agentdojo"
@@ -233,6 +250,7 @@ count = 570
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `bookkeeper-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "ceferisbarov-agentdojo"
@@ -241,6 +259,7 @@ count = 18438
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `ceferisbarov-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "craibench-agentdojo"
@@ -249,6 +268,7 @@ count = 1163
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `craibench-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "gate-agentdojo"
@@ -257,6 +277,7 @@ count = 3870
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `gate-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "geryon-agentdojo"
@@ -265,6 +286,7 @@ count = 3179
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `geryon-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "glitch-agentdojo"
@@ -273,6 +295,7 @@ count = 1842
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `glitch-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "hilarytorn-trajectory-poisoning"
@@ -281,6 +304,7 @@ count = 990
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `hilarytorn-trajectory-poisoning` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "interbolt-agentdojo"
@@ -289,6 +313,7 @@ count = 2016
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `interbolt-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "kongminos-agentdojo"
@@ -297,6 +322,7 @@ count = 950
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `kongminos-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "linyxus-agentdojo"
@@ -305,6 +331,7 @@ count = 9068
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `linyxus-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "llm-lock-agentdojo"
@@ -313,6 +340,7 @@ count = 52387
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `llm-lock-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "melon-agentdojo"
@@ -321,6 +349,7 @@ count = 1911
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `melon-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "memo-ozdincer-agentdojo"
@@ -329,6 +358,7 @@ count = 13064
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `memo-ozdincer-agentdojo` |", "| {count} | **ready** |"]
 notes = ["one execution per row of 137 results containers", "1,038 exception rows outcome-only with imposed outcomes (D-475)", "account paths in model ids redacted in the AER (D-476)"]
 
 [[part]]
@@ -338,6 +368,7 @@ count = 858
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `menelaus29-ipi-multidomain` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "mohameduk-agentdojo"
@@ -346,6 +377,7 @@ count = 3628
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `mohameduk-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "sentry-agentdojo"
@@ -354,6 +386,7 @@ count = 674
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `sentry-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "shreeyavarma-llm-safety"
@@ -362,6 +395,7 @@ count = 672
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `shreeyavarma-llm-safety` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "tacit-agentdojo"
@@ -370,6 +404,7 @@ count = 2070
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `tacit-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "yockcheng-prompt-injection-harness"
@@ -378,6 +413,7 @@ count = 280
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `yockcheng-prompt-injection-harness` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "whistlebench"
@@ -386,6 +422,7 @@ count = 9200
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `whistlebench` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "seagent-agentdojo"
@@ -394,6 +431,7 @@ count = 5331
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `seagent-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "kexin-xu-01-agentharm"
@@ -402,6 +440,7 @@ count = 2796
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `kexin-xu-01-agentharm` |", "| {count} | **ready** |"]
 notes = [
   "18 logs name local checkpoints by account paths, redacted in the AER (D-182, regeneration-batch item 107)",
   "raw objects whose model ids carry account paths ship as pinned (D-186)",
@@ -414,6 +453,7 @@ count = 1747
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `fragfuse-agentharm` |", "| {count} | **ready** |"]
 notes = [
   "account paths in tracebacks and one metadata field are redacted in `ext` (D-182, regeneration-batch item 107)",
 ]
@@ -425,6 +465,7 @@ count = 3360
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `agentops-bench` |", "| {count} | **ready** |"]
 notes = ["the in-scope subset of 7,200 runs (D-143, D-191)"]
 
 [[part]]
@@ -434,6 +475,7 @@ count = 1564
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `drift-head` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "drift"
@@ -442,6 +484,7 @@ count = 1046
 unit = "logs"
 basis = "census"
 evidence = "docs/reports/phase10l/census.md"
+match = ["| DRIFT history |", "| {count} | `drift.k18.conversations` |"]
 notes = ["committed before any licence statement (D-279)"]
 
 [[part]]
@@ -451,6 +494,7 @@ count = 14207
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `credleak-p15b` |", "| {count} | **ready** |"]
 notes = ["withholding per D-265"]
 
 [[part]]
@@ -460,6 +504,7 @@ count = 0
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `controlarena-persistent` |", "| {count} | **ready** (metadata-only"]
 notes = [
   "a metadata-only release: all 5,742 executions of the corpus's five parts are withheld at the seal (D-344)",
   "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
@@ -472,6 +517,7 @@ count = 153
 unit = "samples"
 basis = "census"
 evidence = "docs/reports/phase10p/README.md"
+match = ["Readable now, by container:", " 3-002 31 / {count},"]
 notes = [
   "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
   "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
@@ -484,6 +530,7 @@ count = 810
 unit = "samples"
 basis = "census"
 evidence = "docs/reports/phase10p/README.md"
+match = ["Readable now, by container:", " 3-003 162 / {count},"]
 notes = [
   "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
   "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
@@ -496,6 +543,7 @@ count = 638
 unit = "samples"
 basis = "census"
 evidence = "docs/reports/phase10p/README.md"
+match = ["110 / {count}, the auditor's input log"]
 notes = [
   "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
   "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
@@ -508,6 +556,7 @@ count = 6
 unit = "samples"
 basis = "census"
 evidence = "docs/reports/phase10p/README.md"
+match = ["the auditor's input log 1 / {count}."]
 notes = [
   "account paths in harness text redacted (D-349, D-182); the raw objects holding them withheld (D-604)",
   "released with the corpus (metadata only), counted under `controlarena-persistent` · `zip-3-001`",
@@ -520,6 +569,7 @@ count = 110
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `atia-benchmark` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "autogen-guard-placement"
@@ -528,6 +578,7 @@ count = 1080
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `autogen-guard-placement` |", "| {count} | **ready** |"]
 notes = ["withholding per D-603"]
 
 [[part]]
@@ -537,6 +588,7 @@ count = 1334
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `what-surrounds` |", "| {count} | **ready** |"]
 notes = ["the tools are synthetic by design (D-284)"]
 
 [[part]]
@@ -546,6 +598,7 @@ count = 2190
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `mcphunt` |", "| {count} | **ready** |"]
 notes = ["withholding per D-289"]
 
 [[part]]
@@ -555,6 +608,7 @@ count = 2175
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `code-agent-misalignment` |", "| {count} | **ready** |"]
 notes = ["withholding per D-336, D-609"]
 
 [[part]]
@@ -564,6 +618,7 @@ count = 18734
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `authority-caps-agentdojo` |", "| {count} | **ready** |"]
 notes = ["21,999 logs; 3,260 re-packed byte copies collapse into one execution each (D-250)"]
 
 [[part]]
@@ -573,6 +628,7 @@ count = 3211
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `ipi-defenses-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "dca-agentdojo"
@@ -581,6 +637,7 @@ count = 16211
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `dca-agentdojo` |", "| {count} | **ready** |"]
 notes = ["the released executions of the whole corpus, parts `v1` and `drift`"]
 
 [[part]]
@@ -603,6 +660,7 @@ count = 2619
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `kavach-agentdojo` |", "| {count} | **ready** |"]
 notes = ["the released executions of the whole corpus: its three snapshots hold 2,625 distinct executions (D-253)"]
 
 [[part]]
@@ -632,6 +690,7 @@ count = 626
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `drift1-agentdojo` |", "| {count} | **ready** |"]
 
 [[part]]
 source = "redcode-exec-qwencode"
@@ -640,4 +699,5 @@ count = 3299
 unit = "executions"
 basis = "sealed"
 evidence = "docs/reports/release/wave-2-pre-release-checks.md"
+match = ["| `redcode-exec-qwencode` |", "| {count} | **ready** |"]
 notes = ["4 outputs cut at 64 KiB are salvaged (D-577)"]

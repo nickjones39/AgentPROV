@@ -213,10 +213,11 @@ def _args(**kw) -> argparse.Namespace:
     return argparse.Namespace(**base)
 
 
-def test_containment_gates():
+def test_containment_gates(monkeypatch):
     from agentprov.cli.live.sandbox import PROFILE_SHA256
     from agentprov.cli.run import LiveRefused, _containment
 
+    monkeypatch.setattr("agentprov.platforms.host", lambda: ("Darwin", "arm64"))  # sandbox-exec is macOS's (D-1064)
     with pytest.raises(LiveRefused):
         _containment(_args(), {})
     with pytest.raises(LiveRefused):
@@ -226,6 +227,22 @@ def test_containment_gates():
     assert _containment(_args(containment="sandbox-exec"), {"sandbox_probe": {"status": "passed", "profile_sha256": PROFILE_SHA256}}) == {
         "kind": "sandbox_exec", "declared_by": "probe", "profile_sha256": PROFILE_SHA256}
     assert _containment(_args(containment="dedicated-user"), {}) == {"kind": "dedicated_user", "declared_by": "operator"}
+
+
+@pytest.mark.parametrize("system", ["Linux", "Windows"])
+def test_sandbox_exec_off_macos_is_refused_with_the_platform_reason(monkeypatch, system):
+    """D-1064: off macOS, even a marker claiming a passed probe is refused, with the platform table's message."""
+    from agentprov.cli.live.sandbox import PROFILE_SHA256
+    from agentprov.cli.run import LiveRefused, _containment
+
+    monkeypatch.setattr("agentprov.platforms.host", lambda: (system, "x86_64"))
+    with pytest.raises(LiveRefused) as exc:
+        _containment(_args(containment="sandbox-exec"), {"sandbox_probe": {"status": "passed",
+                                                                           "profile_sha256": PROFILE_SHA256}})
+    assert exc.value.code == "cli.refused.containment"
+    assert str(exc.value).startswith("Enforced containment (--containment sandbox-exec) is available on macOS only. "
+                                     f"On {system} it is not available: ")
+    assert _containment(_args(containment="vm"), {}) == {"kind": "vm", "declared_by": "operator"}
 
 
 def test_consent_is_required_without_a_terminal(monkeypatch):
@@ -452,6 +469,193 @@ def test_a_campaign_aborting_error_kills_the_other_in_flight_workers(monkeypatch
     assert time.monotonic() - started < 2.5
     assert "end c1" not in log and "end c2" not in log
 
+
+def test_a_cell_killed_before_it_is_ledgered_is_charged_on_resume(monkeypatch, tmp_path: Path):
+    """AU-LIVE-3: a campaign-aborting error (here a worker that fails hello) kills the other in-flight cell, which had
+    already billed 40 calls; its session is left unledgered, so a resumed campaign charged none of them. Each cell is
+    now counted in ``live.caps.unledgered_cells`` before it starts and until it is ledgered, and a resume charges every
+    cell still counted a whole cell at the bound. The attempt that failed hello never sent ``run_cell`` and is not
+    counted."""
+    import threading
+
+    from agentprov.cli.live import campaign as cm
+    from agentprov.cli.live.policy import CELL_CALL_BOUND, Budget, Caps
+    from agentprov.cli.live.worker import WorkerDied
+    from agentprov.cli.run import _prior_unledgered_cells
+    from agentprov.errors import AgentProvError
+
+    billed = threading.Event()
+
+    class Billing:
+        alive = True
+
+        def __init__(self) -> None:
+            self.killed = threading.Event()
+
+        def request(self, op, replies, timeout, **fields):
+            billed.set()  # 40 paid calls made by now
+            self.killed.wait(30)
+            raise WorkerDied("the worker exited")
+
+        def kill(self) -> None:
+            self.killed.set()
+
+        def close(self) -> None:
+            pass
+
+        def shutdown(self) -> None:
+            pass
+
+    spawned: list[int] = []
+    spawn_lock = threading.Lock()
+
+    def ensure(slot):
+        with spawn_lock:
+            spawned.append(slot.index)
+            first = len(spawned) == 1
+        if not first:
+            billed.wait(10)
+            raise AgentProvError("the backend worker did not answer hello", code="backend.unavailable", exit_code=3)
+        slot.worker = Billing()
+        return slot.worker
+
+    campaign, _ = _campaign(monkeypatch, tmp_path, jobs=2, stagger=0, durations={})
+    monkeypatch.setattr(cm.Slot, "ensure", ensure)
+    campaign.budget = budget = Budget(Caps(max_calls=100))
+    written: list[dict] = []
+    with pytest.raises(AgentProvError, match="hello"):
+        campaign.run([{"cell_key": "A"}, {"cell_key": "B"}], write_documents=lambda: written.append(budget.record()))
+    assert written[0]["unledgered_cells"] == 1 and written[1]["unledgered_cells"] == 2  # recorded before each start
+    assert campaign.ledger.entries == [] and budget.record()["unledgered_cells"] == 1  # the killed cell only
+    resumed = Budget(budget.caps)
+    resumed.charge_unledgered(_prior_unledgered_cells({"caps": budget.record()}))
+    assert resumed.calls == CELL_CALL_BOUND >= 40 and resumed.record()["unledgered_cells"] == 1
+    assert (resumed.refusal(1) or "").startswith("cap_reached: --max-calls 100")  # 48 + 2 x 48 > 100
+
+
+def test_a_ledgered_cell_is_no_longer_counted_as_unledgered(monkeypatch, tmp_path: Path):
+    """AU-LIVE-3: a cell counts in ``live.caps.unledgered_cells`` only until its attempt is ledgered."""
+    from agentprov.cli.live.policy import Budget, Caps
+
+    def ingest(self, result):  # quarantined: ledgered (and billed) without a quality record or a re-attempt
+        return {"session": result.session, "cell_key": result.task.cell_key, "config_digest": "d", "repeat": 0,
+                "status": "quarantined"}
+
+    campaign, _ = _campaign(monkeypatch, tmp_path, jobs=2, stagger=0, durations={"c0": 0.05, "c1": 0.05},
+                            ingest=ingest)
+    campaign.budget = budget = Budget(Caps(max_calls=1000))
+    campaign.run([{"cell_key": "c0"}, {"cell_key": "c1"}], write_documents=lambda: None)
+    assert len(campaign.ledger.entries) == 2 and budget.started_cells == 0
+    assert "unledgered_cells" not in budget.record()
+
+
+_SILENT_WORKER = "import sys, time\nfor line in sys.stdin.buffer:\n    time.sleep(3600)\n"
+
+
+def _silent_worker(tmp_path: Path, cls: type | None = None):
+    """A real backend worker process that reads requests and never answers (a cell in flight until it is killed)."""
+    import uuid
+
+    from agentprov.cli.live.worker import BackendWorker, WorkerSpec, make_private_dir
+
+    cwd = make_private_dir(tmp_path / f"worker-{uuid.uuid4().hex[:8]}")
+    worker = (cls or BackendWorker)(WorkerSpec(argv=[sys.executable, "-I", "-c", _SILENT_WORKER],
+                                               env={"PATH": "/usr/bin:/bin"}, cwd=cwd,
+                                               stderr_path=cwd / "worker.stderr.log"))
+    worker.start()
+    return worker
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the child gets a POSIX PATH only")
+def test_two_threads_resetting_one_slot_both_return_with_its_worker_dead(tmp_path: Path):
+    """AU-LIVE-2: on a stop the main thread and the attempt's thread (woken by the kill) reset the same slot at once.
+    ``reset`` was check-then-act on ``slot.worker``, so the later thread called ``close`` on ``None``; now exactly one
+    thread takes the worker and neither returns before the worker process is gone."""
+    import threading
+
+    from agentprov.cli.live import campaign as cm
+    from agentprov.cli.live.worker import BackendWorker
+
+    class SlowKill(BackendWorker):
+        kills = 0
+
+        def kill(self) -> None:
+            SlowKill.kills += 1
+            super().kill()
+            time.sleep(0.2)  # both threads are past any check on slot.worker before either one clears it
+
+    slot = cm.Slot(0, campaign=None)  # type: ignore[arg-type]
+    worker = slot.worker = _silent_worker(tmp_path, SlowKill)
+    barrier = threading.Barrier(2)
+    errors: list[BaseException] = []
+    dead_on_return: list[bool] = []
+
+    def reset() -> None:
+        barrier.wait()
+        try:
+            slot.reset()
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+        dead_on_return.append(worker.returncode is not None)
+
+    threads = [threading.Thread(target=reset) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+    assert errors == [] and slot.worker is None
+    assert dead_on_return == [True, True] and SlowKill.kills == 1
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the child gets a POSIX PATH only")
+def test_an_interrupt_kills_every_real_worker_even_when_one_reset_fails(monkeypatch, tmp_path: Path):
+    """AU-LIVE-2: the first Ctrl-C with real workers in flight. Each kill wakes the attempt's thread, which resets its
+    slot while the main thread does; and slot 0's reset raises. The interrupt still propagates (exit 130), every other
+    worker is killed at once (the command does not wait for --cell-timeout), and every in-flight attempt is ledgered
+    as aborted."""
+    from agentprov.cli.live import campaign as cm
+    from agentprov.cli.live.worker import BackendWorker
+
+    class BrokenClose(BackendWorker):
+        def close(self) -> None:
+            super().close()
+            raise RuntimeError("close failed")
+
+    workers: list[BackendWorker] = []
+
+    def ensure(slot):
+        if slot.worker is None:
+            slot.worker = _silent_worker(tmp_path, BrokenClose if slot.index == 0 else None)
+            workers.append(slot.worker)
+        return slot.worker
+
+    real_wait = cm.wait
+
+    def interrupted(futures, return_when):
+        deadline = time.monotonic() + 10
+        while len(workers) < 4 and time.monotonic() < deadline:  # every cell in flight
+            time.sleep(0.02)
+        time.sleep(0.3)
+        raise KeyboardInterrupt
+
+    campaign, _ = _campaign(monkeypatch, tmp_path, jobs=4, stagger=0, durations={})
+    monkeypatch.setattr(cm.Slot, "ensure", ensure)
+    monkeypatch.setattr(cm, "wait", interrupted)
+    campaign.cell_timeout = 60
+    started = time.monotonic()
+    try:
+        with pytest.raises(KeyboardInterrupt):
+            campaign.run([{"cell_key": f"c{i}"} for i in range(4)], write_documents=lambda: None)
+        assert time.monotonic() - started < 15
+        assert len(workers) == 4 and all(w.returncode is not None for w in workers)
+        assert sorted(e["cell_key"] for e in campaign.ledger.entries) == ["c0", "c1", "c2", "c3"]
+        assert {e["status"] for e in campaign.ledger.entries} == {"aborted"}
+    finally:
+        monkeypatch.setattr(cm, "wait", real_wait)
+        for worker in workers:
+            if worker.returncode is None:
+                worker.kill()
+
 # ------------------------------------------------------------------------------------------------ core review C fixes
 def test_a_dry_run_never_lets_the_attack_cache_check_fetch(monkeypatch):
     """CC-24: ``run --dry-run --allow-network`` fetched the AutoDojo pin; a dry run never uses the network (N.1.6)."""
@@ -547,3 +751,24 @@ def test_the_second_signal_kills_the_backend_workers_before_it_exits(tmp_path):
         time.sleep(0.1)
     os.kill(pid, 9)
     raise AssertionError("the backend worker outlived the second signal")
+
+
+def test_an_interrupt_while_an_attempt_is_ingested_waits_for_its_ledger_entry(monkeypatch, tmp_path: Path):
+    """AU-RN-7: a first signal that lands while the main thread ingests a finished attempt is raised only once the
+    attempt's ledger entry is appended and the documents are written, so a resume never runs the unit again."""
+    import signal
+
+    from agentprov.cli.common import install_signal_handlers
+
+    def ingest(self, result):
+        signal.raise_signal(signal.SIGINT)  # the first Ctrl-C, mid-ingest
+        return {"session": result.session, "cell_key": result.task.cell_key, "config_digest": "d", "repeat": 0,
+                "status": "complete", "accounting": "consistent"}
+
+    campaign, _log = _campaign(monkeypatch, tmp_path, jobs=1, stagger=0, durations={"c0": 0.0}, ingest=ingest)
+    written: list[int] = []
+    with install_signal_handlers(), pytest.raises(KeyboardInterrupt):
+        campaign.run([{"cell_key": "c0"}, {"cell_key": "c1"}],
+                     write_documents=lambda: written.append(len(campaign.ledger.entries)))
+    assert [e["cell_key"] for e in campaign.ledger.entries] == ["c0"] and written[0] == 1
+    assert campaign.counters["attempted"] == 1

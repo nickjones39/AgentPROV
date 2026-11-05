@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 from agentprov.cli import gitinfo
 from agentprov.cli.common import (
+    MAX_OPTION_INT,
     CliUsageError,
     CommandResult,
     Context,
@@ -192,7 +193,8 @@ def add_run_options(p: argparse.ArgumentParser, shared: argparse.ArgumentParser,
                        help="a served model id that may differ from the requested one (repeatable; recorded; A12)")
     local.add_argument("--allow-lan-endpoint", action="store_true",
                        help="allow a local endpoint on a literal private LAN address (D-698): prompts and replies leave "
-                            "this machine over plain http; keyless; recorded")
+                            "this machine over plain http; keyless; recorded; an API endpoint run (D-1067): the caps "
+                            "and --i-consent-to-api-costs apply")
     local.add_argument("--no-hash-weights", action="store_true",
                        help="record a local model's weight files by size only (weights_hashed false)")
     ctl = group("control")
@@ -1190,14 +1192,15 @@ def _class_with_defence(args: argparse.Namespace, agent: Mapping[str, Any], endp
     return "api"
 
 
-def _defence_cell_calls(entry: Any) -> int:
+def _defence_cell_calls(entry: Any, attempts: int = 1) -> int:
     """The per-cell billed-call bound of an AgentDojo-family cell under the defence ``entry`` (``None``: undefended),
-    from the entry's declared ``cost`` (:func:`agentprov.cli.live.policy.defence_cell_calls`)."""
+    from the entry's declared ``cost`` (:func:`agentprov.cli.live.policy.defence_cell_calls`), with every model step at
+    ``attempts`` billed replies (the LLM element's, :func:`agentprov.cli.live.policy.step_attempts`; AU-LIVE-1)."""
     from agentprov.cli.live.policy import CELL_CALL_BOUND, defence_cell_calls
 
     if entry is None:
-        return CELL_CALL_BOUND
-    bound = defence_cell_calls(entry.raw.get("cost"))
+        return CELL_CALL_BOUND * attempts
+    bound = defence_cell_calls(entry.raw.get("cost"), attempts)
     if bound is None:
         raise LiveRefused(f"the API call and cost caps (D-725) cannot bound a cell under the defence {entry.id}: its "
                           "registry entry declares a cost member the bound cannot use", code="cli.refused.api_caps")
@@ -1385,6 +1388,21 @@ def _plan_judges(judges: Any, agent_table: Mapping[str, Any]) -> dict[str, Any]:
     return rebuilt
 
 
+def _repeats_value(value: Any) -> int | None:
+    """``value`` as a repeat count: an integer from 1 to :data:`MAX_OPTION_INT` (``--repeats``' range), else ``None``."""
+    ok = isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= MAX_OPTION_INT
+    return value if ok else None
+
+
+def _check_plan_repeats(spec: Mapping[str, Any]) -> None:
+    """A ``--plan`` file's ``[backend] repeats`` is a repeat count as ``--repeats`` takes it (exit 2, before any worker
+    is spawned; AU-RN-10): a value below 1 would plan no unit and a non-integer failed as an internal error."""
+    backend = spec.get("backend")
+    if isinstance(backend, Mapping) and "repeats" in backend and _repeats_value(backend["repeats"]) is None:
+        raise CliUsageError(f"agentprov run: --plan [backend] repeats must be an integer from 1 to {MAX_OPTION_INT} "
+                            f"(got {safe_text(repr(backend['repeats']), 40)})")
+
+
 def _inspect_document(args: argparse.Namespace, agent: Mapping[str, Any], backend: str) -> dict[str, Any]:
     """An Inspect plan (D-663; ``agentprov_backend_inspect.plan``): ``[plan]``, ``[inspect]`` and the judge tables from
     the command line (or ``--plan``), the agent from the command line. Judges use the agent's endpoint, base URL and key
@@ -1404,6 +1422,7 @@ def _inspect_document(args: argparse.Namespace, agent: Mapping[str, Any], backen
             raise CliUsageError(f"agentprov run: --plan is not valid TOML ({safe_text(str(exc), 120)})") from None
         if _given(args, _INSPECT_OPTIONS):
             raise CliUsageError("agentprov run: --plan is exclusive with " + ", ".join(_given(args, _INSPECT_OPTIONS)))
+        _check_plan_repeats(spec)
         from_file = {k: v for k, v in spec.items() if k != "agent"}
         from_file.setdefault("plan", {}).update({"format": "agentprov-run-plan/0.1", "backend": backend})
         from_file["agent"] = agent_table
@@ -1459,6 +1478,7 @@ def _plan_document(args: argparse.Namespace, agent: Mapping[str, Any], *, backen
             raise CliUsageError("agentprov run: --plan cannot be read") from None
         except tomllib.TOMLDecodeError as exc:
             raise CliUsageError(f"agentprov run: --plan is not valid TOML ({safe_text(str(exc), 120)})") from None
+        _check_plan_repeats(spec)
         plan = spec.get("plan")
         if not isinstance(plan, dict) or plan.get("format") != "agentprov-run-plan/0.1":
             raise CliUsageError("agentprov run: --plan must have [plan] format = \"agentprov-run-plan/0.1\" (D.10.1)")
@@ -1577,10 +1597,10 @@ def _probe(run_once: Any, result: CommandResult, budget: Any = None, prior: Any 
                               code="cli.refused.api_caps")
         results = run_once()
         calls += 1
-        if budget is not None:
-            budget.charge_probe()
+        if budget is not None:  # at its bound: the LLM element may ask again (AU-LIVE-1)
+            budget.charge_probe(budget.step_calls)
         if prior is not None:
-            prior.charge_probe()
+            prior.charge_probe(prior.step_calls)
         if not _probe_inconclusive(results) or calls >= PROBE_ATTEMPTS:
             if calls > 1:
                 result.notices.append(f"preflight: {calls} probe call(s); the earlier replies gave no evidence that the "
@@ -1654,9 +1674,15 @@ def _consent(args: argparse.Namespace, *, agent: Mapping[str, Any], ctx: Context
         lines.append(f"  defence endpoint {safe_text(str(defence_endpoint.get('base_url')), 200)} "
                      f"({safe_text(str(defence_endpoint.get('endpoint')), 40)}), key variable "
                      f"{defence_endpoint.get('api_key_env') or 'none'}: the defence's own model or embedding calls")
+    from agentprov.cli.live.policy import is_lan_base_url
+
     local = endpoint_kind == "local"
+    lan = not local and is_lan_base_url(agent.get("base_url"))
     if local:
         lines.append("  local model server: no provider billing; the run loads this machine heavily")
+    elif lan:  # D-1067: keyless, but the data leaves this machine, so it is an API endpoint run
+        lines.append("  LAN model server: prompts and replies leave this machine over plain http; an API endpoint run "
+                     "(D-1067): the caps and API consent apply")
     else:
         lines.append("  model calls may be billed by the provider")
     if budget is not None:
@@ -1673,7 +1699,8 @@ def _consent(args: argparse.Namespace, *, agent: Mapping[str, Any], ctx: Context
         return
     if args.i_consent_to_local_run:
         if not local:
-            raise LiveRefused("--i-consent-to-local-run is consent for a local model server; an API endpoint run needs "
+            what = "; a LAN model server is an API endpoint (D-1067), so its run" if lan else "; an API endpoint run"
+            raise LiveRefused(f"--i-consent-to-local-run is consent for a local model server on loopback{what} needs "
                               "--i-consent-to-api-costs or the interactive prompt (D-726)", code="cli.refused.consent")
         result.notices.append("consent: --i-consent-to-local-run")
         return
@@ -1697,6 +1724,10 @@ def _containment(args: argparse.Namespace, marker: Mapping[str, Any]) -> dict[st
         raise LiveRefused("a real-model run needs --containment {sandbox-exec,dedicated-user,vm} (AD-13(b); G.4.10)",
                           code="cli.refused.containment")
     if args.containment == "sandbox-exec":
+        from agentprov.platforms import unavailable
+
+        if (hit := unavailable("sandbox_exec")) is not None:  # D-1064: the platform table's reason, not the probe's
+            raise LiveRefused(hit.message(), code="cli.refused.containment")
         probe_raw = marker.get("sandbox_probe")
         probe: Mapping[str, Any] = probe_raw if isinstance(probe_raw, Mapping) else {}
         if probe.get("status") != "passed" or probe.get("profile_sha256") != PROFILE_SHA256:
@@ -1972,17 +2003,24 @@ def _prior_probe_calls(live: Any) -> int:
     return count if isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
 
 
+def _prior_unledgered_cells(live: Any) -> int:
+    """The cells earlier invocations started and never ledgered, from the working corpus's ``live.caps`` (AU-LIVE-3)."""
+    caps = live.get("caps") if isinstance(live, Mapping) else None
+    count = caps.get("unledgered_cells") if isinstance(caps, Mapping) else None
+    return count if isinstance(count, int) and not isinstance(count, bool) and count > 0 else 0
+
+
 def _prior_budget(args: argparse.Namespace, budget: Any) -> Any:
     """A read-only copy of what the campaign has spent before this invocation's probes (D-725, per corpus): the working
-    corpus's ledgered attempts, charged from their stored capture logs as the campaign charges them, and its earlier
-    probe calls. ``None`` without caps."""
+    corpus's ledgered attempts, charged from their stored capture logs as the campaign charges them, its earlier
+    probe calls, and its cells started but never ledgered (a whole cell each). ``None`` without caps."""
     from agentprov.cli.live.policy import Budget
     from agentprov.corpus.layout import CorpusLayout, partial_dir
     from agentprov.raw.store import RawObjectStore
 
     if budget is None:
         return None
-    prior = Budget(budget.caps, cell_calls=budget.cell_calls)
+    prior = Budget(budget.caps, cell_calls=budget.cell_calls, step_calls=budget.step_calls)
     partial = partial_dir(_final_dir(args.corpus)) if args.corpus else None
     if partial is None or not partial.is_dir():
         return prior
@@ -1998,6 +2036,7 @@ def _prior_budget(args: argparse.Namespace, budget: Any) -> Any:
 
     prior.charge_all(stored(e) for e in _load_ledger(manifest, store).entries)
     prior.charge_probe(_prior_probe_calls((manifest or {}).get("live")))
+    prior.charge_unledgered(_prior_unledgered_cells((manifest or {}).get("live")))
     return prior
 
 
@@ -2029,6 +2068,12 @@ def run_run(ctx: Context) -> CommandResult:
     from agentprov.host import detect_host
 
     args = ctx.args
+    if not (args.dry_run and (args.m5ultra or args.preset)):
+        # D-1064: every mode but a host preset's dry run (the concurrency plan, computed here) starts the backend
+        # worker: refused where live runs are known not to work, before stdin, a key or the host probe is read
+        from agentprov.platforms import refuse
+
+        refuse("live_runs")
     # D-395: stdin's endpoint variables before any other step. --keychain is checked now and read only on the real-agent
     # path, after the D-721 caps check, so an uncapped API run reads no key (D-702)
     env_values = _read_env_stdin(args) if args.env_stdin else None
@@ -2236,7 +2281,7 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
         result.notices.append("scripted transport (--llm-script): no network, no keys; sessions are test_only and the "
                               "corpus is synthetic (never released)")
     else:
-        from agentprov.cli.live.policy import Caps, endpoint_class
+        from agentprov.cli.live.policy import Caps, api_reason, endpoint_class
         from agentprov_capture.endpoints import get_endpoint
 
         # D-721: an entry that is not local is an API endpoint whatever its base URL: its caps are checked before any
@@ -2259,11 +2304,11 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
             values = _default_key_values(args, root, result)
         agent, keys = _real_agent(args, values, result)
         _check_inspect_endpoint(project.backend, agent)
-        endpoint_kind = endpoint_class(local_entry=get_endpoint(str(agent["endpoint"])).local,
-                                       base_url=agent.get("base_url"))
-        _require_api_caps(args, _caps(args, agent).missing_for_api() if endpoint_kind == "api" else [],
-                          "the resolved base URL is not a local server on loopback")
-        result.notices.append(f"endpoint class {endpoint_kind} (D-721)")
+        local_entry = get_endpoint(str(agent["endpoint"])).local
+        endpoint_kind = endpoint_class(local_entry=local_entry, base_url=agent.get("base_url"))
+        why = api_reason(local_entry=local_entry, base_url=agent.get("base_url")) if endpoint_kind == "api" else ""
+        _require_api_caps(args, _caps(args, agent).missing_for_api() if endpoint_kind == "api" else [], why)
+        result.notices.append(f"endpoint class {endpoint_kind} (D-721)" + (f": {why}" if why else ""))
         sandbox = _containment(args, marker)
         if agent.get("endpoint") in LOCAL_ENDPOINT_NAMES:  # D-691..D-693: before consent, the plan and any spawn
             agent, local_record, observe_local = _resolve_local(
@@ -2314,7 +2359,7 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
     argv = [str(envs.env_python(env)), "-I", "-B", "-m", envs.backend_kind(project.backend).worker_module]
     egress: Any = None
     if sandbox is not None and sandbox["kind"] == "sandbox_exec":
-        from agentprov.cli.live.egress import EgressProxy, endpoint_target, forward_pairs, tunnel_cap
+        from agentprov.cli.live.egress import EgressProxy, forward_pairs, tunnel_cap
         from agentprov.cli.live.sandbox import wrap_argv
 
         # D-664: T2 may connect to two loopback ports only. A remote endpoint is reached through T0's egress proxy,
@@ -2322,16 +2367,7 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
         # server over http (D-698) through the proxy's forward mode for exactly that pair.
         base_url = str(agent.get("base_url"))
         lan = bool(agent.get("allow_lan"))
-        host, port, loopback = endpoint_target(base_url, allow_lan=lan)
-        targets = [(host, port)]
-        if defence_endpoint is not None:  # D-675: the defence's own endpoint is a second allowed target
-            d_host, d_port, d_loopback = endpoint_target(str(defence_endpoint["base_url"]))
-            if loopback != d_loopback:
-                raise _unsupported("a defence endpoint on another side of the sandbox than the agent's", source, (
-                    "Under sandbox-exec the agent's and the defence's endpoints must both be remote or both loopback "
-                    "(D-664, D-675).",))
-            if not d_loopback and (d_host, d_port) not in targets:
-                targets.append((d_host, d_port))
+        host, port, loopback, targets, defence_port = _sandbox_targets(base_url, lan, defence_endpoint, source)
         if loopback:
             egress_port = port
         else:
@@ -2342,7 +2378,7 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
             ctx_stack.callback(egress.stop)
             egress_port = egress.start()
         argv = wrap_argv(argv, staging_root=home / "staging", t2home_root=home / "t2home", repo=root, home=Path.home(),
-                         egress_port=egress_port)
+                         egress_port=egress_port, loopback_port=defence_port)
     egress_url = egress.url if egress is not None else None
 
     hf_cache: str | None = None
@@ -2358,10 +2394,11 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
     def offline_env(t2home: Path) -> dict[str, str]:  # hello and plan need no key and no network (G.6.3)
         return worker_environment(home=t2home, key_variables={}, block_network=True, nltk_data=nltk_data)
 
-    from agentprov_capture.redact import Redactor, Secret, secrets_from_environ
+    from agentprov_capture.redact import Redactor
 
-    secrets = secrets_from_environ(ctx.env) + [Secret(k, v, "file_value") for k, v in keys.items()]
-    redactor = Redactor(secrets)
+    from agentprov.cli.live.staging import t0_secrets
+
+    redactor = Redactor(t0_secrets(ctx.env, values, keys))  # UC-22: never every pattern-named parent variable
 
     if args.preflight_only:
         if not scripted:  # N.1.11(3): the probe is a paid call, so consent comes first
@@ -2418,15 +2455,23 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
     if cache is not None:  # the cache's identity is part of the configuration: another cache is another unit (N.1.8(1))
         digest_input["attack_cache"] = dict(cache.attack_params)
     config_digest = "sha256:" + sha256_hex(jcs_bytes(digest_input))
-    repeats = args.repeats or int((plan.get("backend_config") or {}).get("repeats") or 1)
-    from agentprov.cli.live.policy import Budget
+    planned_repeats = (plan.get("backend_config") or {}).get("repeats")
+    if planned_repeats is not None and _repeats_value(planned_repeats) is None:  # the worker's echo of [backend]
+        raise LiveEnvironmentError("the backend worker sent a malformed plan (backend_config.repeats)",
+                                   code="backend.protocol")
+    repeats = args.repeats or planned_repeats or 1
+    from agentprov.cli.live.policy import Budget, step_attempts
 
     caps = _caps(args, agent)
     budget = None
     if caps.active:
         inspect_backend = project.backend.startswith("inspect-") and not scripted
-        budget = Budget(caps, cell_calls=_inspect_cell_calls(project.backend, plan_doc, agent, identity)) \
-            if inspect_backend else Budget(caps, cell_calls=_defence_cell_calls(defence_entry))
+        if inspect_backend:  # D-740: every Inspect call is at most 1 + K billed responses
+            budget = Budget(caps, cell_calls=_inspect_cell_calls(project.backend, plan_doc, agent, identity),
+                            step_calls=1 + envs.INSPECT_MAX_RETRIES)
+        else:  # AU-LIVE-1: every model step at the billed replies its LLM element may take
+            attempts = step_attempts(agent.get("llm_element"), project.backend)
+            budget = Budget(caps, cell_calls=_defence_cell_calls(defence_entry, attempts), step_calls=attempts)
     if args.dry_run:
         if budget is not None:
             calls, usd = budget.cell_bound()
@@ -2434,6 +2479,8 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
                                   + (f" and ${usd:.3f}" if caps.max_cost_usd is not None else "")
                                   + "; a cell starts only if that fits what is left")
         return _dry_run_live(args, result, cells, plan, config_digest, repeats, corpus_id, project)
+    if args.corpus and not getattr(args, "tune_jobs", None):  # AU-RN-5: before consent and the paid probe
+        _check_working_corpus(args, home, config_digest, test_only=scripted)
     resume = _resume_state(args, cells, config_digest, repeats)
     if not scripted:  # N.1.11(3): consent before the first model call, which is the paid preflight probe
         _consent(args, agent=agent, ctx=ctx, result=result, resume=resume, endpoint_kind=endpoint_kind, budget=budget,
@@ -2454,6 +2501,88 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
     return _execute(ctx, args, result, **execute_kw, jobs=jobs, corpus_id=str(corpus_id), preset=preset_rec)
 
 
+def _sandbox_targets(base_url: str, lan: bool, defence_endpoint: Mapping[str, Any] | None,
+                     source: str) -> tuple[str, int, bool, list[tuple[str, int]], int | None]:
+    """Under sandbox-exec (D-664, D-675): the agent endpoint's host, port and side (loopback or not), the egress proxy's
+    targets, and the second loopback port the profile allows (``LOOPBACK_PORT``; ``None``: the first one's). A loopback
+    defence endpoint on another port than a loopback agent's takes that second port (AU-RN-3): without it every defence
+    call would be denied inside T2."""
+    from agentprov.cli.live.egress import endpoint_target
+
+    host, port, loopback = endpoint_target(base_url, allow_lan=lan)
+    targets = [(host, port)]
+    defence_port: int | None = None
+    if defence_endpoint is not None:  # D-675: the defence's own endpoint is a second allowed target
+        d_host, d_port, d_loopback = endpoint_target(str(defence_endpoint["base_url"]))
+        if loopback != d_loopback:
+            raise _unsupported("a defence endpoint on another side of the sandbox than the agent's", source, (
+                "Under sandbox-exec the agent's and the defence's endpoints must both be remote or both loopback "
+                "(D-664, D-675).",))
+        if not d_loopback and (d_host, d_port) not in targets:
+            targets.append((d_host, d_port))
+        if d_loopback and d_port != port:
+            defence_port = d_port
+    return host, port, loopback, targets, defence_port
+
+
+def _check_working_corpus(args: argparse.Namespace, home: Path, config_digest: str, *, test_only: bool) -> None:
+    """The refusals that need only the working corpus, read-only and before consent and the preflight probe (AU-RN-5):
+    a probe sent before one of them would be a paid call no corpus records. The G2 overlap guard, an existing final
+    directory, a held writer lock, another live configuration without ``--allow-mixed-config`` (G5) and a scripted /
+    real-model mix (H.1.1(2)). :func:`_execute` makes the same checks again once the corpus is open."""
+    from agentprov.corpus.layout import CorpusLayout, partial_dir
+    from agentprov.io.atomic import DestinationExistsError
+    from agentprov.raw.store import RawObjectStore
+
+    final = _final_dir(args.corpus)
+    _check_guarded(final, home)
+    if os.path.lexists(final):
+        raise DestinationExistsError("the final corpus directory already exists")
+    partial = partial_dir(final)
+    if not partial.is_dir():
+        return
+    _check_not_held(partial, args)
+    manifest = _read_json(CorpusLayout(partial).manifest)
+    ledger = _load_ledger(manifest, RawObjectStore(partial / "raw", create=False))
+    before = (manifest or {}).get("live") or {}
+    _check_config_mix(args, ledger, before if isinstance(before, Mapping) else {}, config_digest, test_only)
+
+
+def _check_guarded(final: Path, home: Path) -> None:
+    for guarded in (home / "envs", home / "staging", home / "t2home"):
+        if _inside(final, guarded) or _inside(guarded, final):
+            raise LiveRefused("the corpus directory overlaps the backend environments or live staging (G2)",
+                              code="cli.refused.guard")
+
+
+def _check_config_mix(args: argparse.Namespace, ledger: Any, before: Mapping[str, Any], config_digest: str,
+                      test_only: bool) -> None:
+    mixed = sorted({str(e.get("config_digest")) for e in ledger.entries} - {config_digest})
+    if mixed and not args.allow_mixed_config:
+        raise LiveRefused("the working corpus holds sessions of another live configuration (G5); pass "
+                          "--allow-mixed-config to add this one (recorded)", code="cli.refused.mixed_config")
+    if before and bool(before.get("test_only")) != test_only:
+        raise LiveRefused("scripted (test_only) and real-model sessions never share a corpus (H.1.1(2))",
+                          code="cli.refused.mixed_config")
+
+
+def _check_not_held(tree: Path, args: argparse.Namespace) -> None:
+    """Refuse (exit 4) when the working tree ``tree`` holds a live writer lock (guard G6), the check
+    :class:`~agentprov.corpus.writer.CorpusWriter` makes; a stale one is broken only with ``--break-stale-lock``."""
+    from agentprov.corpus.layout import CorpusLayout
+    from agentprov.io.atomic import LockFile, LockHeldError
+
+    lock = CorpusLayout(tree).lock
+    if not os.path.lexists(lock):
+        return
+    try:
+        with LockFile(lock, command="run", break_stale=bool(args.break_stale_lock)):
+            pass
+    except LockHeldError as exc:
+        raise LiveRefused(f"the working corpus {tree.name} is held by another writer ({exc}); nothing was moved or "
+                          "written", code="cli.refused.guard") from None
+
+
 def _tune_sweep(ctx: Context, args: argparse.Namespace, result: CommandResult, execute_kw: dict[str, Any], *,
                 preset: Any, facts: Any, host: HostProfile) -> CommandResult:
     """``run --tune-jobs`` (N.2.1a(4); D-820, D-821): a warm-up cell, then one arm per ``jobs`` value, each the same
@@ -2464,6 +2593,7 @@ def _tune_sweep(ctx: Context, args: argparse.Namespace, result: CommandResult, e
     import copy
     from datetime import UTC, datetime
 
+    from agentprov import drain
     from agentprov.cli.live import tune
     from agentprov.cli.live.envs import agentprov_home
     from agentprov.corpus.layout import partial_dir
@@ -2488,14 +2618,29 @@ def _tune_sweep(ctx: Context, args: argparse.Namespace, result: CommandResult, e
         return local_concurrency(preset, facts, host=host, server_max_concurrency=args.server_max_concurrency,
                                  jobs_override=n)
 
+    sweep_budget = execute_kw.get("budget")  # D-725: the sweep's spend, the preflight probe's calls charged already
+
+    def arm_budget(*, warm_up: bool) -> Any:
+        """AU-RN-2: each corpus (the warm-up's, each arm's) has its own budget, since the caps are per corpus; its
+        charges go to the sweep's budget too, which must also fit the caps. The probe's calls belong to the warm-up."""
+        if sweep_budget is None:
+            return None
+        from agentprov.cli.live.policy import Budget
+
+        own = Budget(sweep_budget.caps, cell_calls=sweep_budget.cell_calls, step_calls=sweep_budget.step_calls,
+                     sweep=sweep_budget)
+        if warm_up:  # recorded in the warm-up's live.caps only: the sweep's budget holds them already
+            own.calls, own.cost_usd, own.probe_calls = sweep_budget.calls, sweep_budget.cost_usd, sweep_budget.probe_calls
+        return own
+
     def run_into(corpus: Path, corpus_id: str, n: int, *, limit: int | None, measure: Any) -> CommandResult:
         arm_args = copy.copy(base)
         arm_args.corpus, arm_args.limit = str(corpus), limit
         arm_args.canary = 1 if limit is not None else args.canary
         arm_args.start_stagger = user_stagger if user_stagger is not None else preset.start_stagger_per_worker_s * n
         rec = corpus_json(preset_record(preset, plan_for(n), start_stagger_s=user_stagger, host_mismatches=mismatches))
-        return _execute(ctx, arm_args, CommandResult(), **execute_kw, jobs=n, corpus_id=corpus_id, preset=rec,
-                        on_done=measure)
+        return _execute(ctx, arm_args, CommandResult(), **{**execute_kw, "budget": arm_budget(warm_up=limit is not None)},
+                        jobs=n, corpus_id=corpus_id, preset=rec, on_done=measure)
 
     for n in args.tune_values:
         if stop is not None:
@@ -2512,13 +2657,23 @@ def _tune_sweep(ctx: Context, args: argparse.Namespace, result: CommandResult, e
             reused.append(n)
             result.notices.append(f"arm jobs={n}: reused from {arm_file.name} (a re-run of the same configuration)")
         else:
+            if drain.draining():  # AU-RN-1: a drain starts no further arm; a re-run measures it
+                stop = "drained"
+                arms.append(tune.skipped(n, stop))
+                continue
             corpus = out / f"jobs-{n}"
-            for old in (corpus, partial_dir(corpus)):
-                if old.exists():  # an unfinished arm's wall time is lost: kept aside, measured again (D-820)
-                    old.rename(old.with_name(f"{old.name}.interrupted-{stamp}"))
+            unfinished = [old for old in (corpus, partial_dir(corpus)) if old.exists()]
+            for old in unfinished:  # AU-RN-4: never moved from under a live writer (another sweep on this --tune-out)
+                _check_not_held(old, args)
+            for old in unfinished:  # an unfinished arm's wall time is lost: kept aside, measured again (D-820)
+                old.rename(old.with_name(f"{old.name}.interrupted-{stamp}"))
             if not warmed:  # D-820: the model is loaded and the prefix cache warm before the first measured arm
                 run_into(out / f"warmup-{stamp}", f"{source}-tune-warmup", 1, limit=1, measure=None)
                 warmed = True
+                if drain.draining():  # drained during the warm-up: the arm is not started
+                    stop = "drained"
+                    arms.append(tune.skipped(n, stop))
+                    continue
             measured: dict[str, Any] = {}
 
             def measure(campaign: Any, wall_s: float, n: int = n, measured: dict[str, Any] = measured) -> None:
@@ -2527,8 +2682,15 @@ def _tune_sweep(ctx: Context, args: argparse.Namespace, result: CommandResult, e
                                                    limits=campaign.pipeline.limits)
                 measured["stops"] = [*campaign.canary_stop, *([campaign.config_stop] if campaign.config_stop else []),
                                      *([campaign.cap_stop] if campaign.cap_stop else [])]
+                # AU-RN-1: a drain that left a unit of this arm with an attempt still due cut the arm short
+                measured["drained"] = drain.draining() and any(
+                    campaign._next(cell, r) is not None for cell in execute_kw["cells"] for r in range(campaign.repeats))
 
             arm_result = run_into(corpus, f"{source}-tune-j{n}", n, limit=None, measure=measure)
+            if measured.get("drained"):
+                stop = "drained"  # no arm file: its corpus is renamed aside and the arm measured again on a re-run
+                arms.append(tune.skipped(n, stop))
+                continue
             arm = dict(measured.get("arm") or tune.skipped(n, "no_measurement"))
             arm["above_server_limit"] = n > plan_for(n).j_server
             arm["corpus"] = {"id": f"{source}-tune-j{n}", "exit_code": arm_result.exit_code}
@@ -2563,20 +2725,24 @@ def _tune_sweep(ctx: Context, args: argparse.Namespace, result: CommandResult, e
         "config_digest": config_digest, "order": list(args.tune_values), "warm_up": warmed, "reused_arms": reused,
         "test_only": execute_kw.get("script") is not None, "written_at": stamp,
     }
-    doc = tune.report_document(header=header, arms=arms)
+    drained = stop == "drained"
+    doc = tune.report_document(header=header, arms=arms, drained=drained)
     js, md = tune.write_report(out, doc)
     rec = doc["recommendation"]
     result.corpus = {"content_digest": None, "corpus_id": None, "root": redact_personal(str(out)), "state": "working"}
     result.counters = {"arms": len(arms), "ran": sum(a.get("status") == "ran" for a in arms),
                        **({"recommended_jobs": rec["jobs"]} if rec["jobs"] is not None else {})}
+    if drained:
+        result.notices.append("drained (--control-file): no further arm was started, an arm cut short is measured "
+                              "again, and nothing is recommended; re-run the same command to resume")
     for line in tune.report_markdown(doc).splitlines()[4:]:
         result.output(line)
     result.info(f"agentprov run: sweep report {redact_personal(str(js))} and {md.name}")
     for notice in result.notices:
         result.info(f"notice: {safe_text(notice, 400)}")
-    if rec["jobs"] is None:
+    if rec["jobs"] is None and not drained:
         result.error("agentprov run: the sweep found no arm that qualifies (D-821): no recommendation")
-    result.exit_code = 0 if rec["jobs"] is not None else 1
+    result.exit_code = 0 if rec["jobs"] is not None or drained else 1
     return result
 
 
@@ -2931,10 +3097,7 @@ def _execute(ctx: Context, args: argparse.Namespace, result: CommandResult, *, c
     from agentprov.io.canonical import sha256_hex
 
     final = _final_dir(args.corpus)
-    for guarded in (home / "envs", home / "staging", home / "t2home"):
-        if _inside(final, guarded) or _inside(guarded, final):
-            raise LiveRefused("the corpus directory overlaps the backend environments or live staging (G2)",
-                              code="cli.refused.guard")
+    _check_guarded(final, home)
     descriptor = BACKENDS[str(capability.backend)]
     snapshot_id = str(capability.part)
     test_only = script is not None
@@ -2955,15 +3118,10 @@ def _execute(ctx: Context, args: argparse.Namespace, result: CommandResult, *, c
                 writer.add_object(cache.verified.data, cache.verified.origin, ext="json")
             ledger = _load_ledger(manifest, writer.store)
             before = (manifest or {}).get("live") or {}
-            if budget is not None:  # D-725, per corpus: the earlier invocations' probes left no capture log to charge
-                budget.charge_probe(_prior_probe_calls(before))
-            mixed = sorted({str(e.get("config_digest")) for e in ledger.entries} - {config_digest})
-            if mixed and not args.allow_mixed_config:
-                raise LiveRefused("the working corpus holds sessions of another live configuration (G5); pass "
-                                  "--allow-mixed-config to add this one (recorded)", code="cli.refused.mixed_config")
-            if before and bool(before.get("test_only")) != test_only:
-                raise LiveRefused("scripted (test_only) and real-model sessions never share a corpus (H.1.1(2))",
-                                  code="cli.refused.mixed_config")
+            if budget is not None:  # D-725, per corpus: the earlier invocations' probes left no capture log to charge,
+                budget.charge_probe(_prior_probe_calls(before))  # nor did the cells they started but never ledgered
+                budget.charge_unledgered(_prior_unledgered_cells(before))
+            _check_config_mix(args, ledger, before, config_digest, test_only)
             campaign = Campaign(
                 pipeline=pipeline, writer=writer, argv=argv, env_for=env_for, identity=identity, marker=marker,
                 expect=expect, home=home, agent=agent, plan=plan, config_digest=config_digest, jobs=jobs,

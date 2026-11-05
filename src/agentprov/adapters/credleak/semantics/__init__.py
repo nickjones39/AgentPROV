@@ -3,7 +3,8 @@
 A semantics profile reads one AER and yields standoff annotations (role, integrity, channel) from the tables in
 ``credleak.tools-<version>/tables.toml``; the SEM engine numbers and seals them. Version 2 (D-605, D-31) has version
 1's tables unchanged and declares the ``credleak`` rule catalogue version 2 (:data:`CATALOGUE_OF`; one catalogue version
-per corpus, H.2.5); version 1 stays for the corpora that recorded it. Every annotation is class ``I``: the tables are
+per corpus, H.2.5); version 1 stays for the corpora that recorded it. Version 3 (D-1063) is version 2's tables on the
+catalogue version 3; version 2 stays for the corpus that recorded it. Every annotation is class ``I``: the tables are
 the profile author's reading of the harness's tool names, not a verified property of its implementation (rules
 ``credleak.tool_role_table@1``, ``credleak.tool_output_label_table@1``, ``credleak.observation_label_table@1``).
 
@@ -39,7 +40,7 @@ __all__ = ["CATALOGUE_OF", "PROFILE_ID", "CredleakToolsProfile", "build_profile"
 
 PROFILE_ID: Final = "credleak.tools"
 #: The ``credleak`` catalogue version each profile version declares (D-31 option B; D-605).
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3})  # 3: version 2's tables on catalogue credleak 3 (D-1063)
 _TABLES: Final = "tables.toml"
 _RULE_ROLE: Final = "credleak.tool_role_table@1"
 _RULE_OUTPUT: Final = "credleak.tool_output_label_table@1"

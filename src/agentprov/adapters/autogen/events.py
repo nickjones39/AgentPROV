@@ -30,8 +30,10 @@ EVENT_KINDS: Final = frozenset({"guard", "llm_request", "llm_response", "tool_ca
 
 
 def sha16(text: str) -> str:
-    """The harness's text digest: the first 16 hex digits of SHA-256 over the UTF-8 text (``sha`` in harness.py)."""
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    """The harness's text digest: the first 16 hex digits of SHA-256 over the UTF-8 text (``sha`` in harness.py). A text
+    holding a lone surrogate (which the harness could not have digested) is hashed over its surrogate-escaped bytes, so it
+    matches no logged digest instead of raising (D-1063, review UC-40)."""
+    return hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()[:16]
 
 
 @dataclass(frozen=True, slots=True)

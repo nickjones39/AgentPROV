@@ -17,16 +17,17 @@ ISSUE_CODES = {
     "empty_trace", "run_error", "iteration_limit", "task_join_missing", "user_message_not_logged", "unlisted_tool_name",
     "dispatch_error_result", "final_output_differs", "label_field_mismatch", "payload_suffix_mismatch",
     "failure_with_payload", "repeated_tool_names", "payload_outside_adversarial", "value_redacted",
+    "lone_surrogate_replaced", "content_not_inlined",  # catalogue version 3 (D-1063)
 }  # fmt: skip
 
 
 def catalogue():
-    return load_catalogue("agentops", 2, package=PACKAGE)  # D-31 bump with regen items 34-37; v1 is archived
+    return load_catalogue("agentops", 3, package=PACKAGE)  # D-1063; v2 (D-31 bump, regen items 34-37) and v1 are archived
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("agentops", 2, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("agentops", 3, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.subtypes == {"agentops.fault_injection"} and cat.types == set()
     data = (resources.files(PACKAGE) / "rules" / "agentops.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -84,6 +85,10 @@ def test_every_declared_rule_is_exercised(mapped):
     cited |= set(CITED_RULES)  # the profile's rules are checked annotation by annotation in test_semantics.py
     disclosures = {"agentops.final_output_copy@1", "agentops.payload_suffix@1"}  # raised by test_mapper.py derived inputs
     disclosures.add("agentops.value_redacted@1")  # D-608: no fixture holds an account path; test_redact.py builds runs
+    # D-1063: no fixture holds a lone surrogate or a 1 MiB string; test_uc39_41.py builds runs that do
+    disclosures |= {"agentops.lone_surrogate_replaced@1", "agentops.content_not_inlined@1"}
+    # AU-RC-3 (D-1063, row 182): cited for a result the mapper did not inline; test_semantics.py builds such a run
+    disclosures.add("agentops.payload_marker_not_inlined@1")
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     assert citable - cited - disclosures == set(), sorted(citable - cited - disclosures)
 
@@ -94,7 +99,9 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(agentops\.[a-z_.]+@[0-9]+)"', source))
     assert literals <= set(catalogue().rules) and literals
     codes = {c.removeprefix("agentops.") for c in re.findall(r'"(agentops\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    # (agentprov.adapters.surrogates.surrogates, called with the namespace; D-1063)
+    assert codes | {"lone_surrogate_replaced"} == ISSUE_CODES and "surrogates(self, records, \"agentops\")" in source
 
 
 def test_profile_quirks_and_pairing_name_catalogue_rules():

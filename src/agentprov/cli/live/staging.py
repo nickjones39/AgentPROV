@@ -17,7 +17,9 @@ untrusted party:
 3. **Unreported files** are ignored (never stored) and reported. The parent's own files (the scripted-transport file)
    are not counted.
 4. **Literal-value secret scan** (G.6.4, R-51) over *every* staged regular file and the worker's stderr file, with the
-   values T0 read from ``.env`` and the secrets in its own environment: a hit quarantines the session (nothing from it
+   values of :func:`t0_secrets` (the keys passed to T2, the key source's secret values, the registry key variables
+   of T0's environment; UC-22), reading a zip's members too (an Inspect ``.eval`` native log; :func:`holds_secret`,
+   AU-LIVE-4): a hit, or a zip whose members cannot all be read within the limits, quarantines the session (nothing from it
    is stored; the directory stays for the user to inspect; register ``capture.quarantined``). The value is never
    printed. A capture log the worker sealed after a **failed redaction scan** (its constant ``error`` event
    ``where: "capture.redact"``, C.13.10 item 6) quarantines the session the same way, whatever the literal scan finds
@@ -39,10 +41,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
-from agentprov.errors import AgentProvError, IdentityMismatch, IngestError
+from agentprov.errors import IdentityMismatch, IngestError
 
-__all__ = ["ROLES", "SessionFiles", "StagedFile", "capture_identity", "collect_session", "redaction_failed",
-           "scan_secrets"]
+__all__ = ["ROLES", "SessionFiles", "StagedFile", "capture_identity", "collect_session", "holds_secret",
+           "redaction_failed", "scan_secrets", "t0_secrets"]
 
 ROLES: Final = frozenset({"capture_log", "native_log", "blob", "supporting"})
 _BLOB: Final = re.compile(r"raw/blobs/sha256/([0-9a-f]{2})/([0-9a-f]{64})")
@@ -155,6 +157,53 @@ def collect_session(
     return out
 
 
+def t0_secrets(environ: Mapping[str, str], values: Mapping[str, str], keys: Mapping[str, str]) -> list[Any]:
+    """The literal values T0 scans staged files for (G.6.4, R-51; UC-22): every key it passes to T2, the secret-named
+    values it read from the key source (``.env``, ``--env-file``, ``--env-stdin`` or the keychain), and the parent
+    environment's values of the endpoint registry's key variables (``api_key_env``: a credential the user holds).
+    Any other parent variable whose name only matches the scrub pattern (``OPENAI_API_VERSION``, ``HF_HUB_CACHE``) is
+    public configuration, never passed to T2, and is not scanned: it would quarantine a session over a public value."""
+    from agentprov_capture.endpoints import load_endpoints
+    from agentprov_capture.redact import Secret, secrets_from_environ
+
+    out = [Secret(name, value, "file_value") for name, value in sorted(keys.items()) if value]
+    out += secrets_from_environ(values, kind="file_value")
+    names = sorted({e.api_key_env for e in load_endpoints().values() if e.api_key_env})
+    out += [Secret(name, environ[name]) for name in names if environ.get(name)]
+    return out
+
+
+def holds_secret(data: bytes, redactor: Any, limits: Any = None, *, depth: int = 1) -> bool:
+    """True when ``data`` holds a scanned secret value (``Redactor.contains_secret``), or when ``data`` is a zip (an
+    Inspect cell's ``.eval`` native log, D-666; by its magic) one of whose members does, or whose members cannot all be
+    read within ``limits`` (AU-LIVE-4). A zip's members are deflated, so the bytes as stored never show a key written
+    inside one; they are read through :mod:`agentprov.ingest.archives`, extraction-free and bounded (member count,
+    member and total size, ratio, method, names, nesting), and a zip member that is itself a zip is read the same way.
+    A member that is refused, or a zip that cannot be opened, is not known to be clean: the answer is True (fail
+    closed, G.6.4)."""
+    import io
+
+    from agentprov.ingest.archives import iter_zip_members, open_zip
+    from agentprov.ingest.limits import IngestLimits
+    from agentprov.ingest.streams import SNIFF_BYTES, sniff_container
+
+    if redactor.contains_secret(data):
+        return True
+    if sniff_container(data[:SNIFF_BYTES]) != "zip":
+        return False
+    limits = limits or IngestLimits()
+    try:
+        with open_zip(io.BytesIO(data), limits, release=False, depth=depth) as archive:
+            for member in iter_zip_members(archive, None, limits):
+                if member.disposition != "selected":
+                    return True
+                if holds_secret(archive.read_member(member), redactor, limits, depth=depth + 1):
+                    return True
+    except (IngestError, OSError, ValueError, MemoryError):
+        return True
+    return False
+
+
 def scan_secrets(session_dir: Path, redactor: Any, *, extra_files: Iterable[Path] = (), limits: Any = None) -> list[str]:
     """Labels (or file names) of the staged files that hold a scanned secret value; ``[]`` when clean (G.6.4). Every
     regular file of the session directory is read through the no-follow opener; links are never followed (they are
@@ -173,7 +222,7 @@ def scan_secrets(session_dir: Path, redactor: Any, *, extra_files: Iterable[Path
                     data = stream.read()
             except (IngestError, OSError):
                 continue
-            if redactor.contains_secret(data):
+            if holds_secret(data, redactor, limits):  # a zip's members too (AU-LIVE-4)
                 hits.append(item.label)
     for path in extra_files:
         try:
@@ -297,10 +346,3 @@ def _check_backend_id(log: bytes, backend: str, limits: Any) -> None:
     declared = data.get("backend") if isinstance(data, dict) else None
     if isinstance(declared, dict) and declared.get("id") != backend:
         raise IdentityMismatch(f"IdentityMismatch: the capture session was written by another backend, not {backend}")
-
-
-class QuarantinedSession(AgentProvError):
-    """T0's literal-value scan hit a staged file (G.6.4): nothing from the session is stored."""
-
-    code = "capture.quarantined"
-    exit_code = 1

@@ -2982,6 +2982,8 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
     everything else.
   - **Where.** Decided in the CLI for every real-model run (`agentprov.cli.live.policy`; MN N.2.1b item 3a). Class 0.
   - **LAN.** A LAN server counts as `local` once the egress proxy forwards LAN traffic; until then it is `api`.
+    **Amended by D-1067 (2026-11-05):** a LAN server stays `api` with the forward mode in place (its data leaves the
+    machine).
   - **Rejected.** A registry field `live_endpoints`: a class-1 schema change that duplicates `endpoints.toml`. A CLI
     policy also refuses by default.
 - **D-722 (2026-10-22, two-step live caveat; user decision).** At promotion, D.3.2 rule 3's phrase "fake-client
@@ -3012,6 +3014,20 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
   - **Stops.** A cell over the call bound stops the campaign. `--preflight-only` is one call and takes no caps.
   - **Backstop.** The provider-side key or workspace limit, which the user sets.
   - **Rejected.** A per-call stop inside the worker: it needs `backends/shared` and misses the env-rebuild window.
+  - **Addendum (2026-11-05, audit findings AU-LIVE-1 and AU-FR-2; class 0).** The 48 above is the bound of a cell whose
+    LLM element bills one reply per model step (3 passes × (1 + `max_iters` 15)). An element that asks again after a
+    billed 2xx reply bills more: one `gateway_compat` cell spent 128 billed calls under `--max-calls 100` (AU-LIVE-1).
+    The per-cell bound is now 48 times the billed replies the LLM element may take per step, from the element's
+    declared rules: 8 for `gateway_compat` (`retry_malformed_tool_json@1`, `retry_upstream_failure@1`), 3 for the
+    AutoDojo fork's native element (`fork_malformed_json_retry@1`), 1 for the stock native element. So a cell
+    reserves **384** calls under `gateway_compat`, 144 under the AutoDojo native element and 48 otherwise. A
+    defence's declared calls are still added (UC-5); MELON's masked re-run goes through the agent's own element, so its
+    masked call counts at the same per-step replies, while its embeddings and `tool_filter`'s call count once: a MELON
+    cell reserves 192, or **864** under `gateway_compat` (AU-FR-2). A preflight probe is charged and admitted at the
+    same per-step count; `--preflight-only` still takes no caps. Because T0 reserves every in-flight cell at its worst
+    case, a capped run with the presets' `gateway_compat` element needs `--max-calls` of at least 384 × `--jobs`
+    (plus the spend so far) to start all its jobs: with less, it stops with `cap_reached` once the next cell does not
+    fit. Spec MN (the budget item) and user guide chapter 7 say so.
 - **D-726 (2026-10-22, consent by endpoint class; user decision).**
   - `local` runs take the interactive prompt, `--i-consent-to-local-run` or `--i-consent-to-api-costs`.
   - `api` runs take the prompt or `--i-consent-to-api-costs` only.

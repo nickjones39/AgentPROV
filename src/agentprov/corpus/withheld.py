@@ -65,7 +65,7 @@ from agentprov.corpus.shapes import Arr, Const, Enum, Issue, MapOf, Nullable, Ob
 from agentprov.errors import AgentProvError, IngestError
 from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.loaders import strict_json_loads
-from agentprov.io.canonical import is_sha256_hex, jcs_bytes
+from agentprov.io.canonical import jcs_bytes
 
 __all__ = [
     "BASES",
@@ -557,7 +557,3 @@ def sorted_origins(origins: Iterable[Mapping[str, Any]]) -> tuple[dict[str, Any]
     """Origin objects sorted by their JCS bytes, duplicates removed (the order :func:`validate_withheld` requires)."""
     unique = {jcs_bytes(dict(o)): dict(o) for o in origins}
     return tuple(unique[k] for k in sorted(unique))
-
-
-def is_digest(value: object) -> bool:
-    return isinstance(value, str) and value.startswith("sha256:") and is_sha256_hex(value[7:])

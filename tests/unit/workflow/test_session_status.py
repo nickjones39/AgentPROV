@@ -234,3 +234,13 @@ def test_branch_review_refs_head_pin_and_errors(repo: Path, isolated_env: Path) 
     assert _run(repo, "--branch", "no-such-branch", "touch") == 2
     with pytest.raises(SystemExit):
         _run(repo, "--head", newer, "touch")  # --head needs --branch
+
+
+def test_two_detached_worktrees_get_two_status_files(repo: Path, isolated_env: Path, tmp_path: Path) -> None:
+    """AU-TWF-5: without --name, a detached worktree's file is named after its path, not one shared 'detached'."""
+    wt_a, wt_b = tmp_path / "wtA", tmp_path / "wtB"
+    for wt in (wt_a, wt_b):
+        git(repo, "worktree", "add", "-q", "--detach", str(wt), "main")
+        assert _run(wt, "touch") == 0
+    names = sorted(p.name for p in (isolated_env / "sessions").glob("*.json"))
+    assert len(names) == 2 and all(n.startswith("detached-") for n in names)

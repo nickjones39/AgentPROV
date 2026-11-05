@@ -1,4 +1,6 @@
-"""The semantics profile ``qwencode.tools@2`` (docs/architecture D.24.7; C.14): labels, outcome, taint policy."""
+"""The semantics profile ``qwencode.tools@3`` (docs/architecture D.24.7; C.14): labels, outcome, taint policy.
+
+``@3`` is ``@2``'s tables on the catalogue version 3 (D-1063)."""
 
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ def _integrity(m, target):
 
 
 def test_tool_roles_and_integrity(mapped):
-    profile = load_semantics_profile("qwencode.tools", 2)
+    profile = load_semantics_profile("qwencode.tools", 3)
     for crit, m in mapped.items():
         for te in m.of("tool_execution"):
             (role,) = [a for a in m.annotations("role") if a["target"] == te["id"]]
@@ -33,7 +35,7 @@ def test_tool_roles_and_integrity(mapped):
 
 
 def test_unknown_tool_fails_closed():
-    profile = load_semantics_profile("qwencode.tools", 2)
+    profile = load_semantics_profile("qwencode.tools", 3)
     assert profile.tool_label("not_a_tool") == (("unknown",), "unknown", ("qwencode.unknown_tool@1",))
 
 
@@ -52,7 +54,7 @@ def test_outcome_reads_the_score(mapped):
 
 
 def test_profile_builds_and_declares_its_taint_policy(mapped):
-    profile = load_semantics_profile("qwencode.tools", 2)
+    profile = load_semantics_profile("qwencode.tools", 3)
     assert profile.taint_policy is not None and profile.taint_policy.rule == "qwencode.taint_sink_untrusted@1"
     cited = {r.split("#", 1)[0] for m in mapped.values() for a in m.sem.annotations for r in a["rule"]}
     assert set(CITED_RULES) - cited - {profile.taint_policy.rule, "qwencode.unknown_tool@1"} == set()
@@ -78,8 +80,8 @@ def test_only_listed_scores_are_read():
         new = [dict(e, score=value) if e["index"] == f.case_key else e for e in entries]
         m = support.modified("python", supp={member: json.dumps(new).encode()}, sem=True)
         assert [a["value"] for a in m.annotations("outcome")] == ([] if expected is None else [expected]), value
-    files = {"profile.toml": (support.REPO / "src/agentprov/adapters/qwencode/semantics/qwencode.tools-2/profile.toml").read_bytes(),
-             "tools.toml": (support.REPO / "src/agentprov/adapters/qwencode/semantics/qwencode.tools-2/tools.toml").read_bytes()}
+    files = {"profile.toml": (support.REPO / "src/agentprov/adapters/qwencode/semantics/qwencode.tools-3/profile.toml").read_bytes(),
+             "tools.toml": (support.REPO / "src/agentprov/adapters/qwencode/semantics/qwencode.tools-3/tools.toml").read_bytes()}
     assert parse_tables(files).outcomes["non_informative"] == [1]
     without = files["profile.toml"].replace(b"non_informative = [1]\n", b"")
     assert without != files["profile.toml"]

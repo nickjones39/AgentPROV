@@ -29,9 +29,11 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Final
 
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.protocols import AerRecord, MappingContext
 from agentprov.adapters.qwencode import ADAPTER_ID, DIALECT_ID, NAMESPACE, VARIANT
 from agentprov.adapters.qwencode.dialect import VERSION_PREFIX, LabelFacets, parse_label
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -62,7 +64,9 @@ R_REQUEST_TYPE: Final = "qwencode.redcode_request_type@1"
 R_SIBLINGS: Final = "qwencode.unit_inputs@1"
 R_SCORE_JOIN: Final = "qwencode.score_join@1"
 R_REQUEST_JOIN: Final = "qwencode.request_join@1"
-R_RESULT: Final = "qwencode.result_status@1"
+R_RESULT: Final = "qwencode.result_status@2"
+#: D-1063 (review AU-RC-5): no result message and no capture cut: a reading of the CLI, class I (D-574)
+R_NO_RESULT: Final = "qwencode.no_result_message_unverified@1"
 R_TOOL_STATUS: Final = "qwencode.tool_status@1"
 R_TURNS: Final = "qwencode.acc.turns@1"
 R_USAGE: Final = "qwencode.acc.usage@1"
@@ -85,6 +89,11 @@ R_SUBAGENT: Final = "qwencode.subagent_message_unverified@1"
 R_UNMAPPED: Final = "qwencode.unmapped_message@1"
 R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
+#: D-1063 (review UC-41): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as D-934
+R_NOT_INLINED: Final = "qwencode.content_not_inlined@1"
+#: the AER's integer domain (I-JSON, C.11.3): a typed count or an accounting value outside 0..2^53-1 cannot be stored as
+#: one (D-1063, review UC-39; as D-1011 for adprov)
+_MAX_COUNT: Final = 2**53 - 1
 
 
 def _p(*tokens: str | int) -> str:
@@ -97,6 +106,11 @@ def _dict(value: object) -> dict[str, Any]:
 
 def _int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _count(value: object) -> bool:
+    """An integer the AER can hold as a count (D-1063, review UC-39)."""
+    return _int(value) and 0 <= value <= _MAX_COUNT  # type: ignore[operator]
 
 
 class _Rec:
@@ -271,7 +285,9 @@ class _Build:
         value = item.value
         if not isinstance(value, dict) or not isinstance(value.get("messages"), list) or not value["messages"]:
             raise MalformedArtefact("the located item is not a parsed Qwen Code output")
-        self.msgs: list[Mapping[str, Any]] = value["messages"]
+        # D-1063 (review UC-40; the D-378 pass): a key cannot be $utf16-wrapped, so lone surrogates in keys are replaced
+        msgs, self.surrogate_keys = scrub_keys(value["messages"])
+        self.msgs: list[Mapping[str, Any]] = msgs
         self.cut: int | None = value.get("cut")
         self.dropped: int = int(value.get("dropped") or 0)
         self.size: int = int(value.get("size") or 0)
@@ -366,7 +382,9 @@ class _Build:
         if raw is None:
             return None
         try:
-            return strict_json_loads(raw, self.limits)
+            loaded, keys = scrub_keys(strict_json_loads(raw, self.limits))  # D-1063 (UC-40): keys of joined entries
+            self.surrogate_keys |= keys
+            return loaded
         except IngestError:
             self.issue("qwencode.sidecar_missing", ["exec"], R_SIBLINGS, detail=f"{role}: unparseable")
             self._add(role, None)
@@ -420,8 +438,21 @@ class _Build:
         body += self._judgements()
         self._checks()
         self.issue("qwencode.user_message_not_logged", ["exec"], R_PROMPT, severity="info")
-        yield self._header()
-        yield from body
+        records = [self._header(), *body]
+        surrogates(self, records, NAMESPACE)  # D-1063 (review UC-40): the D-378 pass
+        yield from self._not_inlined(records)
+
+    def _not_inlined(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """D-1063 (review UC-41; the D-934 pattern): every string over 1 MiB becomes ``{"not_inlined": {sha256, bytes}}``
+        of its UTF-8 bytes (C.2.1(6)). A tool result's text becomes the part's value; any other part's text an ``other``
+        part of its source type. Each such pointer is DERIVED under ``qwencode.content_not_inlined@1``; one info issue
+        names the records."""
+        # AU-RC-1/AU-RC-2 (D-1063): the shared pass, which also moves every citation, unk key and ext.<ns>.redacted
+        # entry naming a moved pointer (UC-38) and digests a $utf16 value over its decoded text
+        ids = not_inlined(records, "qwencode", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("qwencode.content_not_inlined", ids, R_NOT_INLINED, severity="info")
+        return records
 
     # ---------------------------------------------------------------------------------------------- header
     def _header(self) -> dict[str, Any]:
@@ -525,9 +556,10 @@ class _Build:
                 run.x("duration_ms", self.result["duration_ms"])
         else:
             run.unk["/status"] = "not_recorded"
-            run.cite(self.R(R_CUT if self.cut is not None else R_RESULT, "/status"))
-            self.issue("qwencode.no_result_message", ["run"], R_CUT if self.cut is not None else R_RESULT)
-            self.issue("incomplete_run", ["run"], R_CUT if self.cut is not None else R_RESULT)
+            reading = R_CUT if self.cut is not None else R_NO_RESULT  # AU-RC-5: never the class-D result rule
+            run.cite(self.R(reading, "/status"))
+            self.issue("qwencode.no_result_message", ["run"], reading)
+            self.issue("incomplete_run", ["run"], reading)
         if self.cut is not None:
             self.issue("qwencode.truncated_capture", ["run"], R_CUT, detail=f"kept {self.cut} of {self.size} bytes")
         att = _Rec(k="scope", id="att0", kind="attempt", parent="run", actor="agent", ev="O")
@@ -603,15 +635,22 @@ class _Build:
         mc.tag("/input", "I", self.R(R_CONTEXT, "/input"))
         usage = {"input_tokens": 0, "output_tokens": 0}
         complete = True
+        out_of_range = False  # D-1063 (review UC-39): a negative count, or one beyond 2^53 - 1, is not a count
         for pos, m in block.items:
             u = _dict(_dict(m.get("message")).get("usage"))
             for field_ in usage:
-                if _int(u.get(field_)):
+                if _count(u.get(field_)):
                     usage[field_] += int(u[field_])
+                elif _int(u.get(field_)):
+                    out_of_range = True
                 else:
                     complete = False
             mc.loc(self.loc(pos, "/message/usage"))
-        if complete and any(usage.values()):
+        if out_of_range or any(v > _MAX_COUNT for v in usage.values()):
+            # the logged values stay verbatim in ext.qwencode.messages; the typed usage cannot hold them (D-1063)
+            mc.unk["/usage"] = "ambiguous"
+            mc.cite(self.R(R_BLOCK_USAGE, "/usage"))
+        elif complete and any(usage.values()):
             mc.data["usage"] = {field_: mc.enc(v, _p("usage", field_)) for field_, v in usage.items()}
             mc.tag("/usage", "D", self.R(R_BLOCK_USAGE, "/usage"))
         elif complete:  # every message reports 0 tokens: a sentinel, not a count (the values stay in ext.qwencode.messages)
@@ -840,7 +879,7 @@ class _Build:
             self.ctx.check(R_USAGE, scope="att0", verdict="unverifiable", observed=observed, reason="no_result_message")
             return
         turns = self.result.get("num_turns")
-        if _int(turns):
+        if _count(turns):  # D-1063 (review UC-39): an accounting value is a count of the AER's integer domain
             assert isinstance(turns, int)
             same = turns == self.blocks
             self.ctx.check(R_TURNS, scope="att0", verdict="consistent" if same else "inconsistent",
@@ -854,9 +893,10 @@ class _Build:
             if m.get("type") == "assistant":
                 u = _dict(_dict(m.get("message")).get("usage"))
                 for k in sums:
-                    sums[k] += int(u[k]) if _int(u.get(k)) else 0
+                    sums[k] += int(u[k]) if _count(u.get(k)) else 0
         reported = _dict(self.result.get("usage"))
-        if all(_int(reported.get(k)) for k in sums):
+        # D-1063 (review UC-39): a reported value or a sum outside the AER's integer domain is no count to compare
+        if all(_count(reported.get(k)) for k in sums) and all(v <= _MAX_COUNT for v in sums.values()):
             observed = {**sums, **{f"reported_{k}": int(reported[k]) for k in sums}}
             if all(int(reported[k]) == sums[k] for k in sums):
                 self.ctx.check(R_USAGE, scope="att0", verdict="consistent", observed=observed)

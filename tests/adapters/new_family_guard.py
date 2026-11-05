@@ -47,19 +47,30 @@ def merge_base(repo: Path) -> tuple[str | None, str]:
     return base, f"merge base with {ref}"
 
 
-def branch_changes(repo: Path) -> tuple[set[str] | None, str]:
-    """The files the branch changed since its base (tracked diffs plus untracked, not ignored), or ``(None, reason)``."""
+def branch_changes(repo: Path, family: str | None = None) -> tuple[set[str] | None, str]:
+    """The files the branch changed since its base (tracked diffs plus untracked, not ignored), or ``(None, reason)``.
+
+    With ``family``, only the files of the branch's commits that change ``src/agentprov/adapters/<family>/`` count (plus
+    uncommitted changes), so a branch that also carries approved core work in other commits (a release branch, D-1063)
+    is judged by what the family's own commits touch."""
     base, how = merge_base(repo)
     if base is None:
         return None, how
-    changed = set((_git(repo, "diff", "--name-only", base) or "").split())
+    if family is None:
+        changed = set((_git(repo, "diff", "--name-only", base) or "").split())
+    else:
+        commits = (_git(repo, "log", "--format=%H", f"{base}..HEAD", "--", f"src/agentprov/adapters/{family}/") or "").split()
+        changed = set()
+        for commit in commits:
+            changed |= set((_git(repo, "show", "--format=", "--name-only", commit) or "").split())
+        changed |= set((_git(repo, "diff", "--name-only", "HEAD") or "").split())
     changed |= set((_git(repo, "ls-files", "--others", "--exclude-standard") or "").split())
     return changed, how
 
 
-def changed_or_skip(repo: Path) -> set[str]:
+def changed_or_skip(repo: Path, family: str | None = None) -> set[str]:
     """:func:`branch_changes`, skipping the calling test with the reason when there is nothing to compare with."""
-    changed, how = branch_changes(repo)
+    changed, how = branch_changes(repo, family)
     if changed is None:
         pytest.skip(f"the new-family guard needs a base to compare with: {how}")
     return changed

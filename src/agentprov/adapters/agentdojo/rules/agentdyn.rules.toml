@@ -14,20 +14,26 @@
 # code that produced them is unknown (sources/agentdyn.md §12; verify/agentdyn.md §9 item 4). Each class-D rule below rests
 # on the cited code **and** on the logs themselves (the stated count of files shows the behaviour); none rests on the claim
 # that the cited commit produced the logs. No rule declares a `verified` assumption.
+#
+# Version 3 (D-1063, regen-batch row 179): agentdyn.variant_by_keyset@1 reserved (AU-RA-3: no code entry, no twin,
+# never cited); version 2, which the sealed corpora record, ships unchanged as rules/archive/agentdyn.rules.v2.toml.
 
 [catalogue]
 id = "agentdyn"
-version = 2
+version = 3
 format = "agentprov-rule-catalogue/0.1"
 issue_codes = []
 subtypes = []
 types = []
 
+# D-1063 (catalogue version 3; finding AU-RA-3): reserved. The variant is the dialect's classification (D.6.2) and the
+# profile's variant_labels route the parts; no record or issue cites this rule, it has no code entry and no twin, so
+# under D.5.4 it could never be cited at D. Version 2 (archived) keeps it active, unchanged.
 [[rule]]
 id = "agentdyn.variant_by_keyset"
 version = 1
 class = "D"
-status = "active"
+status = "reserved"
 statement = "An AgentDyn run log is of variant A, B, C or D by its top-level key set, exactly as the dialect classifies it (D.6.2): A is the 14-key AgentDojo 0.1.35 set (agentdojo_package_version present), B the 11-key set without version and timestamp (Progent's vendored AgentDojo 0.1.29), C the DRIFT key set with a messages list, D the same with conversations. The profile's variant_labels assign each variant to a part (a, b, c, d); a variant of another part is not selected."
 premises = [""]
 assumptions = []
@@ -268,6 +274,9 @@ code = [
   { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/shopping/task_suite.py", lines = "-", note = "blob c406bfd5; the AutoDojo fork at aa458794 has the same blob" },
   { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/github/task_suite.py", lines = "-", note = "blob 8313cfae; the AutoDojo fork at aa458794 has the same blob" },
   { repo = "https://github.com/SaFo-Lab/AgentDyn", commit = "5353cf7615b135cace8d07c8f12dac53a16b6db3", path = "src/agentdojo/default_suites/v1/dailylife/task_suite.py", lines = "-", note = "blob 35dca8e1; the AutoDojo fork at aa458794 has the same blob" },
+  { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", path = "agentdojo/src/agentdojo/default_suites/v1/shopping/task_suite.py", lines = "-", note = "blob c406bfd5, AgentDyn's (the evidence below); cited since catalogue version 3 so the capture mapper's citation policy finds the fork's own code (D-1063, finding AU-RA-1)" },
+  { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", path = "agentdojo/src/agentdojo/default_suites/v1/github/task_suite.py", lines = "-", note = "blob 8313cfae, AgentDyn's" },
+  { repo = "https://github.com/xhOwenMa/AutoDojo", commit = "aa458794b7eb7f082e94daeac4c0f55bfc0c90cc", path = "agentdojo/src/agentdojo/default_suites/v1/dailylife/task_suite.py", lines = "-", note = "blob 35dca8e1, AgentDyn's" },
 ]
 evidence = ["docs/reports/phase9b/README.md §3 (R-9b-2)", "regen-batch item 27 (a)", "the AutoDojo fork xhOwenMa/AutoDojo at aa458794: agentdojo/src/agentdojo/default_suites/v1/{shopping,github,dailylife}/task_suite.py and tools/*.py have the cited blob ids"]
 tests = ["tests/adapters/agentdojo/test_items_26_27.py::test_a_live_agentdyn_cell_reads_its_benchmark_from_the_suites_map"]

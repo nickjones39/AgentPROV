@@ -376,6 +376,102 @@ def test_the_recorded_identity_still_finds_a_real_orphan(sq) -> None:
         group.wait()
 
 
+def _orphan_holder(sq, path: Path, group: subprocess.Popen[bytes], **fields) -> None:
+    """A holder record left by a wrapper that was SIGKILLed while ``group`` (its child's process group) runs on."""
+    _wait_for(lambda: sq.process_identity(group.pid) is not None)
+    identity = sq.process_identity(group.pid) or {}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"pid": _dead_pid(), "child_pgid": group.pid, "child_lstart": identity["lstart"],
+                                "child_command": identity["command"], **fields}), encoding="utf-8")
+
+
+def test_an_orphaned_job_keeps_its_reservation_until_its_group_ends(sq, tmp_path: Path,
+                                                                     capsys: pytest.CaptureFixture[str]) -> None:
+    """AU-TWF-14: a reservation went with the wrapper's pid, so a job whose wrapper was killed while its process group
+    ran on held no CPUs and the budget admitted jobs beside it. Its holder record now counts until the group ends."""
+    env = {"AGENTPROV_JOB_CPU_BUDGET": "10", "AGENTPROV_JOB_MEM_GIB_BUDGET": "100"}
+    suite_group, import_group = _unrelated_group(), _unrelated_group()
+    try:
+        _orphan_holder(sq, tmp_path / "holder.json", suite_group, label="orphan suite", command="pytest -n 10",
+                       cpu=8.0, mem_gib=12.0, started_at=time.time(), run_timeout_s=7200)
+        suite = sq.Admission(tmp_path / "jobs", "suite", "s", {"pid": os.getpid(), "enqueued_at": 1.0, "cpu": 4,
+                                                              "mem_gib": 1}, load_guard=False, load_wait=0, environ=env)
+        why = str(suite.try_admit(time.time()))
+        assert why.startswith("budget: 8+4 of 10 CPUs") and f"process group {suite_group.pid}" in why
+        imp = sq.Admission(tmp_path / "jobs", "import", "i", {"pid": os.getpid(), "enqueued_at": 2.0, "cpu": 3,
+                                                             "mem_gib": 1}, load_guard=False, load_wait=0, environ=env)
+        assert "suite headroom: a suite is queued or running (8 CPUs), so imports and rehearsals get 0+3 of 2 CPUs" \
+            in str(imp.try_admit(time.time()))
+        # an orphaned import (no reservation recorded: an older wrapper) counts with its class's default
+        _orphan_holder(sq, tmp_path / "jobs" / "import" / "holder-1.json", import_group, label="orphan import",
+                       command="agentprov import x --workers 3", started_at=time.time(), run_timeout_s=0)
+        orphans = sq.orphaned_jobs(tmp_path, set(), time.time())
+        assert sorted((o["job_class"], o["cpu"], o["orphan_pgid"]) for o in orphans) == [
+            ("import", 3.0, import_group.pid), ("suite", 8.0, suite_group.pid)]
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setenv("AGENTPROV_JOB_CPU_BUDGET", "10")
+            mp.setenv("AGENTPROV_JOB_MEM_GIB_BUDGET", "100")
+            sq.status(tmp_path)
+        shown = capsys.readouterr().out
+        assert "budget:    11 of 10 CPUs" in shown and f"orphaned: its wrapper is dead; process group {suite_group.pid}" \
+            in shown
+        for group in (suite_group, import_group):
+            os.killpg(group.pid, signal.SIGKILL)
+            group.wait()
+        assert sq.orphaned_jobs(tmp_path, set(), time.time()) == []
+        assert suite.try_admit(time.time()) is None  # the groups are gone: the budget is free again
+    finally:
+        for group in (suite_group, import_group):
+            if group.poll() is None:
+                os.killpg(group.pid, signal.SIGKILL)
+                group.wait()
+
+
+def test_an_orphan_past_its_run_timeout_does_not_hold_the_budget(sq, tmp_path: Path) -> None:
+    """The next holder of its slot stops such an orphan; a head waiting for the budget could never take that slot."""
+    env = {"AGENTPROV_JOB_CPU_BUDGET": "10", "AGENTPROV_JOB_MEM_GIB_BUDGET": "100"}
+    group = _unrelated_group()
+    try:
+        _orphan_holder(sq, tmp_path / "holder.json", group, label="expired", command="pytest -n 10", cpu=8.0,
+                       mem_gib=12.0, started_at=time.time() - 100, run_timeout_s=10)
+        suite = sq.Admission(tmp_path / "jobs", "suite", "s", {"pid": os.getpid(), "enqueued_at": 1.0, "cpu": 4,
+                                                              "mem_gib": 1}, load_guard=False, load_wait=0, environ=env)
+        assert suite.try_admit(time.time()) is None
+    finally:
+        os.killpg(group.pid, signal.SIGKILL)
+        group.wait()
+
+
+def test_a_killed_suite_wrapper_still_holds_the_budget_for_its_suite(tmp_path: Path) -> None:
+    """End to end (AU-TWF-14): SIGKILL a suite wrapper whose child keeps running; an import that does not fit beside
+    the suite waits until the orphaned suite has ended, then runs."""
+    env = _env(cpu_budget="10", mem_gib_budget="100")
+    log = tmp_path / "log"
+    suite = _job(tmp_path, log, "s", "--cpu", "8", env=env)
+    _wait_for(lambda: _started(log, "s") and "child_pgid" in (tmp_path / "holder.json").read_text())
+    suite.kill()
+    suite.wait(timeout=60)  # not communicate(): the orphaned child still holds the pipes
+    for stream in (suite.stdout, suite.stderr):
+        if stream is not None:
+            stream.close()
+    imp = _job(tmp_path, log, "i", "--class", "import", "--cpu", "10", env=env)
+    try:
+        _wait_for(lambda: any((tmp_path / "jobs" / "waiting").glob("import-*.json")))
+        time.sleep(0.5)
+        assert not _started(log, "i") and imp.poll() is None
+        _release(log, "s")  # the orphaned suite ends by itself
+        _wait_for(lambda: _started(log, "i"))
+        assert log.read_text().index("end s") < log.read_text().index("start i")
+        _release(log, "i")
+        _finish(imp)
+    finally:
+        _release(log, "s")
+        _release(log, "i")
+        if imp.poll() is None:
+            imp.kill()
+            imp.wait(timeout=60)
+
+
 def test_a_priority_ticket_overtakes_a_budget_blocked_head(tmp_path: Path) -> None:
     """The head of the suite class waits for the budget without holding suite.lock, so a --before-head job that fits
     runs first (it used to be stuck behind the head's lock)."""

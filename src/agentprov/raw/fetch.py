@@ -955,7 +955,15 @@ def check_git_version(text: str) -> tuple[int, ...]:
 
 
 def parse_ls_tree(data: bytes) -> tuple[list[TreeEntry], int]:
-    """Parse ``git ls-tree -r -z -l --full-tree`` output. Returns the entries and the number of undecodable paths skipped.
+    """Parse ``git ls-tree -r -z -l --full-tree`` output. Returns the entries and the number of undecodable paths skipped
+    (:func:`parse_ls_tree_named` names them)."""
+    entries, skipped = parse_ls_tree_named(data)
+    return entries, len(skipped)
+
+
+def parse_ls_tree_named(data: bytes) -> tuple[list[TreeEntry], list[str]]:
+    """:func:`parse_ls_tree` with the undecodable paths it skipped named, each decoded with ``backslashreplace`` (a label
+    for a register entry, never a path that is opened; AU-IMP-3), in bytewise order of the raw path.
 
     A size of ``-`` (a gitlink) becomes ``None``. A size of ``BAD`` means the object is absent from the store (a partial
     clone; git prints it when it may not fetch lazily): every such entry is collected and :class:`AbsentBlobError` is
@@ -964,7 +972,7 @@ def parse_ls_tree(data: bytes) -> tuple[list[TreeEntry], int]:
     """
     entries: list[TreeEntry] = []
     absent: list[str] = []
-    skipped = 0
+    skipped: list[bytes] = []
     for record in data.split(b"\0"):
         if not record:
             continue
@@ -985,7 +993,7 @@ def parse_ls_tree(data: bytes) -> tuple[list[TreeEntry], int]:
             absent.append(path if path is not None else raw_path.decode("utf-8", "backslashreplace"))
             continue
         if path is None:
-            skipped += 1
+            skipped.append(raw_path)
             continue
         entries.append(TreeEntry(mode, kind, oid, None if size == "-" else int(size), path))
     if absent:
@@ -994,7 +1002,8 @@ def parse_ls_tree(data: bytes) -> tuple[list[TreeEntry], int]:
             "fetched lazily: seed from a complete clone or fetch the pin",
             paths=sorted(absent),
         )
-    return sorted(entries, key=lambda e: e.path.encode("utf-8")), skipped
+    return (sorted(entries, key=lambda e: e.path.encode("utf-8")),
+            [raw.decode("utf-8", "backslashreplace") for raw in sorted(skipped)])
 
 
 def _now_utc() -> datetime:
@@ -1224,6 +1233,12 @@ class Fetcher:
 
         Needs the commit in the cache; never uses the network (:class:`NotCachedError` otherwise).
         """
+        entries, skipped = self.git_tree_named(recipe)
+        return entries, len(skipped)
+
+    def git_tree_named(self, recipe: Recipe) -> tuple[list[TreeEntry], list[str]]:
+        """:meth:`git_tree` with the undecodable paths named (``backslashreplace`` labels; :func:`parse_ls_tree_named`),
+        so that an import can register each one (AU-IMP-3)."""
         assert recipe.commit is not None
         bare = recipe.cache_path(self.cache_dir)
         if not self._has_commit(bare, recipe.commit):
@@ -1231,7 +1246,7 @@ class Fetcher:
         args = ["-C", str(bare), "ls-tree", "-r", "-z", "-l", "--full-tree", recipe.commit]
         if recipe.paths:
             args += ["--", *recipe.paths]
-        return parse_ls_tree(self._run_git(args, timeout=600.0))
+        return parse_ls_tree_named(self._run_git(args, timeout=600.0))
 
     def iter_git_blobs(self, recipe: Recipe, entries: Sequence[TreeEntry] | None = None) -> Iterator[FetchedBlob]:
         """Yield every blob of the recipe (or of ``entries``) with its SHA-1 recomputed and its SHA-256 computed.

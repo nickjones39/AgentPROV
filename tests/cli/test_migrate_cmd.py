@@ -30,8 +30,9 @@ needs_golden = pytest.mark.skipif(not golden.golden_available(), reason="golden 
 # ------------------------------------------------------------------------------------------------ surface
 
 
+# ``migrate --help`` itself is covered by tests/cli/test_cli_contract.py::test_every_help_exits_zero
 @pytest.mark.parametrize(
-    "argv", [("migrate",), ("migrate", "gate"), ("migrate", "gate-a"), ("migrate", "gate-e"), ("migrate", "verify-baseline")]
+    "argv", [("migrate", "gate"), ("migrate", "gate-a"), ("migrate", "gate-e"), ("migrate", "verify-baseline")]
 )
 def test_help_exits_zero_for_every_migrate_command(cli, argv):
     run = cli(*argv, "--help")

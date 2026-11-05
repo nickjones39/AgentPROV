@@ -29,7 +29,7 @@ def test_profile_pins_licence_import_and_family_schema():
     family = tomllib.loads((SRC / "profiles" / f"{support.PROFILE}.profile.toml").read_text(encoding="utf-8"))["family"]["wirelog"]
     assert list(jsonschema.Draft202012Validator(schema).iter_errors(family)) == []
     jsonschema.Draft202012Validator.check_schema(json.loads((SRC / "ext.schema.json").read_text(encoding="utf-8")))
-    assert family["semantics_profile"] == {"id": "wirelog.tools", "version": 1}
+    assert family["semantics_profile"] == {"id": "wirelog.tools", "version": 2}  # D-1063
     assert family["synthetic_tools"] is True  # D-284
     assert not set(family["no_attack_arms"]) & set(family["payloads"])
     assert not set(family["code_only_payload_arms"]) & set(family["payloads"])
@@ -51,7 +51,7 @@ def test_registry_entry_is_supported_and_cc_by():
     reg = get_source("what-surrounds")
     (part,) = reg.capabilities
     assert part.part == "runs-named" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == support.PROFILE and part.semantics == ("wirelog.tools@1",) and part.corpus_id == "what-surrounds"
+    assert part.profile == support.PROFILE and part.semantics == ("wirelog.tools@2",) and part.corpus_id == "what-surrounds"
     assert set(part.variants) == {"bedrock-converse", "anthropic-messages"}
     assert reg.licence.spdx == "CC-BY-4.0" and reg.licence.restrictions == () and reg.licence.policy == "include"
     assert resolve_factory(READERS["wirelog.request_response"]).__name__ == "WireLogReader"

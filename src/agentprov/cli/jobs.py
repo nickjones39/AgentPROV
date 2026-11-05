@@ -6,13 +6,14 @@ parity D-700).
     agentprov jobs list [--state running|ended|all] [--format text|json]
     agentprov jobs show ID [--format text|json]
     agentprov jobs follow ID [--timeout S] [--log]
-    agentprov jobs stop ID | kill ID --yes | drain ID | resume ID
+    agentprov jobs stop ID | kill ID --yes | drain ID | resume ID | cancel ID
     agentprov jobs prune [--keep N] [--max-age-days D] [--yes]
 
 A job is ``agentprov ARGV`` (or one ``tools/<name>.py`` of this checkout with ``--tool``) under a supervisor that
 records its real exit code; its directory is ``$AGENTPROV_HOME/jobs/<id>/`` (:mod:`agentprov.jobs`). ``ID`` is a job
 id or a unique prefix of at least 8 characters. ``start`` refuses a second writer of a corpus and a second job of a
-slot (exit 4). Everything a job prints is escaped before it is shown here.
+slot (exit 4). ``cancel`` (D-1061) stops a running job as ``stop`` does and marks it cancelled, so ``resume`` refuses
+it (exit 4); it deletes nothing. Everything a job prints is escaped before it is shown here.
 """
 
 from __future__ import annotations
@@ -43,7 +44,8 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
     s.add_argument("--reads", action="append", default=[], metavar="DIR", help="a corpus the job reads (repeatable)")
     s.add_argument("--slot", choices=["network", "backends"], help="a global slot (one job at a time)")
     s.add_argument("--with-control-file", action="store_true", help="give the job a control file (drain, D-394)")
-    s.add_argument("--queue-cpu", type=int, metavar="N", help="run through the machine-wide job queue reserving N CPUs")
+    s.add_argument("--queue-cpu", type=int, metavar="N",
+                   help="run through the machine-wide job queue reserving N CPUs (macOS and Linux; refused on Windows)")
     s.add_argument("--progress-level", choices=["status", "steps"], default="status")
     s.add_argument("--tool", metavar="tools/NAME.py", help="run one repository tool of this checkout instead of "
                    "agentprov (ARGV are its arguments)")
@@ -70,6 +72,9 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
         a.add_argument("job_id", metavar="ID")
         if name == "resume":
             a.add_argument("--format", choices=["text", "json"], default="text")
+    c = actions.add_parser("cancel", parents=[shared], help="stop the job (when it runs) and mark it cancelled, so "
+                           "resume refuses it (D-1061); nothing is deleted", allow_abbrev=False)
+    c.add_argument("job_id", metavar="ID")
     k = actions.add_parser("kill", parents=[shared], help="force kill the job's whole process tree", allow_abbrev=False)
     k.add_argument("job_id", metavar="ID")
     k.add_argument("--yes", action="store_true", help="confirm (a forced kill can leave a stale lock)")
@@ -109,7 +114,8 @@ def _payload(obj: Any) -> bytes:
 
 def _line(job: Any) -> str:
     code = "" if job.exit_code is None else f" exit {job.exit_code}"
-    return safe_text(f"{job.job_id}  {job.state}{code}  {job.command}  {job.record.get('label') or ''}", 300)
+    mark = " cancelled" if job.abandoned else ""
+    return safe_text(f"{job.job_id}  {job.state}{code}{mark}  {job.command}  {job.record.get('label') or ''}", 300)
 
 
 def _job(ctx: Context, job_id: str) -> Any:
@@ -263,6 +269,10 @@ def run_jobs(ctx: Context) -> CommandResult:
         argv = list(args.argv[1:] if args.argv[:1] == ["--"] else args.argv)
         if args.queue_cpu is not None and not 1 <= args.queue_cpu <= 256:
             raise CliUsageError("agentprov jobs start: --queue-cpu is 1 to 256")
+        if args.queue_cpu is not None:
+            from agentprov.jobs.manager import check_queue_platform
+
+            check_queue_platform()  # D-1064: macOS and Linux only, refused before anything is resolved or written
         cwd = os.getcwd()
         if args.tool is None:  # F-14: relative paths mean the caller's cwd, recorded absolute (a tool's are its own)
             argv = absolute_argv(argv, cwd)
@@ -316,6 +326,19 @@ def run_jobs(ctx: Context) -> CommandResult:
                    "the process identity did not match, or this platform has no graceful stop")
             raise SpawnRefused(f"agentprov jobs {action}: not done: {why}", "jobs.control.refused")
         result.info(f"jobs: {action} sent to {job.job_id}")
+    elif action == "cancel":
+        job = _job(ctx, args.job_id)
+        running, already = job.state == "running", job.abandoned
+        if not _manager(ctx).cancel(job):
+            from agentprov.jobs.manager import SpawnRefused
+
+            raise SpawnRefused("agentprov jobs cancel: the job is marked cancelled, but the stop was not sent: the "
+                               "process identity did not match, or this platform has no graceful stop (agentprov jobs "
+                               "kill ID --yes ends it)", "jobs.control.refused")
+        sent = "stop sent; " if running else ""
+        result.info(f"jobs: {job.job_id} {'was already' if already else 'is now'} cancelled ({sent}jobs resume refuses "
+                    "it; nothing was deleted)")
+        result.counters = {"jobs_cancelled": 0 if already else 1}
     elif action == "resume":
         job = _job(ctx, args.job_id)
         if job.state == "running":
@@ -348,7 +371,11 @@ def run_jobs(ctx: Context) -> CommandResult:
             for job in candidates:
                 result.output(_line(job))
         if args.yes:
-            result.counters = {"jobs_deleted": manager.delete(candidates)}
+            deleted = manager.delete(candidates)
+            result.counters = {"jobs_deleted": deleted}
+            if deleted < len(candidates):
+                result.notices.append(f"prune: {len(candidates) - deleted} job(s) kept: a file could not be removed "
+                                      "(in use?); a later prune deletes them")
         else:
             result.counters = {"jobs_to_delete": len(candidates)}
             result.notices.append("prune: nothing deleted without --yes")

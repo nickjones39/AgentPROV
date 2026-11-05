@@ -22,8 +22,11 @@ ROOT = Path(__file__).resolve().parents[2]
 SITE = ROOT / "site"
 INDEX = SITE / "index.html"
 RELEASES = "https://github.com/nickjones39/AgentPROV/releases/latest/download/"
+#: The release this page describes: pyproject.toml's version, and its minor series for the live-capture sentence.
+VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+SERIES = ".".join(VERSION.split(".")[:2])
 #: The release assets (docs/reports/release/v0.1.0-plan.md: the bundles, F-5's source archive, the signed sums; D-1011
-#: adds the macOS Intel bundle in v0.1.1).
+#: adds the macOS Intel bundle in v0.1.1; v0.2.0-plan.md names the 0.2.0 archive).
 ASSETS = {
     "AgentPROV-macos-arm64.dmg",
     "AgentPROV-macos-x86_64.dmg",
@@ -31,7 +34,7 @@ ASSETS = {
     "AgentPROV-windows-arm64.zip",
     "AgentPROV-linux-x86_64.tar.gz",
     "AgentPROV-linux-aarch64.tar.gz",
-    "AgentPROV-0.1.1-source.tar.gz",
+    "AgentPROV-0.2.0-source.tar.gz",
     "SHA256SUMS",
     "SHA256SUMS.sig",
 }
@@ -106,7 +109,7 @@ def test_the_coverage_phrase_is_the_registry_generated_one() -> None:
 
 def test_live_runs_are_worded_as_a_tested_capability() -> None:
     text = _text()
-    assert "Live capture works and is tested in v0.1. No live results are claimed" in text  # D-991, U-18
+    assert f"Live capture works and is tested in v{SERIES}. No live results are claimed" in text  # D-991, U-18
 
 
 def test_everything_is_self_hosted() -> None:
@@ -153,7 +156,7 @@ def test_the_brand_files_are_the_brand_sources() -> None:
 
 
 def test_the_downloads_are_the_release_assets() -> None:
-    plan = (ROOT / "docs" / "reports" / "release" / "v0.1.1-plan.md").read_text(encoding="utf-8")
+    plan = (ROOT / "docs" / "reports" / "release" / "v0.2.0-plan.md").read_text(encoding="utf-8")
     links = {attrs["data-asset"]: attrs.get("href") for _, attrs in _page().tags if attrs.get("data-asset")}
     assert set(links) == ASSETS
     for asset, href in links.items():

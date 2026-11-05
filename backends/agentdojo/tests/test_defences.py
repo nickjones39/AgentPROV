@@ -484,6 +484,133 @@ def test_an_unexplained_non_execution_gets_no_invented_result(tmp_path, monkeypa
     assert run.notes("defence_unclassified_non_execution") == [{"occ": dispatch["data"]["occ"], "actor": ACTOR}]
 
 
+#: A gate that declines by argument (the recipient), as Mandate does: it skips a declined call and runs the later
+#: calls of the same batch, so two calls with the same function name reach it.
+BY_RECIPIENT_GATE_SOURCE = GATE_SOURCE.replace("if tc.function in blocked:", "if tc.args.get('recipient') in blocked:")
+ATTACKER = "US133000000121212121212"
+LEGIT = "GB29NWBK60161331926819"
+
+
+def _send(recipient: str, call_id: str, amount: float = 10.0) -> dict[str, Any]:
+    return _call("send_money", {"recipient": recipient, "amount": amount, "subject": "x", "date": "2022-01-01"},
+                 call_id)
+
+
+def test_a_gate_denial_of_the_first_of_two_same_name_calls_is_not_inverted(tmp_path, monkeypatch):
+    # UC-2: the runtime call that ran is matched to the batch call by identity (the gate passes ``tc.args``), never to
+    # the first unmatched call with the same name
+    _gate_entry(tmp_path, monkeypatch, source=BY_RECIPIENT_GATE_SOURCE, blocked=[ATTACKER])
+    run = _instrumented(tmp_path, "test_gate", [_tool(_send(ATTACKER, "call_2"), _send(LEGIT, "call_3")), FINAL])
+    dispatch = {e["data"]["occ"]: e["data"] for e in run.of("tool.dispatch")}
+    results = {e["data"]["occ"]: e["data"] for e in run.of("tool.result")}
+    by_id = {d["provider_call_id"]: occ for occ, d in dispatch.items()}
+    assert sorted(by_id) == ["call_2", "call_3"]
+    attacker, legit = results[by_id["call_2"]], results[by_id["call_3"]]
+    assert attacker["status"] == "denied" and attacker["decided_by"] == ACTOR and "returned" not in attacker
+    assert legit["status"] == "ok" and legit["args_effective"]["recipient"] == LEGIT
+    assert dispatch[by_id["call_2"]]["args"]["recipient"] == ATTACKER
+    assert not run.notes("defence_unclassified_non_execution")
+    assert not run.notes("defence_unmatched_runtime_call")
+
+
+def test_the_gate_context_matches_by_identity_then_equality_and_never_guesses_by_name():
+    class _Calls:
+        def __init__(self, function: str, args: dict[str, Any], cid: str) -> None:
+            self.function, self.args, self.id = function, args, cid
+
+    class _Session:
+        def __init__(self) -> None:
+            self.n = 0
+            self.dispatched: list[tuple[str, str | None]] = []
+            self.noted: list[tuple[str, Any]] = []
+
+        def next_occ(self) -> str:
+            self.n += 1
+            return f"o{self.n}"
+
+        def tool_dispatch(self, occ, call_id, name, args, _eff, _at):
+            self.dispatched.append((occ, call_id))
+
+        def note(self, _ns, kind, data):
+            self.noted.append((kind, data))
+
+    a, b = {"recipient": ATTACKER}, {"recipient": LEGIT}
+    calls = [_Calls("send_money", a, "c1"), _Calls("send_money", b, "c2"), _Calls("send_money", dict(a), "c3")]
+    s = _Session()
+    gate = defences._GateContext(s, calls, [dict(a), dict(b), dict(a)], 2)
+    assert gate.begin("send_money", b) == "o1" and s.dispatched[-1] == ("o1", "c2")  # identity
+    gate.end({"status": "ok"}, "r")
+    assert gate.begin("send_money", {"recipient": ATTACKER}) is None  # equal to c1 and c3: ambiguous, not bound
+    assert s.noted[-1][0] == "defence_unmatched_runtime_call" and s.noted[-1][1]["candidates"] == 2
+    assert gate.begin("send_money", {"recipient": "other"}) is None  # equal to none of the two left
+    gate2 = defences._GateContext(s, calls[:2], [dict(a), dict(b)], 2)
+    assert gate2.begin("send_money", {"recipient": LEGIT}) is not None and gate2.occ.keys() == {1}  # equality
+    gate2.end({"status": "ok"}, "r")
+    assert gate2.begin("send_money", {"recipient": "changed"}) is not None and gate2.occ.keys() == {0, 1}  # one left
+
+
+GATE_RAISES_SOURCE = GATE_SOURCE.replace(
+    "                out, error = runtime.run_function(env, tc.function, tc.args)\n",
+    "                out, error = runtime.run_function(env, tc.function, tc.args)\n"
+    "                if tc.function in ('send_money',):\n"
+    "                    raise ValueError('could not convert string to float: ' + repr(tc.args.get('subject')))\n")
+
+
+def test_a_gate_that_raises_mid_batch_leaves_no_dispatch_without_a_result(tmp_path, monkeypatch):
+    # UC-17: the calls the gate already ran keep their results when its query raises afterwards
+    _gate_entry(tmp_path, monkeypatch, source=GATE_RAISES_SOURCE, blocked=[])
+    run = run_cell(tmp_path, _defended_cell("test_gate"), _agent(), [_tool(BANKING_READ, SEND), FINAL])
+    assert run.result.status != "complete"
+    assert_capture_invariants(run)
+    dispatch = {e["data"]["occ"]: e["data"] for e in run.of("tool.dispatch")}
+    results = {e["data"]["occ"]: e["data"] for e in run.of("tool.result")}
+    assert sorted(d["name"] for d in dispatch.values()) == ["get_most_recent_transactions", "send_money"]
+    assert dispatch.keys() == results.keys()
+    assert all(r["status"] == "ok" and "returned" in r for r in results.values())
+    (aborted,) = run.notes("defence_gate_raised")
+    assert aborted["actor"] == ACTOR and aborted["exception"]["type"] == "ValueError"
+    assert sorted(aborted["occs"]) == sorted(results)
+
+
+def test_the_provisioned_code_that_runs_is_the_code_that_was_hashed(tmp_path, monkeypatch):
+    # UC-18: the entry point is executed from the bytes whose sha256 was checked, never re-read from disk afterwards
+    from agentprov_backend.attacks import UnsupportedConfiguration
+
+    entry = _gate_entry(tmp_path, monkeypatch)
+    path = tmp_path / "prefix" / "agentprov_defences" / "test_gate" / "gate.py"
+    real_refusal = defences.entry_refusal
+
+    def refusal_then_swap(e: Any, *, prefix: str | None = None) -> str | None:
+        reason = real_refusal(e, prefix=prefix)
+        path.write_text("def make_gate(blocked):\n    return 'swapped after the check'\n", encoding="utf-8")
+        return reason
+
+    monkeypatch.setattr(defences, "entry_refusal", refusal_then_swap)
+    with pytest.raises(UnsupportedConfiguration, match="differs from its pinned sha256"):
+        defences.load_provisioned(entry)
+    monkeypatch.setattr(defences, "entry_refusal", real_refusal)
+    path.write_text(GATE_SOURCE, encoding="utf-8")
+    target = defences.load_provisioned(entry)
+    assert target.__module__ == "agentprov_defence_test_gate" and target.__code__.co_filename == str(path)
+
+
+def test_weights_whose_hub_ref_names_another_revision_are_refused(tmp_path):
+    # UC-18: the stock detector loads refs/main offline, so the ref must name the pinned (size-checked) snapshot
+    data = b'{"model_type": "fake"}\n'
+    weights = {"hub": "huggingface", "repo": "example/fake-model", "revision": "a" * 40, "licence": {}, "hosts": [],
+               "files": [{"path": "config.json", "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}]}
+    entry = replace(resolve("repeat_user_prompt", "agentdojo"), weights=(weights,))
+    model = tmp_path / "agentprov_defences" / "hf" / "models--example--fake-model"
+    (model / "snapshots" / ("a" * 40)).mkdir(parents=True)
+    (model / "snapshots" / ("a" * 40) / "config.json").write_bytes(data)
+    assert "refs/main" in entry_refusal(entry, prefix=str(tmp_path))
+    (model / "refs").mkdir()
+    (model / "refs" / "main").write_text("b" * 40, encoding="ascii")
+    assert "refs/main" in entry_refusal(entry, prefix=str(tmp_path))
+    (model / "refs" / "main").write_text("a" * 40, encoding="ascii")
+    assert entry_refusal(entry, prefix=str(tmp_path)) is None
+
+
 def test_the_gate_reports_an_unknown_tool_as_invalid(tmp_path, monkeypatch):
     _gate_entry(tmp_path, monkeypatch)
     run = _instrumented(tmp_path, "test_gate", [_tool(_call("no_such_tool", {}, "call_9")), FINAL])

@@ -1,0 +1,190 @@
+# Source profile `drift`: SaFo-Lab/DRIFT run logs (docs/architecture D.4.4, D.6.19; DECISIONS D-270..D-279; phase 10l;
+# sources/drift.md, verify/drift.md; docs/reports/phase10l/).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The `[family.agentdojo]` part is checked against the closed
+# schema `family.schema.json` of this family (D.4.1).
+#
+# Two parts, one per pin: `head` (1,569 logs at 6fd3df47) and `history` (1,046 logs at 53dbc6c5, committed and deleted
+# before the repository stated any licence; licence policy `reference`, D-279: registered, censused and trial-imported,
+# never released). Both are `drift.k18.conversations`, mapped by the DRIFT build of the dialect's mapper
+# (adapters/agentdojo/drift_mapper.py, D-270). The `observed` counts are measured by mapping every file of each full pinned
+# snapshot and reproduced by the phase-10l census (docs/reports/phase10l/census.md), which reads the source bytes
+# independently.
+
+[profile]
+id = "drift"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "drift"
+family = "agentdojo"
+parts = ["head", "history"]
+title = "DRIFT (SaFo-Lab/DRIFT) run logs: AgentDojo v1.2 and AgentDyn suites under the DRIFT defence, gpt-4o-mini"
+evidence = ["sources/drift.md", "verify/drift.md", "docs/reports/phase10l/census.md", "docs/reports/phase10l/aer-mapping.md"]
+
+[source]
+canonical_repo = "https://github.com/SaFo-Lab/DRIFT"
+paper = "arXiv:2506.12104"
+aliases = ["https://github.com/SaFoLab-WISC/DRIFT"]
+package = { name = "agentdojo", requirement = "agentdojo==0.1.35", version_identifies_code = false }
+
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "6fd3df4763fad77398c3c273c2a4fe14dd50f7ea"
+date = "2026-07-16"
+tree = "runs/"
+tree_sha1 = "5a0ab766b3961df384a35ed5edbe57c51140fbd9"
+expected_files = 1569
+expected_bytes = 22083267
+note = "no tags or releases; the AgentDojo-suite runs were committed at 7c7d982 (2026-02-14), the AgentDyn-suite runs at f9ef3a3 (2026-04-18)"
+
+[[source.pins]]
+role = "history"
+part = "history"
+kind = "git"
+commit = "53dbc6c58d5d1f044f3a68636be30b060bb86d34"
+date = "2026-01-31"
+tree = "runs/"
+tree_sha1 = "35efdfeb11da0d64bd8c8f951c6a5cc16c83583f"
+expected_files = 1046
+expected_bytes = 13249625
+note = "superseded at 7c7d982: 949 paths re-run (0 identical conversations), 97 benign runs deleted; blobs fetched with the user's approval (phase 10l R-1)"
+
+[licence]
+spdx = "MIT"
+holders = ["Hao Li"]
+data_licence = "none"
+policy = "include"
+basis = "MIT by repository (LICENSE added at 6fd3df47, 2026-07-16; README badge from 840c24d, 2026-04-19)"
+attribution = [
+  "arXiv:2506.12104 (DRIFT, NeurIPS 2025)",
+  "LICENSE (MIT, Copyright (c) 2026 Hao Li)",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.) and AgentDyn (MIT, same notice): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[[licence.overrides]]
+role = "history"
+spdx = "MIT"
+policy = "reference"
+basis = "committed 2026-01-31 and deleted 2026-02-14, before any licence statement; whether the later repository-wide MIT covers deleted history blobs is not stated (D-279, user decision 2026-10-13)"
+
+[lineage]
+built_on = ["agentdojo==0.1.35 (requirements.txt; PyPI)", "AgentDyn (SaFo-Lab/AgentDyn) for the dailylife, github and shopping suites"]
+vendored = []
+duplicates = []
+cited_by = [
+  "agentdyn part d: src/agentdojo/defenses/drift/runs/** at 5353cf76, byte-identical to the 949 AgentDojo-suite head runs (owner drift)",
+  "CGboom-git/drift-1 and drift-clean, JinmingWang02/DRIFT: byte-identical copies of the 1,569 head runs (verify/drift.md §7)",
+]
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["drift.k18.conversations"]
+rules = { aer = 1, agentdojo = 2, drift = 1 }
+include = ["runs/**/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "runs/{model_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 5
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+
+[family.agentdojo.identity]
+# runs/<--model>/...: pipeline_main.py writes output_dir = runs/<args.model> and pipeline_name = f"{args.model}", the model id
+# it passes to its client (D-278)
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", workspace = "agentdojo", dailylife = "agentdyn", github = "agentdyn", shopping = "agentdyn" }
+version_field = "benchmark_version"
+# pipeline_main.py loads get_suite(args.benchmark_version, suite): the label is the suite version for the AgentDojo suites;
+# AgentDyn registers its suites under every version key, so there it is not (D-278)
+version_label_semantics = "suite_version_for_agentdojo_suites_only"
+dos_attacks = []
+semantics_profile = { id = "agentdojo.suites", version = 2 }  # D-31 and item 1: regenerated corpora read @2
+
+[family.agentdojo.harness]
+# No log names its code; the head runs were produced by code states before or between the pinned commits (verify §3, §5),
+# so no rule is cited at D (D-24, D-272). The single pass is drift.single_pass@1, cited by the DRIFT build regardless of
+# retry_semantics (the generic profile check refuses agentdojo.single_pass for TraceLogger profiles; routed).
+code_identity = "range"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_tool_output_post_isolation"
+applies = {}
+rules = ["drift.tool_output_post_isolation@1"]
+note = "one isolation decision per call batch, on its last tool message (injection_isolate reads and edits messages[-1] only; excised frames occur only there)"
+observed = { head = { isolation_decisions = 5889, tool_messages = 6175 }, history = { isolation_decisions = 3101, tool_messages = 3580 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_assistant_reserialised"
+applies = {}
+rules = ["drift.assistant_reserialised@1"]
+observed = { head = { reserialised = 7341, raw = 950 }, history = { reserialised = 3666, raw = 623 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_call_error_as_user"
+applies = {}
+rules = ["drift.call_error_user_is_validator@1", "drift.call_error_check@1"]
+observed = { head = { messages = 833, files = 538, trajectory = 326, checklist = 507 }, history = { messages = 142, trajectory = 134, checklist = 8 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_calls_in_text_not_executed"
+applies = {}
+rules = ["drift.calls_in_text_not_executed@1"]
+observed = { head = { final_turns = 317, reserialised = 311, raw = 6 }, history = { final_turns = 84, reserialised = 83, raw = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_no_system_no_injections"
+applies = {}
+rules = ["drift.no_system_message@1", "drift.no_injection_map@1"]
+observed = { head = { system_messages = 0, fixtures = 0 }, history = { system_messages = 0, fixtures = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.drift_plan_fields_by_commit"
+applies = {}
+rules = ["drift.plan_fields_semantics@1"]
+params = { semantics = { "6fd3df4763fad77398c3c273c2a4fe14dd50f7ea" = "initial_plan", "53dbc6c58d5d1f044f3a68636be30b060bb86d34" = "final_plan_state" } }
+observed = { head = { initial_plan = 1569, final_plan_state = 0, contradicted = 0 }, history = { initial_plan = 0, final_plan_state = 1046, contradicted = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["drift.benign_security_constant@1"]
+observed = { head = { files = 60 }, history = { files = 97 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = {}
+rules = ["agentdojo.args_are_effective@1"]
+note = "AgentDojo 0.1.35's ToolsExecutor normalises the call's args in place before the log is written; files = logs with at least one call"
+observed = { head = { files = 1549 }, history = { files = 1039 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.call_id_unique_match@1"]
+params = { seeded_random_trace_local = ["**"] }
+note = "ids are tool_call_ + 10 characters from Python random seeded with --seed 98: unique within a log, reused across logs (head: 975 of 3,265 distinct ids in more than one file; history: 30 of 3,550), so never a global identity (C.4.4)"
+observed = { head = { logs_with_duplicate_ids = 0, calls_id_absent = 0, calls_id_empty = 0, calls_id_null = 0 }, history = { logs_with_duplicate_ids = 0, calls_id_absent = 0, calls_id_empty = 0, calls_id_null = 0 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "drift.benign_security_constant@1",
+  "agentdojo.checker_outcome@1",
+]

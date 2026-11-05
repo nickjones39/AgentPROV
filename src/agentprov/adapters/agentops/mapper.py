@@ -17,7 +17,10 @@ One run file is one execution (content-addressed id). The unit's auxiliary artef
 
 A post-pass applies the profile's ``[[family.agentops.redact]]`` rules to the tool messages' values (D-608, principle
 D-604; :mod:`agentprov.adapters.agentops.redact`): a third-party account path in tool output is replaced by a salted
-label, model text stays verbatim; one info issue ``agentops.value_redacted`` counts the redacted pointers.
+label, model text stays verbatim; one info issue ``agentops.value_redacted`` counts the redacted pointers. Before it, the
+D-378 pass replaces a lone UTF-16 surrogate in a typed text field or an object key (``agentops.lone_surrogate_replaced``);
+after it, a string over 1 MiB of UTF-8 is replaced by its digest (``agentops.content_not_inlined``, the D-934 pattern;
+both D-1063, review UC-40 and UC-41).
 
 Nothing is invented: no time but the recorded call timestamps (kept raw), no user or system message, no call id, no tool
 status. ``aer/0.1`` forbids a generic activity generating a message (C.3.13), so the harness's fault and payload
@@ -29,6 +32,7 @@ Pure (A-2): the output is a function of the unit's bytes, the auxiliary bytes, t
 from __future__ import annotations
 
 import hashlib
+import math
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, Final
 
@@ -46,7 +50,9 @@ from agentprov.adapters.agentops.pairing import RULE as R_PAIR
 from agentprov.adapters.agentops.pairing import pair_step
 from agentprov.adapters.agentops.redact import RULE as R_REDACT
 from agentprov.adapters.agentops.redact import Redactor, parse_redact_rules
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -98,6 +104,12 @@ R_COUNTERS: Final = "agentops.acc.counters@1"
 R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
 R_AFTER_SUBJECT: Final = "aer.decision_after_subject@1"
+#: D-1063 (review UC-41): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as D-934
+R_NOT_INLINED: Final = "agentops.content_not_inlined@1"
+#: D-1063 (review UC-39): the AER's integer domain (I-JSON, C.11.3), as D-1011 for adprov
+_MAX_COUNT: Final = 2**53 - 1
+#: a step's token counts and the typed usage fields they fill
+_USAGE: Final = (("llm_input_tokens", "input_tokens"), ("llm_output_tokens", "output_tokens"))
 #: The judgement order and the scores they read (verbatim metric names; C.3.10).
 JUDGEMENTS: Final = ("completion", "safety", "efficiency", "cost", "cost_normalized_accuracy")
 
@@ -253,6 +265,18 @@ def _number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _count(value: object) -> bool:
+    """Whether ``value`` fits a typed AER count: an integer (or an integral float, which the AER takes as one, C.11.3) in
+    0..2^53-1. Anything else stays out of the typed field (D-1063, review UC-39: the writer refused the run)."""
+    if not _number(value):
+        return False
+    if isinstance(value, float) and not (math.isfinite(value) and value.is_integer()):
+        return False
+    if isinstance(value, float) and math.copysign(1.0, value) < 0:  # -0.0: no typed count holds it (AU-NC-306)
+        return False
+    return 0 <= value <= _MAX_COUNT  # type: ignore[operator]
+
+
 class _Build:
     """One mapping run: every record is built in order, then emitted (backward references only)."""
 
@@ -261,7 +285,9 @@ class _Build:
         item = unit.primary
         if not isinstance(item.value, dict):
             raise MalformedArtefact("the located item is not an AgentOps-Bench JSON object")
-        self.v: dict[str, Any] = item.value
+        # D-378 (D-1063, review UC-40): a key cannot be $utf16-wrapped, so the source's keys are scrubbed before mapping
+        self.v: dict[str, Any]
+        self.v, self.surrogate_keys = scrub_keys(item.value)
         facets, self.origin_key = _facets_of(item.artefact)
         if facets is None:
             raise MalformedArtefact("the artefact's label is outside the AgentOps-Bench label grammar")
@@ -334,11 +360,13 @@ class _Build:
         if not self.outcome_only:
             body += self._steps()
         body += self._judgements()
+        header = self._header()  # depends on nothing the passes below change
+        records = [header, *body]
+        surrogates(self, records, "agentops")  # D-378 (D-1063, review UC-40), before the redaction pass
         self._redact(body)
         self._checks()
         self._header_issues()
-        yield self._header()
-        yield from body
+        yield from self._not_inlined(records)
 
     # ---------------------------------------------------------------------------------------------- join
     def _join(self) -> TaskJoin:
@@ -576,9 +604,22 @@ class _Build:
             mc.data["input"] = list(self.messages)
             mc.cite(self.R(R_STEP))
             mc.tag("/input", "I", self.R(R_CONTEXT, "/input"))
-            mc.data["usage"] = {"input_tokens": mc.enc(step["llm_input_tokens"], "/usage/input_tokens"),
-                                "output_tokens": mc.enc(step["llm_output_tokens"], "/usage/output_tokens")}
-            mc.tag("/usage", "O")
+            usage: dict[str, Any] = {}
+            reported: dict[str, Any] = {}
+            for src, dst in _USAGE:  # a count outside the AER's domain stays verbatim in ext (D-1063, review UC-39)
+                if _count(step[src]):
+                    usage[dst] = mc.enc(step[src], _p("usage", dst))
+                else:
+                    reported[src] = step[src]
+                    mc.unk[_p("usage", dst)] = "ambiguous"
+            if usage:
+                mc.data["usage"] = usage
+                mc.tag("/usage", "O")
+            else:
+                mc.unk = {k: v for k, v in mc.unk.items() if not k.startswith("/usage/")}
+                mc.unk["/usage"] = "ambiguous"
+            if reported:
+                mc.x("usage_reported", reported)
             mc.loc(self.loc(base))
             self._pos(mc)
             mc.unk.update({key: "not_recorded" for key in _MODEL_CALL_UNKNOWN})
@@ -676,8 +717,11 @@ class _Build:
                     te.unk["/name"] = "ambiguous"
                 te.evf.update({"/name": "O", "/args": "O"})
                 te.loc(self.loc(call_base))
-                te.data["t"] = {"raw": {"start": te.enc(call["timestamp"], "/t/raw/start")}}
-                te.evf["/t/raw"] = "O"
+                if isinstance(call["timestamp"], str):
+                    te.data["t"] = {"raw": {"start": te.enc(call["timestamp"], "/t/raw/start")}}
+                    te.evf["/t/raw"] = "O"
+                else:  # t.raw holds strings only: kept verbatim in ext (D-1063, review UC-39)
+                    te.x("timestamp", call["timestamp"])
                 te.unk["/t/start"] = "ambiguous"
                 te.cite(self.R(R_CALL_TIME, "/t/start"))
             else:
@@ -789,6 +833,19 @@ class _Build:
             self.issue("agentops.value_redacted", changed, R_REDACT, severity="info",
                        detail=f"{count} values redacted by the profile's redact rules (D-608)")
 
+    # ---------------------------------------------------------------------------------------------- not inlined
+    def _not_inlined(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """D-1063 (review UC-41; the D-934 pattern), after redaction: every string over 1 MiB becomes ``{"not_inlined":
+        {sha256, bytes}}`` of its UTF-8 bytes (C.2.1(6)). A tool result's text becomes the part's value; a message's text
+        part an ``other`` part of type ``text``. Each such pointer is DERIVED under ``agentops.content_not_inlined@1``;
+        one info issue names the records."""
+        # AU-RC-1/AU-RC-2 (D-1063): the shared pass, which also moves every citation, unk key and ext.<ns>.redacted
+        # entry naming a moved pointer (UC-38) and digests a $utf16 value over its decoded text
+        ids = not_inlined(records, "agentops", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("agentops.content_not_inlined", ids, R_NOT_INLINED, severity="info")
+        return records
+
     # ---------------------------------------------------------------------------------------------- judgements
     def _judgements(self) -> list[dict[str, Any]]:
         scores = self.v["scores"]
@@ -828,8 +885,8 @@ class _Build:
         observed = {
             "steps": len(self.steps),
             "calls": calls,
-            "input_tokens": sum(int(s["llm_input_tokens"]) for s in self.steps if _number(s["llm_input_tokens"])),
-            "output_tokens": sum(int(s["llm_output_tokens"]) for s in self.steps if _number(s["llm_output_tokens"])),
+            "input_tokens": sum(int(s["llm_input_tokens"]) for s in self.steps if _count(s["llm_input_tokens"])),
+            "output_tokens": sum(int(s["llm_output_tokens"]) for s in self.steps if _count(s["llm_output_tokens"])),
         }
         reported = {
             "total_tool_calls": efficiency.get("total_tool_calls"),
@@ -838,6 +895,14 @@ class _Build:
             "total_output_tokens": self.t["total_output_tokens"],
         }
         scope = "run" if self.outcome_only else "att0"
+        # a step count outside the AER's count domain, or a total beyond it, cannot be compared or recorded as a count
+        # (the seal's observed values are counts): unverifiable, with the in-range values (D-1063, review UC-39)
+        in_range = all(_count(s[src]) for s in self.steps for src, _dst in _USAGE)
+        totals = [v for v in reported.values() if isinstance(v, int) and not isinstance(v, bool)]
+        if not in_range or not all(_count(v) for v in (*observed.values(), *totals)):
+            self.ctx.check(R_COUNTERS, scope=scope, verdict="unverifiable",
+                           observed={k: v for k, v in observed.items() if _count(v)}, reason="counters_out_of_range")
+            return
         if not all(isinstance(v, int) and not isinstance(v, bool) for v in reported.values()):
             self.ctx.check(R_COUNTERS, scope=scope, verdict="unverifiable", observed=observed, reason="counters_not_recorded")
             return

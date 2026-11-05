@@ -39,6 +39,8 @@ PROFILE = "autogen-guard-placement"
 ZIP_SHA256 = "af2f519347c9554ba0857cc4ca989c17e45588bc421b1af990971540bd9f7b63"
 ROOT = "autogen-guard-placement/"
 TOOL_ARM = ROOT + "results/phase6/tool/runs.jsonl"
+#: The semantics profile version the current profile selects (D-1063: @1's tables on catalogue autogen 2).
+SEM_VERSION = 2
 
 
 class _Listing:
@@ -145,7 +147,7 @@ def map_unit_of(unit: ExecutionUnit, aux: dict[str, bytes], *, sem: bool = False
         from agentprov.adapters.semantics_profiles import load_semantics_profile
         from agentprov.sem.engine import annotate
 
-        profile = load_semantics_profile("autogen.tools", 1)
+        profile = load_semantics_profile("autogen.tools", SEM_VERSION)
         result.sem = annotate(doc, profile)
         if prov:
             from agentprov.prov.engine import derive

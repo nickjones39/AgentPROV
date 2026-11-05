@@ -360,6 +360,13 @@ def entry_refusal(entry: DefenceEntry, *, prefix: str | None = None) -> str | No
             if not p.is_file() or p.stat().st_size != f["size"]:
                 return (f"the pinned weights file {weights['repo']}/{f['path']} is not provisioned "
                         f"(backends build --defence-assets {entry.id})")
+        # UC-18: the stock detector names the repo without a revision, so the offline hub loads the snapshot refs/main
+        # names; it must be the pinned (checked) one
+        ref = root.parent.parent / "refs" / "main"
+        named = ref.read_bytes()[:64].strip() if ref.is_file() and not ref.is_symlink() else None
+        if named != str(weights["revision"]).encode("ascii"):
+            return (f"the offline hub cache's refs/main for {weights['repo']} does not name the pinned revision "
+                    f"(backends build --defence-assets {entry.id})")
     if entry.provider in ("provisioned", "port"):
         assert entry.code is not None
         root = provisioned_dir(entry, prefix)
@@ -667,6 +674,12 @@ class _Gate(_Recorder):
         self.session.gate = gate
         try:
             out = _delegate_query(self.inner, query, runtime, env, messages, extra_args)
+        except BaseException as exc:
+            # UC-17: the gate raised mid-batch (Mandate's ``float(amount)`` on a model-supplied ``"$5"``): the calls it
+            # already ran keep their results (what the recording runtime saw) before the exception propagates. Nothing
+            # was rendered and nothing was sent to the model for them, so ``rendered`` and ``model_visible`` are empty
+            self._results_before_raise(gate, exc)
+            raise
         finally:
             self.session.gate = None
         results = list(out[3][len(messages):])
@@ -709,6 +722,27 @@ class _Gate(_Recorder):
         return out
 
 
+    def _results_before_raise(self, gate: _GateContext, exc: BaseException) -> None:
+        occs: list[str] = []
+        for j, occ in gate.occ.items():
+            record = gate.records.get(j)
+            if record is None:  # the runtime call itself never came back (no record was taken for it)
+                self.session.tool_result(occ, "error", None, None, "", "", None,
+                                         exception={"type": type(exc).__name__, "message": ""}, has_returned=False)
+            else:
+                status = record.get("status", "error")
+                exception = record.get("exception")
+                error = None
+                if isinstance(exception, Mapping) and status != "ok":
+                    error = f"{exception.get('type')}: {exception.get('message')}"
+                self.session.tool_result(occ, status, record.get("args_effective"), gate.returned.get(j), "", "",
+                                         error, exception=exception,
+                                         has_returned=status == "ok" and j in gate.returned)
+            occs.append(occ)
+        self.session.note("agentdojo", "defence_gate_raised",
+                          {"actor": self.actor, "exception": {"type": type(exc).__name__}, "occs": occs})
+
+
 def _result_for(results: Sequence[Any], tc: Any, j: int) -> Any:
     for r in results:
         if r.get("tool_call") is tc:
@@ -734,10 +768,27 @@ class _GateContext:
         self.returned: dict[int, Any] = {}
         self._current: int | None = None
 
-    def begin(self, function: str) -> str | None:
-        j = next((k for k, tc in enumerate(self.calls) if k not in self.occ and tc.function == function), None)
+    def begin(self, function: str, kwargs: Any = None) -> str | None:
+        """The occurrence of the batch call the runtime is about to run, or ``None`` (a note says why).
+
+        A call is matched by its identity, never by its name alone (UC-2): first the batch call whose ``args`` object
+        the gate passed to the runtime (``tc.args is kwargs``, which a gate that runs ``tc`` does), then the single
+        unmatched call with that name and equal arguments, and the name alone only when exactly one unmatched call
+        of that name is left. Two or more equally good candidates are never guessed between."""
+        open_ = [k for k, tc in enumerate(self.calls) if k not in self.occ and tc.function == function]
+        j = next((k for k in open_ if kwargs is not None and getattr(self.calls[k], "args", None) is kwargs), None)
+        candidates = len(open_)
+        if j is None and kwargs is not None:
+            equal = [k for k in open_ if _args_equal(getattr(self.calls[k], "args", None), kwargs)]
+            if len(equal) == 1:
+                j = equal[0]
+            elif equal:
+                candidates, open_ = len(equal), []
+        if j is None and len(open_) == 1:
+            j = open_[0]
         if j is None:
-            self.session.note("agentdojo", "defence_unmatched_runtime_call", {"function": function})
+            self.session.note("agentdojo", "defence_unmatched_runtime_call",
+                              {"function": function, "candidates": candidates})
             return None
         occ = self.session.next_occ()
         self.occ[j] = occ
@@ -754,6 +805,13 @@ class _GateContext:
             self.records[j] = dict(record)
         if record is None or record.get("status") == "ok":
             self.returned[j] = result
+
+
+def _args_equal(a: Any, b: Any) -> bool:
+    try:
+        return isinstance(a, Mapping) and isinstance(b, Mapping) and dict(a) == dict(b)
+    except Exception:  # noqa: BLE001 - arguments whose comparison raises are simply not a match
+        return False
 
 
 class _LlmDetector(_Recorder):
@@ -849,13 +907,21 @@ def load_provisioned(entry: DefenceEntry, *, prefix: str | None = None) -> Any:
         raise UnsupportedConfiguration(f"defence {entry.id!r}: {reason}")
     file_label, attr = entry.code["entry"].split(":")
     path = provisioned_dir(entry, prefix) / file_label
+    pinned = next((f for f in entry.code["files"] if f["path"] == file_label), None)
+    if pinned is None:
+        raise UnsupportedConfiguration(f"defence {entry.id!r}: the entry point {file_label!r} is not a pinned file")
+    # UC-18: one read; the bytes hashed here are the bytes executed (never re-read from disk, never a cached .pyc)
+    data = path.read_bytes() if path.is_file() and not path.is_symlink() else b""
+    if hashlib.sha256(data).hexdigest() != pinned["sha256"]:
+        raise UnsupportedConfiguration(f"defence {entry.id!r}: provisioned file {file_label!r} differs from its pinned "
+                                       "sha256")
     name = f"agentprov_defence_{entry.id}"
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise UnsupportedConfiguration(f"defence {entry.id!r}: cannot load {file_label!r}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
-    spec.loader.exec_module(module)
+    exec(compile(data, str(path), "exec", dont_inherit=True), module.__dict__)  # noqa: S102 - the pinned code
     if entry.port == "melon":
         from agentprov_backend.ports import melon
 

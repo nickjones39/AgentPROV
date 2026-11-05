@@ -22,6 +22,13 @@ quantiles (each quantile independently: a deliberately high p90). Plus the prefl
 
 **Time** = ``ceil(units / jobs)`` × the unit-weighted mean cell duration, at p50 and p90.
 
+**How the run's figures aggregate** (stated in ``quote`` since D-1062). The p50 figure is the sum over the cells of
+calls × tokens per call (and the cell's duration) at their medians: an estimate of the typical run, not the median of
+the run's total. The p90 figure is the same sum at the 90th percentiles, each taken independently: it is labelled
+"upper (sum of per-cell 90th percentiles)". It is deliberately high (the run's total varies far less than one cell
+does, and calls and tokens per call do not peak together), but it is not a statistical bound: no quantile of the run's
+total is computed, and none is claimed.
+
 **Inspect cells** (D-770): a unit is one cell of ``samples`` samples × ``epochs``, so it holds that many executions,
 run ``parallel`` at a time (Inspect's ``max_connections``); the statistics are per execution (one sample). Each
 execution makes agent calls (``calls``) and, when the plan has judges, judge calls (:class:`JudgeStats`: calls per
@@ -168,6 +175,15 @@ class Estimate:
     price: Price | None
     sources: Mapping[str, int]  # units per stats source
     warnings: tuple[str, ...] = field(default=())
+    #: D-1062: the run's tokens (agent and judge calls, the preflight probe included), aggregated as the cost is: the
+    #: p50 figure sums calls × tokens per call at their medians, the p90 figure at their 90th percentiles
+    tokens_in_p50: float = 0.0
+    tokens_in_p90: float = 0.0
+    tokens_out_p50: float = 0.0
+    tokens_out_p90: float = 0.0
+    #: the cells' durations one after another (the time at --jobs 1); ``seconds_*`` is the time at the run's --jobs
+    seconds_serial_p50: float = 0.0
+    seconds_serial_p90: float = 0.0
 
     def to_json(self, today: dt.date | None = None) -> dict[str, Any]:
         """The ``agentprov-estimate/0.1`` body (money as plain decimal strings, never floats)."""
@@ -283,6 +299,7 @@ def estimate(cells: Sequence[PlanCell], *, repeats: int, attempts_due: int, jobs
     calls50 = calls90 = 0.0
     cost50 = cost90 = Decimal(0)
     secs50 = secs90 = 0.0
+    tin50 = tin90 = tout50 = tout90 = 0.0
     p90_call_cost = Decimal(0)
     p90_calls_per_unit = 0.0
     for (suite, attack, kind), group in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1] or "", kv[0][2])):
@@ -300,6 +317,10 @@ def estimate(cells: Sequence[PlanCell], *, repeats: int, attempts_due: int, jobs
         j50, j90 = (judges.calls.p50 * ex, judges.calls.high * ex) if judges is not None else (0.0, 0.0)
         calls50 += c50 + j50
         calls90 += c90 + j90
+        tin50 += c50 * stats.tokens_in.p50 + (j50 * judges.tokens_in.p50 if judges is not None else 0.0)
+        tin90 += c90 * stats.tokens_in.high + (j90 * judges.tokens_in.high if judges is not None else 0.0)
+        tout50 += c50 * stats.tokens_out.p50 + (j50 * judges.tokens_out.p50 if judges is not None else 0.0)
+        tout90 += c90 * stats.tokens_out.high + (j90 * judges.tokens_out.high if judges is not None else 0.0)
         g50 = g90 = Decimal(0)
         if price_known and price is not None:
             g50 = Decimal(str(c50)) * _call_cost(stats, price, "p50")
@@ -325,9 +346,12 @@ def estimate(cells: Sequence[PlanCell], *, repeats: int, attempts_due: int, jobs
             acc.seconds_p90 += s90
             acc.sources.add(stats.source)
     probe50 = probe90 = Decimal(0)
-    if preflight and price_known and price is not None and units:
+    if preflight and units:  # the preflight probe: one call at the first group's statistics
         first = stats_for(*next(iter(sorted(groups, key=lambda k: (k[0], k[1] or "", k[2])))))
-        probe50, probe90 = _call_cost(first, price, "p50"), _call_cost(first, price, "p90")
+        tin50, tin90 = tin50 + first.tokens_in.p50, tin90 + first.tokens_in.high
+        tout50, tout90 = tout50 + first.tokens_out.p50, tout90 + first.tokens_out.high
+        if price_known and price is not None:
+            probe50, probe90 = _call_cost(first, price, "p50"), _call_cost(first, price, "p90")
     rounds = math.ceil(units / jobs) if units else 0
     t50 = rounds * (secs50 / units) if units else 0.0
     t90 = rounds * (secs90 / units) if units else 0.0
@@ -363,4 +387,6 @@ def estimate(cells: Sequence[PlanCell], *, repeats: int, attempts_due: int, jobs
         cost_p50=cost50 + probe50 if price_known else None, cost_p90=cost90 + probe90 if price_known else None,
         cost_worst=worst, seconds_p50=t50, seconds_p90=t90, by_suite=rows(suites), by_attack=rows(attacks),
         price=price, sources=dict(sorted(sources.items())), warnings=tuple(warnings),
+        tokens_in_p50=tin50, tokens_in_p90=tin90, tokens_out_p50=tout50, tokens_out_p90=tout90,
+        seconds_serial_p50=secs50, seconds_serial_p90=secs90,
     )

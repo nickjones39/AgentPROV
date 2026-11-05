@@ -147,7 +147,7 @@ def test_a_role_given_twice_to_context_is_refused_nf27(tmp_path):
     args = argparse.Namespace(source="x", spec=None, corpus=str(tmp_path / "c"), input=str(tmp_path / "a"), fetch=False,
                               verify_against_pin=True, select=[], release=False, limit=None, suite=None, attack=None,
                               pipeline=None, variant=None, artefacts=False, dry_run=False, in_process=False, sample=None,
-                              sample_mode=None, seed=None, skip_prov_conformance=False, until=None,
+                              sample_mode=None, seed=None, skip_prov_conformance=False, until=None, retry_failed=False,
                               context=[f"tasks={tmp_path / 'a'}", f"tasks={tmp_path / 'a'}"], no_context=[])
     with pytest.raises(CliUsageError, match="twice"):
         _check_options(args)

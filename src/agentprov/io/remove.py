@@ -5,14 +5,18 @@ refuses (``WinError 5``, a ``PermissionError``), so a scratch tree, a purged obj
 behind there. On Windows a refused file is deleted with ``FILE_DISPOSITION_FLAG_IGNORE_READONLY_ATTRIBUTE`` (Windows 10
 1809 and later), which leaves the read-only attribute alone: a scratch tree hard-links the source corpus's objects, and
 that attribute belongs to the file, so clearing it would make the source's object writable too. Only where that call
-is refused is the bit cleared and the removal retried. On POSIX the first attempt succeeds and nothing changes. This
-module is outside every stage scope.
+is refused, and only for a file without its write bit, is the bit cleared and the removal retried; when the retry
+fails too the mode is put back. On POSIX the first attempt succeeds and nothing changes, except in a directory without its
+owner's write bit (a sealed corpus, :mod:`agentprov.corpus.protect`): :func:`rmtree` gives that directory, which it is
+removing anyway, the bit back before it retries. This module is outside every stage scope.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
+import stat
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -67,23 +71,58 @@ def unlink(path: str | os.PathLike[str]) -> None:
     except PermissionError:
         if _delete_ignoring_read_only(os.fspath(path)):
             return
+        mode = os.lstat(path).st_mode
+        if stat.S_ISLNK(mode) or mode & stat.S_IWUSR:
+            raise  # not the read-only bit: clearing it would not help, and the inode may be shared
         os.chmod(path, 0o600)
-        os.unlink(path)
+        try:
+            os.unlink(path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.chmod(path, stat.S_IMODE(mode))  # still there: a hard-linked source object stays read-only
+            raise
 
 
 def rmtree(path: str | os.PathLike[str] | Path, *, ignore_errors: bool = False) -> None:
     """``shutil.rmtree`` that deletes read-only files as :func:`unlink` does; ``ignore_errors`` skips what still fails
     and goes on with the rest, as ``shutil.rmtree(..., ignore_errors=True)`` does."""
 
-    def retry(function: Callable[[str], object], name: str, _exc: BaseException) -> None:
+    def retry(function: Callable[..., object], name: str, exc: BaseException) -> None:
+        """Retries only a refused file deletion or a refused removal of a read-only directory (never a link's); any
+        other failure (a symlink root, a directory that cannot be opened) is shutil.rmtree's own and stays so."""
         try:
+            if function in (os.unlink, os.remove, os.rmdir) and isinstance(exc, PermissionError):
+                _open_parent(name, top)
             if function in (os.unlink, os.remove):
                 unlink(name)
-            else:
+            elif function is os.rmdir and isinstance(exc, PermissionError) and _real_directory(name):
                 os.chmod(name, 0o700)
-                function(name)
+                os.rmdir(name)
+            else:
+                raise exc
         except OSError:
             if not ignore_errors:
                 raise
 
+    top = os.path.abspath(path)
     shutil.rmtree(path, onexc=retry)
+
+
+def _open_parent(name: str, top: str) -> None:
+    """POSIX: an entry of a directory without its owner's write bit (a sealed corpus is read-only,
+    :mod:`agentprov.corpus.protect`) is removed only once the directory has it. Only a directory of the tree being
+    removed (``top`` or below) is changed, never one above it; nor is a file's own mode (it may be a hard link shared
+    with another tree)."""
+    parent = os.path.dirname(os.path.abspath(name))
+    if sys.platform == "win32" or os.path.commonpath([top, parent]) != top or not _real_directory(parent):
+        return
+    mode = stat.S_IMODE(os.lstat(parent).st_mode)
+    if not mode & stat.S_IWUSR:
+        os.chmod(parent, mode | stat.S_IRWXU)
+
+
+def _real_directory(name: str) -> bool:
+    try:
+        return stat.S_ISDIR(os.lstat(name).st_mode) and not os.path.isjunction(name)
+    except OSError:
+        return False

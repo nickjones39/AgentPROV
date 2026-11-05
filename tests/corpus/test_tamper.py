@@ -171,9 +171,18 @@ def test_forged_raw_origin(cli, sealed):
     assert codes(run).get("raw.origin.listing_unavailable") == 1  # no cached tree listing: unverified, never passed
 
 
-def test_forged_derived_file(cli, sealed):
+@pytest.mark.parametrize("old_engine", [False, True], ids=["same-engine", "older-engine"])
+def test_forged_derived_file(cli, sealed, old_engine):
     """A forged PROV file whose index digest, manifest digests and checksums were all regenerated passes ``chain``;
-    ``rederive`` re-derives from raw with package catalogues and detects it (SEC-15)."""
+    ``rederive`` re-derives from raw with package catalogues and detects it (SEC-15). It still does when the stages
+    were recorded under an older software version (``engine``), which is not a declared version (D-1050)."""
+    if old_engine:
+        derivation_path = sealed / "derivation.json"
+        derivation = json.loads(derivation_path.read_bytes())
+        for stage in derivation["stages"]:
+            if "engine" in stage:
+                stage["engine"] = "agentprov@0.0.1"
+        derivation_path.write_bytes((json.dumps(derivation, indent=2, sort_keys=True) + "\n").encode())
     prov = vs.first_file(sealed, "prov")
     ex = prov.name.split(".", 1)[0]
     document = json.loads(prov.read_bytes())
@@ -357,5 +366,28 @@ def test_cb11_a_consistently_forged_row_status_fails_chain_and_rederive(cli, sea
     run = verify(cli, sealed, "--level", "chain")
     assert run.code == 1 and codes(run) == {"index.status": 1}, codes(run)
     assert ex in run.out
+    run = verify(cli, sealed, "--level", "rederive")
+    assert run.code == 1 and codes(run).get("rederive.index_refreshed") == 1, codes(run)
+
+
+@pytest.mark.parametrize("change", ["forged_status", "completeness_code"])
+def test_au_bnd5_recompute_dry_run_fails_where_rederive_fails_on_an_index_refresh(cli, sealed, monkeypatch, change):
+    """AU-BND-5 (CB-11; H.8.4): a sealed index row that differs from its re-derivation only outside its outputs, from a
+    forged row status or from a code change to the B2 completeness rule (``corpus/facets.py``, in no stage scope), made
+    ``recompute --dry-run`` exit 0 while ``verify --level rederive`` failed. Both now exit 1."""
+    recompute = ("recompute", "--corpus", str(sealed), "--dry-run", "--jobs", "2", "--json")
+    assert cli(*recompute).code == 0
+    if change == "forged_status":
+        _forge_status(sealed, "ok", "failed")
+    else:
+        import agentprov.corpus.derive as derive
+
+        real = derive.completeness_of
+        monkeypatch.setattr(derive, "completeness_of",
+                            lambda aer: "known_incomplete" if real(aer) == "verified_complete" else "verified_complete")
+    run = cli(*recompute)
+    counters = run.json()["counters"]
+    assert run.code == 1 and counters["index_refreshed"] > 0 and counters["unexplained_change"] == 0, counters
+    assert "index row(s) of the sealed source differ" in run.err
     run = verify(cli, sealed, "--level", "rederive")
     assert run.code == 1 and codes(run).get("rederive.index_refreshed") == 1, codes(run)

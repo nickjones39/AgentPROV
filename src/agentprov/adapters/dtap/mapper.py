@@ -27,6 +27,7 @@ Pure (A-2): the output is a function of the unit's bytes, the auxiliary bytes, t
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import re
 from collections.abc import Iterator, Mapping, Sequence
@@ -47,10 +48,17 @@ from agentprov.adapters.dtap.dialect import (
 from agentprov.adapters.dtap.join import Join, allowlisted, attack_steps, verify
 from agentprov.adapters.dtap.matcher import JUDGE_LINK_MIN, normalise, serialise, strings
 from agentprov.adapters.dtap.pairing import Pairing, pair, step_kind
-from agentprov.adapters.dtap.redact import ISSUE as I_REDACTED, RULE as R_REDACTED, Redactor, parse_redact_rules
+from agentprov.adapters.dtap.redact import (
+    ISSUE as I_REDACTED,
+    NAMESPACE,
+    RULE as R_REDACTED,
+    Redactor,
+    parse_redact_rules,
+)
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
-from agentprov.aer.canon import LexHints, encode_value, json_pointer
+from agentprov.aer.canon import I_JSON_MAX, LexHints, encode_value, json_pointer
 from agentprov.aer.ids import import_execution_id, part_id
 from agentprov.errors import AgentProvError, IngestError, MalformedArtefact
 from agentprov.ingest import yamlsafe
@@ -120,6 +128,9 @@ R_AFTER_CALL: Final = "aer.execution_after_call@1"
 #: D-934: a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as Inspect's item 28 and D-832
 R_NOT_INLINED: Final = "dtap.content_not_inlined@1"
 I_NOT_INLINED: Final = "dtap.content_not_inlined"
+#: UC-40 (the D-378 pass): the rule and the issue code :func:`agentprov.adapters.surrogates.surrogates` writes for ``dtap``
+R_SURROGATE: Final = "dtap.lone_surrogate_replaced@1"
+I_SURROGATE: Final = "dtap.lone_surrogate_replaced"
 _MIB: Final = 1 << 20
 _FIELDS: Final = frozenset({"k", "id", "ev", "by", "evf", "rule", "src", "unk", "after"})
 
@@ -132,22 +143,57 @@ def _dict(value: object) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _slim(node: Any, tokens: tuple[str, ...], found: list[str]) -> Any:
+def _slim(node: Any, tokens: tuple[str, ...], found: list[str], literal: bool = False) -> Any:
     """``node`` with every string whose UTF-8 encoding exceeds 1 MiB replaced by its digest object (D-934); ``found``
-    collects the replaced pointers."""
+    collects the replaced pointers. A ``{"$utf16": ...}`` value (a string holding a lone surrogate, C.11.3) is such a
+    string as a whole, replaced when its decoded text or its base64 exceeds 1 MiB and digested over the decoded text
+    (``surrogatepass``); a member named ``$utf16``
+    inside a ``$lit`` body is a source key."""
     if isinstance(node, str):
         if len(node) <= _MIB // 4:
             return node
-        raw = node.encode("utf-8", "surrogatepass")
-        if len(raw) <= _MIB:
-            return node
-        found.append(json_pointer(*tokens))
-        return {"not_inlined": {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}}
+        return _digest_over_mib(node, tokens, found)
     if isinstance(node, dict):
-        return {k: _slim(v, (*tokens, str(k)), found) for k, v in node.items()}
+        if not literal and set(node) == {"$utf16"} and isinstance(node["$utf16"], str):
+            if len(node["$utf16"]) <= _MIB * 8 // 9:  # at most 3/8 of a code unit per base64 digit, 3 UTF-8 bytes per unit
+                return node
+            try:
+                text = base64.b64decode(node["$utf16"], validate=True).decode("utf-16-be", "surrogatepass")
+            except (ValueError, UnicodeDecodeError):  # not the encoder's form: left for the writer to judge
+                return node
+            # AU-RC-2 (D-1063): the writer measures the base64 itself (AER-V01), so a wrapper whose base64 exceeds 1 MiB
+            # is never kept, even when its decoded text is shorter (about 2.67 base64 digits per code unit)
+            return _digest_over_mib(text, tokens, found, node, force=len(node["$utf16"]) > _MIB)
+        wrapper = not literal and len(node) == 1 and "$lit" in node
+        return {k: _slim(v, (*tokens, str(k)), found, wrapper) for k, v in node.items()}
     if isinstance(node, list):
         return [_slim(v, (*tokens, str(i)), found) for i, v in enumerate(node)]
     return node
+
+
+def _digest_over_mib(text: str, tokens: tuple[str, ...], found: list[str], keep: Any = None, *,
+                     force: bool = False) -> Any:
+    """The digest object of ``text`` when its UTF-8 encoding exceeds 1 MiB (or ``force``), else ``keep`` (``text``
+    when ``None``)."""
+    raw = text.encode("utf-8", "surrogatepass")
+    if len(raw) <= _MIB and not force:
+        return text if keep is None else keep
+    found.append(json_pointer(*tokens))
+    return {"not_inlined": {"sha256": hashlib.sha256(raw).hexdigest(), "bytes": len(raw)}}
+
+
+def _moved(pointer: str, moved: Mapping[str, str]) -> str:
+    """``pointer`` after the D-934 retyping ``moved`` (old pointer -> new): the pointer itself or one below it."""
+    for old, new in moved.items():
+        if old != new and (pointer == old or pointer.startswith(old + "/")):
+            return new + pointer[len(old):]
+    return pointer
+
+
+def _cited(ref: str, moved: Mapping[str, str]) -> str:
+    """A scoped rule citation ``<rule>#<pointer>`` after the D-934 retyping ``moved``."""
+    rule, sep, pointer = ref.partition("#")
+    return rule + sep + _moved(pointer, moved) if sep else ref
 
 
 def _retype(record: dict[str, Any], pointer: str) -> str:
@@ -355,7 +401,10 @@ class _Build:
         item = unit.primary
         if not isinstance(item.value, dict):
             raise MalformedArtefact("the located item is not a DTap JSON object")
-        self.v: dict[str, Any] = item.value
+        # UC-40 (the D-378 pass): an object key cannot be $utf16-wrapped (C.11.3), so a source key's lone surrogates are
+        # replaced before mapping; :func:`surrogates` discloses it (exec) and replaces those in typed fields afterwards
+        self.v: dict[str, Any]
+        self.v, self.surrogate_keys = scrub_keys(item.value)
         self.judge_only = FLAG_JUDGE_ONLY in item.flags
         facets, self.origin_key = _facets_of(item.artefact)
         if facets is None:
@@ -459,7 +508,14 @@ class _Build:
             body += self._judgements()
         self._checks()
         self._header_issues()
-        yield from self._not_inlined(self._redacted([self._header(), *body]))
+        yield from self._not_inlined(self._redacted(self._surrogates([self._header(), *body])))
+
+    def _surrogates(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """UC-40, before redaction: the D-378 pass (:func:`agentprov.adapters.surrogates.surrogates`). A lone surrogate in
+        a typed string field becomes U+FFFD under ``dtap.lone_surrogate_replaced@1`` (a ``$utf16`` value in a ``Json``
+        field is kept), and one info issue names the records."""
+        surrogates(self, records, NAMESPACE)  # cites R_SURROGATE, raises I_SURROGATE
+        return records
 
     def _redacted(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """The post-pass of D-607: the profile's listed account paths redacted over every string of every record
@@ -481,8 +537,17 @@ class _Build:
             if not found:
                 continue
             moved = {f: _retype(record, f) for f in found}
-            evf = {moved.get(k, k): v for k, v in (record.get("evf") or {}).items()}
-            rules = record.setdefault("rule", [])
+            # UC-38: everything that names a moved pointer follows it (the evf and unk keys, the scoped citations, such
+            # as the D-607 redaction's, and the ext.dtap.redacted listing), or it dangles and AER-V14 refuses the record
+            evf = {_moved(k, moved): v for k, v in (record.get("evf") or {}).items()}
+            if isinstance(record.get("unk"), dict):
+                record["unk"] = {_moved(k, moved): v for k, v in record["unk"].items()}
+            record["rule"] = [_cited(r, moved) if isinstance(r, str) else r for r in record.get("rule", [])]
+            listing = _dict(_dict(record.get("ext")).get("dtap")).get("redacted")
+            for entry in listing if isinstance(listing, list) else []:
+                if isinstance(entry, dict) and isinstance(entry.get("p"), str):
+                    entry["p"] = _moved(entry["p"], moved)
+            rules = record["rule"]
             floor = "I" if record.get("ev") == "I" else "D"
             for pointer in moved.values():
                 evf[pointer] = "I" if evf.get(pointer) == "I" else floor
@@ -510,6 +575,8 @@ class _Build:
             raise MalformedArtefact(  # judgement value is ever read from a key the judge did not write
                 "the directory's judge_result.json lacks task_success or attack_success, or has keys a judge never writes")
         self.add_artefact("judge", self.unit.auxiliary["judge"])
+        value, keys = scrub_keys(value)  # UC-40
+        self.surrogate_keys |= keys
         return value
 
     def _attempts(self) -> list[_Attempt]:
@@ -572,6 +639,8 @@ class _Build:
             join = Join(path, "unparseable")
             self.issue("dtap.config_unparseable", ["exec"], R_PATH_JOIN, detail=f"artefact {aid}")
             return join
+        document, keys = scrub_keys(document)  # UC-40
+        self.surrogate_keys |= keys
         config, converted = allowlisted(document)
         if config is None:
             self.issue("dtap.config_unparseable", ["exec"], R_PATH_JOIN, detail=f"artefact {aid}: not a mapping")
@@ -1290,8 +1359,11 @@ class _Build:
             return
         ok = (counters["step_count"] == observed["steps"] and counters["actions_count"] == observed["agent_steps"]
               and counters["tool_count"] == observed["tool_steps"] and counters["user_turn"] == observed["user_steps"])
+        # UC-39: a counter beyond 2^53 - 1 cannot be written into the check (I-JSON) and equals no step population, so it
+        # makes the check inconsistent without being copied (before, the seal could not be canonicalised)
+        shown = {k: v for k, v in counters.items() if isinstance(v, int) and v <= I_JSON_MAX}
         self.ctx.check(R_COUNTERS, scope=scope, verdict="consistent" if ok else "inconsistent",
-                       observed={**observed, **{k: int(v) for k, v in counters.items()}},  # type: ignore[arg-type]
+                       observed={**observed, **shown},
                        reason=None if ok else "counters_differ_from_steps")
 
     # ---------------------------------------------------------------------------------------------- judge-only units
@@ -1342,7 +1414,7 @@ class _Build:
         header = _header_base(self.unit, self.ctx, self.f, self.origin_key, "outcome_only", self.artifacts)
         header["ext"] = {"dtap": {"path_facets": encode_value(self.f.to_json(), at="/ext/dtap/path_facets", lex=LexHints()),
                                   "file_stem": self.f.file_stem}}
-        yield from self._redacted([header, *body])
+        yield from self._not_inlined(self._redacted(self._surrogates([header, *body])))  # UC-41: D-934 here too
 
 
 # -------------------------------------------------------------------------------------------------- judge linkage

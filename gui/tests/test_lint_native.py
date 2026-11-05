@@ -67,6 +67,51 @@ def test_qt_toolbar_fallback_has_every_action(qapp: Any, tmp_path: Path) -> None
     w.close()
 
 
+def test_the_native_search_field_follows_the_viewer(qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """AU-NG-5: with the native toolbar, the Viewer's id search changing there (a chip removed, Clear all, another
+    corpus) sets the native search field, as it sets the Qt toolbar's; the field is set only when it differs."""
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import QSettings
+
+    import agentprov_gui.platform as platform
+    from agentprov_gui.platform import macos
+    from agentprov_gui.settings import Settings
+    from agentprov_gui.ui.mainwindow import MainWindow
+
+    class Field:
+        def __init__(self, value: str) -> None:
+            self.value, self.sets = value, 0
+
+        def stringValue(self) -> str:
+            return self.value
+
+        def setStringValue_(self, value: str) -> None:
+            self.value, self.sets = value, self.sets + 1
+
+    field = Field("ex_ab")
+    item = SimpleNamespace(itemIdentifier=lambda: macos.SEARCH_ID, searchField=lambda: field)
+    window = SimpleNamespace(setSubtitle_=lambda _t: None)
+    chrome = macos.NativeChrome(window, SimpleNamespace(items=lambda: [item]), None, None, macos.DisplayFlags())
+    monkeypatch.setattr(platform, "native_chrome_enabled", lambda _setting: True)
+    monkeypatch.setattr(macos, "install", lambda *a, **k: chrome)
+    monkeypatch.setattr(macos.NativeChrome, "set_activity", lambda self, *a: None)
+    monkeypatch.setattr(macos.NativeChrome, "set_progress", lambda self, *a: None)
+    w = MainWindow(Settings(QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat)), cache_dir=tmp_path / "c",
+                   home=tmp_path / "home")
+    try:
+        assert w.chrome is chrome
+        w.viewer.search_changed.emit("")  # e.g. the "Id contains" chip removed
+        assert field.value == "" and field.sets == 1
+        w.viewer.search_changed.emit("")
+        assert field.sets == 1  # unchanged: not set again
+        w.viewer.search_changed.emit("ex_cd")
+        assert field.value == "ex_cd"
+    finally:
+        w.chrome = None
+        w.close()
+
+
 def test_accessibility_flags_change_the_graph(qapp: Any, mini_corpus: Path, tmp_path: Path) -> None:
     from agentprov.render.graph import build_model
     from PySide6.QtWidgets import QGraphicsSimpleTextItem

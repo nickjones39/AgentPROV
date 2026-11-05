@@ -1,0 +1,192 @@
+# Source profile `gate-agentdojo`: dafarusd/gate, 3,870 TraceLogger logs of the gate defence (on, off, and the follow-on
+# gatellml runtime) on Qwen models served locally (Ollama) or by Venice, all four suites, with ten hold-out attacks
+# (phase 10d; shortlist row 7; sources/agentdojo-format-candidates.md §3.8). AGPL-3.0-only: its own corpus (D-94).
+#
+# Runs sit at three depths (results/<experiment>/, results/p3-holdout*/<attack>/, gatellml/results/<experiment>/),
+# captured by the optional {experiment?} component. The 215 logs of the directory `local` name no model
+# (identity_unresolved, D-92). results/v1-CONTAMINATED-superseded/ is mapped as released; its name is the author's
+# own warning. The two demonstration logs results/demo/{gated,undefended}/injection_task_2.json lie outside the run
+# layout and resolve no identity. The gate's denials ('BLOCKED by security policy', the
+# same text as content and error) are defence decisions (quirk agentdojo.defence_denial_message, routing R1, D-113).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/gate@925b99260bee.*).
+
+[profile]
+id = "gate-agentdojo"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "gate-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "gate: AgentDojo 0.1.35 logs of a deterministic policy gate on local and Venice-served Qwen models (dafarusd/gate)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/dafarusd/gate"
+paper = "paper/DRAFT.md in the repository (a draft, not published)"
+package = { name = "agentdojo", requirement = "not declared in the repository", version_identifies_code = false }
+
+# The pin covers the repository root (4,155 files): the logs, the gate and gatellml code and manifests, the draft paper.
+# The byte total is not stated: one figure (PNG, under results/) was not fetched in phase 10c; the other 4,154 files
+# hold 33,180,144 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "925b99260beec53d94bd48b587b0bdc33614e3df"
+date = "2026-09-26"
+expected_files = 4155
+note = "the default branch at 2026-10-11 (phase 10c); 3,870 new logs (2 more TraceLogger files are byte-identical copies)"
+
+[licence]
+spdx = "AGPL-3.0-only"
+holders = ["Dafarus (dafarusd)"]
+data_licence = "none"
+policy = "include"
+basis = "AGPL-3.0-only per NOTICE and README, LICENSE the AGPL v3 text, (c) 2026 Dafarus; the offer of a commercial licence does not restrict the AGPL grant; the logs embed AgentDojo benchmark text (MIT)"
+restrictions = ["AGPL-3.0-only: a corpus holding these logs is conveyed under the AGPL-3.0 (corresponding source, the same licence for derived works); kept in its own corpus (D-94)"]
+attribution = [
+  "dafarusd/gate (AGPL-3.0-only, (c) 2026 Dafarus), commit 925b99260beec53d94bd48b587b0bdc33614e3df",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo (version 0.1.35 per the logs; installation not declared)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["results/*/*/*/*/*/*.json", "gatellml/results/*/*/*/*/*/*.json", "results/demo/*/*.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "{experiment?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the gate, its runner, the
+# gatellml specification, runtime and manifests, and the documents.
+context_artefacts = ["LICENSE", "NOTICE", "README.md", "STATE.md", "src/*.py", "gatellml/SPEC.md", "gatellml/STATE.md", "gatellml/lang/*.py", "gatellml/manifests/*.json"]
+
+[family.agentdojo.identity]
+model_from = "pipeline_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/gate_pipeline_dirs.toml", sha256 = "2a6de025412aee0c22a20f7cd2d87cbb7a574eca23ee324e539cf9a16d71e7e6" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { workspace = "agentdojo", travel = "agentdojo", slack = "agentdojo", banking = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# no AgentDojo installation is declared (src/run_defended.py imports it); the logs record only the distribution
+# version string (package_version_not_code_identity)
+code_identity = "unpinned"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt (469 characters) in every log, recognised by its upstream digest.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 1491, origin_rule_applied = 1491 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 562 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 13, logs = 13 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+# files with a tool_execution: 3,618 before the denial quirk (R1); 174 logs hold only denied calls, now decisions
+observed = { head = { files = 3444 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 8334, present_and_null = 8334 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 3, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+observed = { head = { null_ids = 1848, logs_with_null_ids = 790, logs_with_repeated_ids = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.empty_messages_without_outcome"
+applies = {}
+rules = ["agentdojo.no_execution_observed@1"]
+note = "the two holdout_h03_fake_tool_result logs of workspace user_task_0 hold no message and no outcome"
+observed = { head = { files = 2 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.defence_denial_message"
+applies = {}
+rules = ["agentdojo.defence_denial_message@1"]
+# Routing R1 (D-113): the gate logs its denial as both the output and the error. One such message is in a log whose
+# identity names no defence (a `local` directory, D-105): it stays a tool error, as no defence actor exists to own it.
+params = { denials = [
+  { defences = ["gate-*"], error_prefix = ["BLOCKED by security policy"], content_equals_error = true },
+] }
+observed = { head = { denials = 1101 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

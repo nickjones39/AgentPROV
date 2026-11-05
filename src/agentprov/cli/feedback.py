@@ -667,6 +667,8 @@ class FeedbackSink:
         self._closed = False
         self._exit_code: int | None = None
         self._outcome: str | None = None
+        self._ending = False  # _finish has taken the exit code for the end line (AU-FR-4)
+        self._joined = False  # close's join of the display thread returned
         self._file = file
         self.run_id = run_id if run_id is not None else str(uuid.uuid7())
         self._seq = 0
@@ -920,11 +922,13 @@ class FeedbackSink:
         self._begin()
         snap = self._snapshot()
         now = self._clock()
-        outcome = self._outcome
-        if outcome is None and self._exit_code is not None:
+        with self._lock:  # from here a repeated close can no longer change the end line's exit code (AU-FR-4)
+            self._ending = True
+            exit_code, outcome = self._exit_code, self._outcome
+        if outcome is None and exit_code is not None:
             from agentprov.cli.common import outcome_for
 
-            outcome = outcome_for(self._exit_code)
+            outcome = outcome_for(exit_code)
         if self._jsonl:
             body = self.heartbeat_snapshot(now)
             self._each_jsonl(lambda r: r.heartbeat(body))  # the final counters, as a reader's last snapshot
@@ -933,9 +937,9 @@ class FeedbackSink:
                 continue
             try:
                 if isinstance(renderer, JsonlRenderer):
-                    renderer.finish(snap, now, self._exit_code, outcome)
+                    renderer.finish(snap, now, exit_code, outcome)
                 else:
-                    renderer.finish(snap, now, self._exit_code)
+                    renderer.finish(snap, now, exit_code)
             except Exception:  # noqa: BLE001
                 self._broken.add(id(renderer))
         for renderer in self._jsonl:
@@ -955,9 +959,19 @@ class FeedbackSink:
         code implies (``drained``, D-394).
 
         If the display is stalled the join times out and the daemon thread is abandoned: the command finishes and
-        exits anyway (F2). Calling it again does nothing.
+        exits anyway (F2). Calling it again does nothing, unless the first call's join was interrupted (a first signal,
+        AU-FR-4): then a different ``exit_code`` replaces the recorded one while the end line is not yet written, and
+        the join is retried, so the end line and the summary agree.
         """
         if self._closed:
+            if self._level_rank == 0 or self._joined or self._thread is None:
+                return self._dropped
+            if exit_code is not None and exit_code != self._exit_code:
+                with self._lock:
+                    if not self._ending:
+                        self._exit_code, self._outcome = exit_code, outcome
+            self._thread.join(timeout)
+            self._joined = True
             return self._dropped
         self._closed = True
         self._exit_code = exit_code
@@ -968,6 +982,7 @@ class FeedbackSink:
         thread = self._thread
         if thread is not None:
             thread.join(timeout)
+            self._joined = True
         else:
             self.pump()
             self._finish()

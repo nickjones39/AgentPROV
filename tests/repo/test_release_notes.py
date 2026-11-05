@@ -16,6 +16,7 @@ from agentprov.adapters.registry import claims
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 NOTES = ROOT / "docs" / "release-notes" / f"v{VERSION}.md"
+SERIES = ".".join(VERSION.split(".")[:2])  # the minor series the live-capture sentence names (v0.1, v0.2)
 RELEASES = "https://github.com/nickjones39/AgentPROV/releases/latest/download/"
 
 
@@ -44,7 +45,7 @@ def test_coverage_and_live_wording() -> None:
     text = " ".join(_prose().split())
     phrase = claims.coverage_phrase()
     assert phrase is not None and phrase in text
-    assert "Live capture works and is tested in v0.1. No live results are claimed" in text  # D-991, U-18
+    assert f"Live capture works and is tested in v{SERIES}. No live results are claimed" in text  # D-991, U-18
 
 
 def test_the_notes_name_the_version_and_every_asset_the_site_links_to() -> None:

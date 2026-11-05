@@ -4,7 +4,7 @@
     agentprov batch start ID [--confirm-r2] [--format]       # starts the driver job `batch run ID`
     agentprov batch run ID [--confirm-r2] [--interval S]       # the driver loop (normally inside its job)
     agentprov batch resume ID [--confirm-r2] [--format]      # a new driver for a stopped batch
-    agentprov batch stop ID [--steps]                        # stop the driver (and its running steps)
+    agentprov batch stop ID [--steps] [--wait S] [--format]  # stop the driver (with --steps: the whole batch)
     agentprov batch list [--format] | show ID [--format]
 
 ``SPEC.json`` (or stdin with ``--stdin``) is ``{"steps": [{"argv": [...], "label", "writes", "reads", "slot", "queue_cpu",
@@ -12,6 +12,12 @@
 ``agentprov`` command, and may not start jobs or batches or be destructive (exit 2). A step with an R2 flag (network or
 paid) runs only under a driver started with ``--confirm-r2``; without it, ``start`` refuses (exit 4). The batch pins
 the checkout (path, commit, digest of the uncommitted diff): a change blocks the remaining steps.
+
+``stop`` marks the batch stopped, so no driver starts another step of it, and stops its driver (one SIGTERM, or the
+control file's ``stop``); the steps already started keep running. With ``--steps`` it also stops every running or
+queued step job of the batch the same way (``agentprov jobs stop``), then waits up to ``--wait`` seconds for them to end
+and records how they ended. Exit 1 when a running step job could not be signalled. ``resume`` starts the batch again
+from its pending steps.
 """
 
 from __future__ import annotations
@@ -31,6 +37,7 @@ from typing import Any
 from agentprov.cli.common import CliUsageError, CommandResult, Context, safe_text
 
 LIST_FORMAT = "agentprov-batches-list/0.1"
+STOP_FORMAT = "agentprov-batch-stop/0.1"
 MAX_SPEC_BYTES = 4 * 1024 * 1024
 
 
@@ -59,10 +66,17 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
             a.add_argument("--interval", type=float, default=2.0, metavar="S", help="seconds between ticks")
         else:
             a.add_argument("--format", choices=["text", "json"], default="text")
-    st = actions.add_parser("stop", parents=[shared], help="stop the driver (the steps it started keep running)",
+    st = actions.add_parser("stop", parents=[shared],
+                            help="stop the driver (the steps it started keep running unless --steps)",
                             allow_abbrev=False)
     st.add_argument("batch_id", metavar="ID")
-    st.add_argument("--steps", action="store_true", help="also stop the running steps (one SIGTERM each)")
+    st.add_argument("--steps", action="store_true",
+                    help="stop the whole batch: also every running or queued step job (a graceful stop each, as "
+                         "'agentprov jobs stop')")
+    st.add_argument("--wait", type=float, default=10.0, metavar="S",
+                    help="seconds to wait for the stopped jobs to end before recording how they ended (0: do not "
+                         "wait; default 10)")
+    st.add_argument("--format", choices=["text", "json"], default="text")
     ls = actions.add_parser("list", parents=[shared], help="the batches, newest first", allow_abbrev=False)
     ls.add_argument("--format", choices=["text", "json"], default="text")
     sh = actions.add_parser("show", parents=[shared], help="one batch and its steps", allow_abbrev=False)
@@ -197,6 +211,7 @@ def _start(ctx: Context, batch: Any, confirm: bool, result: CommandResult) -> An
         fresh = Batch.load(batch.path) or batch
         fresh.driver_job_id = driver_id
         fresh.r2_confirmed_by = driver_id if confirm else None
+        fresh.stopped = None  # a stopped batch goes on from its pending steps
         for step in fresh.steps:
             if step.state == "held":
                 step.state, step.note = "pending", ""
@@ -243,6 +258,10 @@ def run_batch(ctx: Context) -> CommandResult:
         if problems:
             raise CliUsageError("agentprov batch create: refused:\n" + "\n".join(f"  {safe_text(p, 300)}"
                                                                                 for p in problems[:50]))
+        if any(step.request.queue_cpu is not None for step in steps):
+            from agentprov.jobs.manager import check_queue_platform
+
+            check_queue_platform()  # D-1064: refused at create, not step by step under the driver
         go_on = args.continue_on_failure
         if go_on is None:
             from agentprov import settings
@@ -270,25 +289,11 @@ def run_batch(ctx: Context) -> CommandResult:
     elif action == "run":
         _run_driver(ctx, args, result)
     elif action == "stop":
-        from agentprov.jobs.manager import JobManager, find
-
-        batch = _load(ctx, args.batch_id)
-        manager = JobManager(home, environ=ctx.env)
-        driver = find(home, batch.driver_job_id) if batch.driver_job_id else None
-        stopped = bool(driver is not None and driver.state == "running" and manager.stop(driver))
-        n_stopped = 0
-        if args.steps:
-            for step in batch.steps:
-                job = find(home, step.job_id) if step.state == "running" and step.job_id else None
-                if job is not None and job.state == "running" and manager.stop(job):
-                    n_stopped += 1
-        result.info(f"batch {batch.batch_id}: driver {'stopped' if stopped else 'not running'}; {n_stopped} step(s) "
-                    "stopped")
-        result.counters = {"steps_stopped": n_stopped}
+        _stop(ctx, args, result)
     elif action == "list":
         batches = Batch.load_all(home)
         rows = [{"batch_id": b.batch_id, "label": b.label, "created": b.created, "counts": b.counts(),
-                 "finished": b.finished, "driver_job_id": b.driver_job_id} for b in batches]
+                 "finished": b.finished, "driver_job_id": b.driver_job_id, "stopped": b.stopped} for b in batches]
         if args.format == "json":
             result.payload = _payload({"format": LIST_FORMAT, "batches": rows})
         else:
@@ -305,6 +310,72 @@ def run_batch(ctx: Context) -> CommandResult:
     return result
 
 
+def _stop(ctx: Context, args: argparse.Namespace, result: CommandResult) -> None:
+    """``batch stop``: under the batch file's lock (so no driver tick is half done), mark the batch stopped, stop its
+    driver and, with ``--steps``, every running step job of the batch; then wait for them and record how they ended."""
+    from agentprov.jobs.batch import STOPPED_NOTE, Batch, advance
+    from agentprov.jobs.manager import JobManager, find
+    from agentprov.jobs.record import list_jobs
+
+    if not 0 <= args.wait <= 600:
+        raise CliUsageError("agentprov batch stop: --wait is 0 to 600 seconds")
+    home = _home(ctx)
+    batch = _load(ctx, args.batch_id)
+    assert batch.path is not None
+    manager = JobManager(home, environ=ctx.env)
+    signalled: list[str] = []
+    unsignalled: list[str] = []
+    with _locked(batch.path):
+        fresh = Batch.load(batch.path) or batch
+        fresh.stopped = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        driver = find(home, fresh.driver_job_id) if fresh.driver_job_id else None
+        driver_running = driver is not None and driver.state == "running"
+        driver_stopped = bool(driver is not None and driver_running and manager.stop(driver))
+        if args.steps:
+            listed = {s.job_id: s for s in fresh.steps if s.state == "running" and s.job_id}
+            # a step job the file does not list yet (a driver killed between its spawn and its save) is found by the
+            # batch id every step job records
+            jobs = [j for j in list_jobs(home) if j.state == "running" and j.job_id != fresh.driver_job_id and (
+                j.job_id in listed or j.record.get("batch_id") == fresh.batch_id)]
+            for job in jobs:
+                if manager.stop(job):
+                    signalled.append(job.job_id)
+                    if job.job_id in listed:
+                        listed[job.job_id].note = STOPPED_NOTE
+                else:
+                    unsignalled.append(job.job_id)
+        fresh.save()
+    waiting = [*signalled, *([driver.job_id] if driver is not None and driver_stopped else [])]
+    deadline = time.monotonic() + args.wait
+    while waiting and time.monotonic() < deadline:
+        time.sleep(0.1)
+        waiting = [jid for jid in waiting if (seen := find(home, jid)) is not None and seen.state == "running"]
+    if args.steps:
+        with _locked(batch.path):  # record the steps that ended (a stopped batch starts nothing)
+            loaded = Batch.load(batch.path)
+            if loaded is not None and loaded.stopped is not None:
+                advance(loaded, manager, validate=validate_argv, pin_now=checkout_pin, driver_job_id=None)
+    driver_text = "stopped" if driver_stopped else "not signalled" if driver_running else "not running"
+    for jid in unsignalled:
+        result.failures.append({"subject": {"job": jid}, "stage": "stop", "code": "batch.stop.unsignalled",
+                                "detail": "the process identity did not match, or this platform has no graceful stop"})
+        result.error(f"batch {fresh.batch_id}: step job {jid} could not be signalled; stop it with "
+                     "'agentprov jobs stop' or 'agentprov jobs kill'")
+    if unsignalled:
+        result.exit_code = 1
+    result.counters = {"steps_stopped": len(signalled), "steps_unsignalled": len(unsignalled),
+                       "still_running": len(waiting)}
+    if args.format == "json":
+        result.payload = _payload({"format": STOP_FORMAT, "batch_id": fresh.batch_id,
+                                   "driver_job_id": fresh.driver_job_id, "driver": driver_text,
+                                   "steps_stopped": signalled, "steps_unsignalled": unsignalled,
+                                   "still_running": waiting, "stopped": fresh.stopped})
+    else:
+        result.info(f"batch {fresh.batch_id}: driver {driver_text}; {len(signalled)} step(s) stopped"
+                    + (f"; {len(waiting)} job(s) still ending" if waiting else "")
+                    + ("" if args.steps else " (the steps it started keep running; --steps stops them too)"))
+
+
 def _run_driver(ctx: Context, args: argparse.Namespace, result: CommandResult) -> None:
     """The driver loop: tick (lock, load, advance, save) until every step has ended or a SIGTERM arrives."""
     import os
@@ -315,11 +386,13 @@ def _run_driver(ctx: Context, args: argparse.Namespace, result: CommandResult) -
     batch = _load(ctx, args.batch_id)
     assert batch.path is not None
     me = os.environ.get("AGENTPROV_JOB_ID") or None
-    if me is None and args.confirm_r2:  # a foreground driver confirmed by its own option
-        me = f"foreground-{os.getpid()}"
+    if me is None:  # a foreground driver: started by hand, so a stopped batch goes on (as after resume)
         with _locked(batch.path):
             fresh = Batch.load(batch.path) or batch
-            fresh.driver_job_id, fresh.r2_confirmed_by = None, me
+            fresh.stopped = None
+            if args.confirm_r2:  # confirmed by its own option
+                me = f"foreground-{os.getpid()}"
+                fresh.driver_job_id, fresh.r2_confirmed_by = None, me
             fresh.save()
     stop = {"now": False}
     signal.signal(signal.SIGTERM, lambda *_: stop.__setitem__("now", True))
@@ -333,6 +406,9 @@ def _run_driver(ctx: Context, args: argparse.Namespace, result: CommandResult) -
             if loaded is None:
                 raise CliUsageError("agentprov batch run: the batch file is no longer readable")
             current = loaded
+            if stop["now"] or current.stopped is not None:  # `batch stop` holds this lock while it signals
+                stop["now"] = True
+                break
             started += len(advance(current, manager, validate=validate_argv, pin_now=checkout_pin, driver_job_id=me))
         ticks += 1
         if current.finished:
@@ -344,7 +420,9 @@ def _run_driver(ctx: Context, args: argparse.Namespace, result: CommandResult) -
         time.sleep(interval)
     result.counters = {"ticks": ticks, "steps_started": started, **current.counts()}
     if stop["now"]:
-        result.info(f"batch {current.batch_id}: the driver stopped; its running steps continue")
+        result.info(f"batch {current.batch_id}: the driver stopped; "
+                    + ("'agentprov batch resume' goes on from its pending steps" if current.stopped is not None
+                       else "its running steps continue"))
         result.exit_code = 130
     else:
         result.info(f"batch {current.batch_id}: every step has ended {current.counts()}")

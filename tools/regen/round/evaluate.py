@@ -1,5 +1,8 @@
 """Pass/fail of one corpus's round checks (D-354) from the JSON summaries the driver wrote. Exit 0 = pass.
 
+Every execution must be mapped and sealed by this import (a resumed import maps nothing), verify must exit 0 (a working
+tree's ``checksums.absent`` keeps exit 0) and the comparison must cover every execution, unsampled.
+
 Usage: python -I evaluate.py LOGDIR NAME EXECUTIONS
 """
 import json
@@ -24,6 +27,9 @@ if imp:
     line["import"] = {k: c.get(k) for k in ("mapped", "sealed_clean", "sealed_with_issues", "degenerate", "failed")}
     if imp["exit_code"] != 0 or c.get("failed"):
         fails.append(f"import: exit {imp['exit_code']}, failed {c.get('failed')}")
+    if c.get("mapped") != n or (c.get("sealed_clean") or 0) + (c.get("sealed_with_issues") or 0) != n:
+        fails.append(f"import: mapped {c.get('mapped')}, sealed {c.get('sealed_clean')}+{c.get('sealed_with_issues')}, "
+                     f"expected {n}")
 dry = load("dryrun")
 if dry:
     c = dry["counters"]
@@ -40,13 +46,15 @@ ver = load("verify")
 if ver:
     other = {k: v for k, v in ver["issues_by_code"].items() if k != "checksums.absent"}
     line["verify"] = "ok" if not other and not ver["counters"].get("failed") else other
-    if other or ver["counters"].get("failed"):
-        fails.append(f"verify: {ver['issues_by_code']}")
+    if other or ver["counters"].get("failed") or ver["exit_code"] != 0:
+        fails.append(f"verify: exit {ver['exit_code']}, {ver['issues_by_code']}")
 cmp = load("compare")
 if cmp:
     line["compare"] = {"ids_equal": not cmp["ids_only_old"] and not cmp["ids_only_new"],
                        "completeness": cmp["completeness"], "mismatches": len(cmp["mismatches"]),
                        "errors": len(cmp["errors"])}
+    if cmp.get("compared") != n or cmp.get("sampled") is not False:
+        fails.append(f"compare: compared {cmp.get('compared')} of {n}, sampled {cmp.get('sampled')}")
     if cmp["ids_only_old"] or cmp["ids_only_new"] or cmp["mismatches"] or cmp["errors"]:
         fails.append(f"compare: ids {cmp['ids_only_old']}/{cmp['ids_only_new']}, mismatches {cmp['mismatches'][:5]}, "
                      f"errors {len(cmp['errors'])}")

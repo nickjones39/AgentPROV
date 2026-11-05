@@ -5,7 +5,8 @@ GUI calls).
 * :mod:`.prices`: the shipped price table, refreshed OpenRouter snapshots and per-model overrides;
 * :mod:`.cost`: the estimate itself (pure);
 * :mod:`.usage`: counts from AER documents (no text kept);
-* :mod:`.priors`: the shipped priors and the corpus → priors → defaults lookup;
+* :mod:`.priors`: the shipped priors and the corpus → priors (local, shipped) → defaults lookup;
+* :mod:`.localpriors`: the priors builder, and local priors from the user's sealed corpora (D-1062);
 * :mod:`.plan`: the strict reader of ``run --dry-run --plan-json`` (D-651).
 
 Outside every stage closure (class 0): nothing here feeds AER, SEM, PROV or a corpus.

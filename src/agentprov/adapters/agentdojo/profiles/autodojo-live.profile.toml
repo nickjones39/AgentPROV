@@ -23,10 +23,12 @@
 # list. The quirks carry no `observed` counts, because no real-model campaign has been run (U-10). The quirk
 # `agentdojo.run_error_imposes_outcome` has the fork's values: `security` is False (upstream imposes True) and the fork
 # writes the extra log key `error_type` (D.11.1).
+# Version 4 (D-1063, regen-batch row 179): catalogues agentdojo 3, agentdyn 3 and agentdojo.suites@5 (@3's tables on
+# catalogue agentdojo 3); version 3 ships under profiles/archive/autodojo-live.profile.v3.toml.
 
 [profile]
 id = "autodojo-live"
-version = 3
+version = 4
 format = "agentprov-source-profile/0.1"
 source_id = "autodojo"
 family = "agentdojo"
@@ -66,7 +68,7 @@ content_dedup = "never"
 dialect = "agentprov.capture"
 mapper = "agentdojo.capture"
 variants = ["0.1"]
-rules = { aer = 1, agentdojo = 2, agentdyn = 2, anthropic_messages = 1, cap = 1 }  # anthropic_messages: D-656; agentdyn: the suite benchmark of an AgentDyn cell (regeneration-batch item 27 (a))
+rules = { aer = 1, agentdojo = 3, agentdyn = 3, anthropic_messages = 1, cap = 1 }  # anthropic_messages: D-656; agentdyn: the suite benchmark of an AgentDyn cell (regeneration-batch item 27 (a))
 include = ["raw/capture/*.capture.jsonl"]
 native = { dialect = "agentdojo.tracelogger", variants = ["v1.k14", "v1.k14.incomplete"], mapper = "agentdojo.tracelogger" }
 
@@ -83,7 +85,7 @@ version_field = "benchmark_version"
 # (regeneration-batch item 27 (b); as the agentdyn profile reads it)
 version_label_semantics = "suite_version_for_agentdojo_suites_only"
 dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
-semantics_profile = { id = "agentdojo.suites", version = 3 }  # reviewed AgentDyn tables (regeneration-batch item 27 (b))
+semantics_profile = { id = "agentdojo.suites", version = 5 }  # reviewed AgentDyn tables (regeneration-batch item 27 (b))
 
 [family.agentdojo.harness]
 code_identity = "pinned"

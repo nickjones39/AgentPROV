@@ -20,13 +20,19 @@ plus content-addressed blobs. Rules it enforces:
 * **Pattern flags.** A key-shaped pattern found in content is not rewritten; the writer follows the referencing
   event with a ``note`` (``ns: "capture"``, ``kind: "secret_pattern"``, payload ``{event_seq, field, p, pattern}``
   or ``{blob, p, pattern}``; once per blob). These notes take sequence numbers of their own, so use ``emit``'s
-  return value rather than counting.
+  return value rather than counting. Notes about ``session.start`` are written after ``instrumentation`` (UC-20).
+* **Untrusted values** (UC-19). A string that is not valid Unicode is written escaped, and a member nested deeper than
+  :data:`MAX_MEMBER_DEPTH` is stored as a blob; a ``note`` (``ns: "capture"``, ``kind: "value_adjusted"``) lists each
+  change. Content never makes the writer raise into the benchmark run.
+* **Early end** (UC-20). :meth:`CaptureLog.close` right after ``session.start`` writes its terminal events at seq 1;
+  the verifier accepts that as an early end.
 """
 
 from __future__ import annotations
 
 import hashlib
 import itertools
+import json
 import os
 import threading
 from collections.abc import Callable, Mapping
@@ -97,6 +103,85 @@ def _canonical_line(event: Mapping[str, Any]) -> bytes:
         raise CaptureWriteError("event is not canonicalisable (I-JSON: str keys, finite floats, ints within 2^53)", code="cap.write.not_canonical") from None
 
 
+#: The deepest node a data member's value may hold below itself (the value is depth 0): ``_blob_refs`` refuses a node
+#: deeper than 200 counted from ``data``, and the member's value sits at 1. A deeper member is stored as a blob (UC-19).
+MAX_MEMBER_DEPTH: Final = 199
+#: Changes listed per ``value_adjusted`` note before the list is cut (``n`` still counts them all).
+MAX_NOTED_CHANGES: Final = 64
+
+
+def _valid_unicode(text: str) -> bool:
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def escape_lone_surrogates(text: str) -> str:
+    """``text`` with each surrogate code point written as ``\\uXXXX`` (lower-case hex), and each backslash that is
+    followed by ``u`` or ``U`` written as ``\\u005c``, so every ``\\u`` of the result starts an escape: lossless and
+    unambiguous (the convention of ``agentprov_backend._jsonval.escape_text``, without its other escapes or its cut)."""
+    out = []
+    for i, ch in enumerate(text):
+        cp = ord(ch)
+        if 0xD800 <= cp <= 0xDFFF:
+            out.append(f"\\u{cp:04x}")
+        elif ch == "\\" and text[i + 1 : i + 2] in ("u", "U"):
+            out.append("\\u005c")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _ptr(token: str) -> str:
+    return token.replace("~", "~0").replace("/", "~1")
+
+
+def _scan(value: Any) -> tuple[bool, bool]:
+    """``(too deep, holds a string that is not valid Unicode)`` for one member's value, without recursion."""
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    deep = invalid = False
+    while stack:
+        node, depth = stack.pop()
+        if depth > MAX_MEMBER_DEPTH:
+            deep = True
+            continue
+        if isinstance(node, str):
+            invalid = invalid or not _valid_unicode(node)
+        elif isinstance(node, dict):
+            for key, child in node.items():
+                if isinstance(key, str) and not _valid_unicode(key):
+                    invalid = True
+                stack.append((child, depth + 1))
+        elif isinstance(node, (list, tuple)):
+            stack.extend((child, depth + 1) for child in node)
+    return deep, invalid
+
+
+def _escaped(node: Any, field: str, pointer: str, changes: list[dict[str, str]]) -> Any:
+    """A copy of ``node`` (at most ``MAX_MEMBER_DEPTH`` deep) with its invalid strings escaped, each change listed."""
+    if isinstance(node, str):
+        if _valid_unicode(node):
+            return node
+        changes.append({"field": field, "p": pointer, "change": "lone_surrogates_escaped"})
+        return escape_lone_surrogates(node)
+    if isinstance(node, dict):
+        # when one member name is escaped, every name of the object is (escaping is injective, so no two collide)
+        escape_names = any(isinstance(k, str) and not _valid_unicode(k) for k in node)
+        out: dict[Any, Any] = {}
+        for key, child in node.items():
+            new_key = escape_lone_surrogates(key) if escape_names and isinstance(key, str) else key
+            child_pointer = pointer + "/" + _ptr(str(new_key))
+            if new_key != key:
+                changes.append({"field": field, "p": child_pointer, "change": "name_escaped"})
+            out[new_key] = _escaped(child, field, child_pointer, changes)
+        return out
+    if isinstance(node, (list, tuple)):
+        return [_escaped(child, field, f"{pointer}/{i}", changes) for i, child in enumerate(node)]
+    return node
+
+
 def _blob_refs(node: Any, out: list[Mapping[str, Any]], depth: int = 0) -> None:
     if depth > 200:
         raise CaptureWriteError("event nesting is too deep", code="cap.write.invalid")
@@ -150,6 +235,9 @@ class CaptureLog:
         self._blob_redactions: dict[str, dict[tuple[str, str], None]] = {}
         self._blob_flags: dict[str, dict[tuple[str, str], None]] = {}
         self._flags_noted: set[tuple[str, str, str]] = set()
+        #: notes about events written before ``instrumentation`` (held: seq 1 is ``instrumentation``'s place; UC-20)
+        self._held_notes: list[tuple[int, int | None, str | None, list[tuple[str, dict[str, str]]],
+                                     list[dict[str, str]]]] = []
         self.path.parent.mkdir(parents=True, exist_ok=True)
         _refuse_symlink(self.path)
         fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | _BINARY, 0o600)
@@ -295,14 +383,49 @@ class CaptureLog:
         """
         with self._lock:
             self._check_open()
-            payload, flagged = self._prepare(type, data, pass_, actor)
+            payload, flagged, changes = self._prepare(type, data, pass_, actor)
             seq = self._write(type, payload, pass_, actor, lex)
-            self._note_flags(seq, pass_, actor, flagged)
+            self._held_notes.append((seq, pass_, actor, flagged, changes))
+            if self._seq >= 2:  # never between session.start and instrumentation (UC-20)
+                held, self._held_notes = self._held_notes, []
+                for item in held:
+                    self._note_flags(*item)
             return seq
+
+    def _adjust(self, payload: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, str]]]:
+        """UC-19: values that come from untrusted content and that the log cannot hold as they are are recorded, never
+        raised into the benchmark run: a string that is not valid Unicode (a lone surrogate from a provider reply) is
+        written with :func:`escape_lone_surrogates`, and a member nested deeper than :data:`MAX_MEMBER_DEPTH` (tool
+        arguments a model nested hundreds of levels deep) is stored whole as an ``application/json`` blob that the
+        member references. Each change is listed for the event's ``value_adjusted`` note."""
+        changes: list[dict[str, str]] = []
+        out: dict[str, Any] = {}
+        for field, value in payload.items():
+            if field == "redactions":  # written by the writer itself
+                out[field] = value
+                continue
+            deep, invalid = _scan(value)
+            if deep:
+                try:
+                    blob = rfc8785.dumps(value)
+                except Exception:  # noqa: BLE001 - a lone surrogate or recursion: JSON with \\u escapes is lossless
+                    try:
+                        blob = json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+                                          allow_nan=False).encode("ascii")
+                    except (TypeError, ValueError, RecursionError):
+                        raise CaptureWriteError("event is not canonicalisable (I-JSON: str keys, finite floats, ints "
+                                                "within 2^53)", code="cap.write.not_canonical") from None
+                out[field] = self.put_blob(blob, "application/json")
+                changes.append({"field": field, "p": "", "change": "stored_as_blob_too_deep"})
+            elif invalid:
+                out[field] = _escaped(value, field, "", changes)
+            else:
+                out[field] = value
+        return out, changes
 
     def _prepare(
         self, type_: str, data: Mapping[str, Any], pass_: int | None, actor: str | None
-    ) -> tuple[dict[str, Any], list[tuple[str, dict[str, str]]]]:
+    ) -> tuple[dict[str, Any], list[tuple[str, dict[str, str]]], list[dict[str, str]]]:
         if type_ not in EVENT_TYPES:
             raise CaptureWriteError(f"unknown event type {type_!r}", code="cap.write.invalid")
         if type_ == "session.end":
@@ -338,6 +461,7 @@ class CaptureLog:
                 )
             if actor is not None:
                 raise CaptureWriteError("session.start has no actor", code="cap.write.invalid")
+        payload, changes = self._adjust(payload)
         digests = self._check_blob_refs(payload)
         flagged: list[tuple[str, dict[str, str]]] = []
         if self._redactor is not None:
@@ -365,7 +489,7 @@ class CaptureLog:
             except Exception as exc:  # noqa: BLE001 - fail closed on any scan problem
                 self._poison_now("redaction", type(exc).__name__)
                 raise RedactionError("event redaction failed; the event was not written", code="cap.redact.failed") from None
-        return payload, flagged
+        return payload, flagged, changes
 
     def _write(
         self, type_: str, payload: dict[str, Any], pass_: int | None, actor: str | None, lex: Mapping[str, Any] | None
@@ -417,7 +541,11 @@ class CaptureLog:
             self._actors = frozenset(payload["actors"])
         return seq
 
-    def _note_flags(self, seq: int, pass_: int | None, actor: str | None, flagged: list[tuple[str, dict[str, str]]]) -> None:
+    def _note_flags(self, seq: int, pass_: int | None, actor: str | None, flagged: list[tuple[str, dict[str, str]]],
+                    changes: list[dict[str, str]] = ()) -> None:  # type: ignore[assignment]
+        if changes:
+            payload: dict[str, Any] = {"event_seq": seq, "changes": list(changes[:MAX_NOTED_CHANGES]), "n": len(changes)}
+            self._write("note", {"kind": "value_adjusted", "ns": "capture", "payload": payload}, pass_, actor, None)
         for where, flag in flagged:
             if where == "field":
                 payload = {"event_seq": seq, "field": flag["field"], "p": flag["p"], "pattern": flag["pattern"]}

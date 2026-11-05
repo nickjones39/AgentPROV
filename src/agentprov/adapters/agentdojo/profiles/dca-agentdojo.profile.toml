@@ -18,10 +18,12 @@
 # Input: the zip is a Figshare download, a `url` pin read as an archive input (D-455, R-10j-3): its members are the
 # logs (`member` origins). A URL is mutable, so the pin records when its bytes were retrieved (`retrieved_at`, the
 # phase-10c acquisition record); an import fetched later uses its own acquisition record.
+# Version 2 (D-1063, regen-batch row 179): catalogues agentdojo 3 and agentdojo.suites@4 (@2's tables on catalogue
+# agentdojo 3); version 1 ships under profiles/archive/dca-agentdojo.profile.v1.toml.
 
 [profile]
 id = "dca-agentdojo"
-version = 1
+version = 2
 format = "agentprov-source-profile/0.1"
 source_id = "dca-agentdojo"
 family = "agentdojo"
@@ -73,7 +75,7 @@ content_dedup = "never"
 dialect = "agentdojo.tracelogger"
 mapper = "agentdojo.tracelogger"
 variants = ["v1.k14", "drift.k18.conversations"]
-rules = { aer = 1, agentdojo = 2, drift = 1 }
+rules = { aer = 1, agentdojo = 3, drift = 1 }
 include = ["DCA_AgentDojo_artifact_v1_20260612/results/logs/*/*/*/*/*/*/*.json"]
 exclude = [
   { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
@@ -100,7 +102,7 @@ suites = { banking = "agentdojo", slack = "agentdojo", travel = "agentdojo", wor
 version_field = "benchmark_version"
 version_label_semantics = "suite_version"
 dos_attacks = []
-semantics_profile = { id = "agentdojo.suites", version = 2 }
+semantics_profile = { id = "agentdojo.suites", version = 4 }
 
 [family.agentdojo.harness]
 # none of the deposit's runners was verified against the runs (D-24, D-272): every D rule through its `_unverified` twin

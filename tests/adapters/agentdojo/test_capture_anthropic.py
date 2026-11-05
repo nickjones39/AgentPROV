@@ -56,7 +56,7 @@ def _rule_ids(record: dict) -> list[str]:
                                                   ("autodojo-live", RECORDED_AUTODOJO_LIVE_V1)])
 def test_live_profiles_accept_the_port_from_version_2_with_version_1_archived(profile_id, recorded):
     current, v2, archived = load_profile(profile_id), load_profile(profile_id, 2), load_profile(profile_id, 1)
-    assert current.version == 3 and v2.version == 2  # v3: the defence items (D-670, D-677; v2 archived, item 167)
+    assert current.version == 4 and v2.version == 2  # v3: the defence items (D-670, D-677; v2 archived, item 167); v4: D-1063
     assert archived.version == 1 and archived.sha256 == recorded
     for profile in (current, v2):
         assert set(NEW_ITEMS) <= set(profile.data["family"]["agentdojo"]["live"]["instrumentation_accepted"])

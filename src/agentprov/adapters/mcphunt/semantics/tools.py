@@ -33,10 +33,10 @@ __all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "McpHuntToolsProfile", "bu
 
 PROFILE_ID: Final = "mcphunt.tools"
 PROFILE_VERSION: Final = 1
-PROFILE_VERSIONS: Final = (1, 2)  # 2: version 1's tables on the mcphunt catalogue version 2 (D-31 bump, regen items 38-41)
+PROFILE_VERSIONS: Final = (1, 2, 3)  # 2: version 1's tables on catalogue mcphunt 2 (D-31, regen items 38-41); 3: on 3 (D-1063)
 #: The ``mcphunt`` catalogue version each profile version declares (D-31; H.2.5: one catalogue version per corpus):
-#: @1 reads the archived version 1, @2 reads version 2.
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
+#: @1 reads the archived version 1, @2 the archived version 2, @3 version 3 (D-1063).
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3})
 DATA_FILES: Final = ("profile.toml", "tools.toml")
 
 R_TABLE: Final = "mcphunt.tool_table@1"
@@ -104,7 +104,7 @@ def _split_call_name(name: object) -> tuple[str | None, str | None]:
 
 @dataclass(frozen=True)
 class McpHuntToolsProfile:
-    """``mcphunt.tools`` at version 1 or 2 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
+    """``mcphunt.tools`` at version 1, 2 or 3 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
 
     id: str
     version: int
@@ -193,7 +193,7 @@ class McpHuntToolsProfile:
 
 
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> McpHuntToolsProfile:
-    """Build ``mcphunt.tools`` at version 1 or 2 from its data files."""
+    """Build ``mcphunt.tools`` at version 1, 2 or 3 from its data files."""
     if profile_id != PROFILE_ID or version not in PROFILE_VERSIONS:
         raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, not "
                                f"{profile_id}@{version}")

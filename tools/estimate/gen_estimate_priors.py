@@ -18,7 +18,9 @@ so it comes from the round's records and is never inferred here.
 
 For every execution of the chosen corpora, ``agentprov.estimate.usage.execution_usage`` counts the model calls, the tokens per call (recorded
 usage, else message characters / 4) and the run's duration; ``aggregate`` turns them into quantiles per benchmark,
-suite, attack (or benign) and model family, plus the same keys over any model.
+suite, attack (or benign) and model family, plus the same keys over any model. The rows and the document come from
+``agentprov.estimate.localpriors`` (``build_rows``, ``document_bytes``), which ``agentprov priors build`` uses for the
+local priors from the user's sealed corpora (D-1062), so the two tables are built by one implementation.
 
 **The table holds counts and quantiles only** (no text, no ids of executions); it names each corpus (its id, its
 manifest's sha256 and how many executions were read) and the commit of the checkout that built it. Corpus text is
@@ -29,7 +31,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import os
 import re
 import subprocess
@@ -40,9 +41,9 @@ from pathlib import Path
 from typing import Any
 
 from agentprov.errors import IngestError
+from agentprov.estimate.localpriors import build_rows, document_bytes
 from agentprov.estimate.priors import PRIORS as OUT
-from agentprov.estimate.priors import PRIORS_FORMAT as FORMAT
-from agentprov.estimate.usage import CHARS_PER_TOKEN, ExecutionUsage, aggregate, execution_usage
+from agentprov.estimate.usage import CHARS_PER_TOKEN, ExecutionUsage, execution_usage
 from agentprov.ingest.loaders import strict_json_loads
 
 HERE = Path(__file__).resolve().parent
@@ -171,22 +172,11 @@ def main(argv: list[str] | None = None) -> int:
             corpora.append({**_corpus_identity(root), "executions_read": len(read), "aer_files": len(files),
                             "building_commit": commits[root.name]})
             print(f"gen_estimate_priors: {root.name}: {len(read)} of {len(files)} AER files", file=sys.stderr)
-    rows: dict[tuple[str, ...], dict[str, Any]] = {}
-    for with_model in (True, False):
-        for with_backend in (True, False):
-            for (bench, suite, attack, family, backend), stats in sorted(aggregate(
-                    usages, with_model=with_model, with_backend=with_backend,
-                    min_executions=args.min_executions).items()):
-                rows.setdefault((bench, suite, attack, family, backend), {
-                    "benchmark": bench, "suite": suite, "attack": attack or None, "family": family or None,
-                    "backend": backend or None, **stats.to_json()})
-    doc = {"format": FORMAT, "built_from": {"commit": _commit(HERE.parent.parent), "tool": "tools/estimate/gen_estimate_priors.py",
-                                            "chars_per_token": CHARS_PER_TOKEN, "min_executions": args.min_executions,
-                                            "corpora": corpora}}
-    head = json.dumps(doc, sort_keys=True, separators=(",", ":"))[:-1]
-    lines = [json.dumps(rows[k], sort_keys=True, separators=(",", ":")) for k in sorted(rows)]
+    rows = build_rows(usages, args.min_executions)
+    built_from = {"commit": _commit(HERE.parent.parent), "tool": "tools/estimate/gen_estimate_priors.py",
+                  "chars_per_token": CHARS_PER_TOKEN, "min_executions": args.min_executions, "corpora": corpora}
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(head + ',"rows":[\n' + ",\n".join(lines) + "\n]}\n", encoding="utf-8")
+    args.out.write_bytes(document_bytes(built_from, rows))
     print(f"gen_estimate_priors: {len(rows)} rows from {len(usages)} executions -> {args.out}", file=sys.stderr)
     return 0
 

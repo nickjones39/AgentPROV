@@ -99,3 +99,41 @@ def test_explicit_marks_and_transport_errors(tmp_path):
     resps = [e["data"] for e in _events(session) if e["type"] == "llm.response"]
     assert resps[0]["status"] == "discarded" and resps[0]["reason"] == "resampled for a test"
     assert resps[1]["status"] == "error" and resps[1]["exception"]["type"] == "ConnectError"
+
+
+def test_a_usage_count_beyond_2_53_is_left_out_of_usage_and_noted(tmp_path):
+    """AU-NC-201: a provider count a capture event cannot hold (I-JSON) stays out of `usage` and is named in a note
+    `agentdojo/usage_out_of_range`; the reply is still recorded and the response blob keeps the value."""
+    from agentprov_capture.redact import Redactor
+    from agentprov_capture.verify import verify_file
+
+    from agentprov_backend.gateway import response_facts, usage_out_of_range
+
+    usage = {"prompt_tokens": 2**60, "completion_tokens": 5, "total_tokens": 2**53,
+             "completion_tokens_details": {"reasoning_tokens": 2**53 - 1},
+             "prompt_tokens_details": {"cached_tokens": 2**64}}
+    assert response_facts({"usage": usage})["usage"] == {"output_tokens": 5, "reasoning_tokens": 2**53 - 1}
+    members = ["prompt_tokens", "total_tokens", "prompt_tokens_details/cached_tokens"]
+    assert usage_out_of_range({"usage": usage}) == members
+    session = CaptureSession(tmp_path / "s", redactor=Redactor())
+    session.start(HEADER)
+    tr = ScriptedTransport([Reply.text("a", usage=usage), Fail.http(500, body={"usage": {"prompt_tokens": 2**60}})])
+    http = openai.DefaultHttpx2Client(transport=RecordingTransport(tr, WireRecorder(session)))
+    client = openai.OpenAI(api_key="not-a-secret-value", base_url="https://scripted.invalid/v1", http_client=http,
+                           max_retries=0)
+    with session.span("agent", "agent", MSGS):
+        client.chat.completions.create(model="m", messages=MSGS)
+    with pytest.raises(openai.InternalServerError):
+        with session.span("agent", "agent", MSGS):
+            client.chat.completions.create(model="m", messages=MSGS)
+    head = session.close("complete")
+    events = _events(session)
+    resps = [e["data"] for e in events if e["type"] == "llm.response"]
+    assert [(r["call"], r["status"]) for r in resps] == [("c0", "kept"), ("c1", "error")]
+    assert resps[0]["usage"] == {"output_tokens": 5, "reasoning_tokens": 2**53 - 1} and "usage" not in resps[1]
+    notes = [e["data"]["payload"] for e in events if e["type"] == "note" and e["data"]["kind"] == "usage_out_of_range"]
+    assert notes == [{"call": "c0", "members": members}, {"call": "c1", "members": ["prompt_tokens"]}]
+    h = resps[0]["response"]["$blob"].split(":", 1)[1]
+    assert json.loads((tmp_path / "s" / "raw" / "blobs" / "sha256" / h[:2] / h).read_bytes())["usage"] == usage
+    report = verify_file(session.capture_path)
+    assert report.sealed and report.head == head and not report.issues

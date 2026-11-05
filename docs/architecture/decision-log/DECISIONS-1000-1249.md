@@ -468,3 +468,622 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
     PyPI 0.1.1 CLI); sending what the page shows, such as the selected job or the corpus open (corpus and log text are
     untrusted and are never sent, D-1010); probing `assist --help` for `--page` before each message (an extra CLI start
     for what the additive member gives for free).
+- **D-1050 (2026-11-05, the software version a stage records is not a declared version; an addendum to D-30 that aligns
+  it with H.8.4(2); audit 2026-11-05 finding AU-BND-1; the user's yes of 2026-11-05 to the audit's recommendation;
+  class 0).** Every stage definition records `engine: agentprov@<software version>`, and D-30's declared identity (the
+  definition minus `fn_digest`, `engine_code_sha256`, `adapter_code_sha256` and the digests beside an integer version)
+  kept it. A release bump therefore changed the declared identity of every stage, so any changed output of a corpus
+  built before the bump compared as `changed_explained`: `recompute --dry-run` exited 0 and `verify --level rederive`
+  reported `unverified` where H.8.4(2) requires `unexplained_change` and exit 1.
+  - **Decision.** `corpus.derive.declared_identity` drops `engine` too, as it drops the code digests and
+    `limits_sha256`. The declared versions stay the ones H.8.4(2) names (adapter, profile, rule ids, spec, format) and
+    the options, mode and library versions D-30 kept. `recompute`, `verify --level rederive` (which runs the same
+    `Derivation.compare`), the `fn_digest` pairing of expansions (P-2) and `derive`'s refusal of a present layer at
+    another version (N.2.3(4)) share the function, so a layer that differs from this build only in its software version
+    is carried by `derive` rather than refused. The reuse key (D-30) is unchanged: it compares `fn_digest`, which still
+    covers `engine`. H.8.4(2), the as-built note on H.8.4 and D-30's comparison bullet name `engine`.
+  - **Why.** H.8.4(2) says a changed output with unchanged declared versions is unexplained "even if the code digest
+    changed". The software version moves with every release whatever a stage did, so it behaves like a code digest: an
+    intended change of an output needs a visible version bump of the stage (D9, D-31), not of the package. Keeping it
+    turned every release into a blanket explanation for every difference, hiding unintended changes behind a version
+    string (what D-30 rejected for code digests).
+  - **Rejected:** listing the software version in `version_drift()` (D-430), so a recompute across a release is a drift
+    report and `--out` refuses (every corpus would drift on each release, and a dry run would still explain every
+    difference); keeping `engine` and documenting that H.8.4(2) does not hold across a release (the bump discipline
+    would then check nothing after the first release); a notice when only `engine` differs (the comparison classes
+    already say what matters, and the recorded definitions show the versions).
+- **D-1051 (2026-11-05, a corpus derived or recomputed from a sealed corpus is not sealable; audit 2026-11-05 finding
+  AU-BND-2; the user's yes of 2026-11-05 to the audit's recommendation, option C; class 0).** `derive --out` and
+  `recompute --out` build the new working `corpus.json` from the source manifest. Over a sealed source its snapshots are
+  the sealed H.2.3 form, which records the origin and no `pin` or `verification`, and a re-map passes the same missing
+  pin on. `package` refused every such corpus as `package.refused.unpinned` ("no pin was recorded at import", D-33),
+  while N.2.4(6) and the user guide (chapters 2 and 10) promised that the result is packaged as a new version. No test
+  sealed a corpus derived from a sealed one, so the route had never worked.
+  - **Decision (option C).** A derived corpus stays a working corpus for comparison. `package` recognises one whose
+    `derived_from.state` is `sealed`, or that has any `derived_from` record and a snapshot in the sealed H.2.3 form (no
+    `pin` member at all: a corpus derived from one derived from a sealed corpus records its immediate source's state,
+    `working`, because `derived_from` records only the immediate source, but derive and recompute carry the sealed
+    snapshots over unchanged; final review AU-FR-3; an import always writes the member, `null` when nothing was pinned,
+    so a recompute of a working import that was never pinned keeps the accurate `unpinned` refusal, AU-NC-4), and
+    refuses it first, before the other preconditions, with exit 4 and its own code
+    `package.refused.derived`, saying that new corpus versions are made by re-importing the source and that a sealed
+    corpus is reproduced by recomputing at its building commit (F-8). Every other corpus without a pin is still refused
+    as `package.refused.unpinned`; a corpus derived from a working import keeps that import's pins and seals as before.
+    N.2.4(6), the N.2.11 preconditions, the N.2.4 as-built note, H.1.5(3) and guide chapters 2, 5 and 10 say so.
+  - **Why.** It matches practice: every new corpus version so far came from a re-import (D-31, D-430), and a recompute
+    at this package of an older corpus is a drift report, not a new version. The promised route never worked, so
+    nothing that was sealed depends on it. Sealing stays as strict as D-33 made it: a sealed origin is built from a pin
+    the import observed. And a pin that no import observed cannot be recorded (invariant 2).
+  - **Rejected:** (A) `package` accepting a sealed origin without a pin, trusting the source's seal (it loosens D-33 at
+    the seal and needs a merge rule for the source's `WITHHELD.json`; left for a later decision if a re-release without
+    a re-import is ever needed); (B) rebuilding a pin from the sealed origin (it records a pin and a verification that
+    the import never observed, against invariant 2); leaving the `unpinned` refusal and only correcting the documents
+    (the refusal would still name the wrong cause).
+- **D-1060 (2026-11-05, one visual and form style for the whole GUI, with a terminal-command card wherever the CLI can
+  do the action; the user accepted the mockup on 2026-11-05; GUI, tests and docs; class 0).** Each input screen had
+  grown its own layout: Run Live was a long scroll of group boxes, form rows labelled with CLI flags, "More Options"
+  under everything and the estimate at the bottom, and the other forms differed again. The user reviewed a mockup of
+  Run Live, New Job, Settings, Package, a live run in progress and a style guide, and accepted it on 2026-11-05 for the
+  whole app, the Viewer included.
+  - **Decision: the nine rules.** (1) Grouped sections: related rows in a rounded card under a small capitalised
+    heading, four or five sections a screen at most. (2) Plain labels, captions for detail: the label says what the
+    field is in everyday words, a grey caption under it carries the one fact people need, and CLI flags and file names
+    move to the tooltip (every earlier tooltip's information is kept). (3) Show only what applies: rows of a choice not
+    made are hidden, not greyed (no Endpoint row while Scripted is chosen), and no row is left empty. (4) One Advanced
+    level: rarely changed options sit behind one disclosure that says what it holds ("Advanced: …"), collapsed by
+    default and remembered per screen; never a second level. (5) Defaults as placeholders: an unset number shows
+    "Default (1,800)" in grey instead of the word "default" or a dash; the earlier special values map onto it, so the
+    arguments a form builds do not change. (6) The right control: a segmented control for two to four exclusive
+    choices, a switch for on/off, chips or a two-column checklist for many toggles, a short right-aligned field with
+    its unit for numbers, a field with Choose… for paths (the long middle elided). (7) No horizontal scrolling: help text
+    wraps, the form column is at most 680 px wide and scrolls only vertically. (8) Results stay visible: what the
+    choices add up to (cells, cost, the command) sits in a summary panel or a card, not at the bottom of a long scroll.
+    (9) Actions where macOS puts them: Cancel and the default button bottom right, the default blue; secondary actions
+    bottom left.
+  - **Decision: one theme, one set of components.** `gui/src/agentprov_gui/ui/theme.py` holds the light and dark
+    palette tokens (from the Appearance setting; rebuilt when the colour scheme changes), the type scale (13 px body,
+    11 px captions and section headings, 20 px page titles, the system font, scaled from the application font so View ›
+    Bigger and Smaller still work) and the 8 px grid, and builds the one app-wide style sheet, applied once at startup.
+    `ui/forms.py` holds the components every screen is built from: FormPage, FormSection, FormRow, Disclosure,
+    SegmentedControl, Switch, ChipGroup, Checklist, IntField and DecimalField, PathField, StatusBadge, CommandCard and
+    SummaryPanel. All text stays plain (S1): every text-bearing part is a `safe.py` label or a button's plain text,
+    tooltips go through `safe.py`'s helpers, and every part has an accessible name. The reverse-parity walk (D-700)
+    counts a composite input once, not its segments or chips.
+  - **Decision: the terminal command card.** Wherever the CLI can do what a screen does, the screen shows the exact
+    command in a monospace card with Copy, updated as the fields change, built by the same function that builds the
+    job's argv (never a second copy of the logic). Keys never appear: a live run reads its key from the keychain
+    (`--keychain`, D-702), and the job manager refuses `--env-stdin` and `--env-file` from the GUI. Copy copies one
+    line per command; the card wraps with continuation backslashes, so it never scrolls sideways.
+  - **Decision: Run Live first (phase A).** Run Live is rebuilt in this style: Benchmark, Model (Transport as a
+    segmented control; the script for scripted runs; endpoint, model, price, key and containment for a real model),
+    Limits (the D-725 caps, with "Use the quote's upper figure"), What to run (the full benchmark, the same arguments as
+    ticking every suite and every attack that can be chosen, or suites as a checklist and attacks as chips; task
+    selection and repeats behind one disclosure) and Save to (concurrency, attempts, canary, timeout, conformance, Tune…
+    and every other `run` option behind "Advanced: …"). The summary panel shows the cells, cost, model calls,
+    concurrency and the before-you-start checks; for a real model it is the quote for the run from `agentprov
+    estimate` (its `quote` object read defensively, the estimate's own fields otherwise), always marked an estimate
+    only, with how it is worked out (a fallback to the all-model figures is never called model-specific) and the upper
+    figure labelled as what it is (the sum of per-cell 90th percentiles), and "Build cost figures from my corpora…"
+    starts `agentprov priors build` as a confirmed job (D-1062). The card shows the `agentprov estimate` of the quote and
+    the `agentprov run` that Start hands Runs. Every gate, the R1 and R2
+    confirmations, the consent text, the caps, the estimate sequencing and the audit fixes (AU-GUI-3, AU-GUI-6, UC-9)
+    are unchanged. The other screens follow in later phases.
+  - **Decision: the Viewer in three panes (the user's yes of 2026-11-05 to the mockup).** The Corpora page is a split
+    view after the macOS source-list pattern: on the left the corpora grouped by state (Sealed, Working, Being written,
+    Unreadable) with their execution counts, a filter box and Open Folder…, the old corpora table's facts in a Corpus
+    Details popover; in the middle the corpus header (name, state and verification badges, "N of M executions",
+    Verify… / Revalidate…), the filters as applied-filter chips with + Add filter (each facet's values with counts)
+    and Clear all, the executions table and a collapsed terminal-command line; on the right an inspector for the
+    selected execution (badges, a segmented Graph · AER · SEM · PROV-JSON · Register · Validation · Raw · Index Row,
+    Export Graph…, its command, Open in New Tab). Both side panes collapse to a labelled 34 px strip that names what
+    it holds and reopens on a click, a toggle at the Viewer's tab bar, or View › Show/Hide Corpora (⌥⌘1) and
+    Show/Hide Inspector (⌥⌘I; ⌥⌘0 is already Text Size › Default); widths and states are remembered and a narrow
+    window collapses the inspector first. The filters are the same TableFilter and the same `agentprov stats
+    --select` argv as the old pickers (tested per facet and value). Rejected: stacked collapsible sections (every
+    collapse costs height and clicks, and the table and the details compete for it).
+  - **Rejected:** a wizard for Run Live (the estimate and the gates depend on nearly every field, and staged disclosure
+    fails for steps that depend on each other, as NN/g's guidance on progressive disclosure warns; a wizard would hide
+    the cost while its causes are being chosen); keeping the per-screen layouts and fixing them one by one (the same
+    problems, flags as labels, dashes for defaults, side scrolling, results at the bottom, would come back screen by
+    screen); a second visual style for the Viewer (the user asked for the whole app to be consistent); a native
+    platform form layout per OS (QFormLayout's AutoText labels are banned by S1, and the platforms' layouts differ in
+    exactly the places the rules fix); showing a command assembled separately for the card (it would drift from what
+    Start runs).
+- **D-1061 (2026-11-05, Cancel Run: stop a job and mark it cancelled so that it is never resumed; the GUI redesign's
+  running live run; `agentprov jobs`, the Runs page, tests and docs; class 0).** Runs had Pause (a drain), Resume, Stop
+  and Force Kill, but no way to say "this run is finished with": a stopped run stayed one Resume away from spending more
+  calls, from the app or from `agentprov jobs resume ID`.
+  - **Decision: the command.** `agentprov jobs cancel ID` writes the mark `abandoned.json`
+    (`agentprov-job-abandoned/0.1`: the job id, its state when cancelled and the UTC time) in the job's directory, then,
+    while the job runs, sends the same graceful stop as `jobs stop` (the control file's `stop`, else one SIGTERM; exit
+    130). A job that was already sent its SIGTERM by `jobs stop` (`stop.json` in its directory records that stop) is
+    only marked too: the CLI takes a second SIGTERM as the hard abort (`os._exit(130)`), which would cut short the
+    teardown the first one started (AU-NC-101). A job that has ended is only marked. A second cancel keeps the first mark. When the stop cannot be sent (the
+    process identity no longer matches, or Windows without a control file) the mark stays and the command fails with
+    `jobs.control.refused` (exit 4), naming `jobs kill ID --yes`. Nothing is deleted: the working corpus, the job's files
+    and its lock rules are untouched.
+  - **Decision: what the mark does.** `jobs resume` refuses a cancelled job with `jobs.resume.cancelled` (exit 4, a
+    refusal); running the command again means starting it as a new job. `jobs list` and `jobs show` give
+    `"abandoned": true` in JSON and `cancelled` in text. A mark that cannot be read still counts, so a damaged file
+    never makes a cancelled job resumable. `jobs stop` is unchanged: a stopped job resumes as before.
+  - **Decision: why a file of its own.** The supervisor rewrites `job.json` from its own copy while the job runs, so a
+    mark written into `job.json` would be lost when the job ends.
+  - **Decision: the Runs page.** The selected job's header shows its state as words with a tint (Running, Pausing,
+    Paused, Stopping, Stopped, Cancelled, Ended, Failed), from its files: the control request, the cancel mark, the exit
+    code and the progress file's `drained` outcome. **Cancel Run…** (Cancel Job… for other commands) asks first in the
+    existing confirmation style and runs `jobs cancel ID` off the UI thread; Resume is disabled for a cancelled job and
+    refused if reached. A live run's header also shows the billed model calls and the spend's upper bound against their
+    caps, read from the working corpus's `live.caps` (in the pool, at most every 5 s); a run without caps shows neither.
+    A command card lists `jobs drain`, `stop`, `resume`, `cancel` and `follow` with the job's real id, built from the
+    same job forms as the actions.
+  - **Not done: deleting the partial corpus.** No `agentprov` command deletes a working corpus (`purge` removes one
+    leaked object and leaves a tombstone), so the app offers no "Delete partial corpus…" action; a user removes the
+    folder by hand. A delete command would need its own decision (only a working corpus the run created, never a sealed
+    one, confirmed with the path).
+  - **Rejected:** a field in `job.json` (lost to the supervisor's rewrite, above); deleting the job directory as the
+    cancel (the log, stderr and progress are the record of what the run did); a `--yes` on cancel (it deletes nothing,
+    and a stop needs none); letting `jobs resume --force` override the mark (start the command as a new job instead).
+- **D-1062 (2026-11-05, Run Live's cost quote: local priors from the user's sealed corpora, a `quote` object marked an
+  estimate only, and a daily OpenRouter price refresh; amends D-650's "never automatic" and D-653's priors order; the
+  user's request of 2026-11-05; CLI, settings, tests and docs; class 0).** Run Live must quote, in USD, what a run
+  will cost for any model the user picks (a Claude model, DeepSeek, an OpenRouter model), from the traces of the
+  corpora the user already holds where it can, and say plainly that the figure is an estimate.
+  - **Decision: local priors.** `agentprov priors build [--corpus DIR]... [--jobs N] [--min-executions N]` counts the
+    executions of the user's **sealed** corpora (every one under `$AGENTPROV_HOME/corpora`, the highest
+    `corpus_version` of each corpus id; or the `--corpus` ones, each sealed, no corpus id twice) into
+    `$AGENTPROV_HOME/estimate/priors-local.json`, written atomically, in the shipped priors' format
+    (`agentprov-estimate-priors/0.1`). The row builder and the document writer moved from
+    `tools/estimate/gen_estimate_priors.py` into `agentprov.estimate.localpriors` unchanged, and the tool now calls
+    them, so both tables come from one implementation (a test rebuilds the old code path's bytes from the same inputs;
+    the committed table re-serialises to its own bytes). The corpus reading is `agentprov.cli.priors_read`, because
+    `estimate` sits below `corpus` in the import layers (M.5.2(1)). Corpora are read only through `CorpusReader`
+    (the index streamed, each AER verified against its row, in worker processes for `--jobs`, at most four tasks per
+    worker in flight); a working `.partial` tree, a `.withheld` sidecar, an execution `WITHHELD.json` names and an execution
+    already counted in an earlier corpus (the same `ex`) are left out; nothing is written into a corpus. An `ex` counts
+    as already counted only once its AER was read, so an unreadable copy never hides a readable one in a later corpus,
+    and the executions counted do not depend on the corpora's order (AU-NC-103). A discovered corpus that cannot be read
+    as a whole (a damaged index or `WITHHELD.json`, or no longer sealed) adds nothing and is named in
+    `built_from.skipped` (`unreadable (<code>)`), as any directory `discover` cannot use; a `--corpus` one refuses the
+    build naming its `--corpus` number, as one that is not sealed does (AU-NC-102). Only counts
+    leave a worker; an execution whose benchmark, suite, attack or backend is not a plain label is left out
+    (`unlabelled`), the model id becomes a family label as before. `built_from` names each corpus (id, version,
+    manifest sha256, executions indexed, read, withheld, duplicate, unreadable) and each directory skipped, with no time
+    and no worker count, so the same corpora give the same bytes at any `--jobs`. `agentprov priors show` (R0)
+    describes the local and shipped tables.
+  - **Decision: the order.** Per cell, `--stats-corpus` first, then per benchmark (the backend's, then the other
+    AgentDojo-family one): local rows of this model family, shipped rows of this family, local any-model rows, shipped
+    any-model rows; then `estimate.default.*`. The model family weighs more than whose corpora measured the row (a
+    model's verbosity and call count drive its cost), and the user's own rows win where both tables have the same kind.
+    Without a local file the order is D-653's, unchanged.
+  - **Decision: the quote.** `agentprov estimate --format json` gains `quote` (additive; every other key keeps its
+    meaning): `usd_p50`, `usd_p90` (plain decimal strings, as `cost_*`), `calls_*`, `tokens_in_*`, `tokens_out_*`
+    (the run's totals, the preflight probe and judge calls included), `seconds_*` (at the run's `--jobs`, which the
+    estimate models as `ceil(units / jobs)` rounds) and `seconds_serial_*` (the cells one after another), `jobs`,
+    `cells` (the cell runs still due), `p50_aggregation` "sum of per-cell medians", `p90_aggregation` "upper (sum of
+    per-cell 90th percentiles)", and `basis`: `priors` (`local`, `shipped`, `mixed`, or `null` when no cell used
+    priors), `family_specific`, `family`, `executions` (behind the distinct rows used), `corpora` (the local priors'
+    corpus ids, when used), `token_basis` (`chars/4`, `usage`, `mixed` or `null`), `price_source` (`direct`,
+    `openrouter`, `override` or `local`), `price_as_of`, `discounts_assumed` (true only when measured cache reads are
+    priced at a lower cache rate; batch prices are never used) and `estimate_only: true`. The text form adds "Estimate
+    only: actual cost can differ (token counts are approximated as characters / 4; batch and cache discounts are not
+    assumed).", worded from the basis when the tokens were recorded or a cache rate applies.
+  - **Decision: p90.** The p90 cost stays what it was (D-650): per cell, the 90th-percentile calls times the cost of a
+    call at the 90th-percentile tokens, summed over the cells. It is deliberately high (a run's total varies far less
+    than one cell, and calls and tokens do not peak together) but it is not a quantile of the run's total, and a sum of
+    quantiles is not a bound in general; so it is labelled "upper (sum of per-cell 90th percentiles)", never "p90 of the
+    run". No other statistic is introduced.
+  - **Decision: the daily price refresh.** The desktop app runs `agentprov prices refresh --allow-network --if-stale`
+    as a CLI job the first time Run Live opens each day (the app keeps no network code, S11). The setting
+    `prices.auto_refresh` (Settings: "Refresh prices once a day when Run Live opens"; unset means on, the user's choice
+    of 2026-11-05) is the standing confirmation the job's R2 tier otherwise asks for, as `models.auto_refresh` is for
+    model lists (D-733); the CLI checks it too, so a job started after the user turned it off fetches nothing.
+    `--if-stale` fetches only when no snapshot was written today in this machine's local time (the user's day, not
+    UTC's). A snapshot now records `written_at` (UTC) and `via` (`network` or `file`); `agentprov prices status
+    --format json` (R0, no network) reports the newest snapshot's file, date, row count and `written_at` (from the
+    file's time for a snapshot written before D-1062, which `written_at_from` says), the setting, `refresh_due` and
+    `refresh_would_fetch`; the app shows the time in New Zealand time. A failed refresh leaves the newest snapshot in
+    use, is shown, and never blocks Run Live. Direct provider prices (Anthropic, OpenAI, DeepSeek publish no price API)
+    stay the shipped table's rows with their date, and overrides still win.
+  - **Rejected:** `agentprov estimate priors build` (the estimate's positional SOURCE leaves no room for a subcommand
+    without rewriting argv); building local priors from working corpora (unsealed trees change, and withholding is
+    decided at sealing); letting the local table replace the shipped one wholesale (a user with a few corpora would
+    lose the shipped rows for every suite and family they lack); local any-model rows before shipped family rows (a
+    model's own behaviour decides its cost more than whose runs measured it); a new statistic for the run's p90, such as
+    a normal approximation over cells (the cells' joint distribution is not recorded, and an invented quantile would be
+    presented as measured); a refresh on a timer or at app start (Run Live is where a price is needed, and a refresh
+    nobody waits for is a network call without a reason); keeping the "once a day" test in the GUI (one
+    implementation, the CLI's, D-700).
+  - **Downstream effects.** No AER, SEM, PROV, corpus or manifest bytes change, and no stage digest moves (estimate/,
+    cli/, jobs/tiers.py and settings.py are outside every stage scope). The shipped `estimate_priors.json` is unchanged.
+    The GUI's forward parity (D-654) needs forms or exclusions for `priors build` (`--corpus`, `--jobs`,
+    `--min-executions`, `--format`), `priors show`, `prices status` and `prices refresh --if-stale`.
+  - **Tests:** `tests/estimate/test_local_priors.py` (old and new builder bytes, two sealed corpora with a withheld
+    execution, a working corpus and an older version, determinism at `--jobs` 1 and 2, duplicates, the CLI, the order,
+    the basis, the token totals, the quote),
+    `tests/integration/test_estimate_cmd.py::test_the_quote_says_what_it_rests_on`, `tests/cli/test_prices_cmd.py` (status, the local day, `--if-stale` under the setting), `tests/jobs/test_jobs.py`
+    (tiers), `tests/cli/test_cli_contract.py` (the command set).
+- **D-1063 (2026-11-05, the 0.2.0 change batch: every recorded corpus-affecting finding is fixed; the user's yes of
+  2026-11-05; regen-batch items 173–178; class 1).** The 2026-11-01 rule kept findings whose fix would change corpus
+  results (stored AER/SEM/PROV bytes, counts, PROV statements, stage or adapter code digests) as records only. For
+  release 0.2.0 the user decided to fix them all: the twelve such findings of the 2026-11-05 audit (AU-IMP-2 importer
+  part, AU-IMP-3..6, AU-IMP-8, AU-IMP-9, AU-MSR-1, AU-MSR-2, AU-BND-3, AU-BND-4, AU-BND-6, AU-LIVE-4), the sixteen
+  open ones of 2026-11-01 (UC-2, UC-12, UC-16..UC-22, UC-37..UC-43) and the excluded UC-44.
+  - **Decision: scope.** The rule of 2026-11-01 is lifted for this batch only; later findings are again recorded first
+    and batched by decision.
+  - **Decision: sealed corpora.** No sealed corpus is rewritten. Each stays reproducible at its building commit (the
+    F-8 ruling); a `recompute` at 0.2.0 of a corpus built before it is a drift report (H.8.4(5)).
+  - **Decision: versions.** Catalogues, profiles and semantics tables whose bytes a stored corpus records are bumped
+    and archived byte-exact (D-31); the stage and adapter code digests of every touched stage move for corpora built
+    with 0.2.0. Each group's row (items 173–178) states its prediction: the digests that move, the families and the
+    sealed corpora that would get different bytes or counts on re-import.
+  - **Decision: capture/0.1 stays (the user's yes of 2026-11-05 to the recommendation).** UC-19/UC-20's writer and
+    verifier changes (an early end, `error` then `session.end` or `session.end` alone at seq 1; the `value_adjusted`
+    note kind) change no event type or data member, so the format id stays `capture/0.1`, amended in C.13 (writer items
+    3 and 5, verifier item 15). An older verifier refuses an early-end log; logs say which writer made them
+    (`session.start.writer.version`, `agentprov-capture` 0.2.0 from the release), and no published corpus holds capture
+    logs. Rejected: `capture/0.2` (a version-axis change across code, schemas and spec for a more permissive grammar).
+  - **Decision: the datasheet's raw-evidence sentence (AU-BND-3; the user's yes of 2026-11-05).** The `raw_included`
+    claim keeps its predicate and its sentence now reads "The raw evidence of every snapshot is included in the corpus,
+    except any item withheld from this release, which the Withheld items line counts and WITHHELD.json lists." It is
+    true with or without withholding. Rejected: tightening the predicate, which would fail the next seal of the 45
+    corpora that withhold raw objects until their cards cite another claim.
+  - **Decision: the batch extended (the user's yes of 2026-11-05 to every recommendation).** The later reviews of
+    2026-11-05 confirmed 21 more corpus-affecting findings, mostly incomplete earlier fixes: AU-RP-1, AU-RP-4..6,
+    AU-NC-1, AU-NC-2, AU-NC-201, AU-NC-202, AU-NC-302..308 and AU-RC-1..6. They are fixed in the same batch (regen-batch
+    items 181–184) under the same rules. AU-RC-4 (mcphunt-w2b, what-surrounds-w2: the `after` edges and their afterCausal
+    statements move from the core to the inference bundle on re-import) and AU-RC-3 (dtap-bench-w2c: one execution's two
+    "absent" annotations) are listed among the release notes' known issues of the sealed corpora. AU-RP-2 is settled
+    in the spec, not the catalogue: the service agent and its InferenceProvider association are at most DERIVED
+    (E.1.3, E.1.4, E.10 item 3; D-621's cap rule), and no catalogue or corpus changes. Rejected for AU-RP-2: an aprov
+    catalogue bump giving the service agent the class of its witness (every PROV digest of every new corpus moves, for
+    a stronger claim than the cap rule allows).
+  - **Why:** 0.2.0 is the version new imports and live captures will use; the recorded defects would give them wrong
+    records (UC-2's gate recorder, UC-17..UC-22 in live capture), refuse runs (UC-16, UC-39..UC-41) or leave published
+    figures inaccurate (the datasheet claims and counts), and none of the fixes changes a sealed corpus.
+  - **Rejected:** keeping the record-only rule for 0.2.0 (the live-capture defects would reach the first live corpora);
+    fixing only the live-capture and data-safety items (the user chose all); regenerating the sealed corpora (they are
+    published and reproducible at their building commits; no sealed corpus holds a triggering input, per the 2026-11-01
+    scan and each row's check).
+- **D-1064 (2026-11-05, features known not to work on Windows are disabled with the reason; the user's decision of
+  2026-11-05; core table, CLI refusals, `agentprov info`, tests and docs; the desktop app's half below; class 0).**
+  The G5 clean-machine runs (D-867) found that live runs do not work on either Windows platform and that the job queue
+  is POSIX-only, but the CLI let a Windows user start them: a run failed late (`worker_died` on x86_64, a failed build
+  on ARM64) and `--queue-cpu` was refused with a message of its own. The user decided that these areas are disabled on
+  Windows with an explanation of why, and that every message says where the feature works.
+  - **Decision: one table.** `agentprov.platforms` (layer 0, standard library and `agentprov.errors` only, outside
+    every stage scope) lists each feature, the platforms where it is unavailable (the operating system as
+    `platform.system()` names it, and the architectures or all of them), the reason in plain words, where it works and
+    the user-guide section. `unavailable(feature, system=None, machine=None, *, subject=None)` returns the entry or
+    `None`; the system and machine are injectable for tests. On Windows the architecture is the interpreter's
+    (`sysconfig.get_platform()`), because `platform.machine()` names the emulating host for an x64 Python on ARM64
+    (D-867), and an emulated x64 interpreter builds x64 environments. Only tested and recorded limits are listed; a
+    platform is never refused for being untested.
+  - **Decision: the four limits.** (1) Live runs, on Windows x86_64 (the environment builds, but the worker exits at
+    start-up for a reason not yet diagnosed) and Windows ARM64 (the AgentDojo backend cannot be installed: its pinned
+    `cryptography` 50.0.2 and `cachebox` 5.2.3 publish no Windows ARM64 wheels, and backends install from wheels
+    only), and any other Windows architecture; AgentDojo itself is tested upstream on Linux only. (2) `backends build`
+    of `agentdojo`, `autodojo` and `agentdyn` on Windows ARM64 (the same wheels; a test reads the three locks and
+    checks that the Inspect backend pins neither package, so its build is not refused). (3) `--containment
+    sandbox-exec`, macOS only (it was refused off macOS already, by the probe's `not_applicable`; the message now gives
+    the table's reason, and the refusal keeps its code `cli.refused.containment`). (4) The machine-wide job queue on
+    Windows (`fcntl` locks).
+  - **Decision: what is refused, and when.** Before any work starts, with exit 4 and the code
+    `platform.unsupported`: every `agentprov run` mode that starts the backend worker (a run, `--preflight-only`,
+    `--catalogue`, a `--dry-run` that plans cells, since the worker expands the plan, and `--tune-jobs`), checked before
+    stdin, a key or the host probe is read; `agentprov estimate` inherits it, as it plans through `run --dry-run`;
+    `backends build` and `--offline-check` of the three backends on Windows ARM64; `jobs start --queue-cpu` and `batch
+    create` with a `queue_cpu` step (and the job manager itself, which the batch driver now treats as a permanent
+    failure). Not refused: a host preset's dry run (the concurrency plan, computed in the CLI), `backends build
+    --dry-run`, `info` and `--help`. `devrun` has no live mode; it already runs without the queue where the queue is
+    unavailable. The message reads "<Feature> is/are available on macOS and Linux. On <platform> it is/they are not
+    available yet: <reason>. See the user guide, <chapter, section> (docs/user-guide/<page>#<anchor>)."; for
+    `sandbox-exec` it says "on macOS only" and has no "yet" (it is macOS's tool), and for the queue no "yet".
+  - **Decision: `info` reports it.** `agentprov info --format json` gains the member `platform`: `system`,
+    `machine` and `unavailable`, a list of the entries for this host (`feature`, `name`, `platform`, `works_on`,
+    `reason`, `subjects`, `guide`, `message`). The text form gains a Platform section, and `info SOURCE --format
+    json` (no host probe; the live-run form's call) carries the same member. No existing member is renamed,
+    so the desktop app reads the same table to disable the same features with the same words.
+  - **Docs.** User guide chapter 7 gains the section Platforms (the table), and its Containment and refusal tables
+    name the new message; chapters 1, 8 and 10 say where each feature works and why it is unavailable on Windows (the
+    ARM64 row of chapter 8 named `torch`; the locks show `cryptography` and `cachebox`); the packaged copy is synced and
+    the CLI reference regenerated (`--queue-cpu`'s help).
+  - **The desktop app (the GUI half, 2026-11-05).** The app reads the configured CLI's `info --format json` (S11: no
+    import of `agentprov.platforms`, which the D-391 allowlist does not hold, and the checkout's CLI can be another
+    install whose interpreter's architecture is the one that counts), once at start and after Settings › OK, in the
+    background; until it answers, or for a CLI without the member, nothing is disabled and the CLI's refusal stands.
+    Where a limit applies, the control stays where it is, disabled, with the table's message as its tooltip (shown
+    although the control is disabled): Run Live… in the File menu (⌘L/Ctrl+L) and on Runs, Live Dev Run…, Run Live's
+    Start… and Preflight Only…, Continue… of a New Job form whose command the CLI would refuse (`run`; `backends build`
+    of the three backends on Windows ARM64, its `--dry-run` allowed), the job queue settings (Settings › Compute,
+    Settings › Dev Runs' reservation) and `sandbox-exec` in Run Live's containment choice (shown disabled off macOS
+    once the CLI has said so). Runs, Run Live, the job form and the queue settings show a notice ("Not available on
+    <platform>", where it works and why, and a How to run it link to the guide section, on the Docs page or, from a
+    dialog, in a guide window of its own). A job's queue reservation stays a recorded fact (no `--queue-cpu`) and a
+    batch step gets no `queue_cpu` where the queue is refused. Rejected: hiding the controls (the user asked for them
+    disabled with the reason); the app's own copy of the table (it can disagree with the CLI that runs the job).
+  - **Rejected:** checking `os.name` or `sys.platform` at each command (several spellings of one fact, and no
+    architecture); refusing whatever is untested on a platform (the user asked for the areas known not to work);
+    refusing the preset dry run and `backends build --dry-run` (they start no worker, and the plan is useful before
+    moving to another machine); a new refusal code for `sandbox-exec` (its `cli.refused.containment` is documented and
+    unchanged); exit 5 `unsupported` (that code means the build lacks the capability; here the build has it and the
+    platform cannot run it, a refused precondition).
+- **D-1065 (2026-11-05, Check for Updates: a verified download and a one-click install the user confirms, never a
+  silent self-replacement; the user's choice of 2026-11-05; CLI, settings, release workflow, tests and docs; class 0).**
+  The desktop app and the command-line program had no way to learn of a new release, and installing one meant
+  downloading a bundle by hand and checking `SHA256SUMS` in a terminal. The user chose "Check for Updates" with a
+  verified one-click install and their confirmation. This decision is the CLI half; the GUI half (About, a Settings
+  switch, a notice once per new version) follows and runs these commands as jobs (S11: the app keeps no network code).
+  - **Decision: the check.** `agentprov update check --allow-network` (R2; exit 4 without the flag) makes one request,
+    `GET https://api.github.com/repos/nickjones39/AgentPROV/releases?per_page=20`, through `raw.fetch`'s transport (TLS
+    verified, no key or cookie, redirects only to an https host on the allow-list, which is `api.github.com` alone; the
+    final URL is checked again), HTTP 200, at most 8 MiB, strict JSON (`agentprov.ingest`). The answer is untrusted: a
+    release counts only with a tag `vX.Y.Z` and `draft` and `prerelease` both false; the highest version wins (not the
+    newest date); an asset's address is built from the tag and its name (`https://github.com/<repo>/releases/download/
+    <tag>/<name>`) and an answer that names another host or path is refused (`update.response.host`); names, sizes
+    and the UTC `published_at` are checked; the notes become plain text, escaped (`escape_untrusted`) and cut at 8000
+    characters. Versions compare in PEP 440 order for the subset the project uses (`X.Y.Z`, `aN`/`bN`/`rcN`, `.postN`,
+    `.devN`, a `+local` label ignored); anything else is not comparable and never guessed (`null`). The document
+    `agentprov-update-check/0.1`: `format`, `repository`, `checked_at` (UTC), `fetched`, `current` (`core`, `gui`),
+    `latest`, `tag`, `update_available` (any known component behind; `null` when none is comparable), `behind`
+    (`core`, `gui`), `published_at`, `release_url`, `notes`, `notes_truncated`, `platform`, `assets` (this platform's
+    bundle: `name`, `size`, `url`), `checksum_asset`, `signature_asset`, `auto_check`, `check_due`. The app's version
+    comes from `--gui-version`, or from `--bundle` where the bundle records it (macOS `Info.plist`).
+  - **Decision: the daily check.** The answer is cached in `$AGENTPROV_HOME/update/check.json` (re-validated on
+    reading; a damaged file is no check). `--if-stale` fetches only while the setting `update.auto_check` is not false
+    (unset: on; the app's daily-check switch maps to it, the standing consent as `prices.auto_refresh` is for D-1062)
+    and no check was made today in local time; otherwise it reports the cache (`fetched: false`) and says why.
+    `agentprov update status` (R0) reads the cache only. The setting `update.last_notified` (`X.Y.Z`) holds the newest
+    release the app has announced, so it tells once per version.
+  - **Decision: what makes a download trusted.** `agentprov update download --allow-network` (R2) stages, in
+    `$AGENTPROV_HOME/update/staging/<platform>/` (or `--dir`), in this order: `SHA256SUMS` (at most 1 MiB, strict:
+    ASCII, `<sha256>  <name>` lines, LF, no name twice) and `SHA256SUMS.sig` when published; the signature, checked
+    with `ssh-keygen -Y verify -f allowed_signers -I PRINCIPAL -n file -s SHA256SUMS.sig < SHA256SUMS` against the
+    keys of the package's `agentprov/update/data/allowed_signers`; then the bundle (its size must be the listed one; at
+    most 2 GiB; GitHub's asset hosts `objects.githubusercontent.com` and `release-assets.githubusercontent.com` are the
+    only redirect targets besides `github.com`), whose sha256 must be the list's; then the archive's member checks
+    (below). Any mismatch refuses (exit 1, `update.verify.*`, `update.archive`) and removes what was fetched. The rule:
+    when the package lists a key, the release must publish a signature that verifies under one of them, or it is
+    refused (`update.verify.unsigned`, `update.verify.signature`; without `ssh-keygen` exit 3); when it lists none,
+    the files are checked against `SHA256SUMS` alone, which came over https from the same release, and the output says
+    `"verification": "sha256"` and that this does not prove who published it. The package ships the file with no key
+    yet; the maintainer adds one (below). The format and namespace are those of the v0.1.0 and v0.1.1 signatures.
+  - **Decision: the extractor.** `agentprov.ingest`'s readers never write a member, drop file modes and reject links:
+    right for evidence, wrong for an application, which needs its files on disk, a Linux bundle's executable bits and
+    a macOS `.app`'s relative links. `agentprov.update.unpack` runs only on an archive whose sha256 was just checked and
+    still treats it as untrusted: every name relative, `/`-separated, without `..`, a drive, a backslash, a control or
+    Windows-reserved character, below the one expected folder (`AgentPROV.app` or `AgentPROV`), no name twice compared
+    case-insensitively; only folders, regular files and (`.tar.gz`) symbolic links, no hard link, device or FIFO; no
+    setuid, setgid or sticky bit (a file keeps only whether it is executable); at most 200,000 members and 4 GiB,
+    counted while writing; files created with `O_EXCL` in a new folder, links made last (so nothing is written through
+    one) and each resolved on disk (`realpath`, chains included) inside the bundle, or the folder is removed. The
+    Windows `.zip` may hold no link. A `.dmg` is attached read-only (`hdiutil attach -readonly -nobrowse`) at a private
+    mount point, its app checked by the same tree rules, copied with `ditto` (which keeps the code signature), checked
+    again and the image detached. `tarfile` is used for its streams only (`extractfile`), never `extract`; SEC-11
+    allowlists it with that reason.
+  - **Decision: the install, per platform.** `agentprov update install --confirm --bundle PATH` (R2; exit 4 without
+    `--confirm`) checks `--bundle` (the platform's folder name, its executable, not a link, a parent folder the user can
+    write: an app run from the disk image is refused with "move it to Applications first"), verifies the staged files
+    again (sha256 against `staged.json` and `SHA256SUMS`, and the signature rule), refuses a downgrade (exit 4), reports
+    the same version as current, unpacks into `.AgentPROV-update/` beside the app (one file system, so the swap is a
+    rename) and swaps: the app's folder becomes `.AgentPROV-previous/<name>` and the new one takes its place; an older
+    previous version is set aside first and removed only after both renames, and a failed rename puts everything back.
+    **macOS and Linux** (implemented): the swap is immediate (a running process keeps its open files) and the command
+    says to quit and reopen the app now, since the running app is the old one and could load a file of the new one
+    later. **Windows** (implemented): a running `.exe` and its folder cannot be renamed, so the new folder and a plan
+    wait beside the app and a detached helper (`python -I -m agentprov.update.apply PLAN`, the CLI's own interpreter,
+    no window) retries the two renames every 2 s until the app has quit, for at most 30 minutes, writing the outcome to
+    `$AGENTPROV_HOME/update/applied.json`; the user reopens the app (left as an instruction). `agentprov update rollback
+    --yes --bundle PATH` (R1) swaps the app with `.AgentPROV-previous` (one step; the version rolled back from takes its
+    place), on Windows through the same helper. The install is recorded in `$AGENTPROV_HOME/update/installed.json`.
+    Left as instructions: quitting and reopening the app. On macOS the files are written by the CLI, not a browser, so
+    they should carry no quarantine attribute and the first-launch "Open Anyway" should not come back; this is not yet
+    tested on a clean machine.
+  - **Decision: package installs.** Without `--bundle`, `install` changes nothing: it names the command that upgrades
+    the command-line program as it was installed: `uv tool upgrade agentprov` (a `uv-receipt.toml` in its prefix),
+    `pipx upgrade agentprov`, `<its interpreter> -m pip install --upgrade agentprov`, or, for an editable install, "update
+    the checkout with git, then `uv sync --frozen`".
+  - **Decision: the release workflow.** `.github/workflows/release.yml` (manual dispatch with the tag and the id of the
+    `bundles.yml` run at that tag) drafts the release. Its `assemble` job (contents and actions read) checks out the
+    tag without credentials, checks the commit, takes the six bundles of that run, builds the sdists, wheels and source
+    archive, and runs `tools/release_assets.py`: every `bundle-report.json` must say the build passed and name the
+    tag's version (app and core), its commit with a clean tree and the package's sha256; `windows-amd64` is released
+    as `windows-x64`; `SHA256SUMS` lists every file. Its `publish` job, the only one with contents write and in the
+    environment `release` the maintainer approves, signs `SHA256SUMS` with the secret `RELEASE_SIGNING_KEY` when set
+    (`ssh-keygen -Y sign -n file`, the key file under `umask 077` and removed), checks the signature against the tag's
+    `allowed_signers`, fails when the package lists a key but the secret is missing, checks every file against the
+    list, and creates a **draft**; the maintainer publishes it (nothing is published without the user's instruction).
+    The private key never reaches the job that runs the builds.
+  - **The one-time key setup (the maintainer's; no private key is generated or committed by a session).** (1) On your
+    own machine, `ssh-keygen -t ed25519 -C agentprov-release -N "" -f agentprov-release`. (2) In
+    `nickjones39/AgentPROV`, Settings > Environments, create `release` with yourself as required reviewer and add the
+    environment secret `RELEASE_SIGNING_KEY` with the contents of `agentprov-release`. (3) Add the line
+    `agentprov-release namespaces="file" <the contents of agentprov-release.pub>` to
+    `src/agentprov/update/data/allowed_signers` and commit it; it ships with the next release, from which every update
+    must be signed. Your personal key, which signed v0.1.0 and v0.1.1, may be listed too (principal
+    `58574515+nickjones39@users.noreply.github.com`), so a release signed by hand also verifies. (4) Keep the private
+    key offline or delete it; a lost or exposed key is replaced by repeating (1) to (3) and removing the old line.
+  - **Rejected:** a silent or automatic install (the user's choice: every install is confirmed, and the app never
+    replaces itself unasked); GitHub's `/releases/latest` (one release chosen by GitHub's flag and date, so the
+    pre-release and order rules could not be the client's own); trusting `browser_download_url` (an answer could point
+    a download anywhere); a signing library (minisign, PyNaCl, `cryptography`: a new dependency) or GPG (not on macOS or
+    Windows by default); Sigstore (verification needs either the network to its services or a library); checksums
+    alone once a key exists (the list comes from the same place as the file it vouches for); the ingest readers for
+    the install (they write nothing, drop modes and reject links, by design); overwriting the bundle's files in place
+    (a failure mid-way leaves a mixed app, and there is no previous version to go back to); a swap on the next launch
+    inside the app (code in the GUI before Qt starts, which this half leaves to the GUI; the helper keeps the swap in
+    the CLI); Windows' replace-at-reboot (`MoveFileEx` delayed: a reboot, and administrator rights for some folders);
+    upgrading the pip or uv install itself (the package manager owns that environment, and a program upgrading the
+    environment it runs from can break mid-way); a network call in the app (S11).
+  - **Downstream effects.** No AER, SEM, PROV, corpus or manifest bytes change and no stage digest moves (`update/`,
+    `cli/`, `jobs/tiers.py` and `settings.py` are outside every stage scope). New: the component `update` at layer 2
+    (it imports `raw.fetch`, `ingest`, `io`, `settings`), three SEC-11 process starters (`ssh-keygen`; `hdiutil` and
+    `ditto`; the Windows helper) and the `tarfile` allowance; spec N.2.17's row; tiers (`update status` R0; `update
+    check`, `update download`, `update install` R2; `update rollback` R1). The GUI's forward parity (D-654) needs forms
+    or exclusions for the five subcommands and their flags, and the GUI half consumes `agentprov-update-check/0.1`.
+    `bundles.yml` is unchanged; the release plan's manual `SHA256SUMS` steps can use `release.yml`.
+  - **Tests:** `tests/update/test_update_releases.py` (version order, platforms, newer/same/older, pre-releases and
+    drafts ignored, malformed, oversized and other-host answers refused, the redirect allow-list, notes, the cache and
+    the local day), `tests/update/test_update_verify_unpack.py` (`SHA256SUMS`, the key rule, a real `ssh-keygen`
+    signature good and bad, hostile tar and zip members, escaping links, setuid, the disk image),
+    `tests/update/test_update_cmd.py` (check, status, `--if-stale` and the setting, download good and refused, install
+    and rollback on simulated macOS, Linux and Windows bundles, the Windows helper's retries and timeout, package
+    installs), `tests/repo/test_release_workflow.py`, `tests/jobs/test_jobs.py` (tiers),
+    `tests/cli/test_cli_contract.py` (the command set).
+  - **The GUI half (2026-11-05; class 0).** The app runs these commands with its configured CLI in the pool
+    (`gui/src/agentprov_gui/updates.py` builds the argv and reads the documents defensively; `ui/updates.py` holds one
+    `UpdateController` per main window, so a download goes on when About closes). About gains an Updates section: the
+    last check from `update status` (no network), the newest release and its notes as plain text (S1), **Check for
+    Updates** (`update check --allow-network --bundle APP --gui-version V`; Help › Check for Updates… opens About and
+    checks), **Download and Install…** (`update download`, then a confirmation naming the folder replaced, the version,
+    the verification and the `.AgentPROV-previous` rollback, then `update install --confirm --bundle APP`; the
+    "SHA256SUMS only, does not prove who published it" note when no key is listed; the CLI's quit-and-reopen or, on
+    Windows, applied-after-quit lines; after an install the button stays off until the app starts again, since a
+    second install from the old running app would replace the version kept for rollback), and the terminal command of
+    each action. `--bundle` is the frozen app's own
+    folder; an app that is not a bundle shows **Show the Upgrade Command** (`update install` without `--bundle`) and
+    installs nothing. At start-up, unless `update.auto_check` is false, `update check --if-stale` runs in the
+    background (silent when offline or without a CLI); a newer release that differs from `update.last_notified` gets
+    one notice (Update Now: About's flow; Later: asked again next start; Skip This Version: `settings set
+    update.last_notified X.Y.Z`). Settings › Updates is the `update.auto_check` switch. No platform limit (D-1064)
+    covers updates; a CLI refusal is shown as its reason. Forward parity: forms for the five subcommands (not in the
+    New Job menu), `update install --confirm` managed (after the confirmation), `update rollback --yes` excluded (no
+    rollback button; the install's result shows the command). Rejected: a job per command in Runs (a check or a
+    notice would fill the job list; the long download runs with its own four-hour bound instead), announcing a cached
+    answer while the daily check is off, and setting `update.last_notified` when the notice is merely shown (Later
+    asks again, as the user chose). Tests: `gui/tests/test_updates.py` (fake CLI answers: commands, parsing, hostile
+    notes, the confirmed, declined and refused installs, Windows, a package install, the start-up rules, the notice,
+    the setting), the forward and reverse parity and tooltip walks.
+- **D-1066 (2026-11-05, sealed corpora are read-only; the user's yes of 2026-11-05; class 0).** macOS Finder wrote 53
+  `.DS_Store` files into sealed corpora, and `verify --level chain` then failed on every one of them with
+  `corpus.tree.stray`.
+  - **Decision: seal read-only.** After the swap, `package` (a fresh or a resumed seal) clears the write bits of every
+    file and directory of the sealed tree (`agentprov.corpus.protect`: `protect`, `lift`, `is_protected`). Directories
+    go bottom-up and DIR last. On Windows only files get the read-only attribute. Files that already have no write bit,
+    such as raw objects, are left as they are. A refused protection is a notice; the seal still succeeds.
+  - **Decision: removal and output.** `io.remove.rmtree` gives the write bit back to a read-only directory inside the
+    tree it removes. It never changes a file's mode or a directory above the tree. The pre-check's sealed-copy cleanup
+    uses it. No command writes into a sealed tree; `derive`/`recompute --out`, `verify --level rederive` and
+    `package --deposit` write new, writable files.
+  - **Decision: stray detail.** The `corpus.tree.stray` detail for an operating-system metadata file (`.DS_Store`,
+    `._*`, `Thumbs.db`, `desktop.ini`) says what wrote it and gives the `find -delete` cleanup. Its code and severity
+    are unchanged.
+  - **Decision: corpora sealed before 0.2.0.** Their write bits are cleared by hand (`chmod -R a-w`) once the
+    2026-11-05 chain re-verification is clean; no byte of any corpus changes. To change a sealed tree, run
+    `chmod -R u+w DIR` first (user guide chapter 5, H.1.5(3)).
+  - **Why:** a sealed corpus is a published, hash-chained artefact. A stray file breaks its verification without
+    changing any record, and file-system protection stops the common writers (Finder, editors, a mistaken `cp`).
+  - **Rejected:** a verify that ignores operating-system metadata files (it weakens the closed-tree check that finds
+    real tampering); macOS-only measures such as `.metadata_never_index` or `chflags uchg` (not portable, and `uchg`
+    blocks `rmtree` and the Trash); leaving it to the guide alone (the files had already been written).
+- **D-1067 (2026-11-05, a LAN model server stays class `api`; the user's choice of 2026-11-05 on AU-RN-8; amends D-721
+  and N.2.1b item 3a; class 0).** D-721 said a keyless LAN model server (`--allow-lan-endpoint`, D-698) would count as
+  `local` once the egress proxy forwards LAN traffic. The forward mode landed on 2026-10-22 (D-664), but the CLI kept
+  classing it `api`, and Run Live followed the entry's `local` flag: it hid the caps and passed
+  `--i-consent-to-local-run`, so its command for a LAN server was always refused (`cli.refused.api_caps`, exit 4).
+  - **Decision: the rule.** `local` stays a `local = true` entry whose resolved base URL is on loopback. A LAN server is
+    `api`: API consent (the prompt or `--i-consent-to-api-costs`; `--i-consent-to-local-run` is refused) and all four
+    caps (`--max-calls`, `--max-cost-usd`, `--price-in`, `--price-out`; prices of 0 are allowed for a server that bills
+    nothing). Nothing else about the LAN path changes: keyless, literal private addresses only, the opt-in per run,
+    the egress proxy's forward mode under `sandbox-exec`.
+  - **Decision: the CLI says why.** The refusals and the class notice name the LAN case ("a LAN model server is an API
+    endpoint: prompts and replies leave this machine"), the consent text says the data leaves the machine, and the
+    `--allow-lan-endpoint` help says the caps and API consent apply (`agentprov.cli.live.policy.api_reason`,
+    `is_lan_base_url`).
+  - **Decision: Run Live.** It shows the caps and asks for API consent when *Allow a LAN model server* is ticked or a
+    local entry's base URL is off loopback, as the CLI classes the run. The opt-in alone is enough because the app
+    cannot see a base URL stored in the settings (D-699) or `.env`; with a loopback base URL the CLI still classes the
+    run `local`, and it accepts the caps and `--i-consent-to-api-costs` there too.
+  - **Why:** the caps and the API consent exist because prompts and replies leave the machine, not only because a
+    provider bills. A LAN server is another computer, reached over plain `http` across the network (G.9.2), so the
+    operator should consent to that as for an API, and the caps still bound how many calls the run makes.
+  - **Rejected:** classing a LAN server as `local`, as D-721 planned (the local consent and optional caps would let
+    a run send its data off the machine without the API consent); a third class `lan` (a new value of
+    `live.endpoint_class` and of the GUI's choices for the same consent and caps as `api`).
+- **D-1068 (2026-11-05, the class-1 items of the 2026-11-05 pipeline-performance review; the user's yes of 2026-11-05;
+  class 1).** The review (profiles of `validate --corpus`, `recompute` and `verify` on sealed corpora, M5 Ultra) found
+  that, after the tier-4 round trip (81–89 % of post-AER CPU, not addressed: P9 below), worker churn was the largest
+  cost: each T1 start took 1.3–2.4 s of wall time and about 1.2 CPU-s, of which 0.74 s loaded all 68 semantics
+  profiles and 0.60 s computed the D-550 cache context with three walks of the whole package, and every worker retired
+  at the end of each `WorkerPool.run`, so a 3,232-execution re-map started 158 workers and a warm `validate --corpus`
+  105 (about two thirds of its 194 CPU-s). No output byte changes; only code digests move (regen-batch row 187).
+  - **Decision P1: workers outlive a batch.** At the end of a batch a worker that may still serve jobs is parked and
+    the next batch of the same pool takes it (G.4.7 as built). It keeps its process, limits, audit hook and job count;
+    only module-level caches cross batches, which G.4.7 already requires to be pure. Memory stays bounded by the D-554
+    rule: a worker is parked only while its lifetime peak is at most `ADMISSION_RETIRE_PEAK` (512 MiB, by the kernel's
+    lifetime maximum where the host has one, never below the watchdog's largest per-job peak), it has served fewer
+    than `jobs_per_worker` jobs, the pool is open and fewer than the pool's worker count are parked. `close()`, a
+    `with` block, the pool's collection (a `weakref.finalize` over the parked list, which holds no reference to the
+    pool; the batch spool no longer holds one either) or the interpreter's exit stops them. The importer, `validate
+    --corpus`, the migration gate and the withhold scan close their pools.
+  - **Decision P2: a worker loads what its jobs name.** The pool derives a batch's preload from its jobs' params (the
+    refs of `semantics` that match the profile-reference grammar, at most 64, and whether any carries `fidelity`) and
+    passes it on the argv (`--preload-semantics`, `--preload-fidelity`; G.4.2 as built). The worker sets it before it
+    imports the job table, the `prov` and `validate` job modules load exactly those shipped profiles and compute the
+    cache context only when asked, and the audit hook follows (G.4.4). A job is sent only to a worker whose preload
+    covers it; otherwise that worker is retired and one is started with the batch's preload. A process given no
+    preload (the host probe, the `--in-process` parent, the migration gate's workers) loads everything, as before.
+    The cache context needs one walk of a closure instead of three of the package (P5).
+  - **Decision P5: the D-550 context's code part is an import closure.** `validate/cache.py` derives, with `ast` in
+    each process, the files the import closure of `validate.prov` and `validate.cache` reaches (absolute, relative,
+    lazy and `TYPE_CHECKING` imports, literal `import_module` calls, the enclosing package `__init__.py` files) and
+    hashes them; the context keeps the library digests, the Python build, the options and the vocabulary version
+    (format `agentprov-tier4-cache/2`; entries of `/1` are misses and age out). An edit inside the closure is a miss,
+    an edit outside it (the CLI, the importer, an adapter) is not; a test pins both and an independent walk. Release
+    mode never serves an entry: `derive`/`recompute` of a release-mode corpus now open the cache in audit mode, as
+    `validate --release` and `verify --release` did.
+  - **Decision P7: no fsync for trees that are removed.** `RawObjectStore(durable=False)` skips the `fsync` of a new
+    object and of its shard directory, nothing else (G.3.1 as built). The T1 input stores of `import`, `validate
+    --corpus`, the withhold scan and the migration gate use it; `recompute`/`derive` create the stores of their T1
+    inputs after the output writer is open, inside `transient_stores()`, so `NEW`'s own store stays durable while a
+    dry run's whole private tree and `verify`'s trees are transient. A staged `validate` input is removed with one
+    `unlink` per name (it was a `chmod` and an `unlink`).
+  - **Approved separately (class 0, with P3 and P4):** P3 (parallel, fd-cached `verify --level chain`), P4 (`rederive
+    --sample` limited to the sample's raw closure), P8 (streaming the index and register in the `validate` and
+    `verify` parents), R7 and R8 (removals). They are another change set of the same batch.
+  - **Why:** the costs were measured, not assumed; each change keeps outputs byte-identical across runs, processes and
+    worker counts (the K RPR-8 tests, the golden, gate-D and compat gates and the C.16 vectors are unchanged), and a
+    scratch corpus built at the parent commit recomputes at this one with only the explained code-digest drift.
+    Measured on the sealed `ast-survey-agentdojo-rg2` (3,232 executions, `--jobs 8`, through the queue, shared load;
+    CPU-s = user + sys of the command and its workers, parent commit → this change): `validate --corpus` cold
+    1,384 → 1,314 (−5 %), warm 208 → 151 (−27 %; worker starts 105 → 56, the rest being G.4.7's 64-job recycling),
+    `recompute --dry-run` 1,634 → 1,291 (−21 %; wall 257 → 205 s), with identical reports and counters.
+  - **Deferred:** P6, validating each AER once and off the parent (the parent validates each AER up to three times in a
+    re-map and loads each twice: 20–28 ms of serial CPU per execution, which caps scaling at 16–22 busy workers); it
+    changes where the write gate's input is checked, so it needs a design note before code.
+  - **Rejected:** P9, a local override of the `prov` package's encoder for the round trip (two encodes are 47–52 % of
+    tier 4): D-555 keeps the round trip on the published library, and a local copy would test our encoder rather than
+    the library's reading of our document; a hand-kept module list for the cache context (it drifts, and an
+    under-keyed context serves stale outcomes); a pool-level opt-in for P1 (every pool runs several batches, and the
+    bound is the same D-554 rule); a lazy profile load after the audit hook (G.4.4 loads before the hook).
+  - **Kept:** R1–R6 of the review's removal list (the old-format readers, the D-31 archives, the migration gates). They
+    look unused from the current pipeline, but stored and sealed corpora still record the old formats and versions,
+    and the gates are the regression evidence of the migration.
+- **D-1069 (2026-11-05, `validate --corpus` accounts for the raw objects a sealed corpus version withholds: the AER
+  checks that need their bytes are skipped, not `aer.blob.missing`; the 2026-11-05 profiling finding, investigated and
+  fixed with the user's approval; `corpus/validation.py`, tests and docs; class 0).** Object-level withholding (H.4.5
+  item 2; D-231, D-232) keeps an execution released while the bytes of a raw object it cites leave `raw/objects/` at
+  sealing (into the private sidecar). `verify --level chain` accounts for such an object (`raw_withheld`, "withheld,
+  never missing"), and `recompute`/`rederive` call the executions that need it `unverified` (H.4.5(6); BF-20, CB-6).
+  `validate --corpus` handed the AER validator the sealed raw store with no knowledge of `WITHHELD.json`, so every
+  locator or artefact check that needed a withheld object failed with `aer.blob.missing`, and in dev mode every such
+  execution failed: all 1,055 of `ast-survey-agentharm-rg2`, all 1,747 of `fragfuse-agentharm-w2` (each execution
+  cites its log archive's withheld `header.json` member) and 6 of a 500-execution sample of `dtap-bench-w2c` (a
+  `config.yaml` withheld by `dtap-bench@3:email-withheld`). The sealed `validation/results.jsonl` rows pass, because the
+  importer validated before sealing withheld the bytes; no code change since sealing is involved.
+  - **Decision.** In corpus mode, a sealed corpus's `WITHHELD.json` (read with `decode_withheld`) names the objects the
+    version withholds. An `aer.blob.missing` error whose header artefact, locator or `$blob` names one of them is
+    replaced by the AER skip "raw-store checks (V20, V21): a raw object this corpus version withholds (WITHHELD.json)":
+    the check cannot run, so it is neither passed nor failed (N.2.5's "skipped, never passed"). The row passes in dev
+    mode; under `--strict` and `--release` the skip fails it, as every skip does (D8). Such a row is not compared with
+    its stored row (`results_not_compared`, never `validate.results.differ`), since that row was made with the bytes
+    present. The counter `aer_withheld` and one notice give the number. Every other finding stays; an absent object the
+    ledger does not list, or a `WITHHELD.json` that does not decode (with a notice), stays `aer.blob.missing` (fail
+    closed). The ledger itself is `verify --level chain`'s to check.
+  - **Digest effect:** none. `corpus/validation.py` is outside every stage scope; the importer's and `derive`'s
+    validation stage (which runs before sealing, with the bytes present) is unchanged, so no AER, SEM, PROV or
+    validation digest moves and no corpus changes. Only the read-only `validate --corpus` report of a sealed corpus that
+    withholds objects cited by released executions changes.
+  - **Rejected:** teaching `AerValidator` or `LocatorResolver` about withheld objects (class 1 for every family, for a
+    sealed-corpus concern the corpus layer owns); passing the check as `pass` (a check that did not run never passes);
+    leaving it a failure with a better message (the corpus is as sealing made it, and `verify` already accepts it);
+    accepting any absent object in a sealed corpus (it would hide a deleted object, the SEC-15 row).

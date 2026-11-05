@@ -59,20 +59,21 @@ class Source:
     fixtures: bool = True
     #: path fragments of logs whose model is not recorded (D-92): sealed identity_unresolved with unk /model not_recorded
     unresolved: tuple[str, ...] = ()
-    #: the semantics profiles of the registry part (every phase-10d part reads suites@2: R9, D-115)
-    semantics: tuple[str, ...] = ("agentdojo.suites@2",)
+    #: the semantics profiles of the registry part (every phase-10d part reads suites@2: R9, D-115; @4 since D-1063)
+    semantics: tuple[str, ...] = ("agentdojo.suites@4",)
     #: a defence denial of the source (quirk agentdojo.defence_denial_message, R1, D-113): ``error`` (the logged text),
     #: ``defence`` (the actor name), optionally ``content_equals_error``, and ``path`` / ``pipeline`` when the synthetic
     #: log must sit in another arm than ``synthetic_path`` / ``synthetic_pipeline``
     denial: dict[str, Any] = field(default_factory=dict)
     notes: dict[str, Any] = field(default_factory=dict)
-    #: the profile version (D-31: 2 where a pre-check scratch corpus recorded version 1 and a fix changed the bytes)
-    version: int = 1
+    #: the profile version (D-31: 2 where a pre-check scratch corpus recorded version 1 and a fix changed the bytes; one
+    #: more since D-1063, catalogue agentdojo 3)
+    version: int = 2
 
 
 SOURCES: tuple[Source, ...] = (
     Source(
-        name="interbolt", profile="interbolt-agentdojo", version=2, repo="https://github.com/deconvolute-labs/interbolt-agentdojo",
+        name="interbolt", profile="interbolt-agentdojo", version=3, repo="https://github.com/deconvolute-labs/interbolt-agentdojo",
         commit="43e2b5fa3e7b41b7e26f7c04cc8f371ab98aa875", spdx="Apache-2.0", expected_files=2254, expected_bytes=39_836_058,
         licence_file="Interbolt-Apache-2.0.txt", licence_marker="Apache License",
         identity=(
@@ -91,7 +92,7 @@ SOURCES: tuple[Source, ...] = (
         bench_versions=("v1.2.2",),
     ),
     Source(
-        name="melon", profile="melon-agentdojo", version=2, repo="https://github.com/xwsdid/MELON",
+        name="melon", profile="melon-agentdojo", version=3, repo="https://github.com/xwsdid/MELON",
         commit="71d99dfff5ef98ffb25bac451909f3e10af9e27f", spdx="MIT", expected_files=38780, expected_bytes=None,
         licence_file="MELON-MIT.txt", licence_marker="MIT License",
         identity=(
@@ -130,7 +131,7 @@ SOURCES: tuple[Source, ...] = (
         denial={"error": "ubag-blocked: REVIEW", "defence": "ubag"},
     ),
     Source(
-        name="tacit", profile="tacit-agentdojo", version=2, repo="https://github.com/CSSLab/Tacit",
+        name="tacit", profile="tacit-agentdojo", version=3, repo="https://github.com/CSSLab/Tacit",
         commit="995692d3cd42c32e08cf0db8a5fae55fec272f1a", spdx="Apache-2.0", expected_files=2139, expected_bytes=None,
         licence_file="Tacit-Apache-2.0.txt", licence_marker="Apache License",
         identity=(
@@ -142,7 +143,7 @@ SOURCES: tuple[Source, ...] = (
         synthetic_pipeline="vllm_parsed", variants=("v1.k14", "v1.k14.incomplete"), bench_versions=("v1.2.2",),
     ),
     Source(
-        name="geryon", profile="geryon-agentdojo", version=2, repo="https://github.com/luiacuaniello/geryon",
+        name="geryon", profile="geryon-agentdojo", version=3, repo="https://github.com/luiacuaniello/geryon",
         commit="905aae02c4185454ffbdb64a8bae6a042f6d7047", spdx="Apache-2.0", expected_files=3313, expected_bytes=30_876_930,
         licence_file="Geryon-Apache-2.0.txt", licence_marker="Apache License",
         identity=(
@@ -190,7 +191,7 @@ SOURCES: tuple[Source, ...] = (
         unresolved=("/local/", "/Local model/"),
     ),
     Source(
-        name="kongminos", profile="kongminos-agentdojo", version=2, repo="https://github.com/kongminOS/jspace-agentdojo-950",
+        name="kongminos", profile="kongminos-agentdojo", version=3, repo="https://github.com/kongminOS/jspace-agentdojo-950",
         commit="f341af69498ee36a8d1a2e69040ab70bd8e20a01", spdx="MIT", expected_files=957, expected_bytes=None,
         licence_file="kongminOS-MIT.txt", licence_marker="kongminOS",
         identity=(("local", (("pipeline_dir", "local"),), "deepseek-v4-flash", ()),),  # D-92: the README's statement, class I

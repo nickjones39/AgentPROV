@@ -1,4 +1,6 @@
-"""The semantics profile ``geminicli.tools@1`` (docs/architecture D.23.8; C.14): labels, outcome, taint policy."""
+"""The semantics profile ``geminicli.tools@2`` (docs/architecture D.23.8; C.14): labels, outcome, taint policy.
+
+``@2`` is ``@1``'s tables on the catalogue version 2 (D-1063)."""
 
 from __future__ import annotations
 
@@ -13,7 +15,7 @@ def _integrity(m, target):
 
 
 def test_tool_roles_and_integrity(mapped):
-    profile = load_semantics_profile("geminicli.tools", 1)
+    profile = load_semantics_profile("geminicli.tools", 2)
     for crit, m in mapped.items():
         for te in m.of("tool_execution"):
             (role,) = [a for a in m.annotations("role") if a["target"] == te["id"]]
@@ -34,7 +36,7 @@ def test_tool_roles_and_integrity(mapped):
 
 
 def test_unknown_tool_fails_closed():
-    profile = load_semantics_profile("geminicli.tools", 1)
+    profile = load_semantics_profile("geminicli.tools", 2)
     assert profile.tool_label("not_a_tool") == (("unknown",), "unknown", ("geminicli.unknown_tool@1",))
     assert profile.tool_label(None)[0] == ("unknown",)
 
@@ -50,7 +52,7 @@ def test_outcome_reads_elicited(mapped):
 
 
 def test_profile_builds_and_declares_its_taint_policy(mapped):
-    profile = load_semantics_profile("geminicli.tools", 1)
+    profile = load_semantics_profile("geminicli.tools", 2)
     assert profile.taint_policy is not None and profile.taint_policy.rule == "geminicli.taint_sink_untrusted@1"
     cited = {r.split("#", 1)[0] for m in mapped.values() for a in m.sem.annotations for r in a["rule"]}
     assert set(CITED_RULES) - cited - {profile.taint_policy.rule, "geminicli.unknown_tool@1"} == set()

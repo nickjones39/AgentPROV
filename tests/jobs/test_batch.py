@@ -27,6 +27,15 @@ class Run(NamedTuple):
     err: str
 
 
+#: A job that ends at once. ``info`` probes the host (about 1 s idle, tens of seconds at load ~50, 2026-11-05),
+#: which none of these tests checks; ``settings list`` is an R0 read of the job's own home (0.2 s).
+QUICK = ("settings", "list")
+#: How long a test waits for a detached job to change state: polled, so a passing run never waits it out; long
+#: enough for a supervisor and its child to start and end on a loaded machine (2026-11-05: 30 s failed at
+#: load ~50).
+JOB_WAIT_S = 180.0
+
+
 def _step(*argv: str, **kw: object) -> BatchStep:
     step = BatchStep(JobRequest(tuple(argv), **kw))  # type: ignore[arg-type]
     step.recorded_tier = step.request.tier
@@ -57,7 +66,7 @@ def test_the_dev_run_fallback_helpers() -> None:
     assert not sample_unsupported(1, {"refusal": {"code": "import.sample.unsupported"}})
 
 
-def _wait_jobs(manager: JobManager, timeout: float = 60) -> None:
+def _wait_jobs(manager: JobManager, timeout: float = JOB_WAIT_S) -> None:
     from agentprov.jobs.record import list_jobs
 
     end = time.monotonic() + timeout
@@ -67,7 +76,7 @@ def _wait_jobs(manager: JobManager, timeout: float = 60) -> None:
 
 def test_advance_runs_in_order_blocks_after_exit_4_and_holds_r2(tmp_path: Path) -> None:
     manager = JobManager(tmp_path / "home", environ={"PATH": os.environ["PATH"]})
-    steps = [_step("info"), _step("validate", "--corpus", str(tmp_path / "missing")), _step("info"),
+    steps = [_step(*QUICK), _step("validate", "--corpus", str(tmp_path / "missing")), _step(*QUICK),
              _step("fetch", "--corpus", "/c", "--allow-network")]
     batch = Batch.new(manager.home, "t", steps, pin={"commit": "a"})
     pin = {"commit": "a"}
@@ -118,7 +127,7 @@ def _spec(tmp_path: Path, steps: list[dict[str, object]]) -> str:
     return str(path)
 
 
-def _until_finished(cli: Callable[..., Run], bid: str, timeout: float = 90) -> dict[str, object]:
+def _until_finished(cli: Callable[..., Run], bid: str, timeout: float = 2 * JOB_WAIT_S) -> dict[str, object]:
     end = time.monotonic() + timeout
     while time.monotonic() < end:
         doc = json.loads(cli("batch", "show", bid, "--format", "json").out)
@@ -130,7 +139,7 @@ def _until_finished(cli: Callable[..., Run], bid: str, timeout: float = 90) -> d
 
 
 def test_a_batch_runs_as_one_driver_job(cli: Callable[..., Run], tmp_path: Path) -> None:
-    created = cli("batch", "create", _spec(tmp_path, [{"argv": ["info"]}, {"argv": ["info", "--format", "json"]}]),
+    created = cli("batch", "create", _spec(tmp_path, [{"argv": [*QUICK]}, {"argv": [*QUICK, "--format", "json"]}]),
                   "--label", "two", "--format", "json")
     assert created.code == 0, created.err
     bid = json.loads(created.out)["batch_id"]
@@ -284,7 +293,7 @@ def test_a_running_step_whose_job_was_pruned_does_not_stay_running(tmp_path: Pat
     from agentprov.jobs.batch import GONE_NOTE
 
     manager = JobManager(tmp_path / "home", environ={"PATH": os.environ["PATH"]})
-    steps = [_step("info"), _step("info")]
+    steps = [_step(*QUICK), _step(*QUICK)]
     batch = Batch.new(manager.home, "t", steps, pin={"commit": "a"})
     batch.steps[0].state, batch.steps[0].job_id = "running", "0190a0a0-0000-7000-8000-000000000000"  # no such job
     advance(batch, manager, validate=validate_argv, pin_now=lambda: {"commit": "a"}, driver_job_id="driver-1")
@@ -310,3 +319,122 @@ def test_a_stopped_batch_s_pruned_running_step_does_not_keep_its_dev_run_busy(tm
     pending = _step("info", extra={"devrun": run.name})
     Batch.new(manager.home, "u", [pending], pin={"commit": "a"}).save()
     assert run.resolve() in busy_runs(manager.home)  # an unfinished step still holds it
+
+
+# ---------------------------------------------------------------------------------------------- batch stop
+SLEEPER = '''import signal, sys, time
+signal.signal(signal.SIGTERM, lambda *a: sys.exit(130))
+print("started", flush=True)
+time.sleep(float(sys.argv[-1]))  # argv: -C ROOT x y SECONDS
+'''
+
+
+def _running_batch(tmp_path: Path) -> tuple[JobManager, Batch, str, str]:
+    """A batch whose first step is a running job (a sleeper the step's job id names), whose second waits, and whose
+    driver job runs: the driver cannot start the second step until the first ends."""
+    from agentprov.jobs.manager import new_job_id
+
+    root = tmp_path / "checkout"
+    (root / "tools").mkdir(parents=True)
+    (root / "tools" / "sleeper.py").write_text(SLEEPER)
+    environ = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "TMPDIR")}
+    manager = JobManager(tmp_path / "home", environ=environ, root=root)
+    batch = Batch.new(manager.home, "t", [_step(*QUICK), _step(*QUICK), _step(*QUICK, label="next")])
+    sleeper = manager.spawn(JobRequest(("x", "y", "60"), tool="tools/sleeper.py", batch_id=batch.batch_id))
+    end = time.monotonic() + JOB_WAIT_S
+    while time.monotonic() < end and b"started" not in sleeper.file("stdout.txt").read_bytes():
+        time.sleep(0.05)
+    # the first step's job is gone, so the driver's first tick fails it and saves: then the driver is past its start
+    batch.steps[0].state, batch.steps[0].job_id = "running", "0190a0a0-0000-7000-8000-000000000000"
+    batch.steps[1].state, batch.steps[1].job_id = "running", sleeper.job_id
+    batch.driver_job_id = new_job_id()
+    batch.save()
+    driver = manager.spawn(JobRequest(("batch", "run", batch.batch_id, "--interval", "0.2"), label="driver"),
+                           job_id=batch.driver_job_id)
+    assert driver.state == "running" and batch.path is not None
+    while time.monotonic() < end and (Batch.load(batch.path) or batch).steps[0].state == "running":
+        time.sleep(0.05)
+    return manager, batch, sleeper.job_id, driver.job_id
+
+
+def _job_state(manager: JobManager, job_id: str) -> tuple[str, int | None]:
+    from agentprov.jobs.manager import find
+
+    job = find(manager.home, job_id)
+    assert job is not None
+    return job.state, job.exit_code
+
+
+def test_batch_stop_steps_stops_the_driver_and_the_running_step_and_starts_nothing_more(
+        cli: Callable[..., Run], tmp_path: Path) -> None:
+    """The user's report (2026-11-05): a dev run could not be stopped. ``batch stop --steps`` stops the driver and every
+    running step job, and no further step starts; ``batch resume`` goes on from the pending step."""
+    from agentprov.jobs.batch import STOPPED_NOTE
+    from agentprov.jobs.record import list_jobs
+
+    manager, batch, sleeper, driver = _running_batch(tmp_path)
+    run = cli("batch", "stop", batch.batch_id, "--steps", "--wait", "30", "--format", "json")
+    assert run.code == 0, run.err
+    doc = json.loads(run.out)
+    assert doc["format"] == "agentprov-batch-stop/0.1" and doc["driver"] == "stopped"
+    assert doc["steps_stopped"] == [sleeper] and doc["steps_unsignalled"] == [] and doc["still_running"] == []
+    assert _job_state(manager, sleeper) == ("ended", 130) and _job_state(manager, driver) == ("ended", 130)
+    time.sleep(1.0)  # several driver intervals: nothing may start the second step
+    assert batch.path is not None
+    stored = Batch.load(batch.path)
+    assert stored is not None and stored.stopped is not None
+    assert [(s.state, s.exit_code) for s in stored.steps] == [("failed", None), ("failed", 130), ("pending", None)]
+    assert stored.steps[1].note == STOPPED_NOTE
+    assert len(list_jobs(manager.home)) == 2  # the sleeper and the driver only
+    resumed = cli("batch", "resume", batch.batch_id, "--format", "json")
+    assert resumed.code == 0, resumed.err
+    done = _until_finished(cli, batch.batch_id)
+    assert [s["state"] for s in done["steps"]] == ["failed", "failed", "done"] and done["stopped"] is None
+
+
+def test_batch_stop_without_steps_still_stops_only_the_driver(cli: Callable[..., Run], tmp_path: Path) -> None:
+    """The default is unchanged (D-704): the driver stops and the step it started keeps running; the batch is marked
+    stopped, so no driver tick starts the next step."""
+    from agentprov.jobs.manager import find
+
+    manager, batch, sleeper, driver = _running_batch(tmp_path)
+    run = cli("batch", "stop", batch.batch_id, "--wait", "30", "--format", "json")
+    assert run.code == 0, run.err
+    doc = json.loads(run.out)
+    assert doc["driver"] == "stopped" and doc["steps_stopped"] == []
+    assert _job_state(manager, driver) == ("ended", 130) and _job_state(manager, sleeper)[0] == "running"
+    job = find(manager.home, sleeper)
+    assert job is not None and manager.stop(job)
+    _wait_jobs(manager)
+    again = cli("batch", "stop", batch.batch_id, "--wait", "0", "--format", "json")
+    assert again.code == 0 and json.loads(again.out)["driver"] == "not running"
+
+
+def test_batch_stop_steps_exits_1_when_a_step_job_cannot_be_signalled(
+        cli: Callable[..., Run], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from agentprov.jobs.manager import find
+
+    manager, batch, sleeper, driver = _running_batch(tmp_path)
+    real_stop = JobManager.stop
+    monkeypatch.setattr(JobManager, "stop", lambda self, job: job.job_id == driver and real_stop(self, job))
+    run = cli("batch", "stop", batch.batch_id, "--steps", "--wait", "30", "--format", "json")
+    assert run.code == 1
+    doc = json.loads(run.out)
+    assert doc["driver"] == "stopped" and doc["steps_unsignalled"] == [sleeper] and doc["steps_stopped"] == []
+    assert "could not be signalled" in run.err
+    monkeypatch.undo()
+    job = find(manager.home, sleeper)
+    assert job is not None and manager.stop(job)
+    _wait_jobs(manager)
+
+
+def test_a_stopped_batch_starts_no_step_but_records_ended_ones(tmp_path: Path) -> None:
+    manager = JobManager(tmp_path / "home", environ={"PATH": os.environ["PATH"]})
+    batch = Batch.new(manager.home, "t", [_step("info"), _step("info")])
+    batch.steps[0].state, batch.steps[0].job_id = "running", "0190a0a0-0000-7000-8000-000000000000"  # no such job
+    batch.stopped = "2026-11-05T00:00:00Z"
+    assert advance(batch, manager, validate=validate_argv, pin_now=lambda: None, driver_job_id="d") == []
+    assert [s.state for s in batch.steps] == ["failed", "pending"]
+    assert batch.path is not None
+    reloaded = Batch.load(batch.path)
+    assert reloaded is not None and reloaded.stopped == "2026-11-05T00:00:00Z"

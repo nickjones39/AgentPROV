@@ -23,7 +23,10 @@ no served model, no harness name. Content is copied verbatim, with one exception
 output are replaced by salted labels as the profile's ``[[family.credleak.redact]]`` rules specify (D-605, applying
 D-604; :mod:`~agentprov.adapters.credleak.redact`). The planted credentials some runs hold are withheld at sealing by
 the profile's ``[withhold]`` policy (D-235, D-265), never by this module; so is model-authored text, which is never
-redacted, wherever that policy names what it holds.
+redacted, wherever that policy names what it holds. Two post-passes over the finished records (D-1063, review UC-40 and
+UC-41): the D-378 pass replaces a lone UTF-16 surrogate in a typed text field or an object key
+(``credleak.lone_surrogate_replaced``; the redaction already ran on the source strings), and a string over 1 MiB of
+UTF-8 is replaced by its digest (``credleak.content_not_inlined``, the D-934 pattern).
 
 Pure (A-2): the output is a function of the unit's bytes, this code, the profile and the catalogues.
 """
@@ -38,7 +41,9 @@ from agentprov.adapters.credleak.dialect import PathFacets, parse_path
 from agentprov.adapters.credleak.redact import ISSUE as REDACTED_ISSUE
 from agentprov.adapters.credleak.redact import RULE as R_REDACTED
 from agentprov.adapters.credleak.redact import Redactor, parse_redact_rules
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -88,6 +93,10 @@ R_CELL: Final = "credleak.cell_run_agreement@1"
 R_PATH: Final = "credleak.path_facets@1"
 R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
+#: D-1063 (review UC-41): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as D-934
+R_NOT_INLINED: Final = "credleak.content_not_inlined@1"
+#: D-1063 (the review UC-39 class): the AER's integer domain (I-JSON, C.11.3), as D-1011 for adprov
+_MAX_COUNT: Final = 2**53 - 1
 
 
 def _p(*tokens: str | int) -> str:
@@ -280,10 +289,14 @@ class _Build:
             raise MalformedArtefact("the run locator is not /runs/<i>") from None
         if not isinstance(runs, list) or not 0 <= index < len(runs) or pointer != f"/runs/{index}":
             raise MalformedArtefact("the run locator does not name a run of the cell")
-        self.cell: dict[str, Any] = item.value
+        # D-378 (D-1063, review UC-40): a key cannot be $utf16-wrapped, so the keys of the cell's fields and of this run
+        # are scrubbed before mapping (the other runs are not read)
+        self.cell: dict[str, Any]
+        self.cell, cell_keys = scrub_keys({k: v for k, v in item.value.items() if k != "runs"})
         self.index = index
         self.P = pointer
-        run = runs[index]
+        run, run_keys = scrub_keys(runs[index])
+        self.surrogate_keys = cell_keys or run_keys
         if not isinstance(run, dict) or not isinstance(run.get("turns"), list):
             raise MalformedArtefact("the run is not an object with a turns array")
         for turn in run["turns"]:
@@ -328,8 +341,21 @@ class _Build:
         self._checks()
         if self.n_redacted:
             self.issue(REDACTED_ISSUE, ["exec"], R_REDACTED, severity="info", detail=str(self.n_redacted))
-        yield self._header()
-        yield from body
+        records = [self._header(), *body]
+        surrogates(self, records, "credleak")  # D-378 (D-1063, review UC-40); the redaction ran on the source strings
+        yield from self._not_inlined(records)
+
+    def _not_inlined(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """D-1063 (review UC-41; the D-934 pattern), after redaction: every string over 1 MiB becomes ``{"not_inlined":
+        {sha256, bytes}}`` of its UTF-8 bytes (C.2.1(6)). A tool result's text becomes the part's value; a message's text
+        part an ``other`` part of type ``text``. Each such pointer is DERIVED under ``credleak.content_not_inlined@1``;
+        one info issue names the records."""
+        # AU-RC-1/AU-RC-2 (D-1063): the shared pass, which also moves every citation, unk key and ext.<ns>.redacted
+        # entry naming a moved pointer (UC-38) and digests a $utf16 value over its decoded text
+        ids = not_inlined(records, "credleak", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("credleak.content_not_inlined", ids, R_NOT_INLINED, severity="info")
+        return records
 
     # ---------------------------------------------------------------------------------------------- header
     def _header(self) -> dict[str, Any]:
@@ -612,6 +638,9 @@ class _Build:
         observed = {"tool_calls": self.n_calls, "turns": len(self.turns)}
         if not (isinstance(count, int) and not isinstance(count, bool) and count >= 0):
             self.ctx.check(R_COUNT, scope="att0", verdict="unverifiable", observed=observed, reason="count_not_recorded")
+            return
+        if count > _MAX_COUNT:  # not a count the seal can record (D-1063, the review UC-39 class)
+            self.ctx.check(R_COUNT, scope="att0", verdict="unverifiable", observed=observed, reason="count_out_of_range")
             return
         ok = count == self.n_calls
         self.ctx.check(R_COUNT, scope="att0", verdict="consistent" if ok else "inconsistent",

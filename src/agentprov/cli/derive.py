@@ -23,6 +23,7 @@ Writing or loading ``adprov-v2.3-compat`` output prints the compat notice (R-55;
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 from collections.abc import Mapping
 from dataclasses import replace
@@ -34,6 +35,7 @@ from agentprov.cli.common import CliUsageError, CommandResult, Context, bounded_
 from agentprov.corpus.scratch import scratch_tree
 from agentprov.errors import AgentProvError
 from agentprov.io import remove
+from agentprov.raw.store import transient_stores
 
 __all__ = ["register", "run_derive", "run_recompute"]
 
@@ -314,8 +316,6 @@ def _run(ctx: Context, command: str) -> CommandResult:
 
     tmp: str | None = None
     if args.dry_run:
-        tmp = str(scratch_tree(f"agentprov-{command}-", reader.root))  # on the source's filesystem: raw objects link
-        final = Path(tmp) / "corpus"
         plan = replace(plan, link_raw=True)  # a private tree removed afterwards: linking changes no source byte
     else:
         final = _final_dir(args.out)
@@ -327,16 +327,24 @@ def _run(ctx: Context, command: str) -> CommandResult:
     from agentprov.cli.checks import finish_validation_cache, validation_cache
 
     derivation = Derivation(reader, plan, catalogues=injected, progress=ctx.progress)
-    derivation.validation_cache = validation_cache(ctx)
+    # D-1068 P5: release mode never serves a cached round trip (audit: recompute and compare)
+    derivation.validation_cache = validation_cache(ctx, audit=plan.mode == "release", notices=result.notices)
     try:
+        if args.dry_run:  # inside the try, so the finally removes it whatever fails next (AU-CLIA-2)
+            tmp = str(scratch_tree(f"agentprov-{command}-", reader.root))  # on the source's filesystem: raw objects link
+            final = Path(tmp) / "corpus"
         derivation.check_inputs()
         if derivation.drift and not args.dry_run:
             built = derivation.built_at()  # D-780: where to recompute it; said only when the source records it
             known = [] if built == "building commit not recorded" else [f"source {built}"]
             raise DeriveRefusedError(DRIFT_REFUSAL + ":\n" + "\n".join([*derivation.drift, *known]),  # one drift per line (RC-8)
                                      code="corpus.derive.version_drift")
-        with CorpusWriter(final, limits=reader.limits, release=plan.mode == "release", command=command,
-                          break_stale_lock=bool(args.break_stale_lock), build_step=gitinfo.build_step(command)) as writer:
+        # D-1068 P7: the stores the derivation creates (its T1 inputs) skip fsync, and so does a dry run's whole tree; the
+        # store of a NEW that is kept is opened before transient_stores() and stays durable
+        with (transient_stores() if args.dry_run else contextlib.nullcontext()), \
+                CorpusWriter(final, limits=reader.limits, release=plan.mode == "release", command=command,
+                             break_stale_lock=bool(args.break_stale_lock), build_step=gitinfo.build_step(command)) as writer, \
+                transient_stores():
             if plan.remap:
                 _remap(ctx, derivation, reader, writer)
             else:

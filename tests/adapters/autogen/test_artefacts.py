@@ -45,7 +45,7 @@ def test_claims_are_specific_to_the_entry(tool_arm):
 
 
 def test_reserved_detectors_name_the_invisible_entries():
-    rules = load_rules("autogen", 1, package="agentprov.adapters.autogen").rules
+    rules = load_rules("autogen", 2, package="agentprov.adapters.autogen").rules
     reserved = {rid for rid, rule in rules.items() if rule.status == "reserved"}
     detectors = {e.id: e.detector_rule for e in load_catalogue("autogen").entries}
     assert {e for e, r in detectors.items() if r in reserved} == NOT_VISIBLE

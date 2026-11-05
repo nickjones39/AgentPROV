@@ -1,0 +1,228 @@
+# Source profile `memo-ozdincer-agentdojo`: memo-ozdincer/agentdojo, an AgentDojo fork evaluating circuit-breaker (LoRRA)
+# adapters against AgentDojo's baseline defences on Llama-3.3-70B-Instruct and Qwen2.5-7B-Instruct (phase 10q; rank 6 of
+# the phase-10e ranking; docs/reports/phase10q/README.md; DECISIONS D-470..D-479).
+#
+# The runs sit in results containers (results/**/*.json, runs/results/qwen2_5_7b_instruct_eval/*.json): one JSON document
+# per evaluation call, the call's settings at top level and one row per (user task, injection task) pair (D-470). 137
+# containers and 13,070 rows are selected; 17 byte-identical copies under results/full_eval/multiturn_eval/ collapse by
+# source key (H.7.2); the two benign rollups *_combined.json re-list 194 per-suite rows and are excluded (D-473).
+# Identity comes from the container table (D-474), the workstation account paths in the containers' model strings are
+# redacted in the AER (D-476; raw ships as is, D-186 (c)).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); version 2 since the `rescont` catalogue went to version 2 (regen items 116 and 118; D-31 ruling
+# 2026-10-21, option A); version 1 (the bytes the phase-10q trial corpora recorded) ships under
+# profiles/archive/memo-ozdincer-agentdojo.profile.v1.toml. The quirks' `observed` counts are the phase-10q census over
+# the full pinned snapshot (tools/agentdojo/phase10q_trial.py census, 2026-10-14: 137 containers, 13,070 rows,
+# 0 degenerate, 7,015 rows redacted, 0 account paths left in any sealed AER).
+
+[profile]
+id = "memo-ozdincer-agentdojo"
+version = 2
+format = "agentprov-source-profile/0.1"
+source_id = "memo-ozdincer-agentdojo"
+family = "agentdojo"
+parts = ["head"]
+title = "memo-ozdincer/agentdojo results containers: circuit-breaker (LoRRA) adapters and AgentDojo defences on Llama-3.3-70B and Qwen2.5-7B"
+evidence = ["docs/reports/phase10q/README.md", "docs/reports/systematic-search/candidates/phase10e-candidates.md §3.7"]
+
+[source]
+canonical_repo = "https://github.com/memo-ozdincer/agentdojo"
+paper = "none found (phase 10e)"
+package = { name = "agentdojo", vendored = "the fork itself (src/agentdojo, pyproject version 0.1.35, changed by the fork)", version_identifies_code = false }
+
+# The pin covers the repository root (38,403 files, 1,001,834,260 bytes; all fetched 2026-10-14 with the user's yes): the
+# fork's code and notes, the results containers, the LoRRA training data and the upstream runs/ copy. Seven gitlinks
+# (reference/* submodules) are not fetched and hold no run of this source.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "7c331d978acca38534a3d42951f28a25ba26901b"
+date = "2026-04-25"
+expected_files = 38403
+expected_bytes = 1001834260
+note = "branch main at 2026-10-12 (phase 10e)"
+
+[licence]
+spdx = "MIT"
+holders = ["Edoardo Debenedetti, Jie Zhang, Mislav Balunovic, Luca Beurer-Kellner, Marc Fischer, and Florian Tramèr (the upstream LICENSE kept by the fork)", "memo-ozdincer (fork owner; no own copyright line)"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin (upstream text, (c) 2024 Debenedetti et al.), which covers results/; the fork adds no licence of its own"
+attribution = [
+  "memo-ozdincer/agentdojo (MIT), commit 7c331d978acca38534a3d42951f28a25ba26901b",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the runs",
+]
+unassessed = ["model-provider terms on redistributing model outputs (Llama 3.3 and Qwen2.5 licences; Together AI)"]
+
+[lineage]
+built_on = ["ethz-spylab/agentdojo (vendored fork; the code changed after many runs)"]
+vendored = ["ethz-spylab/agentdojo runs/ (upstream logs, byte-identical; outside this profile's selection)"]
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.results_container"
+mapper = "agentdojo.tracelogger"
+variants = ["rc.k7", "rc.k12"]
+rules = { aer = 1, agentdojo = 2, rescont = 2 }
+include = [
+  "results/api_evals/*.json",
+  "results/baseline_defenses/*.json",
+  "results/baseline_defenses/defenses/*.json",
+  "results/comprehensive_eval/*.json",
+  "results/full_eval/*.json",
+  "results/full_eval/multiturn_eval/*.json",
+  "results/multiturn_eval/*.json",
+  "results/tokenless_battery/*.json",
+  "runs/results/qwen2_5_7b_instruct_eval/*.json",
+  "results/agentharm_eval/*.json",
+]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+  { glob = "results/api_evals/*_combined.json", code = "select.not_execution_artefact", note = "D-473: benign rollups; all 194 rows are JCS-identical to rows of the per-suite containers" },
+  { glob = "results/agentharm_eval/*.json", code = "select.dialect_planned", note = "D-477: AgentHarm result containers (task, prompt, messages, tool_trace, score; 201 rows), another format" },
+]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the licence and the documents the
+# container table cites. The repository's agent-instruction files are never stored.
+context_artefacts = [
+  "LICENSE",
+  "README.md",
+  "pyproject.toml",
+  "scripts/eval_lorra_multiturn.py",
+  "scripts/eval_benign_utility.py",
+  "scripts/eval_baseline_defenses.py",
+  "results/EVAL_LOG.md",
+  "results/MULTITURN_RESULTS.md",
+  "results/full_eval/FULL_EVAL_RESULTS.md",
+  "results/baseline_defenses/TRACE_ANALYSIS.md",
+  "results/api_evals/RESULTS.md",
+  "results/multiturn_eval/logs/qwen_remaining_fast_20260331/RUN_INDEX.md",
+  "results/multiturn_eval/logs/qwen_remaining_fast_20260331/COMMANDS.sh",
+  "results/multiturn_eval/logs/qwen_remaining_plan_check/RUN_INDEX.md",
+  "results/multiturn_eval/logs/20260331_benign_workspace/RUN_INDEX.md",
+  "scripts/LLAMA_NATIVE_CLUSTER_HANDOFF.md",
+  "scripts/node1_ood_mse4.sh",
+]
+
+[family.agentdojo.identity]
+model_from = "container_table"
+container_table = { path = "tables/memo_ozdincer_containers.toml", sha256 = "1619b468fd3d166190e35c6b4e12d1fead183c126c925886caea8e9d1d349e77" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { slack = "agentdojo", banking = "agentdojo", workspace = "agentdojo", travel = "agentdojo" }
+version_label_semantics = "suite_version"
+dos_attacks = []
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# the fork's eval scripts changed while the containers were written (at least four writer versions by key set) and no
+# container names its code, so every D rule is cited through its _unverified twin (D-472)
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+verified_code = []
+system_prompt_variants = [
+  { label = "script_workspace", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:SUITE_CONFIG", key = "workspace", sha256 = "94c27b162ca7182343505e8e2c5e56b7fa4fac115518d76de68b92d3897d9226" },
+  { label = "script_banking", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:SUITE_CONFIG", key = "banking", sha256 = "21e62d7494bade746532f2abd340ea5866ca42911003b72a0a8c53b6bcacef3a" },
+  { label = "script_banking_earlier", sha256 = "caaaf0e2a188e40f9630e195f1a273bb23ecb78a14318b53804a73709ea86389", note = "the banking prompt of an earlier script version (103 characters; not at the pin; pinned from the data)" },
+  { label = "script_slack", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:SUITE_CONFIG", key = "slack", sha256 = "17faea0f6aca84970318c1ded9af64cd7ddc4c899d43fb8343bddbdf696ec31e" },
+  { label = "script_travel", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:SUITE_CONFIG", key = "travel", sha256 = "c16b75c100a07bf6bb5833d2607139526682b3ba07720f4b526aea8b900894b4" },
+  { label = "script_workspace_spotlighting", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:build_pipeline", key = "workspace", sha256 = "8bf60cc43f30263d7ec7fa8069e5e3d6c67847b2e4cff362c4c5407403e8b880" },
+  { label = "script_banking_earlier_spotlighting", sha256 = "db7836c2edf1e1878080099c9a162c5aefdadf4a6d7582c60c57886f60afceea", note = "the earlier banking prompt plus the spotlighting sentence (276 characters; pinned from the data)" },
+  { label = "script_slack_spotlighting", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:build_pipeline", key = "slack", sha256 = "3bf5961cb3a44d453fbd2b9c1cdc9afb4d59948b53531e0135bd4eefb7932165" },
+  { label = "script_travel_spotlighting", source = "scripts/eval_lorra_multiturn.py@7c331d978acca38534a3d42951f28a25ba26901b:build_pipeline", key = "travel", sha256 = "dbec16ec61b260f812cb2d6c37bf2d2d56112bc3683b2990ddc694ae6b344e76" },
+]
+
+# D-476: the containers' model strings name checkpoints under workstation account paths (72 containers, 7,015 rows).
+# The patterns describe structure only; the span is the path up to the checkpoint directory, the leaf is kept.
+[[family.agentdojo.redact]]
+id = "cluster_scratch"
+scope = "model_id"
+pattern = '^(?P<span>/scratch/[^/]+/.*)/(?P<leaf>[^/]+)$'
+replacement = "cluster:{span12}/{leaf}"
+note = "a cluster scratch checkpoint: /scratch/<account>/…/<checkpoint directory>"
+
+[[family.agentdojo.redact]]
+id = "cluster_home"
+scope = "model_id"
+pattern = '^(?P<span>/mfs1/u/[^/]+/.*)/(?P<leaf>[^/]+)$'
+replacement = "cluster:{span12}/{leaf}"
+note = "a cluster home checkpoint: /mfs1/u/<account>/…/<checkpoint directory>"
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_exception_row_defaults"
+applies = {}
+rules = ["rescont.exception_imposes_outcome@1"]
+params = { utility = false, security = true }
+observed = { head = { rows = 1038 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_benign_security_constant"
+applies = {}
+rules = ["rescont.benign_security_constant@1"]
+observed = { head = { rows = 493 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_null_content_as_empty"
+applies = {}
+rules = ["rescont.null_content_serialised_empty@1"]
+observed = { head = { messages = 282, rows = 227 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_melon_block"
+applies = {}
+rules = ["rescont.melon_block_message@1"]
+observed = { head = { messages = 583, rows = 583 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_repeat_prompt_copy"
+applies = {}
+rules = ["rescont.repeat_prompt_copy@1"]
+observed = { head = { messages = 4461, rows = 773 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_spotlighting_delimiters"
+applies = {}
+rules = ["rescont.spotlighting_delimiters@1"]
+observed = { head = { messages = 394, rows = 111 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.rescont_raw_output"
+applies = {}
+rules = ["rescont.raw_output_is_return_value@1"]
+observed = { head = { messages = 3357, rows = 1428 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = {}
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { calls = 67596, rows = 11502 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.provider_call_id_anomalies"
+applies = {}
+rules = ["agentdojo.positional_match@1"]
+note = "no call id is logged (rescont.messages_serialised@1): every result links by position"
+observed = { head = { calls_without_id = 67596, rows = 11502 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { rows = 143 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "rescont.exception_imposes_outcome@1",
+  "rescont.benign_security_constant@1",
+  "agentdojo.checker_outcome@1",
+]

@@ -44,7 +44,7 @@ def report(root: Path) -> dict[str, Any]:
     issues: Counter[str] = Counter()
     exposure: Counter[str] = Counter()
     markers: Counter[str] = Counter()
-    groups: dict[str, dict[str, Any]] = {}
+    groups: dict[tuple[str, ...], dict[str, Any]] = {}
     for row in rows:
         lines = (partial / row["paths"]["aer"]).read_bytes().splitlines()
         head = json.loads(lines[0])
@@ -66,8 +66,11 @@ def report(root: Path) -> dict[str, Any]:
         by["judge_link"]["judge_only" if head["unit"] == "outcome_only" and link is None and facets.get("file") == "judge_result.json"
                          else (link or {}).get("method", "none")] += 1
         if isinstance(link, dict) and link.get("group_size", 1) > 1:
-            key = link["judge_sha256"]
-            group = groups.setdefault(key, {"size": link["group_size"], "resolved": link["resolved"], "split": split})
+            # One group per task directory: byte-identical judge files occur in different directories (sample check
+            # c4), so the judge digest alone would merge them; it only names the judge file the outcome is read from.
+            key = (link["judge_sha256"], *(str(v) for k, v in sorted(facets.items()) if k != "file"))
+            group = groups.setdefault(key, {"size": link["group_size"], "resolved": link["resolved"], "split": split,
+                                            "judge_sha256": link["judge_sha256"]})
             group["resolved"] = group["resolved"] or link["resolved"]
         sem = row.get("paths", {}).get("sem", {})
         payloads = 0
@@ -85,8 +88,8 @@ def report(root: Path) -> dict[str, Any]:
             by["exposure_runs"]["with_payload_fixtures"] += 1
     unresolved = {k: g for k, g in groups.items() if not g["resolved"]}
     outcomes: Counter[str] = Counter()
-    for sha, _group in unresolved.items():
-        raw = _raw(partial, sha)
+    for group in unresolved.values():
+        raw = _raw(partial, group["judge_sha256"])
         if raw is None:
             outcomes["judge_not_stored"] += 1
             continue

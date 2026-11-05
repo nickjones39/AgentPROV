@@ -2,7 +2,7 @@
 #
 # Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
 # is the default `agentprov.adapters.wirelog`. Rules are immutable once released: a change of statement, class or
-# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+# behaviour mints @n+1 and bumps `version` (AD-18).
 #
 # Citation policy (D-24, D-282): the deposit of the first source (Zenodo 21944598) ships its harness scripts without a
 # commit, and the data show that not every run came from the scripts as shipped (renamed and rewritten first-batch
@@ -11,12 +11,17 @@
 # scorer behaviour is class I; the scripts are documentary evidence ("deposit:<path> <symbol>"), never verification. The
 # D rules are deterministic functions of the logged bytes or of pinned package data; they declare no assumption and cite
 # the census.
+# Version 2 (D-1063, regen-batch row 176; review UC-40/UC-41): the rules wirelog.lone_surrogate_replaced@1 and
+# wirelog.content_not_inlined@1 and their issue codes; version 1, which the sealed corpus what-surrounds-w2 records,
+# ships unchanged as rules/archive/wirelog.rules.v1.toml.
+# Also in version 2 (no corpus records it yet; regen-batch row 181, review AU-RC-3): wirelog.result_not_searched@1, cited
+# by the semantics profile wirelog.tools@2 only.
 
 [catalogue]
 id = "wirelog"
-version = 1
+version = 2
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["label_field_mismatch", "context_diverges", "unknown_block", "payload_not_delivered", "payload_entry_missing", "final_texts_not_logged", "meta_rewritten", "task_prompt_unlisted", "results_row_missing", "unreadable_auxiliary", "turn_limit"]
+issue_codes = ["label_field_mismatch", "context_diverges", "unknown_block", "payload_not_delivered", "payload_entry_missing", "final_texts_not_logged", "meta_rewritten", "task_prompt_unlisted", "results_row_missing", "unreadable_auxiliary", "turn_limit", "lone_surrogate_replaced", "content_not_inlined"]
 subtypes = []
 types = []
 
@@ -783,3 +788,42 @@ code = []
 evidence = ["DECISIONS D-284"]
 tests = ["tests/adapters/wirelog/test_artefacts.py::test_reserved_detectors_are_never_cited"]
 since = "0.1.0"
+
+[[rule]]
+id = "wirelog.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue wirelog.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/wirelog/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"
+
+[[rule]]
+id = "wirelog.content_not_inlined"
+version = 1
+class = "D"
+status = "active"
+statement = "A string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1 item 6): it is replaced by {not_inlined: {sha256, bytes}} of its UTF-8 bytes. A tool result's text becomes the part's value; a text or reasoning part becomes an other part of its source type whose value is the digest (a typed string field cannot hold it); any other string position holds the digest object. The string stays in the raw artefact the record's locator names."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-934 (the dtap precedent)", "docs/reports/review-uncovered/findings.md UC-41", "DECISIONS D-1063"]
+tests = ["tests/adapters/wirelog/test_uc39_41.py::test_a_string_over_1_mib_is_not_inlined"]
+since = "0.2.0"
+
+[[rule]]
+id = "wirelog.result_not_searched"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool result the AER holds only as a digest (over 1 MiB, wirelog.content_not_inlined@1) was not searched by the semantics profile: each payload fixture's injection marker is gap (never absent), no author is asserted, and the result's integrity is the producing tool's untrusted label, else unknown (fail-closed)."
+premises = ["part value", "fixture content"]
+assumptions = []
+code = []
+evidence = ["C.14.3 (a missing or unreadable output is gap)", "DECISIONS D-1063"]
+tests = ["tests/adapters/wirelog/test_semantics.py::test_a_result_not_inlined_is_not_searched"]
+since = "0.2.0"

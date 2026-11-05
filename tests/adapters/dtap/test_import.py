@@ -136,7 +136,7 @@ def test_copies_collapse_into_one_execution_with_two_origins(imported):
 def test_the_dtap_catalogue_is_declared_only_by_dtap_executions(imported):
     for row in imported.rows:
         head = json.loads(imported.aer(row["ex"]).split(b"\n", 1)[0])
-        assert head["rules"] == {"aer": 1, "dtap": 3}  # catalogue version 3 (D-934)
+        assert head["rules"] == {"aer": 1, "dtap": 4}  # catalogue version 4 (UC-40)
 
 
 def test_without_the_object_the_pointer_and_its_judge_are_registered(tmp_path):

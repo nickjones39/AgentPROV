@@ -25,7 +25,8 @@ suite-perf proposals (D-400..D-409):
   ``tools/slow_tests.py``) are marked ``slow``, so ``pytest -n 10 -m "not slow"`` is a quick check. The full suite, the
   merge gate, deselects nothing.
 * **xdist groups** (D-401). Under ``pytest -n N``, the groups in :data:`XDIST_GROUPS` keep each listed set of tests on
-  one worker: the load-sensitive and own-pool tests in one ``serial`` group, and the tests that start the host-default
+  one worker: the load-sensitive and own-pool tests in one ``serial`` group, the SEC-22 derive determinism tests in
+  their own ``sec22-derive`` group, and the tests that start the host-default
   worker pools in k ``pools`` groups (:data:`POOL_FILES`; k = max(2, CPUs // 6), balanced by measured time), so at most
   k such pools run at once. ``--dist load`` (xdist's default for
   ``-n``) is turned into ``loadgroup``, in the controller and in every worker, because the groups are part of the
@@ -106,7 +107,7 @@ def environmentoptim_registered(monkeypatch: pytest.MonkeyPatch) -> None:
                 mapper=registry.MAPPERS["agentdojo.tracelogger"],
                 profile="environmentoptim-agentdojo",
                 corpus_id="environmentoptim-agentdojo",
-                semantics=("agentdojo.suites@3",),
+                semantics=("agentdojo.suites@5",),
             ),
         ),
         licence=registry.LicencePolicy(
@@ -331,12 +332,16 @@ def _fixed_build_commit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("agentprov.cli.gitinfo._facts", lambda: (FAKE_BUILD_COMMIT, True, None, None))
 
 
+#: The xdist groups whose tests never inherit a failed calibration (:func:`_fresh_failed_calibration`).
+LOAD_SENSITIVE_GROUPS = frozenset({"serial", "sec22-derive"})
+
+
 @pytest.fixture(autouse=True)
 def _fresh_failed_calibration(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A ``serial`` test does not inherit a *failed* allocation-rate calibration: ``agentprov.io.workers`` caches the
+    """A ``serial`` (or ``sec22-derive``) test does not inherit a *failed* allocation-rate calibration: ``agentprov.io.workers`` caches the
     first calibration of the process, and one taken while other workers loaded the machine can fail, which would
     degrade the grade that ``test_host.py`` asserts. A successful cached calibration is kept (no extra probe)."""
-    if _group_for(_relpath(request.node)) != "serial":
+    if _group_for(_relpath(request.node)) not in LOAD_SENSITIVE_GROUPS:
         return
     workers = sys.modules.get("agentprov.io.workers")
     cached = getattr(workers, "_CALIBRATION", None)
@@ -354,7 +359,9 @@ XDIST_GROUPS: tuple[tuple[str, str], ...] = (
     ("tests/unit/io/test_workers_pool.py", "serial"),
     ("tests/unit/test_progress.py", "serial"),
     ("tests/unit/raw/test_expand_determinism.py", "serial"),
-    ("tests/security/test_sec22_derive_determinism.py", "serial"),
+    # its own group (2026-11-05): small pools (--jobs 2/3) and byte comparisons, no time bound, so it need not share
+    # the one serial worker (it was 1,634 s of that lane's 2,028 s); its cases still run one at a time
+    ("tests/security/test_sec22_derive_determinism.py", "sec22-derive"),
     ("tests/adapters/inspect/test_survey.py", "serial"),
     ("tests/security/test_expand_budget.py", "serial"),  # CPU and elapsed bounds measured through RUSAGE_CHILDREN
 )
@@ -375,6 +382,8 @@ POOL_FILES: dict[str, float] = {
     "tests/cli/test_migrate_cmd.py": 23.7,
     "tests/corpus/test_verify.py": 16.0,
     "tests/security/test_raw_store_expand.py": 7.2,
+    # its scans start 8- and 16-worker pools; measured alone on the M5 Ultra (2026-11-05), the rest on the M2 Max
+    "tests/unit/corpus/test_withhold_scan.py": 57.2,
 }
 
 

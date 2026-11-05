@@ -56,6 +56,15 @@ class Settings:
         self.store.setValue("appearance/graph_palette", value)
 
     @property
+    def show_tooltips(self) -> bool:
+        """Settings › Appearance › "Show tooltips" (on by default)."""
+        return self._get("appearance/show_tooltips", "true") != "false"
+
+    @show_tooltips.setter
+    def show_tooltips(self, value: bool) -> None:
+        self.store.setValue("appearance/show_tooltips", "true" if value else "false")
+
+    @property
     def content_limit(self) -> int:
         try:
             v = int(self._get("viewer/content_limit", str(T.CONTENT_CHARS_DEFAULT)))
@@ -94,6 +103,17 @@ class Settings:
     @native_chrome.setter
     def native_chrome(self, value: bool) -> None:
         self.store.setValue("experimental/native_chrome", "true" if value else "false")
+
+    @property
+    def prices_refresh_attempted(self) -> str:
+        """The local date (ISO) Run Live last started the daily price refresh (D-1062), so a failed one is not retried
+        every time the dialog opens. Whether the refresh runs at all is the CLI setting ``prices.auto_refresh``."""
+        v = self._get("live/prices_refresh_attempted", "")
+        return v if len(v) == 10 and _path_ok(v) else ""
+
+    @prices_refresh_attempted.setter
+    def prices_refresh_attempted(self, value: str) -> None:
+        self.store.setValue("live/prices_refresh_attempted", value)
 
     @property
     def checkout(self) -> Path | None:

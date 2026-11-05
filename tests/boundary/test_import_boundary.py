@@ -69,7 +69,7 @@ THIRD_PARTY_IMPORTERS: dict[str, tuple[str, ...]] = {
 #: not checked for direction.
 LAYERS: dict[str, int] = {
     "_version": 0, "errors": 0, "formats": 0, "envinfo": 0, "versions": 0, "host": 0, "progress": 0, "io": 0, "ingest": 0,
-    "stage_scopes": 0, "stage_definitions": 3,
+    "stage_scopes": 0, "stage_definitions": 3, "platforms": 0,  # D-1064: stdlib and errors only
     "raw": 1, "aer": 1,
     "sem": 2, "prov": 2, "views": 2,
     "validate": 3,
@@ -82,6 +82,7 @@ LAYERS: dict[str, int] = {
     "estimate": 2,  # D-701: reads AER documents (aer.reader) and fetches through raw.fetch
     "jobs": 1,  # D-704: stdlib, errors, ingest, io and psutil
     "devrun": 7,  # D-705: the registry (adapters.registry) and the job records
+    "update": 2,  # D-1065: fetches through raw.fetch; settings, ingest and io
 }  # fmt: skip
 
 SKIP_DIRS = frozenset({".venv", "venv", "__pycache__", "node_modules", "site-packages", "build", "dist", ".git"})

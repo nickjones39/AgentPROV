@@ -1,11 +1,10 @@
 """D-391: the GUI's own import statements name only the allowlisted, read-only core modules (design §2.2), and never
 a writer, the CLI, fetching, workers or the adapter runner: every write is a CLI subprocess.
 
-The static tests govern the GUI's own imports, not what an allowlisted module loads in turn. Transitive loading is a
-known core issue (GR-34): ``agentprov.corpus.reader`` and ``agentprov.corpus.layout`` load ``agentprov.corpus.writer``
-through the eager re-export in ``agentprov/corpus/__init__.py``, and ``agentprov.raw.*``/``agentprov.io.*`` through the
-reader's own imports. ``test_review_core_loaded.py`` pins in a fresh interpreter the modules that are not loaded today,
-with the writer as a strict xfail until the core fix lands.
+The static tests govern the GUI's own imports, not what an allowlisted module loads in turn. Transitive loading was
+a core issue (GR-34), fixed by the lazy re-exports in ``agentprov/corpus/__init__.py`` and
+``agentprov/raw/__init__.py``. ``test_review_core_loaded.py`` checks in a fresh interpreter that the writer,
+``raw.members``, ``io.workers`` and ``agentprov.host`` stay unloaded.
 """
 
 from __future__ import annotations

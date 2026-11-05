@@ -4,10 +4,12 @@ Usage: python -I tools/regen/tree_compare.py OLD NEW --report OUT.json
 
 Lists every regular file under both roots (no symlinks followed), hashes each with SHA-256 and reports files only in
 OLD, only in NEW, and files whose bytes differ, grouped by top-level area (``aer/``, ``sem/``, ``prov/``,
-``validation/``, ``raw/``, root files). For ``corpus.json`` the differing JSON pointers are listed. Exit 0 when every
-file is identical, or when the only difference is ``corpus.json`` and every differing pointer matches one of the
-``--allow-pointer`` globs; 1 otherwise. Reads corpus files as bytes (``corpus.json`` with a strict JSON parser); writes
-only the report. Stdlib only.
+``validation/``, ``raw/``, root files). Any other entry that is not a directory is listed too: a symlink (to a file or
+a directory) by its target, never followed, and any other non-regular file by its type. For ``corpus.json`` the
+differing JSON pointers are listed. Exit 0 when every file is identical, or when the only difference is
+``corpus.json`` and every differing pointer matches one of the ``--allow-pointer`` globs; 1 otherwise, and 1 when OLD
+holds no file (nothing was compared); 2 when a root is not a directory or an entry cannot be read. Reads corpus files
+as bytes (``corpus.json`` with a strict JSON parser); writes only the report. Stdlib only.
 """
 
 from __future__ import annotations
@@ -24,15 +26,30 @@ from pathlib import Path
 from typing import Any
 
 
+def _raise(error: OSError) -> None:
+    raise error
+
+
 def files(root: Path) -> dict[str, str]:
+    """Every entry under ``root`` that is not a directory, by its relative path: a regular file by its SHA-256, a
+    symlink (to a file or a directory) by ``symlink:<target>`` (never followed), any other entry by its file type. An
+    unreadable directory raises ``OSError`` (``os.walk`` would skip it silently)."""
+    if root.is_symlink() or not root.is_dir():
+        raise NotADirectoryError(f"not a directory: {root}")
     out: dict[str, str] = {}
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+    for dirpath, dirnames, filenames in os.walk(root, onerror=_raise, followlinks=False):
         dirnames.sort()
-        for name in filenames:
+        # os.walk lists a symlink to a directory among dirnames and does not descend into it
+        for name in [*dirnames, *filenames]:
             path = Path(dirpath) / name
             info = path.lstat()
+            if stat.S_ISDIR(info.st_mode):
+                continue
+            if stat.S_ISLNK(info.st_mode):
+                out[path.relative_to(root).as_posix()] = "symlink:" + os.readlink(path)
+                continue
             if not stat.S_ISREG(info.st_mode):
-                out[path.relative_to(root).as_posix()] = "not-a-regular-file"
+                out[path.relative_to(root).as_posix()] = f"not-a-regular-file:{stat.S_IFMT(info.st_mode):o}"
                 continue
             digest = hashlib.sha256()
             with open(path, "rb") as fh:
@@ -76,7 +93,11 @@ def main() -> int:
     ap.add_argument("--report", required=True, type=Path)
     ap.add_argument("--allow-pointer", action="append", default=[])
     args = ap.parse_args()
-    a, b = files(args.old), files(args.new)
+    try:
+        a, b = files(args.old), files(args.new)
+    except OSError as exc:
+        print(f"tree_compare: {exc}", file=sys.stderr)
+        return 2
     only_old = sorted(set(a) - set(b))
     only_new = sorted(set(b) - set(a))
     differ = sorted(k for k in set(a) & set(b) if a[k] != b[k])
@@ -97,7 +118,7 @@ def main() -> int:
         "corpus_json_pointers": manifest_pointers, "corpus_json_pointers_not_allowed": unexplained,
     }
     args.report.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    ok = not only_old and not only_new and not other and not unexplained
+    ok = bool(a) and not only_old and not only_new and not other and not unexplained
     print(json.dumps({k: report[k] for k in ("files_old", "files_new", "identical", "only_old", "only_new", "differ",
                                                "by_area_differ", "corpus_json_pointers")}, sort_keys=True))
     return 0 if ok else 1

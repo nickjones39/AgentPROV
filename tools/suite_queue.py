@@ -80,7 +80,10 @@ scratch). The new classes live under ``<queue-dir>/jobs/<class>/`` (``tickets/``
 * **Admission.** A class head that holds a slot starts when its reservation fits beside the running ones and no older
   head of any class is still waiting for the budget (global FIFO among heads: a small import never starves a queued
   suite). A head held only by the load guard holds nobody back. A live suite holder without a reservation (an
-  older wrapper during the rollout) counts with the default suite reservation.
+  older wrapper during the rollout) counts with the default suite reservation. A job of any class whose wrapper died
+  without cleaning up (SIGKILL, a killed session) while its recorded process group still runs (the identity check of
+  **Orphans**) keeps counting with the reservation in its holder record until that group ends or its own run timeout
+  passes (AU-TWF-14); ``--status`` lists it as orphaned.
 * **Suite headroom.** While any suite ticket is queued or running, an ``import`` or ``rehearsal`` head starts only if
   the CPUs reserved by running imports and rehearsals, plus its own, stay within the budget minus the suite's
   reservation (its ticket's ``cpu``, else the default for its command; ``-n 10`` on the M2 Max: 8 of 10, so 2 CPUs;
@@ -100,7 +103,8 @@ scratch). The new classes live under ``<queue-dir>/jobs/<class>/`` (``tickets/``
   behind it. Suites pause only for a head whose record has ``starve_override`` (written by this version on): an older
   waiter still honours the headroom, so pausing for it would deadlock. ``--status`` prints ``starvation: suites paused for <label>``. The decision is taken under ``<queue-dir>/jobs/admit.lock``; running reservations are
   ``<queue-dir>/jobs/running/*.json``, each holding the **wrapper's** pid, pruned with the same pid-reuse check as
-  tickets, so a reservation comes back exactly when its slot lock does.
+  tickets, so a reservation comes back exactly when its slot lock does (an orphaned job's group still counts, as
+  above).
 * **Load guard** (``import`` and ``rehearsal`` only). If the 1-minute load average minus the CPUs reserved by running
   queued jobs is above half the CPUs (load from work outside the queue), a head waits up to ``--load-wait`` (default
   600 s), then starts anyway and says so.
@@ -162,7 +166,7 @@ GIB = 2**30
 
 def pycache_prefix(environ: dict[str, str] | os._Environ[str] = os.environ) -> Path:
     if environ.get("AGENTPROV_PYCACHE_PREFIX"):
-        return Path(environ["AGENTPROV_PYCACHE_PREFIX"])
+        return Path(environ["AGENTPROV_PYCACHE_PREFIX"]).expanduser()
     return Path.home() / ".cache" / "agentprov" / "pycache"
 
 
@@ -236,9 +240,14 @@ def _toplevel(cwd: Path) -> Path | None:
 
 
 def queue_dir(environ: dict[str, str] | os._Environ[str] = os.environ) -> Path:
+    """``$AGENTPROV_SUITE_QUEUE_DIR``, else ``$AGENTPROV_HOME/locks/suite-queue``, else ``~/.agentprov/...``, with a
+    leading ``~`` expanded as ``tools/_workflow.agentprov_home`` and ``tools/queue_status.py`` do: a literal ``~`` (a
+    launchd plist, a dotenv file, a single-quoted export) would otherwise give each worktree its own relative queue
+    (AU-TWF-4). Kept local: this file runs standalone, also as an older copy read from git history."""
     if environ.get("AGENTPROV_SUITE_QUEUE_DIR"):
-        return Path(environ["AGENTPROV_SUITE_QUEUE_DIR"])
-    home = Path(environ["AGENTPROV_HOME"]) if environ.get("AGENTPROV_HOME") else Path.home() / ".agentprov"
+        return Path(environ["AGENTPROV_SUITE_QUEUE_DIR"]).expanduser()
+    home = Path(environ["AGENTPROV_HOME"]).expanduser() if environ.get("AGENTPROV_HOME") else \
+        Path.home() / ".agentprov"
     return home / "locks" / "suite-queue"
 
 
@@ -472,6 +481,10 @@ class Admission:
             fcntl.flock(fd, fcntl.LOCK_EX)
             running, waiting = self._records("running"), self._records("waiting")
             running += self._unrecorded_suite(running)
+            orphans = [dict(r, cpu=min(float(r["cpu"]), self.cpu_budget), mem_gib=min(float(r["mem_gib"]),
+                                                                                     self.mem_budget))
+                       for r in orphaned_jobs(self.root.parent, {r.get("pid") for r in running}, time.time())]
+            running += orphans
             is_suite = self.record["job_class"] == "suite"
             # Only heads that wait for the budget (or behind one) hold younger heads back; a head held only by the
             # load guard does not, so it can never stall a queued suite (the merge gate). A suite is never held back
@@ -523,6 +536,10 @@ class Admission:
                     else:
                         sys.stderr.write(f"\nsuite-queue: load from outside the queue is still {outside:.1f}; "
                                          f"starting after {_fmt(self.load_wait)} anyway\n")
+            if reason is not None and reason[0] in ("headroom", "budget") and orphans:
+                reason = (reason[0], reason[1] + "; counting " + ", ".join(
+                    f"the orphaned {o['job_class']} {_label(o)} of a dead wrapper (process group {o['orphan_pgid']}; "
+                    f"kill -TERM -{o['orphan_pgid']} to stop it)" for o in orphans))
             if reason is not None:
                 self.waiting_since = self.waiting_since or now
                 # A wait that traces back to the suite headroom is written as blocked="load" (the real reason in
@@ -731,6 +748,41 @@ def orphan(holder: dict[str, Any] | None, now: float) -> tuple[int, bool] | None
     return pgid, expired
 
 
+def orphaned_jobs(qdir: Path, skip_pids: set[Any], now: float) -> list[dict[str, Any]]:
+    """Jobs of every class whose wrapper died without its ``finally`` (SIGKILL, a killed session) while their process
+    group runs on (AU-TWF-14), as reservation records (``cpu``, ``mem_gib`` unclamped, ``orphan_pgid``).
+
+    A reservation in ``jobs/running/`` goes with the wrapper's pid, but the work does not stop then: each holder
+    record for which :func:`orphan` still finds the recorded, identity-checked process group counts with the
+    reservation it recorded (an older wrapper's record without one: its class's default for its command) until the
+    group ends. Holders whose pid is in ``skip_pids`` (live, already counted) are not looked at. An orphan past its
+    own run timeout is not counted: the next holder of its slot stops it, and a head waiting for the budget could
+    never take that slot."""
+    out: list[dict[str, Any]] = []
+    for job_class in CLASSES:
+        cdir = class_dir(qdir, job_class)
+        if not cdir.is_dir():
+            continue
+        for path in all_holder_files(cdir, job_class):
+            holder = _read_json(path)
+            pid = holder.get("pid") if holder else None
+            if not holder or not isinstance(pid, int) or pid in skip_pids:
+                continue
+            left = orphan(holder, now)
+            if left is None or left[1]:
+                continue
+            cpu, mem = holder.get("cpu"), holder.get("mem_gib")
+            if not isinstance(cpu, (int, float)) or not isinstance(mem, (int, float)):
+                try:
+                    command = shlex.split(str(holder.get("command", "")))
+                except ValueError:
+                    command = []
+                cpu, mem = default_cost(job_class, command)
+            out.append({"pid": pid, "job_class": job_class, "label": _label(holder), "cpu": float(cpu),
+                        "mem_gib": float(mem), "orphan_pgid": left[0]})
+    return out
+
+
 def running_pids(cdir: Path, job_class: str) -> set[int]:
     """Pids of the live holders of a class: their own tickets stay in ``tickets/`` while they run."""
     pids = set()
@@ -809,11 +861,15 @@ def status(qdir: Path, deadlock_after: float = DEADLOCK_AFTER) -> int:
         cpu_budget, mem_budget = budget()
         records = [r for r in (_read_json(p) for p in sorted((root / "running").glob("*.json"))) if r and
                    isinstance(r.get("pid"), int) and pid_is_queue_process(r["pid"])]
+        records += [dict(r, cpu=min(r["cpu"], cpu_budget), mem_gib=min(r["mem_gib"], mem_budget))
+                    for r in orphaned_jobs(qdir, {r["pid"] for r in records}, now)]
         cpu = sum(float(r.get("cpu", 0)) for r in records)
         mem = sum(float(r.get("mem_gib", 0)) for r in records)
         print(f"budget:    {cpu:g} of {cpu_budget:g} CPUs, {mem:g} of {mem_budget:g} GiB reserved")
         for r in records:
-            print(f"  {r.get('job_class', '?')}: {_label(r)} cpu {r.get('cpu')} mem {r.get('mem_gib')} GiB")
+            orphaned = (f" (orphaned: its wrapper is dead; process group {r['orphan_pgid']}, kill -TERM "
+                        f"-{r['orphan_pgid']} to stop it)" if "orphan_pgid" in r else "")
+            print(f"  {r.get('job_class', '?')}: {_label(r)} cpu {r.get('cpu')} mem {r.get('mem_gib')} GiB{orphaned}")
         anyone_running = anyone_running or bool(records)
     paused = [w for w in (_read_json(p) for p in sorted((root / "waiting").glob("suite-*.json")))
               if w and w.get("held") == "starve" and isinstance(w.get("pid"), int)
@@ -1043,10 +1099,12 @@ def run_child(command: list[str], *, run_timeout: float | None, grace: float, en
     **Forwarding** (B2, 2026-10-28). A handler only records a signal; the loop sends it, every ``forward_every`` seconds,
     and only right after ``child.wait`` has said the child is not reaped yet. An unreaped child's pid cannot be reused,
     so its process group is ours; after the reap nothing is signalled by group id. On macOS ``killpg`` fails with EPERM,
-    not ESRCH, when every member of the group is a zombie (the child exited, not yet reaped): that is "already gone"."""
-    child = subprocess.Popen(command, start_new_session=True, env=env)
-    if on_start is not None:
-        on_start(child)
+    not ESRCH, when every member of the group is a zombie (the child exited, not yet reaped): that is "already gone".
+
+    The handlers are installed **before** the child is started (AU-TWF-3): a SIGTERM or SIGHUP between ``Popen`` and
+    ``on_start`` (which records the child's process group for a later holder) used to kill the wrapper by the default
+    action, leaving the suite running unrecorded. A signal that arrives before the child exists is forwarded on the
+    loop's first pass."""
     received: list[int] = []
     sent = 0  # how many of ``received`` were forwarded
     known: dict[int, str] = {}
@@ -1057,6 +1115,9 @@ def run_child(command: list[str], *, run_timeout: float | None, grace: float, en
     previous = {s: signal.signal(s, record) for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
     timed_out = False
     try:
+        child = subprocess.Popen(command, start_new_session=True, env=env)
+        if on_start is not None:
+            on_start(child)
         deadline = None if run_timeout is None else time.monotonic() + run_timeout
         tracked = time.monotonic()
         while True:
@@ -1194,7 +1255,7 @@ def main(argv: list[str] | None = None) -> int:
         clear_pycache(prefix)
         return 0
     env = None if opts.keep_bytecode_env else child_env(os.environ, prefix)
-    qdir = opts.queue_dir or queue_dir()
+    qdir = opts.queue_dir.expanduser() if opts.queue_dir else queue_dir()
     (qdir / "tickets").mkdir(parents=True, exist_ok=True)
     if opts.status:
         return status(qdir, opts.deadlock_minutes * 60)

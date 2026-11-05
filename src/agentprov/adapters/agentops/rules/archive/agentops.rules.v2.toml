@@ -1,0 +1,726 @@
+# Rule catalogue `agentops` (docs/architecture D.18.9; D.5.1-D.5.2; C.6.4). AgentOps-Bench, phase 10i.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.agentops`. Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Version 2 (D-31 bump, regeneration item 37, bug pass BF-26) adds
+# the issue code payload_outside_adversarial, and D-608 (regen item 137) the rule agentops.value_redacted@1 and its issue
+# code value_redacted; version 1 ships under archive/ with the bytes the stored corpora recorded.
+#
+# Citation policy (D-24, D-27 c6, D-193): the deposit's code snapshot (Zenodo 19875693, kunwarshivam/agentops-bench-v1.0.zip,
+# directory kunwarshivam-agentops-bench-9153772) names its commit only by a 7-hex prefix, nothing in the runs names the
+# code that produced them, and the CHANGELOG and launcher of the snapshot disagree with the pilot's layout. So no rule can
+# cite producing code (`code` needs a full commit), and every rule that rests on harness or scorer behaviour is class I
+# with an `asserted` assumption, as DTap's are (D.16.11). The snapshot paths are documentary evidence in `evidence`
+# ("snapshot:<path> <symbol>"), never verification. The D rules are deterministic functions of observed bytes or of
+# pinned package data; they declare no assumption, cite no code and cite the census (docs/reports/phase10i/).
+
+[catalogue]
+id = "agentops"
+version = 2
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["empty_trace", "run_error", "iteration_limit", "task_join_missing", "user_message_not_logged", "unlisted_tool_name", "dispatch_error_result", "final_output_differs", "label_field_mismatch", "payload_suffix_mismatch", "failure_with_payload", "repeated_tool_names", "payload_outside_adversarial", "value_redacted"]
+subtypes = ["agentops.fault_injection"]
+types = []
+
+[[assumption]]
+id = "agentops:AgentIdNamesModel"
+statement = "agent_id is the adapter's '<route>/<model>' string (anthropic/, openai/ or openrouter/ followed by the model the adapter requested)."
+
+[[assumption]]
+id = "agentops:DepositHarness"
+statement = "The runs were produced by the AgentOps-Bench harness of the deposit (agent adapters, instrumented tool server, scoring), whose producing code identity is not recorded."
+
+[[assumption]]
+id = "agentops:StepIsOneResponse"
+statement = "One step records one model response: its usage, its text content and its tool-use blocks."
+
+[[assumption]]
+id = "agentops:ContextIsLoggedPrefix"
+statement = "A model call's input contains every earlier logged message of the run (the system prompt and the task prompt are not logged)."
+
+[[assumption]]
+id = "agentops:StepsAppendOrdered"
+statement = "The harness appends steps, calls and results in the order in which they occurred."
+
+[[assumption]]
+id = "agentops:TextBeforeCalls"
+statement = "Within one response the text content is recorded as one string; its position among the tool-use blocks is not recorded."
+
+[[assumption]]
+id = "agentops:ResultAfterOwnCall"
+statement = "Within a step the adapter appends call i and then, after dispatching it, result i."
+
+[[assumption]]
+id = "agentops:ServerExecutesCall"
+statement = "A result without injected_failure was produced by the instrumented tool server dispatching the call, on behalf of the agent."
+
+[[assumption]]
+id = "agentops:TimestampAtDispatch"
+statement = "A call's timestamp is the pydantic default set when the adapter builds the call record, immediately before dispatch."
+
+[[assumption]]
+id = "agentops:FaultFabricated"
+statement = "A result with injected_failure is fabricated by the tool server's failure injector; the tool is not dispatched."
+
+[[assumption]]
+id = "agentops:PayloadAppended"
+statement = "A result with injected_payload is the dispatched tool's output with the payload appended by the server's injector."
+
+[[assumption]]
+id = "agentops:InjectorIsAttacker"
+statement = "The injection catalogue of the harness plays the attacker: its payloads are attacker-supplied material."
+
+[[assumption]]
+id = "agentops:AdversarialArmsInjection"
+statement = "Only the adversarial condition arms the prompt-injection catalogue; noisy and clean do not."
+
+[[assumption]]
+id = "agentops:PromptComposition"
+statement = "The adapters send the task description, followed by a context section when the task has one."
+
+[[assumption]]
+id = "agentops:IterationCap"
+statement = "A run that neither completed nor recorded an error stopped at the adapters' iteration cap."
+
+[[assumption]]
+id = "agentops:ScoresByScorer"
+statement = "The per-run scores were computed by the harness's scoring module for the run in the same file."
+
+[[assumption]]
+id = "agentops:SafetyDefault"
+statement = "The safety scorer returns constants without evaluating when a run has no step or no injected payload."
+
+[[rule]]
+id = "agentops.label_facets"
+version = 1
+class = "D"
+status = "active"
+statement = "The member label's facets (agent directory, model directory, condition, domain, task number, run) are compared with the in-record agent_id, condition, task_id and run_number; a difference is recorded (agentops.label_field_mismatch) and never corrected."
+premises = ["origin /label", "/agent_id", "/condition", "/task_id", "/run_number"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.2 (7,202/7,202 agree)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_label_and_record_fields_agree"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.agent_id_identity_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The agent model is the in-record agent_id: its first segment is the route (provider or OpenRouter) and the rest the requested model; the served model is not recorded."
+premises = ["/agent_id", "/trace/agent_id"]
+assumptions = ["agentops:AgentIdNamesModel"]
+verification = [{ assumption = "agentops:AgentIdNamesModel", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/anthropic_agent.py AnthropicAgent.agent_id", "snapshot:src/agentops_bench/agents/openrouter_agent.py OpenRouterAgent.agent_id", "docs/reports/phase10i/README.md §3.3"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_identity_is_the_in_record_agent_id"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.deposit_harness_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The harness, tool runtime and scorer are those of the AgentOps-Bench deposit; their code identity is not recorded, and the tool runtime executes calls on behalf of the agent (apv:AutoExecution)."
+premises = ["the record layout"]
+assumptions = ["agentops:DepositHarness", "apv:AutoExecution"]
+verification = [{ assumption = "agentops:DepositHarness", status = "asserted" }, { assumption = "apv:AutoExecution", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/runner.py BenchmarkRunner.run_task", "docs/reports/phase10i/README.md §3.5"]
+tests = ["tests/adapters/agentops/test_rules.py::test_every_declared_rule_is_exercised"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.step_is_one_model_call_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "One step is one model call of the agent, kept by the harness; the step's message (role assistant) was generated by it and carries its text and tool calls."
+premises = ["/trace/steps/*"]
+assumptions = ["agentops:StepIsOneResponse"]
+verification = [{ assumption = "agentops:StepIsOneResponse", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/anthropic_agent.py AnthropicAgent.run (AgentStep per response)", "snapshot:src/agentops_bench/schema.py AgentStep"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_steps_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.context_is_logged_prefix_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input is every earlier logged message of the run; the unlogged system prompt and task prompt are not input members."
+premises = ["/trace/steps"]
+assumptions = ["agentops:ContextIsLoggedPrefix"]
+verification = [{ assumption = "agentops:ContextIsLoggedPrefix", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/openrouter_agent.py OpenRouterAgent.run (messages list)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_steps_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.steps_append_ordered_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The order of the steps array, and of the calls and results inside a step, is the order of occurrence."
+premises = ["/trace/steps", "/trace/steps/*/step_number"]
+assumptions = ["agentops:StepsAppendOrdered"]
+verification = [{ assumption = "agentops:StepsAppendOrdered", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (step_number gapless in 18,889/18,889 steps)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_steps_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.text_before_calls_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A step's text (reasoning) is the message's first part and its calls follow in array order; how text and tool-use blocks interleaved in the response is not recorded."
+premises = ["/trace/steps/*/reasoning", "/trace/steps/*/tool_calls"]
+assumptions = ["agentops:TextBeforeCalls"]
+verification = [{ assumption = "agentops:TextBeforeCalls", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/anthropic_agent.py AnthropicAgent.run (text blocks concatenated)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_steps_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.pair_by_index_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "Within a step, result i answers call i, provided both arrays have the same length and every result names the tool its call named; otherwise the step links nothing (call_result_link_conflict)."
+premises = ["/trace/steps/*/tool_calls", "/trace/steps/*/tool_results"]
+assumptions = ["agentops:ResultAfterOwnCall"]
+verification = [{ assumption = "agentops:ResultAfterOwnCall", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/openrouter_agent.py OpenRouterAgent.run (append call, await handle_call, append result)", "docs/reports/phase10i/README.md §3.3 (14,328/14,328 names equal)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_pairing_by_index_and_its_conflicts"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.call_is_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A result without injected_failure records one dispatch of the call by the instrumented tool server; the result message was generated by that execution (or by the injection that modified its output)."
+premises = ["/trace/steps/*/tool_results/*"]
+assumptions = ["agentops:ServerExecutesCall"]
+verification = [{ assumption = "agentops:ServerExecutesCall", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/tools.py InstrumentedToolServer.handle_call"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_pairing_by_index_and_its_conflicts"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.call_timestamp_is_dispatch_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A call's timestamp is when the adapter built the call record, immediately before dispatch: it is kept verbatim in t.raw.start and the typed start is declared ambiguous (an I-class typed time would become an inference-bundle entity the tier-4 validators refuse, D.16.18 correction 1)."
+premises = ["/trace/steps/*/tool_calls/*/timestamp"]
+assumptions = ["agentops:TimestampAtDispatch"]
+verification = [{ assumption = "agentops:TimestampAtDispatch", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/schema.py ToolCall.timestamp (default_factory _utcnow)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_time_model"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.duration_no_clock"
+version = 1
+class = "D"
+status = "active"
+statement = "wall_time_seconds and latency_ms are kept verbatim in ext.agentops and /t/dur_s is declared ambiguous: their clock rests on unverified code and an injected failure's latency is a constant; no start or end time is computed from them."
+premises = ["/trace/wall_time_seconds", "/trace/steps/*/tool_results/*/latency_ms"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (failure latencies 30000, 250, 100, 50, 10)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_time_model"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.fault_injection_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A result with injected_failure was fabricated by the server's failure injector without dispatching the call: a harness decision (verdict other, subtype agentops.fault_injection) on the call generated the result message, there is no tool execution and the call is unexecuted."
+premises = ["/trace/steps/*/tool_results/*/injected_failure"]
+assumptions = ["agentops:FaultFabricated"]
+verification = [{ assumption = "agentops:FaultFabricated", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/tools.py InstrumentedToolServer.handle_call (failure injection returns before dispatch)", "snapshot:src/agentops_bench/injection.py FAILURE_MODES"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_injected_failure_is_a_decision_without_execution"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.payload_injection_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A result with injected_payload is the dispatched tool's output modified by the server's injector: an attacker decision (verdict modify) on the execution generated the result message."
+premises = ["/trace/steps/*/tool_results/*/injected_payload"]
+assumptions = ["agentops:PayloadAppended", "agentops:InjectorIsAttacker"]
+verification = [{ assumption = "agentops:PayloadAppended", status = "asserted" }, { assumption = "agentops:InjectorIsAttacker", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/injection.py inject_payload", "snapshot:src/agentops_bench/tools.py InstrumentedToolServer.handle_call"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_injected_payload_is_a_modify_decision"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.payload_suffix"
+version = 1
+class = "D"
+status = "active"
+statement = "A result text that ends with two newlines and the recorded injected_payload carries the payload as its suffix; the offset of the suffix is recorded, and a result that does not end so is recorded (agentops.payload_suffix_mismatch)."
+premises = ["/trace/steps/*/tool_results/*/result", "/trace/steps/*/tool_results/*/injected_payload"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (2,011/2,011 suffixes)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_injected_payload_is_a_modify_decision"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.payload_attacker_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "An injected payload is attacker-supplied material (the harness's injection catalogue plays the attacker)."
+premises = ["/trace/steps/*/tool_results/*/injected_payload"]
+assumptions = ["agentops:InjectorIsAttacker"]
+verification = [{ assumption = "agentops:InjectorIsAttacker", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/injection.py PROMPT_INJECTIONS"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_injected_payload_is_a_modify_decision"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.adversarial_condition_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The adversarial condition arms the prompt-injection catalogue (task attack_id adversarial, attacker actor); clean and noisy runs have no attack (attack_id null)."
+premises = ["/condition"]
+assumptions = ["agentops:AdversarialArmsInjection"]
+verification = [{ assumption = "agentops:AdversarialArmsInjection", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/runner.py _build_tool_server"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_header_task_and_ext"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.task_join"
+version = 1
+class = "D"
+status = "active"
+statement = "A run's task definition is the tasks-pin member the package table task_files.toml lists for the run's task_id, accepted when its bytes have the table's digest and size and its id equals the task_id."
+premises = ["/task_id", "task member bytes", "task document /id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.4 (100/100 tasks, 7,202/7,202 runs)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_task_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.prompt_composition_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The task prompt the agent received is the joined description, followed by a context section when the task has a context."
+premises = ["task document /description", "task document /context"]
+assumptions = ["agentops:PromptComposition"]
+verification = [{ assumption = "agentops:PromptComposition", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/anthropic_agent.py AnthropicAgent.run (Context section)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_task_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.user_message_not_logged"
+version = 1
+class = "D"
+status = "active"
+statement = "A run file holds no user or system message: the joined task prompt is a fixture and no message is invented."
+premises = ["/trace"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_task_join_and_fixtures"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.iteration_cap_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A run with steps that neither completed nor recorded an error stopped at the adapters' iteration cap (scope status limit)."
+premises = ["/trace/completed", "/trace/error", "/trace/steps"]
+assumptions = ["agentops:IterationCap"]
+verification = [{ assumption = "agentops:IterationCap", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/agents/openrouter_agent.py OpenRouterAgent.run (max_iterations)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_run_status_and_errors"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.run_error"
+version = 1
+class = "D"
+status = "active"
+statement = "A non-null trace.error ends the run in error: the run scope gets status error and the error text is recorded verbatim (agentops.run_error, with the text's class in the detail)."
+premises = ["/trace/error"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (216 errors: API 186, refusal loop 25, timeout 5)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_run_status_and_errors"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.empty_trace"
+version = 1
+class = "D"
+status = "active"
+statement = "steps: [] records no execution: the unit is outcome_only, no step is invented and the recorded scores are kept."
+premises = ["/trace/steps"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (162 empty traces)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_empty_trace_is_outcome_only"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.final_output_copy"
+version = 1
+class = "D"
+status = "active"
+statement = "trace.final_output is kept in ext.agentops and compared with the last step's text; a difference is recorded (agentops.final_output_differs)."
+premises = ["/trace/final_output", "/trace/steps/*/reasoning"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (6,985/6,985 equal)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_header_task_and_ext"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.unlisted_tool_name"
+version = 1
+class = "D"
+status = "active"
+statement = "A call naming a tool outside the profile's tool list is kept verbatim and recorded (agentops.unlisted_tool_name); its result is whatever the server answered."
+premises = ["/trace/steps/*/tool_calls/*/tool_name"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (6 calls)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_unlisted_tool_and_dispatch_error"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.dispatch_error_text"
+version = 1
+class = "D"
+status = "active"
+statement = "A result string beginning 'Error: ' is recorded (agentops.dispatch_error_result) and kept verbatim; the execution status is never inferred from it."
+premises = ["/trace/steps/*/tool_results/*/result"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (391 results)"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_unlisted_tool_and_dispatch_error"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.scores_recorded_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The per-run scores were computed by the harness's scoring module (checker origin); the LLM judge behind completion and its inputs are not logged."
+premises = ["/scores"]
+assumptions = ["agentops:ScoresByScorer"]
+verification = [{ assumption = "agentops:ScoresByScorer", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/runner.py BenchmarkRunner.run_task", "snapshot:src/agentops_bench/scoring/completion.py score_completion"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_judgements"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.safety_default_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A safety score of a run without steps or without an injected payload is the scorer's constant, written without evaluation (origin harness_default)."
+premises = ["/scores/safety/injections_present", "/trace/steps"]
+assumptions = ["agentops:SafetyDefault"]
+verification = [{ assumption = "agentops:SafetyDefault", status = "asserted" }]
+code = []
+evidence = ["snapshot:src/agentops_bench/scoring/safety.py score_safety"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_judgements"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.acc.counters"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: scores.efficiency.total_tool_calls equals the number of calls, the length of scores.cost.step_breakdown the number of steps, and trace.total_input_tokens and total_output_tokens the sums of the steps' usage."
+premises = ["/scores/efficiency/total_tool_calls", "/scores/cost/step_breakdown", "/trace/total_input_tokens", "/trace/total_output_tokens", "/trace/steps"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §4"]
+tests = ["tests/adapters/agentops/test_mapper.py::test_counters_check"]
+since = "0.1.0"
+
+# ------------------------------------------------------------------------------------------------ semantics (agentops.tools@1)
+
+[[rule]]
+id = "agentops.tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool's roles and output integrity follow from the agentops.tools@1 table for its name."
+premises = ["tool name"]
+assumptions = []
+code = []
+evidence = ["snapshot:src/agentops_bench/tools.py get_sample_tool_definitions", "docs/reports/phase10i/README.md §3.3"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool in no table, or a result whose link is ambiguous, is fail-closed: integrity unknown, role unknown."
+premises = ["tool name", "link"]
+assumptions = []
+code = []
+evidence = ["C.14.3"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Agent text and calls are trusted (the agent's own output)."
+premises = ["actor"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.integrity_payload_fixture"
+version = 1
+class = "I"
+status = "active"
+statement = "Injection-payload fixtures are untrusted."
+premises = ["fixture kind"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.integrity_task_prompt"
+version = 1
+class = "I"
+status = "active"
+statement = "A task prompt is the principal's instruction (trusted), except in the safety domain, whose prompts embed requests the agent should refuse without marking which part is adversarial (unknown)."
+premises = ["fixture kind", "task suite"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.4 (safety tags injection-resistance, refuse, role-play-resistance)"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.integrity_ground_truth"
+version = 1
+class = "I"
+status = "active"
+statement = "A ground-truth fixture is benchmark material the agent never sees (trusted)."
+premises = ["fixture kind"]
+assumptions = []
+code = []
+evidence = ["snapshot:src/agentops_bench/schema.py Task.expected_output"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.integrity_fault_result"
+version = 1
+class = "I"
+status = "active"
+statement = "A result fabricated by the failure injector is unknown: the harness wrote it, and it does not reflect any tool's output."
+premises = ["generated_by decision subtype"]
+assumptions = []
+code = []
+evidence = ["snapshot:src/agentops_bench/injection.py FAILURE_MODES"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.integrity_injected_result"
+version = 1
+class = "I"
+status = "active"
+statement = "A result that carries a present payload is untrusted, and its payload suffix is attributed to the attacker (author)."
+premises = ["injection marker", "generated_by decision"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 4", "snapshot:src/agentops_bench/injection.py inject_payload"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.payload_marker"
+version = 1
+class = "D"
+status = "active"
+statement = "A payload fixture's content found verbatim in a tool result marks the result present (located by its span when the result is text; a value result is searched in its compact JSON text); not found marks it absent."
+premises = ["part text", "fixture content"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.verbatim_match"
+version = 1
+class = "D"
+status = "active"
+statement = "The identity normaliser: a payload's text is searched verbatim (no folding), and a hit is located by its half-open range of Unicode scalar values in the result text."
+premises = ["the text"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3 (payloads appended verbatim)"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.completion_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "The completion score (0 to 1) grades whether the user task was solved (user_task_solved, scale agentops.completion)."
+premises = ["judgement value"]
+assumptions = []
+code = []
+evidence = ["snapshot:src/agentops_bench/scoring/completion.py score_completion"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.safety_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "The safety overall score (0 to 1) is a regex heuristic of resistance to the injected payloads (agentops.injection_resistance); it is never evidence of what the agent did."
+premises = ["judgement value"]
+assumptions = []
+code = []
+evidence = ["snapshot:src/agentops_bench/scoring/safety.py score_safety"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy: a request whose roles include write_sink, send_sink, execute_sink or unknown, exposed to content of untrusted or unknown integrity, is potentially influenced by it."
+premises = ["labels"]
+assumptions = []
+code = []
+evidence = ["C.14.6 item 8"]
+tests = ["tests/adapters/agentops/test_semantics.py::test_every_sem_rule_is_cited"]
+since = "0.1.0"
+
+# ------------------------------------------------------------------------------------------------ reserved detectors
+# Cases no AER field read by the safety net carries (they are decided by the profile's selection, the ingest layer or the
+# release scan): reserved names for the artefact catalogue, never cited by an AER (tests/adapters/agentops/test_artefacts.py).
+
+[[rule]]
+id = "agentops.scope_selection"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the D-143 scope is applied by the profile's include and exclude globs; a run outside it is registered select.out_of_scope and never mapped, so no AER record cites this rule."
+premises = ["origin /label"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-143, D-191", "docs/reports/phase10i/README.md §3.2"]
+tests = ["tests/adapters/agentops/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.non_execution_member"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: per-model rollups, the renamed part-2 rollup and the _combined tables are registered select.not_execution_artefact (sniff reason agentops.report); AppleDouble members are runner strays and symlinks ingest rejections; no AER record cites this rule."
+premises = ["origin /label", "the sniff"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.1"]
+tests = ["tests/adapters/agentops/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.superseded_copy"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: two part-1 Opus files (clean/research_011 runs 1 and 2) were discarded by the deposit's own merge for part 2's runs; both are out of scope, so no AER record cites this rule (a widened scope would record superseded_by)."
+premises = ["origin /label", "the merged report's _merge_provenance"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.2", "snapshot:scripts/merge_opus_parts.py"]
+tests = ["tests/adapters/agentops/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.account_path"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: an operator workstation account path inside run_python tracebacks (tool output, kept as content, never identity); the release scan finds it, never the mapper, so no AER record cites this rule."
+premises = ["the bytes"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §3.3", "DECISIONS D-199"]
+tests = ["tests/adapters/agentops/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "agentops.pax_tar_container"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the runs arrive as a top-level gzip tar carrying pax extended headers (macOS xattrs), which the bounded tar reader refuses; an ingest finding, so no AER record cites this rule."
+premises = ["the container bytes"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10i/README.md §2", "DECISIONS D-192"]
+tests = ["tests/adapters/agentops/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+# D-608 (catalogue version 2, folded into the D-31 bump of regen items 34-37; regen item 137): tool-output redaction.
+[[rule]]
+id = "agentops.value_redacted"
+version = 1
+class = "D"
+status = "active"
+statement = "A string or object key of a tool message's value (a part's text or value, at any depth) that a profile [[family.agentops.redact]] rule matches is rewritten by AgentPROV: each match becomes the rule's label, literal text with {span12} (12 hex digits of SHA-256 over the profile id, NUL and the span) and {leaf}. Only tool output is in scope (D-604); model text, call arguments, fixtures, judgements and the run error are never touched, and a recorded injected payload at the end of a result stays verbatim. The pointer's locator stays on the raw field, whose bytes are unchanged; ext.agentops.redacted names the rule; the original and its full digest are never recorded. A deterministic transformation specified by the profile, independent of the producing code."
+premises = ["/trace/steps/*/tool_results/*/result"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-608", "DECISIONS D-604", "DECISIONS D-476", "docs/reports/precheck/agentops-bench.md PC-agentops-bench-01"]
+tests = ["tests/adapters/agentops/test_redact.py::test_tool_output_is_redacted_and_model_text_is_not"]
+since = "0.1.0"

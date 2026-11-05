@@ -17,6 +17,14 @@ from agentprov.cli.main import main
 
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="POSIX signals and sessions")
 
+#: A job that ends at once. ``info`` probes the host (about 1 s idle, tens of seconds at load ~50, 2026-11-05),
+#: which none of these tests checks; ``settings list`` is an R0 read of the job's own home (0.2 s).
+QUICK = ("settings", "list")
+#: How long a test waits for a detached job to change state: polled, so a passing run never waits it out; long
+#: enough for a supervisor and its child to start and end on a loaded machine (2026-11-05: 30 s failed at
+#: load ~50).
+JOB_WAIT_S = 180
+
 
 class Run(NamedTuple):
     code: int
@@ -46,7 +54,7 @@ def cli(capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.
 
 
 def _until_ended(cli: Callable[..., Run], job_id: str) -> dict[str, object]:
-    end = time.monotonic() + 30
+    end = time.monotonic() + JOB_WAIT_S
     while time.monotonic() < end:
         doc = json.loads(cli("jobs", "show", job_id, "--format", "json").out)
         if doc["state"] != "running":
@@ -56,7 +64,7 @@ def _until_ended(cli: Callable[..., Run], job_id: str) -> dict[str, object]:
 
 
 def test_start_list_show_and_the_exit_code(cli: Callable[..., Run]) -> None:
-    started = cli("jobs", "start", "--label", "smoke", "--format", "json", "--", "info")
+    started = cli("jobs", "start", "--label", "smoke", "--format", "json", "--", *QUICK)
     assert started.code == 0, started.err
     job = json.loads(started.out)
     done = _until_ended(cli, job["job_id"][:12])  # a unique prefix
@@ -92,7 +100,7 @@ def test_usage_errors_and_refusals(cli: Callable[..., Run]) -> None:
 
 def test_prune_lists_without_yes(cli: Callable[..., Run]) -> None:
     for _ in range(2):
-        _until_ended(cli, json.loads(cli("jobs", "start", "--format", "json", "--", "info").out)["job_id"])
+        _until_ended(cli, json.loads(cli("jobs", "start", "--format", "json", "--", *QUICK).out)["job_id"])
     listing = cli("jobs", "prune", "--keep", "0")
     assert listing.code == 0 and len(json.loads(cli("jobs", "list", "--format", "json").out)["jobs"]) == 2
     assert cli("jobs", "prune", "--keep", "0", "--yes").code == 0
@@ -100,33 +108,33 @@ def test_prune_lists_without_yes(cli: Callable[..., Run]) -> None:
 
 
 def test_follow_prints_progress_until_the_end(cli: Callable[..., Run]) -> None:
-    job = json.loads(cli("jobs", "start", "--format", "json", "--", "info").out)
-    followed = cli("jobs", "follow", job["job_id"], "--timeout", "30")
+    job = json.loads(cli("jobs", "start", "--format", "json", "--", *QUICK).out)
+    followed = cli("jobs", "follow", job["job_id"], "--timeout", str(JOB_WAIT_S))
     assert followed.code == 0
     events = [json.loads(line) for line in followed.out.splitlines() if line.strip()]
     assert events and events[-1].get("event") == "end"
-    logged = cli("jobs", "follow", job["job_id"], "--log", "--timeout", "30")  # D-700: the Logs page's records
+    logged = cli("jobs", "follow", job["job_id"], "--log", "--timeout", str(JOB_WAIT_S))  # D-700: the Logs page's records
     records = [json.loads(line) for line in logged.out.splitlines() if line.strip()]
     assert logged.code == 0 and records and all("level" in r and "event" not in r for r in records)
 
 
 def test_follow_of_an_ended_job_prints_its_whole_file(cli: Callable[..., Run]) -> None:
     """Review UC-28: after the job ended, follow made one more 1 MiB read and dropped the rest with exit 0."""
-    job = json.loads(cli("jobs", "start", "--format", "json", "--", "info").out)
+    job = json.loads(cli("jobs", "start", "--format", "json", "--", *QUICK).out)
     _until_ended(cli, job["job_id"])
     progress = Path(job["directory"]) / "progress.jsonl"
     before = sum(1 for line in progress.read_bytes().splitlines() if line.strip())
     line = json.dumps({"event": "step", "stage": "x", "pad": "p" * 200}).encode() + b"\n"
     with open(progress, "ab") as fh:
         fh.write(line * 15_000)  # about 3.3 MiB
-    followed = cli("jobs", "follow", job["job_id"], "--timeout", "30")
+    followed = cli("jobs", "follow", job["job_id"], "--timeout", str(JOB_WAIT_S))
     assert followed.code == 0
     assert sum(1 for out in followed.out.splitlines() if out.strip()) == before + 15_000
 
 
 def test_meta_is_recorded_as_scalars(cli: Callable[..., Run]) -> None:
     job = json.loads(cli("jobs", "start", "--meta", "call_cap=5", "--meta", "backend=autodojo", "--meta",
-                         "devrun=true", "--format", "json", "--", "info").out)
+                         "devrun=true", "--format", "json", "--", *QUICK).out)
     assert job["meta"] == {"call_cap": 5, "backend": "autodojo", "devrun": True}
     assert cli("jobs", "start", "--meta", "Bad Key=1", "--", "info").code == 2
     _until_ended(cli, job["job_id"])
@@ -140,7 +148,7 @@ def test_a_non_finite_meta_number_is_kept_as_text_and_the_job_stays_listable(cli
     job directory that could be neither listed nor pruned)."""
     from agentprov.jobs.manager import atomic_write_json
 
-    run = cli("jobs", "start", "--meta", "k=1e999", "--meta", "m=-1e999", "--format", "json", "--", "info")
+    run = cli("jobs", "start", "--meta", "k=1e999", "--meta", "m=-1e999", "--format", "json", "--", *QUICK)
     assert run.code == 0, run.err
     job = json.loads(run.out)
     assert job["meta"] == {"k": "1e999", "m": "-1e999"}
@@ -218,3 +226,29 @@ def test_a_tools_arguments_are_left_alone(cli: Callable[..., Run], tmp_path: Pat
     cli("jobs", "start", "--tool", "tools/check_unicode.py", "--", "rel/x", "--corpus", "c")
     cli("jobs", "start", "--", "validate", "rel/x")
     assert seen == [("rel/x", "--corpus", "c"), ("validate", str(tmp_path / "rel" / "x"))]
+
+
+_QUEUE_REFUSAL = ("[platform.unsupported]: The machine-wide job queue (--queue-cpu, tools/suite_queue.py) is available "
+                  "on macOS and Linux. On Windows it is not available: ")
+
+
+@pytest.mark.parametrize("arch", ["x86_64", "arm64"])
+def test_queue_cpu_is_refused_on_windows_before_anything_is_written(cli: Callable[..., Run], tmp_path: Path,
+                                                                    monkeypatch: pytest.MonkeyPatch, arch: str) -> None:
+    """D-1064: ``jobs start --queue-cpu`` and a batch with a ``queue_cpu`` step are refused on Windows (exit 4)."""
+    from agentprov.jobs.manager import JobManager, SpawnRefused
+
+    monkeypatch.setattr("agentprov.platforms.host", lambda: ("Windows", arch))
+    run = cli("jobs", "start", "--queue-cpu", "2", "--", "info")
+    assert run.code == 4 and _QUEUE_REFUSAL in run.err, run.err
+    spec = tmp_path / "spec.json"
+    spec.write_text(json.dumps({"steps": [{"argv": ["info"], "queue_cpu": 2}]}))
+    run = cli("batch", "create", str(spec))
+    assert run.code == 4 and _QUEUE_REFUSAL in run.err, run.err
+    assert not (tmp_path / "home").exists()
+
+    def spawn(self: JobManager, req: Any, **_kw: Any) -> Any:  # without --queue-cpu, Windows starts the job
+        raise SpawnRefused("captured", "test.captured")
+
+    monkeypatch.setattr(JobManager, "spawn", spawn)
+    assert "test.captured" in cli("jobs", "start", "--", "info").err

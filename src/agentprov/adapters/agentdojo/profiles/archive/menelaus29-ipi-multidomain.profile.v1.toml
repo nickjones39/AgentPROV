@@ -1,0 +1,181 @@
+# Source profile `menelaus29-ipi-multidomain`: branch main of Menelaus29/ipi-multidomain-agent-study, 858 TraceLogger logs of
+# gemma-4-26b-a4b-it and Gemini 3.5/3.6 Flash(-Lite) on banking, workspace and slack: baseline, a custom spotlighting
+# defence (my_spotlighting), AgentDojo's built-in spotlighting, and adaptive attack calibration, with 197 attack labels
+# from a payload corpus (phase 10d; shortlist row 17; sources/agentdojo-format-candidates.md §3.19).
+#
+# Only the main pin is imported (D-108): the 107 runs that exist only on branches phase-6a-attack-calibration (7c354f9a)
+# and phase-8-defense-spotlighting (c560139f) need a second snapshot in the same corpus (phase 11). The pipeline
+# directories hold spaces and brackets (`<model> [<enum alias>]`); the identity table is keyed by experiment path
+# (D-104). docs/example_run_output.json is a log outside the run layout: it resolves no identity.
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18); nothing is released yet, so it is still 1. The quirks' `observed` counts are the phase-10d census over
+# the full pinned snapshot (tools/agentdojo/phase10d_trial.py census; docs/reports/phase10d/), reconciled with the phase-10c
+# census (~/.agentprov/migration-work/phase10c/census/menelaus29@ec9c9287889e.*).
+
+[profile]
+id = "menelaus29-ipi-multidomain"
+version = 1
+format = "agentprov-source-profile/0.1"
+source_id = "menelaus29-ipi-multidomain"
+family = "agentdojo"
+parts = ["head"]
+title = "IPI multidomain agent study: AgentDojo 0.1.35 logs of Gemma 4 and Gemini Flash with a 197-payload corpus (Menelaus29)"
+evidence = ["sources/agentdojo-format-candidates.md §1, §2", "verify/agentdojo-format-candidates.md §1"]
+
+[source]
+canonical_repo = "https://github.com/Menelaus29/ipi-multidomain-agent-study"
+paper = "none found (phase 10c)"
+package = { name = "agentdojo", requirement = "agentdojo==0.1.35 (requirements.txt)", version_identifies_code = false }
+
+# The pin covers the repository root (1,028 files): the run data, the defences and experiment scripts, the payload corpus
+# and the documents. The byte total is not stated: eight report figures were not fetched in phase 10c; the other 1,020
+# files hold 23,568,555 bytes.
+[[source.pins]]
+role = "head"
+part = "head"
+primary = true
+kind = "git"
+commit = "ec9c9287889ebec339c4304f01a4a4a99500c491"
+date = "2026-08-22"
+expected_files = 1028
+note = "branch main at 2026-10-11 (phase 10c); branches phase-6a-attack-calibration and phase-8-defense-spotlighting add 107 runs (not pinned here)"
+
+[licence]
+spdx = "MIT"
+holders = ["Khue Vu"]
+data_licence = "none"
+policy = "include"
+basis = "MIT LICENSE at the pin, (c) 2026 Khue Vu; the logs embed AgentDojo benchmark text (MIT)"
+attribution = [
+  "Menelaus29/ipi-multidomain-agent-study (MIT, (c) 2026 Khue Vu), commit ec9c9287889ebec339c4304f01a4a4a99500c491",
+  "AgentDojo (MIT, (c) 2024 Debenedetti et al.): the benchmark text embedded in the logs",
+]
+unassessed = ["model-provider terms on redistributing model outputs"]
+
+[lineage]
+built_on = ["agentdojo==0.1.35 (PyPI, requirements.txt; the installed code is not verified, D-24)"]
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "agentdojo.tracelogger"
+mapper = "agentdojo.tracelogger"
+variants = ["v1.k14", "v1.k14.incomplete"]
+rules = { aer = 1, agentdojo = 2 }
+include = ["data/*/*/*/*/*/*.json", "docs/example_run_output.json"]
+exclude = [
+  { glob = "**/.DS_Store", code = "select.not_execution_artefact" },
+  { glob = "**/._*", code = "select.not_execution_artefact" },
+]
+layout = "{model_dir?}/{pipeline_dir}/{suite}/{task_dir}/{attack_dir}/{file}.json"
+layout_depth = 6
+path_must_agree = ["suite_name", "user_task_id", "attack_type", "injection_task_id"]
+# Stored as supporting artefacts (role supporting), never mapped as executions: the defences, the experiment
+# runners, the payload corpus and the documents.
+context_artefacts = ["LICENSE", "README.md", "requirements.txt", "src/defenses/*.py", "src/experiments/run_baseline.py", "src/adaptive/adaptive_loop.py", "src/payloads/corpus.json", "docs/defense_design.md", "docs/decisions_log.md"]
+
+[family.agentdojo.identity]
+model_from = "model_dir"
+pipeline_name_policy = "verbatim_unreliable_when_differs"
+table = { path = "tables/menelaus29_experiment_dirs.toml", sha256 = "5c300bb5c3b5443f4adad26db87bf637d967f02851a7483f268e17e0df5da4d4" }
+
+[family.agentdojo.benchmark]
+benchmark = "agentdojo"
+suites = { banking = "agentdojo", workspace = "agentdojo", slack = "agentdojo" }
+version_field = "benchmark_version"
+version_label_semantics = "suite_version"
+dos_attacks = ["dos", "captcha_dos", "felony_dos", "offensive_email_dos", "swearwords_dos"]
+semantics_profile = { id = "agentdojo.suites", version = 2 }
+
+[family.agentdojo.harness]
+# requirements.txt pins agentdojo==0.1.35 (a distribution, not code that was read); the logs record only the
+# distribution version string
+code_identity = "range"
+retry_semantics = "agentdojo.final_content_none_max3"
+tool_output_format = "tool_result_to_str"
+# D.5.4 "Citation of D rules" (D-24): the code that wrote these logs is not verified (phase-10c shortlist §1), so every D
+# rule of the family catalogues is cited through its `_unverified` twin (class I).
+verified_code = []
+# The default prompt in the baseline and diagnostic runs and AgentDojo's spotlighting prompt (pinned by digest
+# to upstream agent_pipeline.py l. 267-273) in the builtin replication; the 1,331-character my_spotlighting
+# prompt is assembled at run time (its text is not in the repository) and stays unrecognised.
+system_prompt_variants = [
+  { label = "agentdojo_default", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/data/system_messages.yaml", key = "default", sha256 = "a021a92b114c523250d0e52b18adc0aa7b41db7c7628b579b2b8db1df9361837", applies = { variant = ["v1.k14", "v1.k14.incomplete"] } },
+  { label = "agentdojo_default_spotlighting", source = "ethz-spylab/agentdojo@089ed468cf3ed0322acc66b0211f26d9d90dbf60:src/agentdojo/agent_pipeline/agent_pipeline.py", sha256 = "2954962b7689663e8083fd5872aa5b1368437f16cc16cec7c0121d603a13eb03", note = "the default of system_messages.yaml plus the spotlighting_with_delimiting sentence (l. 267-273)", applies = { variant = ["v1.k14", "v1.k14.incomplete"], model_dir = ["*/replication_dev/builtin/*"] } },
+]
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.benign_security_constant"
+applies = { attack_dir = ["none"] }
+rules = ["agentdojo.benign_security_constant@1"]
+observed = { head = { files = 70, origin_rule_applied = 70 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.injection_task_as_user_task_prepass"
+applies = { task_dir = ["injection_task_*"], attack_dir = ["none"] }
+rules = ["agentdojo.injection_task_as_user_task@1"]
+observed = { head = { files = 70 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.silent_rerun_last_pass_only"
+applies = {}
+rules = ["agentdojo.log_holds_last_pass@1", "agentdojo.null_final_implies_three_passes@1"]
+params = { trigger = "final_assistant_content_is_null", max_passes = 3 }
+observed = { head = { null_final_logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.unexecuted_trailing_calls"
+applies = {}
+rules = ["agentdojo.unexecuted_trailing_calls@1"]
+observed = { head = { calls = 0, logs = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.args_mutated_in_place"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.args_are_effective@1"]
+observed = { head = { files = 857 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.package_version_not_code_identity"
+applies = { variant = ["v1.k14", "v1.k14.incomplete"] }
+rules = ["agentdojo.benchmark_from_dialect@1"]
+observed = { head = { files_without_package_version = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.placeholder_args_never_injection_evidence"
+applies = {}
+rules = ["agentdojo.placeholder_args_ground_truth_only@1"]
+observed = { head = { present = 2473, present_and_null = 2473 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.incomplete_run"
+applies = { variant = ["v1.k14.incomplete"] }
+rules = ["agentdojo.incomplete_run@1"]
+observed = { head = { files = 1, null_outcome_files = 0 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.empty_messages_without_outcome"
+applies = {}
+rules = ["agentdojo.no_execution_observed@1"]
+note = "one adaptive-calibration log holds no message and no outcome"
+observed = { head = { files = 1 } }
+
+[[family.agentdojo.quirk]]
+id = "agentdojo.spotlighting_delimiters"
+applies = { model_dir = ["*/replication_dev/builtin/*"] }
+rules = ["agentdojo.spotlighting_content@1"]
+observed = { head = { logs = 22, logs_with_tool_results = 22 } }
+
+[family.agentdojo.outcomes]
+judgements = [
+  { name = "utility", field = "utility" },
+  { name = "security", field = "security" },
+]
+origin_rules = [
+  "agentdojo.benign_security_constant@1",
+  "agentdojo.dos_security_rule@1",
+  "agentdojo.checker_outcome@1",
+]

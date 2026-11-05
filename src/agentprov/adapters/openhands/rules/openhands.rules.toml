@@ -15,11 +15,15 @@
 # code are deterministic functions of observed fields and are listed as independent (adapters/openhands/citation.py).
 # I rules rest on asserted assumptions. Documentary evidence (READMEs, the paper) never makes a rule D.
 
+# Version 3 (D-1063, regen-batch row 176; review UC-40): the rule openhands.lone_surrogate_replaced@1 and its issue
+# code; version 2, which the sealed corpora openagentsafety-w2 and redcode-exec-openhands-w2 record, ships unchanged as
+# rules/archive/openhands.rules.v2.toml.
+
 [catalogue]
 id = "openhands"
-version = 2
+version = 3
 format = "agentprov-rule-catalogue/0.1"
-issue_codes = ["filtered_events", "content_not_inlined", "not_executed_notice", "harness_error", "call_not_in_response", "unmapped_event", "task_text_not_seen", "join_after_rewrite", "join_unverified", "summary_entry_missing", "state_missing", "eval_missing", "served_model_varies", "unexpected_cause_target", "lone_observation", "value_redacted"]
+issue_codes = ["filtered_events", "content_not_inlined", "not_executed_notice", "harness_error", "call_not_in_response", "unmapped_event", "task_text_not_seen", "join_after_rewrite", "join_unverified", "summary_entry_missing", "state_missing", "eval_missing", "served_model_varies", "unexpected_cause_target", "lone_observation", "value_redacted", "lone_surrogate_replaced"]
 subtypes = ["openhands.finish_call"]
 types = ["openhands:recall", "openhands:workspace_context", "openhands:recall_result", "openhands:controller_notice", "openhands:notice_text", "openhands:harness_error", "openhands:error_text", "openhands:unmapped_event", "openhands:event_payload"]
 
@@ -917,3 +921,16 @@ code = []
 evidence = ["docs/reports/phase10g/README.md §6.4", "D.17.10"]
 tests = ["tests/adapters/openhands/test_rules.py::test_every_declared_rule_is_exercised"]
 since = "0.1.0"
+
+[[rule]]
+id = "openhands.lone_surrogate_replaced"
+version = 1
+class = "D"
+status = "active"
+statement = "A lone UTF-16 surrogate in the source (an escaped \\ud800-\\udfff code unit the strict loader keeps, e.g. an emoji cut in half) is replaced by U+FFFD where the AER needs a Unicode scalar string: a typed string field, or an object key. A $utf16 value in a Json field is kept. The pointer cites this rule and the seal lists the records under the info issue openhands.lone_surrogate_replaced; the original stays in the raw store (the D-378 pass; review UC-40; DECISIONS D-1063). A text transformation by AgentPROV, independent of the producing code."
+premises = []
+assumptions = []
+code = []
+evidence = ["DECISIONS D-378", "docs/reports/review-uncovered/findings.md UC-40", "DECISIONS D-1063"]
+tests = ["tests/adapters/openhands/test_uc39_41.py::test_a_lone_surrogate_in_a_typed_field_is_replaced"]
+since = "0.2.0"

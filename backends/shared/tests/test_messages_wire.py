@@ -321,3 +321,25 @@ def test_no_egress_proxy_leaves_the_transport_direct(monkeypatch):
     monkeypatch.setenv("AGENTPROV_EGRESS_PROXY", "")
     assert egress_proxy() is None
     assert type(default_async_inner_transport(httpx)._pool).__name__ == "AsyncConnectionPool"
+
+
+def test_a_messages_usage_count_beyond_2_53_is_left_out_of_usage_and_noted(tmp_path):
+    """AU-NC-201 on the Messages wire: the count stays out of `usage` and is named in a note; the log verifies."""
+    from agentprov_capture.verify import verify_file
+
+    usage = {"input_tokens": 2**60, "output_tokens": 3, "cache_read_input_tokens": 2**53 - 1,
+             "cache_creation_input_tokens": 2**53}
+    session = _session(tmp_path)
+    rec = WireRecorder(session, api="anthropic_messages")
+    transport = AsyncRecordingTransport(ScriptedTransport([MessagesReply.text("x", usage=usage)]), rec, module=httpx)
+    with session.span("agent", "agent", NATIVE):
+        asyncio.run(_post(transport, [_body(3)]))
+    head = session.close("complete")
+    events = _events(session)
+    (resp,) = [e["data"] for e in events if e["type"] == "llm.response"]
+    assert resp["status"] == "kept" and resp["usage"] == {"output_tokens": 3, "cache_read_tokens": 2**53 - 1}
+    (note,) = [e["data"]["payload"] for e in events
+               if e["type"] == "note" and e["data"]["kind"] == "usage_out_of_range"]
+    assert note == {"call": "c0", "members": ["input_tokens", "cache_creation_input_tokens"]}
+    report = verify_file(session.capture_path)
+    assert report.sealed and report.head == head and not report.issues

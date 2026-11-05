@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from agentprov import drain
+from agentprov.cli.common import interrupts_deferred
 from agentprov.cli.live import staging as st
 from agentprov.cli.live.envs import EnvIdentity, check_hello
 from agentprov.cli.live.quality import SessionQuality, canary_conditions, quality_report, session_quality
@@ -153,6 +154,7 @@ class Slot:
         self.index = index
         self.campaign = campaign
         self.worker: BackendWorker | None = None
+        self._lock = threading.Lock()  # serialises reset/shutdown: the main thread and the attempt's thread both reset
         self.started_cells = 0
         self.hello: dict[str, Any] | None = None
         self.dirs: list[Path] = []
@@ -189,15 +191,22 @@ class Slot:
         return [d / "worker.stderr.log" for d in self.dirs if d.parent == self.campaign.staging_root]
 
     def reset(self) -> None:
-        if self.worker is not None:
-            self.worker.kill()
-            self.worker.close()
-            self.worker = None
+        """Kill and close the slot's worker, if any. Atomic and idempotent (AU-LIVE-2): on a stop the main thread resets
+        every slot while an attempt's thread, woken by that kill, resets its own; only one of them takes the worker, and
+        the other returns once the worker is dead (so the parent's terminal event goes to a log nothing writes)."""
+        with self._lock:
+            worker, self.worker = self.worker, None
+            if worker is not None:
+                try:
+                    worker.kill()
+                finally:
+                    worker.close()
 
     def shutdown(self) -> None:
-        if self.worker is not None:
-            self.worker.shutdown()
-            self.worker = None
+        with self._lock:
+            worker, self.worker = self.worker, None
+            if worker is not None:
+                worker.shutdown()
 
 
 @dataclass
@@ -282,6 +291,9 @@ class Campaign:
         self.ledger = ledger
         self.progress = progress
         self.qualities: list[SessionQuality] = []
+        #: AU-RN-9: each ledgered session's quality facts as :meth:`report` reads them from the raw store, keyed on
+        #: (session, capture_sha256): parsed once per campaign, not on every write of the documents
+        self._quality_cache: dict[tuple[str, Any], SessionQuality] = {}
         self.notices: list[str] = []
         self.drained = False
         self.counters: dict[str, int] = {k: 0 for k in (
@@ -293,6 +305,9 @@ class Campaign:
         self._stop = threading.Event()  # set when the campaign stops: no unit starts after it (N.1.10(2))
         self.slots = [Slot(i, self) for i in range(jobs)]
         self._free: list[Slot] = list(self.slots)
+        #: under caps, each submitted attempt not yet ledgered, with the event it sets just before ``run_cell``
+        #: (``Budget.started_cells`` counts them; AU-LIVE-3)
+        self._started: dict[Future[AttemptResult | None], threading.Event] = {}
         self.on_step = self._on_step
 
     # -------------------------------------------------------------------------------------- feedback
@@ -302,8 +317,9 @@ class Campaign:
         self.progress.emit(ProgressEvent("step", stage=str(kind)[:32], fields={k: fields[k] for k in sorted(fields)[:12]}))
 
     # -------------------------------------------------------------------------------------- one attempt (worker thread)
-    def _run_attempt(self, slot: Slot, task: Task) -> AttemptResult | None:
-        """One attempt; ``None`` when the campaign stopped before it started (nothing was created or run)."""
+    def _run_attempt(self, slot: Slot, task: Task, sent: threading.Event | None = None) -> AttemptResult | None:
+        """One attempt; ``None`` when the campaign stopped before it started (nothing was created or run). ``sent`` is
+        set just before ``run_cell`` is sent: from then on the cell may have made paid calls."""
         if slot.started_cells == 0 and self.start_stagger > 0 and self.jobs > 1:
             self._stop.wait(slot.index * self.start_stagger / self.jobs)
         if self._stop.is_set():
@@ -330,6 +346,8 @@ class Campaign:
             self._req += 1
             req = self._req
         self.progress.emit(ProgressEvent("unit_start", unit=task.cell_key))
+        if sent is not None:
+            sent.set()
         try:
             reply = worker.request(
                 "run_cell", "cell_done", self.cell_timeout, req=req, cell=dict(task.cell), agent=self.agent,
@@ -375,7 +393,8 @@ class Campaign:
         stderr = [p for s in self.slots for p in s.stderr_files]
         hits = st.scan_secrets(result.session_dir, self.redactor, extra_files=stderr, limits=self.pipeline.limits)
         if self.redactor is not None:  # the bytes that will be stored, as read: no name the walk skips, no second read
-            hits += [f.label for f in files.files if f.label not in hits and self.redactor.contains_secret(f.data)]
+            hits += [f.label for f in files.files if f.label not in hits
+                     and st.holds_secret(f.data, self.redactor, self.pipeline.limits)]  # zip members too (AU-LIVE-4)
         entry: dict[str, Any] = {
             "session": result.session, "ex": "ex_" + result.session, "cell_key": task.cell_key,
             "config_digest": self.config_digest, "repeat": task.repeat, "attempt": task.attempt,
@@ -474,8 +493,15 @@ class Campaign:
                 if reason is not None:
                     self.cap_stop = self.cap_stop or reason
                     return False
+            sent = threading.Event()
+            if self.budget is not None:  # AU-LIVE-3: counted in live.caps before the cell can make a paid call, so a
+                self.budget.started_cells += 1  # cell killed before it is ledgered is still charged on resume
+                write_documents()
             slot = self._free.pop()
-            futures[executor.submit(self._run_attempt, slot, task)] = slot
+            future = executor.submit(self._run_attempt, slot, task, sent)
+            futures[future] = slot
+            if self.budget is not None:
+                self._started[future] = sent
             return True
 
         while queue_ or futures:
@@ -491,14 +517,20 @@ class Campaign:
                 break
             done, _ = wait(list(futures), return_when=FIRST_COMPLETED)
             for future in done:
-                self._free.append(futures.pop(future))
-                result = future.result()
-                if result is None:
-                    continue
-                self.counters["attempted"] += 1
-                entry = self._ingest(result)
-                self.ledger.entries.append(entry)
-                write_documents()
+                # AU-RN-7: a finished attempt leaves the in-flight set only together with its ledger entry; a first
+                # interrupt (a signal or a jobs stop) that lands meanwhile is raised once the entry is written, so the
+                # corpus never holds an execution its ledger lacks (a resume would run the unit again)
+                with interrupts_deferred():
+                    self._free.append(futures.pop(future))
+                    result = future.result()
+                    if result is None:
+                        self._settle(future)
+                        continue
+                    self.counters["attempted"] += 1
+                    entry = self._ingest(result)
+                    self.ledger.entries.append(entry)
+                    self._settle(future)
+                    write_documents()
                 if entry["status"] != "quarantined":
                     out.append(self.qualities[-1])
                     queue_.insert(0, (result.task.cell, result.task.repeat))  # a re-attempt, if one is due
@@ -536,28 +568,31 @@ class Campaign:
                                     "the same command to resume")
         except KeyboardInterrupt:
             self._stop.set()  # first: a slot still in its start stagger never starts
-            for slot in self.slots:
-                slot.reset()  # the in-flight attempts return "aborted" with the parent's terminal event
+            self._reset_all()  # the in-flight attempts return "aborted" with the parent's terminal event
             for future in list(futures):
                 try:
                     result = future.result(timeout=60)
                 except Exception:  # noqa: BLE001
                     continue
                 if result is None:
+                    self._settle(future)
                     continue
                 self.counters["attempted"] += 1
                 self.ledger.entries.append(self._ingest(result))
+                self._settle(future)
             write_documents()
             raise
         except BaseException:
             # a campaign-aborting error (an identity mismatch, a worker that fails hello): the other in-flight workers
             # are killed, not waited for (N.1.10(4)); their sessions stay in staging, unledgered, for the user
             self._stop.set()
-            for slot in self.slots:
-                slot.reset()
+            self._reset_all()
             raise
         finally:
             executor.shutdown(wait=True)
+            for future, sent in list(self._started.items()):
+                if not sent.is_set():  # it never sent run_cell, so it spent nothing; the others stay counted
+                    self._settle(future)
             self._close_slots()
         touched = [k for k in keys if k not in before and self.ledger.attempts(k)]
         for key in touched:
@@ -569,6 +604,22 @@ class Campaign:
                 self.counters["inconclusive"] += 1
         self.counters["derived"] = int(self.pipeline.counters["derived"])
         self.counters["failed"] = int(self.pipeline.counters["failed"]) + self.counters["quarantined"]
+
+    def _settle(self, future: Future[AttemptResult | None]) -> None:
+        """The attempt of ``future`` is ledgered (its capture log is charged) or never sent ``run_cell``: it no longer
+        counts in ``live.caps.unledgered_cells`` (AU-LIVE-3)."""
+        if self._started.pop(future, None) is not None and self.budget is not None:
+            self.budget.started_cells -= 1
+
+    def _reset_all(self) -> None:
+        """Kill every slot's worker on a stop (N.1.10(4)). A slot whose reset fails is logged and the others are still
+        reset, so the stop's own exception (KeyboardInterrupt: exit 130) is the one that propagates and no worker is
+        left running its cell while the command waits for it (AU-LIVE-2)."""
+        for slot in self.slots:
+            try:
+                slot.reset()
+            except Exception as exc:  # noqa: BLE001 - one slot's failure never keeps the others' workers alive
+                _LOG.warning("live: resetting worker slot %d failed on stop: %s", slot.index, type(exc).__name__)
 
     def _close_slots(self) -> None:
         for slot in self.slots:
@@ -587,7 +638,11 @@ class Campaign:
     def report(self) -> dict[str, Any]:
         """``live.quality`` (D.10.9; N.2.1b item 12): rebuilt from every ledgered session's stored capture log, so it is
         a pure function of the corpus whatever this invocation ingested (D-542). A quarantined session stored nothing
-        and is not counted; a session without a capture log counts with no facts."""
+        and is not counted; a session without a capture log counts with no facts.
+
+        Each session's facts are read once (AU-RN-9): the first report of an invocation reads the earlier invocations'
+        sessions, later ones only the sessions ingested since. Stored objects never change, so the cached facts equal
+        a fresh read; facts read while the log or one of its blobs was absent are not kept and are read again."""
         per_cell: dict[str, int] = {}
         qualities: list[SessionQuality] = []
         for e in self.ledger.entries:
@@ -595,7 +650,13 @@ class Campaign:
             per_cell[k] = per_cell.get(k, 0) + 1
             if e.get("status") == "quarantined":
                 continue
-            qualities.append(self._stored_quality(e))
+            key = (str(e["session"]), e.get("capture_sha256"))
+            quality = self._quality_cache.get(key)
+            if quality is None:
+                quality, complete = self._stored_quality(e)
+                if complete:
+                    self._quality_cache[key] = quality
+            qualities.append(quality)
         return quality_report(qualities, per_cell)
 
     def _stored_log(self, entry: Mapping[str, Any]) -> bytes | None:
@@ -609,22 +670,25 @@ class Campaign:
             return None
         return data
 
-    def _stored_quality(self, entry: Mapping[str, Any]) -> SessionQuality:
-        """One ledgered session's quality facts, read from the raw store (``capture_sha256``) as ``_ingest`` reads them."""
+    def _stored_quality(self, entry: Mapping[str, Any]) -> tuple[SessionQuality, bool]:
+        """One ledgered session's quality facts, read from the raw store (``capture_sha256``) as ``_ingest`` reads them,
+        and whether every object read was present (``False``: a later read may find more)."""
         store = self.writer.store
         sha = entry.get("capture_sha256")
         if not isinstance(sha, str):
-            return SessionQuality(session=str(entry["session"]), cell_key=str(entry["cell_key"]))
+            return SessionQuality(session=str(entry["session"]), cell_key=str(entry["cell_key"])), True
+        missing: list[str] = []
 
         def read(digest: str) -> bytes | None:
             try:
                 return store.read_bytes(digest)
             except (KeyError, OSError):
+                missing.append(digest)
                 return None
 
         log = read(sha)
         if log is None:
-            return SessionQuality(session=str(entry["session"]), cell_key=str(entry["cell_key"]))
+            return SessionQuality(session=str(entry["session"]), cell_key=str(entry["cell_key"])), False
         quality = session_quality(str(entry["session"]), log, read, limits=self.pipeline.limits)
         quality.cell_key = quality.cell_key or str(entry["cell_key"])
-        return quality
+        return quality, not missing

@@ -4,9 +4,10 @@ A batch is the core's (:mod:`agentprov.jobs.batch`): ``$AGENTPROV_HOME/batches/<
 (``agentprov batch run ID``; user decision 2026-10-22), so it advances whether or not the GUI is open. The GUI
 **creates** one with ``agentprov batch create --stdin`` (the steps as JSON on stdin), **starts** it with ``batch start``
 (``--confirm-r2`` when the user started it in this session, which is the confirmation of its R2 steps), **resumes** a
-held one with ``batch resume --confirm-r2`` after the tier confirmation, and **stops** it with ``batch stop``. It reads
-the batch files strictly to show them (:class:`Batch`); the CLI checks every step again before it starts (GR-4), holds
-R2 steps under an unconfirmed driver (GR-48) and blocks the rest when the checkout changed (GR-70).
+held one with ``batch resume --confirm-r2`` after the tier confirmation, and **stops** it, its driver and every running
+step job, with ``batch stop --steps``. It reads the batch files strictly to show them (:class:`Batch`); the CLI checks
+every step again before it starts (GR-4), holds R2 steps under an unconfirmed driver (GR-48) and blocks the rest when the
+checkout changed (GR-70).
 """
 
 from __future__ import annotations
@@ -19,7 +20,8 @@ from typing import Any, Final
 
 from agentprov.jobs.record import batches_dir, read_json
 
-from agentprov_gui.jobs.commands import JobSpec, tier_of_argv
+from agentprov_gui import platform_limits
+from agentprov_gui.jobs.commands import FORMS, JobSpec, build_spec, tier_of_argv
 from agentprov_gui.jobs.manager import JobManager, SpawnRefused
 
 __all__ = ["BATCH_FORMAT", "Batch", "BatchStep", "create", "resume", "start", "stop"]
@@ -109,7 +111,8 @@ def _step_json(spec: JobSpec) -> dict[str, Any]:
     if spec.slot:
         out["slot"] = spec.slot
     cpu = extra.get("queue_cpu")
-    if isinstance(cpu, int) and not isinstance(cpu, bool):
+    # D-1064: no queue step where the CLI refuses the job queue (it would refuse the whole batch)
+    if isinstance(cpu, int) and not isinstance(cpu, bool) and platform_limits.current().get("job_queue") is None:
         out["queue_cpu"] = cpu
     if extra.get("progress_level") == "steps":
         out["progress_level"] = "steps"
@@ -151,5 +154,16 @@ def resume(manager: JobManager, batch_id: str, *, confirm_r2: bool) -> str:
     return str(_json_out(*manager.call(argv))["driver_job_id"])
 
 
-def stop(manager: JobManager, batch_id: str, *, steps: bool = False) -> bool:
-    return manager.call(["batch", "stop", batch_id, *(["--steps"] if steps else [])])[0] == 0
+def stop_argv(batch_id: str, *, steps: bool = False, wait_s: float = 5.0, fmt: str | None = "json") -> tuple[str, ...]:
+    """``agentprov batch stop``'s argv, built from its form: the one builder of Stop Batch's action and of its terminal
+    card (AU-NG-3; the card leaves out ``--format``, as every job card does)."""
+    values = {"batch_id": batch_id, "steps": steps, "wait": max(0.0, min(600.0, wait_s)), "format": fmt}
+    return build_spec(FORMS["batch_stop"], values).argv
+
+
+def stop(manager: JobManager, batch_id: str, *, steps: bool = False, wait_s: float = 5.0) -> dict[str, Any]:
+    """``agentprov batch stop --format json`` (``--steps``: the whole batch, its driver and every running step job):
+    the CLI's report, ``driver``, ``steps_stopped``, ``steps_unsignalled`` and ``still_running``. Exit 1 (a step job
+    that could not be signalled) still returns the report; any other refusal raises :class:`SpawnRefused`."""
+    code, out, err = manager.call(list(stop_argv(batch_id, steps=steps, wait_s=wait_s)))
+    return _json_out(0 if code == 1 else code, out, err)

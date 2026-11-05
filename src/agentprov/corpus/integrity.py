@@ -31,7 +31,10 @@ from __future__ import annotations
 
 import hashlib
 import os
-from collections.abc import Callable, Iterable, Iterator, Mapping
+import threading
+import zlib
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any, Final, Protocol
@@ -41,11 +44,14 @@ from agentprov.corpus.layout import (
     CHECKSUMS,
     SealedCorpusError,
     TreeFinding,
+    TreeScan,
     assert_writable,
     classify_relpath,
     iter_tree,
 )
 from agentprov.errors import AgentProvError, IngestError
+from agentprov.ingest import paths as _paths
+from agentprov.ingest.names import logical_name
 from agentprov.ingest.paths import STORED_OBJECT_LIMITS, RootHandle, open_evidence, open_root
 from agentprov.io.atomic import atomic_write_bytes
 from agentprov.io.canonical import is_sha256_hex, jcs_bytes
@@ -61,6 +67,7 @@ __all__ = [
     "TreeSource",
     "content_digest",
     "file_sha256",
+    "hash_threads",
     "parse_checksums",
     "root_digest",
     "set_digest",
@@ -77,6 +84,11 @@ CONTENT_DIGEST_EXCLUDED: Final = frozenset({"content_digest", "release", "sealed
 _CHUNK: Final = 1 << 20
 #: A checksums line is 64 hex + 2 spaces + a path of at most 200 characters + LF.
 _MAX_LINE: Final = 64 + 2 + 200 + 1
+#: The most threads the ``checksums`` level hashes with (P3). Reading and hashing release the interpreter lock, the
+#: per-file bookkeeping does not, so more threads than this only add contention.
+MAX_HASH_THREADS: Final = 8
+#: Files hashed per task: one task opens its directory once and hashes up to this many of its files.
+_TASK_FILES: Final = 256
 
 
 class IntegrityError(AgentProvError):
@@ -124,6 +136,40 @@ def _hash_stream(stream: IO[bytes]) -> tuple[str, int]:
         digest.update(chunk)
         size += len(chunk)
     return digest.hexdigest(), size
+
+
+def hash_threads() -> int:
+    """The threads the ``checksums`` level hashes with: the host's CPU count, at most :data:`MAX_HASH_THREADS` (P3). It
+    changes timing only: the findings, the counters and their order never depend on it, and it is recorded nowhere."""
+    return max(1, min(os.cpu_count() or 1, MAX_HASH_THREADS))
+
+
+@dataclass(frozen=True, slots=True)
+class _Hashed:
+    """One file read once: its sha256 (hex), its size and, when asked for, its CRC-32 (8 hex digits)."""
+
+    sha256: str
+    size: int
+    crc32: str | None = None
+
+
+#: A file's outcome: hashed, or the exception its open or read raised (reported, or re-raised, by the caller in order).
+_Outcome = _Hashed | Exception
+
+
+def _hash_opened(opener: Callable[[str], IO[bytes]], path: str, crc: bool) -> _Outcome:
+    """Open ``path`` with ``opener`` and hash it (and CRC-32 it when ``crc``), or return the exception that stopped it."""
+    try:
+        with opener(path) as stream:
+            digest, value, size = hashlib.sha256(), 0, 0
+            while chunk := stream.read(_CHUNK):
+                digest.update(chunk)
+                if crc:
+                    value = zlib.crc32(chunk, value)
+                size += len(chunk)
+    except Exception as exc:  # returned: the caller reports it, or re-raises it, in the listed order
+        return exc
+    return _Hashed(digest.hexdigest(), size, f"{value:08x}" if crc else None)
 
 
 def file_sha256(root: str | os.PathLike[str], label: str) -> str:
@@ -256,18 +302,38 @@ class ChecksumSource(Protocol):
 
 class TreeSource:
     """A corpus tree on disk (H.5.5 tree mode): listed with :func:`agentprov.corpus.layout.iter_tree`, opened with
-    :func:`agentprov.ingest.paths.open_evidence` (no link followed; hard links admitted, D-32)."""
+    :func:`agentprov.ingest.paths.open_evidence` (no link followed; hard links admitted, D-32).
+
+    **Directory descriptors (P3).** Under the ``native`` no-follow mechanism a file is opened relative to a descriptor of
+    its directory. That descriptor is reached from the root's descriptor one component at a time by the component opener
+    of :mod:`agentprov.ingest.paths` (no link followed in any component), the walk ``open_evidence`` itself does for a
+    label; the label is checked as a whole first (:func:`~agentprov.ingest.names.logical_name`) and the leaf is opened by
+    ``open_evidence`` relative to the directory's descriptor (``lstat`` first, then the regular-file, link-count and size
+    checks on the open descriptor). So every refusal (``ingest.path.symlink``, ``ingest.path.special``, a missing
+    component, an ``OSError``) is the one the per-label walk gives, in the same order. A directory's descriptor is kept
+    while consecutive opens stay in that directory (:meth:`open`) or for one task's files (:meth:`hash_files`), as the
+    root's descriptor is kept for the whole run, and closed afterwards. Under the ``verify_identity`` mechanism (no
+    descriptors) every label is opened from the root, as before.
+
+    :meth:`present` keeps its scan (:attr:`scan`), so a verifier that needs the files present again need not walk the
+    tree a second time.
+    """
 
     def __init__(self, root: str | os.PathLike[str]) -> None:
         self.root = Path(root)
         self._handle: RootHandle | None = None
         self.checksums_refused: str | None = None
+        self.scan: TreeScan | None = None
+        self._lock = threading.Lock()
+        self._dir: tuple[str, int] | None = None  # (directory label, its descriptor) of the last open()
 
     def __enter__(self) -> TreeSource:
         self._handle = open_root(self.root)
         return self
 
     def __exit__(self, *exc: object) -> None:
+        with self._lock:
+            self._release_dir()
         if self._handle is not None:
             self._handle.close()
             self._handle = None
@@ -288,16 +354,129 @@ class TreeSource:
 
     def present(self) -> tuple[list[str], list[ChecksumFinding]]:
         scan = iter_tree(self.root)
+        self.scan = scan
         labels = [label for label in scan.labels() if label != CHECKSUMS]
         return labels, [_tree_finding(f) for f in scan.findings]
 
-    def open(self, path: str) -> IO[bytes]:
+    # ------------------------------------------------------------------------------------ opening
+    def _from_root(self, path: str) -> IO[bytes]:
         root: RootHandle | Path = self._handle if self._handle is not None else self.root
         return open_evidence(root, path, STORED_OBJECT_LIMITS, allow_hardlinks=True)
+
+    def _descriptors(self) -> RootHandle | None:
+        """The root handle when files are opened relative to directory descriptors (``native``), else ``None``."""
+        handle = self._handle
+        return handle if handle is not None and handle.fd >= 0 else None
+
+    @staticmethod
+    def _open_dir(handle: RootHandle, directory: str) -> int:
+        """An owned descriptor of the directory ``directory`` (a non-empty label), reached from the root's descriptor one
+        component at a time by ``ingest.paths``'s component opener: no link is followed, and a component that is
+        missing, a link or not a directory raises what the per-label walk raises."""
+        current = handle.fd
+        opened: list[int] = []
+        try:
+            for part in directory.split("/"):
+                current = _paths._open_at(current, part, directory=True)
+                opened.append(current)
+        except BaseException:
+            for fd in opened:
+                os.close(fd)
+            raise
+        for fd in opened[:-1]:
+            os.close(fd)
+        return current
+
+    def _release_dir(self) -> None:
+        if self._dir is not None:
+            os.close(self._dir[1])
+            self._dir = None
+
+    def open(self, path: str) -> IO[bytes]:
+        handle = self._descriptors()
+        if handle is None or "/" not in path:
+            return self._from_root(path)
+        logical_name(path, STORED_OBJECT_LIMITS, portable=False)  # the whole label first, as open_evidence checks it
+        directory, _, name = path.rpartition("/")
+        with self._lock:
+            if self._dir is None or self._dir[0] != directory:
+                self._release_dir()
+                self._dir = (directory, self._open_dir(handle, directory))
+            return open_evidence(self._dir[1], name, STORED_OBJECT_LIMITS, allow_hardlinks=True)
+
+    def hash_files(self, paths: Sequence[str], *, threads: int, crc32_of: Callable[[str], bool] | None = None
+                   ) -> list[_Outcome]:
+        """Hash every file of ``paths`` once (and CRC-32 the files ``crc32_of`` names) on up to ``threads`` threads. The
+        outcomes are in the order of ``paths``; each is the one :meth:`open` and a read give for that path alone."""
+        crc = [bool(crc32_of(p)) if crc32_of is not None else False for p in paths]
+        handle = self._descriptors()
+        tasks: list[tuple[str, list[int]]]
+        if handle is None:
+            tasks = [("", [i]) for i in range(len(paths))]
+        else:
+            by_dir: dict[str, list[int]] = {}
+            for i, path in enumerate(paths):
+                by_dir.setdefault(path.rpartition("/")[0], []).append(i)
+            tasks = [(directory, indices[k : k + _TASK_FILES]) for directory, indices in by_dir.items()
+                     for k in range(0, len(indices), _TASK_FILES)]
+        outcomes: list[_Outcome | None] = [None] * len(paths)
+
+        def run(task: tuple[str, list[int]]) -> None:
+            directory, indices = task
+            if handle is None or not directory:
+                for i in indices:
+                    outcomes[i] = _hash_opened(self._from_root, paths[i], crc[i])
+                return
+            pending: list[int] = []
+            for i in indices:  # the whole label first, before any directory is opened (open_evidence's order)
+                try:
+                    logical_name(paths[i], STORED_OBJECT_LIMITS, portable=False)
+                except Exception as exc:  # this path's outcome
+                    outcomes[i] = exc
+                else:
+                    pending.append(i)
+            if not pending:
+                return
+            try:
+                fd = self._open_dir(handle, directory)
+            except Exception as exc:  # what the per-label walk raises, for every file of the directory
+                for i in pending:
+                    outcomes[i] = exc
+                return
+            try:
+                def leaf(path: str) -> IO[bytes]:
+                    return open_evidence(fd, path.rpartition("/")[2], STORED_OBJECT_LIMITS, allow_hardlinks=True)
+
+                for i in pending:
+                    outcomes[i] = _hash_opened(leaf, paths[i], crc[i])
+            finally:
+                os.close(fd)
+
+        if threads <= 1 or len(tasks) <= 1:
+            for task in tasks:
+                run(task)
+        else:
+            with ThreadPoolExecutor(max_workers=min(threads, len(tasks)), thread_name_prefix="agentprov-hash") as pool:
+                for _ in pool.map(run, tasks):
+                    pass
+        done = [o for o in outcomes if o is not None]
+        assert len(done) == len(paths)
+        return done
 
 
 def _tree_finding(finding: TreeFinding) -> ChecksumFinding:
     return ChecksumFinding(finding.code, finding.label, finding.detail)
+
+
+def _hash_all(source: ChecksumSource, paths: Sequence[str], threads: int,
+              crc32_of: Callable[[str], bool] | None) -> list[_Outcome]:
+    """Every listed file's outcome, in order: the source's own parallel hashing when it has one (a tree), else one file
+    after the other through :meth:`ChecksumSource.open` (an archive)."""
+    hash_files = getattr(source, "hash_files", None)
+    if hash_files is not None:
+        outcomes: list[_Outcome] = hash_files(paths, threads=threads, crc32_of=crc32_of)
+        return outcomes
+    return [_hash_opened(source.open, p, bool(crc32_of(p)) if crc32_of is not None else False) for p in paths]
 
 
 def verify_checksum_source(
@@ -305,10 +484,18 @@ def verify_checksum_source(
     *,
     closed_world: bool = True,
     on_match: Callable[[str, str, int], None] | None = None,
+    threads: int | None = None,
+    crc32_of: Callable[[str], bool] | None = None,
+    on_crc32: Callable[[str, str], None] | None = None,
 ) -> ChecksumReport:
     """The ``checksums`` level over any :class:`ChecksumSource` (see :func:`verify_checksums`). ``on_match(path, hex,
-    size)`` is called for every listed file whose bytes matched (the ``chain`` level reuses the digests: a raw object
-    whose listed digest equals its address need not be read again)."""
+    size)`` is called for every listed file whose bytes matched, in the order of ``checksums.sha256`` (the ``chain``
+    level reuses the digests: a raw object whose listed digest equals its address need not be read again).
+
+    P3: a tree source hashes the listed files on ``threads`` threads (default :func:`hash_threads`), each file read once;
+    the outcomes are taken in the listed order, so neither the report nor the callbacks depend on the thread count.
+    ``crc32_of(path)`` names the files whose CRC-32 is computed in the same read, and ``on_crc32(path, crc)`` receives it
+    for those that matched (the ``chain`` level's member check, AD-12)."""
     data = source.read_checksums()
     entries: list[ChecksumEntry]
     findings: list[ChecksumFinding]
@@ -320,23 +507,25 @@ def verify_checksum_source(
     else:
         entries, findings = parse_checksums(data)
     matched = 0
-    for entry in entries:
-        try:
-            with source.open(entry.path) as stream:
-                digest, size = _hash_stream(stream)
-        except FileNotFoundError:
+    outcomes = _hash_all(source, [e.path for e in entries], hash_threads() if threads is None else threads, crc32_of)
+    for entry, outcome in zip(entries, outcomes, strict=True):
+        if isinstance(outcome, FileNotFoundError):
             findings.append(ChecksumFinding("checksums.missing", entry.path))
             continue
-        except IngestError as exc:
-            findings.append(ChecksumFinding("checksums.unreadable", entry.path, exc.code))
+        if isinstance(outcome, IngestError):
+            findings.append(ChecksumFinding("checksums.unreadable", entry.path, outcome.code))
             continue
-        except OSError as exc:
-            findings.append(ChecksumFinding("checksums.unreadable", entry.path, type(exc).__name__))
+        if isinstance(outcome, OSError):
+            findings.append(ChecksumFinding("checksums.unreadable", entry.path, type(outcome).__name__))
             continue
-        if digest == entry.sha256:
+        if isinstance(outcome, Exception):
+            raise outcome
+        if outcome.sha256 == entry.sha256:
             matched += 1
             if on_match is not None:
-                on_match(entry.path, digest, size)
+                on_match(entry.path, outcome.sha256, outcome.size)
+            if on_crc32 is not None and outcome.crc32 is not None:
+                on_crc32(entry.path, outcome.crc32)
         else:
             findings.append(ChecksumFinding("checksums.mismatch", entry.path))
     if closed_world:

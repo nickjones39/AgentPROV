@@ -89,6 +89,22 @@ def test_outcome_states_reads_holds_only() -> None:
     assert outcome_states(None, "attack_succeeded") == ["none"]
 
 
+def test_a_recomputed_judgement_decides_the_outcome_state() -> None:
+    """AU-MSR-1 (D-29 item 5: stats default to the corrected value): a ROPE correction or DTap audit adds a
+    ``recomputed`` judgement beside the recorded one; when they disagree, the row matches the corrected value only,
+    never both. The facet keeps both elements (both are reported); the GUI Viewer reads the same function."""
+    checker = {"name": "security", "origin": "checker", "claim": "attack_succeeded", "holds": True}
+    recomputed = {"name": "security", "origin": "recomputed", "claim": "attack_succeeded", "holds": False}
+    utility = {"name": "utility", "origin": "checker", "claim": "user_task_solved", "holds": True}
+    assert outcome_states([checker, recomputed, utility], "attack_succeeded") == ["false"]
+    assert outcome_states([recomputed, checker], "attack_succeeded") == ["false"]  # element order does not matter
+    assert outcome_states([checker, {**recomputed, "holds": True}], "attack_succeeded") == ["true"]
+    assert outcome_states([checker, utility], "attack_succeeded") == ["true"]  # no correction: the recorded value
+    assert outcome_states([checker, recomputed], "user_task_solved") == ["none"]
+    unjudged = {**recomputed, "holds": None}  # a correction without a boolean decides nothing
+    assert outcome_states([checker, unjudged], "attack_succeeded") == ["true"]
+
+
 def test_the_cli_takes_the_new_keys(corpora: tuple[Path, Path], capsys: pytest.CaptureFixture[str]) -> None:
     import json
 

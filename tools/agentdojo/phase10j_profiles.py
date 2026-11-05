@@ -34,6 +34,7 @@ import os
 import subprocess
 import sys
 import time
+import tomllib
 import zlib
 from collections.abc import Iterator, Mapping
 from multiprocessing import Pool
@@ -389,14 +390,21 @@ def write_observed(profile_path: Path, reports: dict[str, Path]) -> list[str]:
                 j += 1
             qid = next(b.split("=", 1)[1].strip().strip('"') for b in block if b.startswith("id = "))
             body = [b for b in block[1:] if not b.startswith("observed = ")]
-            parts = []
-            for part in sorted(measured):
+            # The parts not given in --report keep their declared counts, and a reported part whose report does not
+            # measure this quirk keeps its old counts (never an empty table).
+            old = next((tomllib.loads(b)["observed"] for b in block if b.startswith("observed = ")), {})
+            values: dict[str, dict[str, Any]] = {p: dict(v) for p, v in old.items()}
+            for part in measured:
                 counts = measured[part].get(qid, {})
                 keys = OBSERVED_KEYS.get(qid, tuple(sorted(counts)))
-                inner = ", ".join(f"{k} = {counts.get(k, 0)}" for k in keys if k in counts)
+                if any(k in counts for k in keys):
+                    values[part] = {k: counts[k] for k in keys if k in counts}
+            parts = []
+            for part in sorted(values):
+                inner = ", ".join(f"{k} = {json.dumps(v)}" for k, v in values[part].items())
                 key = part if part.replace("_", "").replace("-", "").isalnum() and not part[0].isdigit() else f'"{part}"'
                 parts.append(f"{key} = {{ {inner} }}")
-            out[-1:] = [line, *body, f"observed = {{ {', '.join(parts)} }}"]
+            out[-1:] = [line, *body, *([f"observed = {{ {', '.join(parts)} }}"] if parts else [])]
             changed.append(qid)
             i = j
             continue

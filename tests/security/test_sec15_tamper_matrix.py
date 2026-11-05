@@ -352,9 +352,11 @@ def sealed_members_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def sealed_members(sealed_members_template: Path, tmp_path: Path) -> Path:
     import shutil
 
+    import seal_support as ss
+
     dest = tmp_path / "corpora" / sealed_members_template.name
     shutil.copytree(sealed_members_template, dest, symlinks=True)
-    return dest
+    return ss.writable(dest)  # a sealed tree is read-only, and copytree keeps the modes; the tests tamper with it
 
 
 def _selected(root: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -386,6 +388,30 @@ def test_sec15_chain_checks_member_crc32_and_size_on_a_sealed_corpus_even_after_
     assert run.code == 1 and run.codes() == {"raw.member.crc32": 1, "raw.member.size": 1}
     run = verify(cli, sealed_members, "--level", "checksums", "--root-digest", published)
     assert run.code == 1 and run.codes() == {"root_digest.mismatch": 1}
+
+
+@pytest.mark.slow
+def test_sec15_p3_member_crc32_from_the_checksums_read_gives_the_per_label_report(sealed_members, monkeypatch):
+    """P3: a member object's CRC-32 is computed in the checksums read and the chain does not read it again; the report
+    (findings, counters incl. ``raw_rehashed``, notices) is the per-label walk's, untampered and after a CRC forgery."""
+    from agentprov.corpus.verify import verify_corpus
+
+    def both() -> tuple[str, str]:
+        parallel = json.dumps(verify_corpus(sealed_members, level="chain").to_json(), sort_keys=True)
+        with monkeypatch.context() as patched:
+            vs.per_label_verify(patched)
+            reference = json.dumps(verify_corpus(sealed_members, level="chain").to_json(), sort_keys=True)
+        return parallel, reference
+
+    parallel, reference = both()
+    assert parallel == reference and json.loads(parallel)["ok"]
+    assert json.loads(parallel)["counters"]["raw_rehashed"] > 100  # the member objects, CRC-32 checked
+    items, selected = _selected(sealed_members)
+    selected["crc32"] = "%08x" % ((int(selected["crc32"], 16) + 1) % (1 << 32))
+    vs.write_jsonl(sealed_members / "raw" / "members.jsonl", items)
+    vs.reforge(sealed_members)
+    parallel, reference = both()
+    assert parallel == reference and json.loads(parallel)["counters"]["failed"] == 1
 
 
 @pytest.mark.slow

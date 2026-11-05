@@ -51,7 +51,7 @@ from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, S
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Concatenate, Final, Literal
+from typing import Any, Concatenate, Final, Literal, NamedTuple
 
 from agentprov.adapters.account_paths import account_shapes, covered, redaction_patterns
 from agentprov.adapters.code_verification import rule_class
@@ -90,7 +90,8 @@ from agentprov.envinfo import interpreter_advisory
 from agentprov.errors import AgentProvError, IngestError
 from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.loaders import strict_json_loads
-from agentprov.ingest.paths import PathRejection, discover, open_evidence
+from agentprov.ingest.names import logical_name
+from agentprov.ingest.paths import PathRejection, discover, open_evidence, sibling_verdicts
 from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.io.workers import Job, JobResult, WorkerPool
 from agentprov.progress import NULL_PROGRESS, Progress, ProgressEvent
@@ -358,9 +359,54 @@ class GitPinTree:
         #: the import's limits: a blob over ``max_artefact_bytes`` is one candidate's ``ingest.size.file``, as in the
         #: other trees, never an error that ends the import (ultrareview pipeline #1)
         self.limits = limits or IngestLimits()
-        entries, _skipped = fetcher.git_tree(recipe)
-        self.entries: dict[str, TreeEntry] = {e.path: e for e in entries if e.is_blob}
-        self.rejections: list[PathRejection] = []
+        named = getattr(fetcher, "git_tree_named", None)
+        undecodable: list[str] = []
+        if callable(named):
+            entries, undecodable = named(recipe)
+        else:  # a fetcher without names for its undecodable paths (a test double): none are known
+            entries, _skipped = fetcher.git_tree(recipe)
+        #: AU-IMP-3/4: the tree's names pass the same checks as an ``--input`` tree's (G.3.6; ``discover``): a path that
+        #: is not UTF-8 or is not a valid label (a control character, ``..``) is ``ingest.name.invalid`` and a symlink is
+        #: ``ingest.path.symlink``, each one candidate's ``not_imported`` entry, never a candidate or an aborted import
+        rejected: list[PathRejection] = [PathRejection(path, "ingest.name.invalid", "name not valid UTF-8")
+                                         for path in undecodable]
+        blobs = [entry for entry in entries if entry.is_blob]
+        #: AU-NC-1: discover's per-directory name rules (``sibling_verdicts``), applied to the tree's directories: names
+        #: that collide under case folding or normalisation are all ``ingest.path.duplicate``, and a name not in NFC is
+        #: ``ingest.name.invalid`` (a git path is bytes: its NFC form is another path, as on a normalisation-sensitive
+        #: file system). A rejected directory is one entry, and nothing below it is a candidate, as in ``discover``
+        children: dict[str, set[str]] = {}
+        for entry in blobs:
+            parts = entry.path.split("/")
+            for depth in range(len(parts)):
+                children.setdefault("/".join(parts[:depth]), set()).add(parts[depth])
+        refused: dict[str, PathRejection] = {}
+        for directory, names in children.items():
+            for name, nfc, rejection in sibling_verdicts(sorted(names), lambda _raw, _nfc: False):
+                if rejection is not None:
+                    raw = f"{directory}/{name}" if directory else name
+                    refused[raw] = PathRejection(f"{directory}/{nfc}" if directory else nfc, rejection.code,
+                                                 rejection.detail)
+        reported: set[str] = set()
+        self.entries: dict[str, TreeEntry] = {}
+        for entry in blobs:
+            parts = entry.path.split("/")
+            hit = next((p for p in ("/".join(parts[: depth + 1]) for depth in range(len(parts))) if p in refused), None)
+            if hit is not None:
+                if hit not in reported:
+                    reported.add(hit)
+                    rejected.append(refused[hit])
+                continue
+            try:
+                logical_name(entry.path, self.limits, portable=False)
+            except IngestError as exc:
+                rejected.append(PathRejection(entry.path, exc.code, "label rejected"))
+                continue
+            if entry.is_symlink:
+                rejected.append(PathRejection(entry.path, "ingest.path.symlink", "symbolic link"))
+                continue
+            self.entries[entry.path] = entry
+        self.rejections: list[PathRejection] = sorted(rejected, key=lambda r: r.label.encode("utf-8"))
         #: The cached introducing-commit index of the pin (D.6.16), or None: the origins then carry no ``introduced_in_commit``.
         self.history = fetcher.history_index(recipe)
 
@@ -400,6 +446,18 @@ class GitPinTree:
 
     def snapshot_origin(self) -> dict[str, Any]:
         return {"kind": "git", "repo": self.recipe.repo, "commit": self.recipe.commit, "subtree": ",".join(self.recipe.paths)}
+
+
+#: AU-IMP-2: the parse limits of a JSON document; for the corpus's own bytes they never drop below the G.3.2 defaults
+_PARSE_LIMITS: Final = ("max_json_bytes", "max_jsonl_line_bytes", "max_json_depth", "max_int_digits")
+
+
+def own_bytes_limits(limits: IngestLimits) -> IngestLimits:
+    """The limits for parsing bytes this import wrote itself (an AER header or seal line; AU-IMP-2): the parse limits of
+    ``limits`` never lower than their defaults, as the AER reader and validator parse every AER line. The input limits
+    (``--max-json-depth`` and the others) apply to the source's bytes, not to the corpus's."""
+    defaults = IngestLimits()
+    return limits.replace(**{name: max(getattr(limits, name), getattr(defaults, name)) for name in _PARSE_LIMITS})
 
 
 def size_error(size: int, limit: int) -> IngestError:
@@ -542,27 +600,61 @@ class ArchivePart:
     path: str | None = None
 
 
+class PurgedMember:
+    """AU-NC-2: what :meth:`_MemberTree.read` yields for a selected member whose object a purge removed (a tombstone,
+    D-46): its digest, never bytes. Each reader of a member tree treats it as it treats a purged file of any other tree
+    (resumed or collapsed when the corpus holds its execution, else ``release.withheld``); it is never stored again."""
+
+    __slots__ = ("sha256",)
+
+    def __init__(self, sha256: str) -> None:
+        self.sha256 = sha256
+
+
 class _MemberTree:
     """The selected members of an expanded archive input, read back from the raw store by digest (re-hashed)."""
 
     kind: Final = "member"
     explicit: Final = False
 
-    def __init__(self, store: RawObjectStore, objects: Mapping[str, str]) -> None:
+    def __init__(self, store: RawObjectStore, objects: Mapping[str, str], *, limits: IngestLimits | None = None) -> None:
         self.store, self.objects = store, dict(objects)  # member label -> sha256 (selected members only)
         self.rejections: list[PathRejection] = []
+        #: AU-IMP-9: a member is admitted by ``expand`` under ``max_member_bytes``; as an artefact it is also read under
+        #: the import's ``max_artefact_bytes`` (and the store's own cap, which stores it again), as every other tree
+        #: reads its files (ultrareview pipeline #1): a larger member is that candidate's ``ingest.size.file``
+        self.max_bytes = min((limits or IngestLimits()).max_artefact_bytes, store.limits.max_artefact_bytes)
 
-    def read(self, batch: Sequence[CandidateArtefact]) -> Iterator[tuple[CandidateArtefact, bytes | IngestError]]:
+    def read(self, batch: Sequence[CandidateArtefact]) -> Iterator[
+            tuple[CandidateArtefact, bytes | IngestError | PurgedMember]]:
+        purged = self.store.tombstoned()
         for candidate in batch:
             sha = self.objects.get(candidate.label)
             if sha is None:  # the expand selection is the profile's own globs, so this is a profile or reader defect
                 raise AgentProvError("the reader chose an archive member the profile's selection did not store",
                                      code="adapter.archive_input", exit_code=70)
+            if sha in purged:  # AU-NC-2: re-expanding the archive never stores a purged member again
+                yield candidate, PurgedMember(sha)
+                continue
+            size = self.store.size(sha)
+            if size > self.max_bytes:
+                yield candidate, size_error(size, self.max_bytes)
+                continue
             with self.store.open(sha) as handle:
                 data = handle.read()
             if sha256_hex(data) != sha:
                 raise AgentProvError("a stored member does not hash to its address", code="raw.digest.mismatch")
             yield candidate, data
+
+
+class _NotImported(NamedTuple):
+    """AU-RP-4: how the first stored file with a digest was registered when it is not an execution; its byte-identical
+    copies in the same run are registered the same way (``not_imported``), never collapsed into it."""
+
+    code: str
+    detail: str
+    severity: str = "info"
+    stage: str = "select"
 
 
 class PinCheck:
@@ -571,8 +663,9 @@ class PinCheck:
     * ``blob``: a git pin whose tree listing is in the fetch cache. A file whose label is a path of the pin's tree and
       whose git blob id equals the tree entry's gets the pinned ``git`` origin; any other file keeps its ``local`` origin.
     * ``listing``: a pin that records a J.1.4 tree-listing digest (``listing_sha256``; the AgentDojo-PROV release tree,
-      whose files are not in the commit). When the digest over the candidates equals the pin, every file gets the origin
-      the family's reader assigns to a listing-verified file (``listing_origin(pin, label)``); otherwise all stay ``local``.
+      whose files are not in the commit). When the digest over the candidates equals the pin, every file whose stored
+      bytes are the bytes the check hashed gets the origin the family's reader assigns to a listing-verified file
+      (``listing_origin(pin, label)``; AU-IMP-5); any other file stays ``local``.
     """
 
     def __init__(
@@ -586,11 +679,30 @@ class PinCheck:
         self.repo = repo
         self.listing_origin = listing_origin
         self.listing_ok: bool | None = None
+        #: AU-IMP-5: label -> the sha256 the listing check hashed; a listing pin vouches for those bytes only
+        self.hashed: dict[str, str] = {}
         self.verified = 0
         self.unverified = 0
+        #: AU-RP-5: label -> whether the pin vouched for it; a file asked about again (a primary candidate that is also
+        #: another unit's same-tree auxiliary, DTap ``attempt:<n>``) is counted once
+        self._decided: dict[str, bool] = {}
+
+    def _count(self, label: str, ok: bool) -> None:
+        previous = self._decided.get(label)
+        if previous is None:
+            self._decided[label] = ok
+            if ok:
+                self.verified += 1
+            else:
+                self.unverified += 1
+        elif previous and not ok:  # bytes that no longer match: the label is unverified, never counted twice
+            self._decided[label] = False
+            self.verified -= 1
+            self.unverified += 1
 
     def prepare(self, tree: LocalTree, candidates: Sequence[CandidateArtefact]) -> None:
-        """The listing kind reads every candidate once to compute the J.1.4 digest (nothing is stored)."""
+        """The listing kind reads every candidate once to compute the J.1.4 digest (nothing is stored); the digest of each
+        file is kept, so that the bytes read again to be stored are vouched for only when they are the bytes hashed."""
         if self.kind != "listing":
             return
         pairs: list[tuple[str, str]] = []
@@ -602,6 +714,7 @@ class PinCheck:
         self.listing_ok = listing_sha256(pairs) == self.pin.get("listing_sha256") and len(pairs) == self.pin.get(
             "expected_files", len(pairs)
         )
+        self.hashed = dict(pairs) if self.listing_ok else {}
 
     def origin_for(self, candidate: CandidateArtefact, data: bytes) -> Origin | None:
         """The pinned origin of a verified file; ``None`` when the pin does not vouch for it."""
@@ -609,13 +722,14 @@ class PinCheck:
             oid = git_blob_sha1(data)
             commit = self.pin.get("commit")
             if self.listing.get(candidate.label) == oid and self.repo and isinstance(commit, str):
-                self.verified += 1
+                self._count(candidate.label, True)
                 introduced = self.history.lookup(candidate.label, oid) if self.history is not None else None
                 return Origin.git(self.repo, commit, candidate.label, oid, introduced_in_commit=introduced)
-        elif self.listing_ok and self.listing_origin is not None:
-            self.verified += 1
+        elif (self.listing_ok and self.listing_origin is not None
+              and self.hashed.get(candidate.label) == sha256_hex(data)):  # AU-IMP-5: the bytes the listing hashed
+            self._count(candidate.label, True)
             return self.listing_origin(self.pin, candidate.label)
-        self.unverified += 1
+        self._count(candidate.label, False)
         return None
 
 
@@ -862,6 +976,21 @@ class _ChunkStream(io.RawIOBase):
         return n
 
 
+def _abort_pool(pool: WorkerPool) -> None:
+    """AU-IMP-6: stop a pool's running batch from another thread, as its own join does when interrupted
+    (``WorkerPool._run_pool``): no queued job is taken, a slot waiting for admission wakes, and the live workers are
+    killed, so their jobs end as failures that the caller discards. An in-process batch is not stopped (its jobs run in
+    the calling thread); a batch that had not reached its pool yet clears the mark and runs, never waited for."""
+    pool._abort.set()
+    admission = getattr(pool, "_admission", None)
+    if admission is not None:
+        admission.wake()
+    with pool._active_lock:
+        live = list(pool._active)
+    for worker in live:
+        worker.hard_kill()
+
+
 def _removes_scratch_on_error[**P](init: Callable[Concatenate[_Pipeline, P], None]) -> Callable[Concatenate[_Pipeline, P], None]:
     """Ultrareview pipeline nit: the constructor makes its private scratch tree before checks that can raise (a profile
     refused for the input, a registry lookup); the caller never gets a pipeline to ``close``, so it is removed here."""
@@ -930,6 +1059,8 @@ class _Pipeline:
         #: drains mid-way, so a drain sent to those degrades to a stop (N.1.10(5))
         self.honour_drain = honour_drain
         self.drained = False
+        #: AU-IMP-6: the prov batch an interrupted run left running (never waited for; see ``run`` and ``close``)
+        self._prov_inflight: Future[list[JobResult]] | None = None
         self._pool_reporter = _PoolReporter(progress)
         #: D-529: the sample asked for, the sample keys it chose (``None``: no sampling) and its manifest record
         self.sample = sample
@@ -965,6 +1096,9 @@ class _Pipeline:
         self.specs = tuple(prov_specs)
         self.semantics = tuple(semantics)
         self.limits, self.retry_failed, self.progress, self.pin_check = limits, retry_failed, progress, pin_check
+        #: AU-IMP-2: the limits the corpus's own AER bytes (a sealed header, a seal line) are parsed under. The input
+        #: limits govern the reader in the T1 job; a lowered --max-json-depth must not refuse the AER this import wrote
+        self.own_limits = own_bytes_limits(limits)
         self.batch_size, self.dry_run = max(1, batch_size), dry_run
         imp = profile.data.get("import", {})
         self.dialect, self.mapper_id = str(imp.get("dialect")), str(imp.get("mapper"))
@@ -993,8 +1127,13 @@ class _Pipeline:
         #: mapped again by the resume); the snapshot's cumulative cap adds these
         self.indexed = 0
         self.this_run: set[str] = set()
+        #: AU-RP-4: the labels of byte-identical copies of a whole file stored in this run, waiting until that file's map
+        #: job decides whether it is an execution; and the decided fates (None: an execution, or sealed; else the
+        #: (code, detail) of the first copy, registered not_imported)
+        self._copies_waiting: dict[str, list[str]] = {}
+        self._copy_fate: dict[str, _NotImported | None] = {}
         self.scratch = Path(tempfile.mkdtemp(prefix="agentprov-import-"))
-        self.scratch_store = RawObjectStore(self.scratch / "prov-inputs")
+        self.scratch_store = RawObjectStore(self.scratch / "prov-inputs", durable=False)  # D-1068 P7: T1 inputs
         self.aer_tmp = self.scratch / "aer"
         self.aer_tmp.mkdir()
         release = mode == "release"
@@ -1077,10 +1216,15 @@ class _Pipeline:
         """Primary artefact digest -> ``ex`` of every indexed execution (its ``source_key`` names the artefact); the full
         source keys go to ``known_keys``."""
         known: dict[str, str] = {}
+        purged = self.corpus.store.tombstoned() if self.retry_failed else frozenset()
         for row in index.rows():
             sha = row.source_key[len("sha256:") : len("sha256:") + 64]
-            # a failed execution another snapshot shares is retried from that snapshot only (its row lists both)
-            if self.retry_failed and row.status == "failed" and set(row.snapshot_ids) <= {self.snapshot_id}:
+            # a failed execution another snapshot shares is retried from that snapshot only (its row lists both); one
+            # that cites a purged object is never retried (AU-IMP-8): its bytes cannot be mapped again, and the purge
+            # registered it release.withheld
+            cites_purged = bool(purged) and (sha in purged or any(r.sha256 in purged for r in row.raw))
+            if (self.retry_failed and row.status == "failed" and set(row.snapshot_ids) <= {self.snapshot_id}
+                    and not cites_purged):
                 if not self.dry_run:
                     self.corpus.discard_execution(row.ex)
                 continue
@@ -1133,6 +1277,18 @@ class _Pipeline:
         self.run_register.append(entry)
         self.issues[code] += 1
 
+    def _purged(self, data: bytes) -> bool:
+        """AU-IMP-8: whether ``data`` is an object a purge removed from this corpus's store (D-46). The store never writes
+        it back (``PutResult.tombstoned``), so it is neither stored nor mapped nor recorded with another origin."""
+        purged = self.corpus.store.tombstoned()
+        return bool(purged) and sha256_hex(data) in purged
+
+    def _register_purged(self, subject: Mapping[str, str], what: str) -> None:
+        """AU-IMP-8: the disposition of a file whose bytes were purged and that no execution of the corpus holds:
+        ``release.withheld``, as the purge records the executions that cite the object."""
+        self._register(subject, "release.withheld", severity="info", stage="package", disposition="withheld",
+                       detail=f"the {what} was purged from the raw store (G.9.6); it is not stored again")
+
     def _path_subject(self, label: str) -> dict[str, str]:
         if self.archive_label is not None and label != self.archive_label:
             return {"snapshot_id": self.snapshot_id, "path": f"{self.archive_label}!/{label}"}
@@ -1157,6 +1313,10 @@ class _Pipeline:
         """Store the context artefacts (role ``supporting``; D.4.2 ``[import] context_artefacts``) before any mapping, with
         their pinned origins; one the pin does not vouch for is registered ``raw.origin.blob_mismatch`` and left out."""
         for candidate, data in self.tree.read(self.context_candidates):
+            if isinstance(data, PurgedMember):  # AU-NC-2
+                self._register_purged(self._path_subject(candidate.label), "context artefact")
+                self.counters["registered"] += 1
+                continue
             if isinstance(data, IngestError):
                 self._register(self._path_subject(candidate.label), data.code, severity="error", stage="ingest",
                                disposition="not_imported", detail="the context artefact could not be read safely")
@@ -1168,6 +1328,10 @@ class _Pipeline:
                                stage="ingest", disposition="not_imported", detail="context artefact not vouched for by the pin")
                 self.counters["registered"] += 1
                 continue
+            if self._purged(data):
+                self._register_purged(self._path_subject(candidate.label), "context artefact")
+                self.counters["registered"] += 1
+                continue
             put = self.corpus.add_object(data, origin, ext=ext_for_label(candidate.label))
             self.context.append({"label": candidate.label, "origin": origin.to_json(), "sha256": put.sha256,
                                  "size": len(data)})
@@ -1177,6 +1341,10 @@ class _Pipeline:
         the pin does not vouch for, or that cannot be read safely, is registered and left out. They are never mapped:
         an AER references them by digest (``$blob``, C.11.5), and AER-V21 finds them in the raw store."""
         for candidate, data in self.tree.read(self.blob_candidates):
+            if isinstance(data, PurgedMember):  # AU-NC-2
+                self._register_purged(self._path_subject(candidate.label), "blob file")
+                self.counters["registered"] += 1
+                continue
             if isinstance(data, IngestError):
                 self._register(self._path_subject(candidate.label), data.code, severity="error", stage="ingest",
                                disposition="not_imported", detail="the blob file could not be read safely")
@@ -1186,6 +1354,10 @@ class _Pipeline:
             if origin is None:
                 self._register(self._path_subject(candidate.label), "raw.origin.blob_mismatch", severity="error",
                                stage="ingest", disposition="not_imported", detail="blob file not vouched for by the pin")
+                self.counters["registered"] += 1
+                continue
+            if self._purged(data):
+                self._register_purged(self._path_subject(candidate.label), "blob file")
                 self.counters["registered"] += 1
                 continue
             put = self.corpus.add_object(data, origin, ext=ext_for_label(candidate.label))
@@ -1232,6 +1404,8 @@ class _Pipeline:
         # CB-20: the verified pin digest and size (an ArchiveTree's) are checked before the container or its origin is
         # stored; a corpus's StoredTree carries none and re-hashes every object it reads
         sha, size = getattr(self.tree, "sha256", None), getattr(self.tree, "size", None)
+        if isinstance(sha, str) and sha in self.corpus.store.tombstoned():  # AU-IMP-8
+            return self._purged_archive(container)
         if opener is not None:
             with opener(container.label) as handle:
                 put = self.corpus.add_object(handle, container.origin, ext=ext_for_label(container.label),
@@ -1240,6 +1414,8 @@ class _Pipeline:
             data = next(iter(self.tree.read([container])))[1]
             if isinstance(data, IngestError):
                 raise data
+            if self._purged(data):  # AU-IMP-8
+                return self._purged_archive(container)
             put = self.corpus.add_object(data, container.origin, ext=ext_for_label(container.label),
                                          expected_sha256=sha, expected_size=size)  # fmt: skip
         self.archive_label = container.label
@@ -1251,6 +1427,8 @@ class _Pipeline:
         """D-249: store every part with its pinned origin (in the pin's order), then the split descriptor with its
         ``split`` origin, and expand the descriptor with its parts (D-243/D-244); the rest is the D-200 path."""
         declared: list[tuple[str, int]] = []
+        if any(part.sha256 in self.corpus.store.tombstoned() for part in parts):  # AU-IMP-8
+            return self._purged_archive(container)
         for part in parts:
             with self.tree.open_part(part) as handle:
                 put = self.corpus.add_object(handle, part.origin, ext=ext_for_label(part.file),
@@ -1267,6 +1445,15 @@ class _Pipeline:
                              parts=tuple(declared), prefixed=True)  # fmt: skip
         return self._expand_archive(container, spec, put.sha256)
 
+    def _purged_archive(self, container: CandidateArtefact) -> list[CandidateArtefact]:
+        """AU-IMP-8: an archive input (or one of its byte parts) whose bytes were purged is not stored or expanded again;
+        it is registered ``release.withheld`` and the snapshot has no member candidates."""
+        self.archive_label = container.label
+        self._register_purged({"snapshot_id": self.snapshot_id, "path": container.label}, "archive input")
+        self.counters["registered"] += 1
+        self.tree = _MemberTree(self.corpus.store, {}, limits=self.limits)
+        return []
+
     def _expand_archive(self, container: CandidateArtefact, spec: ContainerSpec, put_sha: str) -> list[CandidateArtefact]:
         expanded = self.corpus.expand([spec], self.map_pool, limits=self.limits)
         if put_sha not in expanded.containers:
@@ -1274,7 +1461,7 @@ class _Pipeline:
             self.counters["registered"] += 1
             self._fail({"snapshot_id": self.snapshot_id, "path": container.label}, "expand",
                        event.code if event is not None else "ingest.archive.format", "the archive input was rejected")
-            self.tree = _MemberTree(self.corpus.store, {})
+            self.tree = _MemberTree(self.corpus.store, {}, limits=self.limits)
             return []
         self.counters["registered"] += sum(1 for e in expanded.events if e.disposition == "not_imported")
         # only the selected members are walked: a member outside the selection already has its disposition, the
@@ -1292,7 +1479,7 @@ class _Pipeline:
             candidates.append((chain, r))
             self.archive_meta[chain] = (place.depth + 1, place.max_depth)
         candidates.sort(key=lambda item: item[0].encode("utf-8"))
-        self.tree = _MemberTree(self.corpus.store, {chain: str(r.sha256) for chain, r in candidates})
+        self.tree = _MemberTree(self.corpus.store, {chain: str(r.sha256) for chain, r in candidates}, limits=self.limits)
         return [CandidateArtefact(chain, int(r.size or 0), r.origin()) for chain, r in candidates]
 
     # -------------------------------------------------------------------------------------- discovery
@@ -1450,6 +1637,9 @@ class _Pipeline:
         the role's globs, and return its selected members as candidates (``member`` origins), read back by digest. A
         container the ``expand`` gate rejects is registered by the writer and fails the run, as an archive input does."""
         (container,) = list(archive.walk())
+        if archive.sha256 in self.corpus.store.tombstoned():  # AU-IMP-8: a purged context archive is not stored again
+            self._register_purged({"snapshot_id": f"{self.snapshot_id}:{role}", "path": container.label}, "context archive")
+            return []
         with archive.stream(container.label) as handle:  # PR-4 (CB-20): checked against the pin before it is published
             put = self.corpus.add_object(handle, container.origin, ext=ext_for_label(container.label),
                                          expected_sha256=archive.sha256, expected_size=getattr(archive, "size", None))
@@ -1464,7 +1654,8 @@ class _Pipeline:
         rows = sorted((r for r in expanded.rows if r.disposition == "selected" and r.container == put.sha256
                        and r.sha256 is not None and r.label is not None), key=lambda r: str(r.label).encode("utf-8"))
         self.context_archives[role] = {"label": container.label, "sha256": put.sha256, "bytes": put.size}
-        self.context_readers[role] = _MemberTree(self.corpus.store, {str(r.label): str(r.sha256) for r in rows})
+        self.context_readers[role] = _MemberTree(self.corpus.store, {str(r.label): str(r.sha256) for r in rows},
+                                                 limits=self.limits)
         return [CandidateArtefact(str(r.label), int(r.size or 0), r.origin()) for r in rows if not _is_stray(str(r.label))]
 
     def store_unit_context(self) -> None:
@@ -1474,6 +1665,9 @@ class _Pipeline:
             source = self.context_trees[role]
             for candidate, data in self.context_readers.get(role, source.tree).read(candidates):
                 subject = {"snapshot_id": f"{self.snapshot_id}:{role}", "path": candidate.label}
+                if isinstance(data, PurgedMember):  # AU-NC-2: a purged member of an archive context pin
+                    self._register_purged(subject, "context artefact")
+                    continue
                 if isinstance(data, IngestError):
                     self._register(subject, data.code, severity="error", stage="ingest", disposition="not_imported",
                                    detail="the context artefact could not be read safely")
@@ -1482,6 +1676,9 @@ class _Pipeline:
                 if origin is None:
                     self._register(subject, "raw.origin.blob_mismatch", severity="error", stage="ingest",
                                    disposition="not_imported", detail="context artefact not vouched for by the pin")
+                    continue
+                if self._purged(data):
+                    self._register_purged(subject, "context artefact")
                     continue
                 put = self.corpus.add_object(data, origin, ext=ext_for_label(candidate.label))
                 self.unit_context[f"{role}:{candidate.label}"] = {
@@ -1505,6 +1702,8 @@ class _Pipeline:
             if isinstance(data, IngestError):
                 self._register(self._path_subject(ref), data.code, severity="error", stage="ingest",
                                disposition="not_imported", detail="the pinned object exceeds the import's size limit")
+            elif len(data) == pinned.size and sha256_hex(data) == pinned.sha256 and self._purged(data):
+                self._register_purged(self._path_subject(ref), "pinned object")
             elif len(data) == pinned.size and sha256_hex(data) == pinned.sha256:
                 put = self.corpus.add_object(data, pinned.origin, ext=ext_for_label(ref))
                 row = {"label": ref, "media": aux_media(ref), "origin": pinned.origin.to_json(), "sha256": put.sha256,
@@ -1512,7 +1711,9 @@ class _Pipeline:
         elif ref in self.walked:
             candidate = self.walked[ref]
             candidate_data = next(iter(self.tree.read([candidate])))[1]
-            if isinstance(candidate_data, IngestError):
+            if isinstance(candidate_data, PurgedMember):  # AU-NC-2
+                self._register_purged(self._path_subject(ref), "auxiliary artefact")
+            elif isinstance(candidate_data, IngestError):
                 self._register(self._path_subject(ref), candidate_data.code, severity="error", stage="ingest",
                                disposition="not_imported", detail="the auxiliary artefact could not be read safely")
             else:
@@ -1520,6 +1721,8 @@ class _Pipeline:
                 if origin is None:
                     self._register(self._path_subject(ref), "raw.origin.blob_mismatch", severity="error", stage="ingest",
                                    disposition="not_imported", detail="auxiliary artefact not vouched for by the pin")
+                elif self._purged(candidate_data):
+                    self._register_purged(self._path_subject(ref), "auxiliary artefact")
                 else:
                     put = self.corpus.add_object(candidate_data, origin, ext=ext_for_label(ref))
                     row = {"label": ref, "media": aux_media(ref), "origin": origin.to_json(), "sha256": put.sha256,
@@ -1583,6 +1786,9 @@ class _Pipeline:
     # -------------------------------------------------------------------------------------- storing
     def _store(self, candidate: CandidateArtefact, data: bytes | IngestError) -> tuple[str, int, Origin] | None:
         """Store one candidate (store-first, A2); ``None`` when it was registered, collapsed or skipped."""
+        if isinstance(data, PurgedMember):  # AU-NC-2: an archive member whose object was purged
+            self._purged_candidate(candidate.label, data.sha256)
+            return None
         if isinstance(data, IngestError):
             self._register(self._path_subject(candidate.label), data.code, severity="error", stage="ingest",
                            disposition="not_imported", detail="the input file could not be read safely")
@@ -1608,12 +1814,16 @@ class _Pipeline:
             self.counters["registered"] += 1
             self._fail(self._path_subject(candidate.label), "ingest", "raw.origin.blob_mismatch", "not vouched for by the pin")
             return None
+        if self._purged(data):
+            self._purged_candidate(candidate.label, sha256_hex(data))
+            return None
         put = self.corpus.add_object(data, origin, ext=ext_for_label(candidate.label))
         sha = put.sha256
         if sha in self.this_run:
-            self._register(self._path_subject(candidate.label), "dedup.collapsed", severity="info", stage="select",
-                           disposition="sealed", detail=f"identical bytes sha256:{sha[:16]} already selected in this snapshot")
-            self.counters["duplicates"] += 1
+            if sha in self._copy_fate:
+                self._settle_copy(sha, candidate.label, self._copy_fate[sha])
+            else:
+                self._copies_waiting.setdefault(sha, []).append(candidate.label)
             return None
         self.this_run.add(sha)
         if not self.multi and self._seen_before(sha, candidate.label):
@@ -1633,6 +1843,49 @@ class _Pipeline:
             self._consumed_before(candidate.label)
             return None
         return sha, len(data), origin
+
+    def _settle_copy(self, sha: str, label: str, fate: _NotImported | None) -> None:
+        """AU-RP-4: a whole file byte-identical to one stored earlier in this run is collapsed into it (``dedup.collapsed``,
+        sealed; H.6.3) only when that file is an execution; a copy of a file that is not one (not of the dialect, a
+        variant of another part, a multi-execution file with no execution) is registered as that file is,
+        ``not_imported``."""
+        if fate is None:
+            self._register(self._path_subject(label), "dedup.collapsed", severity="info", stage="select",
+                           disposition="sealed", detail=f"identical bytes sha256:{sha[:16]} already selected in this snapshot")
+            self.counters["duplicates"] += 1
+            return
+        self._register(self._path_subject(label), fate.code, severity=fate.severity, stage=fate.stage,
+                       disposition="not_imported",
+                       detail=f"identical bytes sha256:{sha[:16]} to a file not imported in this snapshot: {fate.detail}")
+        self.counters["registered"] += 1
+
+    def _decide_copies(self, sha: str, fate: _NotImported | None) -> None:
+        """Record the fate of the first stored file with digest ``sha`` and settle the copies waiting for it."""
+        if sha in self._copy_fate:
+            return
+        self._copy_fate[sha] = fate
+        for label in self._copies_waiting.pop(sha, ()):
+            self._settle_copy(sha, label, fate)
+
+    def settle_waiting_copies(self) -> None:
+        """The copies whose first file was never mapped in this run (``--until raw``, a limit or a drain): collapsed, as
+        before AU-RP-4 (their first file's fate is not known here)."""
+        for sha in sorted(self._copies_waiting):
+            self._decide_copies(sha, None)
+
+    def _purged_candidate(self, label: str, sha: str) -> None:
+        """AU-IMP-8: a candidate whose bytes were purged. When the corpus holds its executions (the purge registered them
+        ``release.withheld``) it is resumed or collapsed as identical bytes are, by its digest or, for a multi-execution
+        file, by each of its executions' source keys; it is never mapped (its input is not in the store) and no AER is
+        rewritten. Otherwise the file itself is registered ``release.withheld``."""
+        if sha in self.known:
+            prefix = "sha256:" + sha
+            keys: list[str | None] = [k for k in sorted(self.known_keys) if self.multi and k.startswith(prefix)]
+            for key in keys or [None]:
+                self._seen_before(sha, label, key=key)
+            return
+        self._register_purged(self._path_subject(label), "file")
+        self.counters["registered"] += 1
 
     # -------------------------------------------------------------------------------------- sealing (T0 write gate)
     def _map_params(self, origin: Origin | None) -> dict[str, Any]:
@@ -1671,7 +1924,7 @@ class _Pipeline:
             return None
         data = tmp.read_bytes()
         tmp.unlink()
-        header = strict_json_loads(data.split(b"\n", 1)[0], self.limits)
+        header = strict_json_loads(data.split(b"\n", 1)[0], self.own_limits)
         assert isinstance(header, dict)
         seal_codes = [str(i.get("code")) for i in info.issues]
         degenerate = outcome.degenerate or bool(set(seal_codes) & _DEGENERATE_CODES)
@@ -1769,7 +2022,7 @@ class _Pipeline:
         """Store the held carved blobs that the written AER ``data`` lists in its ``seal.blobs`` (D-218)."""
         if not self._held or self.dry_run:
             return
-        seal = strict_json_loads(data.rstrip(b"\n").rsplit(b"\n", 1)[-1], self.limits)
+        seal = strict_json_loads(data.rstrip(b"\n").rsplit(b"\n", 1)[-1], self.own_limits)
         for ref in seal.get("blobs", ()) if isinstance(seal, dict) else ():
             held = self._held.get(str(ref).removeprefix("sha256:"))
             if held is not None and not self.corpus.store.has(str(ref).removeprefix("sha256:")):
@@ -1848,6 +2101,7 @@ class _Pipeline:
                 self._held = {}
             else:
                 result = self._carved(result, {sha})
+            fate: _NotImported | None = None
             try:
                 fallback = self._fallback(sha, size, origin)
                 extra: list[tuple[str, str, str, str]] = []
@@ -1859,6 +2113,7 @@ class _Pipeline:
                     self._register(self._path_subject(candidate.label), "select.not_execution_artefact", severity="info",
                                    stage="select", disposition="not_imported", detail=detail)
                     self.counters["registered"] += 1
+                    fate = _NotImported("select.not_execution_artefact", detail)
                     for label in same_tree:
                         self.aux_refused.setdefault(label, detail)
                     continue
@@ -1867,11 +2122,14 @@ class _Pipeline:
                     self._register(self._path_subject(candidate.label), str(chosen["code"]), severity="info",
                                    stage="select", disposition="not_imported", detail=str(chosen.get("detail", "")))
                     self.counters["registered"] += 1
+                    fate = _NotImported(str(chosen["code"]), str(chosen.get("detail", "")))
                     continue
                 elif self.multi:
                     assert summary is not None
                     units.extend(self._seal_items(result, summary, candidate.label, sha, size, origin))
                     self.aux_used.update(same_tree)
+                    if not summary.heads and summary.abort is None and not refused:  # D-321: rejected rows only
+                        fate = _NotImported("select.not_execution_artefact", "a multi-execution file with no execution")
                     continue
                 else:
                     outcome = outcome_from_frames(result.iter_json())
@@ -1882,6 +2140,7 @@ class _Pipeline:
             finally:
                 self._held = {}  # D-218: held members die with their result
                 result.close()
+                self._decide_copies(sha, fate)
         return units
 
     @staticmethod
@@ -2064,12 +2323,21 @@ class _Pipeline:
                 units_param[spec.sha256] = sorted(u for u in planned if f"{label}!/{u}" in self.sampled)
                 self.counters["sampled_out"] += len(planned) - len(units_param[spec.sha256])
         jobs, job_containers = self._container_jobs(specs, by_container, expanded, units_param=units_param)
+        for spec in specs:  # AU-RP-4: the containers no plan job maps decide their copies' fate here
+            if spec.sha256 not in expanded.containers:
+                refused = [e for e in expanded.events if e.path == spec.path and e.disposition == "not_imported"]
+                self._decide_copies(spec.sha256, _NotImported(refused[0].code, refused[0].detail, refused[0].severity,
+                                                              refused[0].stage) if refused else None)
+            elif not by_container.get(spec.sha256):
+                self._decide_copies(spec.sha256, _NotImported("select.not_execution_artefact",
+                                                              "container holds no member the reader selects"))
         units: list[_Unit] = []
         results = self.map_pool.run(jobs, progress=self._pool_reporter) if jobs else []
         for container, result in zip(job_containers, results, strict=True):
             label = labels[container]
             member_rows = {str(r.sha256): r for r in by_container[container]}
             result = self._carved(result, set(member_rows))
+            fate: _NotImported | None = None
             try:
                 if not result.ok:
                     code = result.error.code if result.error is not None else "worker.error"
@@ -2083,6 +2351,8 @@ class _Pipeline:
                     continue
                 summary = summarise_unit_frames(result.iter_json())  # D-414 pass 1
                 summary.require_framing()  # what split_unit_frames raised, before any row is registered
+                if not summary.heads:
+                    fate = _NotImported("select.not_execution_artefact", "container plan yields no execution")
                 for plan_row in summary.rows:
                     path = f"{label}!/{plan_row['label']}" if plan_row.get("label") else label
                     self._register(self._path_subject(path), str(plan_row["code"]), severity="info", stage="select",
@@ -2115,6 +2385,7 @@ class _Pipeline:
             finally:
                 self._held = {}  # D-218: held members die with their result
                 result.close()
+                self._decide_copies(container, fate)
         return units
 
     # -------------------------------------------------------------------------------------- SEM, PROV and validation
@@ -2357,8 +2628,9 @@ class _Pipeline:
             candidates = self._plan_sample(candidates)
         position = 0
         self._stage("map", "begin", total=len(candidates))
-        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="agentprov-prov") as background:
-            pending: tuple[list[tuple[_Unit, str | None]], Future[list[JobResult]]] | None = None
+        background = ThreadPoolExecutor(max_workers=1, thread_name_prefix="agentprov-prov")
+        pending: tuple[list[tuple[_Unit, str | None]], Future[list[JobResult]]] | None = None
+        try:
             while position < len(candidates):
                 remaining = self._remaining()
                 if remaining is not None and remaining <= 0:
@@ -2384,11 +2656,24 @@ class _Pipeline:
                 self._stage("map", "progress", done=position, total=len(candidates))
             if pending is not None:
                 self.finish(pending[0], pending[1].result())
+                pending = None
+        except BaseException:
+            # AU-IMP-6 (D-394, CC-5): an interrupt never waits for the in-flight prov batch, whose results this run
+            # discards anyway: the batch's queued jobs never start and its live workers are stopped, and the caller
+            # flushes what is sealed, marks the snapshot incomplete and releases the lock at once, so a second signal
+            # in that window no longer loses the whole run
+            if pending is not None and not pending[1].done():
+                _abort_pool(self.prov_pool)
+                self._prov_inflight = pending[1]
+            background.shutdown(wait=False, cancel_futures=True)
+            raise
+        background.shutdown(wait=True)
         self._stage("map", "end", done=position, total=len(candidates))
         self._pool_reporter.close()
         if self.drained:
             self.notices.append(f"drained (--control-file): stopped after {position} of {len(candidates)} candidate(s); "
                                 "re-run the same command to resume")
+        self.settle_waiting_copies()
         if self.per_unit:
             self.register_unconsumed_auxiliary()
 
@@ -2516,6 +2801,14 @@ class _Pipeline:
         return [c for c in candidates if self._sample_id(c.label, c.origin) in files]
 
     def close(self) -> None:
+        self.map_pool.close()  # D-1068 P1: the parked workers (a batch still running keeps its own until it ends)
+        self.prov_pool.close()
+        inflight = self._prov_inflight
+        if inflight is not None and not inflight.done():
+            # AU-IMP-6: the discarded prov batch of an interrupted run may still read its staged inputs (an in-process
+            # job cannot be stopped); the scratch tree is removed as far as it can be, never waited for
+            shutil.rmtree(self.scratch, ignore_errors=True)
+            return
         shutil.rmtree(self.scratch, onexc=_make_writable_and_retry)
 
     # -------------------------------------------------------------------------------------- documents

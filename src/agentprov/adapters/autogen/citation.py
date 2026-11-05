@@ -32,6 +32,8 @@ INDEPENDENT: Final = frozenset({
     "autogen.guard_raw_join@1",
     "autogen.no_model_call@1",
     "autogen.acc.side_list@1",
+    "autogen.lone_surrogate_replaced@1",  # D-1063: text transformations by AgentPROV (the D-378 and D-934 passes)
+    "autogen.content_not_inlined@1",
 })
 
 

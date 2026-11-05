@@ -35,11 +35,14 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.adapters.wirelog import ADAPTER_ID, DIALECT_ID, VARIANT_ANTHROPIC, VARIANT_CONVERSE, VARIANTS
 from agentprov.adapters.wirelog.dialect import SIBLINGS, LabelFacets, parse_label
 from agentprov.adapters.wirelog.wire import (
+    MAX_COUNT,
     Block,
     WireMessage,
     WireRequest,
@@ -103,6 +106,8 @@ R_ACC_HIJACK: Final = "wirelog.acc.recorded_hijack@1"
 R_ACC_FINAL: Final = "wirelog.acc.final_text@1"
 R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
+#: D-1063 (review UC-41): a string whose UTF-8 encoding exceeds 1 MiB is not inlined (C.2.1(6), AER-V01), as D-934
+R_NOT_INLINED: Final = "wirelog.content_not_inlined@1"
 
 _SHORT_VERSION: Final = re.compile(r"-v\d+:\d+$")
 _SHORT_DATE: Final = re.compile(r"-\d{8}$")
@@ -113,7 +118,13 @@ def _p(*tokens: str | int) -> str:
 
 
 def _jcs(value: object) -> bytes:
-    return jcs_bytes(value)
+    """The JCS bytes of a logged object, compared across requests. A value JCS cannot take as is (a lone surrogate in a
+    string, D-1063 review UC-40) is compared in its AER encoding (``$utf16``), so the comparison never crashes; every
+    other value compares by the same bytes as before."""
+    try:
+        return jcs_bytes(value)
+    except (ValueError, TypeError):  # rfc8785's CanonicalizationError is a ValueError
+        return jcs_bytes(encode_value(value, at="", lex=LexHints()))
 
 
 def short_model(model: str) -> str:
@@ -276,7 +287,10 @@ class _Build:
         self.same_bytes: dict[str, str] = {}  # auxiliary role -> the artefact with the same bytes it shares
         self.raw: dict[str, bytes] = {}
         self.aid["response"] = "a0"  # the primary: the response log identifies the run (D-281 addendum)
-        self.responses: list[WireResponse] = parse_responses(item.value, self.variant)
+        # D-1063 (review UC-40; the D-378 pass): a key cannot be $utf16-wrapped, so lone surrogates in the keys of every
+        # parsed log are replaced before mapping; disclosed by surrogates() over the finished records
+        primary, self.surrogate_keys = scrub_keys(item.value)
+        self.responses: list[WireResponse] = parse_responses(primary, self.variant)
         self.requests: list[WireRequest] = parse_requests(self._json_aux("request", required=True), self.variant)
         meta = self._json_aux("meta", required=False)
         self.meta: dict[str, Any] = meta if isinstance(meta, dict) else {}
@@ -345,7 +359,9 @@ class _Build:
                 raise MalformedArtefact(f"the run directory has no {SIBLINGS.get(role, role)}")
             return None
         try:
-            return strict_json_loads(data, self.limits)
+            value, keys = scrub_keys(strict_json_loads(data, self.limits))  # D-1063 (review UC-40)
+            self.surrogate_keys |= keys
+            return value
         except IngestError as exc:
             if required:
                 raise MalformedArtefact(f"the {role} auxiliary is not valid JSON ({exc.code})") from None
@@ -389,13 +405,27 @@ class _Build:
         body += self._judgements()
         self._checks()
         self._header_issues()
-        yield self._header()
-        yield from body
+        records = [self._header(), *body]
+        surrogates(self, records, "wirelog")  # D-1063 (review UC-40): lone surrogates in typed fields, disclosed
+        yield from self._not_inlined(records)
+
+    def _not_inlined(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """D-1063 (review UC-41; the D-934 pattern): every string over 1 MiB becomes ``{"not_inlined": {sha256, bytes}}``
+        of its UTF-8 bytes (C.2.1(6)). A tool result's text becomes the part's value; a text-only part becomes an
+        ``other`` part of its source type. Each such pointer is DERIVED under ``wirelog.content_not_inlined@1``; one info
+        issue names the records. Since AU-RC-1 and AU-RC-2 (regen-batch row 181) the shared pass
+        (:mod:`agentprov.adapters.not_inlined`, UC-38's form) moves every citation and unknown at a retyped pointer
+        and measures a ``$utf16`` value by its text."""
+        ids = not_inlined(records, "wirelog", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("wirelog.content_not_inlined", sorted(set(ids)), R_NOT_INLINED, severity="info")
+        return records
 
     # ---------------------------------------------------------------------------------------------- header
     def _task_id(self) -> tuple[str, bool]:
         first = next((b.text for m in self.requests[0].messages[:1] for b in m.blocks if b.kind == "text"), None)
-        digest = hashlib.sha256((first or "").encode("utf-8")).hexdigest()
+        # surrogatepass: a text with a lone surrogate (D-1063, review UC-40) has a digest too; it matches no table row
+        digest = hashlib.sha256((first or "").encode("utf-8", "surrogatepass")).hexdigest()
         for row in self.family.get("tasks", ()):
             if row.get("sha256") == digest:
                 return str(row["id"]), True
@@ -908,7 +938,8 @@ class _Build:
             if "final_message" in self.unit.auxiliary and self._aux("final_message") is not None:
                 msg.loc(self.at("final_message"))
         msg.edge(mc.id, "causal")
-        msg.tag("/after", "D", self.R(R_GEN, "/after"))
+        # a causal after is no stronger than the link it rests on (C.6.5 rule 1, D-87; D-1063, review AU-RC-4)
+        msg.tag("/after", "D" if echoed else "I", self.R(R_GEN, "/after"))
         self.echo_ids[i] = mid
         self.messages_ids.append(mid)
         calls: list[_Call] = []
@@ -987,7 +1018,13 @@ class _Build:
         sums = {"input_tokens": sum(r.usage.get("input_tokens", 0) for r in self.responses),
                 "output_tokens": sum(r.usage.get("output_tokens", 0) for r in self.responses)}
         meta_in, meta_out = self.meta.get("input_tokens"), self.meta.get("output_tokens")
-        if isinstance(meta_in, int) and isinstance(meta_out, int) and not isinstance(meta_in, bool) \
+        if any(v > MAX_COUNT for v in sums.values()) or any(
+                isinstance(v, int) and not isinstance(v, bool) and not 0 <= v <= MAX_COUNT for v in (meta_in, meta_out)):
+            # D-1063 (review UC-39, AU-NC-303): a total outside the AER's count domain (negative, or beyond 2^53 - 1)
+            # cannot be stored as one; the values stay in the responses' usage and meta.json
+            self.ctx.check(R_ACC_USAGE, scope="run", verdict="unverifiable", observed={"responses": len(self.responses)},
+                           reason="totals_out_of_range")
+        elif isinstance(meta_in, int) and isinstance(meta_out, int) and not isinstance(meta_in, bool) \
                 and not isinstance(meta_out, bool):
             ok = (meta_in, meta_out) == (sums["input_tokens"], sums["output_tokens"])
             self.ctx.check(R_ACC_USAGE, scope="run", verdict="consistent" if ok else "inconsistent",

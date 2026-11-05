@@ -26,8 +26,10 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Final
 
 from agentprov.adapters.mcphunt import ADAPTER_ID, DIALECT_ID, VARIANT
+from agentprov.adapters.not_inlined import not_inlined
 from agentprov.adapters.mcphunt.dialect import split_of
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import scrub_keys, surrogates
 from agentprov.adapters.types import ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import part_id
@@ -53,6 +55,9 @@ _EVENT_KEYS: Final = frozenset({"args", "canary_in_args", "canary_in_result", "c
 _EVENT_OPTIONAL: Final = frozenset({"args_parse_error", "args_raw", "sanitized_args", "taint_blocked", "taint_report"})
 #: The largest string an AER line holds inline (C.2.1(6): 1 MiB of UTF-8); a longer tool result is carved (D-218, RB-3).
 INLINE_MAX: Final = 1 << 20
+#: The AER's integer domain (I-JSON, C.11.3): a token count beyond it cannot be a typed count; it stays verbatim in
+#: ``ext.mcphunt.usage_unmapped`` (D-1063, review UC-39; the D-1011 pattern)
+_MAX_COUNT: Final = 2**53 - 1
 
 # rule ids (catalogue mcphunt, version 1)
 R_TOOL_MSG: Final = "mcphunt.tool_call_id_match@1"
@@ -83,6 +88,7 @@ R_RUN_END: Final = "mcphunt.run_end_unverified@1"
 R_GUARD: Final = "mcphunt.taint_guard_unverified@1"
 R_LABELS: Final = "mcphunt.labels_recorded_unverified@1"
 R_DOCUMENT: Final = "mcphunt.unreadable_document@1"
+R_NOT_INLINED: Final = "mcphunt.content_not_inlined@1"  # D-1063 (review AU-NC-308): a string over 1 MiB, not a result
 R_GEN: Final = "aer.output_after_generator@1"
 R_AFTER_CALL: Final = "aer.execution_after_call@1"
 R_AFTER_SUBJECT: Final = "aer.decision_after_subject@1"
@@ -219,7 +225,9 @@ class _Build:
     def __init__(self, unit: ExecutionUnit, ctx: MappingContext) -> None:
         self.unit, self.ctx = unit, ctx
         item = unit.primary
-        value = item.value
+        # D-1063 (review UC-40; the D-378 pass): a key cannot be $utf16-wrapped, so lone surrogates in keys are replaced
+        # before mapping; disclosed by surrogates() over the finished records
+        value, self.surrogate_keys = scrub_keys(item.value)
         if not isinstance(value, dict) or not isinstance(value.get("trace"), dict):
             raise MalformedArtefact("the located item is not an MCPHunt trace view")
         self.envelope: dict[str, Any] = _dict(value.get("envelope"))
@@ -308,8 +316,13 @@ class _Build:
         body += conversation
         body += self._judgements()
         self._checks()
-        yield self._header()
-        yield from body
+        records = [self._header(), *body]
+        surrogates(self, records, "mcphunt")  # D-1063 (review UC-40): lone surrogates in typed fields, disclosed
+        # D-1063 (review AU-NC-308; the D-934 pattern, UC-38's form): every other string over 1 MiB is not inlined
+        ids = not_inlined(records, "mcphunt", lambda p: self.R(R_NOT_INLINED, p))
+        if ids:
+            self.issue("mcphunt.content_not_inlined", ids, R_NOT_INLINED, severity="info")
+        yield from records
 
     # ---------------------------------------------------------------------------------------------- header
     def _header(self) -> dict[str, Any]:
@@ -603,10 +616,16 @@ class _Build:
         mc.data["tools"] = "fx1"
         mc.tag("/tools", "I", self.R(R_TOOLSET, "/tools"))
         usage: dict[str, Any] = {}
+        unmapped: dict[str, Any] = {}
         for src, dst in (("prompt_tokens", "input_tokens"), ("completion_tokens", "output_tokens")):
             v = entry.get(src)
             if isinstance(v, int) and not isinstance(v, bool) and v >= 0:
-                usage[dst] = v
+                if v <= _MAX_COUNT:
+                    usage[dst] = v
+                else:  # D-1063 (review UC-39): beyond the AER's integer domain; kept verbatim, never typed
+                    unmapped[src] = v
+        if unmapped:
+            mc.x("usage_unmapped", unmapped)
         if usage and any(usage.values()):
             mc.data["usage"] = usage
             mc.tag("/usage", "O:provider")
@@ -654,6 +673,10 @@ class _Build:
                 try:
                     args = strict_json_loads(raw.encode("utf-8"), self.limits)
                     parsed = True
+                    # D-1063 (review AU-RC-6, AU-NC-304): the arguments text is ASCII JSON, so the source scrub never
+                    # saw an escaped lone surrogate in a key; the decoded arguments' keys are scrubbed too
+                    args, keys = scrub_keys(args)
+                    self.surrogate_keys |= keys
                 except (IngestError, UnicodeEncodeError):
                     parsed = False
             if parsed:
@@ -677,7 +700,8 @@ class _Build:
             rec.data["generated_by"] = mc_id
             rec.tag("/generated_by", "D" if aligned else "I", self.R(R_TURN if aligned else R_CONTEXT, "/generated_by"))
             rec.edge(mc_id, "causal")
-            rec.tag("/after", "D", self.R(R_GEN, "/after"))
+            # a causal after is no stronger than the link it rests on (C.6.5 rule 1, D-87; D-1063, review AU-RC-4)
+            rec.tag("/after", "D" if aligned else "I", self.R(R_GEN, "/after"))
         else:
             rec.unk["/generated_by"] = "not_recorded"
             rec.cite(self.R(R_TURN, "/generated_by"))
@@ -695,7 +719,7 @@ class _Build:
         rec.loc(self.loc("final_message"))
         rec.tag("/generated_by", "D" if aligned else "I", self.R(R_TURN if aligned else R_CONTEXT, "/generated_by"))
         rec.edge(mc_id, "causal")
-        rec.tag("/after", "D", self.R(R_GEN, "/after"))
+        rec.tag("/after", "D" if aligned else "I", self.R(R_GEN, "/after"))  # as /generated_by (AU-RC-4)
         rec.x("wire_field", "final_message")
         self.messages.append(mid)
         return rec.done()
@@ -736,7 +760,7 @@ class _Build:
                         dc.x("taint_blocked", e["taint_blocked"])
                     dc.unk.update({"/reason": "not_recorded", "/t": "not_recorded"})
                     dc.edge(prev, "causal")
-                    dc.tag("/after", "D", self.R(R_AFTER_SUBJECT, "/after"))
+                    dc.tag("/after", "I", self.R(R_AFTER_SUBJECT, "/after"))  # /subject is I (D-87; AU-RC-4)
                     out.append(dc.done())
                     decision = dc.id
                 te = _Rec(k="tool_execution", id=self.next_id("te"), actor=runtime, scope="att0", ev="O")
@@ -775,7 +799,7 @@ class _Build:
                 te.cite(self.R(R_DURATION, "/t/dur_s"))
                 te.loc(self.loc("events", j))
                 te.edge(prev, "causal")
-                te.tag("/after", "D", self.R(R_AFTER_CALL, "/after"))
+                te.tag("/after", "I", self.R(R_AFTER_CALL, "/after"))  # /call is I: paired by position (D-87; AU-RC-4)
                 if decision is not None:
                     te.edge(decision, "causal")
                 out.append(te.done())
@@ -800,7 +824,7 @@ class _Build:
                 msg.tag("/actor", "I", self.R(R_PAIR, "/actor"))
                 msg.tag("/generated_by", "I", self.R(R_PAIR, "/generated_by"))
                 msg.edge(generator, "causal")
-                msg.tag("/after", "D", self.R(R_GEN, "/after"))
+                msg.tag("/after", "I", self.R(R_GEN, "/after"))  # /generated_by is I (D-87; AU-RC-4)
                 _j, e = event  # type: ignore[misc]
                 content, full = m.get("content"), e["result_full"]
                 if content != full:
@@ -849,6 +873,15 @@ class _Build:
                     "prompt_tokens": prompt, "completion_tokens": completion}
         reported = {"num_events": t.get("num_events"), "num_turns": t.get("num_turns"),
                     "prompt_tokens": m.get("prompt_tokens"), "completion_tokens": m.get("completion_tokens")}
+        summed = [x.get(key) for x in tl for key in ("prompt_tokens", "completion_tokens")]
+        if not (_count(prompt) and _count(completion)) or any(
+                isinstance(v, int) and not isinstance(v, bool) and not _count(v) for v in (*summed, *reported.values())):
+            # D-1063 (review UC-39, AU-NC-302): a count outside the AER's count domain (negative, or beyond 2^53 - 1;
+            # a turn-log value, its sum or a reported value) cannot be stored as one; the check is unverifiable and
+            # names only the structural counts (the values stay in the raw trace)
+            counts = {k: v for k, v in observed.items() if k not in ("prompt_tokens", "completion_tokens")}
+            self.ctx.check(R_COUNTERS, scope="att0", verdict="unverifiable", observed=counts, reason="counters_out_of_range")
+            return
         if not (prompt_ok and completion_ok):  # a counter that is not an integer: a data problem, never a crash
             self.ctx.check(R_COUNTERS, scope="att0", verdict="unverifiable", observed=observed,
                            reason="counters_not_integers")  # fmt: skip
@@ -862,6 +895,11 @@ class _Build:
         self.ctx.check(R_COUNTERS, scope="att0", verdict="consistent" if ok else "inconsistent",
                        observed={**observed, **{f"reported_{k}": v for k, v in reported.items() if isinstance(v, int)}},
                        reason=None if ok else "counters_differ")
+
+
+def _count(value: int) -> bool:
+    """Whether ``value`` is in the AER's count domain (C.11.3: a non-negative I-JSON integer)."""
+    return 0 <= value <= _MAX_COUNT
 
 
 def _counter_sum(turn_log: Sequence[Mapping[str, Any]], key: str) -> tuple[int, bool]:

@@ -23,9 +23,10 @@ authority, AD-14), ``schemas/`` (the published schemas), ``LICENSES/`` (``DERIVE
 files, a generated ``NOTICE.md``), ``CHANGELOG.md``, ``DATASHEET.md`` and the full ``corpus.json`` (``sealed: true``);
 remove the empty ``raw/tmp/``; write ``checksums.sha256``; check the checksums (closed world) and the manifest, then run
 ``verify --level chain`` over the sealed tree (:mod:`agentprov.corpus.verify`; N.2.11 step 3); swap
-``DIR.partial`` to ``DIR`` (:func:`agentprov.io.atomic.atomic_swap_dir`). If a step fails, every file the seal wrote is
-removed and the two rewritten files (``executions.jsonl``, ``corpus.json``) get their working bytes back, so the working
-tree stays a working tree.
+``DIR.partial`` to ``DIR`` (:func:`agentprov.io.atomic.atomic_swap_dir`); make ``DIR`` read-only
+(:mod:`agentprov.corpus.protect`; a refusal there is a notice, since the corpus is sealed by then). If a step before the
+swap fails, every file the seal wrote is removed and the two rewritten files (``executions.jsonl``, ``corpus.json``) get
+their working bytes back, so the working tree stays a working tree.
 
 **An interrupted seal** (CB-9): a seal that dies with no Python exception (SIGKILL, the OOM killer, a power loss) after
 ``corpus.json`` says ``sealed: true`` and before the swap cannot roll back, and its working bytes are gone. The next
@@ -53,7 +54,7 @@ import os
 import re
 import time
 import tomllib
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -99,8 +100,9 @@ from agentprov.corpus.manifest import (
     validate_manifest,
     validation_summary,
 )
+from agentprov.corpus.protect import protect
 from agentprov.corpus.reader import WORKING, CorpusReader
-from agentprov.corpus.register import encode_register
+from agentprov.corpus.register import RegisterEntry, encode_register
 from agentprov.corpus.selection import snapshot_selections
 from agentprov.corpus.spec import CorpusSpec, parse_spec, selection_of
 from agentprov.corpus.withheld import decode_withheld, encode_withheld, withheld_summary
@@ -372,11 +374,33 @@ def _stage(derivation: Mapping[str, Any] | None, name: str) -> Mapping[str, Any]
     return None
 
 
+def _sealed_form(manifest: Mapping[str, Any]) -> bool:
+    """A snapshot of the working corpus is in the sealed H.2.3 form: it has no ``pin`` member at all. An import always
+    writes the member (``null`` when nothing was pinned, the D-33 ``unpinned`` case); derive and recompute carry a
+    sealed source's snapshots over unchanged, so the form survives any number of derivations (AU-FR-3, AU-NC-4)."""
+    for source in manifest.get("sources") or ():
+        for snapshot in (source.get("snapshots") or ()) if isinstance(source, Mapping) else ():
+            if isinstance(snapshot, Mapping) and "pin" not in snapshot:
+                return True
+    return False
+
+
 def _check_working(manifest: Mapping[str, Any] | None, spec: CorpusSpec, corpus_version: str) -> Mapping[str, Any]:
     if manifest is None or manifest.get("format") not in CORPUS_FORMATS:  # a 0.1 working corpus seals as 0.1 (D-212)
         raise _refuse("the working corpus has no working corpus.json", "manifest")
     if manifest.get("sealed") is not False or manifest.get("state") != "working":
         raise _refuse("corpus.json is not a working manifest", "manifest")
+    derived = manifest.get("derived_from")
+    if isinstance(derived, Mapping) and (derived.get("state") == "sealed" or _sealed_form(manifest)):
+        # D-1051: its snapshots carry no import pin; derived_from records only the immediate source (its state and
+        # manifest digest), so a corpus derived from one derived from a sealed corpus records "working" and is
+        # recognised by the sealed snapshot form it carries (AU-FR-3). A recompute of a working import that was never
+        # pinned has an import's snapshot with "pin": null and gets the accurate "unpinned" refusal below (AU-NC-4)
+        raise _refuse("the working corpus was written by derive or recompute from a sealed corpus (or from a corpus "
+                      "derived from one), so its snapshots carry no import pin; a derived "
+                      "corpus stays a working corpus for comparison and is not sealed: new corpus versions are made by "
+                      "re-importing the source (or, to reproduce a sealed corpus, by recomputing at its building "
+                      "commit, F-8) (D-1051)", "derived")
     if manifest.get("mode") == "live":  # D-666: a native-log live corpus holds only `mode: import` rows, so the row
         # check in _complete_rows alone would let it through; the manifest says what the corpus is
         raise PackageRefusedError("sealing a live corpus is not supported in this build", code="package.unsupported.live",
@@ -842,17 +866,31 @@ def seal(root: str | os.PathLike[str], *, corpus_version: str, inputs: SealInput
     _check_context(source, corpus_format)
     members = reader.members()
     origins = reader.origins()
+    named = {o.sha256 for o in origins}  # AU-IMP-7 (K.5.7(1)): every stored object has an origin row
+    originless = sorted(label for label, role, _size in scan.files
+                        if role == "raw_object" and label.rsplit("/", 1)[-1].split(".", 1)[0] not in named)
+    if originless:
+        raise _refuse(f"{len(originless)} stored raw object(s) have no raw/origins.jsonl row (K.5.7(1)), first "
+                      f"{originless[0]}; an import killed before its final flush leaves such objects: resume that import "
+                      "to record their origins, or derive a new version with 'agentprov derive --out NEW' (it copies "
+                      "only the objects the corpus lists) and seal that", "raw_origin")
     snapshot_spec = {s.snapshot_id: s for s in spec.source.snapshots}
 
     # withholding (H.4.5; D-230..D-236): what leaves this corpus version, decided before anything else is computed
-    plan = _plan(reader, partial, scan, rows_all, register_working, members, origins, source, snapshot_spec,
-                 inputs.source_profile, spec, release, _catalogue_versions(derivation), inputs.spec, inputs.persona_files)
+    plan, issue_codes = _plan(reader, partial, scan, rows_all, register_working, members, origins, source, snapshot_spec,
+                              inputs.source_profile, spec, release, _catalogue_versions(derivation), inputs.spec,
+                              inputs.persona_files)
     stage("withhold")
     sidecar = sidecar_path(final)
     if not plan.empty and os.path.lexists(sidecar):
         raise _refuse("the private sidecar DIR.withheld already exists; it is never overwritten (D-231)", "sidecar")
     rows_in = [row for row in rows_all if row.ex not in plan.executions]
-    register = sorted([*register_working, *plan.register], key=lambda e: e.sort_key)
+    # H.2.9 (AU-BND-4): every count covers the released set, so a withheld execution's own entries leave the register
+    # with its index row (to the sidecar); its release.withheld entry (a purge's, or plan.register's) stays and counts
+    # it, and so does an entry with an issue rule's code, the evidence that withheld it (D-311: chain checks it)
+    register_held = [e for e in register_working if _held_entry(e, plan.executions, issue_codes)]
+    register = sorted([*(e for e in register_working if not _held_entry(e, plan.executions, issue_codes)),
+                       *plan.register], key=lambda e: e.sort_key)
     validation_stage = _check_stages(spec, derivation, rows_in)
     imp = profile_doc.get("import") if isinstance(profile_doc.get("import"), Mapping) else {}
 
@@ -891,7 +929,7 @@ def seal(root: str | os.PathLike[str], *, corpus_version: str, inputs: SealInput
     rows, stats = _complete_rows(reader, rows_in, inputs.gate_reports)
     stage("executions")
     index_bytes = encode_index(rows)
-    register_bytes = encode_register(register) if plan.register else reader.read_bytes("register.jsonl")
+    register_bytes = encode_register(register) if plan.register or register_held else reader.read_bytes("register.jsonl")
     members_bytes = reader.read_bytes("raw/members.jsonl")
     results_bytes, summary_bytes = reader.read_bytes("validation/results.jsonl"), reader.read_bytes("validation/summary.json")
     withheld_results: list[dict[str, Any]] = []
@@ -1075,14 +1113,15 @@ def seal(root: str | os.PathLike[str], *, corpus_version: str, inputs: SealInput
         card_text = inputs.card.decode("utf-8")
     except UnicodeDecodeError:
         raise _refuse("CARD.md is not UTF-8", "card") from None
+    field_groups = _released_field_groups(inputs.field_groups, plan.executions)
     # pass 1 evaluates the claims (they enter the content digest); pass 2 renders the text with the content digest
     first = render(manifest, card_text, register_stats, {}, checker=inputs.checker, statements=inputs.statements,
-                   field_groups=inputs.field_groups)
+                   field_groups=field_groups)
     manifest["datasheet"] = {"card_sha256": first.card_sha256, "claims": first.claims,
                              "statements": first.statements, "statements_sha256": first.statements_sha256}
     manifest["content_digest"] = content_digest(manifest)
     rendered = render(manifest, card_text, register_stats, {}, checker=inputs.checker, statements=inputs.statements,
-                      field_groups=inputs.field_groups)
+                      field_groups=field_groups)
     if rendered.claims != first.claims:
         raise ManifestError("the datasheet claims differ between the two rendering passes", code="corpus.manifest.claims")
     files[DATASHEET] = rendered.text.encode("utf-8")
@@ -1122,7 +1161,7 @@ def seal(root: str | os.PathLike[str], *, corpus_version: str, inputs: SealInput
     side = _Sidecar(partial, sidecar)
     try:
         if not plan.empty:
-            _withhold_files(side, reader, plan, rows_all, withheld_results, withheld_bytes)
+            _withhold_files(side, reader, plan, rows_all, withheld_results, withheld_bytes, register_held)
         for label in sorted(files):
             writer.write(label, files[label])
         writer.write("executions.jsonl", index_bytes)
@@ -1156,6 +1195,7 @@ def seal(root: str | os.PathLike[str], *, corpus_version: str, inputs: SealInput
             side.rollback()
             CorpusLayout(partial).raw_tmp.mkdir(parents=True, exist_ok=True)
         raise
+    notices += _protect(final)
     return SealReport(spec.corpus_id, corpus_version, final, manifest["content_digest"], digest, counters, tuple(notices),
                       sidecar=None if plan.empty else sidecar)
 
@@ -1232,8 +1272,20 @@ def _resume(final: Path, partial: Path, *, corpus_version: str, inputs: SealInpu
     counters["files"] = len(files)
     counters["bytes"] = sum(size for _, _, size in files)
     atomic_swap_dir(partial, final)
-    return SealReport(spec.corpus_id, corpus_version, final, manifest["content_digest"], digest, counters, notices,
-                      sidecar=sidecar)
+    return SealReport(spec.corpus_id, corpus_version, final, manifest["content_digest"], digest, counters,
+                      notices + _protect(final), sidecar=sidecar)
+
+
+def _protect(final: Path) -> tuple[str, ...]:
+    """Make the sealed tree read-only (:mod:`agentprov.corpus.protect`), after the swap: the seal is complete by then,
+    so a refusal leaves a sealed, verified corpus that is merely writable, and says so instead of failing."""
+    try:
+        protect(final)
+    except OSError as exc:
+        return (f"the sealed tree could not be made read-only ({type(exc).__name__}); nothing else changed, but the "
+                "operating system can now write into it (macOS Finder's .DS_Store); remove the write permission by hand "
+                "(chmod -R a-w DIR)",)
+    return ()
 
 
 #: The seal stages in order, reported as the units of a ``package`` run; a dry run stops after ``manifest``.
@@ -1282,11 +1334,11 @@ def _release_date(release: ReleaseArgs | None) -> str | None:
 def _plan(reader: CorpusReader, partial: Path, scan: Any, rows: Sequence[IndexRow], register: Sequence[Any],
           members: Sequence[Any], origins: Sequence[Any], source: Mapping[str, Any], snapshot_spec: Mapping[str, Any],
           profile: bytes, spec: CorpusSpec, release: ReleaseArgs | None, catalogues: Mapping[str, int],
-          spec_bytes: bytes = b"", persona_files: Mapping[str, bytes] | None = None) -> WithholdPlan:
-    """The withholding plan of this seal (:mod:`agentprov.corpus.withhold`); a refused policy or plan is exit 4. The
-    policy is read with :func:`agentprov.corpus.withhold.load_policy` (an issue rule's code checked against the
-    catalogues the import used, D-311), as ``chain`` and the deposit builder read it from the profile copy under
-    ``rules/``."""
+          spec_bytes: bytes = b"", persona_files: Mapping[str, bytes] | None = None) -> tuple[WithholdPlan, frozenset[str]]:
+    """The withholding plan of this seal (:mod:`agentprov.corpus.withhold`) and the register codes of the policy's issue
+    rules; a refused policy or plan is exit 4. The policy is read with :func:`agentprov.corpus.withhold.load_policy` (an
+    issue rule's code checked against the catalogues the import used, D-311), as ``chain`` and the deposit builder read
+    it from the profile copy under ``rules/``."""
     from agentprov.corpus.withhold import load_policy, withhold_address_classes
 
     persona_files = persona_files or {}
@@ -1322,7 +1374,7 @@ def _plan(reader: CorpusReader, partial: Path, scan: Any, rows: Sequence[IndexRo
     snapshots = {str(s["snapshot_id"]): (snapshot_spec[s["snapshot_id"]].raw_policy, s.get("pin"))
                  for s in source["snapshots"]}  # fmt: skip
     try:
-        return plan_withholding(
+        plan = plan_withholding(
             rows=rows, register=register, members=members, origins=origins,
             present={_object_hex(label): (label, size) for label, role, size in scan.files if role == "raw_object"},
             tombstones=tombstones, snapshots=snapshots, stream=stream,
@@ -1331,6 +1383,7 @@ def _plan(reader: CorpusReader, partial: Path, scan: Any, rows: Sequence[IndexRo
         )  # fmt: skip
     except WithholdError as exc:
         raise _refuse(str(exc), exc.code.rsplit(".", 1)[-1]) from None
+    return plan, frozenset(() if policy is None else (rule.register_code for rule in policy.issue_rules))
 
 
 def _catalogue_versions(derivation: Mapping[str, Any] | None) -> dict[str, int]:
@@ -1442,10 +1495,31 @@ def _prune_up(root: Path, label: str) -> None:
         parts.pop()
 
 
+def _held_entry(entry: RegisterEntry, executions: Collection[str], issue_codes: Collection[str]) -> bool:
+    """A register entry of a withheld execution that goes to the sidecar (H.2.9; AU-BND-4): every one but its
+    ``release.withheld`` entry and an entry with the code of an issue rule of the policy (the evidence ``chain`` checks
+    for an issue-rule finding, D-311)."""
+    return entry.subject.get("ex") in executions and entry.code != "release.withheld" and entry.code not in issue_codes
+
+
+def _released_field_groups(hook: Callable[[Mapping[str, Any]], str] | None,
+                           withheld: Collection[str]) -> Callable[[Mapping[str, Any]], str] | None:
+    """The field-group hook for the released set (H.2.9; AU-BND-6): the table is rendered before withholding moves the
+    withheld executions out of the working tree, so a hook that offers ``excluding`` (the ``agentprov stats``
+    renderer) is narrowed to leave them out; another hook is called as given."""
+    excluding = getattr(hook, "excluding", None)
+    if hook is None or not withheld or not callable(excluding):
+        return hook
+    narrowed: Callable[[Mapping[str, Any]], str] = excluding(frozenset(withheld))
+    return narrowed
+
+
 def _withhold_files(side: _Sidecar, reader: CorpusReader, plan: WithholdPlan, rows: Sequence[IndexRow],
-                    results: Sequence[Mapping[str, Any]], withheld_bytes: bytes | None) -> None:
+                    results: Sequence[Mapping[str, Any]], withheld_bytes: bytes | None,
+                    register: Sequence[RegisterEntry] = ()) -> None:
     """Rename every file of a withheld execution and every stored withheld object into the sidecar, and record there the
-    withheld index rows, their validation rows and a copy of ``WITHHELD.json``."""
+    withheld index rows, their validation rows, their register entries (all but ``release.withheld``, which the sealed
+    register keeps) and a copy of ``WITHHELD.json``."""
     layout = CorpusLayout(side.partial)
     held = [row for row in rows if row.ex in plan.executions]
     for row in held:
@@ -1454,6 +1528,8 @@ def _withhold_files(side: _Sidecar, reader: CorpusReader, plan: WithholdPlan, ro
     for _sha, label in sorted(plan.present.items()):
         side.move(label)
     side.write("executions.jsonl", encode_index(held))
+    if register:
+        side.write("register.jsonl", encode_register(register))
     if results:
         side.write("validation/results.jsonl", b"".join(jcs_bytes(r) + b"\n" for r in results))
     if withheld_bytes is not None:

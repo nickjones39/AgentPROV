@@ -82,3 +82,21 @@ def reforge(root: Path, *, index: Callable[[dict[str, Any]], None] | None = None
 
 def first_file(root: Path, top: str) -> Path:
     return sorted(p for p in (root / top).rglob("*") if p.is_file())[0]
+
+
+def per_label_verify(monkeypatch: Any) -> None:
+    """Make ``verify`` read a tree as it did before P3, the reference the parallel level is compared with: every file
+    opened from the root (``open_evidence`` per label), one after the other, no directory descriptor kept, member
+    objects read again by the chain for their CRC-32, and the stored files opened through the reader."""
+    from agentprov.corpus import verify
+    from agentprov.corpus.integrity import TreeSource
+    from agentprov.ingest.paths import STORED_OBJECT_LIMITS, open_evidence
+
+    def open_(self: Any, path: str) -> Any:
+        return open_evidence(self._handle if self._handle is not None else self.root, path, STORED_OBJECT_LIMITS,
+                             allow_hardlinks=True)
+
+    monkeypatch.setattr(TreeSource, "hash_files", None)
+    monkeypatch.setattr(TreeSource, "open", open_)
+    monkeypatch.setattr(verify._Verifier, "_member_objects", lambda self: frozenset())
+    monkeypatch.setattr(verify._Verifier, "_open_stored", lambda self, label: self.reader.open_file(label, stored=True))

@@ -167,6 +167,20 @@ def compare(old_rows: list[dict[str, Any]], new: dict[str, dict[str, Any]], scor
     return observations
 
 
+def require_trees(baseline: Path) -> None:
+    """Refuse a ``--baseline`` without both corpus trees: a wrong path would compare zero traces (AU-TRG-8)."""
+    for tree in ("corpus-prov", OG_TREE):
+        if not (baseline / "corpus" / tree).is_dir():
+            raise SystemExit(f"gate_c3: {baseline / 'corpus' / tree} is not a directory (check --baseline)")
+
+
+def verdict(ok: bool, crashes: dict[str, str], traces: int, score: Any) -> bool | None:
+    """The report's ``ok``: ``None`` (facts only) without the scoring rule sets; never a pass over zero traces."""
+    if not traces:
+        return False
+    return None if score is None else ok and not crashes
+
+
 def _label(value: Any) -> str:
     return json.dumps(value) if not isinstance(value, str) else value
 
@@ -189,6 +203,7 @@ def main() -> int:
     args = parser.parse_args()
     if args.baseline is None:
         parser.error("--baseline or $AGENTPROV_BASELINE_CORPUS is required")
+    require_trees(Path(args.baseline))
     if args.old_from is not None:
         rows = [json.loads(line) for line in (args.old_from / "verdicts.jsonl").read_text(encoding="utf-8").splitlines()]
         probe = json.loads((args.old_from / "probe.json").read_text(encoding="utf-8"))
@@ -206,8 +221,8 @@ def main() -> int:
         new, crashes = new_side(Path(args.baseline), args.cache, [r["item"] for r in rows], workers=args.workers)
     table: Counter[tuple[str, bool, str | None, Any]] = Counter()
     for row in rows:
-        verdict = row["verdict"]
-        table[(row["item"].split("/", 1)[0], verdict["scored"], verdict["unscored_reason"], verdict["attack_success"])] += 1
+        old = row["verdict"]  # not ``verdict``: that would shadow verdict() below (AU-FR-1)
+        table[(row["item"].split("/", 1)[0], old["scored"], old["unscored_reason"], old["attack_success"])] += 1
     observations = compare(rows, new, score)
     result = check(observations, load_register(args.register))
     keys: Counter[str] = Counter(o.key for o in observations)
@@ -226,10 +241,8 @@ def main() -> int:
         "failures": result.failures(), "absorbed_by_entry": result.counts_by_entry(),
         "limit": args.limit, "elapsed_s": round(time.perf_counter() - started, 1),
     }
-    if score is None:
-        report.update(ok=None, new_side="facts only: agentdojo.scoring@1/@2 are not in this build (regen-batch item 19)")
-    else:
-        report.update(ok=result.ok and not crashes, new_side="present")
+    report.update(ok=verdict(result.ok, crashes, len(rows), score), new_side="present" if score is not None
+                  else "facts only: agentdojo.scoring@1/@2 are not in this build (regen-batch item 19)")
     args.report.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(report, indent=2, sort_keys=True).replace(str(Path.home()), "<home>")  # the probe identity's paths
     args.report.write_text(text + "\n", encoding="utf-8")

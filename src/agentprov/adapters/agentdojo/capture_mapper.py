@@ -47,12 +47,23 @@ from typing import Any, Final
 
 from agentprov.adapters.agentdojo import messages_wire as mw
 from agentprov.adapters.agentdojo.capture_reader import DIALECT_ID, VARIANT, CaptureLogView
+from agentprov.adapters.agentdojo.citation import citations
 from agentprov.adapters.agentdojo.dialect import TraceLoggerReader
 from agentprov.adapters.agentdojo.mapper import ADAPTER_ID as TRACELOGGER_ID
-from agentprov.adapters.agentdojo.mapper import TraceLoggerMapper, content_block_parts, single_text_block
+from agentprov.adapters.agentdojo.mapper import (
+    TraceLoggerMapper,
+    _ambiguous_tool_names,
+    content_block_parts,
+    single_text_block,
+)
+from agentprov.adapters.agentdojo.not_inlined import ISSUE as I_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import RULE as R_NOT_INLINED
+from agentprov.adapters.agentdojo.not_inlined import not_inlined
 from agentprov.adapters.agentdojo.profile import family_table
+from agentprov.adapters.code_verification import weaken_to_rule_class
 from agentprov.adapters.projection import common_projection, projection_bytes, projection_differences
 from agentprov.adapters.protocols import AerRecord, MappingContext
+from agentprov.adapters.surrogates import surrogates
 from agentprov.adapters.types import ArtefactRef, ExecutionUnit
 from agentprov.aer.canon import LexHints, encode_value, json_pointer
 from agentprov.aer.ids import LOCAL_ID_RE, import_execution_id, mapping_id, part_id
@@ -132,6 +143,45 @@ def _blob_hex(ref: object) -> str | None:
     if match is None or _int(ref.get("bytes")) is None or ("media" in ref and not isinstance(ref["media"], str)):
         return None
     return match.group(1)
+
+
+def _time_key(value: str) -> tuple[str, str]:
+    """The AER validator's order of two ``…Z`` instants (``aer.validate._time_key``): every fractional digit counts."""
+    frac = value[20:].rstrip("Z") if len(value) > 19 and value[19] == "." else ""
+    return value[:19], frac.ljust(40, "0")
+
+
+def _reversed_intervals(records: Sequence[dict[str, Any]]) -> None:
+    """Review UC-39: a record whose wall-clock ``t.start`` is after its ``t.end`` (the host's clock stepped back between
+    the two events, e.g. an NTP step) asserts neither instant: both stay verbatim in ``t.raw`` declared ``ambiguous``
+    (C.7.2(2)), as the Inspect mapper does for contradictory times, instead of failing AER-V19 and losing the session.
+    The monotonic offsets order the events; a reversed pair of them (only a damaged log can hold one) is dropped and
+    declared ``ambiguous`` the same way. Nothing is repaired or invented (invariant 2)."""
+    for rec in records:
+        t = rec.get("t")
+        if not isinstance(t, dict):
+            continue
+        reasons: list[str] = []
+        start, end = t.get("start"), t.get("end")
+        if isinstance(start, str) and isinstance(end, str) and _time_key(start) > _time_key(end):
+            raw = t.setdefault("raw", {})
+            for slot in ("start", "end"):
+                raw.setdefault(slot, t.pop(slot))
+                reasons.append(f"/t/{slot}")
+        ms, me = t.get("mono_start_ns"), t.get("mono_end_ns")
+        if isinstance(ms, int) and isinstance(me, int) and ms > me:
+            del t["mono_start_ns"], t["mono_end_ns"]
+            reasons += ["/t/mono_start_ns", "/t/mono_end_ns"]
+        if reasons:
+            unk = rec.setdefault("unk", {})
+            for pointer in reasons:
+                unk[pointer] = "ambiguous"
+
+
+def _one_of(value: object, choices: frozenset[str] | Mapping[str, Any]) -> bool:
+    """``value`` is a string among ``choices`` (review UC-42: a membership test on an unhashable source value, a list
+    or an object, raised ``TypeError`` and lost the whole session)."""
+    return isinstance(value, str) and value in choices
 
 
 def _typed(value: object) -> bool:
@@ -331,6 +381,8 @@ class _Live:
         self.session = view.session
         self.limits = IngestLimits()
         self.fam = family_table(ctx.profile)
+        # D.5.4 (finding AU-RA-1, D-1063): the session's facets; the live profiles' verified_code has no selector
+        self.cite = citations(self.fam, {"variant": VARIANT})
         self.live = _dict(self.fam.data.get("live"))  # checked against family.schema.json
         self.body: list[Any] = []
         self._blobs: dict[str, bytes | None] = {}
@@ -368,13 +420,26 @@ class _Live:
 
     # ------------------------------------------------------------------------------------------ helpers
     def R(self, rule_id: str, pointer: str | None = None) -> str:  # noqa: N802 - mirrors MappingContext.rule
-        return self.ctx.rule(rule_id, pointer)
+        """A citation through the family's D-rule policy (D.5.4, D-24; finding AU-RA-1, D-1063): a D rule of a governed
+        catalogue at D only when its code list cites a commit the live profile verifies, else its ``_unverified`` twin;
+        the capture-record rules are independent (:data:`agentprov.adapters.agentdojo.citation.INDEPENDENT`)."""
+        return self.ctx.rule(self.cite.cite(rule_id), pointer)
+
+    def given(self, rule_id: str) -> str:
+        """A seal issue's rule as given, as the TraceLogger build cites a record-shape issue (D.5.4)."""
+        return self.ctx.rule(rule_id)
 
     def issue(self, code: str, ids: Sequence[str], rule: str, *, severity: str = "warning", detail: str | None = None) -> None:
         """Collect a seal issue; issues reach the context when the records are complete (:meth:`_flush_issues`)."""
         entry = (code, list(ids), rule, severity, detail)
         if entry not in self._pending:
             self._pending.append(entry)
+
+    def defer(self, code: str, ids: Sequence[str], rule: str, *, severity: str = "warning",
+              detail: str | None = None) -> None:
+        """A seal issue citing ``rule`` as given (the ``surrogates`` post-pass hands over a bare rule id: a transformation
+        by AgentPROV, never an ``_unverified`` twin)."""
+        self.issue(code, ids, self.given(rule), severity=severity, detail=detail)
 
     def _flush_issues(self) -> None:
         """Hand the issues to the context. An id that names no emitted record (a record dropped as malformed) is
@@ -518,7 +583,7 @@ class _Live:
             elif kind == "note" and data.get("ns") == "agentdojo" and data.get("kind") == "instrumentation_observed" \
                     and isinstance(data.get("payload"), dict):
                 self.observed = (seq, data["payload"])
-            elif kind == "note" and data.get("ns") == "agentdojo" and data.get("kind") in DEFENCE_NOTES \
+            elif kind == "note" and data.get("ns") == "agentdojo" and _one_of(data.get("kind"), DEFENCE_NOTES) \
                     and isinstance(data.get("payload"), dict):
                 self._defence_note(seq, p, str(data["kind"]), data["payload"])
             elif kind == "note" and data.get("kind") == "run_error_imposed" and isinstance(data.get("payload"), dict) \
@@ -607,6 +672,18 @@ class _Live:
         self._redaction_issues()
         self._checks()
         records = [header.done()] + [r.done() if isinstance(r, _Rec) else r for r in self.body]
+        _reversed_intervals(records)  # UC-39: a wall clock that stepped back is no typed interval
+        # UC-12: a deny-listed tool name is declared ambiguous, as in the TraceLogger (CD-10), DRIFT and Inspect mappers
+        _ambiguous_tool_names(records)
+        # UC-40 (D-378): a lone surrogate in a typed string position is replaced and disclosed, as in the sibling mappers
+        surrogates(self, records, "agentdojo")
+        # UC-41 (D-1063): a string over 1 MiB is not inlined (the D-934 pattern), before the native comparison, which
+        # maps the native log through the same pass
+        changed = not_inlined(records, lambda p: self.ctx.rule(R_NOT_INLINED, p))
+        if changed:
+            self.issue(I_NOT_INLINED, changed, self.ctx.rule(R_NOT_INLINED), severity="info")
+        for record in records:  # C.6.5 rule 1: no field stronger than an I rule (a twin, AU-RA-1) that justifies it
+            weaken_to_rule_class(record)
         self._native_check(records)
         self._flush_issues()
         yield from records
@@ -710,7 +787,7 @@ class _Live:
         for k, item in enumerate(raw if isinstance(raw, list) else []):
             ok = (isinstance(item, dict) and set(item) <= _INSTRUMENTATION_KEYS
                   and isinstance(item.get("id"), str) and _RULE_ID.fullmatch(item["id"]) is not None
-                  and item.get("kind") in INSTRUMENTATION_KINDS and item.get("recorded") in INSTRUMENTATION_RECORDED
+                  and _one_of(item.get("kind"), INSTRUMENTATION_KINDS) and _one_of(item.get("recorded"), INSTRUMENTATION_RECORDED)
                   and ("detail" not in item or isinstance(item["detail"], str))
                   and ("code_ref" not in item or self._code_ref_ok(item["code_ref"])))
             if not ok:
@@ -741,7 +818,7 @@ class _Live:
         for tag, spec in declared.items():
             if not isinstance(tag, str) or LOCAL_ID_RE.fullmatch(tag) is None or tag in ("exec", "run", "seal") \
                     or re.fullmatch(r"(m|mc|te|dc|st|fx|j|ac|af|att)[0-9]+", tag) or not isinstance(spec, dict) \
-                    or spec.get("kind") not in ACTOR_KINDS or spec.get("kind") == "other":
+                    or not _one_of(spec.get("kind"), ACTOR_KINDS) or spec.get("kind") == "other":
                 raise MalformedArtefact("session.start declares an actor tag or kind outside the AER grammar")
         self.actor_kind = {tag: str(spec["kind"]) for tag, spec in declared.items()}
         agents = [t for t, k in self.actor_kind.items() if k == "llm_agent"]
@@ -939,7 +1016,7 @@ class _Live:
         n = 0
         for seq, data in self.fixtures:
             kind = data.get("kind")
-            if kind not in FIXTURE_KINDS or kind == "other" or "content" not in data:
+            if not _one_of(kind, FIXTURE_KINDS) or kind == "other" or "content" not in data:
                 self._malformed(seq, "fixture")
                 continue
             rec = _Rec(k="fixture", id=f"fx{n}", kind=kind, ev="O", by="benchmark", src=[self.L(seq, "/data")])
@@ -1148,7 +1225,9 @@ class _Live:
         if role == "assistant":
             ncalls = native.get("tool_calls") or []
             wcalls = wire.get("tool_calls") or []
-            if not isinstance(wcalls, list) or len(ncalls) != len(wcalls):
+            # UC-42: a native tool_calls value that is not a list of objects is no faithful rendering (len and .get raised)
+            if not isinstance(ncalls, list) or not all(isinstance(nc, dict) for nc in ncalls) \
+                    or not isinstance(wcalls, list) or len(ncalls) != len(wcalls):
                 return False, []
             for nc, wc in zip(ncalls, wcalls, strict=True):
                 function = _dict(_dict(wc).get("function"))
@@ -1379,7 +1458,7 @@ class _Live:
         elif call.resp_event is None:
             mc.unk("/status", "not_captured")
             mc.unk("/response", "not_captured")
-        elif status in MODEL_CALL_STATUS:
+        elif _one_of(status, MODEL_CALL_STATUS):
             mc.data["status"] = status
         else:
             mc.unk("/status", "ambiguous")
@@ -1650,7 +1729,13 @@ class _Live:
             if made["t"] == "text" and made.get("text") == "":
                 rec.unk(f"/parts/{k}/text", "ambiguous")
                 rules.append(self.R("agentdojo.empty_assistant_text_ambiguous@1", f"/parts/{k}/text"))
-        for wc in message.get("tool_calls") or []:
+        wire_calls = message.get("tool_calls") or []
+        if not isinstance(wire_calls, list):  # UC-42: kept verbatim as `other`, as unknown content is (item 47)
+            parts.append({"t": "other", "type": "agentdojo.unknown_block",
+                          "value": rec.enc(wire_calls, f"/parts/{len(parts)}/value")})
+            self.issue("agentdojo.unknown_message_shape", [mid], self.R("agentdojo.capture_discarded_reply@1"))
+            wire_calls = []
+        for wc in wire_calls:
             k = len(parts)
             function = _dict(_dict(wc).get("function"))
             name = function.get("name")
@@ -1782,7 +1867,7 @@ class _Live:
             rec.data["role"] = rec.enc(role, "/role") if isinstance(role, str) and role else "agentdojo.unknown"
             rec.data["parts"] = [{"t": "other", "type": "agentdojo.unknown_message", "value": rec.enc(message, "/parts/0/value")}]
             rec.unk("/actor", "not_recorded")
-            self.issue("agentdojo.unknown_message_shape", [mid], self.R("agentdojo.tracelogger_record_shape@1"))
+            self.issue("agentdojo.unknown_message_shape", [mid], self.given("agentdojo.tracelogger_record_shape@1"))
         else:
             rec.data["role"] = shape
             if shape == "assistant":
@@ -1861,7 +1946,7 @@ class _Live:
         if null_text_blocks:
             rec.ext()["null_text_blocks"] = null_text_blocks
         for _ in range(unknown):
-            self.issue("agentdojo.unknown_message_shape", [str(rec.data["id"])], self.R("agentdojo.tracelogger_record_shape@1"))
+            self.issue("agentdojo.unknown_message_shape", [str(rec.data["id"])], self.given("agentdojo.tracelogger_record_shape@1"))
         return parts
 
     def _assistant_message(self, entry: _Pass, i: int, rec: _Rec, rules: list[str]) -> None:
@@ -2038,7 +2123,7 @@ class _Live:
             part["text"] = rec.enc(block, "/parts/0/text")
         elif isinstance(content, list):
             part["value"] = rec.enc(content, "/parts/0/value")
-            self.issue("agentdojo.multi_block_tool_content", [str(rec.data["id"])], self.R("agentdojo.tracelogger_record_shape@1"),
+            self.issue("agentdojo.multi_block_tool_content", [str(rec.data["id"])], self.given("agentdojo.tracelogger_record_shape@1"),
                        severity="info")
         else:
             part["text"] = rec.enc(content, "/parts/0/text")
@@ -2217,7 +2302,7 @@ class _Live:
                 candidate = part_id(self._mid(entry, i), self._content_len(entry.dump[i]) + j)
                 target = candidate if candidate.partition("#")[0] in self._emitted else None
         verdict = data.get("verdict")
-        if target is None or not isinstance(actor, str) or actor not in self.actor_kind or verdict not in DECISION_VERDICTS \
+        if target is None or not isinstance(actor, str) or actor not in self.actor_kind or not _one_of(verdict, DECISION_VERDICTS) \
                 or verdict == "other":
             self._malformed(seq, "decision")
             return
@@ -2316,7 +2401,7 @@ class _Live:
             judgements = data.get("judgements")
             for k, judgement in enumerate(judgements if isinstance(judgements, list) else []):
                 if not isinstance(judgement, dict) or not _typed(judgement.get("name")) or "value" not in judgement \
-                        or judgement.get("origin") not in JUDGEMENT_ORIGINS:
+                        or not _one_of(judgement.get("origin"), JUDGEMENT_ORIGINS):
                     self._malformed(seq, "outcome judgement")
                     continue
                 valid.append((seq, k, judgement))

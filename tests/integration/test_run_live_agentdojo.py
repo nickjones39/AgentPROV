@@ -126,7 +126,7 @@ def test_a_scripted_run_seals_and_derives_valid_executions(live_home: Path, in_r
     for row in rows:
         assert row["mode"] == "live" and row["attempt"] == 0 and row["status"] in ("ok", "ok_with_issues")
         assert row["stages"]["validation"] == "ok" and row["stages"]["prov"] == {"agentprov-prov/0.1": "ok"}
-        assert row["stages"]["sem"] == {"agentdojo.suites@2": "ok"}  # D-31 and item 1
+        assert row["stages"]["sem"] == {"agentdojo.suites@4": "ok"}  # D-31, item 1 and D-1063
         assert {r["role"] for r in row["raw"]} == {"capture_log", "native_log"}
         header = json.loads((partial / row["paths"]["aer"]).read_text().splitlines()[0])
         kinds = {i["kind"] for i in header["instrumentation"]}

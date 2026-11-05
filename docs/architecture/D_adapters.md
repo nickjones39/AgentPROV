@@ -480,7 +480,9 @@ the following recorded outcomes.
    runner writes an AER that holds only the `execution` header (artefact, origin, adapter, `unit` per the dialect,
    `unk` for the task) and a `seal` carrying the issue `unparseable_artefact`, `unsupported_variant` or
    `adapter_defect` (C.12.3), with severity `error`, and the `ingest.*` code in `detail` where one applies. The raw
-   bytes are stored before parsing and kept.
+   bytes are stored before parsing and kept. A `MemoryError` raised while the mapper runs is the job's resource limit,
+   not an adapter defect: the job fails with `worker.limit.rss` (G.4.6) and its degenerate AER and register row are
+   those of any over-limit job (AU-RP-6).
 4. **Register entry** (`register.jsonl`, owner HL H.6.3; one code registry per RESOLUTIONS §3.8). This is used only
    for artefacts that are **not** mapped as executions, with a `<stage>.<code>` code:
    - `select.not_execution_artefact` (e.g. ROPE `runs/lh_cells.json` [sources/rope.md §8.4]);
@@ -1776,7 +1778,7 @@ in the `aer`, `aprov`, `cap` or `corpus` catalogues (§D.5.1). The class column 
 | `agentdojo.tool_status_from_error_unverified` | I | The reading of `agentdojo.tool_status_from_error` where the code that wrote the record is not among the commits it cites (D-24); cited per "Citation of D rules" below (regeneration-batch item 3). | as `agentdojo.tool_status_from_error` |
 | `agentdojo.checker_outcome` | D | With no run error, a recorded attack (or a user-task utility) and no DoS rule, the stored outcome value is the task checker's return value. | `benchmark.py` `run_task_with_injection_tasks` / `run_task_without_injection_tasks` |
 | `agentdojo.checker_outcome_unverified` | I | The reading of `agentdojo.checker_outcome` where the code that wrote the record is not among the commits it cites (D-24); cited per "Citation of D rules" below (regeneration-batch item 3). | as `agentdojo.checker_outcome` |
-| `agentdojo.first_user_msg_is_task_prompt` | D | The first user message is the task `PROMPT`, or the injection `GOAL` in pre-pass runs. | `task_suite.py:375-378` |
+| `agentdojo.first_user_msg_is_task_prompt` | D | Reserved since catalogue `agentdojo` 3 (D-1063, finding AU-RA-2): the first user message is the task `PROMPT`, or the injection `GOAL` in pre-pass runs. No mapper cites it, because the AER records no content role for the message (§D.6.6). | `task_suite.py:375-378` |
 | `agentdojo.injection_task_as_user_task` | D | `user_task_id = injection_task_N` with attack `none` is the solvability pre-pass. | `benchmark.py:200-209` |
 | `agentdojo.injection_task_as_user_task_unverified` | I | The reading of `agentdojo.injection_task_as_user_task` where the code that wrote the record is not among the commits it cites (D-24); cited per "Citation of D rules" below (regeneration-batch item 3). | as `agentdojo.injection_task_as_user_task` |
 | `agentdojo.security_polarity` | D | `security = true` means the injection task succeeded. | `base_tasks.py` docstring; maintainer, issue #95 [verify/agentdojo.md §4] |
@@ -1791,6 +1793,8 @@ in the `aer`, `aprov`, `cap` or `corpus` catalogues (§D.5.1). The class column 
 | `agentdojo.unexecuted_trailing_calls` | D | Tool calls in the last assistant message with no tool message were never dispatched (`max_iters=15`). | `tool_execution.py:130-156` |
 | `agentdojo.no_execution_observed` | D | Empty `messages`: no trajectory exists, so the record is `unit: "outcome_only"`; outcomes, where present, are kept as logged. | [sources/agentdojo.md §4.4], [sources/rope.md §4.4] |
 | `agentdojo.incomplete_run` | D | Missing outcome or duration keys: interrupted run. | [sources/agentdojo.md §3.3] |
+| `agentdojo.incomplete_run_unverified` | I | The reading of `agentdojo.incomplete_run` where the code that wrote the record is not among the commits it cites (D-24); cited by the `incomplete_run` loss issue per "Citation of D rules" below (catalogue `agentdojo` 3, D-1063, finding AU-RA-4). | as `agentdojo.incomplete_run` |
+| `agentdojo.content_not_inlined` | D | A string over 1 MiB of UTF-8 is replaced by `{not_inlined: {sha256, bytes}}` of its bytes (C.2.1 item 6): a tool result's text becomes its `value`, a text-only part an `other` part of its type. A transformation by AgentPROV, cited as given (catalogue `agentdojo` 3, D-1063, review UC-41; the D-934 pattern). | the TraceLogger, DRIFT, results-container and capture mappers |
 | `agentdojo.pi_detector_sentinel` | I | The tool content equals the PI-detector sentinel, so the original output was overwritten in place (`unk {"/original": "overwritten"}`, R-08). | `pi_detector.py:50` |
 | `agentdojo.tool_filter_aux_message` | I | In `-tool_filter` pipelines the 2nd user message and the next tool-free assistant message belong to the filter LLM. | [sources/agentdojo.md §3.5] |
 | `agentdojo.repeat_user_prompt_copy` | I | A later user message equal to the first is a defence re-insertion. | [sources/agentdojo.md §3.5] |
@@ -1816,7 +1820,7 @@ in the `aer`, `aprov`, `cap` or `corpus` catalogues (§D.5.1). The class column 
 | `rope.guard_active_in_main_tree` | I | The ROPE guard was active in main-tree runs. | [sources/rope.md §4.3] |
 | `rope.harness_is_vendored_autodojo` | I | Logs were written by the vendored AutoDojo `agentdojo` fork, at unreleased code states. | [sources/rope.md §3.1, §4.3 item 2] |
 | `rope.security_correction` | D | ROPE's released correction rules (slack IT5, dailylife IT7, github IT1) recompute `security` from the executed, error-free tool messages; the result is a `recomputed` judgement beside the recorded one. | `runs/corrections.py` → `slack_it5.py`, `dailylife_it7.py`, `github_it1.py` [sources/rope.md §3.6] |
-| `agentdyn.variant_by_keyset` | D | Variant A/B/C/D is determined by key set. | [sources/agentdyn.md §3.1] |
+| `agentdyn.variant_by_keyset` | D | Reserved since catalogue `agentdyn` 3 (D-1063, finding AU-RA-3): variant A/B/C/D is determined by key set. The dialect classifies the variant and the profile's `variant_labels` route the parts, so no record cites it. | [sources/agentdyn.md §3.1] |
 | `agentdyn.pipeline_dir_registry` | I | Model, defence and provider come from the 76-row table. | [sources/agentdyn.md §8.3] |
 | `agentdyn.last_assistant_content_none_max3` | D | Retry happens iff the last assistant message anywhere has null content. | AgentDyn `task_suite.py` change [sources/agentdyn.md §3.5] |
 | `agentdyn.last_assistant_content_none_max3_unverified` | I | The reading of `agentdyn.last_assistant_content_none_max3` where the code that wrote the record is not among the commits it cites (D-24); cited per "Citation of D rules" below (regeneration-batch item 3). | as `agentdyn.last_assistant_content_none_max3` |
@@ -1856,11 +1860,12 @@ in the `aer`, `aprov`, `cap` or `corpus` catalogues (§D.5.1). The class column 
 | `adprov.lost_calls_from_count` | D | Calls counted by the harness but not held are earlier-pass calls, recorded as lost. | C.7.4; [audit/capture.md §4.2.4] |
 | `adprov.lost_calls_from_count_unverified` | I | The reading of `adprov.lost_calls_from_count` where it cites no code, only documentary evidence (D-27 c6); cited per "Citation of D rules" below (regeneration-batch item 3). | as `adprov.lost_calls_from_count` |
 | `adprov.release_null_as_empty` | D | Before 2026-10-04 a null reply was stored as `""`; such text is `ambiguous`. | [audit/capture.md §7 item 2] |
-| `adprov.temperature_not_transmitted` | D | A configured `temperature` of 0.0 was not transmitted (0.1.35 `temperature or NOT_GIVEN`). | [audit/capture.md §3 table] |
+| `adprov.temperature_not_transmitted` | I (`@2`; `@1`, class D citing no code, is superseded: catalogue v3, D-1063, AU-RB-6) | A configured `temperature` of 0.0 was not transmitted (0.1.35 `temperature or NOT_GIVEN`). Inferred: the cited request path is the writer's shorthand backends' (`_CompatLLM`); a run started from an AgentDojo model id used another LLM class, which the transcript does not record. | [audit/capture.md §3 table]; agentdojo `a75aba7` `openai_llm.py:162`; `579a908` `runtime.py:179-187, 277-295, 515-520` |
 | `adprov.model_names_registration` | I | The payload's model name was harness-synthesised ("Gpt 5 Nano", …). | [audit/capture.md §4.5 item 3] |
 | `adprov.checker_outcome` | D | Released `meta.utility`/`meta.security` are the stock checkers' values. | `generate.py`; [audit/capture.md §4.2] |
 | `adprov.benign_security_normalised` | D | A benign `security: null` is the harness's normalisation of the constant benign value. | `generate.py` G-7 |
-| `adprov.run_interval_scope` | D | `started_at`/`ended_at` bracket environment load and scoring. | [audit/capture.md §4.2.2] |
+| `adprov.content_not_inlined` | D | A string over 1 MiB is replaced by its digest `{not_inlined: {sha256, bytes}}` (C.2.1(6)); a part's text moves to a `value` (D.7.5 item 11). A transformation by AgentPROV, cited as given (catalogue v3, D-1063). | D-934 pattern; review UC-41 |
+| `adprov.run_interval_scope` | D (`@2`, with code; `@1` cited none and is superseded: catalogue v3, D-1063, AU-RB-6) | `started_at`/`ended_at` bracket environment load and scoring. | [audit/capture.md §4.2.2]; `579a908` `generate.py:503-510, 581-588`; agentdojo `a75aba7` `task_suite.py:339-420` |
 | `adprov.reasoning_log_alignment` | I | Reasoning attached by position from the side log (TR-3); native-block versus log-aligned origin is undecidable. | [audit/capture.md §4.3] |
 | `adprov.timing_stub_is_unknown` | D | A tool `"0"` timing under `timing_stubbed` is not a time: `t.raw` keeps the verbatim strings, `t.start`/`t.end` are `unk`. | `convert_runs.py:138-208`; C.7.3 |
 | `adprov.converted_stem_to_upstream_path` | D | A converted transcript derives from the upstream log found by inverting `convert_runs._output_relpath` at the `2024-06` pin. | `agentdojo_prov/convert_runs.py:175-183` [audit/legacy_replay.md §3.2] |
@@ -1915,7 +1920,11 @@ Consequences:
 - The only exceptions are the rules a family declares independent of the producing code. In v0.1 these are
   computations over the logged bytes: `agentdojo.system_prompt_variant_digest` (a digest comparison against a pinned
   text), `rope.security_correction` (ROPE's released correction code applied to the logged messages) and the three
-  injection-marker normalisers `agentdojo.yaml_norm`, `pyrepr_norm` and `json_norm` (D-86 addendum).
+  injection-marker normalisers `agentdojo.yaml_norm`, `pyrepr_norm` and `json_norm` (D-86 addendum). Since catalogue
+  `agentdojo` 3 (D-1063) they include `agentdojo.content_not_inlined` (a string over 1 MiB replaced by its digest,
+  review UC-41) and the six capture rules that read the `capture/0.1` record AgentPROV's own writer made (C.13), never
+  the harness's code: `agentdojo.capture_status`, `capture_no_pass`, `capture_withheld`, `capture_instrumentation`,
+  `capture_backend_identity` and `capture_discarded_reply` (finding AU-RA-1).
 - The AgentDojo family's facets include `introduced_under` (D-84, D.6.16 item 10): the oldest pin whose history
   contains the commit that introduced the log, so a `v0.k11` log introduced after `c274885` is not June-2024 code.
 - SEM annotations follow the same policy (D-86 and its addendum; `agentdojo.suites@2`, C.14.8 item 6). The semantics
@@ -1923,7 +1932,12 @@ Consequences:
   the packaged profile has the header's digest, otherwise none) and the facets the AER records (the dialect `variant`,
   adprov's `transcript`).
 - Seal issues cite the rule they name as given, except where an issue reports a statement's reading. The retry,
-  last-pass and run-error issues cite the rule (or twin) the statement cites.
+  last-pass and run-error issues cite the rule (or twin) the statement cites, and so does every loss issue (the loss
+  codes of H.3.2(2): `incomplete_run`, `retry_passes_inferred`, `aborted_attempt` and `missing_tool_result`; D-1063,
+  findings AU-RA-4 and AU-RA-5). The TraceLogger, DRIFT and results-container mappers cite `agentdojo.incomplete_run`
+  and `agentdojo.unexecuted_trailing_calls` (for `missing_tool_result` and `unexecuted_tool_call`) through the policy;
+  `no_outcome_recorded`, which is no loss code, cites `agentdojo.incomplete_run` as given. A capture session's
+  `incomplete_run` and `aborted_attempt` cite `agentdojo.capture_status`, which is independent.
 - A loss issue proves loss (H.3.2(2), `known_incomplete`) only when its rule is class D. A loss inferred under a twin
   leaves the execution `unverifiable` (analysis B6).
 - The choice is a function of the profile, the record's facets and the catalogue version, fixed at map time and never
@@ -1939,7 +1953,17 @@ In v0.1:
 - `mandate-agentdojo-eval` verifies `a75aba76`, `089ed468` and the evaluation script at `fa62a977`.
 - `adprov-v1` verifies the AgentDojo-PROV writer `579a908`, and `c274885` for converted transcripts only. The AgentDojo
   version of the released captures is not recorded.
-- The live profiles verify their pinned harness (`a75aba76`, the AutoDojo fork `aa458794`) for the native-log mapping.
+- The live profiles verify their pinned harness (`a75aba76`, the AutoDojo fork `aa458794`, AgentDyn `5353cf76`).
+  Since catalogue `agentdojo` 3 (D-1063, finding AU-RA-1) the capture mapper cites through the same policy as the
+  native-log mapping, with the facet `variant` = `0.1`: a capture rule that reads the harness's code is D only where its
+  `code` list cites the profile's commit (the 0.1.35 wheel `a75aba76`, so `agentdojo-live`), else its `_unverified`
+  twin (`autodojo-live`, `agentdyn-live`); `agentdyn.suite_benchmark` cites the fork's byte-identical suite files at
+  `aa458794`. A record-shape issue (`agentdojo.tracelogger_record_shape`) and the surrogate and not-inlined passes cite
+  their rule as given, as the TraceLogger mapper does. The `defence` and `anthropic_messages` catalogues stay outside
+  the family's policy (they are not in `citation.NAMESPACES`), so the capture mapper cites their D rules as given: the
+  `defence` rules read the notes of AgentPROV's own defence recorders (`backends/shared`, D-670), not a benchmark
+  harness's behaviour, and the `anthropic_messages` rules read the Anthropic port that only `agentdojo-live` runs, whose
+  code (0.1.35, `a75aba76`) that profile verifies (D-656).
 - A new profile whose harness code is not verified sets `verified_code = []`.
 - The twins added by item 3 are listed in the table above next to the D rule they restate. The three phase-6
   structural twins and `naive_local_timestamp_unverified` are the same mechanism.
@@ -2225,7 +2249,7 @@ Which patterns are active is decided by the profile's quirks. A pattern from an 
 | Source situation | Records | Evidence and rules |
 |---|---|---|
 | `system` message | `m<i>` role `system`, actor `bench` | O by source; `evf {"/actor": "D"}`, `agentdojo.system_prompt_from_harness@1` (C.16.1); label `ext.agentdojo.system_prompt_variant` by sha256 match against the profile (D); an unknown digest gives info issue `agentdojo.system_prompt_unrecognised` |
-| first `user` message | `m<i>` role `user`, actor `user` | `evf {"/actor": "D"}`, `agentdojo.user_is_simulated@1`; content role per `agentdojo.first_user_msg_is_task_prompt@1` (D) |
+| first `user` message | `m<i>` role `user`, actor `user` | `evf {"/actor": "D"}`, `agentdojo.user_is_simulated@1` (or its twin, §D.5.4). No content role is recorded: `agentdojo.first_user_msg_is_task_prompt@1` is reserved (catalogue `agentdojo` 3, D-1063) |
 | later `user`, `-tool_filter` profile, first such message | `m<i>` actor = the `tool_filter` defence actor (`def<n>`, `name: "tool_filter"`) | I, `agentdojo.tool_filter_aux_message@1` |
 | later `user` equal to the first, `-repeat_user_prompt` | `m<i>` actor = the `repeat_user_prompt` defence actor; `ext.agentdojo.copy_of: "m<first>"` | I, `agentdojo.repeat_user_prompt_copy@1` |
 | `user` with an `error` key (AgentDyn) or a `[CALL ERROR]` wrapper (DRIFT) | `dc<n>` (actor = the `drift` defence actor, verdict `deny`, subject = the rejected `tool_call` part of the previous assistant message when one exists, else that message; `reason` with a locator to the text), then `m<i>` role `user` (role kept), actor = the `drift` defence actor, `generated_by: dc<n>`. The defence actor is stated so that J.4.4 can mirror defence-authored messages | D, `agentdyn.drift_user_error_key@1` / `drift.call_error_user_is_validator@1` |
@@ -3606,6 +3630,15 @@ identical digests). C.16.2 is reproduced byte for byte, given its stand-in profi
       `empty_assistant_text_ambiguous` follows C.19, and D.6.6 is aligned in phase 6.
     - The CLI `import adprov-v1` wiring and the `adprov` artefact catalogue (D.15.6) are not done yet.
     - The `render_converted` byte gates R1 and R2 need the phase-6 TraceLogger mapper.
+11. **Strings over 1 MiB (D-1063, regeneration-batch item 180; review UC-41, the D-934 pattern; catalogue `adprov` v3).**
+    A string whose UTF-8 encoding exceeds 1 MiB (C.2.1(6)) is not inlined: it becomes `{"not_inlined": {sha256, bytes}}`
+    of its UTF-8 bytes. A tool result's text becomes the part's `value`; a text, reasoning or refusal part becomes an
+    `other` part of its source type; tool arguments, an injection payload and `ext` members hold the digest in place.
+    Each pointer is D under `adprov.content_not_inlined@1` (cited as given: a transformation by AgentPROV), and one
+    info issue `adprov.content_not_inlined` lists the records. The transcript/v1 view cannot rebuild the string: it
+    renders the member as the marker `{"agentprov:not_inlined": {sha256, bytes}}` and is lossy exactly there (C.15.3,
+    "Content not inlined"), so gates A1/A2 hold only for transcripts without such a string; no frozen-baseline file has
+    one. Before, the aer/0.2 writer refused the transcript (`adapter_defect`).
 
 ## D.8 STAC importer (planned; design note)
 
@@ -3974,7 +4007,11 @@ inside scorer spans).
   (`inspect.content_not_inlined@1`, the OpenHands precedent). It becomes `{"not_inlined": {sha256, bytes, media?}}` in
   a Json position: the part's `value` for `image`/`audio`/`video`/`text`/`reasoning` items (an `other` part of that
   type), the `tool_result` `value` for a tool message's text, or in place in `params`, `args` and `other` values. One
-  info issue lists the records. These become `$blob` references once carved blobs exist (deferrals).
+  info issue lists the records. These become `$blob` references once carved blobs exist (deferrals). Audit AU-RB-1
+  (D-1063, regeneration-batch item 180): every other Json position of a finished record is slimmed the same way (a
+  tool event's `args`, a sandbox output's `content`, a judgement's `value`, the sample error and the other
+  `ext.inspect` copies), and a reasoning item's `signature` or a tool result's `error` over 1 MiB, which have no typed
+  form, stand beside the part in `ext.inspect.part_extra.<n>`; before, the aer/0.2 writer refused such a sample.
 - **Semantics profile `inspect.whistlebench@2`** (D.9.14; D-601 addendum 2): the registry part names it. It reads
   the tool and scorer tables from the pinned `highagency/` code (class I). `email_whistleblowing` gets no outcome.
   Version 1 (every tool fail-closed, no outcome) stays shipped.
@@ -4960,7 +4997,10 @@ manager `gateway.LlmSpan` that `CaptureSession.span(role, actor, messages)` retu
    receiving it (stock `json.loads` of malformed arguments, `openai_llm.py:115`; `choices[0]` of `None`), or as
    `GatewayLLM` marks it. Its `ts` is therefore the decision time, after the SDK and element parsed the reply.
    `usage` maps `prompt_tokens`/`completion_tokens`/`total_tokens`/`reasoning_tokens`/`cached_tokens` to the AER names;
-   `served_model`, `response_id` and `finish_reason` are copied when present. The response blob is the entity body
+   `served_model`, `response_id` and `finish_reason` are copied when present. A count is kept only when it is an
+   integer in 0..2^53-1 (what a capture event can hold, C.13.10 item 5); one beyond 2^53-1 is left out of `usage` and
+   named in a note `agentdojo/usage_out_of_range {call, members}` (provider member names, `/`-joined below
+   `*_details`), and the response blob keeps the value (AU-NC-201, 2026-11-05; the Messages wire likewise). The response blob is the entity body
    after content decoding (what the SDK parses), not the compressed wire framing.
 5. **`input_at`/`n_messages`.** The span records `n_messages = len(messages)` given to the element and
    `input_at = [0, ..., n-1]`, because the stock element (`openai_llm.py:196`) and the port send every message in
@@ -5152,7 +5192,7 @@ equal message lists, environments, outcomes and wire requests.
 | `tool_list_filter` | `tool_filter` | its model calls in an `auxiliary` span of `def0`; `note agentdojo/defence_tools {before, after, calls}`; `defence_message` notes for its prompt and reply (the reply names its call) |
 | `output_filter` | PI detectors (`observe = "detect"`) | per checked tool output a `decision` with subject `{occ}`: `redact` with the content before as `original` (a blob), `allow` only when the verdict function was observed (D-673), `terminate` on `AbortAgentError`; `reason` = label and score |
 | `llm_detector` | a port's detector that is also the loop's model step (MELON) | its model calls bracketed (the real step as the agent's, the masked re-run as `def0`'s detached auxiliary call, `note agentdojo/defence_detached_input`), its embeddings as `def0`'s auxiliary calls; `redact` (with `original`), `allow` with the detector's own route and score, `modify` on the agent call whose reply it replaced (the reply kept) with the stop message noted as the defence's; its own log as `note agentdojo/defence_log` |
-| `executor_gate` | provisioned gate executors | dispatches when the recording runtime sees the call run; a call that never ran and whose error matches a declared denial is `tool.result {status: denied, decided_by: def0}` plus `note agentdojo/defence_denial_match`; stock invalid texts stay `invalid`; anything else gets no result (`note agentdojo/defence_unclassified_non_execution`); `note agentdojo/defence_gate_post_hoc` names the occurrences recorded after the gate returned |
+| `executor_gate` | provisioned gate executors | dispatches when the recording runtime sees the call run, matched to its batch call by identity (the arguments object the gate passes, else equal arguments, the name alone only when one call of that name is left; never a guess between equal candidates: `note agentdojo/defence_unmatched_runtime_call {function, candidates}`; UC-2); a gate that raises mid-batch first gets the results of the calls it already ran (`rendered` and `model_visible` empty) and `note agentdojo/defence_gate_raised {actor, exception {type}, occs}` (UC-17); a call that never ran and whose error matches a declared denial is `tool.result {status: denied, decided_by: def0}` plus `note agentdojo/defence_denial_match`; stock invalid texts stay `invalid`; anything else gets no result (`note agentdojo/defence_unclassified_non_execution`); `note agentdojo/defence_gate_post_hoc` names the occurrences recorded after the gate returned |
 
 `session.start.actors.def0` declares the defence (with the agent's model for `aux_llm = "agent_endpoint"`), and `note
 agentdojo/defence_identity` records the registry digest, the entry and the guarded sources as installed. No event type
@@ -6605,6 +6645,7 @@ class}`; its premises are the markers and the log-presence pointers. The class i
 | `logged_absent` | any | the location that would show it is logged (tool outputs exist; a description log exists; a user step exists), and every marker is `absent` | D | `dtap.exposure_class@1` |
 | `configured_only` | environment, tool, skill, prompt | no location that could show it is logged: environment, no tool output; tool, no description log; skill, neither a tool output nor a description log; prompt, no user step | I | `dtap.configured_exposure_unverified@1` |
 | `unmatchable` | any | no needle of 24 characters | D | `dtap.exposure_class@1` |
+| `unmatchable` (from `@4`) | environment, skill | seen at no logged location, and a tool result among them is not inlined (its markers `gap`) | D | `dtap.marker_not_inlined@1` |
 
 An exposure annotation is an assessment-bundle claim: under E.7.2 every exposure claim is an assessment, for live
 captures too. `configured_only` and `partial_match` are class I there. An environment payload is `configured_only` only
@@ -6734,12 +6775,26 @@ is the judge file. The task coordinates come from its path; the judgements have 
 "judge-shaped JSON under a file name other than judge_result.json"), never an `outcome_only` unit citing the rule on a
 false premise (regeneration-batch item 53; none in the pinned snapshot).
 
-### D.16.9 Semantics profile `dtap.tools@1` (and `@2`, D-607)
+### D.16.9 Semantics profile `dtap.tools@1` (and `@2`, D-607; `@3`, D-934; `@4`, D-1063)
 
 `dtap.tools@2` (`dtap.tools-2/`) is `@1`'s tables and code on catalogue `dtap` version 2 (the D-31 addendum's option B: one
 catalogue version per corpus, H.2.5); `@1` keeps reading the archived catalogue version 1 for the corpora that record it.
 Regenerated corpora and the registry part select `@2` (D.16.19). Regen item 54 (a payload with no recorded vector or
 content: channel from the step type, `/kind` premises) applies from `@2` only; `@1` keeps its earlier behaviour (item 54 version-gated under dtap.tools@2 (D-31 owner ruling 2026-10-21)).
+
+**Versions in 0.2.0.** `@3` is `@2`'s tables on catalogue `dtap` version 3 (D-934), and `@4` (D-1063, regen-batch row 175,
+review UC-40) is the same tables on catalogue version 4 (`CATALOGUE_OF = {1: 1, 2: 2, 3: 3, 4: 4}`). The registry part and
+profile `dtap-bench` version 4 select `@4`. `@3` is unchanged (`6ec3ab1bce14…`, the digest `dtap-bench-w2c` records) and
+keeps reading the archived catalogue version 3.
+
+**Results not inlined (from `@4`; D-1063, regen-batch row 182, review AU-RC-3).** A tool result the mapper did not
+inline (D-934: its value, or a string in it, is a digest; `dtap.content_not_inlined@1` cited there) is not searched as if
+it were whole. An environment or skill payload none of whose needles is found in what the part still holds is marked
+`gap` there under the D rule `dtap.marker_not_inlined@1` (C.14.3: the output is unreadable), not `absent`; a payload
+seen at no logged location while such a result was among them is `unmatchable` under the same rule, not
+`logged_absent` (D.16.6). Up to `@3` the digest object's JSON was searched: `dtap-bench-w2c` holds one such result
+(`ex_fkfccvpk3k2yl7tyq45543yjyx`, `m103#0`, two `absent` markers at D; its exposure classes stay `observed_tool_output`,
+since the payloads were seen elsewhere). Version-gated (`NOT_INLINED_SINCE = 4`).
 
 Data under `src/agentprov/adapters/dtap/semantics/dtap.tools-1/`, discovered by convention (C.14.7 item 2):
 - `profile.toml`;
@@ -6865,10 +6920,16 @@ executes) the 27 server names in the pinned configurations, the 491,627 `{name, 
 
 "Rate default" is a statement for the phase-11 datasheet and `stats` (D.16.15); AER keeps every value.
 
-### D.16.11 Rule catalogue `dtap.rules.toml` (`src/agentprov/adapters/dtap/rules/`, `[catalogue] id = "dtap"`, version 2)
+### D.16.11 Rule catalogue `dtap.rules.toml` (`src/agentprov/adapters/dtap/rules/`, `[catalogue] id = "dtap"`, version 4)
 
 Version 2 (D-607, D-31) adds `dtap.value_redacted@1` (D) and the issue code `value_redacted` (D.16.19); every version-1
-rule is unchanged, and version 1 ships as `rules/archive/dtap.rules.v1.toml` (the scratch corpora record it).
+rule is unchanged, and version 1 ships as `rules/archive/dtap.rules.v1.toml` (the scratch corpora record it). Version 3
+(D-934) adds `dtap.content_not_inlined@1` (D) and the issue code `content_not_inlined`. Version 4 (0.2.0: D-1063,
+regen-batch row 175, review UC-40) adds `dtap.lone_surrogate_replaced@1` (D, the D-378 lone-surrogate pass) and the
+issue code `lone_surrogate_replaced`, and (row 182, review AU-RC-3; version 4 is unreleased, so in place) the SEM rule
+`dtap.marker_not_inlined@1` (D) that `dtap.tools@4` cites: 82 rules (29 active D, 5 reserved D, 48 I) and 20 issue
+codes. Versions 1 to 3
+ship under `rules/archive/`; version 3 (`fbd1d0385978…`) is the one `dtap-bench-w2c` records.
 
 **Citation policy (D-24, D-27 c6).** No DTap harness code is verified. The SDK versions, the OpenClaw runtime and the
 sandbox images are not recorded, and the DTap SDK is not available [sources/dtap.md §8, §14]. Therefore:
@@ -7418,6 +7479,9 @@ AER is 0 (path forms, bare words in any letter case, `src`), and so is residue i
 sample. Collateral is 0: no other account's label is listed.
 
 **Versions.** Profile `dtap-bench` 2 and catalogue `dtap` 2 (version 1 of each archived), and `dtap.tools@2` (D.16.9).
+Since 0.2.0 (D-934, then D-1063 and regen-batch row 175): profile `dtap-bench` 4, catalogue `dtap` 4 and `dtap.tools@4`;
+each earlier version is archived byte-exact (profile version 3 `b769b6be569a…` and catalogue version 3 `fbd1d0385978…`
+are what `dtap-bench-w2c` records). The redaction rules of this section are unchanged.
 
 **Tests.** `tests/adapters/dtap/test_redact.py`: the closed grammar, every path form and the token contexts with
 synthetic names (a synthetic label computed in the test and listed in a test copy of the profile), unlisted names
@@ -7572,11 +7636,23 @@ is the D-31 bump of D-606 (2026-10-21): version 1 (57 rules, 15 codes) ships as 
 with the bytes the scratch corpora recorded (`9bc984f73823…`). Tests: `tests/adapters/openhands/test_rules.py`,
 `tests/adapters/openhands/test_d31_bump.py`.
 
-### D.17.10 Semantics profile `openhands.tools` (versions 1 and 2)
+**Version 3 (0.2.0: D-1063, regen-batch row 176, review UC-40)** adds `openhands.lone_surrogate_replaced@1` (D, the D-378
+lone-surrogate pass) and the issue code `lone_surrogate_replaced`: 61 rules (26 active D, 2 reserved D, 33 I) and 17
+issue codes. UC-41 needs no rule here (the family already has `openhands.content_not_inlined@1`); since regen-batch
+row 181 (review AU-NC-308) a string over 1 MiB that the family's own handling does not reach (a user or reply text, a
+model's tool-call arguments) goes through the shared pass `adapters/not_inlined.py` after the redaction under the same
+rule and issue: a text part becomes an `other` part of its type holding the digest, decoded arguments hold it in place,
+and a call's `args_raw` is not copied, its digest going to `ext.openhands.args_raw_not_inlined.<k>`. Version 2
+(`e2e1cd2be7bb…`, the bytes `openagentsafety-w2` and `redcode-exec-openhands-w2` record) ships byte-exact as
+`rules/archive/openhands.rules.v2.toml`, beside version 1; the pins are in `tests/unit/test_d31_bumps.py`.
+
+### D.17.10 Semantics profile `openhands.tools` (versions 1 to 3)
 
 Version 2 is version 1's tables on the openhands catalogue version 2 (`CATALOGUE_OF = {1: 1, 2: 2}`, H.2.5: one catalogue
 version per corpus); both profiles select `@2`. `@1` keeps reading the archived catalogue version 1 and its recorded
-digest (`f7988322c1bd…`).
+digest (`f7988322c1bd…`). **Since 0.2.0** (D-1063, regen-batch row 176) version 3 is version 2's tables on catalogue
+version 3 (`CATALOGUE_OF = {1: 1, 2: 2, 3: 3}`), and both profiles select `@3`; `@2` stays, reading the archived catalogue
+version 2, for the two sealed corpora that record it.
 
 Tool table by function name (`execute_bash`, `execute_ipython_cell`: `execute_sink`; `str_replace_editor`: `write_sink`,
 `content_source`; `browser`: `egress_read`, `send_sink`; `web_read`, `fetch`: `egress_read`; `chat`: `send_sink`;
@@ -7596,7 +7672,11 @@ table, `family.schema.json`: `source`, `verified_code`, `harness_version`, `fake
 not seen, missing evaluation files, missing LLM-judge entries, ambiguous score 1, joins after the rewrite; and, D.17.14,
 the deposit's shell-history token, third-party account paths, fixture secret shapes). `openagentsafety` is at version 2
 (D-31; version 1 under `profiles/archive/`, `b5be1d99df75…`); `redcode-exec-openhands` is recorded by no corpus and is
-edited in place at version 1 (D-602's `[withhold]`, the move to `openhands.tools@2`).
+edited in place at version 1 (D-602's `[withhold]`, the move to `openhands.tools@2`). **Since 0.2.0** (D-1063, regen-batch
+row 176) `openagentsafety` is at version 3 and `redcode-exec-openhands` at version 2, both selecting catalogue
+`openhands` 3 and `openhands.tools@3`; the versions the sealed corpora record ship byte-exact under `profiles/archive/`
+(`openagentsafety` version 2, `3bb617ab1939…`, recorded by `openagentsafety-w2`; `redcode-exec-openhands` version 1,
+`54324b24a775…`, recorded by `redcode-exec-openhands-w2`).
 
 ### D.17.12 Files, fixtures and tests
 
@@ -7742,10 +7822,17 @@ I-class typed time would become an inference-bundle entity the tier-4 validators
 steps, results, decisions and judgements have no time (`not_recorded`); `wall_time_seconds` and `latency_ms` stay in `ext`
 with `/t/dur_s` `ambiguous` (`agentops.duration_no_clock@1`). Member mtimes are never read.
 
-### D.18.8 Semantics profile `agentops.tools@1` (`adapters/agentops/semantics/`)
+### D.18.8 Semantics profile `agentops.tools@1` (`adapters/agentops/semantics/`; `@2`, `@3`)
 
 `@2` (D-31 bump, regeneration items 34-37): `@1`'s tables on the `agentops` catalogue version 2; `@1` stays, reading
-the archived catalogue version 1, for corpora that record it.
+the archived catalogue version 1, for corpora that record it. `@3` (0.2.0: D-1063, regen-batch row 176) is `@2`'s
+tables on catalogue version 3 (`CATALOGUE_OF = {1: 1, 2: 2, 3: 3}`), selected by the registry part and profile
+version 3; `@2` stays, reading the archived catalogue version 2, for `agentops-bench-w2`. From `@3` (regen-batch row
+182, review AU-RC-3) a tool result the mapper did not inline (`agentops.content_not_inlined@1` cited at its value) is not
+searched as if it were whole: a payload not found in what the part still holds is marked `gap` under the D rule
+`agentops.payload_marker_not_inlined@1` (C.14.3: the output is unreadable there), never `absent`; with no payload seen,
+the result keeps its tool's label and has no author. `@1` and `@2` keep searching the digest object's JSON (version-gated,
+`NOT_INLINED_SINCE = 3`).
 
 Data `agentops.tools-1/profile.toml` and `tools.toml` (the ten tools: roles and output integrity, never `trusted`;
 replayed third-party tools `untrusted`, the rest `unknown`; unknown names fail closed). Annotations: fixture integrity
@@ -7756,7 +7843,7 @@ search, `at`/`span` when the result is text); `author {"actor": "att"}` on a pay
 `outcome` for `completion` (`user_task_solved`, score, scale `agentops.completion_0_1`) and non-default `safety`
 (`agentops.injection_resistance`, a regex heuristic). Taint policy `agentops.taint_sink_untrusted@1`.
 
-### D.18.9 Rule catalogue `agentops.rules.toml` (version 1)
+### D.18.9 Rule catalogue `agentops.rules.toml` (version 3)
 
 46 rules: 13 D (deterministic functions of observed bytes or package data), 28 I (every reading of harness or scorer
 behaviour, with asserted assumptions; the snapshot's code paths are documentary `evidence`) and 5 `reserved` detector
@@ -7769,7 +7856,12 @@ rules are I directly, as DTap's are (D.16.11). Issue codes: `empty_trace`, `run_
 `agentops.fault_injection`. Version 2 (D-31 bump with regen items 34-37) adds `payload_outside_adversarial`, and D-608
 (regen item 137, same version) adds the D rule `agentops.value_redacted@1` (47 rules: 14 D, 28 I, 5 reserved) and the
 issue code `value_redacted` (D.18.15). The reserved `agentops.account_path@1` keeps its version-1 statement; no
-artefact entry names it any more.
+artefact entry names it any more. Version 3 (0.2.0: D-1063, regen-batch row 176, review UC-40 and UC-41) adds the D
+rules `agentops.lone_surrogate_replaced@1` (the D-378 lone-surrogate pass, before the redaction) and
+`agentops.content_not_inlined@1` (the D-934 pattern, after it) and their issue codes, and (row 182, review AU-RC-3) the
+SEM rule `agentops.payload_marker_not_inlined@1` (D) that `agentops.tools@3` cites (50 rules: 17 D, 28 I, 5 reserved;
+16 issue codes). Version 2 (`4bb412504d1c…`, the bytes `agentops-bench-w2` records) ships byte-exact as
+`rules/archive/agentops.rules.v2.toml`, beside version 1.
 
 ### D.18.10 Profile (`agentops-bench-pilot`) and selection (D-191)
 
@@ -7782,7 +7874,9 @@ code `select.out_of_scope` is new (D-191; `adapters/profiles.py` `SELECT_CODES`,
 `[family.agentops]` (closed schema `family.schema.json`): layout, conditions, `in_scope` (the D-143 scope as data, checked
 against the globs by a test), the ten tools, the pairing rule, the task table and the semantics profile; quirks with the
 census counts; from D-608 the `redact` rules (D.18.15). The profile's `[withhold]` table (D-608) withholds the raw
-objects that hold a third-party account path, at object scope.
+objects that hold a third-party account path, at object scope. The profile is at version 3 since 0.2.0 (D-1063,
+regen-batch row 176: catalogue `agentops` 3, `agentops.tools@3`); version 2 (`9c9dad74ff9f…`, recorded by
+`agentops-bench-w2`) and version 1 ship under `profiles/archive/`.
 
 ### D.18.11 Artefact catalogue (`adapters/agentops/artefacts.toml`)
 
@@ -7991,26 +8085,32 @@ agent message declares `unk /generated_by not_recorded`, the seal carries `missi
   entries.
 - `credleak.cell_run_agreement@1`: a run's model and scenario equal its cell's (issue `credleak.cell_run_disagree`).
 
-### D.19.8 Rule catalogue `credleak.rules.toml` (version 2)
+### D.19.8 Rule catalogue `credleak.rules.toml` (version 3)
 
 - **Versions:** version 2 since D-605 (D.19.15): it adds `credleak.value_redacted@1` and the issue code
   `value_redacted`. Version 1 (sha256 `d355a2725e17…`, the bytes the scratch corpora and the gui-build sealed copy
-  record) ships under `rules/archive/credleak.rules.v1.toml` (D-31).
-- **Size:** 28 rules (26 citable, 2 reserved); version 1 had 27 (25 citable).
+  record) ships under `rules/archive/credleak.rules.v1.toml` (D-31). Version 3 since 0.2.0 (D-1063, regen-batch row
+  176, review UC-40 and UC-41): it adds the D rules `credleak.lone_surrogate_replaced@1` (the D-378 lone-surrogate pass)
+  and `credleak.content_not_inlined@1` (the D-934 pattern) and their issue codes. Version 2 (`2059d34551d5…`, the bytes
+  `credleak-p15b-w2b` records) ships byte-exact under `rules/archive/credleak.rules.v2.toml`.
+- **Size:** 30 rules (28 citable, 2 reserved); version 2 had 28 (26 citable), version 1 27 (25 citable).
 - **Citation policy:** as for dtap. The harness is not in the deposit and no code is verified. Harness behaviour is
   class I with asserted assumptions (`credleak:*`). D rules are deterministic readings of observed field names and
   structure, cite no code and cite the census.
 - **Reserved detector names:** `credleak.planted_credential@1` (handled at sealing) and
   `credleak.malformed_tool_name@1` (handled by SEM).
 - **Issue codes:** `path_outside_grammar`, `turn_number_mismatch`, `cell_run_disagree`, `invocation_error`,
-  `value_redacted` (version 2).
+  `value_redacted` (version 2), `lone_surrogate_replaced`, `content_not_inlined` (version 3).
 
-### D.19.9 Semantics profile `credleak.tools@1`
+### D.19.9 Semantics profile `credleak.tools@1` (and `@2`, `@3`)
 
 Version 2 (`credleak.tools-2/`, D-605) has version 1's tables unchanged and declares the `credleak` catalogue version
 2, so a regenerated corpus reads one catalogue version (H.2.5; the D-31 option B of `inspect.agentharm@2`). The
 registry selects `credleak.tools@2`; version 1 (digest `721620e801f2…`) stays for the corpora that recorded it. The
-rule statements that name "the credleak.tools@1 table" hold for version 2, whose tables are the same.
+rule statements that name "the credleak.tools@1 table" hold for version 2, whose tables are the same. **Since 0.2.0**
+(D-1063, regen-batch row 176) version 3 (`credleak.tools-3/`) has the same tables on catalogue version 3
+(`CATALOGUE_OF = {1: 1, 2: 2, 3: 3}`) and the registry selects `credleak.tools@3`; version 2 stays for
+`credleak-p15b-w2b`, which records it. The statements that name the version-1 table hold for version 3 too.
 
 - **Tool table:** 10 canonical tool names (`Bash`, `Read`, `Glob`, `Grep`, `Edit`, `Write`, `WebFetch`, `WebSearch`,
   `McpToolCall`, `ListMcpTools`) with roles and output integrity and channel. Every other name gets role `unknown` and
@@ -8154,6 +8254,10 @@ withheld through D-235.
     and are reproduced at their building commit (F-8 ruling).
   - Catalogue `credleak` is at version 2 (D.19.8).
   - Semantics `credleak.tools` is at version 2 (D.19.9), and the registry selects it.
+  - **Since 0.2.0** (D-1063, regen-batch row 176): profile `credleak-p15b` 3, catalogue `credleak` 3 and
+    `credleak.tools@3`. Profile version 2 (`44a5c13d3c8d…`) and catalogue version 2, which `credleak-p15b-w2b` records,
+    ship byte-exact under `profiles/archive/` and `rules/archive/`. The redaction rules of this section are unchanged;
+    a new mapping names them by the profile version (`credleak-p15b@3#account_path`).
 - **Census** (pinned v3 zip, `~/.agentprov/staging/10k/v3/`, sha256 `7e5f7e40…`, read in memory; the 68 cells holding
   the path mapped by the shipped mapper and profile; counts only):
   - 382 pointers are redacted in 316 runs of these cells (account #1 and the one-run non-generic names some tool
@@ -8230,7 +8334,7 @@ the assistant message of response *i*; then the judgements. Namespace `wirelog`;
 | Source | AER | Evidence |
 |---|---|---|
 | request *i* | `mc<i>`: `input` = every item of request *i* in recorded order; `tools` = the tool fixture; `params.transmitted`; `finish_reason`, `usage` (O:provider); `latencyMs` in `ext` (`/t/dur_s` ambiguous); `request`/`response` blobs `not_recorded` (re-serialised JSON, not wire bytes) | input O; resolution of items to earlier records D (`wirelog.request_prefix@1`, JCS equality); causal `after` D (`wirelog.call_after_context@1`) |
-| response *i* | assistant message (`generated_by: mc<i>`), parts in block order: `text`, `tool_call {name, args, provider_call_id}`, `other` | O; the link D where request *i+1* echoes it (`wirelog.response_echo@1`), I for the last response (`wirelog.last_response_by_position_unverified@1`); call status `kept` likewise |
+| response *i* | assistant message (`generated_by: mc<i>`), parts in block order: `text`, `tool_call {name, args, provider_call_id}`, `other` | O; the link D where request *i+1* echoes it (`wirelog.response_echo@1`), I for the last response (`wirelog.last_response_by_position_unverified@1`); call status `kept` likewise, and the causal `after` to `mc<i>` (C.6.5 rule 1, D-87; 0.2.0: D-1063, review AU-RC-4) |
 | `system` | a `system` message, actor `harness` | content O; actor I |
 | first user message | `user` message, actor `user` | content O; actor I; a later user text gets `unattributed_additional_user_message` |
 | `toolConfig` / `tools` | fixture `tool_definitions` | O; identity across requests D (`wirelog.tool_config_stable@1`) |
@@ -8277,11 +8381,29 @@ or attacked document `untrusted`, else the tool's label, fail-closed), `injectio
 `att` (I); execution roles; `outcome` for `hijack` (`attack_succeeded`), `exfiltration` and `silent` only where the run has
 an attack. Taint policy `wirelog.taint_sink_untrusted@1`.
 
-### D.20.7 Rule catalogue `wirelog.rules.toml` (version 1)
+**Version 2 (0.2.0: D-1063, regen-batch row 176).** `wirelog.tools@2` (`wirelog.tools-2/`) is version 1's tables on
+catalogue `wirelog` version 2 (`CATALOGUE_OF = {1: 1, 2: 2}`, H.2.5), selected by the registry part and profile
+`what-surrounds` version 2. `@1` stays, reading the archived catalogue version 1, for `what-surrounds-w2`. Before any
+corpus records `@2` (regen-batch row 181, review AU-RC-3), `@2` alone no longer searches a tool result the AER holds only
+as a digest (over 1 MiB, `wirelog.content_not_inlined@1`): `@1` searched the digest object's JSON, so a payload in such a
+result was `absent` at D, its attacker author was dropped and its integrity fell back to the tool table. Under `@2` each
+marker of such a result is `gap`, no author is asserted, and its integrity is the tool's `untrusted` label or else
+`unknown`, all under `wirelog.result_not_searched@1` (I, catalogue `wirelog` 2); `@1` keeps its behaviour.
+
+### D.20.7 Rule catalogue `wirelog.rules.toml` (version 2)
 
 53 rules: 26 D, 25 I, 2 reserved (`non_run_member`, `synthetic_tools_disclosure`). Issue codes: `label_field_mismatch`,
 `context_diverges`, `unknown_block`, `payload_not_delivered`, `payload_entry_missing`, `final_texts_not_logged`,
-`meta_rewritten`, `task_prompt_unlisted`, `results_row_missing`, `unreadable_auxiliary`, `turn_limit`.
+`meta_rewritten`, `task_prompt_unlisted`, `results_row_missing`, `unreadable_auxiliary`, `turn_limit`. That is version 1.
+Version 2 (0.2.0: D-1063, regen-batch row 176, review UC-40 and UC-41) adds the D rules
+`wirelog.lone_surrogate_replaced@1` (the D-378 lone-surrogate pass) and `wirelog.content_not_inlined@1` (the D-934
+pattern) and the issue codes `lone_surrogate_replaced` and `content_not_inlined`, and (regen-batch row 181, before any
+corpus records version 2) the I rule `wirelog.result_not_searched@1` of `wirelog.tools@2`: 56 rules (28 D, 26 I, 2
+reserved), 13 issue codes. The pass is the shared `adapters/not_inlined.py` (0.2.0: D-1063, regen-batch row 181, reviews AU-RC-1 and
+AU-RC-2, UC-38's form): a retyped `/parts/<k>/text` takes its `evf` and `unk` keys and every scoped citation with it (the
+surrogate pass's included), and a `$utf16` value whose decoded text or base64 exceeds 1 MiB is replaced as a whole by
+the digest of its decoded text (row 186 merged row 181's `adapters/inline_limit.py` into this module). Version 1
+(`7a473ef1f8d5…`, the bytes `what-surrounds-w2` records) ships byte-exact as `rules/archive/wirelog.rules.v1.toml`.
 
 ### D.20.8 Artefact catalogue, files, fixtures and tests
 
@@ -8289,7 +8411,9 @@ an attack. Taint policy `wirelog.taint_sink_untrusted@1`.
   payloads in code, payload not delivered, rewritten metadata, unsplit final texts, harness outcome labels, save time only,
   the Anthropic run, context divergence, label mismatch); every safety-net finding of the full in-memory map is classified.
 - Files: `adapters/wirelog/{__init__,wire,dialect,mapper}.py`, `semantics/`, `rules/`, `profiles/what-surrounds.profile.toml`,
-  `family.schema.json`, `ext.schema.json`, `artefacts.toml`; registry entry (append only, `planned`).
+  `family.schema.json`, `ext.schema.json`, `artefacts.toml`; registry entry (append only, `planned`). The profile is at
+  version 2 since 0.2.0 (D-1063); version 1 (`ed4849b26a47…`, recorded by `what-surrounds-w2`) ships under
+  `profiles/archive/`.
 - Fixtures `tests/fixtures/wirelog/`: 12 run directories chosen by criterion (`CRITERIA.json`), byte-identical members,
   `results.csv`, `attacks.json`, `SOURCE.json`; licence `tests/fixtures/LICENSES/WhatSurrounds-LICENSE-DATA.txt` (with the
   shared `CC-BY-4.0.txt`). No fixture carries a secret-like string (none exists in the deposit).
@@ -8353,12 +8477,13 @@ snapshot; `tool_definitions` = the offered servers and tool names), then the con
 |---|---|---|
 | system, user messages | messages, actors `harness` and `user` | content O; actors I; user = `task_prompt` D |
 | `turn_log[k]` | `mc<k>`: `usage`, `finish_reason` (O:provider), `input` = every earlier message (I), `tools` = the tool fixture (I) | existence O; status D (`mcphunt.turn_alignment@1`) |
-| assistant *k* / `final_message` | generated by `mc<k>`; an empty-string content beside calls is no text part (`ext.mcphunt.empty_text`) | D when every entry's call count and text flag agree (6,786/6,786), else I and `mcphunt.turn_misaligned` |
+| assistant *k* / `final_message` | generated by `mc<k>`; an empty-string content beside calls is no text part (`ext.mcphunt.empty_text`) | D when every entry's call count and text flag agree (6,786/6,786), else I and `mcphunt.turn_misaligned`; the causal `after` to `mc<k>` likewise (C.6.5 rule 1, D-87; 0.2.0: D-1063, review AU-RC-4) |
 | tool call | `tool_call {name (server__tool), args (strict-decoded), args_raw, provider_call_id}` | O; decode D |
-| event (no call id) | `te`: actor the server's runtime, `call` = call *j* of its recorded turn, `name`, `args`, `args_effective` (guard), `status` from `success`, `returned` = `result_full`, timestamp and latency in `ext` | event O; pairing I, guarded by the tool name (`mcphunt.event_pairs_call_unverified@1`); typed times ambiguous |
-| `sanitized_args` / `taint_blocked` | defence `decision` (`modify`, actor `def`) on the call, `te.authorised_by` | O; actor I (`mcphunt.taint_guard_unverified@1`) |
-| tool message | `tool_result {responds_to}` generated by the execution; a truncated prefix or a different text than `result_full` is disclosed | `responds_to` D (`tool_call_id`); generator I |
+| event (no call id) | `te`: actor the server's runtime, `call` = call *j* of its recorded turn, `name`, `args`, `args_effective` (guard), `status` from `success`, `returned` = `result_full`, timestamp and latency in `ext` | event O; pairing I, guarded by the tool name (`mcphunt.event_pairs_call_unverified@1`), and the causal `after` to the call I with it (D-87; 0.2.0: D-1063, review AU-RC-4); typed times ambiguous |
+| `sanitized_args` / `taint_blocked` | defence `decision` (`modify`, actor `def`) on the call, `te.authorised_by` | O; actor I (`mcphunt.taint_guard_unverified@1`); `subject` and the causal `after` I (the pairing) |
+| tool message | `tool_result {responds_to}` generated by the execution; a truncated prefix or a different text than `result_full` is disclosed | `responds_to` D (`tool_call_id`); generator I, and the causal `after` to it I |
 | a tool result over 1 MiB | `te.returned` and the tool message's `tool_result.value` hold a `$blob` carved from the stored document by the trace's byte range, `{"bytes": [start, end], "p": "/events/<j>/result_full"}` or `…/messages/<i>/content`, transform `utf8` (D-218, RB-3); only that element is parsed | the value unchanged (re-carved by `verify` and `recompute`) |
+| any other string over 1 MiB | `{"not_inlined": {sha256, bytes}}` of its UTF-8: a text part becomes an `other` part of its type with the digest as `value`; a call's `args_raw` is not copied, its digest is `ext.mcphunt.args_raw_not_inlined.<k>`; a `Json` position holds the digest in place; one info issue `mcphunt.content_not_inlined` (0.2.0: D-1063, review AU-NC-308) | D (`mcphunt.content_not_inlined@1`) |
 | canary flags | `ext.mcphunt.canary` on the execution; issue `mcphunt.canary_flagged` | D (the D-289 basis) |
 | labels | judgements `outcome`, `outcome_crs_stratified`, `task_completed`, `any_risk`, `strict_leakage`, `data_flow_risk`, `signals_fired` (origin `checker`) | values O; origin I |
 | counters | check `mcphunt.acc.counters@1` (events = calls = tool messages = `num_events`; turns; token sums) | D |
@@ -8372,10 +8497,12 @@ raw trace documents stay private; the 2,191 unflagged executions stay releasable
 the mcphunt catalogue). The profile's `[withhold]` also holds six bounded shape patterns at scope `object` as the backstop
 scan (they name shapes, never values).
 
-### D.21.5 Semantics profile `mcphunt.tools@1`
+### D.21.5 Semantics profile `mcphunt.tools@1` (and `@2`, `@3`)
 
 `@2` (D-31 bump, regeneration items 38-41): `@1`'s tables on the `mcphunt` catalogue version 2; `@1` stays, reading
-the archived catalogue version 1, for corpora that record it.
+the archived catalogue version 1, for corpora that record it. `@3` (0.2.0: D-1063, regen-batch row 176) is `@2`'s
+tables on catalogue version 3 (`CATALOGUE_OF = {1: 1, 2: 2, 3: 3}`), selected by the registry part and profile
+`mcphunt` version 4; `@2` stays for `mcphunt-w2b`, which records it.
 
 The 31 tools of eight servers: roles (reads `content_source`; writes `write_sink`; shell `execute_sink`; fetch and
 navigation `egress_read`; form input `send_sink`), output integrity never trusted (local `unknown`, web `untrusted`),
@@ -8389,7 +8516,15 @@ channels by server; prompts and agent output trusted; outcomes `mcphunt.unsafe` 
 `unknown_server`, `turn_misaligned`. `artefacts.toml`: 10 entries; every safety-net finding of the in-memory map is
 classified. Version 2 (held for the round; D-31) adds the regen items 38–41 rule `mcphunt.unplaced_message@1`
 and code `unplaced_message`, and item 114's `mcphunt.lfs_pointer@1` (D, a reader register detail never cited by a
-record): 39 rules; v1 is archived byte for byte (`rules/archive/`).
+record): 39 rules; v1 is archived byte for byte (`rules/archive/`). Version 3 (0.2.0: D-1063, regen-batch row 176,
+review UC-40) adds the D rule `mcphunt.lone_surrogate_replaced@1` (the D-378 lone-surrogate pass) and the issue code
+`lone_surrogate_replaced`: 40 rules, 9 issue codes. A tool result over the inline limit is carved (D-218); every other
+string over 1 MiB (a user, system or assistant text, a tool call's arguments) is not inlined since regen-batch row 181
+(0.2.0: D-1063, review AU-NC-308; the D-934 pattern through the shared `adapters/not_inlined.py`): version 3, before
+any corpus records it, also holds the D rule `mcphunt.content_not_inlined@1` and the issue code `content_not_inlined`
+(41 rules, 10 issue codes). Version 2 (`081a6291ee9d…`, the bytes `mcphunt-w2b` records) ships byte-exact as
+`rules/archive/mcphunt.rules.v2.toml`. The profile `mcphunt` is at version 4 (catalogue 3, `mcphunt.tools@3`); version
+3 (`22a89afa6e22…`, recorded by `mcphunt-w2b`) and the earlier versions ship under `profiles/archive/`.
 
 ### D.21.7 Files, fixtures and tests
 
@@ -8482,14 +8617,29 @@ Nothing is linked by order or time: message order is a positional `after` edge (
   (`autogen.block_subject_not_recorded`, `autogen.block_without_decision@1`); a changed start message names the guard as
   its author (I) with `/generated_by` `not_recorded`.
 
-### D.22.5 Rule catalogue `autogen.rules.toml` (version 1)
+### D.22.5 Rule catalogue `autogen.rules.toml` (version 2)
 
 Three D rules read AutoGen behaviour at `microsoft/autogen` tag `python-v0.7.5` (`83afbf58`; fetched with the user's
 yes) with `_unverified` twins; the profile's `verified_code` names that commit (D-303). The other D rules are
 deterministic functions of observed bytes (`citation.py` `INDEPENDENT`). Harness behaviour is I with asserted
 assumptions. 15 SEM rules, 2 reserved register-level rules, 10 issue codes, one subtype, two activity/artefact types.
+That is version 1 (54 rules). Version 2 (0.2.0: D-1063, regen-batch row 176, review UC-40 and UC-41) adds the D rules
+`autogen.lone_surrogate_replaced@1` (the D-378 lone-surrogate pass) and `autogen.content_not_inlined@1` (the D-934
+pattern) and their two issue codes, and (row 182, review AU-RC-3) the SEM rule `autogen.payload_marker_not_inlined@1`
+(D) that `autogen.tools@2` cites: 57 rules, 12 issue codes. The `content_not_inlined` rule's statement also says where a
+tool call's `args_raw` over 1 MiB goes (`ext.autogen.args_raw_not_inlined.<k>`, review AU-NC-307; version 2 is
+unreleased, so it changed in place). Version 1 (`2b7fb400c09b…`, the bytes
+`autogen-guard-placement-w2` records) ships byte-exact as `rules/archive/autogen.rules.v1.toml`.
 
-### D.22.6 Semantics profile `autogen.tools@1`
+### D.22.6 Semantics profile `autogen.tools@1` (and `@2`)
+
+`@2` (0.2.0: D-1063, regen-batch row 176) is `@1`'s tables on catalogue `autogen` version 2 (the semantics module
+builds versions 1 and 2, H.2.5), selected by the registry part and profile version 3; `@1` stays, reading the archived
+catalogue version 1, for `autogen-guard-placement-w2`. From `@2` (regen-batch row 182, review AU-RC-3) a tool result
+the mapper did not inline (`autogen.content_not_inlined@1` cited at its value) gets one `injection_marker` per payload
+fixture with status `gap` under the D rule `autogen.payload_marker_not_inlined@1` (C.14.3: the output is unreadable
+there); `@1` gave such a result no marker and counted every payload absent for its integrity. Either way the result keeps
+its tool's label and has no author (version-gated, `NOT_INLINED_SINCE = 2`).
 
 Tool table (49): `fetch_document` (content source, untrusted), `save_note` (write sink), 17 InjecAgent user tools
 (content source, untrusted) and 30 attacker tools (write sinks; three send sinks, one execute sink; stubs). Integrity
@@ -8501,8 +8651,9 @@ a `save_note` argument), `autogen.attacker_tool_called` (InjecAgent's breach), `
 ### D.22.7 Profile, registry, artefact catalogue, files and tests
 
 `profiles/autogen-guard-placement.profile.toml` (closed `[family.autogen]`: `verified_code`, per-phase block guard,
-semantics profile, the row census, task templates and prompt defences as data, quirks); registry part `planned`;
-`artefacts.toml` (13 entries). Fixtures `tests/fixtures/autogen/` (9 byte-identical members, 533,210 B: the phase-6
+semantics profile, the row census, task templates and prompt defences as data, quirks; version 3 since 0.2.0, D-1063,
+with catalogue `autogen` 2 and `autogen.tools@2`; version 2, `0f3469c8b4fb…`, recorded by `autogen-guard-placement-w2`,
+and version 1 ship under `profiles/archive/`); registry part `planned`; `artefacts.toml` (13 entries). Fixtures `tests/fixtures/autogen/` (9 byte-identical members, 533,210 B: the phase-6
 InjecAgent tool-block arm, the case file, the config, the capture, the licence texts); tests `tests/adapters/autogen/`
 (phases needing the probe set run against the staged deposit when present); in-memory driver
 `tools/autogen/phase10n_map.py`. New files only, plus the registry entry and one runner test that lists the families with
@@ -8651,7 +8802,11 @@ withheld, `personal_data`, `profile_rule`, no execution; the tar as container; a
 verified with `chain --release`; no sealed or deposited byte holds the path, the sidecar does, and a second rollout's
 patch with an agent-written placeholder home stays sealed. Version 1 ships unchanged under `profiles/archive/` (D-31).
 
-### D.23.8 Semantics profile `geminicli.tools@1` (`adapters/geminicli/semantics/`)
+### D.23.8 Semantics profile `geminicli.tools@1` (and `@2`; `adapters/geminicli/semantics/`)
+
+`@2` (0.2.0: D-1063, regen-batch row 176) is `@1`'s tables on catalogue `geminicli` version 2 (the semantics module
+builds versions 1 and 2, H.2.5), selected by the registry part and profile version 3; `@1` stays, reading the archived
+catalogue version 1, for `code-agent-misalignment-w2`.
 
 Tool table of the ten tools the census found (I, `geminicli.tool_table@1`; read from names and logged parameters, no CLI code
 verified): `run_shell_command` `execute_sink`; `write_file`, `replace` `write_sink`; `read_file`, `read_many_files`,
@@ -8660,17 +8815,23 @@ verified): `run_shell_command` `execute_sink`; `write_file`, `replace` `write_si
 output are `trusted`; the workspace seed `unknown`. The one outcome: `geminicli.misalignment_elicited` holds iff
 `elicited` (origin `checker`). Taint policy `geminicli.taint_sink_untrusted@1`.
 
-### D.23.9 Rule catalogue `geminicli.rules.toml` (version 1)
+### D.23.9 Rule catalogue `geminicli.rules.toml` (version 2)
 
 38 rules: 9 D (deterministic functions of observed bytes), 16 I of the mapper and 7 I of the semantics profile (every
 reading of gemini-cli or harness behaviour, each with an asserted assumption; no rule cites code, D-334), and 6 `reserved`
-detector names for the artefact catalogue. 12 issue codes, 4 activity and artefact types, no subtype.
+detector names for the artefact catalogue. 12 issue codes, 4 activity and artefact types, no subtype. That is version 1.
+Version 2 (0.2.0: D-1063, regen-batch row 176, review UC-40 and UC-41) adds the D rules
+`geminicli.lone_surrogate_replaced@1` (the D-378 lone-surrogate pass) and `geminicli.content_not_inlined@1` (the D-934
+pattern) and their issue codes: 40 rules (11 D), 14 issue codes. Version 1 (`96dda696e9b8…`, the bytes
+`code-agent-misalignment-w2` records) ships byte-exact as `rules/archive/geminicli.rules.v1.toml`.
 
 ### D.23.10 Profile, registry and artefact catalogue
 
 `profiles/code-agent-misalignment-geminicli.profile.toml` (closed `[family.geminicli]` table, `family.schema.json`: layout,
 scaffold, models, excluded scaffolds, tools, pairing rule, semantics profile, quirks with the census counts); the
-`[withhold]` table of D.23.7 (three rules since version 2, D-609); one `planned` registry part. `artefacts.toml`: 22 entries (D.15.2), six on reserved
+`[withhold]` table of D.23.7 (three rules since version 2, D-609); at version 3 since 0.2.0 (D-1063: catalogue
+`geminicli` 2, `geminicli.tools@2`; version 2, `7e807cff6ea3…`, recorded by `code-agent-misalignment-w2`, and version 1
+ship under `profiles/archive/`); one `planned` registry part. `artefacts.toml`: 22 entries (D.15.2), six on reserved
 detectors (the out-of-scope scaffolds, rollouts without a stream, the credential-shaped value, stderr retries, the derived
 harness atoms, the missing glm-4.7 route configuration) and the recorded cases of D.23.3–D.23.6.
 
@@ -8747,7 +8908,7 @@ label in one tree) and `api_sample`. One that is absent, not strict JSON or (the
 | a block of consecutive `assistant` messages | one `model_call` (`kept`; usage = the sum of the block's message usage, D `qwencode.block_usage_sum@1`, `ambiguous` when every message reports 0; request, served model, time `not_recorded`) generating one assistant message: `text` parts and `tool_call` parts (`provider_call_id` = `id`, `args` = `input`, O) in order; per-message id, model, stop reason, usage in `ext.qwencode.messages` | I (`qwencode.block_is_model_turn_unverified@1`; checked by `qwencode.acc.turns@1`) |
 | `tool_result` block | `tool_execution` (actor `env`, status `error` iff `is_error`, D `qwencode.tool_status@1`) and a `tool` message answering the call | link I (`qwencode.tool_use_id_link_unverified@1`) |
 | sub-agent `system` messages; a `user` text | harness activity `qwencode:subagent_event` with the message as artefact; a user message (`unattributed_additional_user_message`) | I (`qwencode.subagent_message_unverified@1`) |
-| `result` | run status from the first `result` message: `ok` (`success`, not `is_error`) or `error` (D `qwencode.result_status@1`); a later `result` message is a harness activity `qwencode:unmapped_message` with the message as artefact and raises `qwencode.extra_result_message` (warning; regen item 126, NF-20); `subtype`, `is_error`, `num_turns`, `duration_ms`, `duration_api_ms`, `usage`, `permission_denials` and `stats` (per-model and per-source request and token counts, per-tool counts; regen item 122, NF-16) verbatim in the header's `ext.qwencode.result`; `duration_ms` in the run's `ext` | O/D |
+| `result` | run status from the first `result` message: `ok` (`success`, not `is_error`) or `error` (D `qwencode.result_status@2`; `@1` before row 182); a later `result` message is a harness activity `qwencode:unmapped_message` with the message as artefact and raises `qwencode.extra_result_message` (warning; regen item 126, NF-20); `subtype`, `is_error`, `num_turns`, `duration_ms`, `duration_api_ms`, `usage`, `permission_denials` and `stats` (per-model and per-source request and token counts, per-tool counts; regen item 122, NF-16) verbatim in the header's `ext.qwencode.result`; `duration_ms` in the run's `ext` | O/D |
 | score record | judgement `score` (actor `redcode_qwen_scorer`; origin checker I, `ambiguous` for 1); `step_count`, `exceeded_soft_iteration_cap`, `used_write_tool`, `timed_out`, `last_response_full` in `ext`. A record without `score` writes no judgement (`no_outcome_recorded`; a judgement's value is required) and its other logged fields stay in the AER: the header's `ext.qwencode.judge`, verbatim, with a header `src` locator to the record and D by `qwencode.score_join@1` (the join names the record the run's; item 125 follow-up, so no logged field is dropped); a score that is not an integer of the scale 0, 1, 3 (a boolean included) is kept as logged and raises `qwencode.score_unrecognised` (warning; regen item 125, NF-19) | join D (`qwencode.score_join@1`); I (`qwencode.scorer_recorded_unverified@1`, `qwencode.score_one_ambiguous@1`) |
 
 No time anywhere (`not_recorded`). Positional `after` edges at class I (`qwencode.message_order_unverified@1`). A
@@ -8764,7 +8925,12 @@ logged messages 851, unverifiable), `qwencode.final_text_copy@1` (3,295/3,295 eq
 sub-agent source beside `main`) may explain the 851 usage excesses as logged hidden-source calls, but no check reads them
 (regen item 122 records the field only; a stats-against-blocks check would need its own decision). A salvaged output has no result
 message: status `not_recorded`, `qwencode.no_result_message`, `qwencode.truncated_capture`, `incomplete_run`
-(`qwencode.capture_cut_unverified@1`), its last call `missing_tool_result`.
+(`qwencode.capture_cut_unverified@1`), its last call `missing_tool_result`. An output without a result message that the
+capture did not cut has status `not_recorded`, `qwencode.no_result_message` and `incomplete_run` under the I rule
+`qwencode.no_result_message_unverified@1` (assumption `qwencode:ResultClosesRun`, asserted; D-1063, regen-batch row 182,
+review AU-RC-5): that the CLI ends every finished run with a result message is a reading of Qwen Code (D-574), so the
+loss is inferred (completeness unverifiable), not proven, as gemini-cli's `geminicli.exit_143_terminated_unverified@1`
+reads the same case. Before, it cited the class-D `qwencode.result_status@1` and the execution was `known_incomplete`.
 
 ### D.24.5 Model identity (D-575)
 
@@ -8781,7 +8947,7 @@ generic `/home/user/` (10, in 5 runs), the container user `/home/node/` (11, in 
 from the RedCode payload (58, in 5 runs), which the deposit's own RedCode-Exec dataset also holds as a `/home/` path:
 benchmark content, never redacted (D-476).
 
-### D.24.7 Semantics profile `qwencode.tools` (versions 1 and 2)
+### D.24.7 Semantics profile `qwencode.tools` (versions 1 to 3)
 
 Tool table: `run_shell_command` `execute_sink` (untrusted); `write_file`, `edit` `write_sink` (unknown); `read_file`,
 `list_directory`, `glob`, `grep_search` `content_source` (untrusted); `todo_write` `neutral`; `agent` `unknown`; unknown
@@ -8798,8 +8964,11 @@ declares and reads the catalogue version 1 from `rules/archive/` and reads every
 `qwencode.non_informative`, as the scratch trials recorded it. The code (`semantics/tools.py`) builds both:
 `CATALOGUE_OF = {1: 1, 2: 2}`, the `[profile]` header checked against it, as `agentprov.adapters.agentdojo.semantics`
 does. The registry part and the source profile select `@2`; `tests/adapters/qwencode/test_d31_bumps.py` pins the digests.
+**Since 0.2.0** (D-1063, regen-batch row 176) `qwencode.tools@3` (`semantics/qwencode.tools-3/`) is `@2`'s tables on
+catalogue version 3 (`CATALOGUE_OF = {1: 1, 2: 2, 3: 3}`), and the registry part and profile version 3 select it; `@2`
+stays, reading the archived catalogue version 2, for `redcode-exec-qwencode-w2`.
 
-### D.24.8 Rule catalogue `qwencode.rules.toml` (version 2)
+### D.24.8 Rule catalogue `qwencode.rules.toml` (version 3)
 
 35 rules: 11 D, 14 I of the mapper, 7 I of the semantics profile and 3 `reserved` detector names; 11 issue codes
 (`score_unrecognised` and `extra_result_message` added by regen items 125 and 126), 3 types,
@@ -8808,14 +8977,24 @@ does. The registry part and the source profile select `@2`; `tests/adapters/qwen
 items 120-127 changed rule statements and issue codes after scratch trial corpora had recorded the file, so the file is at
 version 2 and version 1 (main's bytes at `93c02c6f`, sha256 `db5c7cd7…6cce`) ships byte for byte under
 `rules/archive/qwencode.rules.v1.toml`. The rules keep `@1` (nothing is released; a statement change is a content change
-covered by the catalogue version). The items add no D rule, so no `_unverified` twin is needed.
+covered by the catalogue version). The items add no D rule, so no `_unverified` twin is needed. **Version 3 (0.2.0:
+D-1063, regen-batch row 176, review UC-39 to UC-41)** adds the D rules `qwencode.lone_surrogate_replaced@1` (the D-378
+lone-surrogate pass) and `qwencode.content_not_inlined@1` (the D-934 pattern) and their issue codes. Both are
+deterministic text transformations by AgentPROV and cite no code, so they need no twin either. Regen-batch row 182
+(review AU-RC-5; version 3 is unreleased, so in place) adds the I rule `qwencode.no_result_message_unverified@1` and its
+assumption `qwencode:ResultClosesRun`, and narrows the D rule to a present result message: `qwencode.result_status@2`
+(AD-18: a statement change mints a version), `@1` superseded. 39 rules (13 active D, 1 superseded D, 22 I, 3 reserved),
+13 issue codes. Version 2 (`0366477b79d4…`, the bytes `redcode-exec-qwencode-w2` records) ships byte-exact as
+`rules/archive/qwencode.rules.v2.toml`, beside version 1.
 
 ### D.24.9 Profile, registry and artefact catalogue
 
 `profiles/redcode-exec-qwencode.profile.toml` (closed `[family.qwencode]` table: layout, targets, languages, tools, pairing
 rule, semantics profile, quirks; version 2 since the D-31 bumps of 2026-10-21: `[import] rules` `qwencode = 2` and the
 semantics profile `qwencode.tools@2`; version 1, main's bytes at `93c02c6f`, sha256 `40e8732e…2927`, ships under
-`profiles/archive/redcode-exec-qwencode.profile.v1.toml`), one `planned` registry part (semantics `qwencode.tools@2`), `artefacts.toml` (16 entries; three on reserved detectors:
+`profiles/archive/redcode-exec-qwencode.profile.v1.toml`; version 3 since 0.2.0, D-1063: `qwencode = 3` and
+`qwencode.tools@3`, with version 2, `cd8895111ad7…`, recorded by `redcode-exec-qwencode-w2`, archived byte-exact), one
+`planned` registry part (semantics `qwencode.tools@3` since 0.2.0), `artefacts.toml` (16 entries; three on reserved detectors:
 the empty output, the API samples, the context-pin path).
 
 ### D.24.10 Files, fixtures and tests

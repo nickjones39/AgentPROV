@@ -1,7 +1,9 @@
-"""The semantics profile ``openhands.tools`` at versions 1 and 2 (docs/architecture D.17.10; C.14; EF E.7.1, E.7.3).
+"""The semantics profile ``openhands.tools`` at versions 1, 2 and 3 (docs/architecture D.17.10; C.14; EF E.7.1, E.7.3).
 
 Version 2 is version 1's tables on the openhands catalogue version 2 (D-31 bump with D-606; H.2.5: one catalogue version
 per corpus); version 1 keeps reading the archived catalogue version 1 that the stored scratch corpora recorded.
+Version 3 is version 2's tables on the openhands catalogue version 3 (D-1063: the lone-surrogate rule); version 2
+keeps reading the archived catalogue version 2 that the sealed wave-2 corpora record.
 
 Data plus small pure functions over one AER. What the profile yields, per record in AER file order (the yield order is
 the annotation order):
@@ -39,10 +41,11 @@ if TYPE_CHECKING:
 __all__ = ["CITED_RULES", "DATA_FILES", "PROFILE_ID", "OpenHandsToolsProfile", "build"]
 
 PROFILE_ID: Final = "openhands.tools"
-PROFILE_VERSION: Final = 2
-PROFILE_VERSIONS: Final = (1, 2)  # 2: version 1's tables on the openhands catalogue version 2 (D-31 bump, D-606)
+PROFILE_VERSION: Final = 3
+PROFILE_VERSIONS: Final = (1, 2, 3)  # 2: version 1's tables on the openhands catalogue version 2 (D-31 bump, D-606)
+#: 3: version 2's tables on the openhands catalogue version 3 (D-1063)
 #: The ``openhands`` catalogue version each profile version declares (D-31; H.2.5): @1 reads the archived version 1.
-CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2})
+CATALOGUE_OF: Final = MappingProxyType({1: 1, 2: 2, 3: 3})
 DATA_FILES: Final = ("profile.toml", "tools.toml")
 EVIDENCE: Final = ("description", "observed", "code")
 
@@ -134,7 +137,7 @@ class _Run:
 
 @dataclass(frozen=True)
 class OpenHandsToolsProfile:
-    """``openhands.tools`` at version 1 or 2 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
+    """``openhands.tools`` at version 1, 2 or 3 (satisfies :class:`agentprov.sem.types.SemanticsProfile`)."""
 
     id: str
     version: int
@@ -255,7 +258,7 @@ class OpenHandsToolsProfile:
 
 
 def build(profile_id: str, version: int, files: Mapping[str, bytes], sha256: str) -> OpenHandsToolsProfile:
-    """Build ``openhands.tools`` at version 1 or 2 from its data files (called by
+    """Build ``openhands.tools`` at version 1, 2 or 3 from its data files (called by
     :func:`agentprov.adapters.semantics_profiles.load_semantics_profile`)."""
     if profile_id != PROFILE_ID or version not in PROFILE_VERSIONS:
         raise ProfileDataError(f"this code builds {PROFILE_ID} at versions {list(PROFILE_VERSIONS)}, not "

@@ -98,7 +98,7 @@ def test_the_prov_job_uses_a_hint_only_for_its_own_bytes(tmp_path: Path, inputs:
     corpus = import_into(tmp_path / "c", inputs, cache, workers=1)
     reader = CorpusReader.open(corpus)
     rows = reader.index()
-    params = {"spec": SPEC, "strict": True, "validate": True, "semantics": ["agentdojo.suites@2"], "derive": True}
+    params = {"spec": SPEC, "strict": True, "validate": True, "semantics": ["agentdojo.suites@4"], "derive": True}
 
     def run(row: Any, hint: bytes | None) -> _Ctx:
         fidelity = {"collect": True, "hint": hint is not None}
@@ -124,7 +124,7 @@ def test_a_job_that_skips_conformance_never_reads_a_hint_or_returns_a_frame(tmp_
     corpus = import_into(tmp_path / "c", inputs, None, workers=1)
     reader = CorpusReader.open(corpus)
     row = reader.index()[0]
-    params = {"spec": SPEC, "strict": True, "validate": True, "semantics": ["agentdojo.suites@2"], "derive": True,
+    params = {"spec": SPEC, "strict": True, "validate": True, "semantics": ["agentdojo.suites@4"], "derive": True,
               "conformance": False, "fidelity": {"collect": True, "hint": True}}
 
     class NoHint(_Ctx):

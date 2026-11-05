@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 import tomllib
 from importlib import resources
@@ -12,21 +13,25 @@ import wirelog_support as support
 from agentprov.aer.rules import RULE_ID_RE, load_catalogue, parse_catalogue
 
 PACKAGE = "agentprov.adapters.wirelog"
+#: The catalogue digest the sealed corpus what-surrounds-w2 records (derivation.json, aer stage; D-1063).
+SEALED_CATALOGUE_V1 = "7a473ef1f8d5e94549567728eddd58991b68db01bac5e5822a3623835e88b95e"
+SEALED_PROFILE_V1 = "ed4849b26a477c9d4f6b85f22b7627892cce4c4d6093b21c550fa203a9e3316f"
 SRC = support.REPO / "src" / "agentprov" / "adapters" / "wirelog"
 ISSUE_CODES = {
     "label_field_mismatch", "context_diverges", "unknown_block", "payload_not_delivered", "payload_entry_missing",
     "final_texts_not_logged", "meta_rewritten", "task_prompt_unlisted", "results_row_missing", "unreadable_auxiliary",
     "turn_limit",
+    "lone_surrogate_replaced", "content_not_inlined",  # catalogue version 2 (D-1063, review UC-40/UC-41)
 }  # fmt: skip
 
 
 def catalogue():
-    return load_catalogue("wirelog", 1, package=PACKAGE)
+    return load_catalogue("wirelog", 2, package=PACKAGE)  # current since D-1063; v1 (the sealed corpus's) archived
 
 
 def test_the_catalogue_passes_the_self_test_and_the_citation_policy():
     cat = catalogue()
-    assert (cat.namespace, cat.version, cat.format) == ("wirelog", 1, "agentprov-rule-catalogue/0.1")
+    assert (cat.namespace, cat.version, cat.format) == ("wirelog", 2, "agentprov-rule-catalogue/0.1")
     assert cat.issue_codes == ISSUE_CODES and cat.subtypes == set() and cat.types == set()
     data = (resources.files(PACKAGE) / "rules" / "wirelog.rules.toml").read_bytes()
     assert parse_catalogue(data).digest == cat.digest
@@ -79,7 +84,9 @@ def test_every_declared_rule_is_exercised(mapped):
         cited |= {r.split("#", 1)[0] for a in m.sem.annotations for r in a["rule"]}
     cited |= set(CITED_RULES)
     derived = {"wirelog.call_without_result@1", "wirelog.unknown_block@1", "wirelog.text_file_utf8@1",
-               "wirelog.unreadable_run@1"}
+               "wirelog.unreadable_run@1",
+               # D-1063 (UC-40, UC-41): no fixture holds a lone surrogate or a 1 MiB string; test_uc39_41.py
+               "wirelog.lone_surrogate_replaced@1", "wirelog.content_not_inlined@1"}
     citable = {rid for rid, rule in catalogue().rules.items() if rule.citable}
     assert citable - cited - derived == set(), sorted(citable - cited - derived)
 
@@ -89,7 +96,8 @@ def test_the_mapper_source_cites_only_declared_rules():
     literals = set(re.findall(r'"(wirelog\.[a-z_.]+@[0-9]+)"', source))
     assert literals <= set(catalogue().rules) and literals
     codes = {c.removeprefix("wirelog.") for c in re.findall(r'"(wirelog\.[a-z_]+)"', source)} & ISSUE_CODES
-    assert codes == ISSUE_CODES  # every declared issue code is raised somewhere in the mapper
+    # every declared issue code is raised somewhere in the mapper; lone_surrogate_replaced by the shared D-378 pass
+    assert codes == ISSUE_CODES - {"lone_surrogate_replaced"} and 'surrogates(self, records, "wirelog")' in source
 
 
 def test_profile_quirks_name_catalogue_rules():
@@ -98,3 +106,20 @@ def test_profile_quirks_name_catalogue_rules():
     family = load_profile(support.PROFILE).family_table()
     for quirk in family["quirk"]:
         assert all(r in catalogue().rules for r in quirk["rules"]), quirk["id"]
+
+
+def test_catalogue_version_1_is_archived_unchanged_and_version_2_only_adds_the_d1063_rules():
+    """D-1063 (D-31): the sealed corpus what-surrounds-w2 records catalogue version 1; it ships byte-exact under archive/."""
+    archived = (SRC / "rules" / "archive" / "wirelog.rules.v1.toml").read_bytes()
+    v1, v2 = load_catalogue("wirelog", 1, package=PACKAGE), catalogue()
+    assert hashlib.sha256(archived).hexdigest() == v1.digest == SEALED_CATALOGUE_V1
+    assert v1.version == 1 and set(v2.rules) - set(v1.rules) == {"wirelog.lone_surrogate_replaced@1",
+                                                                 "wirelog.content_not_inlined@1",
+                                                                 "wirelog.result_not_searched@1"}  # row 181, AU-RC-3
+    assert all(v2.rules[rid] == rule for rid, rule in v1.rules.items())
+    assert v2.issue_codes - v1.issue_codes == {"lone_surrogate_replaced", "content_not_inlined"}
+    profile = (SRC / "profiles" / "archive" / "what-surrounds.profile.v1.toml").read_bytes()
+    assert hashlib.sha256(profile).hexdigest() == SEALED_PROFILE_V1
+    root = SRC / "semantics"  # wirelog.tools@2: @1's tables on catalogue version 2 (H.2.5)
+    assert all((root / "wirelog.tools-1" / n).read_bytes() == (root / "wirelog.tools-2" / n).read_bytes()
+               for n in ("documents.toml", "tools.toml"))

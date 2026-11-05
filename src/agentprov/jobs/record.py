@@ -3,8 +3,10 @@
 A job directory ``$AGENTPROV_HOME/jobs/<job_id>/`` (mode 0700 on POSIX) holds ``job.json`` (written by
 :mod:`agentprov.jobs.manager` and, for the pids, by the job's supervisor; no secret, no environment values),
 ``progress.jsonl``, ``log.jsonl`` and ``summary.json`` (written by the job's CLI), ``stdout.txt`` and ``stderr.txt``,
-``control.json`` (D-394, only when the CLI accepts ``--control-file``) and ``ended.json`` (written by the supervisor
-when the job ends, with its real exit code).
+``control.json`` (D-394, only when the CLI accepts ``--control-file``), ``ended.json`` (written by the supervisor
+when the job ends, with its real exit code) and ``abandoned.json`` (D-1061: written by ``agentprov jobs cancel``; a
+job with it is cancelled, and ``jobs resume`` refuses it). The mark is a file of its own because the supervisor
+rewrites ``job.json`` from its own copy while the job runs.
 
 This module never writes, signals or spawns: the GUI imports it (design §2.2 allowlist, D-391), while every change
 goes through the CLI. The state of a job is computed from its files and, while no ``ended.json`` exists, from the
@@ -26,9 +28,12 @@ from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.loaders import strict_json_loads
 
 __all__ = [
+    "ABANDONED",
+    "ABANDONED_FORMAT",
     "JOB_FORMAT",
     "OUTCOMES",
     "Job",
+    "abandoned_mark",
     "batches_dir",
     "jobs_dir",
     "list_jobs",
@@ -44,6 +49,9 @@ __all__ = [
 ]
 
 JOB_FORMAT: Final = "agentprov-job-record/0.1"  # not agentprov-job/0.1, the T1 worker protocol (G.4.6)
+#: D-1061: the cancel mark in a job directory, and its format
+ABANDONED: Final = "abandoned.json"
+ABANDONED_FORMAT: Final = "agentprov-job-abandoned/0.1"
 #: The outcome of an exit code, as the CLI's summary names it (N.1.3).
 OUTCOMES: Final[Mapping[int, str]] = {0: "ok", 1: "failures", 2: "usage", 3: "environment", 4: "refused",
                                       5: "unsupported", 70: "internal", 130: "interrupted"}
@@ -76,6 +84,15 @@ def read_json(path: Path, limit: int = _SMALL) -> dict[str, Any] | None:
     except IngestError:
         return None
     return value if isinstance(value, dict) else None
+
+
+def abandoned_mark(directory: Path) -> dict[str, Any] | None:
+    """D-1061: the cancel mark of the job in ``directory``, or ``None`` when it was not cancelled. A mark that cannot be
+    read still counts (an empty dict): a damaged mark never makes a cancelled job resumable."""
+    path = directory / ABANDONED
+    if not os.path.lexists(path):
+        return None
+    return read_json(path, 64 * 1024) or {}
 
 
 def valid_pid(pid: object) -> int | None:
@@ -174,7 +191,8 @@ def utc_seconds(stamp: object) -> int | None:
 @dataclass(slots=True)
 class Job:
     """One job as its files describe it. ``state``: ``running``, ``ended`` or ``unobserved`` (its supervisor is gone
-    and no ``ended.json`` was written: killed from outside, or the machine restarted)."""
+    and no ``ended.json`` was written: killed from outside, or the machine restarted). ``abandoned``: it was cancelled
+    (``agentprov jobs cancel``, D-1061), whatever its state."""
 
     job_id: str
     directory: Path
@@ -183,6 +201,7 @@ class Job:
     exit_code: int | None = None
     outcome: str | None = None
     ended_how: str | None = None
+    abandoned: bool = False
 
     @property
     def pid(self) -> int | None:
@@ -229,11 +248,12 @@ class Job:
                 "created": r.get("created"), "writes": self.writes, "reads": r.get("reads") or [],
                 "batch_id": r.get("batch_id"), "slot": r.get("slot"), "control_file": bool(r.get("control_file")),
                 "subcommand_argv": self.subcommand_argv, "pid": self.pid, "directory": str(self.directory),
-                "meta": self.meta}
+                "meta": self.meta, "abandoned": self.abandoned}
 
 
 def observe(job: Job) -> Job:
     """Fill ``job``'s state from its files and its supervisor's identity. Writes nothing."""
+    job.abandoned = abandoned_mark(job.directory) is not None
     ended = read_json(job.file("ended.json"))
     if ended is not None:
         job.state = "ended" if ended.get("how") != "unobserved" else "unobserved"

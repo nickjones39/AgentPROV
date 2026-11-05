@@ -283,7 +283,7 @@ is not allowed. For a deposit, give one `--root-digest` per corpus in it.
 | `--level checksums\|chain\|rederive` | the level |
 | `--root-digest sha256:HEX` | the externally published root digest (repeatable) |
 | `--release` | release mode |
-| `--sample N`, `--seed S` | check a seeded sample of N executions (not with `--release`) |
+| `--sample N`, `--seed S` | check a seeded sample of N executions (not with `--release`); with `rederive`, only the raw objects the sample needs (with their archive containers, split parts and carved sources) are re-hashed and staged |
 | `--against-pins` | also compare every git origin with the in-package profile pins (reads the fetch cache; `--allow-network` fetches a missing listing) |
 | `--jobs N`, `--no-validation-cache` | for `rederive` |
 

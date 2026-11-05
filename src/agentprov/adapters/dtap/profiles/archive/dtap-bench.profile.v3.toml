@@ -1,0 +1,217 @@
+# Source profile `dtap-bench`: DTap-Bench agent trajectories and task configurations (docs/architecture D.16.16; D-26,
+# D-28, D-29).
+#
+# Data, not code. No status lives here: the registry is the only status store (R-38, R-45). Any byte change bumps
+# `version` (AD-18). Version 2 (D-607, D-31): the [[family.dtap.redact]] rule and semantics dtap.tools@2 (catalogue dtap 2);
+# version 1, which the scratch corpora record, ships as profiles/archive/dtap-bench.profile.v1.toml. Version 3 (D-934,
+# D-935): semantics dtap.tools@3 (catalogue dtap 3) and [import] prov_rss_bytes; version 2, which the wave-2 tree
+# dtap-bench-w2 records, ships as profiles/archive/dtap-bench.profile.v2.toml. The [family.dtap] table is checked against
+# ../family.schema.json (closed schema, D.4.1). Every count below is from the phase-10b step-1 census
+# (investigation/sources/dtap.md, verify/dtap.md; $AGENTPROV_HOME/migration-work/phase10b/census/).
+
+[profile]
+id = "dtap-bench"
+version = 3
+format = "agentprov-source-profile/0.1"
+source_id = "dtap"
+family = "dtap"
+parts = ["head"]
+title = "DTap-Bench agent trajectories (AI-Secure) with the DecodingTrust-Agent-Platform task configurations"
+evidence = ["sources/dtap.md", "verify/dtap.md", "docs/reports/systematic-search/candidates/dtap-bench.md"]
+
+[source]
+canonical_repo = "https://huggingface.co/datasets/AI-Secure/DTap-Bench-Agent-Trajectories"
+paper = "arXiv:2605.04808"
+
+[[source.pins]]
+role = "runs"
+part = "head"
+kind = "git"
+repo = "https://huggingface.co/datasets/AI-Secure/DTap-Bench-Agent-Trajectories"
+commit = "836caf2fdd78b888ddd14fb62dc038e932e17898"
+date = "2026-07-01"
+primary = true
+note = "133,851 files; 67,808 trajectory-bearing JSON files, 65,902 judge results (sources/dtap.md §1, §2.3)"
+
+[[source.pins]]
+role = "tasks"
+part = "head"
+kind = "git"
+repo = "https://huggingface.co/datasets/AI-Secure/DecodingTrust-Agent-Platform"
+commit = "a3edc9b7c48cbf16c2ea9c18990fb94c7494dd04"
+date = "2026-06-18"
+primary = false
+note = "context: 6,682 config.yaml read through the field allowlist (Task, Attack, Agent.system_prompt); env_vars never read (D.16.13)"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "AI-Secure/DTap-Bench-Agent-Trajectories"
+revision = "836caf2fdd78b888ddd14fb62dc038e932e17898"
+file = "claudesdk/claude-sonnet-4-5/windows/benign/32/20260401_095722.json"
+sha256 = "29b8bc6959bc434c2cc61d5ac3689dc949e50d14a9a4b366dc426e56bf51aa83"
+bytes = 12281319
+primary = false
+note = "the Git LFS object of a pointer committed in place of the JSON (D-29 item 4); oid and size from the pointer"
+
+[[source.pins]]
+role = "lfs_object"
+part = "head"
+kind = "hf"
+dataset = "AI-Secure/DTap-Bench-Agent-Trajectories"
+revision = "836caf2fdd78b888ddd14fb62dc038e932e17898"
+file = "claudesdk/claude-sonnet-4-5/windows/benign/49/20260401_113303.json"
+sha256 = "6731a5cc8842c7983624ca8a234574d81fda165fbac46c94219b1f0a01e8d072"
+bytes = 10646342
+primary = false
+note = "the Git LFS object of a pointer committed in place of the JSON (D-29 item 4); oid and size from the pointer"
+
+[licence]
+spdx = "Apache-2.0"
+data_licence = "Apache-2.0"
+policy = "include"
+basis = "Apache-2.0 per both dataset cards; upstream AI-secure/DecodingTrust-Agent LICENSE (e0e38455); no LICENSE or NOTICE file in either dataset. Secrets decision 2026-10-11: option A, include (D.16.13; D-29 item 10)"
+attribution = ["Chen et al., DecodingTrust-Agent Platform (DTap), arXiv:2605.04808", "AI-Secure/DTap-Bench-Agent-Trajectories @ 836caf2f", "AI-Secure/DecodingTrust-Agent-Platform @ a3edc9b7"]
+unassessed = ["model-provider terms on redistributing model outputs", "vendored sandbox datasets inside tool results (Salesforce, PayPal and others)"]
+
+[lineage]
+built_on = []
+vendored = []
+duplicates = []
+cited_by = []
+content_dedup = "never"
+
+[import]
+dialect = "dtap.trajectory"
+mapper = "dtap.trajectory"
+variants = ["v1"]
+include = ["*/*/*/benign/**/*.json", "*/*/*/malicious/**/*.json"]
+exclude = [
+  { glob = "**/red_teaming_agent_*.json", code = "select.not_execution_artefact", note = "attack-generation logs of an attacker agent (8)" },
+  { glob = "**/screenshots/*.png", code = "select.not_execution_artefact", note = "Git LFS pointers of screenshots (122); not fetched" },
+  { glob = "README.md", code = "select.not_execution_artefact" },
+  { glob = ".gitattributes", code = "select.not_execution_artefact" },
+]
+auxiliary = ["judge_result.json", "judge_result(1).json"]
+context_artefacts = ["tasks:**/config.yaml"]
+# D-935: PROV grows with the square of a run's model calls; tier 4 of the longest runs' documents (up to 103 MB) needs about
+# 8 GiB, so the prov and validate jobs of this source run under 16 GiB (worker limits enter no digest)
+prov_rss_bytes = 17179869184
+layout = "{framework}/{model}/{domain}/{benign[/subcategory]|malicious/{threat}/{risk_category}}/{task_dir}/{file}"
+
+[family.dtap]
+layout = "{framework}/{model}/{domain}/{split}/{rest}/{file}"
+threats = ["direct", "indirect", "direct_prompt", "direct_no_attack"]
+frameworks = ["openaisdk", "claudesdk", "googleadk", "openclaw"]
+semantics_profile = { id = "dtap.tools", version = 3 }
+
+[family.dtap.pairing]
+openaisdk = "dtap.pair_strict_alternation@1"
+openclaw = "dtap.pair_strict_alternation@1"
+googleadk = "dtap.pair_contiguous_batch_fifo@1"
+claudesdk = "dtap.pair_interleaved_fifo@1"
+
+[family.dtap.matcher]
+normaliser = "dtap.alnum_norm@1"
+min_needle = 24
+window = 40
+judge_link_min = 40
+
+[[family.dtap.quirk]]
+id = "dtap.synthetic_trajectory"
+rules = ["dtap.synthetic_marker@1"]
+observed = { files = 20 }
+
+[[family.dtap.quirk]]
+id = "dtap.harness_failure"
+rules = ["dtap.harness_error_step@1"]
+observed = { files = 47 }
+
+[[family.dtap.quirk]]
+id = "dtap.empty_trajectory"
+rules = ["dtap.empty_trajectory@1"]
+observed = { files = 17 }
+
+[[family.dtap.quirk]]
+id = "dtap.lfs_pointer"
+rules = ["dtap.lfs_pointer@1"]
+observed = { files = 2 }
+
+[[family.dtap.quirk]]
+id = "dtap.rejudged"
+rules = ["dtap.audit_correction_effective@1"]
+observed = { judges = 458 }
+
+[[family.dtap.quirk]]
+id = "dtap.rerun_directories"
+rules = ["dtap.rerun_group@1", "dtap.judge_attempt_by_content@1"]
+observed = { directories = 1291, surplus_files = 1828 }
+
+[[family.dtap.quirk]]
+id = "dtap.ambiguous_batches"
+rules = ["dtap.pair_contiguous_batch_fifo@1", "dtap.pair_interleaved_fifo@1"]
+observed = { results = 61651 }
+
+[[family.dtap.quirk]]
+id = "dtap.join_tiers"
+rules = ["dtap.config_join_tier@1"]
+observed = { a = 62419, b = 2899, c = 1693, missing = 786, unparseable = 9 }
+
+# Redaction of listed third-party workstation accounts (D-607, user decision 2026-10-21: a labels allowlist; the
+# grammar is D-476's, module agentprov.adapters.dtap.redact). Every pattern is structural and names no account. Only a
+# match whose salted label ({span12}, salt = the profile id) is listed is redacted, over every AER string,
+# model-authored text included; an unlisted account is never touched. The labels were computed out of band from the
+# five accounts of pre-check finding PC-01 (dtap-bench.md) and the one other letter case the data spells one of them
+# in; the repository holds only labels an AER would carry anyway, never a name.
+#
+# host_account: the account segment of an account path (the forms and endings of the release scan's D-457 rule, over
+# decoded strings).
+[[family.dtap.redact]]
+id = "host_account"
+scope = "all_strings"
+pattern = '''(?:(?<![A-Za-z0-9._-])(?:/(?:Users|home)/|\\/(?:Users|home)\\/|/mnt/[A-Za-z]/(?i:users)/)|(?<![A-Za-z0-9])[A-Za-z]:(?:\\\\?|/)(?i:users)(?:\\\\?|/))(?P<span>[A-Za-z0-9._-]{0,63}[A-Za-z0-9_-])\.{0,64}(?=[/\\"'\s,:;)\]}\x00]|\Z)'''
+replacement = "acct-{span12}"
+labels = [
+  "87b008ab5136",  # PC-01 account #1 (users-dir form; tool and agent content; reaches the L2 AER)
+  "b0c600d72e69",  # PC-01 account #2 (home-dir form; OpenClaw harness-config state, tool and agent content)
+  "94604d875008",  # PC-01 account #3 (home-dir form; tool and agent content; reaches the L2 AER)
+  "ace39077f232",  # PC-01 account #3, the one other letter case the data spells it in (D-607 census)
+  "f2f8be49978c",  # PC-01 account #4 (home-dir form; tool and agent content; reaches the L2 AER)
+  "67edc8905a3f",  # PC-01 account #5 (home-dir form; tool and agent content; reaches the L2 AER)
+]
+note = "PC-01: the harness-host accounts of claudesdk and openclaw runs (tool output, harness-config state, agent text, final responses); 137 other named accounts are benchmark or model content and are not listed"
+
+# host_account_token and host_account_dotted: the same listed accounts as whole tokens in any other context, which the
+# path rule cannot see (D-607 census): owner and group columns of `ls -l` listings, munged project-directory names
+# (`-Users-<n>-...`), deeper paths, and a path right after an escaped newline (`\n/home/<n>`). A token is a run of
+# letters and digits; a dotted token joins such runs with single `.`, `_` or `-` (a name like `<a>.<b>`).
+[[family.dtap.redact]]
+id = "host_account_token"
+scope = "all_strings"
+pattern = '''(?<![A-Za-z0-9])(?P<span>[A-Za-z0-9]++)'''
+replacement = "acct-{span12}"
+labels = [
+  "87b008ab5136",  # PC-01 account #1 (users-dir form; tool and agent content; reaches the L2 AER)
+  "b0c600d72e69",  # PC-01 account #2 (home-dir form; OpenClaw harness-config state, tool and agent content)
+  "94604d875008",  # PC-01 account #3 (home-dir form; tool and agent content; reaches the L2 AER)
+  "ace39077f232",  # PC-01 account #3, the one other letter case the data spells it in (D-607 census)
+  "f2f8be49978c",  # PC-01 account #4 (home-dir form; tool and agent content; reaches the L2 AER)
+  "67edc8905a3f",  # PC-01 account #5 (home-dir form; tool and agent content; reaches the L2 AER)
+]
+note = "PC-01 residue: a listed account as a bare token"
+
+[[family.dtap.redact]]
+id = "host_account_dotted"
+scope = "all_strings"
+pattern = '''(?<![A-Za-z0-9])(?P<span>[A-Za-z0-9]++(?:[._-][A-Za-z0-9]++)++)'''
+replacement = "acct-{span12}"
+labels = [
+  "87b008ab5136",  # PC-01 account #1 (users-dir form; tool and agent content; reaches the L2 AER)
+  "b0c600d72e69",  # PC-01 account #2 (home-dir form; OpenClaw harness-config state, tool and agent content)
+  "94604d875008",  # PC-01 account #3 (home-dir form; tool and agent content; reaches the L2 AER)
+  "ace39077f232",  # PC-01 account #3, the one other letter case the data spells it in (D-607 census)
+  "f2f8be49978c",  # PC-01 account #4 (home-dir form; tool and agent content; reaches the L2 AER)
+  "67edc8905a3f",  # PC-01 account #5 (home-dir form; tool and agent content; reaches the L2 AER)
+]
+note = "PC-01 residue: a listed account whose name joins letter runs with a separator, as a bare token"

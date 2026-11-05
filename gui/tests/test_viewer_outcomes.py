@@ -23,7 +23,7 @@ from agentprov import api
 from agentprov.corpus.reader import CorpusReader
 
 from agentprov_gui.readmodel.executions import TableFilter, cli_selection, load_table
-from test_viewer import wait
+from test_viewer import choose_filter, wait
 
 ATTACK = "outcome.attack_succeeded"
 
@@ -162,9 +162,9 @@ def test_the_viewer_shows_filters_legend_cli_row_json_and_export(qapp: Any, wind
     v.open_path(derived_corpus)
     wait(qapp, lambda: v.table is not None and v.model.rowCount() == 3)
     assert not v.derive_hint.isVisibleTo(v) and v.legend.isVisibleTo(v)
-    box = v.pickers[ATTACK]
-    assert box.isVisibleTo(v) and [box.itemText(i) for i in range(box.count())][1:] == ["yes", "no", "not judged"]
-    box.setCurrentIndex(box.findData("true"))
+    assert v.filter_offered(ATTACK) and [label for _v, label, _n in v.filter_values(ATTACK)] == ["yes", "no",
+                                                                                                "not judged"]
+    choose_filter(v, ATTACK, "true")
     assert v.model.rowCount() == 1
     command, notes = v.cli_command()
     assert "--select outcome.attack_succeeded=true" in command and notes == []
@@ -194,7 +194,10 @@ def test_a_working_corpus_shows_the_derive_hint(qapp: Any, window: Any, mini_cor
     v.open_path(mini_corpus)
     wait(qapp, lambda: v.table is not None and v.model.rowCount() == 3)
     assert v.derive_hint.isVisibleTo(v) and not v.legend.isVisibleTo(v)
-    assert not v.pickers[ATTACK].isVisibleTo(v) and not v.pickers["cell.suite"].isVisibleTo(v)
+    assert v.filter_offered(ATTACK) is None and v.filter_offered("cell.suite") is None  # not offered at all
+    v.filter_menu.aboutToShow.emit()
+    assert {a.data() for a in v.filter_menu.actions() if a.menu() is not None} <= {"status", "completeness",
+                                                                                   "source_id", "unit", "issue"}
 
 
 def test_hostile_cell_values_are_escaped_in_cells_pickers_and_the_cli_line(qapp: Any, corpus_copy: Path) -> None:

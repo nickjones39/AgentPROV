@@ -1403,6 +1403,14 @@ screen has one row per part: executions mapped, sealed with issues, degenerate a
 counters), the top issue codes, the validation outcome, the recompute differences, and the wall time of each step. The
 run folder holds `devrun.json` (settings, seed, the CLI path and commit, the batch id).
 
+**Stopping (user report 2026-11-05).** The Dev Runs tab's *Stop Dev Run…* (and the Batches tab's *Stop Batch…* for the
+selected batch) asks, then runs `agentprov batch stop ID --steps`: under the batch file's lock it marks the batch
+stopped (`stopped` in the batch file, so no driver starts another step), stops the driver and every running or queued
+step job gracefully (as `jobs stop`), waits a few seconds and records how the steps ended. The pending parts stay
+pending, and `batch resume` (Resume Batch…) clears the mark and goes on from them. A running live dev run (§19.2, one
+`run` job) is stopped by the same button as `jobs stop`. `batch stop` without `--steps` keeps D-704's meaning: only the
+driver stops.
+
 **Caveat (core review D, CD-7):** with `--limit`, which raw members are stored can depend on the import batch size; the
 fix is held in a core branch, and today's `import` has no `--batch-size` to pin. Dev-run raw-member sets are therefore
 compared only within one CLI commit (recorded in `devrun.json`).

@@ -212,6 +212,23 @@ def test_tool_errors_and_invalid_names(tmp_path):
     assert [m["content"] for m in sent["messages"] if m["role"] == "tool"] == [r["error"] for r in results]
 
 
+def test_a_lone_surrogate_reply_and_deeply_nested_tool_arguments_never_raise_into_the_run(tmp_path):
+    # UC-19: the writer records both (an escaped string, a blob) with a value_adjusted note; the run is unchanged
+    deep = '{"n": ' + "[" * 250 + "1" + "]" * 250 + "}"
+    call = {"name": "get_most_recent_transactions", "arguments": deep, "id": "call_1"}
+    run = run_cell(tmp_path, CELL, NATIVE, [Reply.tool_calls([call], model="m\ud800"), Reply.text(ANSWER)])
+    assert run.result.status == "complete"
+    assert_capture_invariants(run)
+    assert run.of("llm.response")[0]["data"]["served_model"] == "m\\ud800"
+    (dispatch,) = run.of("tool.dispatch")
+    assert set(dispatch["data"]["args"]) == {"$blob", "bytes", "media"}
+    assert json.loads(run.blob(dispatch["data"]["args"])) == json.loads(deep)  # what the model sent, whole
+    changes = [c["change"] for n in run.notes("value_adjusted") for c in n["changes"]]
+    assert "lone_surrogates_escaped" in changes and "stored_as_blob_too_deep" in changes
+    (result,) = run.of("tool.result")
+    assert result["data"]["status"] == "invalid"  # the stock runtime's validation, as without capture
+
+
 # ------------------------------------------------------------------ provider failures, native element
 
 

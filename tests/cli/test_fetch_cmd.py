@@ -293,6 +293,7 @@ def test_an_origin_that_matches_no_in_package_pin_is_never_contacted(cli, tmp_pa
     assert summary["counters"]["unpinned"] == 3 and summary["counters"]["verified"] == 0
     assert summary["issues_by_code"] == {"raw.reference.unpinned_origin": 3}
     assert not cache.exists()  # nothing was contacted or created
+    assert "to retry" not in run.err  # AU-CLIA-9: retrying cannot help an origin that is never contacted
 
 
 @needs_git
@@ -305,6 +306,22 @@ def test_a_wrong_digest_gives_raw_reference_digest(cli, tmp_path, cache, monkeyp
     check_summary(summary)
     assert summary["failures"][0]["code"] == "raw.reference.digest"
     assert "agentprov fetch --corpus" in run.err  # the hint is generated at display time
+
+
+@needs_git
+def test_the_retry_hint_names_the_corpus_path_as_given_and_quoted(cli, tmp_path, cache, monkeypatch):
+    """AU-CLIA-9: the hint wrote a corpus under the home directory as ``<home>/...``, which a shell reads as an input
+    redirection; it is now the path as given, shell-quoted."""
+    import shlex
+
+    up = local_upstream(tmp_path, monkeypatch)
+    corpus = corpus_with(tmp_path / "with space", [reference_for(up, "runs/a/one.json", digest="0" * 64)])
+    monkeypatch.setenv("HOME", str(tmp_path))
+    run = cli("fetch", "--corpus", str(corpus), "--allow-network", "--cache-dir", str(cache))
+    assert run.code == 1
+    hint = next(line for line in run.err.splitlines() if "to retry:" in line)
+    assert hint.split("to retry: ", 1)[1] == f"agentprov fetch --corpus {shlex.quote(str(corpus))} --only sha256:{'0' * 64}"
+    assert "<home>" not in hint
 
 
 @needs_git

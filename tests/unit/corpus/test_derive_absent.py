@@ -86,6 +86,39 @@ def test_cb6_derive_out_carries_the_tombstones_and_the_purged_row(capsys, source
     assert code == 0 and summary["issues_by_code"].get("raw.tombstoned") == 1, (err, summary.get("issues_by_code"))
 
 
+@pytest.fixture(scope="module")
+def withholding_sealed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, str]:
+    """The seal tests' corpus sealed with a spec ``[withhold]`` table that lists one execution (D-964): the sealed tree
+    holds ``WITHHELD.json`` and lacks that execution's row and raw object."""
+    import seal_support as ss
+
+    from agentprov.corpus.package import seal
+
+    root = ss.working_corpus(tmp_path_factory, tmp_path_factory.mktemp("withheld-src") / "sealed")
+    ex = ds.rows(ds.partial(root))[0]["ex"]
+    spec = ss.SPEC + f'\n[withhold]\ndecided_by = "test"\nexecutions = ["{ex}"]\n'
+    seal(root, corpus_version="0.1.0", inputs=ss.inputs(spec=spec.encode()))
+    assert (root / "WITHHELD.json").is_file()
+    return root, ex
+
+
+@pytest.mark.parametrize(("command", "extra"), [("recompute", ("--stages", "sem,prov,validation")),
+                                                ("recompute", ()), ("derive", ())])
+def test_au_bnd7_new_from_a_withholding_sealed_corpus_carries_withheld_json(capsys, withholding_sealed, tmp_path,
+                                                                            command, extra):
+    """AU-BND-7: ``NEW`` keeps the origins rows and ``release.withheld`` entries of what the source withholds, so it keeps
+    ``WITHHELD.json`` byte for byte too; before, ``verify --level chain`` failed ``NEW`` with ``raw.object.missing``."""
+    src, ex = withholding_sealed
+    out = tmp_path / "new"
+    # a release-mode corpus: T1 workers (--in-process is refused with --release)
+    code, _summary, err = _run(capsys, command, "--corpus", str(src), "--out", str(out), "--jobs", "2", *extra)
+    assert code == 0, err
+    assert (ds.partial(out) / "WITHHELD.json").read_bytes() == (src / "WITHHELD.json").read_bytes()
+    assert ex not in {row["ex"] for row in ds.rows(ds.partial(out))}
+    code, summary, err = _run(capsys, "verify", "--corpus", str(out), "--level", "chain")
+    assert code == 0 and "raw.object.missing" not in summary["issues_by_code"], (err, summary.get("issues_by_code"))
+
+
 def test_an_absence_nothing_accounts_for_still_refuses(capsys, source, tmp_path):
     shutil.copytree(ds.partial(source), ds.partial(tmp_path / "src"), symlinks=True)
     src = tmp_path / "src"

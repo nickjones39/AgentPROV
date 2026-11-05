@@ -36,7 +36,8 @@ def _settle(qapp: Any) -> None:
 
 
 def _inputs(root: Any) -> Iterator[Any]:
-    """The widgets a user sets something with (read-only ones only show a value)."""
+    """The widgets a user sets something with (read-only ones only show a value). A composite input of the form style
+    (D-1060: a segmented control, a checklist, chips) counts once; its parts are not inputs of their own."""
     from PySide6.QtWidgets import (
         QCheckBox,
         QComboBox,
@@ -49,10 +50,15 @@ def _inputs(root: Any) -> Iterator[Any]:
         QWidget,
     )
 
-    kinds = (QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QPlainTextEdit, QRadioButton, QListWidget)
+    from agentprov_gui.ui import forms
+
+    kinds = (QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QPlainTextEdit, QRadioButton, QListWidget,
+             forms.SegmentedControl, forms.Checklist, forms.ChipGroup)
     for w in root.findChildren(QWidget):
         if not isinstance(w, kinds) or isinstance(w.parent(), (QSpinBox, QDoubleSpinBox, QComboBox)):
             continue  # (a spin box's or combo box's own line edit)
+        if forms.is_input_part(w):
+            continue  # a segment, a chip or a checklist's box: its composite is the input
         if isinstance(w, (QLineEdit, QPlainTextEdit)) and w.isReadOnly():
             continue
         yield w
@@ -158,9 +164,11 @@ def _actions(root: Any) -> Iterator[tuple[str, Any]]:
         if a.isSeparator() or a.menu() is not None or isinstance(a.parent(), QLineEdit) or not _label(a):
             continue
         yield _label(a), a
+    from agentprov_gui.ui import forms
+
     for b in root.findChildren(QAbstractButton):
-        if b.objectName().startswith("qt_") or isinstance(b.parent(), QLineEdit):
-            continue
+        if b.objectName().startswith("qt_") or isinstance(b.parent(), QLineEdit) or forms.is_input_part(b):
+            continue  # (a part of a composite input, D-1060: the input is mapped, not its segments or chips)
         label = _label(b)
         if label in ("Scroll Left", "Scroll Right") or not label:
             continue
@@ -181,11 +189,20 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
     dlg = SettingsDialog(settings)
     live = RunLiveDialog(JobManager(tmp_path / "home", CliLocator(None, ())), home=tmp_path / "home", checkout=None,
                          run=lambda *a, **k: (127, b"", b""))
+    # D-1065: About's Updates section (as a bundle and as a checkout) and the start-up notice
+    from agentprov_gui import updates as U
+    from agentprov_gui.ui.dialogs import AboutDialog
+    from agentprov_gui.ui.updates import UpdateController, UpdateNotice
+
+    abouts = [AboutDialog(None, updates=UpdateController(lambda argv, timeout: (127, b"", b"no CLI"), bundle=bundle))
+              for bundle in (Path("/Applications/AgentPROV.app"), None)]
+    notice = UpdateNotice(U.Check(None, False, "0.1.1", "0.1.1", "0.3.0", True, None, "", False, None, None, None,
+                                  False, True, None))
     _settle(qapp)
     titles = {f.title: f for f in FORMS.values()}
     bad: list[str] = []
     labels: set[str] = set()
-    for root in (win, dlg, live):
+    for root in (win, dlg, live, *abouts, notice):
         for label, widget in _actions(root):
             labels.add(label)
             if root is not win and isinstance(widget, QCheckBox):
@@ -199,9 +216,10 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
     for label, words in parity.ACTIONS.items():
         if not _command(tree, words):
             bad.append(f"ACTIONS {label!r}: agentprov {' '.join(words)} is not a command")
+    assert {"Check for Updates", "Download and Install…", "Show the Upgrade Command", "Update Now"} <= labels
     win.close()
-    dlg.deleteLater()
-    live.deleteLater()
+    for d in (dlg, live, *abouts, notice):
+        d.deleteLater()
     assert not bad, "\n".join(bad)
 
 

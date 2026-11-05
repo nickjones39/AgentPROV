@@ -29,6 +29,8 @@ ALLOWED = (
     "tests/unit/test_d31_bumps.py", "README.md", "tools/readme_corpora.toml",
     # D-607 (user decision 2026-10-21): the datasheet disclosure of the raw host accounts and its row test
     "corpora/datasheet-statements.toml", "tests/unit/corpus/test_datasheet.py",
+    # UC-40: the dtap mapper's pinned import closure gains adapters/surrogates.py (the shared D-378 pass)
+    "src/agentprov/stage_scopes.py",
 )
 PROTECTED = ("src/agentprov/aer/", "src/agentprov/prov/", "src/agentprov/validate/", "src/agentprov/corpus/")
 
@@ -36,7 +38,7 @@ PROTECTED = ("src/agentprov/aer/", "src/agentprov/prov/", "src/agentprov/validat
 
 
 def test_the_branch_touches_only_the_family_and_the_listed_runner_items():
-    changed = changed_or_skip(support.REPO)  # the merge base with origin/main or main, the newer
+    changed = changed_or_skip(support.REPO, family="dtap")  # the merge base with origin/main or main, the newer
     if not any(p.startswith("src/agentprov/adapters/dtap/") for p in changed):
         # the guard is about the branch that adds or changes the family; another branch's core change (e.g. D-81) is
         # recorded under invariant 5 by its own decision

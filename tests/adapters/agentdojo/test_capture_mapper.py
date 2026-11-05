@@ -62,7 +62,7 @@ def test_c13_8_vector_maps_and_validates():
     assert h["capture"] == {"attempt": 0, "log": "a0", "session": SESSION}
     assert h["dialect"] == {"id": "agentprov.capture", "variant": "0.1"}
     assert h["adapter"] == {"id": "agentdojo.capture", "version": "0.1.0"}
-    assert h["rules"] == {"aer": 1, "agentdojo": 2, "cap": 1}
+    assert h["rules"] == {"aer": 1, "agentdojo": 3, "cap": 1}
     assert h["artifacts"][0]["role"] == "capture_log" and h["artifacts"][0]["prov_primary"] == "native"
     assert [i["id"] for i in h["instrumentation"]][-1] == "agentdojo.transport_scripted@1"
     assert h["evf"] == {"/instrumentation": "O:capture"} and h["task"]["task_id"] == "user_task_0"
@@ -168,6 +168,21 @@ def test_no_pass_is_no_execution_observed():
     assert {"no_execution_observed", "capture_error"} <= set(m.codes)
     assert m.get("run")["status"] == "error"
     assert [i["severity"] if "severity" in i else None for i in m.issues("capture_error")] == [None]
+
+
+def test_an_early_end_before_instrumentation_is_no_execution_observed():
+    # UC-20: the chain verifies (an early end); the session maps as an errored run with nothing observed
+    from capture_support import Session, start_data
+
+    s = Session()
+    s.emit("session.start", start_data())
+    s.emit("error", {"where": "capture.redact", "fatal": True,
+                     "exception": {"type": "RedactionError", "message": "redaction failed; the event or blob was not written"}})
+    s.close("errored")
+    m = map_built(s)
+    _ok(m)
+    assert {"no_execution_observed", "capture_error"} <= set(m.codes)
+    assert m.checks("aer.acc.capture_chain@1")[0]["verdict"] == "consistent"
 
 
 # ------------------------------------------------------------------------------------------------ model calls
@@ -540,7 +555,7 @@ def test_live_profile_pins_and_accepted_instrumentation():
     profile = load_profile("agentdojo-live")
     live = profile.data["family"]["agentdojo"]["live"]
     assert live["pins"]["wheel_sha256"].startswith("364bea42") and live["llm_element_default"] == "native"
-    assert dict(profile.data["import"]["rules"]) == {"aer": 1, "agentdojo": 2, "anthropic_messages": 1, "cap": 1}
+    assert dict(profile.data["import"]["rules"]) == {"aer": 1, "agentdojo": 3, "anthropic_messages": 1, "cap": 1}
     assert set(INSTRUMENTATION_IDS) <= set(live["instrumentation_accepted"])
     assert AgentDojoCaptureMapper.prov_primary(frozenset()) == "native"
 

@@ -59,14 +59,22 @@ def _tree(pin: dict[str, Any], root: Path, limits: Any) -> Any:
     return ArchiveTree(path, pin=pin, sha256=sha256, size=size, limits=limits)
 
 
+def _refuse_real_corpora(corpus: Path) -> None:
+    """Trial imports write scratch corpora only: refuse a corpus inside ``$AGENTPROV_HOME/corpora`` (default
+    ``~/.agentprov``) or ``~/.agentprov/corpora``, compared after resolving the path (relative paths, symlinks)."""
+    target = corpus.expanduser().resolve()
+    for home in (os.environ.get("AGENTPROV_HOME") or "~/.agentprov", "~/.agentprov"):
+        if target.is_relative_to((Path(home).expanduser() / "corpora").resolve()):
+            raise SystemExit("trial imports never write into $AGENTPROV_HOME/corpora")
+
+
 def run_import(corpus: Path, root: Path, parts: list[str], jobs: int) -> dict[str, Any]:
     from agentprov.adapters.profiles import load_profile
     from agentprov.adapters.runner import importer
     from agentprov.corpus.writer import CorpusWriter
     from agentprov.ingest.limits import IngestLimits
 
-    if str(corpus.resolve()).startswith(str((Path.home() / ".agentprov" / "corpora").resolve())):
-        raise SystemExit("trial imports never write into ~/.agentprov/corpora")
+    _refuse_real_corpora(corpus)
     profile = load_profile(PROFILE_ID)
     pins = {str(p["part"]): p for p in profile.data["source"]["pins"]}
     limits = IngestLimits()

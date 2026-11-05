@@ -7,10 +7,14 @@ documents, are cheap, and are never cached. This module keeps completed round tr
 unchanged is never round-tripped twice: re-validation, ``recompute``, ``verify --level rederive`` and post-checks reuse
 the outcome of the first validation.
 
-**Key.** The document's sha256 and the *context*: the sha256 of every ``agentprov`` source file (it covers the
-validation stage's ``engine_code_sha256`` and the ``prov`` engine and serialiser code the round trip calls), the name,
-version and file digest of each library in :data:`LIBRARIES`, the Python build, and the tier-4 options of the round
-trip. Any change is a miss. An entry lives at ``<root>/<context digest>/<doc[:2]>/<doc>.json``.
+**Key.** The document's sha256 and the *context*: the digest of the ``agentprov`` source files in the import closure
+of :func:`~agentprov.validate.prov.validate_prov` and of this module (:func:`closure_files`, derived from the source
+with ``ast`` whenever a process computes the context, never listed by hand; D-1068 P5), the name, version and file
+digest of each library in :data:`LIBRARIES`, the Python build, and the tier-4 options of the round trip. Any change
+is a miss. An entry lives at ``<root>/<context digest>/<doc[:2]>/<doc>.json``. The closure holds the round trip's code
+(``validate/roundtrip.py``, ``prov/serialise/nquads.py``, ...) and everything else ``validate_prov`` can run; an edit
+to a file outside it (the CLI, the importer, an adapter) no longer empties the cache. Before D-1068 the code part was
+the digest of every package file (format ``agentprov-tier4-cache/1``).
 
 **Value.** The round-trip outcomes exactly as :func:`agentprov.validate.roundtrip.check` returned them (statuses, every
 finding, reasons, truncation counts), with the full context and the digest of the outcomes. An entry is used only when
@@ -25,7 +29,9 @@ environment) need not recur.
 Writes go to a unique temporary name beside the entry and are renamed into place (atomic under concurrent writers).
 The size is bounded (:data:`DEFAULT_MAX_BYTES`): :meth:`DiskCache.evict` removes the least recently used entries.
 
-**Who reads it.** T1 workers cannot read ``$AGENTPROV_HOME`` (G.4.4), so the parent does every read and write. In
+**Who reads it.** T1 workers cannot read ``$AGENTPROV_HOME`` (G.4.4), so the parent does every read and write.
+Release mode never serves an entry (``audit`` mode of :class:`DiskCache`): ``validate --release``, ``verify --level
+rederive --release`` and a ``derive``/``recompute`` of a release-mode corpus recompute every round trip. In
 process, :class:`DiskCache` is the ``fidelity`` handle of :func:`~agentprov.validate.prov.validate_prov`. A job gets a
 :class:`JobFidelity`: the parent's prefetched entry for the document it expects (a *hint*, used only when the bytes
 the job validates have that digest and the job's context is the hint's), and it hands back what it computed for the
@@ -34,6 +40,7 @@ parent to store (:meth:`DiskCache.store_frame`).
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import functools
 import hashlib
@@ -54,7 +61,7 @@ from agentprov.validate.tiers import CheckOutcome, Finding
 __all__ = ["CACHE_FORMAT", "DEFAULT_MAX_BYTES", "LIBRARIES", "CacheStats", "DiskCache", "Fidelity", "JobFidelity",
            "context", "context_digest", "default_root", "from_json", "storable"]
 
-CACHE_FORMAT: Final = "agentprov-tier4-cache/1"
+CACHE_FORMAT: Final = "agentprov-tier4-cache/2"  # /2: the code part is the import closure (D-1068 P5)
 #: The round trip's check ids, in the order :func:`agentprov.validate.roundtrip.check` returns them.
 ROUNDTRIP_IDS: Final = ("pv.roundtrip.model_equality", "pv.roundtrip.graphs", "pv.roundtrip.completeness",
                         "pv.roundtrip.datatypes", "pv.roundtrip.unqualified_layer")
@@ -62,8 +69,10 @@ ROUNDTRIP_IDS: Final = ("pv.roundtrip.model_equality", "pv.roundtrip.graphs", "p
 LIBRARIES: Final = ("prov", "rdflib", "pyparsing", "isodate", "lxml", "python-dateutil", "six")
 #: Library files that hold code (data and tests shipped inside a wheel do not decide an outcome).
 _CODE_SUFFIXES: Final = (".py", ".so", ".pyd", ".dylib", ".dll", ".pth")
-_PACKAGE_SUFFIXES: Final = (".py", ".toml", ".json", ".ttl")
 _PACKAGE_ROOT: Final = Path(__file__).resolve().parents[1]
+#: The modules whose import closure is the code part of the context (D-1068 P5): what ``validate_prov`` runs (the round
+#: trip among it) and this module, which decides what an entry is and when one is served.
+CLOSURE_SEEDS: Final = ("agentprov.validate.prov", "agentprov.validate.cache")
 #: The default bound on the cache's size (entries are about 1-2 KB; a full round of every corpus is far below it).
 DEFAULT_MAX_BYTES: Final = 2 * 1024**3
 #: The largest entry written or read (a round trip keeps at most MAX_FINDINGS findings per check).
@@ -75,24 +84,23 @@ _TMP: Final = ".tmp-"
 # ============================================================================================================ context
 @functools.cache
 def context() -> dict[str, Any]:
-    """Everything besides the document that can change a round-trip outcome (computed once per process, about 0.1 s).
+    """Everything besides the document that can change a round-trip outcome (computed once per process).
 
-    The code digest covers every ``agentprov`` source file, so it moves with the validation stage digest
-    (``validate/``, ``aer/validate.py``, ``aer/accounting.py``, ``sem/validate.py``), the ``prov`` engine digest (whose
-    ``prov/serialise/nquads.py`` the round trip calls), the vocabulary (``vocab/``, ``prov/vocab``) and the strict
-    loader; a change anywhere is a miss (safe, if sometimes wasteful)."""
+    The code part is :func:`closure_digest` over :data:`CLOSURE_SEEDS`: every ``agentprov`` file ``validate_prov`` can
+    run, so it moves with any edit that can change a round trip, and with nothing else (D-1068 P5). The round trip reads
+    no package data file (it compares the document with its own N-Quads serialisation); the vocabulary version is kept
+    in the context as before."""
     from agentprov.prov.vocab import VOCAB_VERSION
     from agentprov.validate.roundtrip import SURROGATE
     from agentprov.validate.tiers import MAX_FINDINGS
 
     return {
-        "agentprov_code_sha256": _package_digest(),
+        "code": {"closure_sha256": closure_digest(), "seeds": list(CLOSURE_SEEDS)},
         "libraries": {name: _library(name) for name in LIBRARIES},
         "options": {"max_findings": MAX_FINDINGS, "roundtrip": True, "scope": "pv.roundtrip", "surrogate": SURROGATE},
         "python": {"cache_tag": str(sys.implementation.cache_tag), "implementation": platform.python_implementation(),
                    "machine": platform.machine(), "version": sys.version},
-        "validation_code_sha256": _package_digest(("validate/", "aer/validate.py", "aer/accounting.py", "sem/validate.py")),
-        "vocabulary": {"version": VOCAB_VERSION, "sha256": _package_digest(("vocab/", "prov/vocab"))},
+        "vocabulary": {"version": VOCAB_VERSION},
     }
 
 
@@ -101,18 +109,65 @@ def context_digest() -> str:
     return sha256_hex(jcs_bytes({"format": CACHE_FORMAT, "context": context()}))
 
 
-def _package_digest(prefixes: Sequence[str] = ()) -> str:
-    """``sha256(JCS([[relpath, sha256(file)], ...]))`` over the package's source files (under ``prefixes`` when given),
-    CRLF normalised, as the stage ``code_sha256`` does."""
-    entries: list[list[str]] = []
-    for path in sorted(p for p in _PACKAGE_ROOT.rglob("*") if p.is_file()):
-        rel = path.relative_to(_PACKAGE_ROOT).as_posix()
-        if path.suffix not in _PACKAGE_SUFFIXES or "__pycache__" in rel:
-            continue
-        if prefixes and not any(rel == p or rel.startswith(p) for p in prefixes):
-            continue
-        entries.append([rel, sha256_hex(path.read_bytes().replace(b"\r\n", b"\n"))])
-    return sha256_hex(jcs_bytes(entries))
+def closure_digest(root: Path | None = None, seeds: Sequence[str] = CLOSURE_SEEDS) -> str:
+    """``sha256(JCS([[relpath, sha256(file)], ...]))`` over :func:`closure_files`, CRLF normalised, as the stage
+    ``code_sha256`` does. ``root`` is the ``agentprov`` package directory (default: this package's)."""
+    base = _PACKAGE_ROOT if root is None else Path(root)
+    return sha256_hex(jcs_bytes([[rel, sha256_hex((base / rel).read_bytes().replace(b"\r\n", b"\n"))]
+                                 for rel in closure_files(base, seeds)]))
+
+
+def closure_files(root: Path | None = None, seeds: Sequence[str] = CLOSURE_SEEDS) -> tuple[str, ...]:
+    """The ``agentprov`` source files that the import closure of the modules ``seeds`` reaches, relative to ``root``
+    (the package directory), sorted.
+
+    Derived mechanically from the source with ``ast``: every absolute and relative ``agentprov`` import at any depth
+    (lazy and ``TYPE_CHECKING`` imports included), every ``import_module`` call on an ``agentprov`` string literal, and
+    the ``__init__.py`` of every package a reached module lies in (importing the module runs them). A name that may be
+    a module or an attribute (``from agentprov.x import y``) is followed when ``x/y.py`` or ``x/y/__init__.py`` exists.
+    Following too much costs only cache hits; following too little would serve stale outcomes, so the walk errs on the
+    side of more."""
+    base = (_PACKAGE_ROOT if root is None else Path(root)).resolve()
+    seen: dict[str, str] = {}  # relpath -> module name
+    todo: list[str] = []
+
+    def add(module: str) -> None:
+        parts = module.split(".")
+        if parts[0] != "agentprov":
+            return
+        for depth in range(1, len(parts) + 1):  # every enclosing package's __init__.py, then the module itself
+            path = base.joinpath(*parts[1:depth])
+            if (path / "__init__.py").is_file():
+                rel = (path / "__init__.py").relative_to(base).as_posix()
+            elif depth > 1 and path.with_suffix(".py").is_file():
+                rel = path.with_suffix(".py").relative_to(base).as_posix()
+            else:
+                return
+            if rel not in seen:
+                seen[rel] = ".".join(parts[:depth])
+                todo.append(rel)
+
+    for seed in seeds:
+        add(seed)
+    while todo:
+        rel = todo.pop()
+        module = seen[rel]
+        package = module.split(".") if rel.endswith("__init__.py") else module.split(".")[:-1]
+        for node in ast.walk(ast.parse((base / rel).read_bytes(), filename=rel)):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    add(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                anchor = package[: len(package) - node.level + 1] if node.level else []
+                stem = ".".join([*anchor, *([node.module] if node.module else [])])
+                add(stem)
+                for alias in node.names:
+                    add(f"{stem}.{alias.name}")
+            elif (isinstance(node, ast.Call) and node.args and isinstance(node.args[0], ast.Constant)
+                  and isinstance(node.args[0].value, str)
+                  and (getattr(node.func, "attr", None) or getattr(node.func, "id", None)) == "import_module"):
+                add(node.args[0].value)
+    return tuple(sorted(seen))
 
 
 def _library(name: str) -> dict[str, str]:

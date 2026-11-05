@@ -37,7 +37,7 @@ def test_registration_is_the_partial_live_part_and_the_rope_slice():
     assert "no real-model run" not in part.caveat and "OpenRouter" not in part.caveat and "cannot be sealed" in part.caveat
     assert part.dialects == ("agentprov.capture", "agentdojo.tracelogger") and part.variants == ("0.1", "v1.k14")
     assert part.backend == "autodojo" and part.profile == "autodojo-live" and part.requires == ("backend:autodojo",)
-    assert part.semantics == ("agentdojo.suites@3",) and part.corpus_id is None and part.via is None  # item 27 (b)
+    assert part.semantics == ("agentdojo.suites@5",) and part.corpus_id is None and part.via is None  # item 27 (b); D-1063
     # phase 10 (D.6.13): the ROPE-hosted slice is a separate import part served by source rope
     slice_ = {c.part: c for c in source.capabilities}["rope-slice"]
     assert slice_.via == "rope" and slice_.owner == "rope" and slice_.profile == "autodojo-via-rope"
@@ -74,7 +74,7 @@ def test_licence_is_the_forks_mit_notice():
 
 def test_profile_is_package_data_with_a_digest_and_no_status():
     profile = load_profile("autodojo-live")
-    assert profile.version == 3 and len(profile.sha256) == 64 and profile.family == "agentdojo"  # v2: D-656; v3: D-670/D-677
+    assert profile.version == 4 and len(profile.sha256) == 64 and profile.family == "agentdojo"  # v2: D-656; v3: D-670/D-677; v4: D-1063
     assert profile.source_id == "autodojo" and profile.parts == ("live",) and "status" not in profile.data
     assert profile.sha256 != load_profile("agentdojo-live").sha256
     imp = profile.data["import"]

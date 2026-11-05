@@ -39,5 +39,5 @@ q rehearsal 1 $N-check $PY -I $T/compat_derive_check.py $old $new.partial --repo
 q rehearsal $CPU $N-validate $PY -m agentprov validate --corpus $new.partial --strict --tiers aer,sem,prov,linkage \
   --jobs $CPU --progress off --summary-json $L/$N-validate.json || ok=0
 q rehearsal 1 $N-verify $PY -m agentprov verify --corpus $new.partial --level chain --progress off \
-  --summary-json $L/$N-verify.json
+  --summary-json $L/$N-verify.json || ok=0
 if [ $ok = 1 ]; then say "PASS $N (rg1 kept)"; touch $L/$N.done; else say "FAIL $N (new tree kept)"; exit 1; fi

@@ -6,7 +6,7 @@ from importlib import metadata
 from typing import Final
 
 #: The release literal, used only by a source tree with no installed distribution. A test pins it to pyproject.toml.
-_UNINSTALLED_VERSION: Final = "0.1.1"
+_UNINSTALLED_VERSION: Final = "0.2.0"
 
 
 def _software_version() -> str:

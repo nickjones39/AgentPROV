@@ -18,7 +18,8 @@ ARCHIVED_V1 = {
 
 @pytest.mark.parametrize("profile_id", sorted(ARCHIVED_V1))
 def test_version_2_is_current_and_version_1_is_archived_byte_for_byte(profile_id):
-    assert load_profile(profile_id).version == 2
+    # version 2 stays loadable (current or archived: later bumps, such as D-1063's row 179, move on from it)
+    assert load_profile(profile_id).version >= 2 and load_profile(profile_id, 2).version == 2
     archived = load_profile(profile_id, 1)
     assert archived.version == 1 and archived.sha256.startswith(ARCHIVED_V1[profile_id])
 
@@ -26,5 +27,5 @@ def test_version_2_is_current_and_version_1_is_archived_byte_for_byte(profile_id
 @pytest.mark.parametrize("profile_id", sorted(ARCHIVED_V1))
 def test_version_1_declares_no_redaction_and_version_2_does(profile_id):
     family = load_profile(profile_id).data["profile"]["family"]
-    assert load_profile(profile_id).data["family"][family].get("redact")
+    assert load_profile(profile_id, 2).data["family"][family].get("redact")
     assert not load_profile(profile_id, 1).data["family"][family].get("redact")

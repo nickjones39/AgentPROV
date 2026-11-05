@@ -332,3 +332,64 @@ def test_the_autodojo_attack_runs_alone_and_only_on_the_fork(cli, script, tmp_pa
     assert run.code == 2 and "only in the AutoDojo fork" in run.err
     run = _autodojo(cli, tmp_path, script, "--autodojo-cache", str(cache), "--autodojo-variant", "0")
     assert run.code == 2 and "belong to --attack autodojo" in run.err
+
+
+# ---------------------------------------------------------------------------------------------- platform limits (D-1064)
+
+_REASONS = {"x86_64": "the backend environment builds, but the backend worker exits at start-up",
+            "arm64": "cryptography 50.0.2 and cachebox 5.2.3 publish no Windows ARM64 wheels"}
+
+
+@pytest.mark.parametrize("arch", ["x86_64", "arm64"])
+def test_every_mode_that_starts_the_backend_worker_is_refused_on_windows(cli, script, tmp_path, simulate_host, arch,
+                                                                         check_summary):
+    simulate_host("Windows", arch)
+    corpus = ("--corpus", str(tmp_path / "c"), "--campaign", "k", "--suite", "banking")
+    label = "Windows x86_64" if arch == "x86_64" else "Windows ARM64"
+    for argv in ((*corpus, "--llm-script", script), (*corpus, "--model", "deepseek"),
+                 (*corpus, "--llm-script", script, "--dry-run"),
+                 (*corpus, "--llm-script", script, "--dry-run", "--plan-json"),
+                 ("--preflight-only", "--llm-script", script), ("--catalogue",),
+                 ("--m5ultra", "--tune-jobs", "1,2", "--llm-script", script)):
+        run = cli(*BASE, *argv, "--json")
+        assert run.code == 4, (argv, run.err)
+        document = run.json()
+        check_summary(document)
+        assert document["outcome"] == "refused" and document["refusal"]["status"] == "platform.unsupported"
+        assert (f"[platform.unsupported]: Live runs (agentprov run) are available on macOS and Linux. On {label} they "
+                "are not available yet: ") in run.err
+        assert _REASONS[arch] in run.err and "docs/user-guide/07-live-runs.md#platforms" in run.err
+    assert not (tmp_path / "c").exists() and not (tmp_path / "c.partial").exists()
+
+
+def test_the_platform_refusal_comes_before_stdin_is_read(cli, simulate_host, monkeypatch):
+    import io
+
+    simulate_host("Windows", "arm64")
+    stdin = io.StringIO('{"DEEPSEEK_API_KEY": "not-read"}')
+    monkeypatch.setattr("sys.stdin", stdin)
+    run = cli(*BASE, "--model", "deepseek", "--env-stdin", "--corpus", "C", "--campaign", "k", "--suite", "banking")
+    assert run.code == 4 and stdin.tell() == 0
+
+
+@pytest.mark.parametrize("arch", ["x86_64", "arm64"])
+def test_a_host_preset_dry_run_still_plans_on_windows(cli, host_with, simulate_host, arch):
+    """The concurrency plan is computed in the CLI and starts no backend worker, so it is not refused (D-1064)."""
+    host_with(256 * GIB, os_family="darwin", arch="arm64")
+    simulate_host("Windows", arch)
+    run = _plan(cli, "--model-size-gb", "60", "--active-params-b", "10", "--kv-gb-per-trace", "2")
+    assert run.code == 0, run.err
+
+
+@pytest.mark.parametrize(("system", "arch"), [("Darwin", "arm64"), ("Linux", "x86_64"), ("Linux", "aarch64")])
+def test_macos_and_linux_runs_are_not_refused_for_the_platform(cli, script, tmp_path, simulate_host, system, arch):
+    simulate_host(system, arch)
+    run = cli(*BASE, "--corpus", str(tmp_path / "c"), "--campaign", "k", "--suite", "banking", "--llm-script", script)
+    assert run.code == 3 and "platform.unsupported" not in run.err  # the usual missing backend environment
+
+
+def test_estimate_inherits_the_refusal_on_windows(cli, script, simulate_host):
+    simulate_host("Windows", "x86_64")
+    run = cli("estimate", "agentdojo", "--suite", "banking", "--llm-script", script)
+    assert run.code == 4
+    assert "[platform.unsupported]: Live runs (agentprov run) are available on macOS and Linux." in run.err

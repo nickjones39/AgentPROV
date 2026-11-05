@@ -481,6 +481,30 @@ def _empty_dirs(root: str) -> list[str]:
     return found
 
 
+#: The operating-system metadata files a file manager writes into a folder it shows (by base name, ignoring case; an
+#: AppleDouble ``._*`` file matches by prefix), with the ``find -name`` pattern that deletes them.
+_OS_METADATA: Final[dict[str, str]] = {".ds_store": ".DS_Store", "thumbs.db": "Thumbs.db", "desktop.ini": "desktop.ini"}
+
+
+def _os_metadata_name(label: str) -> str | None:
+    name = label.rsplit("/", 1)[-1]
+    if name.startswith("._"):
+        return "'._*'"
+    return _OS_METADATA.get(name.lower())
+
+
+def _os_metadata_detail(label: str) -> str:
+    """The detail of a ``corpus.tree.stray`` finding for an operating-system metadata file: what wrote it and how to
+    delete it (a fixed pattern, never the untrusted label). Such a file is not part of the corpus, so deleting it
+    restores the tree that was sealed; a sealed tree is read-only (:mod:`agentprov.corpus.protect`) from 0.2.0 on, so
+    only a corpus sealed before that, or one whose protection was lifted, can collect one."""
+    pattern = _os_metadata_name(label) or ".DS_Store"
+    return ("an operating-system metadata file (macOS Finder writes .DS_Store, and AppleDouble ._* files, into a folder "
+            "it opens; Windows Explorer writes Thumbs.db and desktop.ini): delete it with "
+            f"`find DIR -name {pattern} -delete` (DIR is the corpus directory); it is not part of the corpus, so the "
+            "sealed tree is otherwise unchanged")
+
+
 def iter_tree(root: str | os.PathLike[str], *, allow_hardlinks: bool = True) -> TreeScan:
     """Walk the corpus tree at ``root`` without following links and check it against the closed world (H.1.5(4)).
 
@@ -502,12 +526,14 @@ def iter_tree(root: str | os.PathLike[str], *, allow_hardlinks: bool = True) -> 
             findings.append(TreeFinding("corpus.tree.raw_tmp", _shown(label), "an in-flight raw write"))
         else:
             role = classify_relpath(label)
-            if role is None:
-                findings.append(TreeFinding("corpus.tree.stray", _shown(label), "not a file of the H.1.2 tree"))
-            else:
+            if role is not None:
                 files.append((label, role, item.size))
+            elif _os_metadata_name(label) is not None:  # Thumbs.db, desktop.ini
+                findings.append(TreeFinding("corpus.tree.stray", _shown(label), _os_metadata_detail(label)))
+            else:
+                findings.append(TreeFinding("corpus.tree.stray", _shown(label), "not a file of the H.1.2 tree"))
     for label in discovery.skipped:  # `.DS_Store` and AppleDouble `._*` files
-        findings.append(TreeFinding("corpus.tree.stray", _shown(label), "an operating-system metadata file"))
+        findings.append(TreeFinding("corpus.tree.stray", _shown(label), _os_metadata_detail(label)))
     for rejection in discovery.rejected:
         code = _INGEST_TO_TREE.get(rejection.code, "corpus.tree.name")
         findings.append(TreeFinding(code, _shown(rejection.label), rejection.code))

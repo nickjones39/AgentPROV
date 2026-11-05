@@ -37,7 +37,7 @@ def test_roles_and_labels_follow_the_tables(mapped):
 
 
 def test_the_taint_policy():
-    for version in (1, 2):
+    for version in (1, 2, 3):
         profile = load_semantics_profile("credleak.tools", version)
         policy = profile.taint_policy
         assert policy is not None and policy.rule == "credleak.taint_sink_untrusted@1"
@@ -53,3 +53,10 @@ def test_version_2_has_the_tables_of_version_1():
     one, two = (node.joinpath(f"credleak.tools-{v}", "tables.toml").read_text(encoding="utf-8") for v in (1, 2))
     assert tomllib.loads(one) == tomllib.loads(two)
     assert load_semantics_profile("credleak.tools", 1).sha256.removeprefix("sha256:").startswith("721620e801f2")
+
+
+def test_version_3_has_the_tables_of_version_2():
+    """D-1063 changes only the catalogue version that credleak.tools declares (a comment line heads the file)."""
+    node = resources.files("agentprov").joinpath("adapters", "credleak", "semantics")
+    two, three = (node.joinpath(f"credleak.tools-{v}", "tables.toml").read_text(encoding="utf-8") for v in (2, 3))
+    assert tomllib.loads(two) == tomllib.loads(three) and three.endswith(two)

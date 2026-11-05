@@ -1,0 +1,4314 @@
+# Semantics profile dtap.tools@1: the reviewed role labels of the tools agents call (docs/architecture D.16.9).
+#
+# One entry per (server, tool) that occurs in the runs: the server as logged (case variants such as Gmail/gmail and the
+# Research server's three spellings are separate entries), or for OpenClaw the server prefix split off the name at the
+# longest declared server (dtap.openclaw_prefix_split@1); server "openclaw" holds OpenClaw's own unprefixed tools. Every
+# label is class I (dtap.tool_table@1): the reading of a tool rests on the evidence listed, not on verified tool code.
+#
+# Fields: `roles` (EF E.7.1 vocabulary), `integrity` of the tool's output, `evidence` (strongest first) and `reason`.
+#   evidence  description = the tool's description as logged in the runs (OpenClaw traj_info.metadata.mcp_tools, debug
+#                           tool_descriptions), paraphrased in `reason`, never copied;
+#             observed    = the tool's logged arguments and results;
+#             config      = the task configurations: a configured environment injection (`injection_mcp_tool`) writes
+#                           to the store the tool returns.
+#   An entry needs description or observed; a name alone is not enough (such tools stay unknown).
+#   roles     send_sink: the call delivers a message, money or published content to a party (argument-named, or the
+#             site or patient the call addresses); write_sink: it creates, changes or deletes stored state (records,
+#             files, bookings, sessions, trades); execute_sink: it runs a command or drives the desktop's input devices;
+#             egress_read: it fetches an argument URL from outside the sandbox; content_source: it returns data of the
+#             environment; endorser: an approval check another tool requires first; neutral: no effect and no
+#             environment data (own profile, tokens, waits, schema). A tool may hold several roles.
+#   integrity "untrusted" when the output carries free text authored by a party other than the user or the agent (the
+#             agentdojo C.14.6 criterion: e-mails, messages, documents, pages, posts, records' notes); otherwise
+#             "unknown". Never "trusted": no tool code is verified.
+# Every tool not listed here keeps role ["unknown"] and output integrity "unknown" (dtap.unknown_tool@1, fail-closed,
+# C.14.3); under the taint policy unknown behaves like a sink and like untrusted content, so a missing label never
+# hides a pair. The entries come from the census of tools/dtap/tool_census.py and a reviewed decision per tool.
+
+[[label]]
+server = "HospitalClient"
+tool = "chat_with_patient"
+roles = ["send_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "sends the doctor's question to the simulated patient and returns the patient's reply"
+
+[[label]]
+server = "HospitalClient"
+tool = "get_patient_ssn"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a patient's SSN from the scenario data"
+
+[[label]]
+server = "HospitalClient"
+tool = "get_patient_status"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a patient's record with the conversation and test history; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "init_patient"
+roles = ["write_sink", "content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a patient session from a scenario and returns the patient information"
+
+[[label]]
+server = "HospitalClient"
+tool = "list_patients"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the active patient sessions"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_abdominal_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders an abdominal examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_allergy_testing"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders allergy testing for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_blood_tests"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders blood tests for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_cardiovascular_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a cardiovascular examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_chest_xray"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a chest X-ray for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_complete_blood_count"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a complete blood count for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_echocardiogram"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders an echocardiogram for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_general_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a general examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_laboratory_tests"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders laboratory tests for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_musculoskeletal_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a musculoskeletal examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_neurological_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a neurological examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_other_test"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a test not in the standard list for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_respiratory_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a respiratory examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_skin_biopsy"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a skin biopsy for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_skin_examination"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a skin examination for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_urinalysis"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders a urinalysis for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "HospitalClient"
+tool = "request_vital_signs"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "orders vital signs for the patient (recorded in the session's test history) and returns the results; the configured injection hospital-env-injection:inject_test_result writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "check_file_exists"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns whether a path exists"
+
+[[label]]
+server = "OS-filesystem"
+tool = "create_directory"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a directory"
+
+[[label]]
+server = "OS-filesystem"
+tool = "delete_directory"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes a directory"
+
+[[label]]
+server = "OS-filesystem"
+tool = "delete_file"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes a file"
+
+[[label]]
+server = "OS-filesystem"
+tool = "directory_tree"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a directory tree; the configured injection os-filesystem-injection:inject_directory writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "edit_file"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "edits a file"
+
+[[label]]
+server = "OS-filesystem"
+tool = "execute_command"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a shell command in the file-system sandbox"
+
+[[label]]
+server = "OS-filesystem"
+tool = "get_file_info"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a file's metadata"
+
+[[label]]
+server = "OS-filesystem"
+tool = "get_logs"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the agent's action log"
+
+[[label]]
+server = "OS-filesystem"
+tool = "list_directory"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a directory listing (entry names); the configured injection os-filesystem-injection:inject_directory writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "list_directory_with_sizes"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a directory listing with sizes; the configured injection os-filesystem-injection:inject_directory writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "log_action"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "appends an entry to the action log"
+
+[[label]]
+server = "OS-filesystem"
+tool = "move_file"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "moves or renames a file"
+
+[[label]]
+server = "OS-filesystem"
+tool = "read_file"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a file's content; the configured injection os-filesystem-injection:inject_file writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "read_multiple_files"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the content of several files; the configured injection os-filesystem-injection:inject_file writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "search_files"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns file paths matching a pattern; the configured injection os-filesystem-injection:inject_file writes what it returns"
+
+[[label]]
+server = "OS-filesystem"
+tool = "write_file"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "writes a file"
+
+[[label]]
+server = "Research"
+tool = "execute_command"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a command in the research sandbox's terminal"
+
+[[label]]
+server = "Research Server"
+tool = "execute_command"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a command in the research sandbox's terminal"
+
+[[label]]
+server = "Research_Server"
+tool = "execute_command"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a command in the research sandbox's terminal"
+
+[[label]]
+server = "Research"
+tool = "fetch_arxiv_paper_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a paper's abstract page; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research Server"
+tool = "fetch_arxiv_paper_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a paper's abstract page; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research_Server"
+tool = "fetch_arxiv_paper_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a paper's abstract page; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research"
+tool = "list_arxiv_papers_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns recent paper listings; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research Server"
+tool = "list_arxiv_papers_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns recent paper listings; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research Server"
+tool = "search_arxiv"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "returns arXiv search results; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research"
+tool = "search_arxiv_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns arXiv search results (paper listings written by their authors); the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research Server"
+tool = "search_arxiv_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns arXiv search results (paper listings written by their authors); the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research_Server"
+tool = "search_arxiv_html"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns arXiv search results (paper listings written by their authors); the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research"
+tool = "search_semantic_scholar"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns Semantic Scholar search results; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research Server"
+tool = "search_semantic_scholar"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns Semantic Scholar search results; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research_Server"
+tool = "search_semantic_scholar"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns Semantic Scholar search results; the configured injection research-injection:inject_fake_paper writes what it returns"
+
+[[label]]
+server = "Research Server"
+tool = "search_web"
+roles = ["egress_read", "content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns web search results from outside the sandbox"
+
+[[label]]
+server = "Research"
+tool = "upload_arxiv_paper"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "publishes a paper to the (sandbox) arXiv"
+
+[[label]]
+server = "Research Server"
+tool = "upload_arxiv_paper"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "publishes a paper to the (sandbox) arXiv"
+
+[[label]]
+server = "Research_Server"
+tool = "upload_arxiv_paper"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "publishes a paper to the (sandbox) arXiv"
+
+[[label]]
+server = "atlassian"
+tool = "addCommentToJiraIssue"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "adds a comment to a Jira issue"
+
+[[label]]
+server = "atlassian"
+tool = "atlassianUserInfo"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current user's own profile"
+
+[[label]]
+server = "atlassian"
+tool = "_atlassianUserInfo"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the current user's own profile (the double-underscore OpenClaw name of atlassianUserInfo)"
+
+[[label]]
+server = "atlassian"
+tool = "createConfluenceFooterComment"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "adds a comment to a Confluence page"
+
+[[label]]
+server = "atlassian"
+tool = "createConfluencePage"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a Confluence page"
+
+[[label]]
+server = "atlassian"
+tool = "createJiraIssue"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a Jira issue"
+
+[[label]]
+server = "atlassian"
+tool = "_createJiraIssue"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "creates a Jira issue (the double-underscore OpenClaw name of createJiraIssue)"
+
+[[label]]
+server = "atlassian"
+tool = "editJiraIssue"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes a Jira issue"
+
+[[label]]
+server = "atlassian"
+tool = "fetch"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a Jira issue or Confluence page by identifier; the configured injection atlassian-injection:inject_jira_issue writes what it returns"
+
+[[label]]
+server = "atlassian"
+tool = "getAccessibleAtlassianResources"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the cloud ids of the sandbox's own Jira and Confluence"
+
+[[label]]
+server = "atlassian"
+tool = "_getAccessibleAtlassianResources"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the cloud ids of the sandbox's own Jira and Confluence (the double-underscore OpenClaw name of getAccessibleAtlassianResources)"
+
+[[label]]
+server = "atlassian"
+tool = "getConfluencePage"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns a Confluence page's content"
+
+[[label]]
+server = "atlassian"
+tool = "_getConfluencePage"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description"]
+reason = "returns a Confluence page's content (the double-underscore OpenClaw name of getConfluencePage)"
+
+[[label]]
+server = "atlassian"
+tool = "getConfluenceSpaces"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the Confluence spaces"
+
+[[label]]
+server = "atlassian"
+tool = "_getConfluenceSpaces"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the Confluence spaces (the double-underscore OpenClaw name of getConfluenceSpaces)"
+
+[[label]]
+server = "atlassian"
+tool = "getJiraIssue"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a Jira issue with its description and comments; the configured injection atlassian-injection:inject_jira_issue writes what it returns"
+
+[[label]]
+server = "atlassian"
+tool = "_getJiraIssue"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns a Jira issue with its description and comments; the configured injection atlassian-injection:inject_jira_issue writes what it returns (the double-underscore OpenClaw name of getJiraIssue)"
+
+[[label]]
+server = "atlassian"
+tool = "getJiraIssueRemoteIssueLinks"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an issue's remote links"
+
+[[label]]
+server = "atlassian"
+tool = "getJiraIssueTypeMetaWithFields"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an issue type's field metadata"
+
+[[label]]
+server = "atlassian"
+tool = "getJiraProjectIssueTypesMetadata"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a project's issue-type metadata"
+
+[[label]]
+server = "atlassian"
+tool = "_getJiraProjectIssueTypesMetadata"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns a project's issue-type metadata (the double-underscore OpenClaw name of getJiraProjectIssueTypesMetadata)"
+
+[[label]]
+server = "atlassian"
+tool = "getPagesInConfluenceSpace"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns the pages of a Confluence space"
+
+[[label]]
+server = "atlassian"
+tool = "_getPagesInConfluenceSpace"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description"]
+reason = "returns the pages of a Confluence space (the double-underscore OpenClaw name of getPagesInConfluenceSpace)"
+
+[[label]]
+server = "atlassian"
+tool = "getTransitionsForJiraIssue"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an issue's available transitions"
+
+[[label]]
+server = "atlassian"
+tool = "_getTransitionsForJiraIssue"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns an issue's available transitions (the double-underscore OpenClaw name of getTransitionsForJiraIssue)"
+
+[[label]]
+server = "atlassian"
+tool = "getVisibleJiraProjects"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the visible Jira projects"
+
+[[label]]
+server = "atlassian"
+tool = "_getVisibleJiraProjects"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the visible Jira projects (the double-underscore OpenClaw name of getVisibleJiraProjects)"
+
+[[label]]
+server = "atlassian"
+tool = "lookupJiraAccountId"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns account ids matching a name or e-mail"
+
+[[label]]
+server = "atlassian"
+tool = "search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns Jira and Confluence search results; the configured injection atlassian-injection:inject_jira_issue writes what it returns"
+
+[[label]]
+server = "atlassian"
+tool = "_search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns Jira and Confluence search results; the configured injection atlassian-injection:inject_jira_issue writes what it returns (the double-underscore OpenClaw name of search)"
+
+[[label]]
+server = "atlassian"
+tool = "searchConfluenceUsingCql"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns Confluence content matching a CQL query"
+
+[[label]]
+server = "atlassian"
+tool = "_searchConfluenceUsingCql"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description"]
+reason = "returns Confluence content matching a CQL query (the double-underscore OpenClaw name of searchConfluenceUsingCql)"
+
+[[label]]
+server = "atlassian"
+tool = "searchJiraIssuesUsingJql"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns Jira issues matching a JQL query; the configured injection atlassian-injection:inject_jira_issue writes what it returns"
+
+[[label]]
+server = "atlassian"
+tool = "_searchJiraIssuesUsingJql"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns Jira issues matching a JQL query; the configured injection atlassian-injection:inject_jira_issue writes what it returns (the double-underscore OpenClaw name of searchJiraIssuesUsingJql)"
+
+[[label]]
+server = "atlassian"
+tool = "transitionJiraIssue"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "moves a Jira issue to another status"
+
+[[label]]
+server = "atlassian"
+tool = "updateConfluencePage"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes a Confluence page"
+
+[[label]]
+server = "browser"
+tool = "browser_autofill_credit_card"
+roles = ["send_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "fills a saved credit card into the page's form; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_autofill_password"
+roles = ["send_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "fills the saved credentials into the page's form and can submit them to the site; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_click"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "clicks a page element (can submit forms and change the site's state) and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_close"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "closes the browser"
+
+[[label]]
+server = "browser"
+tool = "browser_delete_credit_card"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "deletes a stored credit card"
+
+[[label]]
+server = "browser"
+tool = "browser_delete_password"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "deletes a stored password"
+
+[[label]]
+server = "browser"
+tool = "browser_get_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns the browsing history (page titles and URLs)"
+
+[[label]]
+server = "browser"
+tool = "browser_list_saved_credit_cards"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the saved credit cards"
+
+[[label]]
+server = "browser"
+tool = "browser_list_saved_passwords"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the saved passwords (masked)"
+
+[[label]]
+server = "browser"
+tool = "browser_mouse_click_xy"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "clicks at page coordinates and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_navigate"
+roles = ["egress_read", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "loads an argument URL and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_navigate_back"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "goes back one page and returns it; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_open_history"
+roles = ["egress_read", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "opens a history entry's URL and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_press_key"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "presses a key on the page and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_resize"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "resizes the browser window"
+
+[[label]]
+server = "browser"
+tool = "browser_save_credit_card"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "stores a credit card"
+
+[[label]]
+server = "browser"
+tool = "browser_save_password"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "stores a password"
+
+[[label]]
+server = "browser"
+tool = "browser_select_option"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "selects a dropdown option and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_snapshot"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "returns the current page's accessibility snapshot; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_tabs"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "lists, opens or closes tabs and returns the tab list"
+
+[[label]]
+server = "browser"
+tool = "browser_take_screenshot"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "returns a screenshot of the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_type"
+roles = ["write_sink", "content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "types text into a page element, optionally submitting, and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "browser"
+tool = "browser_wait_for"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "waits for page text and returns the page; the configured injection custom-website-injection:update_html_content writes what it returns"
+
+[[label]]
+server = "calendar"
+tool = "accept_invitation"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "accepts an invitation (changes the event's attendee state)"
+
+[[label]]
+server = "calendar"
+tool = "create_event"
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates an event; with send_updates it e-mails the attendees"
+
+[[label]]
+server = "Calendar"
+tool = "create_event"
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates an event; with send_updates it e-mails the attendees"
+
+[[label]]
+server = "calendar"
+tool = "delete_event"
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes an event; with send_updates it e-mails the attendees"
+
+[[label]]
+server = "calendar"
+tool = "get_event"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns one event with its description"
+
+[[label]]
+server = "calendar"
+tool = "get_freebusy"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns busy intervals of calendars"
+
+[[label]]
+server = "calendar"
+tool = "list_calendars"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the accessible calendars"
+
+[[label]]
+server = "calendar"
+tool = "list_events"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns events with descriptions written by their organisers"
+
+[[label]]
+server = "calendar"
+tool = "search_events"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns events matching a text query"
+
+[[label]]
+server = "calendar"
+tool = "update_event"
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes an event; with send_updates it e-mails the attendees"
+
+[[label]]
+server = "Calendar"
+tool = "update_event"
+roles = ["write_sink", "send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes an event; with send_updates it e-mails the attendees"
+
+[[label]]
+server = "customer_service"
+tool = "add_case_note"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "adds an internal note to a case"
+
+[[label]]
+server = "customer_service"
+tool = "cancel_order"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "cancels an order"
+
+[[label]]
+server = "customer_service"
+tool = "cancel_subscription"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "cancels a subscription"
+
+[[label]]
+server = "customer_service"
+tool = "create_case"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a case"
+
+[[label]]
+server = "customer_service"
+tool = "create_case_activity"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "appends an activity entry to a case"
+
+[[label]]
+server = "customer_service"
+tool = "create_return"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a return request"
+
+[[label]]
+server = "customer_service"
+tool = "find_customer_by_email"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the customer with an e-mail and name"
+
+[[label]]
+server = "customer_service"
+tool = "get_case"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a case's details; the configured injection customer-service-injection:cs_case_description_inject writes what it returns"
+
+[[label]]
+server = "customer_service"
+tool = "get_case_activities"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a case's activity timeline including notes; the configured injection customer-service-injection:cs_case_note_inject writes what it returns"
+
+[[label]]
+server = "customer_service"
+tool = "get_customer"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a customer profile"
+
+[[label]]
+server = "customer_service"
+tool = "get_customer_orders"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a customer's orders; the configured injection customer-service-injection:cs_order_metadata_inject writes what it returns"
+
+[[label]]
+server = "customer_service"
+tool = "get_guidelines"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns company guidelines"
+
+[[label]]
+server = "customer_service"
+tool = "get_order"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns an order including its metadata; the configured injection customer-service-injection:cs_order_metadata_inject writes what it returns"
+
+[[label]]
+server = "customer_service"
+tool = "get_product"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a product"
+
+[[label]]
+server = "customer_service"
+tool = "get_shipment"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an order's shipment details"
+
+[[label]]
+server = "customer_service"
+tool = "get_subscription"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a subscription"
+
+[[label]]
+server = "customer_service"
+tool = "grant_store_credit"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "grants store credit (an internal balance) to a customer"
+
+[[label]]
+server = "customer_service"
+tool = "list_cases"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns cases with their descriptions; the configured injection customer-service-injection:cs_case_description_inject writes what it returns"
+
+[[label]]
+server = "customer_service"
+tool = "list_exchanges"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an order's exchanges"
+
+[[label]]
+server = "customer_service"
+tool = "list_guidelines"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the list of company guidelines"
+
+[[label]]
+server = "customer_service"
+tool = "list_orders"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns orders; the configured injection customer-service-injection:cs_order_metadata_inject writes what it returns"
+
+[[label]]
+server = "customer_service"
+tool = "list_products"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns catalogue products"
+
+[[label]]
+server = "customer_service"
+tool = "list_refunds"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an order's refunds"
+
+[[label]]
+server = "customer_service"
+tool = "list_returns"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an order's returns"
+
+[[label]]
+server = "customer_service"
+tool = "list_store_credits"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a customer's store credits"
+
+[[label]]
+server = "customer_service"
+tool = "list_subscriptions"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a customer's subscriptions"
+
+[[label]]
+server = "customer_service"
+tool = "lookup_customer_by_email"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the customer id for an e-mail address"
+
+[[label]]
+server = "customer_service"
+tool = "modify_customer_address"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes a customer's default address"
+
+[[label]]
+server = "customer_service"
+tool = "modify_order_payment"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes an order's payment method"
+
+[[label]]
+server = "customer_service"
+tool = "pause_subscription"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "pauses a subscription"
+
+[[label]]
+server = "customer_service"
+tool = "refund_order"
+roles = ["send_sink", "write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "refunds money for an order to the customer"
+
+[[label]]
+server = "customer_service"
+tool = "resume_subscription"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "resumes a subscription"
+
+[[label]]
+server = "customer_service"
+tool = "search_customers"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns customers matching a query"
+
+[[label]]
+server = "customer_service"
+tool = "set_case_state"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes a case's state"
+
+[[label]]
+server = "customer_service"
+tool = "transfer_to_human"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates or assigns a case to a human queue"
+
+[[label]]
+server = "customer_service"
+tool = "update_shipping_address"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes an order's shipping address"
+
+[[label]]
+server = "customer_service"
+tool = "update_subscription_address"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes a subscription's shipping address"
+
+[[label]]
+server = "databricks"
+tool = "databricks-dbsql-exec"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a read-only (SELECT/WITH) SQL query and returns the rows"
+
+[[label]]
+server = "Databricks"
+tool = "databricks-dbsql-exec"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a read-only (SELECT/WITH) SQL query and returns the rows"
+
+[[label]]
+server = "databricks"
+tool = "databricks-genie"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an analyst rationale and a suggested SQL query"
+
+[[label]]
+server = "Databricks"
+tool = "databricks-genie"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an analyst rationale and a suggested SQL query"
+
+[[label]]
+server = "databricks"
+tool = "databricks-unity-function"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "calls a read-only catalogue function and returns its rows"
+
+[[label]]
+server = "databricks"
+tool = "databricks-vector-search"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns products matching a search query"
+
+[[label]]
+server = "Databricks"
+tool = "databricks-vector-search"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns products matching a search query"
+
+[[label]]
+server = "databricks"
+tool = "databricks_admin_reset"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "clears and re-seeds the environment's tables"
+
+[[label]]
+server = "Databricks"
+tool = "databricks_admin_reset"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "clears and re-seeds the environment's tables"
+
+[[label]]
+server = "finance"
+tool = "action_log"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns or clears the session's action log"
+
+[[label]]
+server = "finance"
+tool = "browse_article"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a news article with its comments; the configured injection finance-injection:inject_html_article writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "browse_markets"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns market overview pages; the configured injection finance-injection:inject_html_market writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "browse_news"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the news feed; the configured injection finance-injection:create_news writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "browse_options"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns an options chain page; the configured injection finance-injection:inject_html_options writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "browse_portfolio"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns portfolio pages; the configured injection finance-injection:inject_html_portfolio writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "browse_stock"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a stock page (quote, news, analysis); the configured injection finance-injection:inject_html_quote writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "browse_stock_list"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the list of tradeable stocks"
+
+[[label]]
+server = "finance"
+tool = "cancel_order"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "cancels a pending limit order"
+
+[[label]]
+server = "finance"
+tool = "list_accounts"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the client accounts with balances"
+
+[[label]]
+server = "finance"
+tool = "post_comment"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "publishes a comment on a news article"
+
+[[label]]
+server = "finance"
+tool = "search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns stocks and news matching a query; the configured injection finance-injection:create_news writes what it returns"
+
+[[label]]
+server = "finance"
+tool = "switch_account"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "switches the active client account for later views and trades"
+
+[[label]]
+server = "finance"
+tool = "trade_option"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "executes an options order on the portfolio"
+
+[[label]]
+server = "finance"
+tool = "trade_stock"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "executes a stock trade on the portfolio"
+
+[[label]]
+server = "gmail"
+tool = "batch_delete_messages"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes several e-mails"
+
+[[label]]
+server = "gmail"
+tool = "delete_message"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes an e-mail"
+
+[[label]]
+server = "gmail"
+tool = "_delete_message"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "deletes an e-mail (the double-underscore OpenClaw name of delete_message)"
+
+[[label]]
+server = "gmail"
+tool = "find_message"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the first e-mail matching a query; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "Gmail"
+tool = "find_message"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the first e-mail matching a query; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "forward_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "forwards an e-mail to an argument recipient"
+
+[[label]]
+server = "gmail"
+tool = "_forward_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "forwards an e-mail to an argument recipient (the double-underscore OpenClaw name of forward_message)"
+
+[[label]]
+server = "Gmail"
+tool = "forward_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "forwards an e-mail to an argument recipient"
+
+[[label]]
+server = "gmail"
+tool = "get_gmail_content"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns recent inbox threads; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "_get_gmail_content"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns recent inbox threads; the configured injection gmail-injection:inject_email writes what it returns (the double-underscore OpenClaw name of get_gmail_content)"
+
+[[label]]
+server = "Gmail"
+tool = "get_gmail_content"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns recent inbox threads; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "get_message"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns one e-mail with headers and body; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "Gmail"
+tool = "get_message"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns one e-mail with headers and body; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "get_message_body"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the body of an e-mail; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "_get_message_body"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns the body of an e-mail; the configured injection gmail-injection:inject_email writes what it returns (the double-underscore OpenClaw name of get_message_body)"
+
+[[label]]
+server = "Gmail"
+tool = "get_message_body"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the body of an e-mail; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "list_attachments"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the attachment list (file names) of an e-mail; the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "list_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the received e-mails (inbox); the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "_list_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns the received e-mails (inbox); the configured injection gmail-injection:inject_email writes what it returns (the double-underscore OpenClaw name of list_messages)"
+
+[[label]]
+server = "Gmail"
+tool = "list_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the received e-mails (inbox); the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "list_sent_messages"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's sent e-mails"
+
+[[label]]
+server = "Gmail"
+tool = "list_sent_messages"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's sent e-mails"
+
+[[label]]
+server = "gmail"
+tool = "search_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the e-mails matching a query (bodies and senders written by others); the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "_search_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns the e-mails matching a query (bodies and senders written by others); the configured injection gmail-injection:inject_email writes what it returns (the double-underscore OpenClaw name of search_messages)"
+
+[[label]]
+server = "Gmail"
+tool = "search_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the e-mails matching a query (bodies and senders written by others); the configured injection gmail-injection:inject_email writes what it returns"
+
+[[label]]
+server = "gmail"
+tool = "send_email"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a new e-mail to the argument recipients"
+
+[[label]]
+server = "gmail"
+tool = "_send_email"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "sends a new e-mail to the argument recipients (the double-underscore OpenClaw name of send_email)"
+
+[[label]]
+server = "Gmail"
+tool = "send_email"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a new e-mail to the argument recipients"
+
+[[label]]
+server = "gmail"
+tool = "send_reply"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a reply e-mail"
+
+[[label]]
+server = "gmail"
+tool = "_send_reply"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "sends a reply e-mail (the double-underscore OpenClaw name of send_reply)"
+
+[[label]]
+server = "Gmail"
+tool = "send_reply"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a reply e-mail"
+
+[[label]]
+server = "google-form"
+tool = "get_form"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current form schema"
+
+[[label]]
+server = "googleform"
+tool = "get_form"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current form schema"
+
+[[label]]
+server = "google-form"
+tool = "list_submissions"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns form responses written by respondents"
+
+[[label]]
+server = "google-form"
+tool = "set_form"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "replaces the form schema"
+
+[[label]]
+server = "googleform"
+tool = "set_form"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "replaces the form schema"
+
+[[label]]
+server = "google-form"
+tool = "submit"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "submits a response to the form's owner"
+
+[[label]]
+server = "googledocs"
+tool = "create_document"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a document"
+
+[[label]]
+server = "googledocs"
+tool = "create_folder"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a folder"
+
+[[label]]
+server = "googledocs"
+tool = "delete_document"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "trashes or deletes a document"
+
+[[label]]
+server = "googledocs"
+tool = "get_document"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a document's content; the configured injection googledocs-injection:update_document writes what it returns"
+
+[[label]]
+server = "googledocs"
+tool = "_get_document"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns a document's content; the configured injection googledocs-injection:update_document writes what it returns (the double-underscore OpenClaw name of get_document)"
+
+[[label]]
+server = "googledocs"
+tool = "get_recent_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns recently accessed documents; the configured injection googledocs-injection:create_document writes what it returns"
+
+[[label]]
+server = "googledocs"
+tool = "_get_recent_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns recently accessed documents; the configured injection googledocs-injection:create_document writes what it returns (the double-underscore OpenClaw name of get_recent_documents)"
+
+[[label]]
+server = "googledocs"
+tool = "list_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the accessible documents; the configured injection googledocs-injection:create_document writes what it returns"
+
+[[label]]
+server = "googledocs"
+tool = "_list_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns the accessible documents; the configured injection googledocs-injection:create_document writes what it returns (the double-underscore OpenClaw name of list_documents)"
+
+[[label]]
+server = "googledocs"
+tool = "search_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns documents matching a query; the configured injection googledocs-injection:create_document writes what it returns"
+
+[[label]]
+server = "googledocs"
+tool = "_search_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns documents matching a query; the configured injection googledocs-injection:create_document writes what it returns (the double-underscore OpenClaw name of search_documents)"
+
+[[label]]
+server = "legal"
+tool = "add_matter_note"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "adds a note to a matter"
+
+[[label]]
+server = "legal"
+tool = "analyze_document"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns an AI analysis of a document; the configured injection legal-injection:inject_into_document writes what it returns"
+
+[[label]]
+server = "legal"
+tool = "citation_lookup"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "resolves citations to opinion clusters"
+
+[[label]]
+server = "legal"
+tool = "create_draft"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "saves a document draft"
+
+[[label]]
+server = "legal"
+tool = "get_aba_ratings"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a judge's ABA ratings"
+
+[[label]]
+server = "legal"
+tool = "get_audio"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns oral-argument recording metadata"
+
+[[label]]
+server = "legal"
+tool = "get_cluster"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns case metadata of an opinion cluster"
+
+[[label]]
+server = "legal"
+tool = "get_court"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns court metadata"
+
+[[label]]
+server = "legal"
+tool = "get_disclosure_positions"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns position records of a disclosure"
+
+[[label]]
+server = "legal"
+tool = "get_docket"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns a docket sheet"
+
+[[label]]
+server = "legal"
+tool = "get_document"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a document's full content; the configured injection legal-injection:inject_fake_document writes what it returns"
+
+[[label]]
+server = "legal"
+tool = "get_draft"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a saved draft"
+
+[[label]]
+server = "legal"
+tool = "get_educations"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a judge's education"
+
+[[label]]
+server = "legal"
+tool = "get_filing"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a prepared filing"
+
+[[label]]
+server = "legal"
+tool = "get_financial_disclosures"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns judicial financial disclosures"
+
+[[label]]
+server = "legal"
+tool = "get_gifts"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns gift records of a disclosure"
+
+[[label]]
+server = "legal"
+tool = "get_investments"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns investment records of a disclosure"
+
+[[label]]
+server = "legal"
+tool = "get_matter"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a matter's details and notes; the configured injection legal-injection:inject_into_matter writes what it returns"
+
+[[label]]
+server = "legal"
+tool = "get_non_investment_incomes"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns non-investment income records of a disclosure"
+
+[[label]]
+server = "legal"
+tool = "get_opinion"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns an opinion's full text"
+
+[[label]]
+server = "legal"
+tool = "get_opinions_cited"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns citation relationships between opinions"
+
+[[label]]
+server = "legal"
+tool = "get_person"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a judge's profile"
+
+[[label]]
+server = "legal"
+tool = "get_political_affiliations"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a judge's political affiliations"
+
+[[label]]
+server = "legal"
+tool = "get_positions"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a judge's positions"
+
+[[label]]
+server = "legal"
+tool = "list_documents"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the documents in the vault; the configured injection legal-injection:inject_fake_document writes what it returns"
+
+[[label]]
+server = "legal"
+tool = "list_matters"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the client matters; the configured injection legal-injection:inject_into_matter writes what it returns"
+
+[[label]]
+server = "legal"
+tool = "list_templates"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the document templates"
+
+[[label]]
+server = "legal"
+tool = "prepare_filing"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "saves and prepares a court filing for a matter"
+
+[[label]]
+server = "legal"
+tool = "search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CourtListener search results (case law written by courts); the configured injection legal-injection:inject_extra_entry writes what it returns"
+
+[[label]]
+server = "legal"
+tool = "search_statutes"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns statutes matching a query; the configured injection legal-injection:inject_extra_entry writes what it returns"
+
+[[label]]
+server = "macos-os"
+tool = "click"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "clicks at desktop coordinates (desktop input)"
+
+[[label]]
+server = "macos-os"
+tool = "drag"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "drags between desktop coordinates (desktop input)"
+
+[[label]]
+server = "macos-os"
+tool = "key"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "presses keys or key combinations (desktop input)"
+
+[[label]]
+server = "macos-os"
+tool = "launch"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "launches an application"
+
+[[label]]
+server = "macos-os"
+tool = "screenshot"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the desktop state as a screenshot"
+
+[[label]]
+server = "macos-os"
+tool = "shell"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a shell command on the macOS VM"
+
+[[label]]
+server = "macos-os"
+tool = "type"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "types text into the focused desktop element (desktop input: its effect is whatever the focused application does)"
+
+[[label]]
+server = "macos-os"
+tool = "wait"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "pauses for a duration"
+
+[[label]]
+server = "openclaw"
+tool = "agents_list"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the configured agents"
+
+[[label]]
+server = "openclaw"
+tool = "edit"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "edits a file in place (arguments path, old and new text)"
+
+[[label]]
+server = "openclaw"
+tool = "exec"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "runs a shell command (argument command)"
+
+[[label]]
+server = "openclaw"
+tool = "memory_search"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns matches from the agent's memory store"
+
+[[label]]
+server = "openclaw"
+tool = "message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "sends a message to a channel target (arguments action, channel, target, message)"
+
+[[label]]
+server = "openclaw"
+tool = "pdf"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns an extraction from a PDF document"
+
+[[label]]
+server = "openclaw"
+tool = "read"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns a file's content (arguments path, offset, limit)"
+
+[[label]]
+server = "openclaw"
+tool = "session_status"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the agent session's status"
+
+[[label]]
+server = "openclaw"
+tool = "sessions_list"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns the agent's sessions"
+
+[[label]]
+server = "openclaw"
+tool = "web_fetch"
+roles = ["egress_read"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "fetches an argument URL from outside the sandbox"
+
+[[label]]
+server = "openclaw"
+tool = "web_search"
+roles = ["egress_read"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns web search results from outside the sandbox"
+
+[[label]]
+server = "openclaw"
+tool = "write"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "writes a file (arguments path, content)"
+
+[[label]]
+server = "paypal"
+tool = "approve_pending_payout"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "approves a pending payout and transfers the funds"
+
+[[label]]
+server = "paypal"
+tool = "_approve_pending_payout"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "approves a pending payout and transfers the funds (the double-underscore OpenClaw name of approve_pending_payout)"
+
+[[label]]
+server = "paypal"
+tool = "cancel_subscription"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "cancels a subscription"
+
+[[label]]
+server = "paypal"
+tool = "create_invoice"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates an invoice for a recipient (sending is send_invoice)"
+
+[[label]]
+server = "paypal"
+tool = "create_order"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates an order for payment capture"
+
+[[label]]
+server = "paypal"
+tool = "create_payout"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "pays an amount to an argument e-mail address"
+
+[[label]]
+server = "paypal"
+tool = "_create_payout"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "pays an amount to an argument e-mail address (the double-underscore OpenClaw name of create_payout)"
+
+[[label]]
+server = "paypal"
+tool = "create_product"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a catalogue product"
+
+[[label]]
+server = "paypal"
+tool = "create_refund"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "refunds an amount against a capture"
+
+[[label]]
+server = "paypal"
+tool = "create_subscription_plan"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a subscription plan"
+
+[[label]]
+server = "paypal"
+tool = "generate_invoice_qr_code"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a QR code for an invoice"
+
+[[label]]
+server = "paypal"
+tool = "get_invoice"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns an invoice; the configured injection paypal-injection:inject_payment_request writes what it returns"
+
+[[label]]
+server = "paypal"
+tool = "get_merchant_insights"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns merchant statistics"
+
+[[label]]
+server = "paypal"
+tool = "get_order"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an order's payment details"
+
+[[label]]
+server = "paypal"
+tool = "get_payout"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a payout"
+
+[[label]]
+server = "paypal"
+tool = "get_refund"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a refund's status"
+
+[[label]]
+server = "paypal"
+tool = "list_bills"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns invoices sent to the user; the configured injection paypal-injection:inject_payment_request writes what it returns"
+
+[[label]]
+server = "paypal"
+tool = "list_disputes"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns disputes"
+
+[[label]]
+server = "paypal"
+tool = "list_invoices"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns invoices; the configured injection paypal-injection:inject_payment_request writes what it returns"
+
+[[label]]
+server = "paypal"
+tool = "_list_invoices"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns invoices; the configured injection paypal-injection:inject_payment_request writes what it returns (the double-underscore OpenClaw name of list_invoices)"
+
+[[label]]
+server = "paypal"
+tool = "list_payouts"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns payouts"
+
+[[label]]
+server = "paypal"
+tool = "_list_payouts"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns payouts (the double-underscore OpenClaw name of list_payouts)"
+
+[[label]]
+server = "paypal"
+tool = "list_product"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns products"
+
+[[label]]
+server = "paypal"
+tool = "list_subscription_plans"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns subscription plans"
+
+[[label]]
+server = "paypal"
+tool = "list_subscriptions"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns subscriptions"
+
+[[label]]
+server = "paypal"
+tool = "list_transaction"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns transactions with their notes"
+
+[[label]]
+server = "paypal"
+tool = "_list_transaction"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description"]
+reason = "returns transactions with their notes (the double-underscore OpenClaw name of list_transaction)"
+
+[[label]]
+server = "paypal"
+tool = "pay_invoice"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "pays an invoice sent to the user"
+
+[[label]]
+server = "paypal"
+tool = "pay_order"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "captures the payment of an order"
+
+[[label]]
+server = "paypal"
+tool = "paypal_login"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a sandbox auth token"
+
+[[label]]
+server = "paypal"
+tool = "search_product"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns products matching a query"
+
+[[label]]
+server = "paypal"
+tool = "send_invoice"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends an invoice to its recipient"
+
+[[label]]
+server = "paypal"
+tool = "show_subscription_details"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a subscription's details"
+
+[[label]]
+server = "salesforce"
+tool = "assign_lead"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (assign_lead)"
+
+[[label]]
+server = "salesforce"
+tool = "convert_lead"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (convert_lead)"
+
+[[label]]
+server = "salesforce"
+tool = "create_case"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (create_case)"
+
+[[label]]
+server = "salesforce"
+tool = "create_contact"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (create_contact)"
+
+[[label]]
+server = "salesforce"
+tool = "create_lead"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (create_lead)"
+
+[[label]]
+server = "salesforce"
+tool = "create_opportunity"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (create_opportunity)"
+
+[[label]]
+server = "salesforce"
+tool = "create_record"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (create_record)"
+
+[[label]]
+server = "salesforce"
+tool = "delete_case"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes CRM records (delete_case)"
+
+[[label]]
+server = "salesforce"
+tool = "delete_contact"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes CRM records (delete_contact)"
+
+[[label]]
+server = "salesforce"
+tool = "delete_entry"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes CRM records (delete_entry)"
+
+[[label]]
+server = "salesforce"
+tool = "delete_lead"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes CRM records (delete_lead)"
+
+[[label]]
+server = "salesforce"
+tool = "delete_record"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes CRM records (delete_record)"
+
+[[label]]
+server = "salesforce"
+tool = "duplicate_lead"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (duplicate_lead)"
+
+[[label]]
+server = "salesforce"
+tool = "get_account_by_id"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_account_by_id); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_available_modules"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (get_available_modules)"
+
+[[label]]
+server = "salesforce"
+tool = "get_case_by_id"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_case_by_id); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_contact_by_id"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_contact_by_id); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_entry"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_entry); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_entry_list"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_entry_list); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_lead_source_options"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (get_lead_source_options)"
+
+[[label]]
+server = "salesforce"
+tool = "get_lead_status_options"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (get_lead_status_options)"
+
+[[label]]
+server = "salesforce"
+tool = "get_module_fields"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (get_module_fields)"
+
+[[label]]
+server = "salesforce"
+tool = "get_opportunity_by_id"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_opportunity_by_id); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_record"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_record); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "get_relationships"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (get_relationships); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "health"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (health)"
+
+[[label]]
+server = "salesforce"
+tool = "link_contact_to_account"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (link_contact_to_account)"
+
+[[label]]
+server = "salesforce"
+tool = "list_leads"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (list_leads); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "list_records"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (list_records); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "merge_leads"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (merge_leads)"
+
+[[label]]
+server = "salesforce"
+tool = "meta_fields"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (meta_fields)"
+
+[[label]]
+server = "salesforce"
+tool = "meta_modules"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns fixed CRM schema or service metadata (meta_modules)"
+
+[[label]]
+server = "salesforce"
+tool = "relationship_create"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (relationship_create)"
+
+[[label]]
+server = "salesforce"
+tool = "relationship_delete"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes CRM records (relationship_delete)"
+
+[[label]]
+server = "salesforce"
+tool = "relationship_get"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (relationship_get); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "search_accounts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (search_accounts); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "search_cases"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (search_cases); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "search_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (search_contacts); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "search_leads"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (search_leads); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "search_opportunities"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (search_opportunities); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "salesforce"
+tool = "set_entry"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates CRM records (set_entry)"
+
+[[label]]
+server = "salesforce"
+tool = "set_relationship"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (set_relationship)"
+
+[[label]]
+server = "salesforce"
+tool = "update_case"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_case)"
+
+[[label]]
+server = "salesforce"
+tool = "update_contact"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_contact)"
+
+[[label]]
+server = "salesforce"
+tool = "update_contact_email"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_contact_email)"
+
+[[label]]
+server = "salesforce"
+tool = "update_entry"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_entry)"
+
+[[label]]
+server = "salesforce"
+tool = "update_lead_status"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_lead_status)"
+
+[[label]]
+server = "salesforce"
+tool = "update_opportunity"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_opportunity)"
+
+[[label]]
+server = "salesforce"
+tool = "update_record"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes CRM records (update_record)"
+
+[[label]]
+server = "salesforce"
+tool = "view_contact_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns CRM records with their descriptions and notes (view_contact_history); the configured injection salesforce-injection:inject_note writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "channels_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a channel's recent messages (written by others); the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "_channels_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns a channel's recent messages (written by others); the configured injection slack-injection:inject_slack_message writes what it returns (the double-underscore OpenClaw name of channels_history)"
+
+[[label]]
+server = "Slack"
+tool = "channels_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a channel's recent messages (written by others); the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "channels_invite"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "adds users to a channel"
+
+[[label]]
+server = "slack"
+tool = "conversations_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a direct-message conversation; the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "_conversations_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns a direct-message conversation; the configured injection slack-injection:inject_slack_message writes what it returns (the double-underscore OpenClaw name of conversations_history)"
+
+[[label]]
+server = "Slack"
+tool = "conversations_history"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a direct-message conversation; the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "create_channel"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a channel"
+
+[[label]]
+server = "Slack"
+tool = "create_channel"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a channel"
+
+[[label]]
+server = "slack"
+tool = "create_workspace"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a workspace"
+
+[[label]]
+server = "Slack"
+tool = "create_workspace"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a workspace"
+
+[[label]]
+server = "slack"
+tool = "dm_feed"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the direct-message feed; the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "_dm_feed"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns the direct-message feed; the configured injection slack-injection:inject_slack_message writes what it returns (the double-underscore OpenClaw name of dm_feed)"
+
+[[label]]
+server = "slack"
+tool = "get_me"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current user's own profile"
+
+[[label]]
+server = "slack"
+tool = "_get_me"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the current user's own profile (the double-underscore OpenClaw name of get_me)"
+
+[[label]]
+server = "Slack"
+tool = "get_me"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current user's own profile"
+
+[[label]]
+server = "slack"
+tool = "inbox"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns mentions from channels and direct messages; the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "_inbox"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns mentions from channels and direct messages; the configured injection slack-injection:inject_slack_message writes what it returns (the double-underscore OpenClaw name of inbox)"
+
+[[label]]
+server = "Slack"
+tool = "inbox"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns mentions from channels and direct messages; the configured injection slack-injection:inject_slack_message writes what it returns"
+
+[[label]]
+server = "slack"
+tool = "list_channels"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a workspace's channels (ids and names)"
+
+[[label]]
+server = "slack"
+tool = "_list_channels"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns a workspace's channels (ids and names) (the double-underscore OpenClaw name of list_channels)"
+
+[[label]]
+server = "Slack"
+tool = "list_channels"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a workspace's channels (ids and names)"
+
+[[label]]
+server = "slack"
+tool = "list_dms"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's direct-message conversations"
+
+[[label]]
+server = "slack"
+tool = "_list_dms"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the user's direct-message conversations (the double-underscore OpenClaw name of list_dms)"
+
+[[label]]
+server = "Slack"
+tool = "list_dms"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's direct-message conversations"
+
+[[label]]
+server = "slack"
+tool = "list_users"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a workspace's users"
+
+[[label]]
+server = "slack"
+tool = "_list_users"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns a workspace's users (the double-underscore OpenClaw name of list_users)"
+
+[[label]]
+server = "Slack"
+tool = "list_users"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a workspace's users"
+
+[[label]]
+server = "slack"
+tool = "list_workspaces"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's workspaces (ids and names)"
+
+[[label]]
+server = "slack"
+tool = "_list_workspaces"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the user's workspaces (ids and names) (the double-underscore OpenClaw name of list_workspaces)"
+
+[[label]]
+server = "Slack"
+tool = "list_workspaces"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's workspaces (ids and names)"
+
+[[label]]
+server = "slack"
+tool = "login"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an access token for the sandbox account"
+
+[[label]]
+server = "Slack"
+tool = "login"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an access token for the sandbox account"
+
+[[label]]
+server = "slack"
+tool = "open_dm"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "opens (creates) a direct-message conversation"
+
+[[label]]
+server = "slack"
+tool = "_open_dm"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "opens (creates) a direct-message conversation (the double-underscore OpenClaw name of open_dm)"
+
+[[label]]
+server = "Slack"
+tool = "open_dm"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "opens (creates) a direct-message conversation"
+
+[[label]]
+server = "slack"
+tool = "post_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "posts a message to a channel"
+
+[[label]]
+server = "slack"
+tool = "_post_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "posts a message to a channel (the double-underscore OpenClaw name of post_message)"
+
+[[label]]
+server = "Slack"
+tool = "post_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "posts a message to a channel"
+
+[[label]]
+server = "slack"
+tool = "post_message_dm"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "posts a direct message"
+
+[[label]]
+server = "slack"
+tool = "_post_message_dm"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "posts a direct message (the double-underscore OpenClaw name of post_message_dm)"
+
+[[label]]
+server = "Slack"
+tool = "post_message_dm"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "posts a direct message"
+
+[[label]]
+server = "slack"
+tool = "workspaces_invite"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "adds a user to a workspace"
+
+[[label]]
+server = "snowflake"
+tool = "agent_1"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a suggested next tool with reasoning"
+
+[[label]]
+server = "snowflake"
+tool = "product-search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns products matching a search query; the configured injection snowflake-injection:inject_snowflake_data writes what it returns"
+
+[[label]]
+server = "Snowflake"
+tool = "product-search"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns products matching a search query; the configured injection snowflake-injection:inject_snowflake_data writes what it returns"
+
+[[label]]
+server = "snowflake"
+tool = "revenue-semantic-view"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns an analyst text answer with a suggested SQL query"
+
+[[label]]
+server = "snowflake"
+tool = "snowflake_admin_reset"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "clears and re-seeds the environment's tables"
+
+[[label]]
+server = "Snowflake"
+tool = "snowflake_admin_reset"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "clears and re-seeds the environment's tables"
+
+[[label]]
+server = "snowflake"
+tool = "sql_exec_tool"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "runs a read-only (SELECT-only) SQL query and returns the rows; the configured injection snowflake-injection:inject_snowflake_data writes what it returns"
+
+[[label]]
+server = "Snowflake"
+tool = "sql_exec_tool"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "runs a read-only (SELECT-only) SQL query and returns the rows; the configured injection snowflake-injection:inject_snowflake_data writes what it returns"
+
+[[label]]
+server = "telecom"
+tool = "add_bill"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "adds a bill record"
+
+[[label]]
+server = "telecom"
+tool = "add_calendar_event"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "adds a calendar-event record"
+
+[[label]]
+server = "telecom"
+tool = "add_email"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "adds an e-mail record to the customer's store"
+
+[[label]]
+server = "telecom"
+tool = "add_sms"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "adds an SMS record to the customer's store"
+
+[[label]]
+server = "telecom"
+tool = "add_ticket"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "adds a support ticket record"
+
+[[label]]
+server = "telecom"
+tool = "process_refund"
+roles = ["send_sink", "write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "processes a refund for an order"
+
+[[label]]
+server = "telecom"
+tool = "query_account"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns account records (including credentials)"
+
+[[label]]
+server = "telecom"
+tool = "query_bill"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns bill records"
+
+[[label]]
+server = "telecom"
+tool = "query_calendar_event"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns a calendar event"
+
+[[label]]
+server = "telecom"
+tool = "query_calendar_events_by_customer"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns a customer's calendar events"
+
+[[label]]
+server = "telecom"
+tool = "query_customer"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns customer records"
+
+[[label]]
+server = "telecom"
+tool = "query_email"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns an e-mail record"
+
+[[label]]
+server = "telecom"
+tool = "query_emails_by_customer"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns a customer's e-mails"
+
+[[label]]
+server = "telecom"
+tool = "query_forum_post"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "returns a forum post; the configured injection telecom-injection:forum_post_inject writes what it returns"
+
+[[label]]
+server = "telecom"
+tool = "query_forum_posts_by_thread"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "returns forum posts written by customers; the configured injection telecom-injection:forum_post_inject writes what it returns"
+
+[[label]]
+server = "telecom"
+tool = "query_forum_thread"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "config"]
+reason = "returns a forum thread; the configured injection telecom-injection:forum_thread_inject writes what it returns"
+
+[[label]]
+server = "telecom"
+tool = "query_order"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns an order record"
+
+[[label]]
+server = "telecom"
+tool = "query_outage"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns outage records"
+
+[[label]]
+server = "telecom"
+tool = "query_sms_by_customer"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed"]
+reason = "returns a customer's SMS messages"
+
+[[label]]
+server = "telecom"
+tool = "query_ticket"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns a ticket record"
+
+[[label]]
+server = "telecom"
+tool = "query_tickets_by_customer"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "returns a customer's tickets"
+
+[[label]]
+server = "telecom"
+tool = "reload_all_tables"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "reloads every table from disk (resets the store)"
+
+[[label]]
+server = "telecom"
+tool = "update_account"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "changes a customer's account"
+
+[[label]]
+server = "telecom"
+tool = "update_bill"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "changes a customer's bill"
+
+[[label]]
+server = "telecom"
+tool = "update_order"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "changes an order"
+
+[[label]]
+server = "telecom"
+tool = "update_ticket"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed"]
+reason = "changes a ticket"
+
+[[label]]
+server = "telegram"
+tool = "list_calls"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the call history"
+
+[[label]]
+server = "telegram"
+tool = "list_chats"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns conversation threads"
+
+[[label]]
+server = "telegram"
+tool = "make_call"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "places a phone call to a phone number"
+
+[[label]]
+server = "telegram"
+tool = "search_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "returns messages matching a query"
+
+[[label]]
+server = "telegram"
+tool = "send_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a message to a phone number"
+
+[[label]]
+server = "telegram"
+tool = "telegram_create_contact"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a contact"
+
+[[label]]
+server = "telegram"
+tool = "telegram_list_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the address book; the configured injection telegram-injection:inject_contact writes what it returns"
+
+[[label]]
+server = "telegram"
+tool = "telegram_search_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns contacts matching a query; the configured injection telegram-injection:inject_contact writes what it returns"
+
+[[label]]
+server = "terminal"
+tool = "execute_command"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a shell command in the task's terminal sandbox"
+
+[[label]]
+server = "travel-suite"
+tool = "apply_promo"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "applies a promotional code to the bookings"
+
+[[label]]
+server = "travel-suite"
+tool = "book_accommodation"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "books an accommodation"
+
+[[label]]
+server = "travel-suite"
+tool = "book_flight"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "books a flight"
+
+[[label]]
+server = "travel-suite"
+tool = "book_restaurant"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "reserves a restaurant table"
+
+[[label]]
+server = "travel-suite"
+tool = "cancel_accommodation"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "cancels an accommodation booking"
+
+[[label]]
+server = "travel-suite"
+tool = "manager_list_users"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the platform's users (manager operation)"
+
+[[label]]
+server = "travel-suite"
+tool = "manager_query_history"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a user's trip history (manager operation)"
+
+[[label]]
+server = "travel-suite"
+tool = "manager_query_payments"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a user's saved payment methods (manager operation)"
+
+[[label]]
+server = "travel-suite"
+tool = "message_host"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a message to an accommodation host"
+
+[[label]]
+server = "travel-suite"
+tool = "pay_all_bookings"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "pays for all current bookings"
+
+[[label]]
+server = "travel-suite"
+tool = "post_review"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "publishes a review"
+
+[[label]]
+server = "travel-suite"
+tool = "query_accommodation"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns accommodations with descriptions and reviews; the configured injection travel-injection:inject_accommodation writes what it returns"
+
+[[label]]
+server = "travel-suite"
+tool = "query_attraction"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns attractions in a city"
+
+[[label]]
+server = "travel-suite"
+tool = "query_booking"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current bookings"
+
+[[label]]
+server = "travel-suite"
+tool = "query_city"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the cities of a state"
+
+[[label]]
+server = "travel-suite"
+tool = "query_distance"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns distance, time and cost between two places"
+
+[[label]]
+server = "travel-suite"
+tool = "query_flight"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns flights; the configured injection travel-injection:inject_flight writes what it returns"
+
+[[label]]
+server = "travel-suite"
+tool = "query_restaurant"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns restaurants; the configured injection travel-injection:inject_restaurant writes what it returns"
+
+[[label]]
+server = "travel-suite"
+tool = "request_refund"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "files a refund request for a booking"
+
+[[label]]
+server = "travel-suite"
+tool = "save_log"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "saves a session log entry"
+
+[[label]]
+server = "travel-suite"
+tool = "verify_manager_access"
+roles = ["endorser"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "checks whether manager access is approved before admin operations"
+
+[[label]]
+server = "travel-suite"
+tool = "verify_promo_eligibility"
+roles = ["endorser"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "checks whether a promotional code can be applied before apply_promo"
+
+[[label]]
+server = "travel-suite"
+tool = "verify_refund_eligibility"
+roles = ["endorser"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "checks whether a refund request is eligible before request_refund"
+
+[[label]]
+server = "whatsapp"
+tool = "delete_whatsapp_chat"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes a conversation"
+
+[[label]]
+server = "whatsapp"
+tool = "_delete_whatsapp_chat"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "deletes a conversation (the double-underscore OpenClaw name of delete_whatsapp_chat)"
+
+[[label]]
+server = "whatsapp"
+tool = "get_contact"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a contact; the configured injection whatsapp-injection:create_contact writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_get_contact"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns a contact; the configured injection whatsapp-injection:create_contact writes what it returns (the double-underscore OpenClaw name of get_contact)"
+
+[[label]]
+server = "whatsapp"
+tool = "get_unread_whatsapp_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns unread incoming messages; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_get_unread_whatsapp_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns unread incoming messages; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns (the double-underscore OpenClaw name of get_unread_whatsapp_messages)"
+
+[[label]]
+server = "whatsapp"
+tool = "get_whatsapp_chat"
+roles = ["content_source", "write_sink"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns a conversation and marks incoming messages as read; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_get_whatsapp_chat"
+roles = ["content_source", "write_sink"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns a conversation and marks incoming messages as read; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns (the double-underscore OpenClaw name of get_whatsapp_chat)"
+
+[[label]]
+server = "whatsapp"
+tool = "list_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns the address book; the configured injection whatsapp-injection:create_contact writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_list_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns the address book; the configured injection whatsapp-injection:create_contact writes what it returns (the double-underscore OpenClaw name of list_contacts)"
+
+[[label]]
+server = "whatsapp"
+tool = "_list_whatsapp_calls"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "returns the call history (the double-underscore OpenClaw name of list_whatsapp_calls)"
+
+[[label]]
+server = "whatsapp"
+tool = "list_whatsapp_chats"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns conversation threads; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_list_whatsapp_chats"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns conversation threads; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns (the double-underscore OpenClaw name of list_whatsapp_chats)"
+
+[[label]]
+server = "whatsapp"
+tool = "_mark_whatsapp_message_read"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "marks a message as read (the double-underscore OpenClaw name of mark_whatsapp_message_read)"
+
+[[label]]
+server = "whatsapp"
+tool = "reply_to_whatsapp_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a reply to a WhatsApp message"
+
+[[label]]
+server = "whatsapp"
+tool = "_reply_to_whatsapp_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "sends a reply to a WhatsApp message (the double-underscore OpenClaw name of reply_to_whatsapp_message)"
+
+[[label]]
+server = "whatsapp"
+tool = "search_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns contacts matching a query; the configured injection whatsapp-injection:create_contact writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_search_contacts"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns contacts matching a query; the configured injection whatsapp-injection:create_contact writes what it returns (the double-underscore OpenClaw name of search_contacts)"
+
+[[label]]
+server = "whatsapp"
+tool = "search_whatsapp_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed", "config"]
+reason = "returns messages matching a query; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns"
+
+[[label]]
+server = "whatsapp"
+tool = "_search_whatsapp_messages"
+roles = ["content_source"]
+integrity = "untrusted"
+evidence = ["observed", "description", "config"]
+reason = "returns messages matching a query; the configured injection whatsapp-injection:send_whatsapp_message writes what it returns (the double-underscore OpenClaw name of search_whatsapp_messages)"
+
+[[label]]
+server = "whatsapp"
+tool = "send_whatsapp_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "sends a WhatsApp message to a phone number"
+
+[[label]]
+server = "whatsapp"
+tool = "_send_whatsapp_message"
+roles = ["send_sink"]
+integrity = "unknown"
+evidence = ["observed", "description"]
+reason = "sends a WhatsApp message to a phone number (the double-underscore OpenClaw name of send_whatsapp_message)"
+
+[[label]]
+server = "windows-os"
+tool = "click"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "clicks at desktop coordinates (desktop input)"
+
+[[label]]
+server = "windows-os"
+tool = "clipboard"
+roles = ["write_sink", "content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "copies text to the clipboard or returns its content"
+
+[[label]]
+server = "windows-os"
+tool = "drag"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "drags between desktop coordinates (desktop input)"
+
+[[label]]
+server = "windows-os"
+tool = "key"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "presses keys or key combinations (desktop input)"
+
+[[label]]
+server = "windows-os"
+tool = "launch"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "launches an application"
+
+[[label]]
+server = "windows-os"
+tool = "move"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "moves the mouse cursor without clicking"
+
+[[label]]
+server = "windows-os"
+tool = "resize"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "resizes or moves the active window"
+
+[[label]]
+server = "windows-os"
+tool = "scrape"
+roles = ["egress_read", "content_source"]
+integrity = "untrusted"
+evidence = ["description", "observed"]
+reason = "fetches a web page from an argument URL and returns it as text"
+
+[[label]]
+server = "windows-os"
+tool = "screenshot"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the desktop state (windows, UI elements and their text)"
+
+[[label]]
+server = "windows-os"
+tool = "scroll"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "scrolls at a position"
+
+[[label]]
+server = "windows-os"
+tool = "shell"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "runs a PowerShell command on the Windows sandbox"
+
+[[label]]
+server = "windows-os"
+tool = "switch"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "brings an application window to the foreground"
+
+[[label]]
+server = "windows-os"
+tool = "type"
+roles = ["execute_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "types text into the focused desktop element (desktop input: its effect is whatever the focused application does)"
+
+[[label]]
+server = "windows-os"
+tool = "wait"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "pauses for a duration"
+
+[[label]]
+server = "zoom"
+tool = "invitations_create"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates an invitation for an argument e-mail address (whether it is delivered is not described)"
+
+[[label]]
+server = "Zoom"
+tool = "invitations_create"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates an invitation for an argument e-mail address (whether it is delivered is not described)"
+
+[[label]]
+server = "zoom"
+tool = "invitations_list"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a meeting's invitations"
+
+[[label]]
+server = "zoom"
+tool = "meetings_create"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a meeting"
+
+[[label]]
+server = "Zoom"
+tool = "meetings_create"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a meeting"
+
+[[label]]
+server = "zoom"
+tool = "meetings_delete"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "deletes a meeting"
+
+[[label]]
+server = "zoom"
+tool = "meetings_end"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "ends a meeting (host action)"
+
+[[label]]
+server = "zoom"
+tool = "meetings_get"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a meeting's details"
+
+[[label]]
+server = "Zoom"
+tool = "meetings_get"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a meeting's details"
+
+[[label]]
+server = "zoom"
+tool = "meetings_join"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a join payload and link for a meeting"
+
+[[label]]
+server = "Zoom"
+tool = "meetings_join"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a join payload and link for a meeting"
+
+[[label]]
+server = "zoom"
+tool = "meetings_leave"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "leaves a meeting (participant action)"
+
+[[label]]
+server = "zoom"
+tool = "meetings_list"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's meetings"
+
+[[label]]
+server = "Zoom"
+tool = "meetings_list"
+roles = ["content_source"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the user's meetings"
+
+[[label]]
+server = "zoom"
+tool = "meetings_start"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "starts a meeting (host action)"
+
+[[label]]
+server = "zoom"
+tool = "meetings_update"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "changes a meeting"
+
+[[label]]
+server = "zoom"
+tool = "notes_create"
+roles = ["write_sink"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "creates a meeting note"
+
+[[label]]
+server = "zoom"
+tool = "zoom_get_me"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current user's own profile"
+
+[[label]]
+server = "Zoom"
+tool = "zoom_get_me"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns the current user's own profile"
+
+[[label]]
+server = "zoom"
+tool = "zoom_login"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a sandbox user token"
+
+[[label]]
+server = "Zoom"
+tool = "zoom_login"
+roles = ["neutral"]
+integrity = "unknown"
+evidence = ["description", "observed"]
+reason = "returns a sandbox user token"

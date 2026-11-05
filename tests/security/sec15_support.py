@@ -62,7 +62,7 @@ KINDS: Final[dict[str, tuple[Pick, str]]] = {
     "rules_catalogue": (_fixed("rules/agentdojo.rules.toml"), "text"),
     "rules_prov": (_fixed("rules/prov/agentprov-prov-0.1.toml"), "text"),
     "rules_source_profile": (_fixed("rules/agentdojo-upstream.profile.toml"), "text"),
-    "rules_semantics": (_fixed("rules/agentdojo.suites-2.labels.profile.toml"), "text"),
+    "rules_semantics": (_fixed("rules/agentdojo.suites-4.labels.profile.toml"), "text"),
     "rules_spec": (_fixed("rules/corpus-spec.toml"), "text"),
     "rules_card": (_fixed("rules/CARD.md"), "text"),
     "rules_changes": (_fixed("rules/CHANGES.toml"), "text"),

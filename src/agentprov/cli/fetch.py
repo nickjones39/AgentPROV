@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shlex
 import time
 from dataclasses import replace
 from importlib import resources
@@ -387,7 +388,10 @@ def _fetch_references(args: argparse.Namespace, fetcher: Fetcher, result: Comman
         except (FetchError, IngestError) as exc:
             counters["failed"] += 1
             codes.append(_fail(result, subject, exc, "verify"))
+    # AU-CLIA-9: only a fetch or verification failure can be retried (an unpinned origin is never contacted), and the
+    # command must run as printed: the path as given (escaped, shell-quoted), never home-redacted ("<home>" redirects)
+    shown = shlex.quote(safe_text(args.corpus, None, redact=False))
     for ref in chosen:
-        if any(f["subject"]["path"] == f"sha256:{ref.sha256}" for f in result.failures):
-            result.info("  to retry: " + fetch_command_hint(safe_text(args.corpus, 200), ref.sha256))
+        if any(f["subject"]["path"] == f"sha256:{ref.sha256}" and f["stage"] == "verify" for f in result.failures):
+            result.info("  to retry: " + fetch_command_hint(shown, ref.sha256))
     return _finish(result, counters, codes)

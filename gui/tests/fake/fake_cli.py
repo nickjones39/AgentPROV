@@ -28,6 +28,17 @@ if argv[:1] in (["jobs"], ["batch"], ["devrun"], ["settings"]):
     raise SystemExit(_core_main(argv))
 
 
+if argv[:3] == ["info", "--format", "json"]:
+    # D-1064: the platform a test simulates (fake-platform.json in AGENTPROV_HOME, info's platform member); without
+    # it this fake has no info, as before
+    simulated = os.path.join(os.environ.get("AGENTPROV_HOME", ""), "fake-platform.json")
+    if not os.path.isfile(simulated):
+        raise SystemExit(1)
+    with open(simulated, encoding="utf-8") as fh:
+        print(json.dumps({"agentprov_version": "0", "platform": json.load(fh)}))
+    raise SystemExit(0)
+
+
 def opt(name, default=None):
     return argv[argv.index(name) + 1] if name in argv else default
 

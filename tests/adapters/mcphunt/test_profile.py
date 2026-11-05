@@ -65,7 +65,7 @@ def test_registry_entry_is_supported_and_cc_by():
     reg = get_source("mcphunt")
     (part,) = reg.capabilities
     assert part.part == "head" and part.import_status == "supported" and part.target_import_status == "supported"
-    assert part.profile == "mcphunt" and part.semantics == ("mcphunt.tools@2",) and part.corpus_id == "mcphunt"
+    assert part.profile == "mcphunt" and part.semantics == ("mcphunt.tools@3",) and part.corpus_id == "mcphunt"
     assert reg.licence.spdx == "CC-BY-4.0" and reg.licence.policy == "include"
     assert resolve_factory(READERS["mcphunt.traces"]).__name__ == "McpHuntReader"
     assert resolve_factory(MAPPERS["mcphunt.trace"]).__name__ == "McpHuntMapper"

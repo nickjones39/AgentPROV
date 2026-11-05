@@ -1,0 +1,612 @@
+# Rule catalogue `geminicli` (docs/architecture D.23.9; D.5.1-D.5.2; C.6.4). gemini-cli streams of Zenodo 20404563, phase 10o.
+#
+# Data, not code: loaded through importlib.resources by agentprov.aer.rules (no __init__.py in this directory); the home
+# is the default `agentprov.adapters.geminicli`. Rules are immutable once released: a change of statement, class or
+# behaviour mints @n+1 and bumps `version` (AD-18). Nothing is released yet, so this is version 1.
+#
+# Citation policy (D-334, user-approved 2026-10-13): the deposit names no gemini-cli version and its harness code was not
+# fetched, so no rule cites producing code (`code` is empty everywhere) and every reading of gemini-cli or harness
+# behaviour is class I with an `asserted` assumption, its name ending in `_unverified` where a D twin could exist once the
+# code is verified (as D-172). The D rules are deterministic functions of observed bytes; they declare no assumption and
+# cite the census (docs/reports/phase10o/).
+
+[catalogue]
+id = "geminicli"
+version = 1
+format = "agentprov-rule-catalogue/0.1"
+issue_codes = ["label_field_mismatch", "sidecar_missing", "sidecar_unparseable", "cli_model_alias", "cli_error_result", "no_result_event", "events_after_result", "subagent_internals_unobserved", "cli_notice", "unmapped_event", "manifest_differs", "verdict_meta_disagree"]
+subtypes = []
+types = ["geminicli:cli_notice", "geminicli:notice_text", "geminicli:unmapped_event", "geminicli:event_payload"]
+
+[[assumption]]
+id = "geminicli:DepositHarness"
+statement = "The rollouts were produced by the deposit's harness (a container entrypoint running gemini-cli in YOLO mode, then the deposit's detector); the producing code identity is not recorded in the deposit."
+
+[[assumption]]
+id = "geminicli:ToolIdNamesCall"
+statement = "A tool_result event's tool_id is the tool_id of the tool_use event whose call it answers; gemini-cli writes both from one scheduled call."
+
+[[assumption]]
+id = "geminicli:DeltasComposeMessage"
+statement = "Consecutive assistant message events with delta true are chunks of one streamed text, in order; their concatenation is the text the model produced."
+
+[[assumption]]
+id = "geminicli:BlockIsOneTurn"
+statement = "The assistant deltas and tool_use events between two batches of tool results come from one model turn of the agent, kept by the CLI; the requests the CLI sent, its retries and its discarded responses are not logged."
+
+[[assumption]]
+id = "geminicli:ContextIsLoggedPrefix"
+statement = "A model turn's input contains every earlier logged message of the run (the CLI's system prompt and tool declarations are not logged)."
+
+[[assumption]]
+id = "geminicli:StreamOrder"
+statement = "gemini-cli writes the events in the order in which they occur."
+
+[[assumption]]
+id = "geminicli:TimestampAtEmission"
+statement = "An event's timestamp is the CLI's UTC clock when it emitted the event, not the start or end of what the event reports."
+
+[[assumption]]
+id = "geminicli:PromptByHarness"
+statement = "The user message is the harness's task prompt passed to the CLI; the harness acts as the principal on whose behalf the agent works."
+
+[[assumption]]
+id = "geminicli:CellModelRouted"
+statement = "The harness routes the CLI's model requests through a LiteLLM proxy or sidecar to the model its verdict.json names; the stream's init.model is the CLI's configured model name, not the served model."
+
+[[assumption]]
+id = "geminicli:ResultIsExecution"
+statement = "A tool_result reports that the CLI's tool scheduler ran the call on behalf of the agent (YOLO mode: no approval step)."
+
+[[assumption]]
+id = "geminicli:Exit143IsTermination"
+statement = "A gemini_meta.json exit_code of 143 on a stream without a result event means the CLI was terminated (SIGTERM, the harness's time limit) before it finished."
+
+[[assumption]]
+id = "geminicli:DetectorRecorded"
+statement = "verdict.json's elicited and n_misaligned are the deposit detector's result for the rollout of the same directory."
+
+[[assumption]]
+id = "geminicli:NoticeIsCli"
+statement = "An error event (severity warning) is a notice the CLI wrote, not agent output and not a tool result."
+
+[[assumption]]
+id = "geminicli:SubagentHidden"
+statement = "codebase_investigator runs a gemini-cli sub-agent whose own model and tool calls the stream does not log."
+
+[[assumption]]
+id = "geminicli:WorkspaceSeed"
+statement = "fs_before.json is the harness's snapshot of the task workspace given to the agent before the CLI started."
+
+[[assumption]]
+id = "geminicli:UnmappedEventIsCli"
+statement = "An event of a type outside the v1 vocabulary was written by the CLI as a harness step."
+
+[[assumption]]
+id = "geminicli:ToolTable"
+statement = "The gemini-cli built-in tools act as their names and logged parameters state (shell execution, file reads and writes, directory listing, search, web search, a sub-agent)."
+
+[[assumption]]
+id = "geminicli:PromptPrincipal"
+statement = "The harness's task prompt speaks for the principal; the workspace files and every tool output may carry the benchmark's pressure or third-party content."
+
+[[assumption]]
+id = "geminicli:ElicitedMeaning"
+statement = "elicited true means the deposit's detector found the misaligned behaviour its mutation targets in the rollout's final workspace."
+
+[[rule]]
+id = "geminicli.label_facets"
+version = 1
+class = "D"
+status = "active"
+statement = "The member label's facets (scaffold, model, mutation) are compared with the sibling verdict's agent, model and mutation_id; a difference is recorded (geminicli.label_field_mismatch) and never corrected."
+premises = ["origin /label", "verdict /agent", "verdict /model", "verdict /mutation_id"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §5 (2,500/2,500 agree)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_header_task_and_facets", "tests/adapters/geminicli/test_mapper.py::test_label_field_mismatch_is_recorded"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.sibling_join"
+version = 1
+class = "D"
+status = "active"
+statement = "The unit's auxiliary artefacts are the members of the stream's own rollout directory, by file name (and the deposit's manifest.csv beside cells/); their bytes are the stored members, digest-checked."
+premises = ["origin /label", "the sibling labels"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §3"]
+tests = ["tests/adapters/geminicli/test_dialect.py::test_auxiliary_plan_names_siblings_and_manifest", "tests/adapters/geminicli/test_mapper.py::test_sidecars_are_named_supporting_artefacts"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.manifest_agrees"
+version = 1
+class = "D"
+status = "active"
+statement = "The manifest.csv row of the rollout (agent, model, mutation_id) is compared with the verdict's elicited, timed_out, n_misaligned and exit_code (booleans written 0/1); the result is recorded in ext.geminicli.manifest and a difference raises geminicli.manifest_differs."
+premises = ["manifest row", "verdict"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §5"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_manifest_cross_check"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.acc.counters"
+version = 1
+class = "D"
+status = "active"
+statement = "Profile accounting check: result.stats.tool_calls equals the number of tool_use events; a difference is unverifiable when a sub-agent tool was called (its calls are counted by the CLI but not logged) and inconsistent otherwise; without a result event the check is unverifiable."
+premises = ["/stats/tool_calls", "the tool_use events"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (1,443/1,463 equal; the 20 others all called codebase_investigator)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_counters_check"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.result_status"
+version = 1
+class = "D"
+status = "active"
+statement = "The run status is the result event's status: success gives ok, error gives error (with geminicli.cli_error_result and incomplete_run); any other value leaves the status ambiguous."
+premises = ["result /status"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §4"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_run_status_from_result_or_exit_code"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.result_is_last"
+version = 1
+class = "D"
+status = "active"
+statement = "The result event is the stream's last event; any event after it raises geminicli.events_after_result and is still mapped in line order."
+premises = ["the result event", "the line order"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (the result is the last event in 1,463/1,463 streams)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_orphan_result_and_unmapped_event"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.tool_status"
+version = 1
+class = "D"
+status = "active"
+statement = "A tool execution's status is its tool_result's status: success gives ok, error gives error (the error object kept in ext); any other value leaves it ambiguous."
+premises = ["tool_result /status"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (success 33,986, error 222)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_tool_id_links_results_to_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.verdict_meta_compare"
+version = 1
+class = "D"
+status = "active"
+statement = "The verdict's exit_code is compared with gemini_meta.json's exit_code; a difference raises geminicli.verdict_meta_disagree and neither value is corrected."
+premises = ["verdict /exit_code", "meta /exit_code"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §5 (1,214 of 2,182 differ)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_verdict_meta_disagreement"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.cli_model_compare"
+version = 1
+class = "D"
+status = "active"
+statement = "The stream's init.model is compared with the verdict's model; a difference raises geminicli.cli_model_alias (the CLI's configured name is kept in ext.geminicli.cli_model)."
+premises = ["/model (line 0)", "verdict /model"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §6 item 1 (1,762 runs)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_model_identity_is_the_cell_model"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.deposit_harness_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The benchmark, the harness (gemini-cli) and the tool runtime are those of the deposit; their code identity and version are not recorded, and the tool runtime runs calls on behalf of the agent, which works on behalf of the harness's principal (apv:AutoExecution)."
+premises = ["the stream layout", "the rollout layout"]
+assumptions = ["geminicli:DepositHarness", "apv:AutoExecution"]
+verification = [{ assumption = "geminicli:DepositHarness", status = "asserted" }, { assumption = "apv:AutoExecution", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §5", "warmjademe/code_agent_agentic_misalignment@1dec4f17 tree listing (agents/gemini_cli/; not fetched)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_actors"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.tool_id_link_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool_result answers the tool_use with the same tool_id (the execution's call and the result's responds_to); a repeated id or a second result links nothing (call_result_link_conflict), a result without its call is an orphan_tool_result, and a call without a result raises missing_tool_result."
+premises = ["/tool_id (tool_use)", "/tool_id (tool_result)"]
+assumptions = ["geminicli:ToolIdNamesCall"]
+verification = [{ assumption = "geminicli:ToolIdNamesCall", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (0 repeated ids, 0 orphans, 73 unanswered calls, each the last event)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_tool_id_links_results_to_calls", "tests/adapters/geminicli/test_mapper.py::test_unanswered_last_call", "tests/adapters/geminicli/test_mapper.py::test_orphan_result_and_unmapped_event"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.deltas_compose_message_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "Consecutive assistant deltas form one text part, concatenated in line order; their line numbers, lengths, delta flags and times stay in ext.geminicli.chunks."
+premises = ["/content (assistant message events)"]
+assumptions = ["geminicli:DeltasComposeMessage"]
+verification = [{ assumption = "geminicli:DeltasComposeMessage", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.block_is_model_turn_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A block (a maximal run of assistant deltas and tool_use events) is one model call of the agent, kept, generating one assistant message with the block's text and calls in line order; its usage, served model, request and time are not recorded."
+premises = ["the assistant message and tool_use events"]
+assumptions = ["geminicli:BlockIsOneTurn"]
+verification = [{ assumption = "geminicli:BlockIsOneTurn", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (20,839/20,839 blocks start with no call outstanding)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.context_is_logged_prefix_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A model call's input is every earlier logged message of the run; the CLI's system prompt and tool declarations are not input members."
+premises = ["the stream"]
+assumptions = ["geminicli:ContextIsLoggedPrefix"]
+verification = [{ assumption = "geminicli:ContextIsLoggedPrefix", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.stream_order_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The line order of the stream is the order of occurrence: stream records get positional after edges."
+premises = ["line numbers"]
+assumptions = ["geminicli:StreamOrder"]
+verification = [{ assumption = "geminicli:StreamOrder", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (timestamps non-decreasing in 2,182/2,182 streams)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_blocks_become_model_calls_and_messages"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.event_time_is_emission_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "Event times are kept verbatim in t.raw (the run's first and last event, an execution's tool_use and tool_result) with the typed slots ambiguous: they are emission times, not the start or end of what they report."
+premises = ["/timestamp"]
+assumptions = ["geminicli:TimestampAtEmission"]
+verification = [{ assumption = "geminicli:TimestampAtEmission", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (UTC, millisecond precision)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_times_stay_raw"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.prompt_harness_authored_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The user message is the harness's task prompt: actor user (simulated_user), the principal of the agent; a second user message is unattributed."
+premises = ["the user message event (line 1)"]
+assumptions = ["geminicli:PromptByHarness"]
+verification = [{ assumption = "geminicli:PromptByHarness", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §5 (one user message per stream, identical across the five models of a mutation)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_actors"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.cell_model_routed_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The agent's requested model is verdict.json's model (the harness's cell model); the served model is not recorded."
+premises = ["verdict /model", "verdict /sut_id"]
+assumptions = ["geminicli:CellModelRouted"]
+verification = [{ assumption = "geminicli:CellModelRouted", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §6 item 1", "warmjademe/code_agent_agentic_misalignment@1dec4f17 tree listing (litellm/, configs/sut/; not fetched)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_model_identity_is_the_cell_model"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.result_is_execution_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool_result with its tool_use is one tool execution by the CLI's tool runtime (actor env) generating the tool message."
+premises = ["tool_use", "tool_result"]
+assumptions = ["geminicli:ResultIsExecution"]
+verification = [{ assumption = "geminicli:ResultIsExecution", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_tool_id_links_results_to_calls"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.exit_143_terminated_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A stream without a result event is an aborted run when gemini_meta.json records exit code 143 (status not recorded otherwise); both raise geminicli.no_result_event and incomplete_run."
+premises = ["the last event", "meta /exit_code"]
+assumptions = ["geminicli:Exit143IsTermination"]
+verification = [{ assumption = "geminicli:Exit143IsTermination", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §5 (719/719 streams without result have exit 143)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_run_status_from_result_or_exit_code"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.detector_recorded_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "The verdict's elicited and n_misaligned are judgements of the deposit's detector on the run (origin checker, values verbatim); without a verdict no outcome is recorded."
+premises = ["verdict /elicited", "verdict /n_misaligned"]
+assumptions = ["geminicli:DetectorRecorded"]
+verification = [{ assumption = "geminicli:DetectorRecorded", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §5"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_judgements_from_the_verdict"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.cli_notice_is_harness_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "An error event is a CLI notice: a harness activity generating a notice-text artefact (geminicli.cli_notice)."
+premises = ["the error event"]
+assumptions = ["geminicli:NoticeIsCli"]
+verification = [{ assumption = "geminicli:NoticeIsCli", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (68 warnings, each before a result)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_cli_notice_is_an_activity"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.subagent_tool_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "A codebase_investigator execution ran a sub-agent whose calls are not logged (geminicli.subagent_internals_unobserved); no sub-agent scope is invented."
+premises = ["tool_use /tool_name"]
+assumptions = ["geminicli:SubagentHidden"]
+verification = [{ assumption = "geminicli:SubagentHidden", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (76 calls; the CLI's counter shows hidden calls in 20 streams)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_subagent_tool_is_disclosed"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.workspace_seed_unverified"
+version = 1
+class = "I"
+status = "active"
+statement = "fs_before.json is the environment_seed fixture of the run (content verbatim)."
+premises = ["fs_before"]
+assumptions = ["geminicli:WorkspaceSeed"]
+verification = [{ assumption = "geminicli:WorkspaceSeed", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §5"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_environment_seed_fixture"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.unmapped_event"
+version = 1
+class = "I"
+status = "active"
+statement = "An event outside the v1 vocabulary is a harness activity generating an artefact that holds the event verbatim (geminicli.unmapped_event)."
+premises = ["the event"]
+assumptions = ["geminicli:UnmappedEventIsCli"]
+verification = [{ assumption = "geminicli:UnmappedEventIsCli", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §4 (none in the census)"]
+tests = ["tests/adapters/geminicli/test_mapper.py::test_orphan_result_and_unmapped_event"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.tool_table"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool's roles and output integrity are those of the profile's tool table (tools.toml), by name."
+premises = ["/name", "/parts/*/name"]
+assumptions = ["geminicli:ToolTable"]
+verification = [{ assumption = "geminicli:ToolTable", status = "asserted" }]
+code = []
+evidence = ["src/agentprov/adapters/geminicli/semantics/geminicli.tools-1/tools.toml"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.unknown_tool"
+version = 1
+class = "I"
+status = "active"
+statement = "A tool name the table does not list is fail-closed: role unknown, output integrity unknown."
+premises = ["/name"]
+assumptions = ["geminicli:ToolTable"]
+verification = [{ assumption = "geminicli:ToolTable", status = "asserted" }]
+code = []
+evidence = ["DECISIONS D-337"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_unknown_tool_fails_closed"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.integrity_agent_output"
+version = 1
+class = "I"
+status = "active"
+statement = "Every part of an agent message is trusted as the agent's own output (not as true or safe)."
+premises = ["/actor"]
+assumptions = ["geminicli:PromptPrincipal"]
+verification = [{ assumption = "geminicli:PromptPrincipal", status = "asserted" }]
+code = []
+evidence = ["EF E.7.3"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.integrity_user_prompt"
+version = 1
+class = "I"
+status = "active"
+statement = "The user message (the harness's task prompt) is trusted as the principal's instruction."
+premises = ["/actor", "/role"]
+assumptions = ["geminicli:PromptPrincipal"]
+verification = [{ assumption = "geminicli:PromptPrincipal", status = "asserted" }]
+code = []
+evidence = ["EF E.7.3"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.integrity_workspace_seed"
+version = 1
+class = "I"
+status = "active"
+statement = "The environment_seed fixture (the task workspace) has unknown integrity: it carries the benchmark's pressure by design."
+premises = ["/kind"]
+assumptions = ["geminicli:PromptPrincipal"]
+verification = [{ assumption = "geminicli:PromptPrincipal", status = "asserted" }]
+code = []
+evidence = ["docs/reports/phase10o/README.md §6 item 7"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_tool_roles_and_integrity"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.misalignment_meaning"
+version = 1
+class = "I"
+status = "active"
+statement = "The judgement elicited (origin checker) reads as the outcome geminicli.misalignment_elicited, holding iff the value is true."
+premises = ["/name", "/value", "/origin"]
+assumptions = ["geminicli:ElicitedMeaning"]
+verification = [{ assumption = "geminicli:ElicitedMeaning", status = "asserted" }]
+code = []
+evidence = ["DECISIONS D-337"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_outcome_reads_elicited"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.taint_sink_untrusted"
+version = 1
+class = "I"
+status = "active"
+statement = "Taint policy (C.14.6 item 8): a call whose roles meet execute_sink, write_sink, send_sink or unknown, exposed to a context member of untrusted or unknown integrity, is apv:PotentiallyInfluencedBy it."
+premises = ["the SEM roles and integrity"]
+assumptions = ["geminicli:ToolTable"]
+verification = [{ assumption = "geminicli:ToolTable", status = "asserted" }]
+code = []
+evidence = ["EF E.7"]
+tests = ["tests/adapters/geminicli/test_semantics.py::test_profile_builds_and_declares_its_taint_policy"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.scope_selection"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the claude_code, codex_cli and openhands cells (7,500 rollouts) are outside the corpus scope by D-143 and are registered select.out_of_scope through their verdict.json; no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §3"]
+tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.no_stream_rollout"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: 175 empty streams and 143 rollouts without a stream are registered select.not_execution_artefact (geminicli.empty_stream, geminicli.no_stream); no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §3"]
+tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.leaked_credential"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: one tool output holds a value of the Google API key shape, withheld from release by the profile's [withhold] rule (D-336); the release scan and sealing find it, never the mapper."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["DECISIONS D-336"]
+tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.hidden_retries"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: gemini_stderr.log records failed API attempts (793 retry lines) that the stream does not show; the logs are stored, not read, so no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §5"]
+tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.derived_harness_atoms"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: events.jsonl is the harness's derived atom view (renamed tools, no tool results, its own clock), stored but not mapped; no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §5"]
+tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"
+
+[[rule]]
+id = "geminicli.missing_route_config"
+version = 1
+class = "D"
+status = "reserved"
+statement = "Reserved: the code repository at 1dec4f17 has no configs/sut/gemini_cli_glm47.yaml, so the glm-4.7-probe cell's route is not in the published code; no AER record cites this rule."
+premises = ["the deposit layout"]
+assumptions = []
+code = []
+evidence = ["docs/reports/phase10o/README.md §6 item 1"]
+tests = ["tests/adapters/geminicli/test_artefacts.py::test_reserved_detectors_are_never_cited"]
+since = "0.1.0"

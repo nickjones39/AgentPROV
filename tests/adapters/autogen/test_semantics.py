@@ -1,17 +1,22 @@
-"""The semantics profile ``autogen.tools@1`` (docs/architecture D.19.8; C.14; DECISIONS D-306)."""
+"""The semantics profile ``autogen.tools`` (docs/architecture D.19.8; C.14; DECISIONS D-306): ``@2`` (D-1063) is ``@1``'s
+tables on catalogue autogen 2."""
 
 from __future__ import annotations
 
 from collections import Counter
 
-from agentprov.adapters.autogen.semantics.tools import CITED_RULES, NS
+from agentprov.adapters.autogen.semantics.tools import CITED_RULES, NOT_INLINED_RULES, NS
 from agentprov.adapters.semantics_profiles import load_semantics_profile
 from agentprov.aer.rules import load_catalogue
 
 
 def test_the_profile_loads_with_its_table_and_policy():
-    p = load_semantics_profile("autogen.tools", 1)
-    assert (p.id, p.version) == ("autogen.tools", 1) and len(p.tables.tools) == 49
+    p = load_semantics_profile("autogen.tools", 2)
+    assert (p.id, p.version, dict(p.rules)) == ("autogen.tools", 2, {"autogen": 2}) and len(p.tables.tools) == 49
+    one = load_semantics_profile("autogen.tools", 1)
+    assert dict(one.rules) == {"autogen": 1} and one.tables == p.tables
+    # AU-RC-3 (row 182): @2 also cites autogen.payload_marker_not_inlined@1, which the archived catalogue 1 lacks
+    assert dict(one.classes) == {r: c for r, c in p.classes.items() if r not in NOT_INLINED_RULES}
     kinds = Counter(k for _roles, _integrity, k in p.tables.tools.values())
     assert kinds == Counter({"harness": 2, "injecagent_user": 17, "injecagent_attacker": 30})
     assert all(i != "trusted" for _r, i, _k in p.tables.tools.values())
@@ -20,8 +25,8 @@ def test_the_profile_loads_with_its_table_and_policy():
 
 
 def test_every_sem_rule_is_cited():
-    rules = load_catalogue("autogen", 1).rules
-    for ref in CITED_RULES:
+    rules = load_catalogue("autogen", 2).rules
+    for ref in (*CITED_RULES, *NOT_INLINED_RULES):
         assert ref in rules and rules[ref].citable, ref
 
 
@@ -57,3 +62,41 @@ def test_canary_claims_on_the_probe_phases(staged):
         if hits >= 3:
             break
     assert hits >= 1
+
+
+def test_a_result_not_inlined_has_gap_markers():
+    """AU-RC-3 (D-1063, regen-batch row 182): a tool result over 1 MiB is a digest object in the AER
+    (``autogen.content_not_inlined@1``). ``@1`` yielded no marker for it and counted every payload as absent for its
+    integrity; from ``@2`` each payload fixture is marked ``gap`` on it under ``autogen.payload_marker_not_inlined@1``,
+    the result keeps its tool's label and no author is claimed."""
+    import importlib.util
+    from pathlib import Path
+
+    import autogen_support as support
+
+    # by path: every wave-2 family has a test_uc39_41 module, so a plain import takes whichever was loaded first
+    spec = importlib.util.spec_from_file_location("autogen_test_uc39_41", Path(__file__).with_name("test_uc39_41.py"))
+    assert spec is not None and spec.loader is not None
+    uc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(uc)
+
+    from agentprov.sem.engine import annotate
+
+    members = dict(support.fixture_members())
+    rows = uc._lines(members[support.TOOL_ARM][0])
+    for msg in rows[0]["messages"]:
+        if msg.get("type") == "ToolCallExecutionEvent":
+            for c in msg["raw"]["content"]:
+                c["content"] = uc.BIG
+    members[support.TOOL_ARM] = (uc._dump(rows), members[support.TOOL_ARM][1])
+    unit, aux = support.units(support.TOOL_ARM, members)[0]
+    m = support.map_unit_of(unit, aux, sem=True, prov=True)
+    (tool,) = [r for r in m.of("message") if any(p.get("t") == "tool_result" and "value" in p for p in r["parts"])]
+    payloads = sorted(f["id"] for f in m.of("fixture") if f["kind"] == "injection_payload")
+    mine = [a for a in m.sem.annotations if a["target"] == f"{tool['id']}#0"]
+    markers = [a for a in mine if a["type"] == "injection_marker"]
+    assert payloads and sorted(a["value"]["fixture"] for a in markers) == payloads
+    assert all(a["value"]["status"] == "gap" and a["rule"] == ["autogen.payload_marker_not_inlined@1"] for a in markers)
+    assert not [a for a in mine if a["type"] == "author"]
+    old = annotate(m.doc, load_semantics_profile("autogen.tools", 1))  # @1 keeps its reading (version-gated)
+    assert not [a for a in old.annotations if a["target"] == f"{tool['id']}#0" and a["type"] == "injection_marker"]

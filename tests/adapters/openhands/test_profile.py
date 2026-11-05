@@ -59,7 +59,7 @@ def test_registry_entries_are_gated_and_lazy():
         (part,) = reg.capabilities
         # both supported since the wave-2 seal (D-830)
         assert part.import_status == "supported" and part.profile == pid and part.variants == (variant,)
-        assert part.semantics == ("openhands.tools@2",) and reg.licence.spdx == spdx and reg.licence.policy == "include"
+        assert part.semantics == ("openhands.tools@3",) and reg.licence.spdx == spdx and reg.licence.policy == "include"
     assert resolve_factory(READERS["openhands.events"]).__name__ == "OpenHandsEventsReader"
     assert resolve_factory(MAPPERS["openhands.events"]).__name__ == "OpenHandsMapper"
 

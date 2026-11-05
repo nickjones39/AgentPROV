@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from agentprov.corpus.manifest import origin_matches_pin, sealed_origin_pin
-from agentprov.corpus.reader import CorpusReader, CorpusReadError
+from agentprov.corpus.reader import CorpusReader
 from agentprov.corpus.register import RegisterEntry
 from agentprov.corpus.stages import stage_map, stages_named
 from agentprov.errors import AgentProvError, IngestError
@@ -546,11 +546,3 @@ class StoredRawTree:
             if subject["path"].split(MEMBER_SEPARATOR, 1)[0] not in labels:
                 out.append(entry)
         return out
-
-
-def check_reader(reader: CorpusReader) -> None:
-    """Fail early when the source has no raw store (a re-map needs one)."""
-    try:
-        reader.raw_store()
-    except (CorpusReadError, AgentProvError) as exc:
-        raise StoredTreeError(f"the source corpus has no readable raw store ({exc.code})") from None
