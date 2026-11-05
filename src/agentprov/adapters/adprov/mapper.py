@@ -24,7 +24,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import re
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Final
 
 from agentprov.adapters.adprov.dialect import (
@@ -81,6 +81,16 @@ _PLACEHOLDERS: Final = frozenset({"", "0", "unknown", "none", "null", "n/a", "na
 
 def _p(*tokens: str | int) -> str:
     return json_pointer(*tokens)
+
+
+def _unknown_members(enc: Callable[[object, str], Any], members: Mapping[str, object], *slot: str) -> Any:
+    """Source members the layout does not name, kept under ``ext.adprov.<slot>``. Each value is encoded at its own
+    pointer as before; a member name beginning with ``$`` is reserved in an AER (``$blob``, ``$utf16``, ``$lit``), so
+    a source that has one (a damaged ``args`` read ``$rgs``, fuzz F-4, 2026-11-05) is encoded as a whole object,
+    which ``encode_value`` wraps as ``{"$lit": ...}`` instead of writing an object the writer refuses."""
+    if any(isinstance(k, str) and k.startswith("$") for k in members):
+        return enc(dict(members), _p("ext", "adprov", *slot))
+    return {k: enc(v, _p("ext", "adprov", *slot, k)) for k, v in members.items()}
 
 
 def _loc(pointer: str) -> dict[str, Any]:
@@ -459,15 +469,13 @@ class _Build:
                 ext_adprov[slot] = h.enc(meta[key], _p("ext", "adprov", slot))
                 src.append(_loc(_p("meta", key)))
         known = {m for m, _ in layout("meta")}
-        extra = {k: h.enc(v, _p("ext", "adprov", "meta_extra", k)) for k, v in meta.items() if k not in known}
+        extra = _unknown_members(h.enc, {k: v for k, v in meta.items() if k not in known}, "meta_extra")
         if extra:
             ext_adprov["meta_extra"] = extra
         if isinstance(model_config, dict):
-            mc_extra = {
-                k: h.enc(v, _p("ext", "adprov", "model_config_extra", k))
-                for k, v in model_config.items()
-                if k not in ("temperature", "usage", "finish_reasons")
-            }
+            mc_extra = _unknown_members(h.enc, {k: v for k, v in model_config.items()
+                                                if k not in ("temperature", "usage", "finish_reasons")},
+                                        "model_config_extra")
             if mc_extra:
                 ext_adprov["model_config_extra"] = mc_extra
                 src.append(_loc("/meta/model_config"))
@@ -790,8 +798,7 @@ class _Build:
                     evf["/usage/calls"] = "O"
                 rec.data["evf"] = evf
             if extra:
-                rec.data["ext"] = {"adprov": {"usage_extra": {
-                    k: rec.enc(v, _p("ext", "adprov", "usage_extra", k)) for k, v in extra.items()}}}
+                rec.data["ext"] = {"adprov": {"usage_extra": _unknown_members(rec.enc, extra, "usage_extra")}}
             src.append(_loc("/meta/model_config/usage"))
         else:
             unk["/usage"] = "not_recorded"
@@ -966,7 +973,7 @@ class _Build:
         canonical = [m for m, _ in layout(template) if m in turn]
         adprov: dict[str, Any] = {}
         if unknown:
-            adprov["extra"] = {k: rec.enc(turn[k], _p("ext", "adprov", "extra", k)) for k in unknown}
+            adprov["extra"] = _unknown_members(rec.enc, {k: turn[k] for k in unknown}, "extra")
             self.issue("adprov.v1_layout_unknown_member", [str(rec.data["id"])], "adprov.v1_writer_layout@1", detail=template)
         # J.3.2 writes tool_calls only with >= 1 call: a present-but-empty array is kept through the key list, which
         # the view honours (regen item 75, CA-17)

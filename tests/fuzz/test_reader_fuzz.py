@@ -84,6 +84,31 @@ def test_a_turn_without_a_role_is_malformed_not_a_mapper_defect() -> None:
 
 
 @pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+def test_an_unknown_member_named_with_a_dollar_is_kept_literal() -> None:
+    """Fuzz F-4 (the release CI run of 2026-11-05): one flipped byte turned a turn's "args" into "$rgs". The mapper
+    copied the unknown member's name into ext.adprov.extra, where a name beginning with "$" is reserved, and the AER
+    writer refused the record (aer.schema.pattern). Unknown members with such a name are kept as a $lit-wrapped
+    object; the transcript/v1 view reads them back."""
+    import json as _json
+
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+    from agentprov.views.transcript_v1 import render
+
+    doc = _json.loads(next(s for s in ADPROV if b'"role": "user"' in s))
+    turn = next(t for t in doc["turns"] if t.get("role") == "user")
+    turn["$rgs"] = {"$x": 1}
+    doc["meta"]["$meta"] = "kept"
+    blob = _json.dumps(doc).encode()
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    aer_bytes(result)  # the writer accepts what the mapper yields
+    view = render([r for r in result.records if r.get("k") != "seal"])
+    assert view["meta"]["$meta"] == "kept"
+    assert next(t for t in view["turns"] if t.get("role") == "user")["$rgs"] == {"$x": 1}
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
 @pytest.mark.parametrize("key", ["agentdojo_version", "benchmark_version", "model_id", "suite", "user_task_id",
                                  "attack_type", "injection_task_id"])
 @pytest.mark.parametrize("placeholder", ["", "unknown", "-"])

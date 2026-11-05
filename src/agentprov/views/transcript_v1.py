@@ -361,7 +361,7 @@ def _render_meta(doc: _Aer, v1: Mapping[str, Any]) -> dict[str, Any]:
         if key in sources:
             value = _first(doc, sources[key], v1, key)
         else:
-            value = doc.value(doc.header, f"/ext/adprov/meta_extra/{_esc(key)}")[1]
+            value = _members(doc, doc.header, "/ext/adprov/meta_extra").get(key)
         if value is None and key in null_renders:
             value = null_renders[key]
         meta[str(key)] = value
@@ -401,7 +401,7 @@ def _handler_model_config(doc: _Aer, v1: Mapping[str, Any]) -> dict[str, Any] | 
         if key in sources:
             out[str(key)] = _first(doc, sources[key], v1, key)
         else:
-            out[str(key)] = doc.value(doc.header, f"/ext/adprov/model_config_extra/{_esc(key)}")[1]
+            out[str(key)] = _members(doc, doc.header, "/ext/adprov/model_config_extra").get(key)
     return out
 
 
@@ -412,14 +412,14 @@ def _handler_usage(doc: _Aer, v1: Mapping[str, Any]) -> dict[str, Any] | None:
     run = doc.by_id.get("run")
     mapping = usage_map()
     out: dict[str, Any] = {}
+    extra = _members(doc, run, "/ext/adprov/usage_extra")
     for key in keys:
-        extra = f"/ext/adprov/usage_extra/{_esc(key)}"
         if key in mapping:
             # the mapper types a known key only for a non-negative int; any other value is kept at usage_extra
             found, value = doc.value(run, f"/usage/{mapping[key]}")
-            out[str(key)] = value if found else doc.value(run, extra)[1]
+            out[str(key)] = value if found else extra.get(key)
         else:
-            out[str(key)] = doc.value(run, extra)[1]
+            out[str(key)] = extra.get(key)
     return out
 
 
@@ -503,14 +503,21 @@ def _part_text(doc: _Aer, message: Mapping[str, Any], kind: str) -> tuple[bool, 
     return False, None
 
 
+def _members(doc: _Aer, record: Mapping[str, Any] | None, pointer: str) -> Mapping[str, Any]:
+    """The decoded object of unknown source members at ``pointer`` (``ext.adprov.extra`` and its kin), read whole so
+    that an object the mapper ``$lit``-wrapped (a member name beginning with ``$``, fuzz F-4) decodes to its members;
+    an absent or non-object value is empty."""
+    found, value = doc.value(record, pointer)
+    return value if found and isinstance(value, Mapping) else {}
+
+
 def _order(message: Mapping[str, Any], built: dict[str, Any], template: str, doc: _Aer) -> dict[str, Any]:
     """Apply ``ext.adprov.keys`` (a recorded non-canonical order) and ``ext.adprov.extra`` (unknown members)."""
     adprov = _ext(message, "adprov")
     keys = adprov.get("keys")
-    extra = adprov.get("extra")
-    if isinstance(extra, Mapping):
-        for key in extra:
-            built[str(key)] = doc.value(message, f"/ext/adprov/extra/{_esc(key)}")[1]
+    if isinstance(adprov.get("extra"), Mapping):
+        for key, value in _members(doc, message, "/ext/adprov/extra").items():
+            built[str(key)] = value
     if isinstance(keys, list):
         return {str(k): built[str(k)] for k in keys if str(k) in built}
     return {m: built[m] for m in layout_members(template) if m in built}
