@@ -833,4 +833,5 @@ def test_an_estimate_in_flight_is_dropped_once_the_selection_has_none(qapp: Any,
         qapp.processEvents()
         time.sleep(0.01)
     assert dialog.headline.text().startswith("Estimate: tick a suite"), dialog.headline.text()
-    assert dialog.estimate_result is None and dialog.details.toPlainText() == ""
+    assert dialog.estimate_result is None  # the plan window says why it has no plan, never the late one
+    assert dialog.details.toPlainText().startswith("No plan yet: tick a suite"), dialog.details.toPlainText()

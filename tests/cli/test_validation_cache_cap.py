@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,8 +10,6 @@ import pytest
 from agentprov import settings
 from agentprov.cli.checks import CACHE_CAP_SETTING, validation_cache
 from agentprov.validate.cache import DEFAULT_MAX_BYTES
-
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the tier-4 round-trip cache is not used on Windows in 0.2.0")
 
 
 def _ctx(home: Path, **args: object) -> SimpleNamespace:

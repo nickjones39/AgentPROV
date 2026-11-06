@@ -12,12 +12,23 @@ the right.
   real model shows the endpoint of the checkout's ``endpoints.toml``, the model id (completed from ``agentprov models``
   or ``agentprov prices list``; never a default), the price, the key variable it needs and whether the keychain holds
   it (**Store Key…** stores one, D-655) and the containment. Rows that do not apply are hidden, not greyed.
-* **Limits** (an API endpoint, D-725): the cost and call caps and the prices they are priced at; "Use the quote's
-  upper figure" fills the cost cap from the quote's p90.
+* **Limits** (an API endpoint, D-725): the cost and call caps and the prices they are priced at. Both caps follow
+  the CLI's suggested caps (``quote.caps``, D-1090: the quote's p90 calls and upper cost plus the margin of Settings ›
+  Estimate, plus room for the cells the run reserves at their worst case) until the user types a value, which stays
+  until "Use the quote's figure"; each row's caption and tooltip say how the figure was made (the figure, the margin,
+  local or shipped priors, the prices' source). Without a suggestion (no price, only default assumptions) the caption
+  says why and the cap is typed, as before. A cap that follows the quote is left out of the estimate's own arguments.
 * **What to run:** the scope (the full benchmark, or chosen suites and attacks), suites as a two-column checklist with
   their task counts, attacks as chips (a refused one cannot be chosen and says why), the benign cells, and behind one
   disclosure the task selection and repeats. The lists come from ``run SOURCE --catalogue`` (D-652). The full benchmark
   gives the same arguments as ticking every suite and every attack that can be chosen, with the benign cells.
+* **Inspect task** (D-1120), instead of What to run when the backend is an Inspect one (``inspect-<benchmark>``, such
+  as AgentHarm): the task from the Inspect catalogue (``agentprov-inspect-catalogue/0.1``), a row per declared
+  parameter (a menu for choices and for true / false / not set, a whole number within its bounds; one left at its
+  default is not passed), the samples (the first N of the split, or ids), the three per-sample limits (mandatory,
+  D-667), a judge model per role (blank: the agent's model; none for a scripted run, whose combined script answers for
+  the judges), the task's fixed settings as facts, and behind one disclosure the epochs, concurrent model calls and
+  cell size. The benchmark version, suites, attacks, benign cells, user and injection tasks and the defence are hidden.
 * **Save to:** the campaign and the working corpus; behind "Advanced: …" the concurrency (with **Tune…**), attempts,
   canary, cell timeout, the conformance switch and every other ``run`` option (D-654).
 * **Summary / quote** (§8.3 as amended, D-650, D-701): after every change (debounced), ``agentprov estimate …
@@ -44,14 +55,18 @@ import contextlib
 import datetime as dt
 import json
 import os
+import re
 import subprocess
+import time
+import tomllib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
-from decimal import ROUND_CEILING, Decimal
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Final
 from urllib.parse import urlsplit
 
+from agentprov.jobs.follow import ProgressState, Rates, TailReader, human_duration
 from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -60,6 +75,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QHBoxLayout,
     QLineEdit,
+    QProgressBar,
     QPushButton,
     QSpinBox,
     QVBoxLayout,
@@ -73,7 +89,19 @@ from agentprov_gui.jobs.manager import Job, JobManager
 from agentprov_gui.live import keychain, pricerefresh
 from agentprov_gui.live import models as models_mod
 from agentprov_gui.live.backends import NOT_BUILT, live_backends
+from agentprov_gui.live.capsfill import CALLS, COST, cap_text
 from agentprov_gui.live.cli import last_line
+from agentprov_gui.live.inspectplan import (
+    DEV_SAMPLES,
+    INSPECT_DEV_SCRIPT,
+    LIMIT_BOUNDS,
+    SCRIPTED_MODEL,
+    InspectChoice,
+    bad_ids,
+    default_text,
+    is_inspect,
+)
+from agentprov_gui.live.inspectplan import missing as inspect_missing
 from agentprov_gui.live.models import (
     ModelList,
     identity_argv,
@@ -85,16 +113,21 @@ from agentprov_gui.live.models import (
     refresh_blocked,
 )
 from agentprov_gui.live.plan import (
+    MAX_PARAM_INT,
     Catalogue,
     Endpoint,
     EstimateView,
+    InspectCatalogue,
+    InspectParam,
+    InspectTask,
     PlanError,
     PriceRow,
     PriceTable,
     Quote,
+    SuggestedCaps,
     live_status,
     load_endpoints,
-    parse_catalogue,
+    parse_any_catalogue,
     parse_estimate,
     parse_prices,
 )
@@ -190,13 +223,15 @@ class IdentityDialog(QDialog):
 
 def run_cli(manager: JobManager, argv: Sequence[str], *, stdin_fd: int | None = None,
             timeout: float = 600) -> tuple[int, bytes, bytes]:
-    """An R0 CLI call (``info``, ``--catalogue``, a dry run): its exit code, stdout (bounded) and the stderr tail."""
+    """An R0 CLI call (``info``, ``--catalogue``, a dry run): its exit code, stdout (bounded) and the stderr tail.
+    ``run`` starts in the checkout (:meth:`CliLocator.cwd_for`): it finds the backend projects from its cwd."""
     if not manager.cli.available:
         return 127, b"", b"no CLI"
     try:
         done = subprocess.run(  # noqa: S603 - the configured CLI and a fixed argv
             [*manager.cli.program, *argv, "--progress", "off", "--no-colour"], capture_output=True, timeout=timeout,
-            check=False, env=manager.child_env(), stdin=subprocess.DEVNULL if stdin_fd is None else stdin_fd)
+            check=False, env=manager.child_env(), stdin=subprocess.DEVNULL if stdin_fd is None else stdin_fd,
+            cwd=manager.cli.cwd_for(argv))
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 124, b"", type(exc).__name__.encode()
     finally:
@@ -300,7 +335,12 @@ class RunLiveDialog(QDialog):
         self.endpoints: dict[str, Endpoint] = load_endpoints(checkout)
         self.opened = [str(p) for p in opened if (Path(p) / "aer").is_dir()]  # --stats-corpus (design §8.3)
         self.catalogue: Catalogue | None = None
-        self.catalogues: dict[str, Catalogue | str] = {}  # backend: catalogue, or why there is none
+        self.inspect_catalogue: InspectCatalogue | None = None  # an Inspect backend's (D-1120)
+        #: backend: catalogue, or why there is none; starts from the last good ones of this app session, so the suites
+        #: and attacks show at once (the background call checks them again)
+        self.catalogues: dict[str, Catalogue | InspectCatalogue | str] = {
+            key[-1]: cat for key, cat in self._catalogue_cache().items()
+            if key[:-1] == tuple(manager.cli.program) and isinstance(cat, Catalogue | InspectCatalogue)}
         self.estimate_result: EstimateView | None = None
         self._estimate_for: tuple[str, ...] | None = None  # the estimate argv estimate_result was computed for
         self.live_status: dict[str, str | None] = {}
@@ -327,6 +367,7 @@ class RunLiveDialog(QDialog):
         self.refresh_timer = QTimer(self)
         self.refresh_timer.setInterval(1000)
         self.refresh_timer.timeout.connect(self._poll_refresh)
+        self._show_catalogue()  # at once: this session's last catalogue, else "Loading…" in the rows, never a blank
         self._load_status()
         self._load_catalogue()
         self._keys_refresh()
@@ -356,6 +397,7 @@ class RunLiveDialog(QDialog):
         self._build_model(s)
         self._build_limits()
         self._build_cells(s)
+        self._build_inspect(s)
         self._build_save(s)
         self._build_summary()
         self._build_footer(outer)
@@ -364,6 +406,8 @@ class RunLiveDialog(QDialog):
         self.start_btn.setDefault(True)
         self._mode_changed()
         self._scope_changed()
+        self._kind_changed()
+        self._swap_dev_script()
         self._models()
 
     def _build_benchmark(self, s: RunSettings) -> None:
@@ -390,6 +434,7 @@ class RunLiveDialog(QDialog):
         row = sec.add_row("Benchmark version", self.version, caption_text="Catalogue: loading…",
                           tip="The benchmark version to run (--benchmark-version); the list holds the versions the "
                               "backend's catalogue offers. Blank: the backend's default.")
+        self.version_row = row
         self.cat_label = row.caption
         self.cat_label.setAccessibleName("Catalogue status")
         set_setting_tooltip(self.cat_label, "What the backend offers (agentprov run SOURCE --catalogue): its suites, "
@@ -511,20 +556,28 @@ class RunLiveDialog(QDialog):
         card = sec.card
         self.max_cost = DecimalField(0, 1_000_000, None, name="Max cost in USD", placeholder="Not set", unit="USD",
                                      parent=card)
-        self.use_upper_btn = forms.link_button("Use the quote's upper figure", parent=card,
-                                               name="Fill the cost cap from the quote's upper figure")
-        self.use_upper_btn.clicked.connect(self.use_quote_upper)
-        set_control_tooltip(self.use_upper_btn, "Fills the cost cap with the quote's upper figure (agentprov "
-                                                "estimate's p90 cost), rounded up to the cent.")
-        sec.add_row("Stop at a cost of", self.max_cost, trailing=[self.use_upper_btn], stretch=False,
-                    caption_text="The run stops starting cells here",
-                    tip="Spend of the corpus at most, in USD (--max-cost-usd), an upper bound priced from the recorded "
-                        "usage at the two prices below.")
         self.max_calls = IntField(1, 10_000_000, None, name="Max billed model calls", placeholder="Not set",
                                   unit="calls", parent=card)
-        sec.add_row("Stop after model calls", self.max_calls, stretch=False,
-                    caption_text="Preflight probes included",
-                    tip="Billed model calls of the corpus at most, preflight probes included (--max-calls).")
+        #: D-1090: each cap follows the quote's suggestion until the user types one (then it stays theirs)
+        self._cap_typed: dict[str, bool] = {COST: False, CALLS: False}
+        self._prices_typed = False
+        self.cap_fields: dict[str, IntField | DecimalField] = {COST: self.max_cost, CALLS: self.max_calls}
+        self.cap_resets: dict[str, QPushButton] = {}
+        self.cap_rows: dict[str, forms.FormRow] = {}
+        for which, label, field in ((COST, "Stop at a cost of", self.max_cost),
+                                    (CALLS, "Stop after model calls", self.max_calls)):
+            reset = forms.link_button("Use the quote's figure", parent=card,
+                                      name=f"Fill the {'cost' if which == COST else 'call'} cap from the quote")
+            reset.clicked.connect(lambda _c=False, w=which: self.use_quote_cap(w))
+            set_control_tooltip(reset, f"Puts the quote's suggested {'cost' if which == COST else 'call'} cap back "
+                                       "(agentprov estimate's suggested caps): its p90 figure plus the margin and room "
+                                       "for the cells the run reserves; the field then follows each new quote again.")
+            reset.setVisible(False)
+            self.cap_resets[which] = reset
+            first = cap_text(which, None, None, typed=False, pending=True)
+            self.cap_rows[which] = sec.add_row(label, field, trailing=[reset], stretch=False,
+                                               caption_text=first.caption, tip=first.tooltip)
+            field.valueChanged.connect(lambda _v, w=which: self._cap_edited(w))
         prices = QWidget(card)
         pl = QHBoxLayout(prices)
         pl.setContentsMargins(0, 0, 0, 0)
@@ -548,6 +601,8 @@ class RunLiveDialog(QDialog):
         sec.add_row("Priced at", prices, caption_text="Filled from the price table")
         for cap in (self.max_calls, self.max_cost, self.price_in, self.price_out):
             cap.valueChanged.connect(lambda _v: self._changed())
+        for spin in (self.price_in, self.price_out):  # the table's fill blocks signals: a change here is typed
+            spin.valueChanged.connect(lambda _v: setattr(self, "_prices_typed", True))
         self.caps_box = sec
         self._caps_priced_for: tuple[str, str] | None = None
         self.page.add(sec)
@@ -586,6 +641,7 @@ class RunLiveDialog(QDialog):
         self.benign_row = sec.add_row(
             "Benign cells", self.benign, stretch=False,
             tip="Whether the benign (unattacked) cells are included (the default), excluded or run alone (--benign).")
+        self.cells_section = sec
         self.page.add(sec)
         self.tasks = Disclosure("Task selection and repeats", screen=SCREEN, key="tasks", store=self.store,
                                 name="Show task selection and repeats", parent=self.page.column)
@@ -613,6 +669,403 @@ class RunLiveDialog(QDialog):
         self.tasks.add(tasks)
         self.page.add(self.tasks)
 
+    def _build_inspect(self, s: RunSettings) -> None:
+        """D-1120: an Inspect backend's plan (D-663) in place of What to run: the task, its declared parameters (a row
+        each, built from the catalogue's type, choices, bounds and default), the samples, the three per-sample limits
+        (mandatory, D-667), a judge model per role (every role is required) and the task's fixed settings as facts;
+        behind one disclosure the epochs, the concurrent model calls and the cell size."""
+        extra = s.extra
+        self._param_values: dict[str, str | int | bool | None] = _preset_params(extra.get("task_param"))
+        self._judge_models: dict[str, str] = _preset_judges(extra.get("judge"))
+        self._wanted_task = str(extra.get("task") or "")
+        self.param_inputs: dict[str, tuple[InspectParam, QWidget]] = {}
+        self.param_widgets: dict[str, QWidget] = {}  # the same controls by name (reverse parity, D-700)
+        self.param_options: dict[str, list[str | int | bool | None]] = {}
+        self.judge_inputs: dict[str, QComboBox] = {}
+        sec = FormSection("Inspect task", parent=self.page.column,
+                          note="An Inspect backend runs one task through inspect eval. Its cells are groups of samples, "
+                               "not suites and attacks.")
+        card = sec.card
+        self.task = forms.combo(card, name="Inspect task")
+        self.task.setPlaceholderText("Loading the tasks…")
+        self.task.currentIndexChanged.connect(self._task_changed)
+        row = sec.add_row("Task", self.task, caption_text="Catalogue: loading…",
+                          tip="The Inspect task to run (--task), from the backend's catalogue (agentprov run SOURCE "
+                              "--catalogue).")
+        self.inspect_cat_label = row.caption
+        self.inspect_cat_label.setAccessibleName("Inspect catalogue status")
+        set_setting_tooltip(self.inspect_cat_label, "What the Inspect backend offers (agentprov run SOURCE "
+                                                    "--catalogue): its tasks, their parameters, splits and judge roles, "
+                                                    "the inspect_ai version and the pinned dataset. No model call, "
+                                                    "nothing written.")
+        self.fixed_label = SafeLabel(DASH, name="Fixed by the task", parent=card)
+        self.fixed_label.setWordWrap(True)
+        sec.add_row("Fixed by the task", self.fixed_label, caption_text="Reported only, not settings",
+                    tip="Settings the task fixes itself (such as its message cap, retries, token cap, seed and "
+                        "temperature), as the catalogue reports them. The run cannot change them.")
+        self.inspect_section = sec
+        self.page.add(sec)
+        self.params_section = FormSection("Task parameters", parent=self.page.column,
+                                          note="A parameter left at its default is not passed (--task-param "
+                                               "NAME=VALUE otherwise).")
+        self.page.add(self.params_section)
+        samples = FormSection("Samples and limits", parent=self.page.column)
+        sc = samples.card
+        box = QWidget(sc)
+        bl = QHBoxLayout(box)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.setSpacing(8)
+        self.sample_mode = forms.combo(box, name="Choose the samples by")
+        self.sample_mode.addItems(["The first N of the split", "These sample ids"])
+        set_combo_item_tooltip(self.sample_mode, 0, "The first N samples of the split in dataset order (--samples "
+                                                    "limit:N).")
+        set_combo_item_tooltip(self.sample_mode, 1, "The samples with these ids (--samples ID,ID…).")
+        set_control_tooltip(self.sample_mode, "How the samples are chosen: the first N of the split in dataset order, "
+                                              "or a list of sample ids.")
+        samples_given = str(extra.get("samples") or "")
+        self.sample_count = IntField(1, 10_000, int(samples_given[6:]) if samples_given.startswith("limit:")
+                                     and samples_given[6:].isdigit() else None, name="Number of samples",
+                                     placeholder="Required", parent=box)
+        set_control_tooltip(self.sample_count, "How many samples to run: the first N of the split (--samples limit:N).")
+        self.sample_ids = QLineEdit("" if samples_given.startswith("limit:") else samples_given, box)
+        self.sample_ids.setAccessibleName("Sample ids")
+        self.sample_ids.setPlaceholderText("Ids, separated by commas")
+        set_control_tooltip(self.sample_ids, "The ids of the samples to run, separated by commas (--samples ID,ID…); "
+                                             "each must be in the split.")
+        if self.sample_ids.text():
+            self.sample_mode.setCurrentIndex(1)
+        bl.addWidget(self.sample_mode)
+        bl.addWidget(self.sample_count)
+        bl.addWidget(self.sample_ids, 1)
+        self.sample_mode.currentIndexChanged.connect(self._samples_mode_changed)
+        self.sample_count.valueChanged.connect(lambda _v: self._changed())
+        self.sample_ids.textChanged.connect(lambda _t: self._changed())
+        self.samples_row = samples.add_row(
+            "Samples", box, caption_text="Required", subject=self.sample_mode,
+            tip="The samples to run (--samples, mandatory): the first N of the split, or their ids.")
+        self.limit_inputs: dict[str, IntField] = {}
+        for key, label, unit, tip in (
+                ("message_limit", "Message limit", "messages",
+                 "The most messages per sample (--message-limit, mandatory, D-667). It also bounds the billed calls of "
+                 "a cell under the caps (D-740)."),
+                ("token_limit", "Token limit", "tokens", "The most tokens per sample (--token-limit, mandatory, D-667)."),
+                ("time_limit", "Time limit", "seconds",
+                 "The most wall-clock seconds per sample (--time-limit, mandatory, D-667).")):
+            lo, hi = LIMIT_BOUNDS[key]
+            value = extra.get(key)
+            spin = IntField(lo, hi, value if isinstance(value, int) and not isinstance(value, bool) else None,
+                            name=label, placeholder="Required", unit=unit, parent=sc)
+            spin.valueChanged.connect(lambda _v: self._changed())
+            self.limit_inputs[key] = spin
+            samples.add_row(label, spin, stretch=False, caption_text=f"{lo:,} to {hi:,}, required", tip=tip)
+        self.samples_section = samples
+        self.page.add(samples)
+        self.judges_section = FormSection("Judges", parent=self.page.column,
+                                          note="Judges use the agent's endpoint and key. Under the caps every judge "
+                                               "must use the agent's model (D-740).")
+        self.page.add(self.judges_section)
+        self.inspect_more = Disclosure("Epochs, concurrent model calls and cell size", screen=SCREEN, key="inspect",
+                                       store=self.store, name="Show epochs, concurrency and cell size",
+                                       parent=self.page.column)
+        set_control_tooltip(self.inspect_more.button, "Shows or hides the epochs per sample (--epochs), the concurrent "
+                                                      "model calls of one cell (--max-connections) and the samples per "
+                                                      "cell (--cell-size).")
+        more = FormSection("", parent=self.inspect_more.content)
+        self.cell_inputs: dict[str, IntField] = {}
+        for key, label, unit, placeholder, tip in (
+                ("epochs", "Epochs", "epochs", "Default (1)", "How often each sample is run (--epochs; default 1)."),
+                ("max_connections", "Concurrent model calls", "calls", "Default (4)",
+                 "Concurrent model calls inside one cell (--max-connections; default 4)."),
+                ("cell_size", "Samples per cell", "samples", "Default (25, or 1 under caps)",
+                 "Samples per cell, each cell one inspect eval (--cell-size; default 25, or 1 when the call or cost cap "
+                 "is set, so a cell reserves one sample's worst case, D-740).")):
+            lo, hi = LIMIT_BOUNDS[key]
+            value = extra.get(key)
+            spin = IntField(lo, hi, value if isinstance(value, int) and not isinstance(value, bool) else None,
+                            name=label, placeholder=placeholder, unit=unit, parent=more.card)
+            spin.valueChanged.connect(lambda _v: self._changed())
+            self.cell_inputs[key] = spin
+            more.add_row(label, spin, stretch=False, caption_text=f"{lo:,} to {hi:,}", tip=tip)
+        self.inspect_more.add(more)
+        self.page.add(self.inspect_more)
+        self._samples_mode()
+
+    def _samples_mode(self) -> None:
+        by_ids = self.sample_mode.currentIndex() == 1
+        self.sample_count.setVisible(not by_ids)
+        self.sample_ids.setVisible(by_ids)
+
+    def _samples_mode_changed(self, _index: int) -> None:
+        self._samples_mode()
+        self._changed()
+
+    def _judge_changed(self, role: str, text: str) -> None:
+        self._judge_models[role] = text
+        self._changed()
+
+    def _param_changed(self, _index: int) -> None:
+        self._samples_caption()  # the split's size
+        self._changed()
+
+    def _backend_id(self) -> str:
+        source = self.backend()
+        return next((b.backend for b in self.backends if b.source == source), source)
+
+    def inspect_mode(self) -> bool:
+        """The chosen backend is an Inspect one (``inspect-<benchmark>``; the CLI's rule)."""
+        return is_inspect(self._backend_id())
+
+    def _kind_changed(self) -> None:
+        """Rule 3 for the backend's kind: an Inspect backend shows its task rows and hides the AgentDojo-only ones
+        (benchmark version, suites, attacks, benign cells, user and injection tasks, the defence); an AgentDojo-family
+        backend the other way round. A scripted Inspect run has no judge rows (the script answers for them)."""
+        inspect = self.inspect_mode()
+        self.version_row.setVisible(not inspect)
+        self.cells_section.setVisible(not inspect)
+        for w in (self.inspect_section, self.params_section, self.samples_section, self.inspect_more):
+            w.setVisible(inspect)
+        self.judges_section.setVisible(inspect and not self.scripted)
+        row = self.more_rows.get("defence")
+        if row is not None:
+            row.setVisible(not inspect)
+        self._scope_changed()
+        self.script_row.set_caption("Agent and judge replies: {\"agent\": […], \"judges\": {ROLE: […]}}" if inspect
+                                    else "The scripted replies (SCRIPT.json)")
+        self.plan_btn.setText("Show the plan" if inspect else "Show the plan by suite")
+        set_control_tooltip(self.plan_btn, "agentprov estimate's breakdown of the cells, cost and time, with the "
+                                           "source of its statistics." if inspect else
+                            "agentprov estimate's breakdown of the cells, cost and time by suite and by attack, with "
+                            "the source of each group's statistics.")
+
+    def _swap_dev_script(self) -> None:
+        """A backend change keeps a script the user chose, but the shipped dev script follows the backend's kind: a
+        scripted Inspect run needs the combined one (agent and judge steps)."""
+        inspect = self.inspect_mode()
+        current = self.script.text().strip()
+        if inspect and current == str(DEV_SCRIPT):
+            self.script.setText(str(INSPECT_DEV_SCRIPT))
+        elif not inspect and current == str(INSPECT_DEV_SCRIPT):
+            self.script.setText(str(DEV_SCRIPT))
+
+    def _inspect_task(self) -> InspectTask | None:
+        cat = self.inspect_catalogue
+        data = self.task.currentData()
+        return cat.task(str(data)) if cat is not None and data else None
+
+    def _task_changed(self, _index: int) -> None:
+        self._show_task()
+        self._changed()
+
+    def _fill_tasks(self, cat: InspectCatalogue | None, empty: str) -> None:
+        """The task picker from the catalogue; the task chosen before (or the preset's) stays chosen."""
+        wanted = str(self.task.currentData() or self._wanted_task or "")
+        self.task.blockSignals(True)
+        self.task.clear()
+        for t in cat.tasks if cat is not None else ():
+            self.task.addItem(T.line(t.name, 120), t.name)
+            splits = ", ".join(f"{T.line(s.name, 40)} {s.samples:,}" for s in t.splits) or "none listed"
+            roles = ", ".join(T.line(j.role, 40) for j in t.judges) or "none"
+            set_combo_item_tooltip(self.task, self.task.count() - 1,
+                                   f"--task {t.name}. Samples per split: {splits}. Judge roles: {roles}.")
+        self.task.setPlaceholderText(empty)
+        index = self.task.findData(wanted) if wanted else -1
+        self.task.setCurrentIndex(index if index >= 0 else (0 if self.task.count() else -1))
+        self.task.blockSignals(False)
+        self._show_task()
+
+    def _show_task(self) -> None:
+        """The chosen task's parameter and judge rows, its fixed settings and the samples caption."""
+        self._keep_params()
+        task = self._inspect_task()
+        if task is not None:
+            self._wanted_task = task.name
+        self.params_section.clear()
+        self.param_inputs.clear()
+        self.param_widgets.clear()
+        self.param_options.clear()
+        for p in task.params if task is not None else ():
+            w = self._param_widget(p, self.params_section.card)
+            self.param_inputs[p.name] = (p, w)
+            self.param_widgets[p.name] = w
+            self.params_section.add_row(T.line(p.name, 60), w, tip=_param_tip(p), stretch=p.type == "str",
+                                        caption_text=f"Default: {T.line(default_text(p), 60)}")
+        self.params_section.set_note("" if task is None or task.params else "This task declares no parameters.")
+        self.judges_section.clear()
+        self.judge_inputs.clear()
+        for j in task.judges if task is not None else ():
+            box = forms.combo(self.judges_section.card, name=f"Judge model of {T.line(j.role, 40)}", editable=True)
+            box.addItems(["", T.line(j.default_model, 200)])
+            set_combo_item_tooltip(box, 0, "The agent's model (the default here)")
+            set_combo_item_tooltip(box, 1, "The scorer's own default model for this role")
+            line = box.lineEdit()
+            if line is not None:
+                line.setPlaceholderText("Same as the agent's model")
+            box.setCurrentText(self._judge_models.get(j.role, ""))
+            box.currentTextChanged.connect(lambda text, role=j.role: self._judge_changed(role, text))
+            self.judge_inputs[j.role] = box
+            calls = "varies" if j.calls_per_sample is None else f"{j.calls_per_sample:,}"
+            self.judges_section.add_row(
+                T.line(j.role, 60), box, caption_text=f"Calls per sample: {calls}",
+                tip=f"The model of the {T.line(j.role, 40)} judge (--judge {T.line(j.role, 40)}=MODEL), at the "
+                    "agent's endpoint and with its key. Blank: the agent's model. The scorer's own default is "
+                    f"{T.line(j.default_model, 200)}.")
+        fixed = " · ".join(f"{T.line(k, 40)} {v:,}" if isinstance(v, int) else f"{T.line(k, 40)} {v:g}"
+                           for k, v in task.fixed) if task is not None else ""
+        if task is not None and task.default_solver:
+            fixed = (fixed + " · " if fixed else "") + f"solver {T.line(task.default_solver, 40)} (by default)"
+        self.fixed_label.set_plain(fixed or DASH)
+        self._samples_caption()
+
+    def _param_widget(self, p: InspectParam, parent: QWidget) -> QWidget:
+        """A parameter's control (D-1060 rule 6): a menu for choices and for true / false / not set, a whole number
+        within its bounds (blank: the default), a text field otherwise."""
+        current = self._param_values.get(p.name, p.default)
+        name = f"Task parameter {T.line(p.name, 60)}"
+        w: QWidget
+        if p.choices or p.type == "bool|null":
+            options: list[str | int | bool | None] = list(p.choices) if p.choices else [None, True, False]
+            if not any(_same(o, p.default) for o in options):
+                options.insert(0, p.default)
+            box = forms.combo(parent, name=name)
+            for i, option in enumerate(options):
+                text = _value_text(option) + (" (default)" if _same(option, p.default) else "")
+                box.addItem(T.line(text, 80))
+                set_combo_item_tooltip(box, i, f"--task-param {p.name}={_value_text(option)}" if not _same(
+                    option, p.default) else "The task's default: the parameter is not passed")
+            box.setCurrentIndex(next((i for i, o in enumerate(options) if _same(o, current)), 0))
+            box.currentIndexChanged.connect(self._param_changed)
+            self.param_options[p.name] = options
+            w = box
+        elif p.type == "int":
+            lo = p.minimum if p.minimum is not None else 0
+            hi = p.maximum if p.maximum is not None else MAX_PARAM_INT
+            value = current if isinstance(current, int) and not isinstance(current, bool) and lo <= current <= hi \
+                and not _same(current, p.default) else None
+            spin = IntField(lo, hi, value, name=name, placeholder=f"Default ({default_text(p)})", parent=parent)
+            spin.valueChanged.connect(lambda _v: self._changed())
+            w = spin
+        else:
+            line = QLineEdit(str(current) if isinstance(current, str) and not _same(current, p.default) else "", parent)
+            line.setAccessibleName(name)
+            line.setPlaceholderText(f"Default ({T.line(default_text(p), 60)})")
+            line.textChanged.connect(lambda _t: self._changed())
+            w = line
+        return w
+
+    def _param_value(self, name: str) -> str | int | bool | None:
+        """A parameter's value as chosen (its default when left there)."""
+        p, w = self.param_inputs[name]
+        if isinstance(w, IntField):
+            number = w.number()
+            return p.default if number is None else number
+        if isinstance(w, QComboBox):
+            options = self.param_options.get(name, [])
+            i = w.currentIndex()
+            return options[i] if 0 <= i < len(options) else p.default
+        if isinstance(w, QLineEdit):
+            return w.text().strip() or p.default
+        return p.default
+
+    def _keep_params(self) -> None:
+        for name in self.param_inputs:
+            self._param_values[name] = self._param_value(name)
+
+    def _task_params(self) -> dict[str, str | int | bool]:
+        """The parameters that differ from their defaults (only those are passed)."""
+        out: dict[str, str | int | bool] = {}
+        for name, (p, _w) in self.param_inputs.items():
+            value = self._param_value(name)
+            if value is not None and not _same(value, p.default):
+                out[name] = value
+        return out
+
+    def _split_samples(self) -> int | None:
+        """How many samples the chosen split holds (None: not known)."""
+        task = self._inspect_task()
+        if task is None:
+            return None
+        if task.param("split") is not None:
+            split = task.split(str(self._param_value("split")))
+        else:
+            split = task.splits[0] if len(task.splits) == 1 else None
+        return split.samples if split is not None else None
+
+    def _samples_caption(self) -> None:
+        task = self._inspect_task()
+        n = self._split_samples()
+        if task is None:
+            text = "Required"
+        elif n is None:
+            text = "Required; the split's size is not known"
+        else:
+            split = str(self._param_value("split")) if task.param("split") is not None else task.splits[0].name
+            text = f"Required; {T.line(split, 40)} has {n:,} samples"
+        self.samples_row.set_caption(text)
+
+    def inspect_choice(self) -> InspectChoice:
+        """What the Inspect rows chose (hidden rows are not read: a scripted run's judges take the script's label)."""
+        task = self._inspect_task()
+        by_ids = self.sample_mode.currentIndex() == 1
+        ids = tuple(x.strip() for x in self.sample_ids.text().split(",") if x.strip()) if by_ids else ()
+        judges = {j.role: "" if self.scripted else self._judge_models.get(j.role, "").strip()
+                  for j in (task.judges if task is not None else ())}
+        return InspectChoice(
+            task=task.name if task is not None else "", params=self._task_params() if task is not None else {},
+            limit=None if by_ids else self.sample_count.number(), ids=ids,
+            message_limit=self.limit_inputs["message_limit"].number(),
+            token_limit=self.limit_inputs["token_limit"].number(), time_limit=self.limit_inputs["time_limit"].number(),
+            epochs=self.cell_inputs["epochs"].number(), max_connections=self.cell_inputs["max_connections"].number(),
+            cell_size=self.cell_inputs["cell_size"].number(), judges=judges)
+
+    def _inspect_reason(self, s: RunSettings) -> str | None:
+        """Why an Inspect run cannot be planned or started yet (None: it can)."""
+        choice = self.inspect_choice()
+        if self.inspect_catalogue is None:
+            return "Waiting for the backend's tasks (agentprov run SOURCE --catalogue)."
+        reason = inspect_missing(choice, self._inspect_task(), split_samples=self._split_samples())
+        if reason is not None:
+            return reason
+        if choice.ids and bad_ids(self.sample_ids.text()):
+            wrong = ", ".join(T.line(x, 40) for x in bad_ids(self.sample_ids.text())[:3])
+            return f"Not sample ids: {wrong}."
+        if self.scripted:
+            if Path(s.script) == INSPECT_DEV_SCRIPT:
+                per_cell = min(choice.cell_size or 25, choice.limit or len(choice.ids)) * (choice.epochs or 1)
+                if per_cell > DEV_SAMPLES:
+                    return (f"The shipped Inspect dev script answers {DEV_SAMPLES} samples × epochs per cell: lower "
+                            "the samples per cell or the epochs, or choose a script of your own.")
+            return None
+        if self._anthropic():
+            return ("An Inspect backend reaches every model through Inspect's OpenAI-compatible provider, so its "
+                    "endpoint must speak the OpenAI chat format (D-741): choose another endpoint.")
+        if self._caps_shown() and s.model_id:
+            others = sorted(role for role, model in choice.judges.items() if model and model != s.model_id)
+            if others:
+                return ("Under the caps every judge must use the agent's model, since the caps have one price pair "
+                        f"(D-740): clear the judge model of {', '.join(T.line(r, 40) for r in others)}.")
+        return None
+
+    def _show_inspect(self, entry: InspectCatalogue | Catalogue | str | None) -> None:
+        self.catalogue = None
+        if not isinstance(entry, InspectCatalogue):
+            self.inspect_catalogue = None
+            text = "Catalogue: " + (T.line(entry, 300) if isinstance(entry, str) and entry else "loading…")
+            self.inspect_cat_label.set_plain(text)
+            self.cat_label.set_plain(text)
+            self._fill_tasks(None, "None: the catalogue is unavailable (the line under it says why)."
+                             if isinstance(entry, str) and entry else "Loading the tasks…")
+            self._changed()
+            return
+        self.inspect_catalogue = entry
+        dataset = (f", dataset {T.line(entry.dataset_repo, 200)} at {entry.dataset_revision[:8]}"
+                   if entry.dataset_repo and entry.dataset_revision else "")
+        text = (f"{len(entry.tasks)} task" + ("" if len(entry.tasks) == 1 else "s")
+                + f" ({T.line(entry.backend, 40)}, inspect_ai {T.line(entry.inspect_ai or 'unknown', 64)}{dataset})")
+        self.inspect_cat_label.set_plain(text)
+        self.cat_label.set_plain(text)
+        self._fill_tasks(entry, "None: the catalogue lists no task.")
+        self._changed()
+
     def _build_save(self, s: RunSettings) -> None:
         sec = FormSection("Save to", parent=self.page.column)
         card = sec.card
@@ -637,7 +1090,7 @@ class RunLiveDialog(QDialog):
                                    parent=self.page.column)
         set_control_tooltip(self.advanced.button, "Shows or hides the concurrency, attempts, canary, cell timeout, the "
                                                   "conformance check and every other option of agentprov run, such as "
-                                                  "--defence, --defence-endpoint and the Inspect options.")
+                                                  "--defence and --defence-endpoint.")
         runsec = FormSection("Run", parent=self.advanced.content)
         rc = runsec.card
         self.jobs = _spin(rc, 1, 512, s.jobs, name="Concurrent traces", placeholder="Default (1)", unit="traces")
@@ -697,13 +1150,14 @@ class RunLiveDialog(QDialog):
         self.advanced.add(runsec)
         other = FormSection("Other run options", parent=self.advanced.content)
         self.more_inputs: dict[str, QWidget] = {}
+        self.more_rows: dict[str, forms.FormRow] = {}
         for f in FORMS["run"].fields:
             if f.key in _DIALOG_KEYS:
                 continue
             w = _field_widget(f, other.card, s.extra.get(f.key))
             _connect(w, self._changed)
             self.more_inputs[f.key] = w
-            other.add_row(f.label, w, tip=field_tip(f), stretch=f.kind not in ("bool", "int"))
+            self.more_rows[f.key] = other.add_row(f.label, w, tip=field_tip(f), stretch=f.kind not in ("bool", "int"))
         self.advanced.add(other)
         self.page.add(self.advanced)
 
@@ -753,9 +1207,24 @@ class RunLiveDialog(QDialog):
                                                    "use your own runs, this model family's first. Nothing is written "
                                                    "into a corpus.")
         blay.addWidget(self.build_priors_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        self.priors_bar = QProgressBar(self.basis_card)
+        self.priors_bar.setAccessibleName("Cost figures progress")
+        self.priors_bar.setTextVisible(False)
+        self.priors_bar.setFixedHeight(6)
+        self.priors_bar.setVisible(False)
+        set_control_tooltip(self.priors_bar, "How much of agentprov priors build is done: batches of 32 executions "
+                                             "read of the total in your sealed corpora (from the job's progress). It "
+                                             "moves without a total until the job has counted them.")
+        blay.addWidget(self.priors_bar)
+        status_row = QHBoxLayout()
+        status_row.setContentsMargins(0, 0, 0, 0)
+        status_row.setSpacing(6)
+        self.priors_spinner = forms.Spinner(name="Cost figures working", parent=self.basis_card)
+        status_row.addWidget(self.priors_spinner, 0, Qt.AlignmentFlag.AlignTop)
         self.priors_status = forms.caption("", name="Cost figures status", parent=self.basis_card)
         self.priors_status.setVisible(False)
-        blay.addWidget(self.priors_status)
+        status_row.addWidget(self.priors_status, 1)
+        blay.addLayout(status_row)
         checks, clay = p.card(name="Before you start")
         title = SafeLabel("Before you start", name="Before you start", parent=checks, selectable=False)
         title.setFont(theme.scaled_font("heading"))
@@ -777,6 +1246,7 @@ class RunLiveDialog(QDialog):
                                            "attack, with the source of each group's statistics.")
         p.add(self.plan_btn)
         self.details = ReadOnlyText(name="Estimate details", parent=p.inner, wrap=True)
+        self.details.setPlainText("No plan yet: waiting for the estimate of this selection.")
         self.details.setVisible(False)  # shown in the plan window
         self.command_card = CommandCard(parent=p.inner)
         p.add(self.command_card)
@@ -818,11 +1288,14 @@ class RunLiveDialog(QDialog):
         return str(data) if data else ""
 
     def _backend_changed(self, _index: int) -> None:
+        self._kind_changed()
+        self._swap_dev_script()
         self._show_catalogue()
         self._changed()
 
     def _mode_and_changed(self, _index: int) -> None:
         self._mode_changed()
+        self._kind_changed()  # a scripted Inspect run has no judge rows
         self._changed()
 
     def _scope_and_changed(self, _index: int) -> None:
@@ -881,6 +1354,7 @@ class RunLiveDialog(QDialog):
         if p is None or key == self._caps_priced_for:
             return
         self._caps_priced_for = key
+        self._prices_typed = False
         side = max(v for v in (p.input, p.cached_input, p.cache_write) if v is not None)
         for spin, value in ((self.price_in, side), (self.price_out, p.output)):
             spin.blockSignals(True)
@@ -893,7 +1367,10 @@ class RunLiveDialog(QDialog):
 
     def _extra(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
+        inspect = self.inspect_mode()
         for key, w in self.more_inputs.items():
+            if inspect and key in _CELL_ONLY_KEYS:
+                continue  # rule 3: a hidden row never reaches the argv (the CLI refuses it for an Inspect plan)
             value = _widget_value(w)
             if value is not None and value is not False and value != "":  # 0 == False: a typed 0 is a value
                 out[key] = value
@@ -917,6 +1394,9 @@ class RunLiveDialog(QDialog):
             if "--max-tokens" in self.cli_options:
                 out["max_tokens"] = ("harness-default" if self.max_tokens_mode.currentIndex() == 0
                                      else str(self.max_tokens.value()))
+        if inspect:  # D-1120: the Inspect plan's options, from the Inspect rows
+            agent_model = SCRIPTED_MODEL if self.scripted else self.model_id.currentText().strip()
+            out.update(self.inspect_choice().extra(agent_model=agent_model))
         return out
 
     def _selection(self) -> tuple[tuple[str, ...], tuple[str, ...], str]:
@@ -931,8 +1411,9 @@ class RunLiveDialog(QDialog):
         corpus = self.corpus.text().strip()
         if not corpus and self.campaign.text().strip():
             corpus = str(self.home / "corpora" / f"{self.backend()}-live-{self.campaign.text().strip()}")
-        suites, attacks, benign = self._selection()
-        full = self.full_scope()
+        inspect = self.inspect_mode()
+        suites, attacks, benign = self._selection() if not inspect else ((), (), "")
+        full = self.full_scope() or inspect  # an Inspect plan: none of the cell options (D-1120)
         real = not self.scripted  # rule 3: a hidden row never reaches the argv (AU-NG-6)
         return RunSettings(
             source=self.backend(), corpus=corpus, campaign=self.campaign.text().strip(),
@@ -940,7 +1421,7 @@ class RunLiveDialog(QDialog):
             model_id=self.model_id.currentText().strip() if real else "", suites=suites, attacks=attacks,
             user_tasks="" if full else self.user_tasks.text().strip(),
             injection_tasks="" if full else self.injection_tasks.text().strip(), benign=benign,
-            benchmark_version=self.version.currentText().strip(), repeats=_spin_value(self.repeats),
+            benchmark_version="" if inspect else self.version.currentText().strip(), repeats=_spin_value(self.repeats),
             jobs=_spin_value(self.jobs), max_attempts=_spin_value(self.max_attempts), canary=_spin_value(self.canary),
             cell_timeout=self.cell_timeout.value() or None, containment=self.containment.currentText() if real else "",
             extra=self._extra(),
@@ -977,9 +1458,11 @@ class RunLiveDialog(QDialog):
 
     def _scope_changed(self) -> None:
         full = self.full_scope()
-        for row in (self.suites_row, self.attacks_row, self.benign_row, self.user_tasks_row,
-                    self.injection_tasks_row):
+        for row in (self.suites_row, self.attacks_row, self.benign_row):
             row.setVisible(not full)
+        cells = not self.inspect_mode()  # an Inspect plan has no user or injection tasks (D-1120)
+        for row in (self.user_tasks_row, self.injection_tasks_row):
+            row.setVisible(not full and cells)
         self.includes_row.setVisible(full)
 
     def _models(self) -> None:
@@ -1126,6 +1609,8 @@ class RunLiveDialog(QDialog):
         else:
             self.price_label.set_plain(T.line(p.text(), 300))
         self._gate()
+        if hasattr(self, "cap_rows"):  # the Limits rows (built before the first change)
+            self._show_caps()
         self.timer.start(DEBOUNCE_MS)
 
     def _platform_changed(self) -> None:
@@ -1133,10 +1618,28 @@ class RunLiveDialog(QDialog):
         gate_combo_item(self.containment, "sandbox-exec", platform_limits.current().get("sandbox_exec"))
         self._gate()
 
+    def _tune_reason(self) -> str | None:
+        """Why Tune… cannot plan (None: it can). A host preset sizes the concurrency from the model's weights in this
+        computer's memory (``run.model.facts_missing`` without them, exit 2): it needs a local model, whose stored facts
+        the CLI reads (D-828), or the model's folder or weight size under Advanced. A scripted run or an API model has
+        no weights here to size."""
+        s = self.settings()
+        if s.extra.get("model_dir") or s.extra.get("model_size_gb"):
+            return None
+        ep = self._endpoint()
+        if not self.scripted and ep is not None and ep.local and s.model_id:
+            return None
+        return ("Tune… sizes the concurrency from the model's weight size in this computer's memory, so it needs a "
+                "model served on this computer: choose a local endpoint (such as omlx) and its model, or give the "
+                "model's folder or weight size under Advanced. A scripted run or an API model has no weights here.")
+
     def _gate(self) -> str | None:
         """Why Start is disabled (None: enabled). Preflight Only… has the same gate without the caps, which a
         preflight-only run does not take (``self.preflight_reason``)."""
         self._anthropic_controls()
+        tune = self._tune_reason()
+        self.tune_btn.setEnabled(tune is None)
+        set_unavailable_tooltip(self.tune_btn, tune)
         reason = None
         caps_missing = estimate_missing = False
         status = self.live_status.get(self.backend())
@@ -1148,7 +1651,9 @@ class RunLiveDialog(QDialog):
             reason = refused.message
         elif isinstance(entry, str):
             reason = f"{s.source}: {entry}. Nothing is launched for it."
-        elif not s.suites:
+        elif self.inspect_mode() and (inspect := self._inspect_reason(s)) is not None:
+            reason = inspect
+        elif not self.inspect_mode() and not s.suites:
             reason = "Tick at least one suite."
         elif not s.corpus or not s.campaign:
             reason = "Name a campaign (and optionally the working corpus)."
@@ -1251,6 +1756,17 @@ class RunLiveDialog(QDialog):
         self._command(s)
 
     def _selection_line(self, s: RunSettings) -> str:
+        if self.inspect_mode():
+            choice = self.inspect_choice()
+            if not choice.task:
+                return "No task chosen yet"
+            task = self._inspect_task()
+            split = (str(self._param_value("split")) if task is not None and task.param("split") is not None else "")
+            samples = (f"first {choice.limit:,} sample" + ("" if choice.limit == 1 else "s") if choice.limit else
+                       f"{len(choice.ids):,} sample id" + ("" if len(choice.ids) == 1 else "s") if choice.ids else
+                       "no samples yet")
+            epochs = f" × {choice.epochs} epochs" if choice.epochs and choice.epochs > 1 else ""
+            return " · ".join(x for x in (T.line(choice.task, 120), T.line(split, 40), samples + epochs) if x)
         if not s.suites:
             return "No suite chosen yet"
         names = [T.line(x, 40).capitalize() for x in s.suites]
@@ -1320,7 +1836,7 @@ class RunLiveDialog(QDialog):
 
     def _checks(self, s: RunSettings, reason: str | None) -> None:
         entry = self.catalogues.get(s.source)
-        env = ("✓ Backend environment ready" if isinstance(entry, Catalogue) else
+        env = ("✓ Backend environment ready" if isinstance(entry, Catalogue | InspectCatalogue) else
                f"× {T.line(entry, 200)}" if isinstance(entry, str) else "… Checking the backend environment")
         if self.scripted:
             key = "✓ No key needed"
@@ -1367,15 +1883,109 @@ class RunLiveDialog(QDialog):
             note = f"The run's command appears once the form is complete: {exc}"
         self.command_card.set_commands(commands, note=note)
 
-    def use_quote_upper(self) -> None:
-        """Fill the cost cap with the quote's upper figure (p90), rounded up to the cent."""
+    def _cap_edited(self, which: str) -> None:
+        """A cap changed other than by the quote's fill (which blocks signals): the user's value from now on."""
+        self._cap_typed[which] = True
+        self._show_caps()
+
+    def suggested_caps(self) -> SuggestedCaps | None:
+        """The CLI's suggested caps for this selection (D-1090), ``None`` while its quote is not in."""
+        e = self._caps_estimate()
+        return e.quote.caps if e is not None and e.quote is not None else None
+
+    def _caps_estimate(self) -> EstimateView | None:
+        """The estimate the caps are filled from: the current one, or the last one when its arguments differ from
+        this selection's only by the caps (a typed cap is passed for the estimate's warnings but never changes the
+        suggestion; untyped prices are the table's, as the CLI's own default)."""
         e = self.current_estimate()
-        upper = None
-        if e is not None:
-            upper = e.quote.usd_p90 if e.quote is not None and e.quote.usd_p90 is not None else e.cost_p90
-        if upper is None:
+        if e is not None or self.estimate_result is None or self._estimate_for is None:
+            return e
+        try:
+            argv = self._estimate_argv()
+        except FormError:
+            return None
+        flags = {"--max-calls", "--max-cost-usd"} | (set() if self._prices_typed else {"--price-in", "--price-out"})
+
+        def strip(a: Sequence[str]) -> list[str]:
+            out: list[str] = []
+            skip = False
+            for x in a:
+                if skip:
+                    skip = False
+                elif x in flags:
+                    skip = True
+                else:
+                    out.append(x)
+            return out
+
+        return self.estimate_result if strip(argv) == strip(self._estimate_for) else None
+
+    def use_quote_cap(self, which: str) -> None:
+        """Use the quote's figure: the field follows the quote again and takes its current suggestion."""
+        self._cap_typed[which] = False
+        self._fill_caps()
+
+    def use_quote_upper(self) -> None:
+        """Both caps back to the quote's suggestion (the earlier "Use the quote's upper figure")."""
+        for which in (COST, CALLS):
+            self._cap_typed[which] = False
+        self._fill_caps()
+
+    def _fill_caps(self) -> None:
+        """D-1090: each cap that follows the quote takes its suggestion, or is cleared when there is none (an
+        API-endpoint run then needs it typed, as before). The fill blocks the fields' signals, so it never counts as
+        typed; the form is then re-gated (and re-estimated only if the estimate's own arguments changed)."""
+        if not self._caps_shown():
+            self._show_caps()
             return
-        self.max_cost.setValue(float((upper * 100).to_integral_value(rounding=ROUND_CEILING) / 100))
+        e = self._caps_estimate()
+        caps = e.quote.caps if e is not None and e.quote is not None else None
+        if e is None:  # pending: an estimate of this selection is on its way
+            self._show_caps()
+            return
+        before = self._estimate_argv_or_none()
+        changed = False
+        targets: dict[str, float | None] = {
+            COST: float(caps.max_cost_usd) if caps is not None and caps.available and caps.max_cost_usd else None,
+            CALLS: float(caps.max_calls) if caps is not None and caps.available and caps.max_calls else None}
+        for which, field in self.cap_fields.items():
+            if self._cap_typed[which]:
+                continue
+            value = targets[which]
+            target = field.minimum() if value is None else value
+            if field.value() != target:
+                field.blockSignals(True)
+                field.setValue(target)  # type: ignore[arg-type]
+                field.blockSignals(False)
+                changed = True
+        self._show_caps()
+        if changed:
+            after = self._estimate_argv_or_none()
+            if after is not None and after == before == self._estimate_for:
+                self._gate()
+            else:  # the estimate's own arguments changed (a reset cap, or typed prices passed with the cost cap)
+                self._changed()
+        elif self.current_estimate() is None and self._estimate_for is not None:
+            self._changed()  # a reset left the estimate's arguments changed: ask again
+
+    def _estimate_argv_or_none(self) -> tuple[str, ...] | None:
+        try:
+            return self._estimate_argv()
+        except FormError:
+            return None
+
+    def _show_caps(self) -> None:
+        """Each cap row's caption, tooltip and reset link (the words: :mod:`agentprov_gui.live.capsfill`)."""
+        e = self._caps_estimate()
+        caps = e.quote.caps if e is not None and e.quote is not None else None
+        basis = e.quote.basis if e is not None and e.quote is not None else None
+        for which, row in self.cap_rows.items():
+            typed = self._cap_typed[which]
+            words = cap_text(which, caps, basis, typed=typed, pending=e is None)
+            row.set_caption(words.caption)
+            for widget in dict.fromkeys((row.label, self.cap_fields[which])):
+                set_help_tooltip(widget, words.tooltip)  # the row's setting-tip gate stays installed
+            self.cap_resets[which].setVisible(typed and caps is not None and caps.available)
 
     def show_plan(self) -> None:
         """The estimate's breakdown by suite and attack (the CLI's lines), in a window of its own."""
@@ -1429,37 +2039,62 @@ class RunLiveDialog(QDialog):
 
             submit(self, work, self._catalogue_loaded, lambda code: self.cat_label.set_plain(f"Catalogue: {code}"))
 
+    def _catalogue_cache(self) -> dict[tuple[str, ...], Any]:
+        """The manager's per-process catalogue cache (a manager without one: a fresh dict, nothing kept)."""
+        cache = getattr(self.manager, "catalogue_cache", None)
+        return cache if isinstance(cache, dict) else {}
+
     def _catalogue_loaded(self, result: tuple[str, int, bytes, bytes]) -> None:
         source, code, out, err = result
         backend = next((b.backend for b in self.backends if b.source == source), source)
         text = err.decode("utf-8", "replace")
+        shown = self.catalogues.get(source)
+        entry: Catalogue | InspectCatalogue | str
         if code != 0:
             if code == 3 and "not built" in text:
-                self.catalogues[source] = NOT_BUILT.format(backend=backend)
+                entry = NOT_BUILT.format(backend=backend)
             else:
                 tail = T.line(text.strip().splitlines()[-1] if text.strip() else "", 300)
-                self.catalogues[source] = f"catalogue unavailable (exit {code}): {tail}"
+                entry = f"catalogue unavailable (exit {code}): {tail}"
         else:
             try:
-                self.catalogues[source] = parse_catalogue(out)
+                entry = parse_any_catalogue(out)  # D-1120: an Inspect backend's catalogue too
             except PlanError as exc:
-                self.catalogues[source] = f"catalogue unusable: {exc}"
+                entry = f"catalogue unusable: {exc}"
+            if not isinstance(entry, str) and isinstance(entry, InspectCatalogue) != is_inspect(backend):
+                # the kind is the backend id's: a catalogue of the other kind is never shown
+                entry = ("catalogue unusable: not an Inspect catalogue" if is_inspect(backend) else
+                         "catalogue unusable: an Inspect catalogue for an AgentDojo-family backend")
+        self.catalogues[source] = entry
+        key = (*self.manager.cli.program, source)
+        if isinstance(entry, Catalogue | InspectCatalogue):
+            self._catalogue_cache()[key] = entry
+        else:
+            self._catalogue_cache().pop(key, None)  # a backend that stopped answering is never shown from the cache
         i = self.source.findData(source)
         if i >= 0:
-            entry = self.catalogues[source]
-            self.source.setItemText(i, T.line(source, 40) + ("" if isinstance(entry, Catalogue)
+            self.source.setItemText(i, T.line(source, 40) + ("" if not isinstance(entry, str)
                                                               else f"  ({T.line(entry, 200)})"))
-        if source == self.backend():
-            self._show_catalogue()
+        if source != self.backend() or entry == shown:
+            return  # the same catalogue as shown (from the cache): nothing is redrawn, the ticks stay
+        if isinstance(shown, Catalogue) and self.catalogue is not None:
+            self._wanted = (set(self.suites.checked()), set(self.attacks.checked()))  # keep what was ticked meanwhile
+        self._show_catalogue()
 
     def _show_catalogue(self) -> None:
         self._show_status()
         entry = self.catalogues.get(self.backend())
+        if self.inspect_mode():
+            self._show_inspect(entry)
+            return
+        self.inspect_catalogue = None
         if not isinstance(entry, Catalogue):
             self.catalogue = None
-            self.cat_label.set_plain("Catalogue: " + (T.line(entry, 300) if entry else "loading…"))
-            self.suites.set_choices([])
-            self.attacks.set_choices([])
+            self.cat_label.set_plain("Catalogue: " + (T.line(entry, 300) if isinstance(entry, str) and entry
+                                                      else "loading…"))
+            none = "None: the catalogue is unavailable (the line above says why)."
+            self.suites.set_choices([], empty=none if entry else "Loading the suites from the backend…")
+            self.attacks.set_choices([], empty=none if entry else "Loading the attacks…")
             self.includes.set_plain("")
             self._changed()
             return
@@ -1635,18 +2270,48 @@ class RunLiveDialog(QDialog):
         if confirmed is None:
             return
         self.build_priors_btn.setEnabled(False)
+        self._priors_working(True)
         self._priors_line("Building cost figures from your sealed corpora (agentprov priors build)…")
 
         def started(job_id: str) -> None:
-            self._watch_job(job_id, self._priors_built)
+            self._watch_job(job_id, self._priors_built, progress=self._priors_progress)
 
         def refused(code: str) -> None:
             self.build_priors_btn.setEnabled(True)
+            self._priors_working(False)
             self._priors_line(f"Not started: {T.line(code, 200)}")
 
         submit(self, lambda _s: self.manager.spawn(confirmed).job_id, started, refused)
 
+    def _priors_working(self, on: bool) -> None:
+        """The spinner and the bar while the build runs (the bar moves without a total until it has one)."""
+        if on:
+            self.priors_spinner.start()
+            self.priors_bar.setRange(0, 0)
+        else:
+            self.priors_spinner.stop()
+        self.priors_bar.setVisible(on)
+
+    def _priors_progress(self, done: int, total: int | None, left: tuple[float, float] | None) -> None:
+        """One tick of the running build: batches read of the total and, once known, about how long is left."""
+        if not total:
+            self._priors_line("Building cost figures from your sealed corpora: counting the executions…")
+            return
+        self.priors_bar.setRange(0, total)
+        self.priors_bar.setValue(min(done, total))
+        when = ""
+        if left is not None:
+            low, high = left
+            when = f" · about {human_duration((low + high) / 2)} left"
+            if high - low >= 60:
+                when += f" ({human_duration(low)} to {human_duration(high)})"
+        elif done:
+            when = " · working out the time left…"
+        self._priors_line(f"Building cost figures: {min(done, total):,} of {total:,} batches of 32 executions read "
+                          f"({100 * min(done, total) // total} %){when}")
+
     def _priors_built(self, code: int | None, reason: str) -> None:
+        self._priors_working(False)
         self.build_priors_btn.setEnabled(True)
         if code == 0:
             self._priors_line("Cost figures built from your sealed corpora; the quote is asked again.")
@@ -1658,30 +2323,63 @@ class RunLiveDialog(QDialog):
         self.priors_status.set_plain(text)
         self.priors_status.setVisible(bool(text))
 
-    def _watch_job(self, job_id: str, ended: Callable[[int | None, str], None]) -> None:
+    def _watch_job(self, job_id: str, ended: Callable[[int | None, str], None], *,
+                   progress: Callable[[int, int | None, tuple[float, float] | None], None] | None = None) -> None:
         """Once a second until the job ends: then ``ended(exit code, the stderr's last line)``. The job list is refreshed
         on the UI thread and only the stderr tail read in the pool (AU-NG-2, as :meth:`_poll_refresh`); a closed dialog
-        stops following."""
+        stops following. With ``progress``, the job's ``progress.jsonl`` is folded in the pool too and each tick of a
+        running job hands ``progress(done, total, time left (low, high) or None)`` to the UI thread."""
         timer = QTimer(self)
         timer.setInterval(1000)
         busy = [False]
         holder: list[Job | None] = [None]
+        fold: list[tuple[TailReader, ProgressState, Rates] | None] = [None]
+        first: list[tuple[float, int] | None] = [None]  # (time, done) of the first reading with a total
 
-        def work(_s: object) -> tuple[str, int | None, str]:
+        def seen(job: Job) -> tuple[int, int | None, tuple[float, float] | None]:
+            state = fold[0]
+            if state is None:
+                state = fold[0] = (TailReader(job.file("progress.jsonl")), ProgressState(), Rates())
+            reader, st, rates = state
+            for ev in reader.read():
+                st.apply(ev)
+            now = time.monotonic()
+            rates.update(now, st.done)
+            left = rates.eta(now, st.done, st.total)
+            if st.total and first[0] is None:
+                first[0] = (now, st.done)
+            if left is None and st.total and first[0] is not None and st.done < st.total:
+                began, done0 = first[0]
+                if st.done - done0 >= 3 and now - began >= 5:  # early: the mean rate since then, until Rates has one
+                    rest = (st.total - st.done) * (now - began) / (st.done - done0)
+                    left = (rest * 0.8, rest * 1.25)
+            return st.done, st.total, left
+
+        def work(_s: object) -> tuple[str, int | None, str, tuple[int, int | None, tuple[float, float] | None] | None]:
             job = holder[0]
             if job is None:
-                return "ended", None, "the job is no longer listed"
+                return "ended", None, "the job is no longer listed", None
             reason = ""
             if job.state != "running" and job.exit_code != 0:
                 try:
                     reason = last_line(job.file("stderr.txt").read_bytes()[-8192:])
                 except OSError:
                     reason = ""
-            return job.state, job.exit_code, reason
+            counts = None
+            if progress is not None and job.state == "running":
+                try:
+                    counts = seen(job)
+                except OSError:
+                    counts = None
+            if job.state != "running" and fold[0] is not None:
+                fold[0][0].close()
+            return job.state, job.exit_code, reason, counts
 
-        def done(result: tuple[str, int | None, str]) -> None:
+        def done(result: tuple[str, int | None, str, tuple[int, int | None, tuple[float, float] | None] | None]) -> None:
             busy[0] = False
-            state, code, reason = result
+            state, code, reason, counts = result
+            if counts is not None and progress is not None and state == "running" and not self._closed:
+                progress(*counts)
             if state != "running" and timer.isActive():
                 timer.stop()
                 timer.deleteLater()
@@ -1725,6 +2423,14 @@ class RunLiveDialog(QDialog):
         names = key_names(ep.api_key_env if ep else None, optional=bool(ep and ep.local))
         real_ok = (not self.scripted and status not in GATED and status is not None
                    and all(self.keys_present.get(n) for n in names))
+        # D-1090: a cap that follows the quote is the quote's own output, so the estimate is asked without it (else
+        # every fill would ask again); a typed cap is passed, for the estimate's warnings, and typed prices go with
+        # the cost cap (the CLI takes them only with --max-cost-usd), so the suggestion is priced at them
+        drop = {"max_calls"} if not self._cap_typed[CALLS] else set()
+        if not self._cap_typed[COST] and not self._prices_typed:
+            drop |= {"max_cost_usd", "price_in", "price_out"}
+        if drop:
+            s = replace(s, extra={k: v for k, v in s.extra.items() if k not in drop})
         return estimate_argv(s, real_allowed=real_ok, stats_corpora=self.opened)
 
     def current_estimate(self) -> EstimateView | None:
@@ -1742,15 +2448,23 @@ class RunLiveDialog(QDialog):
         self._dry_seq += 1  # AU-GUI-6: an estimate (or its failure) still in flight is dropped when it lands
         self.estimate_result = self._estimate_for = None
         self.headline.set_plain(headline)
+        # the plan window says why it has no plan, never an earlier selection's plan or nothing at all
+        self._plan_note("No plan yet: " + _why(headline))
         self._gate()
+        self._show_caps()
+
+    def _plan_note(self, text: str) -> None:
+        self.details.setPlainText(T.line(text, 600))
 
     def refresh_estimate(self) -> None:
         if self._closed:
             return
         s = self.settings()
-        if not s.suites or not self.manager.cli.available:
-            self.details.setPlainText("")
-            self._no_estimate("Estimate: tick a suite (and attacks) to see the cost.")
+        waiting = (self._inspect_reason(s) if self.inspect_mode() else
+                   None if s.suites else "tick a suite (and attacks) to see the cost.")
+        if waiting is not None or not self.manager.cli.available:
+            text = waiting or "tick a suite (and attacks) to see the cost."
+            self._no_estimate(f"Estimate: {text[0].lower() + text[1:]}")
             return
         try:
             argv = self._estimate_argv()
@@ -1760,6 +2474,7 @@ class RunLiveDialog(QDialog):
         self._dry_seq += 1
         seq = self._dry_seq
         self.headline.set_plain("Estimate: planning and pricing the cells (agentprov estimate)…")
+        self._plan_note("No plan yet: agentprov estimate is planning and pricing this selection…")
 
         def work(_s: object) -> tuple[int, tuple[str, ...], int, bytes, bytes]:
             return (seq, argv, *self.run(self.manager, list(argv), timeout=600))  # --keychain: the CLI reads it
@@ -1785,6 +2500,7 @@ class RunLiveDialog(QDialog):
             return
         self._estimate_for = argv
         self.show_estimate()
+        self._fill_caps()
 
     def show_estimate(self) -> None:
         e = self.estimate_result
@@ -1792,7 +2508,12 @@ class RunLiveDialog(QDialog):
             return
         self._gate()
         self.headline.set_plain(T.line(e.text[0] if e.text else "", 600))
-        self.details.setPlainText("\n".join(T.line(x, 600) for x in e.text[1:]))
+        lines = "\n".join(T.line(x, 600) for x in e.text[1:])
+        if lines.strip():
+            self.details.setPlainText(lines)
+        else:
+            self._plan_note("agentprov estimate gave no breakdown for this selection, only its headline: "
+                            + (e.text[0] if e.text else "none"))
 
     # ------------------------------------------------------------------------------------------ actions
     def tune(self) -> None:
@@ -1827,6 +2548,14 @@ class RunLiveDialog(QDialog):
         box.setWindowTitle("Concurrency plan")
         box.setAccessibleName("Concurrency plan")
         lay = QVBoxLayout(box)
+        if code != 0 and "[run.model.facts_missing]" in text:
+            model = T.line(s.model_id, 120) if s.model_id else "this model"
+            why = SafeLabel(f"agentprov does not know the weight size of {model}, so it cannot plan the concurrency. "
+                            "Set the model's folder in Settings › Local models (Tune… reads it from there), or give "
+                            "its folder or weight size under Advanced, then choose Tune… again.",
+                            name="Why the plan failed", parent=box)
+            why.setWordWrap(True)
+            lay.addWidget(why)
         pane = ReadOnlyText(name="Concurrency plan output", parent=box)
         pane.setPlainText(f"exit {code}\n{text}")
         lay.addWidget(pane)
@@ -1964,7 +2693,69 @@ _DIALOG_KEYS: Final = frozenset({
     "source", "corpus", "campaign", "suite", "benchmark_version", "user_tasks", "attack", "injection_tasks", "benign",
     "model", "model_id", "llm_script", "repeats", "max_attempts", "canary", "cell_timeout", "jobs", "start_stagger",
     "retry_inconsistent", "containment",
-    "dry_run", "preflight_only", "max_tokens", "max_calls", "max_cost_usd", "price_in", "price_out"})
+    "dry_run", "preflight_only", "max_tokens", "max_calls", "max_cost_usd", "price_in", "price_out",
+    # D-1120: the Inspect rows set the Inspect plan's options
+    "task", "task_param", "samples", "epochs", "message_limit", "token_limit", "time_limit", "max_connections",
+    "cell_size", "judge"})
+#: the AgentDojo cell options under Advanced that an Inspect plan refuses (``cli/run.py`` ``_CELL_OPTIONS``)
+_CELL_ONLY_KEYS: Final = frozenset({"defence"})
+#: an option the user may have left from an earlier run (the preset's own text), read as ``--task-param`` reads it
+_PARAM_TEXT: Final = re.compile(r"([A-Za-z_][A-Za-z0-9_]{0,63})=(.*)")
+
+
+def _why(headline: str) -> str:
+    """The summary's ``Estimate: …`` headline as the plan window's reason (its first letter lower case)."""
+    text = headline.removeprefix("Estimate:").strip() or "the estimate has not run yet."
+    return text[0].lower() + text[1:]
+
+
+def _same(a: Any, b: Any) -> bool:
+    """Equal and of one type (``True == 1`` in Python; a parameter's value never is its default by that)."""
+    return type(a) is type(b) and a == b
+
+
+def _value_text(value: Any) -> str:
+    if value is None:
+        return "not set"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _param_tip(p: InspectParam) -> str:
+    kind = {"str": "text", "int": "a whole number", "bool|null": "true, false or not set"}.get(p.type, p.type)
+    bounds = ""
+    if p.type == "int" and (p.minimum is not None or p.maximum is not None):
+        bounds = f", from {p.minimum if p.minimum is not None else 0:,} to {p.maximum if p.maximum is not None else MAX_PARAM_INT:,}"
+    choices = f"; one of {', '.join(_value_text(c) for c in p.choices)}" if p.choices else ""
+    return (f"The task parameter {p.name} (--task-param {p.name}=VALUE): {kind}{bounds}{choices}. Left at its default "
+            f"({default_text(p)}), it is not passed.")
+
+
+def _preset_params(value: Any) -> dict[str, str | int | bool | None]:
+    """A preset's ``--task-param`` texts as values, read as the CLI reads them (a TOML scalar, else the text)."""
+    out: dict[str, str | int | bool | None] = {}
+    for item in value if isinstance(value, list | tuple) else ():
+        match = _PARAM_TEXT.fullmatch(str(item))
+        if match is None:
+            continue
+        name, raw = match.groups()
+        try:
+            parsed = tomllib.loads(f"v = {raw}")["v"]
+        except tomllib.TOMLDecodeError:
+            parsed = raw
+        if isinstance(parsed, str | int | bool) and not isinstance(parsed, float):
+            out[name] = parsed
+    return out
+
+
+def _preset_judges(value: Any) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in value if isinstance(value, list | tuple) else ():
+        role, sep, model = str(item).partition("=")
+        if sep and role and model:
+            out[role] = model
+    return out
 
 
 def _seconds(value: Any) -> float | None:

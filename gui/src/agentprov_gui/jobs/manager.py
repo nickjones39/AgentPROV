@@ -57,6 +57,10 @@ __all__ = [
 ]
 
 JOB_FORMAT: Final = "agentprov-gui-job/0.1"
+#: the commands that find the repository from their cwd (M.4), started in the checkout: the core's
+#: ``agentprov.jobs.tiers.REPO_COMMANDS``, copied because D-391 keeps that module out of the GUI's imports (a test pins
+#: the two equal)
+REPO_COMMANDS: Final = frozenset({"run", "backends", "migrate"})
 ENV_ALLOWLIST: Final = ("PATH", "HOME", "LANG", "TZ", "AGENTPROV_HOME", "AGENTPROV_UPSTREAM_CACHE",
                         "AGENTPROV_BASELINE_CORPUS", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot", "TMPDIR",
                         "AGENTPROV_JOB_CPU_BUDGET", "AGENTPROV_JOB_MEM_GIB_BUDGET", "AGENTPROV_SUITE_QUEUE_DIR")
@@ -223,6 +227,16 @@ class CliLocator:
             return f"the checkout's CLI ({'uv run' if len(self.program) > 1 else self.program[0]})"
         return f"the installed agentprov ({self.program[0]})"
 
+    def cwd_for(self, argv: Sequence[str]) -> str | None:
+        """The working directory of a short call of ``agentprov ARGV``: the checkout for a command that finds the
+        repository from its cwd (``run``, ``backends``, ``migrate``: :data:`agentprov.jobs.tiers.REPO_COMMANDS`, M.4),
+        as the core's job manager starts such a job; ``None`` (the GUI's own cwd) for every other command. An app
+        opened from the Finder runs with cwd ``/``, where ``run --catalogue`` exited 3 with
+        ``backend.repository_missing`` and Run Live showed no suites or attacks."""
+        if self.checkout is None or not argv or argv[0] not in REPO_COMMANDS:
+            return None
+        return str(self.checkout)
+
 
 # ----------------------------------------------------------------------------------------------- jobs
 @dataclass(slots=True)
@@ -318,6 +332,9 @@ class JobManager:
         self.cli = cli
         self.environ = dict(os.environ if environ is None else environ)
         self.jobs: dict[str, Job] = {}
+        #: Run Live's last good ``run --catalogue`` per (CLI program..., source), for this process only: a reopened
+        #: Run Live shows it at once while the 2-second call checks it again (never written to disk)
+        self.catalogue_cache: dict[tuple[str, ...], Any] = {}
 
     # ------------------------------------------------------------------------------------------ the CLI
     def child_env(self) -> dict[str, str]:
@@ -333,7 +350,7 @@ class JobManager:
             done = subprocess.run(  # noqa: S603 - the configured CLI and a fixed argv
                 [*self.cli.program, *argv[:2], "--progress", "off", "--no-colour", *argv[2:]], input=stdin,
                 capture_output=True, timeout=timeout, check=False, env=self.child_env(),
-                stdin=None if stdin is not None else subprocess.DEVNULL)
+                stdin=None if stdin is not None else subprocess.DEVNULL, cwd=self.cli.cwd_for(argv))
         except (OSError, ValueError, subprocess.TimeoutExpired) as exc:  # ValueError: a NUL or a lone surrogate
             return 124, b"", type(exc).__name__.encode()
         return done.returncode, done.stdout[: 64 * 1024 * 1024], done.stderr[-8192:]

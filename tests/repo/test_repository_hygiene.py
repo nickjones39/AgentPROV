@@ -252,9 +252,22 @@ def test_ci_runner_variable_never_moves_the_windows_leg() -> None:
         for os_ in {leg["os"] for leg in legs}:
             shards = sorted((leg["shard"], leg["shards"]) for leg in legs if leg["os"] == os_)
             assert shards == [(i, len(shards)) for i in range(1, len(shards) + 1)], (os_, shards)
+    # D-1100 (doubling D-1020's 4, 3, 2 and 2): the shards of each leg
+    assert {leg["os"]: leg["shards"] for leg in self_hosted} == {"self-hosted": 1, "windows-latest": 8}
+    assert {leg["os"]: leg["shards"] for leg in hosted} == {"ubuntu-latest": 6, "ubuntu-24.04-arm": 4,
+                                                           "macos-latest": 4, "windows-latest": 8}
+    # D-1110: Windows, the slowest leg, first, so it is the first to get runners when the job limit queues the rest
+    assert {leg["os"] for leg in hosted[:8]} == {"windows-latest"}
     steps = [step for step in core["steps"] if "pytest" in str(step.get("run", ""))]
     assert [step.get("env") for step in steps] == [{"AGENTPROV_SHARD": "${{ matrix.shard }}",
-                                                    "AGENTPROV_SHARDS": "${{ matrix.shards }}"}]
+                                                    "AGENTPROV_SHARDS": "${{ matrix.shards }}",
+                                                    "AGENTPROV_SHARD_PROFILE": "${{ runner.os }}-${{ runner.arch }}"}]
+    # D-1110: every logical CPU (-n auto counts physical cores under psutil: one on a 2-vCPU x64 runner), and every
+    # test timed, the input of tools/slow_tests.py --shard-seconds
+    assert " -n logical " in steps[0]["run"] and " --durations=0 " in steps[0]["run"], steps[0]["run"]
+    by_name = {step.get("name"): step for step in core["steps"]}
+    for name in ("Unicode control-character check", "Lint"):  # checks of the checkout: once per leg
+        assert by_name[name].get("if") == "matrix.shard == 1", name
     for job, spec in jobs.items():
         if job != "core":
             assert spec["runs-on"] == f"${{{{ (vars.CI_RUNNER && {NOT_A_FORK}) && vars.CI_RUNNER || 'ubuntu-latest' }}}}", job

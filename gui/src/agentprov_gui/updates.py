@@ -14,6 +14,11 @@ command, or an answer that is not the document, gives ``None`` and the reason, n
   after the user's confirmation; without a bundle (the app runs from a checkout or a package install),
   ``update install --format json`` only prints the upgrade command, which the app shows instead.
 
+The check's ``behind`` flags say which part is older than the newest release (D-1070): the app itself, or only the
+``agentprov`` program it runs (the configured checkout or package install, :attr:`Check.cli_only`). Replacing the
+bundle cannot update that program, so for ``cli_only`` the app shows its upgrade command (``update install --format
+json``, no ``--bundle``) and never downloads a bundle.
+
 Every text the CLI returns is shown as plain, escaped text (S1, S3): :func:`agentprov_gui.text.clean` per line.
 """
 
@@ -179,11 +184,19 @@ class Check:
     signed: bool  # the release publishes SHA256SUMS.sig
     auto_check: bool
     check_due: bool | None
+    behind_core: bool | None = None  # the agentprov program the app runs is older than the newest release
+    behind_gui: bool | None = None  # this app is older than it (None: not compared)
 
     @property
     def release(self) -> str | None:
         """The newest release as ``X.Y.Z`` (the form the setting ``update.last_notified`` holds), else ``None``."""
         return self.latest if self.latest is not None and _RELEASE.fullmatch(self.latest) else None
+
+    @property
+    def cli_only(self) -> bool:
+        """Only the ``agentprov`` program the app runs is behind, not the app (D-1070): installing the app's bundle
+        would not change that program, so its upgrade command is shown instead."""
+        return self.behind_core is True and self.behind_gui is not True
 
 
 def parse_check(code: int, out: bytes) -> Check | None:
@@ -193,6 +206,7 @@ def parse_check(code: int, out: bytes) -> Check | None:
     if doc is None:
         return None
     current = _obj(doc.get("current"))
+    behind = _obj(doc.get("behind"))
     assets = _seq(doc.get("assets"))
     asset = _obj(assets[0] if assets else None)
     return Check(_text(doc.get("checked_at"), 40), doc.get("fetched") is True, _text(current.get("core"), 40),
@@ -200,7 +214,7 @@ def parse_check(code: int, out: bytes) -> Check | None:
                  _text(doc.get("published_at"), 40), notes_text(doc.get("notes")), doc.get("notes_truncated") is True,
                  _text(doc.get("platform"), 40), _text(asset.get("name"), 200), _int(asset.get("size")),
                  isinstance(doc.get("signature_asset"), dict), doc.get("auto_check") is not False,
-                 _flag(doc.get("check_due")))
+                 _flag(doc.get("check_due")), _flag(behind.get("core")), _flag(behind.get("gui")))
 
 
 def notes_text(value: Any) -> str:

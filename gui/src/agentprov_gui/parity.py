@@ -8,7 +8,8 @@ button and menu action against this registry and the CLI's own parser; anything 
   presentational ones, and the checkout or installed program whose CLI the GUI runs.
 * **Run Live** (the ``run`` dialog): an input whose attribute, or ``more_inputs`` key, is a field of
   ``FORMS["run"]`` is that field's option (forward parity, D-654, checks the option); the others are
-  :data:`RUN_LIVE_INPUTS` (the ``run`` option they decide). A read-only widget only shows a value.
+  :data:`RUN_LIVE_INPUTS` (the ``run`` option they decide; ``name.*`` covers every key of a dict attribute whose rows
+  come from the backend's catalogue). A read-only widget only shows a value.
 * **Actions** (buttons and menu actions, by accessible name, else text): a ``FORMS`` title is that form's command;
   the others are :data:`ACTIONS` (the command the action runs), :data:`PRESENTATIONAL` (navigation or a view of
   data the named command also shows, with its reason) or :data:`OUTSIDE_CLI` (D-880: the draft-only Zenodo uploader,
@@ -46,6 +47,18 @@ RUN_LIVE_INPUTS: Final[dict[str, tuple[str, str]]] = {
     "conformance": ("--skip-prov-conformance", "unticked adds it (design §8.3a)"),
     "scope": ("--suite", "the full benchmark gives every suite and every attack that can be chosen (--suite, --attack), "
                          "as ticking them all does (D-1060)"),
+    # D-1120: an Inspect backend's rows (``name.*``: a row per catalogue parameter or judge role)
+    "sample_mode": ("--samples", "limit:N (the first N of the split) or the ids"),
+    "sample_count": ("--samples", "--samples limit:N"),
+    "sample_ids": ("--samples", "--samples ID,ID…"),
+    "limit_inputs.message_limit": ("--message-limit", "the per-sample message limit"),
+    "limit_inputs.token_limit": ("--token-limit", "the per-sample token limit"),
+    "limit_inputs.time_limit": ("--time-limit", "the per-sample time limit"),
+    "cell_inputs.epochs": ("--epochs", "epochs per sample"),
+    "cell_inputs.max_connections": ("--max-connections", "concurrent model calls of one cell"),
+    "cell_inputs.cell_size": ("--cell-size", "samples per cell"),
+    "param_widgets.*": ("--task-param", "one --task-param NAME=VALUE per parameter not at its default"),
+    "judge_inputs.*": ("--judge", "one --judge ROLE=MODEL per judge role (blank: the agent's model)"),
 }
 
 #: buttons and menu actions, by accessible name (else text): the command each runs
@@ -130,8 +143,13 @@ PRESENTATIONAL: Final[dict[str, str]] = {
     # D-1060: the form style's presentational controls in Run Live
     "Show task selection and repeats": "presentational: shows the task selection and repeats of run",
     "Show the plan by suite": "a view of agentprov estimate's breakdown by suite and attack (the same command's lines)",
+    # D-1120: an Inspect backend's
+    "Show the plan": "a view of agentprov estimate's breakdown of an Inspect plan (the same command's lines)",
+    "Show epochs, concurrency and cell size": "presentational: shows the epochs, concurrency and cell size of run",
     "Copy the terminal command": "copies the agentprov estimate and agentprov run commands the dialog shows",
-    "Fill the cost cap from the quote's upper figure": "fills --max-cost-usd from agentprov estimate's p90 cost",
+    # D-1090: the caps follow agentprov estimate's suggested caps (quote.caps) until typed; these put them back
+    "Fill the cost cap from the quote": "fills --max-cost-usd from agentprov estimate's suggested caps (quote.caps)",
+    "Fill the call cap from the quote": "fills --max-calls from agentprov estimate's suggested caps (quote.caps)",
     "Choose the script file": "a file picker: fills the script field (--llm-script)",
     "Choose the working corpus folder": "a folder picker: fills the working corpus field (--corpus)",
     # D-1060: the Package page's presentational controls

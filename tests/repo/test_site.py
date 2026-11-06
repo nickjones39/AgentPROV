@@ -26,7 +26,7 @@ RELEASES = "https://github.com/nickjones39/AgentPROV/releases/latest/download/"
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 SERIES = ".".join(VERSION.split(".")[:2])
 #: The release assets (docs/reports/release/v0.1.0-plan.md: the bundles, F-5's source archive, the signed sums; D-1011
-#: adds the macOS Intel bundle in v0.1.1; v0.2.0-plan.md names the 0.2.0 archive).
+#: adds the macOS Intel bundle in v0.1.1; v0.2.1-plan.md names the 0.2.1 archive).
 ASSETS = {
     "AgentPROV-macos-arm64.dmg",
     "AgentPROV-macos-x86_64.dmg",
@@ -34,7 +34,7 @@ ASSETS = {
     "AgentPROV-windows-arm64.zip",
     "AgentPROV-linux-x86_64.tar.gz",
     "AgentPROV-linux-aarch64.tar.gz",
-    "AgentPROV-0.2.0-source.tar.gz",
+    "AgentPROV-0.2.1-source.tar.gz",
     "SHA256SUMS",
     "SHA256SUMS.sig",
 }
@@ -156,7 +156,7 @@ def test_the_brand_files_are_the_brand_sources() -> None:
 
 
 def test_the_downloads_are_the_release_assets() -> None:
-    plan = (ROOT / "docs" / "reports" / "release" / "v0.2.0-plan.md").read_text(encoding="utf-8")
+    plan = (ROOT / "docs" / "reports" / "release" / "v0.2.1-plan.md").read_text(encoding="utf-8")
     links = {attrs["data-asset"]: attrs.get("href") for _, attrs in _page().tags if attrs.get("data-asset")}
     assert set(links) == ASSETS
     for asset, href in links.items():

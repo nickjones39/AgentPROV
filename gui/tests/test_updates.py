@@ -33,10 +33,12 @@ def wait(app: Any, cond: Any, timeout: float = 30) -> None:
 
 def check_doc(*, latest: str | None = "0.3.0", available: bool | None = True, notes: str = "Fixes.\nNew things.",
               checked: str | None = "2026-11-05T01:02:03Z", auto: bool = True, fmt: str = "agentprov-update-check/0.1",
-              asset: bool = True, signed: bool = False) -> bytes:
+              asset: bool = True, signed: bool = False, behind: dict[str, Any] | None = None,
+              current: dict[str, Any] | None = None) -> bytes:
     doc = {"format": fmt, "repository": "nickjones39/AgentPROV", "checked_at": checked, "fetched": True,
-           "current": {"core": "0.1.1", "gui": "0.1.1"}, "latest": latest, "tag": f"v{latest}" if latest else None,
-           "update_available": available, "behind": {"core": available, "gui": available},
+           "current": current or {"core": "0.1.1", "gui": "0.1.1"}, "latest": latest,
+           "tag": f"v{latest}" if latest else None, "update_available": available,
+           "behind": {"core": available, "gui": available} if behind is None else behind,
            "published_at": "2026-11-04T22:00:00Z", "release_url": "https://github.com/x/y", "notes": notes,
            "notes_truncated": False, "platform": "macos-arm64",
            "assets": [{"name": "AgentPROV-0.3.0-macos-arm64.dmg", "size": 123, "url": "u"}] if asset else [],
@@ -157,6 +159,30 @@ def test_the_notice_rules() -> None:
     assert not U.notify(U.parse_check(0, check_doc(available=False)), None)
     assert not U.notify(U.parse_check(0, check_doc(available=None)), None)  # not comparable
     assert not U.notify(None, None)
+    assert U.notify(U.parse_check(0, check_doc(behind=CLI_ONLY)), None)  # still told, as a CLI upgrade (D-1070)
+
+
+#: the 2026-11-06 case: the app is current, the agentprov program it runs (a stale checkout .venv) is not
+CLI_ONLY: dict[str, Any] = {"core": True, "gui": False}
+CLI_ONLY_CURRENT: dict[str, Any] = {"core": "0.1.1", "gui": "0.3.0"}
+
+
+def test_the_behind_flags_say_which_part_is_old() -> None:
+    from agentprov_gui import updates as U
+
+    both = U.parse_check(0, check_doc())
+    assert both is not None and both.behind_core is True and both.behind_gui is True and not both.cli_only
+    cli = U.parse_check(0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT))
+    assert cli is not None and cli.cli_only and cli.core == "0.1.1" and cli.gui == "0.3.0"
+    unknown_gui = U.parse_check(0, check_doc(behind={"core": True, "gui": None}))  # no --gui-version compared
+    assert unknown_gui is not None and unknown_gui.cli_only
+    for behind in ({"core": False, "gui": True}, {"core": None, "gui": None}, {"core": "yes", "gui": 1}, {}):
+        got = U.parse_check(0, check_doc(behind=behind))
+        assert got is not None and not got.cli_only  # only a real true core and no true gui count
+    old = json.loads(check_doc())
+    del old["behind"]  # a CLI that does not say: the bundle path as before
+    got = U.parse_check(0, json.dumps(old).encode())
+    assert got is not None and got.behind_core is None and got.behind_gui is None and not got.cli_only
 
 
 def test_the_reason_is_the_cli_s_own_line() -> None:
@@ -282,6 +308,40 @@ def test_without_a_bundle_the_upgrade_command_is_shown_not_run(qapp: Any) -> Non
     dlg.deleteLater()
 
 
+def test_only_the_cli_behind_shows_its_upgrade_command_not_a_bundle_install(qapp: Any) -> None:
+    """D-1070: the app is current and only the agentprov it runs is behind; replacing the bundle would not change that
+    program, so a bundle app shows its upgrade command (no download, no --bundle, no --confirm)."""
+    cli = FakeCli({"update status": (0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT, asset=False), b""),
+                   "update install": (0, install_doc("command"), b"")})
+    c = _controller(qapp, cli, confirm=None)
+    dlg = _about(qapp, c)
+    sec = dlg.updates_section
+    assert not c.bundle_update and sec.install_btn.text() == "Show the Upgrade Command"
+    assert sec.install_btn.accessibleName() == "Show the Upgrade Command" and "Settings › General" in \
+        sec.install_btn.toolTip()
+    assert sec.install_btn.isEnabled()  # no bundle asset needed: nothing is downloaded
+    assert "the agentprov this app runs is out of date" in sec.last.text()
+    shown = [list(argv) for _c, argv in sec.command.commands]
+    assert ["update", "install", "--format", "json"] in shown
+    assert not any("download" in argv or "--confirm" in argv for argv in shown)
+    sec.install_btn.click()
+    wait(qapp, lambda: not c.busy and c.install is not None)
+    assert cli.words() == ["update status", "update install"]  # never update download
+    assert cli.ran[-1] == ["update", "install", "--format", "json"] and not c.asked  # type: ignore[attr-defined]
+    assert "uv tool upgrade agentprov" in sec.result.text()
+    dlg.deleteLater()
+
+
+def test_the_app_behind_still_installs_the_bundle(qapp: Any) -> None:
+    """D-1070 changes nothing when the app itself is behind, whatever the agentprov program is."""
+    for behind in ({"core": True, "gui": True}, {"core": False, "gui": True}):
+        c = _controller(qapp, FakeCli({"update status": (0, check_doc(behind=behind), b"")}))
+        dlg = _about(qapp, c)
+        assert c.bundle_update and dlg.updates_section.install_btn.text() == "Download and Install…"
+        assert "the agentprov this app runs" not in dlg.updates_section.last.text()
+        dlg.deleteLater()
+
+
 def test_no_bundle_for_this_platform_disables_the_install(qapp: Any) -> None:
     c = _controller(qapp, FakeCli({"update status": (0, check_doc(asset=False), b"")}))
     dlg = _about(qapp, c)
@@ -348,6 +408,36 @@ def test_the_notice_and_skip(qapp: Any, monkeypatch: pytest.MonkeyPatch) -> None
     c.skip("0.3.0")
     wait(qapp, lambda: not c.busy)
     assert cli.ran == [["settings", "set", "update.last_notified", "0.3.0"]] and not c.status_line
+
+
+def test_the_notice_when_only_the_cli_is_behind(qapp: Any) -> None:
+    """D-1070: the notice names the current app, the older agentprov program and the newest release, and its primary
+    button shows the upgrade command (choice ``update``: About then takes the command path)."""
+    from agentprov_gui import updates as U
+    from agentprov_gui.ui.safe import SafeLabel
+    from agentprov_gui.ui.updates import UpdateNotice
+    from test_tooltip_coverage import _report, gaps
+
+    check = U.parse_check(0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT))
+    assert check is not None and check.cli_only
+    dlg = UpdateNotice(check)
+    found = gaps(dlg, minimum=3)
+    assert not found, _report(found)
+    texts = [lab.text() for lab in dlg.findChildren(SafeLabel)]
+    assert "The agentprov this app runs is out of date" in texts
+    assert "AgentPROV 0.3.0 is available" not in texts
+    summary = " ".join(texts)
+    for part in ("AgentPROV 0.3.0, which is current", "0.1.1", "Settings › General", "nothing is downloaded"):
+        assert part in summary
+    assert dlg.update_btn.text() == "Show the Upgrade Command" and dlg.update_btn.isDefault()
+    assert "without --bundle" in dlg.update_btn.toolTip()
+    dlg.update_btn.click()
+    assert dlg.choice == "update"
+    plain = UpdateNotice(U.parse_check(0, check_doc()))  # the app behind: unchanged
+    assert plain.update_btn.text() == "Update Now"
+    assert "AgentPROV 0.3.0 is available" in [lab.text() for lab in plain.findChildren(SafeLabel)]
+    dlg.deleteLater()
+    plain.deleteLater()
 
 
 def test_the_main_window_routes_the_notice(qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -22,7 +22,6 @@ from typing import Any, ClassVar, Final
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
-    QComboBox,
     QDialog,
     QHBoxLayout,
     QLineEdit,
@@ -35,7 +34,7 @@ from PySide6.QtWidgets import (
 
 from agentprov_gui import text as T
 from agentprov_gui import zenodo_run
-from agentprov_gui.ui.forms import CommandCard, FormSection, SegmentedControl, heading
+from agentprov_gui.ui.forms import CommandCard, FormSection, FullTextCombo, SegmentedControl, heading
 from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, ask, set_control_tooltip
 from agentprov_gui.ui.settings_panes import CliSettingsPane
 
@@ -86,7 +85,7 @@ class ZenodoPane(CliSettingsPane):
 
     def build(self) -> None:
         form = self.form
-        self.target = QComboBox(self)
+        self.target = FullTextCombo(self)
         self.target.addItems(list(TARGET_LABELS.values()))
         form.add("Target preselected in Create Zenodo drafts (chosen again for every run)", self.target,
                  "Which Zenodo Create Zenodo drafts… preselects: the sandbox (sandbox.zenodo.org, for trials) or "

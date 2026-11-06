@@ -348,14 +348,17 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
     is deselected, so `tools/ci_local.py`'s `core` job (the merge gate) is unchanged.
   - **The seconds list.** `tools/slow_tests.py --shard-seconds <logs>` rewrites `tests/shard_seconds.txt` from the
     `--durations=0` logs of every shard of every leg of one CI run (GitHub's timestamp prefix accepted): a test's
-    seconds are the mean over the logs that time it, so each OS counts once. The committed list comes from trial run
-    41287239414. It goes stale as tests change; that only unbalances the shards, never changes what runs, so it is
+    seconds are the mean over the logs that time it, so each OS counts once (**amended by D-1110 (2026-11-06):** the
+    list may also hold one `[profile]` section per OS, which that OS's shards weigh by). The committed list comes
+    from trial run 41287239414. It goes stale as tests change; that only unbalances the shards, never changes what runs, so it is
     regenerated when a leg's shards drift apart. Weighing by test count alone (the first two trials) left the shards
     of a leg up to 2.2 times apart in test seconds (ubuntu-latest 815, 1394 and 638 s).
   - **Matrix.** `core`'s matrix becomes an `include` list of `{os, shard, shards}`: windows-latest over 4,
     ubuntu-latest over 3, ubuntu-24.04-arm and macos-latest over 2 (11 jobs, free on the public repository). With
     `CI_RUNNER` set it is the self-hosted runner whole (one shard) plus the same four Windows shards, behind the same
     fork guard (UC-46). Job names gain `, i/n`; job ids are unchanged, so `tools/ci_local.py` is too.
+    **Amended by D-1100 (2026-11-06):** each count doubled: windows-latest over 8, ubuntu-latest over 6,
+    ubuntu-24.04-arm and macos-latest over 4 (22 jobs).
   - **Tests.** `tests/unit/testing/test_shards.py`: the variables are parsed and a bad pair refused, and no test sees
     them; the assignment is deterministic, complete and within one unit of the ideal share; the seconds list parses
     and the generator averages over the legs; and, end to end, the shards of the widest leg in `ci.yml` collect
@@ -1087,3 +1090,307 @@ Part of [DECISIONS.md](../DECISIONS.md), which lists every part. Entries keep th
     sealed-corpus concern the corpus layer owns); passing the check as `pass` (a check that did not run never passes);
     leaving it a failure with a better message (the corpus is as sealing made it, and `verify` already accepts it);
     accepting any absent object in a sealed corpus (it would hide a deleted object, the SEC-15 row).
+- **D-1070 (2026-11-06, the update notice tells an out-of-date `agentprov` program apart from an out-of-date app:
+  only then is the app's bundle offered; the user's report and yes of 2026-11-06; GUI `updates.py`, `ui/updates.py`,
+  tests and docs; class 0).** The desktop app runs the `agentprov` program of the configured checkout or package
+  install (Settings › General), and `update check` compares both it (`behind.core`) and the app (`behind.gui`) with the
+  newest release (D-1065); `update_available` is true when either is behind. The app read only `update_available`, so
+  a current app whose program was older announced "AgentPROV X.Y.Z is available" at every start and offered Update
+  Now, which downloads and installs the bundle: that cannot change the program, so the notice came back at the next
+  start. It happened on the maintainer's machine after the 0.2.0 release: the installed 0.2.0 app ran the main
+  checkout's `.venv`, whose editable install still carried the 0.1.1 metadata (`core` 0.1.1, `gui` 0.2.0).
+  - **Decision.** The app reads `behind` (`Check.behind_core`, `Check.behind_gui`; a value that is not a boolean is
+    unknown). When `behind.core` is true and `behind.gui` is not (`Check.cli_only`), only the program is out of date:
+    the start-up notice is titled "The agentprov this app runs is out of date", names the app's version (current), the
+    program's and the newest release, says that updating the app would not change the program and that Settings ›
+    General names it, and its primary button is **Show the Upgrade Command**. About's button becomes Show the Upgrade
+    Command too, and both run `agentprov update install --format json` without `--bundle` (D-1065's path for an app
+    that is not a bundle), which prints that program's upgrade command (`git pull`, then `uv sync --frozen` for a
+    checkout; `uv tool upgrade`, `pipx upgrade` or `pip install --upgrade` for a package install) for the user to
+    run. Nothing is downloaded or installed in that case. When the app is behind, whatever the program, nothing
+    changes: Update Now and Download and Install… as before. The notice is still shown once per release, and Skip This
+    Version still records it. A CLI whose document has no `behind` gives the old behaviour.
+  - **Digest effect:** none. The GUI is outside every stage scope and the CLI is unchanged; no corpus, AER, SEM, PROV
+    or validation digest moves.
+  - **Rejected:** comparing only the app's version (an out-of-date program would never be reported, and the program
+    is what imports, derives and seals); not announcing a program-only gap (the user would not learn that the CLI the
+    app runs is out of date); running the upgrade command from the app (a package or checkout upgrade is the user's to
+    run, D-1065); telling the CLI to set `update_available` from the app alone (changes the `agentprov-update-check/0.1`
+    meaning for every reader, where the document already has `behind`).
+- **D-1080 (2026-11-06, the macOS memory watchdog counts compressed and swapped pages: the `libproc` RSS sample is the
+  larger of the resident size and `phys_footprint`; a 0.2.0 release CI finding, fixed for 0.2.1 with the user's yes of
+  2026-11-06; `host.py`, tests, G.4.11 and G.4.12; class 1).** On GitHub's macos-latest runner (2026-11-05, `ci.yml`
+  run 42002097860) `test_sec22_a_job_kind_with_a_declared_cap_runs_past_the_default_cap_and_is_still_bounded` failed:
+  the 1.5 GiB hog, whose pages are incompressible and distinct since 8306d770, finished under its 1 GiB kind cap with
+  a sampled peak of 1,033,748,480 B. The runner was short of memory, so macOS compressed or swapped the hog's pages
+  and the resident size (`proc_pidinfo(PROC_PIDTASKINFO)`) fell below the cap while the process still held them. macOS
+  does not enforce `RLIMIT_AS`, so the polled watchdog is its only memory cap (G.4.11), and a job could exceed its cap
+  whenever the host was short. This is a gap in the cap, not only a flaky test.
+  - **Decision.** The `libproc` sampler returns `max(resident size, phys_footprint)`, with `phys_footprint` from
+    `proc_pid_rusage(RUSAGE_INFO_V4)` (the kernel's per-process footprint, which keeps counting compressed pages and
+    those swapped out of the compressor; the D-554 admission controller already counts it). Where `proc_pid_rusage`
+    is missing or refuses the pid, the resident size alone is used, as before. The capability's value stays
+    `libproc`; the watchdog, the per-job peak and the admission fallback all read the one sampler.
+  - **Effects.** No AER, SEM or PROV byte changes. `host.py` is in the AER stage's import closure, so the AER stage code
+    digest moves (regen-batch row 189). A job's recorded peak can be higher than before on a host short of memory. A
+    job that fit under its cap before still fits unless its footprint exceeds the cap.
+  - **Rejected:** `phys_footprint` alone (it leaves out shared file-backed pages that the resident size counts, so a
+    sample could fall below the old one and let through a job that was stopped before); the kernel's lifetime maximum
+    (`ri_lifetime_max_phys_footprint`), because a worker outlives its jobs (D-1068 P1) and an earlier job's peak would
+    stop a later one; marking the sec22 case flaky or retrying it (it would hide the gap); a memory pressure check on
+    the host (it does not bound one job).
+- **D-1081 (2026-11-06, the tier-4 round-trip cache context is the same in a worker and its parent on Windows: the
+  Python build is named by `sysconfig.get_platform()`, an unreadable library file makes the context incomplete, and job
+  frames carry per-part digests; the cache is used on Windows again; a 0.2.0 release CI finding, fixed for 0.2.1 with
+  the user's yes of 2026-11-06; `validate/cache.py`, `cli/checks.py`, tests, MN N.2.5 item 9; class 1).** In the 0.2.0
+  Windows CI rounds (2026-11-05, runs 41985115578, 41993437282 and 41995864602, the last with the sharing-violation
+  retries of 587db95a in) workers' round trips were not stored (`CacheStats(stored=0, unstorable=3)`) and one staged
+  hint in three was refused: the D-550 context of some worker processes differed from the parent's. 0.2.0 shipped with
+  the cache off on Windows (9f897315) and its tests skipped there (9f897315, 4a741781).
+  - **Cause.** The context's Python part held `platform.machine()`. On Windows, CPython 3.14 answers it with a WMI
+    query and, when that query fails, with `PROCESSOR_ARCHITEW6432` or `PROCESSOR_ARCHITECTURE`, neither of which a
+    T1 worker's minimal environment carries (G.4.2). A worker whose WMI query failed (they do under load) named the
+    machine `""` where its parent named it `AMD64`. Nothing else in the context reads the environment.
+  - **Decision 1.** The Python part names the build with `sysconfig.get_platform()` (as D-1064 does for the platform
+    label), fixed at build time, the same in every process of one interpreter. Every existing entry becomes a miss
+    once.
+  - **Decision 2.** A library file that cannot be read, after the sharing-violation retries, no longer contributes the
+    digest of a placeholder (`\x00missing`), which looked valid and which no other process computed. The library is
+    recorded as unreadable, the context is incomplete (`context_problem`), and that process neither serves nor
+    stores an entry: lookups are misses and the counter `context_incomplete` counts refusals; a job with an
+    incomplete context uses no hint and says so in its frame.
+  - **Decision 3.** A job's frame carries `context_parts`, the digest of each part of its context (`code`, `options`,
+    `python`, `vocabulary`, `libraries.<name>`). A frame made under another context than the parent's is counted
+    (`context_mismatch`) and not stored, and the command's stderr names the parts that differed and how often, so that
+    a host where it still happens can be diagnosed from one run.
+  - **Decision 4.** The cache is used on Windows again, and the tests skipped there in 0.2.0 run there. This needed a
+    green Windows CI run (no Windows host is available locally): the public trial branch `trial/v0.2.1-windows`
+    (`eaa5b8e`, exported from `f5d6b517` onto public `main` `b9b4f0c`; the user's yes of 2026-11-06), `ci.yml` run
+    42158076340 (2026-11-06, 03:41-03:55 UTC), passed every job; the four Windows shards ran the cache tests with the
+    cache on (only the POSIX-only concurrency case skipped), where shard 3 had failed in all three 0.2.0 runs with
+    it on. If a later Windows run fails, the switch is put back and this entry records why.
+  - **Effects.** Outcomes, reports, rows and digests of AER, SEM and PROV bytes do not change (the cache is a speed-up
+    only, D-550). `validate/cache.py` is in the validation stage's scope, so its code digest moves (regen-batch row
+    189); the cache format stays `agentprov-tier4-cache/2`, and entries made before are misses because the context
+    moved.
+  - **Rejected:** passing `PROCESSOR_ARCHITECTURE` into the worker environment (it would make one call stable and
+    leave the context open to the next environment-dependent value); the parent sending its context digest for the
+    job to adopt (a job's context must be its own, or a worker with other libraries would serve the parent's
+    outcomes); keeping the cache off on Windows (a 0.2.0 stopgap, with validation slower there); hashing RECORD's
+    claimed digests instead of the library files (fewer reads, but an edited installed file would be served stale).
+- **D-1090 (2026-11-06, Run Live fills the D-725 caps from the quote: `agentprov estimate` suggests caps that leave
+  room for what the run reserves, with a margin setting; the user's request and answers of 2026-11-06; CLI, settings,
+  GUI, tests and docs; class 0).** An API-endpoint run needs `--max-calls` and `--max-cost-usd` (D-725), and Run Live
+  made the user type both before Start; its "Use the quote's upper figure" filled the cost cap with the quote's p90.
+  That figure alone often lets no cell start: T0 starts a cell only if the spend so far plus every in-flight cell's
+  worst case and its own fit both caps, and one cell's worst case is 48 billed calls (the stock element), 144 (the
+  AutoDojo element) or 384 (`gateway_compat`, AU-LIVE-1), each charged at 32,000 input-side and 4,096 output tokens: at
+  $3 and $15 per million tokens one `gateway_compat` cell reserves about $60, against quotes of a few dollars.
+  - **Decision: the estimate suggests the caps (one rule, the CLI's).** `agentprov estimate` gains `quote.caps`
+    (additive): `max_calls` = ⌈`calls_p90` × (1 + m)⌉ + r × B + k, and `max_cost_usd` = `usd_p90` × (1 + m) + (r × B +
+    k) × c, rounded up to the cent, where m is the margin, r = min(`--jobs`, the cells due), B the cell's billed-call
+    bound, k a preflight probe's billed replies and c one call at the per-call token bound priced at the cap prices
+    (`--price-in`/`--price-out` when given, else the price table's, the input side the highest of input, cached input
+    and cache write, as Run Live already priced the caps). The p90 figures stay what D-1062 says (the upper figure is
+    the sum of per-cell 90th percentiles); the room is what the campaign reserves, so the caps let the run finish if it
+    spends what the quote says, and the run can never spend more than them. It also gives `price_in`, `price_out`,
+    `margin_pct`, `margin_from` (`setting` or `default`), `calls_basis` `calls_p90`, `cost_basis` `usd_p90`,
+    `reserved_cells`, `cell_calls`, `cell_usd`, `probe_calls`, `probe_usd` and `resumed_units` (settled units of the
+    corpus, whose spend the caps also count: the text says to add it). The text form prints "Suggested caps:
+    --max-calls N --max-cost-usd USD --price-in … --price-out …" with how they were made.
+  - **Decision: the bound is the run's own.** `run --dry-run --plan-json` adds `cell_bound: {calls, step_calls,
+    call_tokens_in, call_tokens_out}` (additive), computed by the same function that builds the campaign's `Budget`
+    (the LLM element's billed replies per step, a defence's declared calls, an Inspect cell's D-740 bound), with or
+    without caps, or `cell_bound: {refused}` when it cannot be bounded; a scripted Inspect plan (the estimate's
+    stand-in) has none, because its cells are not the model's. `Budget.call_bound()` (public) gives the per-call tokens.
+  - **Decision: when there is no suggestion.** `available: false` with a `reason` for a scripted run, a model without
+    a price, no cell due, cells resting only on `estimate.default.*` (no priors and no `--stats-corpus` figures; the
+    user's choice of 2026-11-06), or no cell bound. All-model priors still suggest caps, and Run Live's caption says
+    the figures are not this model's.
+  - **Decision: the margin is a setting.** `estimate.caps_margin_pct` (percent, 0 to 1,000; unset: 20, the user's
+    choice of 2026-11-06), read by `agentprov estimate` and shown in Settings › Estimate › Run caps as "Margin on the
+    quote" (written with `agentprov settings set`). Calls are rounded up to a whole call and USD up to the cent.
+  - **Decision: `run` keeps explicit caps** (the user's choice of 2026-11-06). `run` gets no automatic caps mode: the
+    caps stay numbers the user saw, which the consent names (D-725). Run Live passes them as `--max-calls` and
+    `--max-cost-usd`, and its command card shows the exact values Start passes (D-1060).
+  - **Decision: Run Live.** Both cap fields follow `quote.caps` (read defensively; the GUI computes no figure): after
+    every new quote, which is asked again on any change to the model, endpoint, benchmark, suites, attacks, task
+    selection, repeats, concurrency or prices, a field that follows the quote takes the suggestion, or is cleared
+    when there is none (so an API run needs it typed, as before). A value the user types stays, captioned "Your value;
+    the quote suggests …", until **Use the quote's figure** beside it (one per cap, replacing "Use the quote's upper
+    figure"). Each row's caption says how the figure was made (the p90 calls or the upper cost, the margin, the room,
+    local, shipped or both priors, all-model figures when so, and for the cost the prices' source and date) and its
+    tooltip gives the numbers, or why there is no suggestion. A cap that follows the quote is left out of the
+    estimate's own arguments (it is the estimate's output, and asking again with it would only repeat the quote); a
+    typed cap is passed, for the estimate's warnings, and typed prices go with the cost cap (the CLI takes them only
+    with `--max-cost-usd`), so the room is priced at them. Since estimate takes no `--preset` and a preset run uses
+    `gateway_compat` (D-822), Run Live passes `--llm-element gateway_compat` to the estimate of a preset run that names
+    no element.
+  - **Rejected:** filling the caps with the quote's figures alone, plus a margin (the user's choice; a run would stop
+    at `cap_reached`, or start no cell, whenever the per-cell reservation is larger than what is left); `run
+    --caps-from-estimate` (a cap the user never saw, decided inside the run); computing the suggestion in the GUI (a
+    second copy of D-725's bound, which would drift from the run's, D-700); a fixed margin (the user asked for a
+    setting); refusing to suggest from all-model priors (the user's choice: the caption names them instead); a new
+    statistic for the run's total (D-1062's rejection stands).
+  - **Downstream effects.** No AER, SEM, PROV, corpus or manifest bytes change and no stage digest moves (`cli/`,
+    `estimate/` and `settings.py` are outside every stage scope, as D-1062 records). The estimate document and the
+    dry-plan document gain keys only. The GUI's reverse parity (D-700) lists the two reset links; `estimate` keeps its
+    options, so forward parity is unchanged.
+  - **Tests:** `tests/estimate/test_suggested_caps.py` (the arithmetic, the room, rounding, prices, no suggestion,
+    the text line), `tests/estimate/test_estimate.py::test_parse_plan_reads_the_cell_bound`,
+    `tests/integration/test_run_plan_json.py` (the bound for the stock element and `gateway_compat`),
+    `tests/integration/test_estimate_cmd.py::test_the_quote_suggests_caps_with_room_for_the_reserved_cells` (the
+    setting, `--jobs`, the text form, no price), `gui/tests/test_runlive_caps.py` (fill, follow, typed and reset,
+    typed prices, no suggestion, the words, the setting, a preset run) and `gui/tests/test_runlive_form.py` (an older
+    CLI's quote fills nothing).
+- **D-1100 (2026-11-06, the `ci.yml` core job's GitHub-hosted legs run on twice as many shards; requested on
+  2026-11-06 after the v0.2.0 release; amends D-1020's matrix; workflow, its test and docs only; class 0).** D-1020
+  split each GitHub-hosted core leg over several runners (windows-latest over 4, ubuntu-latest over 3,
+  ubuntu-24.04-arm and macos-latest over 2: 11 jobs), and its trial run 41289569701 measured a slowest shard of 15.4
+  minutes. Each count is now doubled.
+  - **Decision: the matrix.** windows-latest over 8 (in both variants, with and without `CI_RUNNER`), ubuntu-latest
+    over 6, ubuntu-24.04-arm and macos-latest over 4: 22 GitHub-hosted core jobs, or the self-hosted runner whole plus
+    the 8 Windows shards (9 jobs) with `CI_RUNNER` set. The list stays literal JSON in the `include` expression, four
+    legs to a line (the `>-` scalar folds the lines into one string, so the expression is the same shape as before).
+    Nothing else changes: the units (a file, an `XDIST_GROUPS` group whole), the seconds list
+    (`tests/shard_seconds.txt` holds per-file seconds, independent of the count), the fork guard (UC-46), the job ids
+    and `tools/ci_local.py`, whose `core` job still runs the suite whole.
+  - **Balance.** With the committed seconds list (4,110 s over 635 units) `assign_shards` puts every shard within 1 %
+    of the ideal share at 4, 6 and 8 parts (514 s each at 8), and no shard is empty. The heaviest unit,
+    `tests/adapters/dtap/test_remap_context_d530.py` (209 s), and the `serial` group (111 s, one worker) stay well under
+    a share. The list's drift since 2026-11-01 unbalances shards only, as D-1020 says; regenerate it from the first
+    run on the new matrix if a leg's shards drift apart.
+  - **Expected cost (not yet measured).** On run 41289569701 each core job spent 0.5 to 1.2 minutes outside its Tests
+    step (checkout, uv, Python, the lockfile checks, sync, lint) and, inside it, collected the whole suite before
+    deselecting. That fixed part is paid once per job, so doubling the jobs adds about 11 of them: roughly 15 to 20
+    runner-minutes on that run's 127, plus each job's billing round-up to a whole minute, while the slowest shard
+    should fall from about 15 to about 8 or 9 minutes. The repository that runs CI decides the price: GitHub-hosted
+    minutes are free on the public repository and counted, with Windows and macOS at a multiple of Linux, on the
+    private development repository. A dispatch now starts 22 core jobs besides the other jobs, so a plan's limit on
+    concurrent jobs may queue some of them.
+  - **Measured** (dispatch run 42158546503 on the private development repository, main at `f7861c90`, 2026-11-06):
+    all 31 jobs passed in 24.7 minutes; the slowest core shard (windows-latest 5/8) took 21.5. The estimate above
+    did not hold, for reasons D-1110 takes up: the private repository's runners have 2 vCPUs (macOS 3), half the
+    public repository's on which D-1020 was measured; with psutil installed (D-704) `-n auto` counts physical cores, so
+    ubuntu-latest and windows-latest ran one xdist worker (ubuntu-24.04-arm 2, macOS 3); at most 20 jobs ran at once,
+    so the Windows shards, last in the list, waited up to 9 minutes for a runner; and the Windows shards' test times
+    ran from 566 to 1,203 s (mean 787) under the cross-OS seconds list. About 600 billed minutes on the private
+    repository (Windows 2x and macOS 10x the Linux rate; about 99 Linux, 234 Windows and 277 macOS); the public
+    repository's runs are free.
+  - **Tests.** `tests/repo/test_repository_hygiene.py` pins the counts per leg in both variants (besides D-1020's
+    1..n check); `tests/unit/testing/test_shards.py`'s end-to-end check reads the widest leg from `ci.yml`, so it now
+    collects 8 shards and checks they are disjoint, complete, and keep each file and group whole.
+  - **Rejected:** a first job that computes the matrix and hands it on as an output (`fromJSON(needs.x.outputs.y)`):
+    one more runner and a serial step before every leg, for a list that changes rarely; generating the legs inside the
+    expression (GitHub's expression language has no range or repeat function); keeping D-1020's counts (the slowest
+    shard was still about 15 minutes on Windows and macOS).
+- **D-1110 (2026-11-06, the `ci.yml` core shards use every logical CPU, Windows goes first, the shards are weighed by
+  each OS's own seconds, and the checkout checks run once per leg; the user's request of 2026-11-06 after D-1100's run;
+  amends D-1011's worker count and D-1020's seconds list; workflow, `tests/conftest.py`, `tools/slow_tests.py` and their
+  tests; class 0).** D-1100's run 42158546503 took 24.7 minutes, its slowest shard 21.5 (D-1100, Measured). Four causes
+  were in the logs; each change answers one.
+  - **Decision: `-n logical`.** The test step ran `pytest -n auto`, which xdist resolves to
+    `psutil.cpu_count(logical=False)` when psutil is importable, as it is in the core environment since D-704. A 2-vCPU
+    x64 runner (ubuntu-latest and windows-latest on a private repository) has one physical core, so those shards ran one
+    test at a time; the arm64 and macOS runners have one thread a core and were unaffected. `-n logical` counts every
+    logical CPU, which is what D-1011 meant by every core of the runner; a 4-vCPU public-repository runner goes from 2
+    workers to 4. It changes only how many workers a CI shard starts, never which tests run; `tools/ci_local.py` and the
+    queue pass an explicit `-n`.
+  - **Decision: Windows first.** With 31 jobs and an account limit of 20 running at once, the jobs that start last are
+    the ones GitHub reaches last, and Windows, the slowest leg, was last in the `include` list. It is now first in the
+    hosted list (the `CI_RUNNER` list already had it right after the self-hosted job). GitHub does not promise to start
+    matrix jobs in list order, so this is a preference, measured on the next run.
+  - **Decision: per-OS seconds.** `tests/shard_seconds.txt` keeps its cross-OS mean rows and gains an optional
+    `[profile]` section per OS. `ci.yml` sets `AGENTPROV_SHARD_PROFILE` to `${{ runner.os }}-${{ runner.arch }}`
+    (`Linux-X64`, `Linux-ARM64`, `macOS-ARM64`, `Windows-X64`); a shard whose profile has a section weighs by it alone
+    (a file the section lacks counts by its tests, as before), and any other run by the mean. Every shard of a leg runs
+    on the same OS and declares the same profile, so the shards still agree on one split; the variable is taken out of
+    the environment with the other two and handed to the xdist workers through `workerinput`. A shard run prints
+    `agentprov shard i/n, profile P (weighed by ...)` in its header, and `tools/slow_tests.py --shard-seconds` reads
+    each log's profile from that line, writing the mean over all logs as before and each profile's mean over its own
+    logs. For that input the test step now runs `--durations=0` (every test timed; the slowest still come first) instead
+    of `--durations=30`. The first sections come from the trial run below (Measured).
+  - **Decision: the checkout checks once per leg.** The Unicode check (20 to 60 s) and `ruff check` ran in every shard;
+    they read the checkout, not the host, so they now run in each leg's shard 1 (`if: matrix.shard == 1`), which keeps
+    one run of each per OS.
+  - **Expected** (not yet measured): x64 Linux and Windows shards with 2 workers instead of 1, most of the gain where
+    tests wait on subprocesses and files; the Windows shards within a few minutes of each other once the list has a
+    `Windows-X64` section; about 10 fewer runner-minutes a run from the checks. Measuring runs are best made on the
+    public repository, where GitHub-hosted minutes are free and the runners match D-1020's trials.
+  - **Measured** (public trial branch `trial/v0.2.1-ci-shards`, `7988b4a0`, exported from `ea676c81` onto public `main`
+    `b9b4f0c` with the user's yes of 2026-11-06; run 42163944824, 04:41-04:53 UTC): all 31 jobs passed in 12.4 minutes,
+    against D-1100's 24.7 on the private repository and D-1020's trial (slowest shard 15.4). The public runners have 4
+    vCPUs (macOS 3): `-n logical` started 4 workers on x64 and arm64, 3 on macOS. The slowest core shard took 7.8
+    minutes (windows-latest 1/8 and 4/8); the Tests step of a shard took 213-308 s on ubuntu-latest, 222-309 s on
+    ubuntu-24.04-arm, 340-449 s on macOS and 240-421 s on Windows (mean 324), still weighed by the cross-OS mean. The
+    20-job limit held here too, and GitHub did not keep the list order: four Windows shards, among them the two slowest,
+    started 3.8 to 4.6 minutes in, so the run is about that wait plus the slowest shard. The 22 core jobs used 126
+    runner-minutes (137 rounded up per job), free on the public repository. `tests/shard_seconds.txt` is regenerated
+    from this run's 22 `--durations=0` logs: the mean over 711 files (5,393 s) and one section per profile (Linux-ARM64
+    3,389 s, Linux-X64 4,701 s, macOS-ARM64 4,110 s, Windows-X64 8,232 s); with it `assign_shards` puts each leg's
+    shards within 1 % of each other in test seconds (Windows 1,029 s each, about 4.3 minutes on 4 workers). The heaviest
+    unit, `tests/adapters/dtap/test_remap_context_d530.py` (524 s on Windows), is five tests of about 100 s that the
+    shard's workers share. Still open: the queueing (fewer, longer jobs, or the self-hosted runner taking the Linux and
+    macOS legs, would keep the run under the limit).
+  - **Tests.** `tests/unit/testing/test_shards.py`: the profile is optional and a malformed one refused; a section
+    replaces the mean for its profile only; the generator writes each named profile beside the mean and conftest reads
+    the file back unchanged; a shard run prints the header line the generator reads; no test sees any of the three
+    variables. `tests/repo/test_repository_hygiene.py` pins Windows first, the profile variable, `-n logical`,
+    `--durations=0` and the two checks' `if`.
+  - **Rejected:** `PYTEST_XDIST_AUTO_NUM_WORKERS` or a fixed `-n 2` (both hard-code a count that `logical` reads from
+    the runner); oversubscribing (`-n 4` on 2 vCPUs: more memory on small runners, and the pool groups already start
+    worker pools of their own; to try only if `logical` leaves the CPUs idle); deriving the profile inside conftest from
+    `sys.platform` and the machine (CI names the profile once, from the runner it got, and a local run never weighs by a
+    CI profile); one seconds file per OS (four generated files for one table); running the checkout checks in one job
+    for the whole run (a check could differ on Windows' checkout, so one per OS is kept).
+- **D-1120 (2026-11-06, Run Live configures and starts an Inspect task: AgentHarm from the GUI, the way the
+  AgentDojo-family backends are; requested 2026-11-06; GUI `live/plan.py`, `live/inspectplan.py`, `ui/runlive.py`,
+  `ui/forms.py`, a shipped Inspect dev script, tests and guide chapter 8; class 0).** `agentprov run agentharm
+  --catalogue` answers `agentprov-inspect-catalogue/0.1` (D-663), which Run Live's parser did not read, so choosing
+  `agentharm` showed "catalogue unusable" and no way to plan; the Inspect options (`--task`, `--samples`, the limits,
+  `--judge`) were free-text rows under Advanced, with `--task-param` typed by hand.
+  - **Decision: the Inspect catalogue is parsed like the AgentDojo one.** `parse_inspect_catalogue` (and
+    `parse_any_catalogue`, dispatching on `format`) rebuilds typed tasks, parameters (type `str`, `int` or `bool|null`,
+    default, choices, bounds), splits with their sample counts, judge roles and the task's fixed settings: bounded
+    lists, names that are labels (the CLI's own patterns in `cli/live/inspect_catalogue.py`, mirrored and pinned by a
+    test, D-391), whole numbers, no duplicates, unknown members dropped; a judge role must be one `--judge ROLE=MODEL`
+    takes. Every name is shown through `text.line`. A catalogue of the other kind than the backend's id (`inspect-` or
+    not, the CLI's rule) is unusable, so nothing is launched for it.
+  - **Decision: an Inspect backend has its own rows; the AgentDojo-only rows are hidden.** *Inspect task* (the task,
+    its fixed settings as facts), *Task parameters* (one row per declared parameter: a menu for choices and for
+    true / false / not set, a whole number within its bounds, text otherwise), *Samples and limits* (the first N of the
+    split, whose size the caption gives, or ids; the three per-sample limits, required, D-667), *Judges* (one row per
+    role, blank = the agent's model, the scorer's default offered) and a closed line with epochs, concurrent model
+    calls and cell size. The benchmark version, suites, attacks, benign cells, user and injection tasks and `--defence`
+    are hidden and never reach the argv (rule 3; the CLI refuses them for an Inspect plan). The Inspect fields leave
+    *Other run options*.
+  - **Decision: one argv.** The rows fill `RunSettings.extra`, and the existing builder (`jobs.commands.build_spec`)
+    makes the command card, the estimate and Start from it, as for every run. A parameter at its catalogue default is
+    left out; any other is `--task-param NAME=VALUE`, written as the CLI reads it (a TOML scalar, else the text), so a
+    string that would read as a boolean, number or date is quoted. A real run's blank judges take the agent's model;
+    a scripted run's judges take the scripted agent's label (`scripted-fake`, the CLI's). The test runs the CLI's own
+    parser and `_inspect_document` on the argv in a child interpreter.
+  - **Decision: the checks say what the CLI and worker would refuse, first.** Start and the estimate wait until a task,
+    the samples and all three limits are given; a sample count above the split's size, malformed ids, an Anthropic
+    endpoint (D-741) and, under the caps, a judge on another model than the agent's (D-740) block Start with the
+    reason. Before-you-start and the caps (D-725, D-1090) work as for any backend.
+  - **Decision: a combined dev script for scripted Inspect runs.** The worker refuses scripted judges from a plain
+    script (`scripted_steps`), so the shipped AgentDojo dev script cannot run an Inspect cell. The app ships
+    `scripted-dev-inspect.json` (`{"agent": [...], "judges": {"refusal_judge": [...], "semantic_judge": [...]}}`, 100
+    agent replies and 400 per judge), which *Script* switches to while the backend is an Inspect one and back after;
+    a script the user chose is kept. A cell that would need more than 100 samples × epochs from it blocks Start.
+  - **Rejected:** keeping the Inspect options as free text under Advanced (the user would type `--task-param` values,
+    judge roles and sample selections the catalogue already lists); passing every parameter, defaults included (an
+    option at its default is left out everywhere else); a switch for `bool|null` (it cannot say "not set", the
+    default); judges defaulted to the scorer's own model (under the caps the CLI refuses any judge model other than
+    the agent's, D-740); a generated script per run (the dev script is a test fixture, the corpus is `test_only`).
+  - **Downstream effects.** None outside the GUI: no CLI option, AER, SEM, PROV, corpus or manifest byte changes and no
+    stage digest moves. Forward parity is unchanged (every Inspect option still has a control); reverse parity
+    (D-700) maps the new inputs, with `param_widgets.*` and `judge_inputs.*` for the rows built per task.
+  - **Not verified here:** a scripted Inspect cell run end to end from the app (only `--catalogue`, `--dry-run
+    --plan-json` and `estimate` were run against `inspect-agentharm-f698b6d1`), and a real-model run (none was
+    started).
+  - **Tests:** `gui/tests/test_runlive_inspect.py` (parsing, a hostile catalogue, the pinned CLI rules, the dev script,
+    `--task-param` quoting, the rows and what is hidden, the scripted and real argv through the CLI's parser and plan
+    builder, ids and defaults, judges under the caps, the dev script's capacity, a mismatched catalogue, the AgentDojo
+    path afterwards, tooltips for both transports) and `gui/tests/test_reverse_parity.py` (an AgentHarm walk).

@@ -149,6 +149,31 @@ def test_the_quote_says_what_it_rests_on(cli: Callable[..., Run], home: Path) ->
             "cache discounts are not assumed).") in text.err
 
 
+def test_the_quote_suggests_caps_with_room_for_the_reserved_cells(cli: Callable[..., Run], home: Path) -> None:
+    """D-1090: ``quote.caps`` from the dry plan's own cell bound (the campaign's), the margin setting and the price;
+    the text form prints the suggestion; a scripted estimate suggests none."""
+    from agentprov import settings
+
+    doc = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)
+    q, c = doc["quote"], doc["quote"]["caps"]
+    assert c["available"] is True and (c["margin_pct"], c["margin_from"]) == ("20", "default")
+    assert (c["reserved_cells"], c["cell_calls"], c["probe_calls"]) == (1, 48, 1)
+    assert c["max_calls"] >= q["calls_p90"] * 1.2 + 49 and c["max_calls"] < q["calls_p90"] * 1.2 + 50
+    assert Decimal(c["max_cost_usd"]) >= Decimal(q["usd_p90"]) * Decimal("1.2") + Decimal(c["cell_usd"])
+    assert (c["price_in"], c["price_out"]) == (doc["price"]["input"], doc["price"]["output"])
+    wide = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o", "--jobs", "4",
+                                "--llm-element", "gateway_compat").out)["quote"]["caps"]
+    assert (wide["reserved_cells"], wide["cell_calls"], wide["probe_calls"]) == (min(4, doc["units"]), 384, 8)
+    settings.set("estimate.caps_margin_pct", "50")
+    loose = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)["quote"]["caps"]
+    assert (loose["margin_pct"], loose["margin_from"]) == ("50", "setting") and loose["max_calls"] > c["max_calls"]
+    text = cli("estimate", "agentdojo", "--suite", "banking", "--model", "openrouter", "--model-id", "openai/gpt-4o",
+               "--progress", "off")
+    assert f"Suggested caps: --max-calls {loose['max_calls']} --max-cost-usd {loose['max_cost_usd']}" in text.err
+    unpriced = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "vendor/unpriced-model").out)
+    assert unpriced["quote"]["caps"]["available"] is False and "no price" in unpriced["quote"]["caps"]["reason"]
+
+
 def test_caps_pass_through_and_a_cap_below_the_p90_is_a_warning(cli: Callable[..., Run]) -> None:
     """D-725 caps are estimate options (a keyed API plan needs them, D-721); a cap below the p90 is said, not hidden."""
     doc = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o", "--max-calls", "1",

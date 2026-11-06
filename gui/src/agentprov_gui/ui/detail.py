@@ -40,7 +40,7 @@ from PySide6.QtWidgets import (
 
 from agentprov_gui import text as T
 from agentprov_gui.ui import theme
-from agentprov_gui.ui.forms import Switch, caption
+from agentprov_gui.ui.forms import FullTextCombo, Switch, caption
 from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, set_control_tooltip, set_header_tooltips
 
 __all__ = ["AerTab", "ProvJsonTab", "RegisterTab", "SemTab", "ValidationTab", "content_switch", "facts_line",
@@ -202,7 +202,7 @@ class ProvJsonTab(QWidget):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, theme.SPACE, 0, 0)
         top = QHBoxLayout()
-        self.spec = QComboBox(self)
+        self.spec = FullTextCombo(self)
         self.spec.setAccessibleName("PROV specification")
         narrow_combo(self.spec)
         set_control_tooltip(self.spec, "The PROV document to show: the corpus holds one per provenance specification")
@@ -490,7 +490,7 @@ class SemTab(QWidget):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, theme.SPACE, 0, 0)
         top = QHBoxLayout()
-        self.profile = QComboBox(self)
+        self.profile = FullTextCombo(self)
         self.profile.setAccessibleName("Semantics profile")
         narrow_combo(self.profile)
         set_control_tooltip(self.profile, "The semantics profile whose annotations are shown")

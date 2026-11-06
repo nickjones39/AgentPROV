@@ -13,7 +13,7 @@ This package is the `agentprov` command-line program and library. It installs th
 - Website: <https://w3id.org/agentprov/>
 - User guide: <https://w3id.org/agentprov/docs/>
 - Source code: <https://github.com/nickjones39/AgentPROV>
-- Software on Zenodo: <https://doi.org/10.5281/zenodo.23970107>
+- Software on Zenodo: <https://doi.org/10.5281/zenodo.23996923>
 - Corpora on Zenodo (one collection): <https://doi.org/10.5281/zenodo.23814758>
 
 ## Install
@@ -51,7 +51,7 @@ reference lists every command's `--help`.
 @software{jones_agentprov_2026,
   author  = {Jones, Nicholas},
   title   = {AgentPROV: execution provenance for LLM-agent security research},
-  version = {0.2.0},
+  version = {0.2.1},
   year    = {2026},
   license = {MIT},
   url     = {https://github.com/nickjones39/AgentPROV}

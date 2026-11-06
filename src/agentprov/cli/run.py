@@ -20,7 +20,7 @@ import json
 import math
 import os
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
@@ -2464,21 +2464,28 @@ def _live_run_held(ctx: Context, args: argparse.Namespace, ctx_stack: Any,
 
     caps = _caps(args, agent)
     budget = None
+
+    def cell_budget() -> Any:
+        """The campaign's :class:`Budget` with its per-cell bound (one rule for the run and its dry plan)."""
+        if project.backend.startswith("inspect-") and not scripted:  # D-740: each call at most 1 + K billed responses
+            return Budget(caps, cell_calls=_inspect_cell_calls(project.backend, plan_doc, agent, identity),
+                          step_calls=1 + envs.INSPECT_MAX_RETRIES)
+        # AU-LIVE-1: every model step at the billed replies its LLM element may take
+        attempts = step_attempts(agent.get("llm_element"), project.backend)
+        return Budget(caps, cell_calls=_defence_cell_calls(defence_entry, attempts), step_calls=attempts)
+
     if caps.active:
-        inspect_backend = project.backend.startswith("inspect-") and not scripted
-        if inspect_backend:  # D-740: every Inspect call is at most 1 + K billed responses
-            budget = Budget(caps, cell_calls=_inspect_cell_calls(project.backend, plan_doc, agent, identity),
-                            step_calls=1 + envs.INSPECT_MAX_RETRIES)
-        else:  # AU-LIVE-1: every model step at the billed replies its LLM element may take
-            attempts = step_attempts(agent.get("llm_element"), project.backend)
-            budget = Budget(caps, cell_calls=_defence_cell_calls(defence_entry, attempts), step_calls=attempts)
+        budget = cell_budget()
     if args.dry_run:
+        if args.plan_json:  # D-1090: the bound the estimate's suggested caps leave room for
+            plan_bound = _plan_cell_bound(budget, cell_budget, scripted=scripted, backend=project.backend)
         if budget is not None:
             calls, usd = budget.cell_bound()
             result.notices.append(f"caps (D-725): a cell may need up to {calls} billed call(s)"
                                   + (f" and ${usd:.3f}" if caps.max_cost_usd is not None else "")
                                   + "; a cell starts only if that fits what is left")
-        return _dry_run_live(args, result, cells, plan, config_digest, repeats, corpus_id, project)
+        return _dry_run_live(args, result, cells, plan, config_digest, repeats, corpus_id, project,
+                             cell_bound=plan_bound if args.plan_json else None)
     if args.corpus and not getattr(args, "tune_jobs", None):  # AU-RN-5: before consent and the paid probe
         _check_working_corpus(args, home, config_digest, test_only=scripted)
     resume = _resume_state(args, cells, config_digest, repeats)
@@ -2975,14 +2982,32 @@ def _preflight(argv: list[str], env_for: Any, identity: Any, marker: Any, expect
     return results
 
 
+def _plan_cell_bound(budget: Any, make: Callable[[], Any], *, scripted: bool, backend: str) -> dict[str, Any]:
+    """D-1090: the plan JSON's ``cell_bound``, the worst case of one cell under the D-725 caps as the campaign would
+    reserve it (its LLM element, defence and Inspect bound; each call at the per-call token bound), or why there is
+    none (``refused``). A scripted Inspect plan (the estimate's stand-in) has no Inspect bound: its cells are not the
+    model's."""
+    if scripted and backend.startswith("inspect-"):
+        return {"refused": "an Inspect cell's bound needs the model's own plan (plan it with the model's key)"}
+    try:
+        b = budget if budget is not None else make()
+    except LiveRefused as exc:
+        return {"refused": safe_text(str(exc), 300)}
+    tokens_in, tokens_out = b.call_bound()
+    return {"calls": b.cell_calls, "step_calls": b.step_calls, "call_tokens_in": tokens_in,
+            "call_tokens_out": tokens_out}
+
+
 def _dry_run_live(args: argparse.Namespace, result: CommandResult, cells: list[dict[str, Any]], plan: Mapping[str, Any],
-                  config_digest: str, repeats: int, corpus_id: str | None, project: Any) -> CommandResult:
+                  config_digest: str, repeats: int, corpus_id: str | None, project: Any, *,
+                  cell_bound: Mapping[str, Any] | None = None) -> CommandResult:
     """N.1.6 run --dry-run: the plan, its digests and the resume state; nothing written, no model call. The resume
     state is counted by the campaign's own rules (:func:`_resume_state`), so the counters equal the real run's."""
     resume = _resume_state(args, cells, config_digest, repeats)
     result.counters = {"cells_planned": resume.units, "cells_done_before": resume.settled}
     if args.plan_json:
-        result.payload = _plan_json(args, cells, plan, config_digest, repeats, corpus_id, project, resume)
+        result.payload = _plan_json(args, cells, plan, config_digest, repeats, corpus_id, project, resume,
+                                    cell_bound=cell_bound)
     result.output(f"plan {plan['plan_sha256'][:16]}...: {len(cells)} cell(s) x {repeats} repeat(s); corpus "
                   f"{safe_text(str(corpus_id), 80)}; backend {project.env_name}")
     result.output(f"  config digest {config_digest[:23]}...; {resume.settled} unit(s) already settled; up to "
@@ -3000,7 +3025,8 @@ _PLAN_CELL_FIELDS: Final = ("cell_key", "suite", "user_task_id", "injection_task
 
 
 def _plan_json(args: argparse.Namespace, cells: list[dict[str, Any]], plan: Mapping[str, Any], config_digest: str,
-               repeats: int, corpus_id: str | None, project: Any, resume: ResumeState) -> bytes:
+               repeats: int, corpus_id: str | None, project: Any, resume: ResumeState, *,
+               cell_bound: Mapping[str, Any] | None = None) -> bytes:
     """D-651: the dry run's plan as one JCS document (``agentprov-run-dry-plan/0.1``). One row per cell with its
     identifiers and how many of its ``repeats`` units are already settled, counted by the campaign's rules
     (:func:`_resume_settled`); the totals equal the dry-run counters. Every string is escaped (worker output)."""
@@ -3028,6 +3054,8 @@ def _plan_json(args: argparse.Namespace, cells: list[dict[str, Any]], plan: Mapp
     inspect = _plan_json_inspect(plan.get("backend_config") or {})
     if inspect is not None:
         document["inspect"] = inspect
+    if cell_bound is not None:  # D-1090 (additive)
+        document["cell_bound"] = dict(cell_bound)
     return jcs_bytes(document) + b"\n"
 
 

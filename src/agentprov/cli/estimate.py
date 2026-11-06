@@ -32,7 +32,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 from typing import Any, Final
 
@@ -280,6 +280,11 @@ def run_estimate(ctx: Context) -> CommandResult:
            "transport": "http" if real else "scripted", "endpoint": endpoint, "model": model_id,
            "planned_with": "model" if keyed or not real else "stand-in", "jobs": jobs, "plan": plan.to_json(),
            "stats_corpora": read, **body, "quote": quote(e, stats.basis(), price, jobs)}
+    margin = settings.get("estimate.caps_margin_pct")
+    doc["quote"]["caps"] = suggested_caps(
+        e, plan, price, real=real, jobs=jobs,
+        margin_pct=CAPS_MARGIN_PCT if margin is None else Decimal(str(margin)),
+        margin_from="default" if margin is None else "setting", price_in=args.price_in, price_out=args.price_out)
     if plan.inspect is not None:
         doc["plan"]["inspect"]["calls_bound_per_sample"] = _sample_call_bound(plan.backend, plan.inspect)
         doc["judge_price"] = None if judge_price is None else judge_price.to_json()
@@ -331,6 +336,73 @@ def quote(e: Any, basis: dict[str, Any], price: Any, jobs: int) -> dict[str, Any
     }  # fmt: skip
 
 
+#: D-1090: the margin on the quote's p90 figures when the setting ``estimate.caps_margin_pct`` is unset
+CAPS_MARGIN_PCT: Final = Decimal(20)
+CAPS_CALLS_BASIS: Final = "calls_p90"
+CAPS_COST_BASIS: Final = "usd_p90"
+
+
+def suggested_caps(e: Any, plan: Any, price: Any, *, real: bool, jobs: int, margin_pct: Decimal,
+                   margin_from: str, price_in: float | None, price_out: float | None) -> dict[str, Any]:
+    """D-1090: the D-725 caps that let this run finish if it spends what the quote says, and that it can never spend
+    more than. Each cap is the quote's p90 figure (the sum of per-cell 90th percentiles) times ``1 + margin``, plus
+    room for what the campaign reserves before it starts a cell: the cells that run at once (``min(jobs, cells)``)
+    and one preflight probe, each at its worst case (``plan.cell_bound``, the campaign's own bound), priced at the cap
+    prices. Calls are rounded up to a whole call and USD up to the cent. ``available`` is false, with ``reason``, when
+    there is nothing to suggest: no model is billed, no price, only default assumptions, or no cell bound."""
+    from agentprov.estimate.prices import plain
+
+    out: dict[str, Any] = {"available": False, "reason": None, "max_calls": None, "max_cost_usd": None,
+                           "price_in": None, "price_out": None, "margin_pct": plain(margin_pct),
+                           "margin_from": margin_from, "calls_basis": CAPS_CALLS_BASIS, "cost_basis": CAPS_COST_BASIS,
+                           "reserved_cells": None, "cell_calls": None, "cell_usd": None, "probe_calls": None,
+                           "probe_usd": None, "resumed_units": plan.settled}
+    bound = plan.cell_bound
+    if not real:
+        out["reason"] = "a scripted run is not billed and takes no caps"
+    elif price is None or e.cost_p90 is None:
+        out["reason"] = "the model has no price at this endpoint (set one with agentprov prices set)"
+    elif e.units == 0:
+        out["reason"] = "no cell run is left to do"
+    elif not any(source != "default" for source in e.sources):
+        out["reason"] = ("no recorded figures cover these cells, only your default assumptions (estimate.default.*); "
+                         "build cost figures with agentprov priors build, or pass --stats-corpus")
+    elif bound is None or bound.refused is not None:
+        out["reason"] = ("the run's per-cell bound is unknown" if bound is None
+                         else f"the run's per-cell bound is unknown: {bound.refused}")
+    if out["reason"] is not None:
+        return out
+    side = max(v for v in (price.input, price.cached_input, price.cache_write) if v is not None)
+    p_in = Decimal(str(price_in)) if price_in is not None else side
+    p_out = Decimal(str(price_out)) if price_out is not None else price.output
+    call_usd = (bound.call_tokens_in * p_in + bound.call_tokens_out * p_out) / Decimal(1_000_000)
+    factor = 1 + margin_pct / 100
+    reserved = min(max(1, jobs), e.units)
+    calls = Decimal(str(e.calls_p90)) * factor + reserved * bound.calls + bound.step_calls
+    usd = e.cost_p90 * factor + (reserved * bound.calls + bound.step_calls) * call_usd
+    cent = Decimal("0.01")
+    out.update(available=True, max_calls=int(calls.to_integral_value(rounding=ROUND_CEILING)),
+               max_cost_usd=plain(usd.quantize(cent, rounding=ROUND_CEILING)), price_in=plain(p_in),
+               price_out=plain(p_out), reserved_cells=reserved, cell_calls=bound.calls,
+               cell_usd=plain((bound.calls * call_usd).quantize(cent, rounding=ROUND_CEILING)),
+               probe_calls=bound.step_calls,
+               probe_usd=plain((bound.step_calls * call_usd).quantize(cent, rounding=ROUND_CEILING)))
+    return out
+
+
+def caps_line(c: dict[str, Any]) -> str:
+    """The text form's suggested caps (D-1090), or why there are none."""
+    if not c["available"]:
+        return f"Suggested caps: none ({c['reason']}); give --max-calls and --max-cost-usd yourself."
+    return (f"Suggested caps: --max-calls {c['max_calls']} --max-cost-usd {c['max_cost_usd']} --price-in "
+            f"{c['price_in']} --price-out {c['price_out']}: the p90 calls and the upper cost (sum of per-cell 90th "
+            f"percentiles) plus {c['margin_pct']} %, plus room for {c['reserved_cells']} cell(s) at their worst case "
+            f"({c['cell_calls']} billed calls, ${c['cell_usd']} each) and one preflight probe, which the run reserves "
+            "before it starts a cell (D-725)."
+            + ("" if not c["resumed_units"] else f" The corpus already holds {c['resumed_units']:,} settled unit(s): "
+               "the caps count its spend so far too (live.caps), so add that."))
+
+
 def estimate_only_line(q: dict[str, Any]) -> str:
     """The text form's caveat (D-1062), worded from what the quote rests on."""
     b = q["basis"]
@@ -372,6 +444,8 @@ def text_lines(doc: dict[str, Any]) -> list[str]:
                      f"{doc['calls_p50']:,.0f}, p90 {doc['calls_p90']:,.0f}.")
     if not scripted and doc.get("quote") is not None:
         lines.append(estimate_only_line(doc["quote"]))
+        if doc["quote"].get("caps") is not None:
+            lines.append(caps_line(doc["quote"]["caps"]))
     for title, rows in (("By suite", doc["by_suite"]), ("By attack", doc["by_attack"])):
         lines += ["", f"{title}:"]
         for g in rows:

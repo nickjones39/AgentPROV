@@ -360,6 +360,37 @@ an Inspect plan are counted and priced separately (D-770). Its `quote` object (D
 `p90_aggregation` and a `basis`: which priors (`local`, `shipped` or `mixed`), whether the rows were this model family's,
 how many recorded executions are behind them, the token basis, the price's source and date, and `estimate_only: true`.
 
+### Suggested caps
+
+For a real model the estimate also suggests the two [caps](#consent-caps-and-what-they-refuse) (D-1090): a line
+`Suggested caps: --max-calls N --max-cost-usd USD --price-in … --price-out …` after the "Estimate only" line, and
+`quote.caps` in the JSON document. Run Live fills its caps with them ([Run Live](08-desktop-app.md#run-live)). `run`
+itself never sets a cap for you: you pass the numbers, and its consent names them.
+
+- **Max model calls** = the quote's p90 model calls × (1 + margin), rounded up, + the room below in calls.
+- **Max cost** = the quote's upper figure (`usd_p90`, the sum of per-cell 90th percentiles) × (1 + margin) + the room
+  below in USD, rounded up to the cent.
+- **The margin** is the setting `estimate.caps_margin_pct` (20 % while unset; `agentprov settings set
+  estimate.caps_margin_pct 30`, or Settings › Estimate in the app).
+- **The room** is what the run reserves before it starts a cell: a cell starts only if the spend so far plus every
+  running cell's worst case fits both caps (D-725). It is the cells that run at once (`--jobs`, at most the cells
+  due) and one preflight probe, each at its worst case as the run's own dry plan computes it (`run --dry-run
+  --plan-json` gives it as `cell_bound`): 48 billed calls a cell with the stock LLM element, 144 with the AutoDojo
+  fork's element, 384 with `gateway_compat`, more under a defence, and each call charged at 32,000 input-side tokens
+  and 4,096 output tokens (or the `--max-tokens` sent) at the cap prices. The cap prices are `--price-in` and
+  `--price-out` when given, else the price table's: input side the highest of input, cached input and cache write.
+
+So the suggested caps let the run finish if it spends what the quote says, and the run can never spend more than them.
+They are well above the typical cost: at $3 and $15 per million tokens one `gateway_compat` cell reserves about $60.
+`quote.caps` gives each part: `max_calls`, `max_cost_usd`, `price_in`, `price_out`, `margin_pct` (and `margin_from`,
+`setting` or `default`), `reserved_cells`, `cell_calls`, `cell_usd`, `probe_calls`, `probe_usd`, and `resumed_units`.
+
+There is no suggestion (`available: false`, with a `reason`, and the line says "Suggested caps: none (…)") for a
+scripted run, a model without a price, a plan with no cell left to run, cells covered only by your default assumptions
+(`estimate.default.*`: build priors from your corpora, or pass `--stats-corpus`), or a run whose per-cell bound is
+unknown (an Inspect task planned with the stand-in, or a defence whose cost the bound cannot use). A corpus that already
+holds units of this run has spent something already, and the caps count that too (`live.caps`): add it.
+
 ## Models, endpoints and keys
 
 `--model SHORTHAND` names an endpoint of `endpoints.toml`; `--endpoint NAME --model-id ID` names an endpoint and a model
@@ -522,6 +553,9 @@ Exit codes (specification N.1.3): **0** ok, **1** failures, **2** usage, **3** e
 | Consent | none | `--i-consent-to-local-run` or `--i-consent-to-api-costs`, or the prompt | `--i-consent-to-api-costs` or the prompt |
 | Caps | optional | optional | `--max-calls`, `--max-cost-usd`, `--price-in`, `--price-out` all required |
 | Live status | admitted even if `planned` | `partial` or better | `partial` or better |
+
+`agentprov estimate` with the same options suggests caps that leave room for what a run reserves
+([Suggested caps](#suggested-caps), D-1090); `run` takes no default for them.
 
 | Option | What it does | What it refuses, and the exit code |
 |---|---|---|

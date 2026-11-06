@@ -19,6 +19,12 @@ read there is not "seen", so a readable copy later still counts. Only counts lea
 an execution whose labels are not plain is counted as ``unlabelled`` and left out. The executions are counted in index
 order and every quantile is order-free, so ``jobs`` never changes the bytes.
 
+**Progress.** :func:`build_local` reports its work as units of :data:`CHUNK` executions: a ``start`` event whose
+``total`` is the batches of every corpus's indexed, not withheld executions (one cheap pass over each index first),
+then one ``unit_done`` per batch read, so a job's progress file gives done of total and an ETA (the desktop app's
+Build cost figures). Executions already counted in an earlier corpus are not read, so a build can end below its total.
+Progress never changes the document.
+
 Outside every stage closure (class 0): nothing here writes to a corpus or feeds AER, SEM, PROV or a corpus.
 """
 
@@ -35,6 +41,7 @@ from typing import Any, Final, cast
 from agentprov.errors import AgentProvError
 from agentprov.estimate.localpriors import PriorsBuildError, label, local_document, plain_labels
 from agentprov.estimate.usage import ExecutionUsage, usage_from_records
+from agentprov.progress import NULL_PROGRESS, Progress, ProgressEvent
 
 __all__ = ["build_local", "check_given", "discover"]
 
@@ -174,11 +181,30 @@ def _ordered_map[T, R](fn: Callable[[T], R], items: Iterable[T], jobs: int) -> I
             yield window.popleft().result()
 
 
-def _read_corpus(path: Path, jobs: int, seen: set[str], usages: list[ExecutionUsage]) -> dict[str, Any]:
+def _planned_batches(path: Path) -> int:
+    """The batches of :data:`CHUNK` executions :func:`_read_corpus` will read at most (the indexed executions that
+    ``WITHHELD.json`` does not name), for the progress total; 0 for a corpus that cannot be read (it is skipped later,
+    with its reason)."""
+    from agentprov.corpus.layout import WITHHELD
+    from agentprov.corpus.reader import CorpusReader
+    from agentprov.corpus.withheld import decode_withheld
+
+    try:
+        reader = CorpusReader.open(path)
+        withheld = {e.ex for e in decode_withheld(reader.read_bytes(WITHHELD), reader.limits).executions} \
+            if reader.exists(WITHHELD) else set()
+        rows = sum(1 for row in reader.iter_index() if row.ex not in withheld)
+    except (AgentProvError, OSError):
+        return 0
+    return -(-rows // CHUNK)
+
+
+def _read_corpus(path: Path, jobs: int, seen: set[str], usages: list[ExecutionUsage],
+                 read_batch: Callable[[], None] = lambda: None) -> dict[str, Any]:
     """Append the counts of one sealed corpus's executions to ``usages`` and their ``ex`` ids to ``seen``; returns its
     ``built_from`` entry. Both are extended only when the whole corpus was read (a corpus that fails part way adds
     nothing), and an ``ex`` is marked seen only once its AER was read, so an unreadable copy never hides a readable one
-    in a later corpus (AU-NC-103)."""
+    in a later corpus (AU-NC-103). ``read_batch`` is called once per batch read (the progress)."""
     from agentprov.corpus.layout import MANIFEST, WITHHELD
     from agentprov.corpus.reader import CorpusReader
     from agentprov.corpus.withheld import decode_withheld
@@ -216,6 +242,7 @@ def _read_corpus(path: Path, jobs: int, seen: set[str], usages: list[ExecutionUs
     got: list[ExecutionUsage] = []
     got_ex: set[str] = set()
     for results in _ordered_map(_read_chunk, chunks(), jobs):
+        read_batch()
         for ex, u in results:
             if u is None:
                 unreadable += 1
@@ -236,20 +263,31 @@ def _read_corpus(path: Path, jobs: int, seen: set[str], usages: list[ExecutionUs
 
 
 def build_local(paths: Sequence[Path], *, jobs: int = 1, min_executions: int = 5,
-                skipped: Sequence[Mapping[str, Any]] = (), given: bool = False) -> tuple[bytes, dict[str, Any]]:
+                skipped: Sequence[Mapping[str, Any]] = (), given: bool = False,
+                progress: Progress = NULL_PROGRESS) -> tuple[bytes, dict[str, Any]]:
     """The local priors document of the sealed corpora ``paths`` (in this order) and its ``built_from``.
 
     A corpus that cannot be read as a whole (a damaged index or ``WITHHELD.json``, or no longer sealed) is skipped and
     named in ``built_from.skipped`` (``unreadable (<code>)``) when the corpora were discovered (AU-NC-102: like any
     other directory :func:`discover` cannot use); when they were ``given`` (``--corpus``), the build is refused naming
-    its ``--corpus`` number, as :func:`check_given` refuses a corpus that is not sealed."""
+    its ``--corpus`` number, as :func:`check_given` refuses a corpus that is not sealed. ``progress`` gets a
+    ``start`` with the planned batches and one ``unit_done`` per batch read (module docstring, **Progress**)."""
+    total = sum(_planned_batches(Path(p)) for p in paths)
+    progress.emit(ProgressEvent("start", total=total, fields={"command": "priors build",
+                                                              "plan": f"{len(paths)} sealed corpora"}))
+    batches = [0]
+
+    def read_batch() -> None:
+        batches[0] += 1
+        progress.emit(ProgressEvent("unit_done", unit=f"batch {batches[0]}", status="ok"))
+
     usages: list[ExecutionUsage] = []
     seen: set[str] = set()
     corpora: list[dict[str, Any]] = []
     dropped = list(skipped)
     for n, p in enumerate(paths, 1):
         try:
-            corpora.append(_read_corpus(Path(p), max(1, jobs), seen, usages))
+            corpora.append(_read_corpus(Path(p), max(1, jobs), seen, usages, read_batch))
         except AgentProvError as exc:
             name = label(Path(p).name)
             why = "working (not sealed)" if isinstance(exc, PriorsBuildError) else f"unreadable ({exc.code})"

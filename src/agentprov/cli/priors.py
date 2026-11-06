@@ -141,7 +141,7 @@ def run_priors(ctx: Context) -> CommandResult:
 
     jobs = resolve_worker_count(args.jobs)
     data, built = R.build_local(paths, jobs=jobs, min_executions=args.min_executions, skipped=skipped,
-                                given=bool(args.corpus))
+                                given=bool(args.corpus), progress=ctx.progress)
     path = L.write_local(home, data)
     result.counters = {"corpora": len(built["corpora"]), "rows": built["rows"], "executions": built["executions"],
                        "skipped": len(built["skipped"])}

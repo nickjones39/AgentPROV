@@ -7,8 +7,6 @@ sealed manifest's ``validation`` member, ``linkage_resolved_pct`` included (clai
 
 from __future__ import annotations
 
-import sys
-
 import json
 import os
 from pathlib import Path
@@ -72,7 +70,6 @@ def test_release_adds_every_applicable_tier_to_a_tiers_list(cli, sealed):
                for n in document["notices"])
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="the tier-4 round-trip cache is not used on Windows in 0.2.0")
 def test_an_unreadable_settings_file_does_not_stop_validation(cli, sealed):
     """AU-CLIA-1: the tier-4 cache cap is advisory (D-894); a settings.json that is not strict JSON left every corpus
     command at exit 2 (usage). It now validates with the cache's default cap and says so in a notice."""

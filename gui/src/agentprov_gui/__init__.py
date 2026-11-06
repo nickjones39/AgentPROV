@@ -2,4 +2,4 @@
 
 #: the app's version (About, the start-up log line, the bundle's Info.plist through packaging/agentprov-gui.spec); it
 #: equals gui/pyproject.toml's [project].version (tests/test_version.py)
-__version__ = "0.2.0"
+__version__ = "0.2.1"

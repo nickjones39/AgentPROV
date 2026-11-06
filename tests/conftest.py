@@ -35,9 +35,11 @@ suite-perf proposals (D-400..D-409):
 * **CI shards** (D-1020). ``AGENTPROV_SHARDS=n`` with ``AGENTPROV_SHARD=i`` (1..n) keeps the i-th of n disjoint parts of
   the collected tests and deselects the rest, so one ``ci.yml`` core leg runs on n runners. The part is chosen by
   file, an ``XDIST_GROUPS`` group staying whole, balanced by each file's measured seconds (``tests/shard_seconds.txt``;
-  a file it lacks by its test count). Unset, nothing is deselected. The run takes both variables out of the
-  environment (xdist workers get the shard from the controller), so a pytest that a test starts collects its own
-  tests whole.
+  a file it lacks by its test count). ``AGENTPROV_SHARD_PROFILE`` (D-1110; ``ci.yml`` sets ``<runner.os>-<runner.arch>``)
+  picks that OS's ``[profile]`` section of the list when it has one, else the cross-OS mean; every shard of a leg
+  declares the same profile, so they agree on the split. Unset, nothing is deselected. The run takes the variables out
+  of the environment (xdist workers get the shard from the controller), so a pytest that a test starts collects its
+  own tests whole. The header line ``agentprov shard i/n, profile P`` tells ``tools/slow_tests.py`` a log's OS.
 * **Short parameter ids.** A ``str`` / ``bytes`` parameter whose escaped form exceeds :data:`PARAM_ID_CHARS` gets an
   abbreviated id (its start, its length, a digest): pytest puts the node id into ``PYTEST_CURRENT_TEST`` and Windows
   refuses an environment variable over 32,767 characters (``tests/unit/testing/test_node_ids.py`` keeps every node id
@@ -48,6 +50,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -284,6 +287,7 @@ _GUARD = _WriteGuard()
 
 _PRIVATE_TMP: Path | None = None
 _SHARD: tuple[int, int] | None = None  # (i, n) of a CI shard run (D-1020)
+_SHARD_PROFILE: str | None = None  # whose measured seconds weigh the shards (D-1110)
 
 
 def _runs_tests(config: pytest.Config) -> bool:
@@ -293,7 +297,7 @@ def _runs_tests(config: pytest.Config) -> bool:
 
 @pytest.hookimpl(trylast=True)  # after the tmp_path plugin has made its factory and xdist has chosen ``dist``
 def pytest_configure(config: pytest.Config) -> None:
-    global _PRIVATE_TMP, _SHARD
+    global _PRIVATE_TMP, _SHARD, _SHARD_PROFILE
     workerinput = getattr(config, "workerinput", None)
     if workerinput is None and getattr(config.option, "dist", "no") == "load":
         config.option.dist = "loadgroup"  # D-401: the groups are part of the gate's safety; read at session start
@@ -305,14 +309,14 @@ def pytest_configure(config: pytest.Config) -> None:
         os.environ["TMPDIR"] = str(_PRIVATE_TMP)
         tempfile.tempdir = str(_PRIVATE_TMP)
     if workerinput is None:
-        _SHARD = shard_selection(os.environ)
+        _SHARD, _SHARD_PROFILE = shard_selection(os.environ), shard_profile(os.environ)
     elif workerinput.get("agentprov_shard"):
         index, count = workerinput["agentprov_shard"]
-        _SHARD = (index, count)
-    for name in ("AGENTPROV_SHARD", "AGENTPROV_SHARDS"):  # a pytest that a test starts runs its own tests whole
+        _SHARD, _SHARD_PROFILE = (index, count), workerinput.get("agentprov_shard_profile")
+    for name in SHARD_VARIABLES:  # a pytest that a test starts runs its own tests whole
         os.environ.pop(name, None)
     if _SHARD is not None:
-        config.pluginmanager.register(_Shard(*_SHARD), "agentprov-shard")
+        config.pluginmanager.register(_Shard(*_SHARD, _SHARD_PROFILE), "agentprov-shard")
     if _GUARD_MODE != "off":
         _GUARD.configure(config._tmp_path_factory.getbasetemp(), _PRIVATE_TMP)  # type: ignore[attr-defined]
         sys.addaudithook(_GUARD.hook)  # inert outside a test (``active`` is None); a hook cannot be removed
@@ -322,6 +326,17 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_configure_node(node: Any) -> None:  # xdist.workermanage.WorkerController
     node.workerinput["agentprov_loadgroup"] = node.config.getvalue("dist") == "loadgroup"
     node.workerinput["agentprov_shard"] = list(_SHARD or ())  # the controller took the variables out of the environment
+    node.workerinput["agentprov_shard_profile"] = _SHARD_PROFILE
+
+
+def pytest_report_header(config: pytest.Config) -> str | None:
+    """``agentprov shard i/n, profile P``: which part this run keeps and by whose seconds (read by
+    ``tools/slow_tests.py --shard-seconds``; D-1110)."""
+    if _SHARD is None:
+        return None
+    profile = _SHARD_PROFILE or "-"
+    source = "its own seconds" if _SHARD_PROFILE and _SHARD_PROFILE in _shard_sections() else "the cross-OS mean"
+    return f"agentprov shard {_SHARD[0]}/{_SHARD[1]}, profile {profile} (weighed by {source})"
 
 
 def pytest_unconfigure(config: pytest.Config) -> None:
@@ -488,14 +503,44 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 SHARD_TEST_SECONDS, SHARD_SLOW_SECONDS = 0.1, 5.0
 
 
-def _shard_seconds() -> dict[str, float]:
-    """``tests/shard_seconds.txt`` (generated by ``tools/slow_tests.py --shard-seconds`` from a CI run; D-1020)."""
+#: The variables of a CI shard run, which the run takes out of the environment.
+SHARD_VARIABLES = ("AGENTPROV_SHARD", "AGENTPROV_SHARDS", "AGENTPROV_SHARD_PROFILE")
+_PROFILE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}")
+
+
+def _shard_sections() -> dict[str, dict[str, float]]:
+    """``tests/shard_seconds.txt`` (generated by ``tools/slow_tests.py --shard-seconds`` from a CI run; D-1020): the
+    rows before any ``[profile]`` line under ``""`` (the mean over the OS legs), each profile's rows under its name."""
     path = REPO / "tests" / "shard_seconds.txt"
+    sections: dict[str, dict[str, float]] = {"": {}}
     if not path.is_file():
-        return {}
-    rows = (line.split(" ", 1) for line in path.read_text(encoding="utf-8").splitlines()
-            if line.strip() and not line.startswith("#"))
-    return {name: float(seconds) for seconds, name in rows}
+        return sections
+    current = sections[""]
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current = sections.setdefault(line[1:-1], {})
+            continue
+        seconds, name = line.split(" ", 1)
+        current[name] = float(seconds)
+    return sections
+
+
+def _shard_seconds(profile: str | None = None) -> dict[str, float]:
+    """Test file -> seconds: the profile's own section when the list has one (D-1110), else the cross-OS mean."""
+    sections = _shard_sections()
+    return sections[profile] if profile and profile in sections else sections[""]
+
+
+def shard_profile(environ: dict[str, str] | os._Environ[str]) -> str | None:
+    """``AGENTPROV_SHARD_PROFILE`` (e.g. ``Windows-X64``), or None when unset."""
+    value = environ.get("AGENTPROV_SHARD_PROFILE", "")
+    if not value:
+        return None
+    if not _PROFILE.fullmatch(value):
+        raise pytest.UsageError(f"AGENTPROV_SHARD_PROFILE={value!r}: letters, digits, '.', '_' and '-' only")
+    return value
 
 
 def shard_selection(environ: dict[str, str] | os._Environ[str]) -> tuple[int, int] | None:
@@ -530,12 +575,12 @@ def assign_shards(weights: dict[str, float], count: int) -> dict[str, int]:
 
 
 class _Shard:
-    def __init__(self, index: int, count: int) -> None:
-        self.index, self.count = index, count
+    def __init__(self, index: int, count: int, profile: str | None = None) -> None:
+        self.index, self.count, self.profile = index, count, profile
 
     @pytest.hookimpl(trylast=True)  # after ``-m`` deselection, so the shards share out the tests that run
     def pytest_collection_modifyitems(self, config: pytest.Config, items: list[pytest.Item]) -> None:
-        measured = _shard_seconds()
+        measured = _shard_seconds(self.profile)
         weights: dict[str, float] = {}
         paths = [_relpath(item) for item in items]
         units = [shard_unit(path) for path in paths]

@@ -779,6 +779,7 @@ SHORTCUTS = (
     "⌥⌘W closes the other tabs, ⇧⌘W closes the window, ⌘⇧] ⌘⇧[ next and previous tab (Ctrl+PgDown, Ctrl+PgUp "
     "elsewhere), ⌃Tab ⌃⇧Tab the sub-tabs, middle-click closes a tab\n"
     "⌘, / Ctrl+,  Settings\n"
-    "Graph: ⌘+ ⌘− zoom, ⌘0 actual size, ⌘9 or F fit, Esc clear selection, ⌥/⌘ + wheel or pinch to zoom\n"
+    "Graph: ⌘+ ⌘− zoom, ⌘0 actual size, ⌘9 or F fit, Esc clear selection, the mouse wheel or pinch "
+    "zooms under the pointer, drag or a two-finger trackpad scroll pans (⇧ + wheel scrolls)\n"
     "⌥⌘= ⌥⌘− ⌥⌘0  Text size bigger, smaller, default"
 )

@@ -33,6 +33,7 @@ from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSettings, QSize, Qt,
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
+    QHelpEvent,
     QKeyEvent,
     QPainter,
     QPaintEvent,
@@ -59,21 +60,31 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QStyle,
+    QStyleOptionComboBox,
     QStyleOptionFrame,
+    QStyleOptionMenuItem,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from agentprov_gui.ui import theme
-from agentprov_gui.ui.safe import SafeLabel, set_control_tooltip, set_help_tooltip, set_setting_tooltip
+from agentprov_gui.ui.safe import (
+    UNAVAILABLE_TIP,
+    SafeLabel,
+    set_combo_full_text_tip,
+    set_control_tooltip,
+    set_help_tooltip,
+    set_setting_tooltip,
+    show_tooltip_now,
+    text_first_tooltip,
+)
 
 __all__ = [
     "COLUMN_MAX", "LABEL_WIDTH", "Checklist", "ChipGroup", "Choice", "CommandCard", "DecimalField", "Disclosure",
-    "FactGrid", "FormPage", "FormRow", "FormSection", "IntField", "OverflowBar", "PathField", "SegmentedControl",
-    "StatusBadge",
-    "SummaryPanel", "Switch", "caption", "combo", "command_text", "heading", "is_input_part", "link_button",
-    "wrap_command",
+    "FactGrid", "FormPage", "FormRow", "FormSection", "FullTextCombo", "IntField", "OverflowBar", "PathField",
+    "SegmentedControl", "Spinner", "StatusBadge", "SummaryPanel", "Switch", "caption", "combo", "command_text", "heading",
+    "is_input_part", "link_button", "wrap_command",
 ]  # fmt: skip
 
 #: rule 7: the form column's maximum width; the label column's width (the style guide's 160-190 px)
@@ -123,10 +134,140 @@ def link_button(text: str, *, name: str, parent: QWidget | None = None) -> QPush
     return button
 
 
-def combo(parent: QWidget | None = None, *, name: str, editable: bool = False, minimum_chars: int = 12) -> QComboBox:
-    """A combo box that never widens the column for a long item (it shrinks to ``minimum_chars``; the popup shows the
-    whole text)."""
-    box = QComboBox(parent)
+class Spinner(SafeLabel):
+    """A small turning circle that shows a background task is still working (a quarter-filled circle in four turns,
+    every :data:`SPIN_MS`). Hidden until :meth:`start`; :meth:`stop` hides it again. Not interactive: no tooltip."""
+
+    FRAMES: Final = ("◐", "◓", "◑", "◒")  # ◐ ◓ ◑ ◒
+    SPIN_MS: Final = 150
+
+    def __init__(self, *, name: str, parent: QWidget | None = None) -> None:
+        super().__init__(self.FRAMES[0], name=name, parent=parent, selectable=False)
+        _role(self, "secondary")
+        self._frame = 0
+        self._timer = QTimer(self)
+        self._timer.setInterval(self.SPIN_MS)
+        self._timer.timeout.connect(self._turn)
+        self.setVisible(False)
+
+    def _turn(self) -> None:
+        self._frame = (self._frame + 1) % len(self.FRAMES)
+        self.set_plain(self.FRAMES[self._frame])
+
+    @property
+    def spinning(self) -> bool:
+        return self._timer.isActive()
+
+    def start(self) -> None:
+        self.setVisible(True)
+        if not self._timer.isActive():
+            self._timer.start()
+
+    def stop(self) -> None:
+        self._timer.stop()
+        self.setVisible(False)
+
+
+class FullTextCombo(QComboBox):
+    """The app's one combo box: every item can be read in full, whatever width the closed box gets.
+
+    * The popup is as wide as its widest item (:meth:`popup_width`), measured as the popup draws it: in the box's font
+      (the macOS popup paints its items in the box's font, not the list's smaller one, and leaves a checkmark column
+      Qt's own sizing forgets, so a short item such as "Observed only" was cut), with the style's menu-item margins, the
+      list's frame and its scroll bar, at most the screen's available width less a margin.
+    * An item wider than that still (only a very long value) gets its full text as its tooltip (plain, escaped once,
+      :func:`safe.shown_tooltip`); a tooltip the caller gave the item is kept after it.
+    * The closed box, which may be narrower than its text (:func:`combo`), shows the full current text first in its
+      tooltip while the text is shortened (the in-use gate of :func:`safe.set_setting_tooltip` still decides)."""
+
+    def popup_width(self) -> int:
+        """The width the popup needs for its widest item, capped at :meth:`screen_limit`."""
+        return min(self._content_width(), self.screen_limit())
+
+    def screen_limit(self) -> int:
+        screen = self.screen() or QGuiApplication.primaryScreen()
+        available = screen.availableGeometry().width() if screen is not None else 1024
+        return max(self.width(), available - 2 * theme.SPACE)
+
+    def _item_widths(self) -> list[int]:
+        """Each item's width in the popup, without the list's frame and scroll bar."""
+        view = self.view()
+        option = QStyleOptionComboBox()
+        self.initStyleOption(option)
+        style = self.style()
+        menu_like = bool(style.styleHint(QStyle.StyleHint.SH_ComboBox_Popup, option, self))
+        box_fm, view_fm = self.fontMetrics(), view.fontMetrics()
+        widths: list[int] = []
+        for i in range(self.count()):
+            text = self.itemText(i)
+            icon = 0 if self.itemIcon(i).isNull() else self.iconSize().width() + 4
+            content = max(box_fm.horizontalAdvance(text), view_fm.horizontalAdvance(text)) + icon
+            width = content + 2 * theme.SPACE
+            if menu_like:
+                item = QStyleOptionMenuItem()
+                item.initFrom(view)
+                item.menuItemType = QStyleOptionMenuItem.MenuItemType.Normal
+                item.checkType = QStyleOptionMenuItem.CheckType.NonExclusive
+                item.text, item.font = text, self.font()
+                item.maxIconWidth = icon
+                size = style.sizeFromContents(QStyle.ContentsType.CT_MenuItem, item,
+                                              QSize(content, box_fm.height()), self)
+                width = max(width, size.width() + theme.SPACE)
+            widths.append(max(width, view.sizeHintForIndex(self.model().index(i, self.modelColumn())).width()))
+        return widths
+
+    def _chrome(self) -> int:
+        """The popup's own width around its items: the list's frame and, when it scrolls, its scroll bar."""
+        view = self.view()
+        scrolls = self.count() > self.maxVisibleItems()
+        bar = self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent, None, view) if scrolls else 0
+        return 2 * view.frameWidth() + bar
+
+    def _content_width(self) -> int:
+        return max(self._item_widths(), default=0) + self._chrome()
+
+    def fit_popup(self) -> None:
+        """Size the popup to :meth:`popup_width` and give each item it cannot show in full a full-text tooltip."""
+        view = self.view()
+        limit = self.screen_limit()
+        view.setMinimumWidth(min(self._content_width(), limit))
+        chrome = self._chrome()
+        for i, width in enumerate(self._item_widths()):
+            set_combo_full_text_tip(self, i, needed=width + chrome > limit)
+
+    def showPopup(self) -> None:
+        self.fit_popup()
+        super().showPopup()
+
+    def text_shortened(self) -> bool:
+        """The closed box cannot show its current text in full."""
+        text = self.currentText()
+        if not text:
+            return False
+        option = QStyleOptionComboBox()
+        self.initStyleOption(option)
+        field = self.style().subControlRect(QStyle.ComplexControl.CC_ComboBox, option,
+                                            QStyle.SubControl.SC_ComboBoxEditField, self)
+        icon = 0 if option.currentIcon.isNull() else option.iconSize.width() + 4
+        return self.fontMetrics().horizontalAdvance(text) + icon > field.width()
+
+    def closed_tip(self) -> str:
+        """The closed box's tooltip: while its text is shortened, the full text first, then its own tooltip."""
+        own = self.toolTip()
+        return text_first_tooltip(self.currentText(), own) if self.text_shortened() else own
+
+    def event(self, e: QEvent) -> bool:
+        if e.type() == QEvent.Type.ToolTip and isinstance(e, QHelpEvent) and not self.property(UNAVAILABLE_TIP) \
+                and self.text_shortened():
+            show_tooltip_now(self, e.globalPos(), self.closed_tip())
+            return True
+        return super().event(e)
+
+
+def combo(parent: QWidget | None = None, *, name: str, editable: bool = False, minimum_chars: int = 12) -> FullTextCombo:
+    """A :class:`FullTextCombo` that never widens the column for a long item: the closed box shrinks to
+    ``minimum_chars`` (its tooltip then starts with the whole text), the popup shows the whole text."""
+    box = FullTextCombo(parent)
     box.setEditable(editable)
     box.setAccessibleName(name)
     box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
@@ -297,6 +438,17 @@ class FormSection(QWidget):
     def set_note(self, text: str) -> None:
         self.note.set_plain(text)
         self.note.setVisible(bool(text))
+
+    def clear(self) -> None:
+        """Remove every row (rows built from data, such as an Inspect task's parameters, are rebuilt this way)."""
+        for row in self._members:
+            row.removeEventFilter(self)
+            self.rows.removeWidget(row)
+            row.hide()
+            row.setParent(None)
+            row.deleteLater()
+        self._members.clear()
+        self._hairlines()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() in (QEvent.Type.ShowToParent, QEvent.Type.HideToParent):
@@ -582,8 +734,10 @@ class _ChoiceSet(QWidget):
     def _place(self, widgets: list[QWidget]) -> None:
         raise NotImplementedError
 
-    def set_choices(self, choices: Sequence[Choice], checked: Sequence[str] = ()) -> None:
-        """Replace the toggles; ``checked`` are ticked (a disabled one never is). Emits nothing."""
+    def set_choices(self, choices: Sequence[Choice], checked: Sequence[str] = (), *, empty: str = "") -> None:
+        """Replace the toggles; ``checked`` are ticked (a disabled one never is). With no choices, ``empty`` (if
+        given) is shown in their place as a grey caption ("Loading…", or why there are none), so the row is never a
+        blank gap. Emits nothing."""
         for w in self.findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly):
             w.hide()
             w.deleteLater()
@@ -604,6 +758,8 @@ class _ChoiceSet(QWidget):
             self.boxes[c.key] = b
             holder = b.parentWidget()
             widgets.append(holder if holder is not None and holder is not self else b)
+        if not choices and empty:
+            widgets.append(caption(empty, name=f"{self.accessibleName()}: {empty}", parent=self))
         self._place(widgets)
 
     def checked(self) -> list[str]:

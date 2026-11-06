@@ -31,20 +31,25 @@ jobs:
     # With CI_RUNNER set, the matrix is the self-hosted runner plus the GitHub-hosted Windows leg (running the three
     # other legs on one self-hosted machine would test the same host three times).
     # D-1020: each GitHub-hosted leg's tests are split over `shards` runners, run i keeping the i-th part
-    # (AGENTPROV_SHARD/AGENTPROV_SHARDS, tests/conftest.py): Windows, the slowest on 4 cores, over 4, and the other
-    # legs about in proportion to their single-runner times (CI round 10: about 35, 30, 20 and 15 minutes). The
-    # self-hosted runner runs its leg whole.
+    # (AGENTPROV_SHARD/AGENTPROV_SHARDS, tests/conftest.py): Windows, the slowest on 4 cores, over 8, ubuntu-latest
+    # over 6, ubuntu-24.04-arm and macOS over 4 (D-1100 doubled D-1020's 4, 3, 2 and 2), about in proportion to their
+    # single-runner times (CI round 10: about 35, 30, 20 and 15 minutes). The self-hosted runner runs its leg whole.
+    # Windows, the slowest leg, comes first, so its shards are the first to get a runner when the account's limit on
+    # concurrent jobs queues the rest (D-1110).
     runs-on: ${{ matrix.os == 'self-hosted' && vars.CI_RUNNER || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include: >-
           ${{ fromJSON((vars.CI_RUNNER && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) && '[{"os": "self-hosted", "shard": 1, "shards": 1},
-          {"os": "windows-latest", "shard": 1, "shards": 4}, {"os": "windows-latest", "shard": 2, "shards": 4}, {"os": "windows-latest", "shard": 3, "shards": 4}, {"os": "windows-latest", "shard": 4, "shards": 4}]'
-          || '[{"os": "ubuntu-latest", "shard": 1, "shards": 3}, {"os": "ubuntu-latest", "shard": 2, "shards": 3}, {"os": "ubuntu-latest", "shard": 3, "shards": 3},
-          {"os": "ubuntu-24.04-arm", "shard": 1, "shards": 2}, {"os": "ubuntu-24.04-arm", "shard": 2, "shards": 2},
-          {"os": "macos-latest", "shard": 1, "shards": 2}, {"os": "macos-latest", "shard": 2, "shards": 2},
-          {"os": "windows-latest", "shard": 1, "shards": 4}, {"os": "windows-latest", "shard": 2, "shards": 4}, {"os": "windows-latest", "shard": 3, "shards": 4}, {"os": "windows-latest", "shard": 4, "shards": 4}]') }}
+          {"os": "windows-latest", "shard": 1, "shards": 8}, {"os": "windows-latest", "shard": 2, "shards": 8}, {"os": "windows-latest", "shard": 3, "shards": 8}, {"os": "windows-latest", "shard": 4, "shards": 8},
+          {"os": "windows-latest", "shard": 5, "shards": 8}, {"os": "windows-latest", "shard": 6, "shards": 8}, {"os": "windows-latest", "shard": 7, "shards": 8}, {"os": "windows-latest", "shard": 8, "shards": 8}]'
+          || '[{"os": "windows-latest", "shard": 1, "shards": 8}, {"os": "windows-latest", "shard": 2, "shards": 8}, {"os": "windows-latest", "shard": 3, "shards": 8}, {"os": "windows-latest", "shard": 4, "shards": 8},
+          {"os": "windows-latest", "shard": 5, "shards": 8}, {"os": "windows-latest", "shard": 6, "shards": 8}, {"os": "windows-latest", "shard": 7, "shards": 8}, {"os": "windows-latest", "shard": 8, "shards": 8},
+          {"os": "ubuntu-latest", "shard": 1, "shards": 6}, {"os": "ubuntu-latest", "shard": 2, "shards": 6}, {"os": "ubuntu-latest", "shard": 3, "shards": 6}, {"os": "ubuntu-latest", "shard": 4, "shards": 6},
+          {"os": "ubuntu-latest", "shard": 5, "shards": 6}, {"os": "ubuntu-latest", "shard": 6, "shards": 6},
+          {"os": "ubuntu-24.04-arm", "shard": 1, "shards": 4}, {"os": "ubuntu-24.04-arm", "shard": 2, "shards": 4}, {"os": "ubuntu-24.04-arm", "shard": 3, "shards": 4}, {"os": "ubuntu-24.04-arm", "shard": 4, "shards": 4},
+          {"os": "macos-latest", "shard": 1, "shards": 4}, {"os": "macos-latest", "shard": 2, "shards": 4}, {"os": "macos-latest", "shard": 3, "shards": 4}, {"os": "macos-latest", "shard": 4, "shards": 4}]') }}
     defaults:
       run:
         shell: bash
@@ -76,24 +81,30 @@ jobs:
         run: >-
           uv run python -c "import json; from agentprov.host import detect_host;
           print(json.dumps(detect_host().to_record(), indent=1))"
+      # the checks of the checkout, not of the host: once per leg, in its first shard (D-1110)
       - name: Unicode control-character check
+        if: matrix.shard == 1
         run: uv run python tools/check_unicode.py
       - name: Lint
+        if: matrix.shard == 1
         run: uv run ruff check .
       - name: Tests
-        # this run's shard of the suite (D-1020); every core of the runner (D-1011): run one test at a time, the suite
-        # outgrew a runner's 6 h (about 3 h on 4 cores); --dist loadgroup keeps the xdist_group tests together, as
-        # tools/suite_queue.py runs them locally
-        # --durations lists the slowest tests; faulthandler_timeout dumps every thread's stack of a test that runs past
-        # 20 minutes, so a hang shows where it is, and faulthandler_exit_on_timeout then ends that worker, so the hung
-        # test is reported as failed and the run still ends with its summary
+        # this run's shard of the suite (D-1020); every logical CPU of the runner (D-1011, D-1110: -n auto counts
+        # physical cores when psutil is installed, one on a 2-vCPU x64 runner, so ubuntu-latest and Windows ran one test
+        # at a time); --dist loadgroup keeps the xdist_group tests together, as tools/suite_queue.py runs them locally
+        # --durations=0 times every test, the input of tools/slow_tests.py --shard-seconds (the slowest come first);
+        # faulthandler_timeout dumps every thread's stack of a test that runs past 20 minutes, so a hang shows where it
+        # is, and faulthandler_exit_on_timeout then ends that worker, so the hung test is reported as failed and the run
+        # still ends with its summary
         run: >-
-          uv run pytest -n auto --dist loadgroup --durations=30 -o faulthandler_timeout=1200
+          uv run pytest -n logical --dist loadgroup --durations=0 -o faulthandler_timeout=1200
           -o faulthandler_exit_on_timeout=true
           -m "not network and not backend_agentdojo and not backend_autodojo and not full_corpus"
         env:
           AGENTPROV_SHARD: ${{ matrix.shard }}
           AGENTPROV_SHARDS: ${{ matrix.shards }}
+          # whose measured seconds balance the shards (D-1110): Linux-X64, Linux-ARM64, macOS-ARM64, Windows-X64
+          AGENTPROV_SHARD_PROFILE: ${{ runner.os }}-${{ runner.arch }}
   # capture/ on 3.14 runs through the core workspace (whose requires-python is >=3.14); on 3.12 it runs inside the
   # backend-shared job, whose environment installs agentprov-capture by path.
   capture:

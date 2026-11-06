@@ -1,7 +1,8 @@
 """The AgentDojo history indexes and table against the real blobless history of ethz-spylab/agentdojo (D.6.16).
 
 Local only (marker ``full_corpus``): needs the history cache that ``agentprov fetch --profile agentdojo-upstream --history
---allow-network`` makes (``$AGENTPROV_UPSTREAM_CACHE``, default ``$AGENTPROV_HOME/cache``); a missing index skips the test.
+--allow-network`` makes (``$AGENTPROV_UPSTREAM_CACHE``, default ``$AGENTPROV_HOME/cache``); a missing index skips the test,
+and the test that compares with the pinned trees also skips when a pinned commit is missing from the git cache.
 Nothing here uses the network.
 """
 
@@ -19,7 +20,7 @@ import history_table  # noqa: E402
 
 from agentprov.adapters.agentdojo.profile import family_table  # noqa: E402
 from agentprov.adapters.profiles import load_profile  # noqa: E402
-from agentprov.raw.fetch import Fetcher, Recipe, resolve_cache_dir  # noqa: E402
+from agentprov.raw.fetch import Fetcher, NotCachedError, Recipe, resolve_cache_dir  # noqa: E402
 
 pytestmark = pytest.mark.full_corpus
 
@@ -53,7 +54,11 @@ def test_every_blob_of_both_pinned_trees_has_an_introducing_commit_the_table_lis
     table = family_table(load_profile("agentdojo-upstream")).history
     assert table is not None
     for part, (recipe, index) in indexes.items():
-        entries, _ = Fetcher(resolve_cache_dir(None)).git_tree(Recipe(kind="git", repo=recipe.repo, commit=recipe.commit))
+        try:  # the history index is not enough here: the pinned tree comes from the git cache
+            entries, _ = Fetcher(resolve_cache_dir(None)).git_tree(Recipe(kind="git", repo=recipe.repo, commit=recipe.commit))
+        except NotCachedError:
+            pytest.skip(f"the pinned commit of {part} is not in the git cache: run `agentprov fetch --profile "
+                        "agentdojo-upstream --history --allow-network`")
         tree = {e.path: e.oid for e in entries if e.is_blob}
         assert {p for p, _b in index.rows} == set(tree), part
         assert all(index.lookup(p, oid) is not None for p, oid in tree.items()), part

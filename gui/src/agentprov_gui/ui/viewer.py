@@ -125,6 +125,7 @@ from agentprov_gui.ui.safe import (
     help_tooltip,
     is_tooltip_role,
     safe_tooltip,
+    set_action_tooltip,
     set_control_tooltip,
     set_list_item_tooltip,
     set_tab_tooltip,
@@ -261,6 +262,12 @@ def menu_text(text: str) -> str:
 def value_label(key: str, value: str) -> str:
     """A filter value as the menus and chips show it: an outcome state in words, any other value escaped (S3)."""
     return OUTCOME_LABELS.get(value, value) if key in OUTCOME_RULE else T.line(value, 80)
+
+
+def value_full(key: str, value: str) -> str:
+    """A filter value whole, for a tooltip (:func:`safe.safe_tooltip` escapes it): :func:`value_label` cuts a long
+    value at 80 characters and a chip elides it further."""
+    return OUTCOME_LABELS.get(value, value) if key in OUTCOME_RULE else value
 
 
 def group_of(summary: CorpusSummary) -> str:
@@ -1218,7 +1225,8 @@ class ViewerPage(QWidget):
                 item.setData(CorporaDelegate.COUNT_ROLE, count)
                 item.setData(Qt.ItemDataRole.AccessibleTextRole,
                              f"{T.line(s.name, 120)}, {theme.status_text(group_of(s))}, {count} executions")
-                set_list_item_tooltip(item, str(s.path) + (f" ({s.error})" if s.error else ""))
+                # the name first: the list elides a long one in the middle
+                set_list_item_tooltip(item, f"{s.name} — {s.path}" + (f" ({s.error})" if s.error else ""), wrap=True)
                 lst.addItem(item)
                 if self.summary is not None and s.path == self.summary.path:
                     current = item
@@ -1455,8 +1463,11 @@ class ViewerPage(QWidget):
         if current is not None:
             sub.addAction(f"Remove the {PLAIN[key].lower()} filter", partial(self.set_filter, key, None))
             sub.addSeparator()
+        sub.setToolTipsVisible(True)  # a value cut at 80 characters shows whole in its tooltip
         for value, label, count in self.filter_values(key):
             act = sub.addAction(menu_text(f"{label}  ({count:,})"))
+            if value_full(key, value) != label:
+                set_action_tooltip(act, value_full(key, value))
             act.setData(value)
             act.setCheckable(True)
             act.setChecked(value == current)
@@ -1493,13 +1504,15 @@ class ViewerPage(QWidget):
             chip.hide()  # at once: the deletion waits for the event loop
             chip.deleteLater()
         self.chips = {}
-        applied: list[tuple[str, str, str]] = []
+        applied: list[tuple[str, str, str, str]] = []  # key, title, label, the whole value (the tooltip's)
         for key in MENU_ORDER:
             if key in self.filters:
-                applied.append((key, PLAIN[key], value_label(key, self.filters[key])))
+                value = self.filters[key]
+                applied.append((key, PLAIN[key], value_label(key, value), value_full(key, value)))
         if self.search_text.strip():
-            applied.append(("search", "Id contains", T.line(self.search_text.strip(), 80)))
-        for key, title, label in applied:
+            search = self.search_text.strip()
+            applied.append(("search", "Id contains", T.line(search, 80), search))
+        for key, title, label, full in applied:
             chip = QPushButton(self.filter_bar)
             shown = chip.fontMetrics().elidedText(f"{title}: {label}", Qt.TextElideMode.ElideMiddle, 200)
             chip.setText(menu_text(f"{shown}  ×"))
@@ -1509,7 +1522,7 @@ class ViewerPage(QWidget):
             chip.setAutoDefault(False)
             chip.setAccessibleName(f"Remove the {title.lower()} filter")
             chip.setAccessibleDescription(f"{title}: {label}")
-            set_control_tooltip(chip, f"{title}: {label}. Click to remove this filter.")
+            set_control_tooltip(chip, f"{title}: {full}. Click to remove this filter.")
             chip.clicked.connect(partial(self._remove_chip, key))
             self.chips[key] = chip
         # the chips first, then + Add filter and Clear all

@@ -55,7 +55,7 @@ Any CPython 3.14.8 or later works; `uv python install` is only needed when none 
 is installed the same way (`uv python install 3.12`) before `agentprov backends build` (chapter 7).
 
 ```text
-agentprov 0.2.0
+agentprov 0.2.1
 formats: aer/0.2 sem/0.1 capture/0.1 agentprov-prov/0.1 apv 0.2.0 agentprov-corpus/0.2
 python 3.14.8 (interpreter_advisory: none)
 ```

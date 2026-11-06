@@ -385,7 +385,15 @@ def make_rss_sampler(kind: str) -> Callable[[int], int | None] | None:
 
 
 def _make_libproc_sampler() -> Callable[[int], int | None] | None:
-    """``proc_pidinfo(PROC_PIDTASKINFO)``: the second 64-bit field of ``proc_taskinfo`` is the resident size."""
+    """``proc_pidinfo(PROC_PIDTASKINFO)``: the second 64-bit field of ``proc_taskinfo`` is the resident size.
+
+    D-1080: the sample is the larger of that resident size and ``phys_footprint`` (``proc_pid_rusage``,
+    ``RUSAGE_INFO_V4``) where the latter answers. On a host short of memory, macOS compresses or swaps a process's
+    pages and its resident size falls while its footprint does not: a 1.5 GiB job finished under a 1 GiB cap with a
+    sampled peak of 986 MiB (GitHub's macos-latest, run 42002097860). macOS has no hard memory cap (``RLIMIT_AS`` is
+    not enforced), so the watchdog must count those pages. The maximum is never below the resident size sampled
+    before D-1080 (``phys_footprint`` leaves out shared file-backed pages that the resident size counts), so no job
+    that was stopped before is let through now."""
     name = ctypes.util.find_library("proc")
     if not name:
         return None
@@ -397,12 +405,23 @@ def _make_libproc_sampler() -> Callable[[int], int | None] | None:
     func.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_int]
     func.restype = ctypes.c_int
     proc_pidtaskinfo, size = 4, 96  # PROC_PIDTASKINFO, sizeof(struct proc_taskinfo)
+    rusage = getattr(lib, "proc_pid_rusage", None)
+    if rusage is not None:
+        rusage.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
+        rusage.restype = ctypes.c_int
+    rusage_info_v4 = 4
 
     def libproc(pid: int) -> int | None:
         buffer = (ctypes.c_uint64 * (size // 8))()
         if func(pid, proc_pidtaskinfo, 0, buffer, size) != size:
             return None
-        return int(buffer[1])
+        resident = int(buffer[1])
+        if rusage is None:
+            return resident
+        info = _RusageInfoV4()
+        if rusage(pid, rusage_info_v4, ctypes.byref(info)) != 0:
+            return resident
+        return max(resident, int(info.ri_phys_footprint))
 
     return libproc
 

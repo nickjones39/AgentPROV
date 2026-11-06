@@ -112,6 +112,10 @@ def estimate_argv(s: RunSettings, *, real_allowed: bool, stats_corpora: Sequence
     """``agentprov estimate`` for these settings (``--format json``). ``real_allowed``: the live part admits real
     models and the keychain holds the key, so the CLI may plan with it (``--keychain``)."""
     keep = {k: v for k, v in s.extra.items() if k in {f.key for f in FORMS["estimate"].fields}}
+    if (s.extra.get("preset") or s.extra.get("m5ultra")) and not s.extra.get("llm_element"):
+        # D-1090: estimate takes no --preset, and a preset run uses gateway_compat (run's D-822 rule), whose per-cell
+        # bound (D-725) the suggested caps must leave room for
+        keep["llm_element"] = "gateway_compat"
     values = _values(replace(s, extra=keep), stats_corpus=list(stats_corpora), format="json")
     if s.real:
         values["containment"] = s.containment if real_allowed else ""

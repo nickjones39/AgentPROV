@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -166,8 +167,10 @@ def test_the_quote_panel_shows_the_clis_figures_and_names_a_fallback(qapp: Any, 
     assert "No recorded run of vendor/m yet" in basis and "figures for all models" in basis and "75 recorded" in basis
     assert "the shipped priors" in basis and "characters / 4" in basis and "OpenRouter's list price, as of 2026-10-21" \
         in basis and "Batch and cache discounts are not assumed." in basis
-    dlg.use_quote_upper()  # rule: "Use the quote's upper figure" fills --max-cost-usd from p90
-    assert dlg.max_cost.value() == pytest.approx(9.80)
+    # D-1090: a quote without suggested caps (an older CLI) fills nothing: the caps are typed, as before
+    dlg.use_quote_upper()
+    assert dlg.max_cost.number() is None and dlg.max_calls.number() is None
+    assert dlg.cap_rows["cost"].caption.text() == "Enter it yourself: this agentprov suggests no caps"
     dlg.close()
 
 
@@ -522,4 +525,189 @@ def test_start_stagger_and_retry_inconsistent_reach_the_argv(qapp: Any, tmp_path
     assert "--jobs 18" in card and "--start-stagger 20.0" in card and "--retry-inconsistent" in card
     for w in (dlg.start_stagger, dlg.retry_inconsistent):
         assert w.toolTip().strip() or w.property("apvTip")
+    dlg.close()
+
+
+# ---------------------------------------------------------------------------------------------- no blank catalogue
+def _captions(group: Any) -> list[str]:
+    from agentprov_gui.ui.safe import SafeLabel
+
+    return [lab.text() for lab in group.findChildren(SafeLabel) if not lab.isHidden()]  # a replaced one is hidden
+
+
+def test_empty_rows_say_why_and_never_stay_blank(qapp: Any) -> None:
+    from agentprov_gui.ui.forms import Checklist, ChipGroup, Choice
+
+    for group in (Checklist(name="Suites"), ChipGroup(name="Attacks")):
+        group.set_choices([], empty="Loading…")
+        assert group.count() == 0 and "Loading…" in _captions(group)
+        group.set_choices([Choice("banking", "banking")])
+        qapp.processEvents()  # the old caption is deleted later
+        assert group.count() == 1 and group.selectable() == ["banking"]
+        group.set_choices([])
+        assert group.count() == 0  # no empty text: nothing added (the old behaviour)
+        group.deleteLater()
+
+
+def test_a_reopened_run_live_shows_the_last_catalogue_at_once(qapp: Any, tmp_path: Path,
+                                                             monkeypatch: pytest.MonkeyPatch) -> None:
+    """The catalogue call takes about 2 s (it starts the backend's interpreter): the first Run Live of an app session
+    shows "Loading…" in the Suites and Attacks rows until it answers; a later one shows the last good catalogue at
+    once, and the call's same answer redraws nothing, so what was ticked meanwhile stays."""
+    import threading
+
+    gate = threading.Event()
+    base = quoting_run([], None, status="planned")
+
+    def run(manager: Any, argv: list[str], **kw: Any) -> tuple[int, bytes, bytes]:
+        if "--catalogue" in argv:
+            gate.wait(30)  # the backend answers only when the test lets it
+        return base(manager, argv, **kw)
+
+    first = _dialog(tmp_path, monkeypatch, scripted=True, run=run)
+    assert first.suites.count() == 0 and "Loading the suites from the backend…" in _captions(first.suites)
+    assert "Loading the attacks…" in _captions(first.attacks)
+    gate.set()
+    wait(qapp, lambda: isinstance(first.catalogues.get("agentdojo"), type(first.catalogue)) and first.suites.count())
+    manager = first.manager
+    first.close()
+
+    gate.clear()
+    from agentprov_gui.ui.runlive import RunLiveDialog
+
+    again = RunLiveDialog(manager, home=tmp_path / "home", checkout=first.checkout, preset=first.settings(), run=run,
+                          cli_options=CAPS)
+    assert again.suites.count() == len(CATALOGUE["suites"]) and again.catalogue is not None  # before any answer
+    again.suites.set_checked([])  # the user unticks while the call checks the catalogue again
+    gate.set()
+    wait(qapp, lambda: not again.suites.checked() and _calls_done(again))
+    assert again.suites.count() == len(CATALOGUE["suites"]) and not again.suites.checked()  # not redrawn
+    again.close()
+
+    def broken(manager: Any, argv: list[str], **kw: Any) -> tuple[int, bytes, bytes]:
+        if "--catalogue" in argv:
+            return 3, b"", b"agentprov: error [backend.unavailable]: the backend environment x is not built\n"
+        return base(manager, argv, **kw)
+
+    third = RunLiveDialog(manager, home=tmp_path / "home", checkout=first.checkout, preset=first.settings(),
+                          run=broken, cli_options=CAPS)
+    wait(qapp, lambda: isinstance(third.catalogues.get("agentdojo"), str))
+    assert third.catalogue is None and third.suites.count() == 0  # the cached list is not kept over a failure
+    assert not any(key[-1] == "agentdojo" for key in manager.catalogue_cache)
+    third.close()
+
+
+def _calls_done(dlg: Any) -> bool:
+    from PySide6.QtCore import QThreadPool
+
+    return QThreadPool.globalInstance().activeThreadCount() == 0
+
+
+# ---------------------------------------------------------------------------------------------- Tune and cost figures
+def test_tune_needs_a_model_with_known_weights(qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A host preset sizes the concurrency from the model's weights here (run.model.facts_missing without them): a
+    scripted run or an API model disables Tune… with the reason; a weight size under Advanced enables it."""
+    from agentprov_gui.live.runspec import RunSettings
+    from agentprov_gui.ui.runlive import RunLiveDialog
+
+    for scripted in (True, False):  # the scripted transport; an API model (openrouter)
+        dlg = _dialog(tmp_path, monkeypatch, scripted=scripted)
+        dlg._changed()
+        assert not dlg.tune_btn.isEnabled() and "weight size" in dlg.tune_btn.toolTip()
+        dlg.close()
+    dlg = _dialog(tmp_path, monkeypatch, scripted=True)
+    preset = replace(dlg.settings(), extra={**dlg.settings().extra, "model_size_gb": 9})
+    dlg.close()
+    sized = RunLiveDialog(JobManager(tmp_path / "home2", CliLocator(None, (sys.executable, str(FAKE)))),
+                          home=tmp_path / "home2", checkout=None, preset=preset, run=quoting_run([], None),
+                          cli_options=CAPS)
+    assert isinstance(sized, RunLiveDialog) and isinstance(preset, RunSettings)
+    sized._changed()
+    assert sized.tune_btn.isEnabled() and "weight size" not in sized.tune_btn.toolTip()
+    sized.close()
+
+
+def test_tune_explains_a_missing_weight_size(qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from PySide6.QtWidgets import QDialog
+
+    from agentprov_gui.ui.safe import SafeLabel
+
+    base = quoting_run([], None)
+
+    def run(manager: Any, argv: list[str], **kw: Any) -> tuple[int, bytes, bytes]:
+        if "--dry-run" in argv and "--m5ultra" in argv:
+            return 2, b"", (b"agentprov: error [run.model.facts_missing]: model weight size is unknown: give "
+                            b"--model-dir or --model-size-gb\n")
+        return base(manager, argv, **kw)
+
+    shown: list[list[str]] = []
+
+    def exec_(box: Any) -> int:
+        shown.append([lab.text() for lab in box.findChildren(SafeLabel)])
+        return 0
+
+    monkeypatch.setattr(QDialog, "exec", exec_)
+    dlg = _dialog(tmp_path, monkeypatch, scripted=True, run=run)
+    dlg.tune()
+    ((labels),) = shown
+    assert any("does not know the weight size" in t and "Settings › Local models" in t for t in labels)
+    dlg.close()
+
+
+def test_the_spinner_turns_only_while_started(qapp: Any) -> None:
+    from agentprov_gui.ui.forms import Spinner
+
+    s = Spinner(name="Working")
+    assert s.isHidden() and not s.spinning
+    s.start()
+    first = s.text()
+    s._turn()
+    assert not s.isHidden() and s.spinning and s.text() != first and s.text() in Spinner.FRAMES
+    s.stop()
+    assert s.isHidden() and not s.spinning
+    s.deleteLater()
+
+
+def test_building_cost_figures_shows_batches_time_left_and_a_spinner(qapp: Any, tmp_path: Path,
+                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    dlg = _dialog(tmp_path, monkeypatch, scripted=True)
+    dlg._priors_working(True)
+    assert dlg.priors_spinner.spinning and not dlg.priors_bar.isHidden() and dlg.priors_bar.maximum() == 0  # moving
+    dlg._priors_progress(0, None, None)
+    assert "counting the executions" in dlg.priors_status.text()
+    dlg._priors_progress(5, 40, None)
+    assert dlg.priors_bar.maximum() == 40 and dlg.priors_bar.value() == 5
+    assert "5 of 40 batches of 32 executions read (12 %)" in dlg.priors_status.text()
+    assert "working out the time left" in dlg.priors_status.text()
+    dlg._priors_progress(20, 40, (110.0, 130.0))
+    assert "about 2 m 00 s left" in dlg.priors_status.text() and " to " not in dlg.priors_status.text()
+    dlg._priors_progress(20, 40, (60.0, 300.0))
+    assert "(1 m 00 s to 5 m 00 s)" in dlg.priors_status.text()  # a wide range is shown
+    dlg._priors_built(0, "")
+    assert not dlg.priors_spinner.spinning and dlg.priors_bar.isHidden()
+    assert "Cost figures built" in dlg.priors_status.text()
+    dlg.close()
+
+
+def test_a_running_build_s_progress_file_reaches_the_dialog(qapp: Any, tmp_path: Path,
+                                                            monkeypatch: pytest.MonkeyPatch) -> None:
+    """The watcher folds the job's progress.jsonl in the pool and hands done of total to the UI thread each tick."""
+    from agentprov_gui.jobs.manager import Job
+
+    dlg = _dialog(tmp_path, monkeypatch, scripted=True)
+    folder = tmp_path / "job"
+    folder.mkdir()
+    lines = [{"v": "0.2", "event": "start", "total": 10, "command": "priors build"}]
+    lines += [{"v": "0.2", "event": "unit_done", "unit": f"batch {i}", "status": "ok"} for i in range(1, 5)]
+    (folder / "progress.jsonl").write_text("".join(json.dumps(x) + "\n" for x in lines))
+    job = Job("j1", folder, {"command": "priors"}, state="running")
+    monkeypatch.setattr(dlg.manager, "refresh", lambda: None)
+    dlg.manager.jobs = {"j1": job}
+    seen: list[tuple[int, int | None]] = []
+    ended: list[int | None] = []
+    dlg._watch_job("j1", lambda code, _why: ended.append(code), progress=lambda d, t, _left: seen.append((d, t)))
+    wait(qapp, lambda: bool(seen))
+    assert seen[-1] == (4, 10) and not ended
+    job.state, job.exit_code = "ended", 0
+    wait(qapp, lambda: ended == [0])
     dlg.close()

@@ -1,7 +1,8 @@
 """The Graph tab (design §7.2; wireframe 02; macos-design §5; D-397, D-444, D-446).
 
-Toolbar: zoom −/+, 100 %, Fit; bundle toggles (core always; inference and assessment as overlays); evidence filter;
-layout (overlay: ``dot`` core + overlays, or full: layered, with "collapse mentions"); search with k-hop Focus.
+Toolbar: zoom −/+, 100 %, Fit (the mouse wheel zooms under the pointer; drag or a trackpad scroll pans); bundle
+toggles (core always; inference and assessment as overlays); evidence filter; layout (overlay: ``dot`` core +
+overlays, or full: layered, with "collapse mentions"); search with k-hop Focus.
 Hover a node for 400 ms: a plain-text popover with its attributes (data values hidden as ``‹text, n chars, sha256›``
 until Show content, then fenced as data with their locator). Click selects and pins it to the inspector table; Esc clears. The Elements list (id, section,
 bundle, class, degree) is the accessible view of the graph, synchronised with the selection.
@@ -27,6 +28,7 @@ from PySide6.QtCore import (
     QModelIndex,
     QPersistentModelIndex,
     QPoint,
+    QPointF,
     Qt,
     QThreadPool,
     QTimer,
@@ -46,7 +48,6 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
-    QComboBox,
     QFrame,
     QGraphicsView,
     QHBoxLayout,
@@ -70,7 +71,7 @@ from agentprov_gui.graph.scene import LOD_RASTER, GraphScene, lod_tier, paint_ra
 from agentprov_gui.graph.viewgraph import ViewGraph, attribute_rows, full_view, overlay_view
 from agentprov_gui.ui import theme
 from agentprov_gui.ui.detail import content_switch, field_tip, inline_caption, tidy_view
-from agentprov_gui.ui.forms import OverflowBar, caption, heading
+from agentprov_gui.ui.forms import FullTextCombo, OverflowBar, caption, heading
 from agentprov_gui.ui.safe import (
     ReadOnlyText,
     help_tooltip,
@@ -90,6 +91,10 @@ __all__ = ["GraphTab", "GraphView"]
 
 MIN_SCALE: Final = 0.05
 MAX_SCALE: Final = 8.0
+#: one zoom step: the − and + buttons, ⌘− and ⌘+, and one notch (120 eighths of a degree) of a mouse wheel
+ZOOM_STEP: Final = 1.25
+#: ``QWheelEvent.angleDelta`` of one wheel notch
+WHEEL_NOTCH: Final = 120
 HOVER_MS: Final = 400
 
 
@@ -104,7 +109,16 @@ def graph_work(doc: Any, ex: str, *, full: bool, collapse: bool, cache_dir: Path
 
 # ----------------------------------------------------------------------------------------------- the view
 class GraphView(QGraphicsView):
-    """Pan (drag the background), zoom (wheel with ⌘/Ctrl or ⌥, pinch, keys), hover and click."""
+    """Pan (drag the background, or scroll with two fingers on a trackpad), zoom (the mouse wheel, ⌘/Ctrl or ⌥ with a
+    trackpad scroll, pinch, keys), hover and click.
+
+    A mouse wheel zooms, anchored under the pointer, one :data:`ZOOM_STEP` a notch, within :data:`MIN_SCALE` and
+    :data:`MAX_SCALE` like the buttons and shortcuts. A trackpad (or Magic Mouse) scroll pans: Qt marks those events
+    with a scroll phase (begin, update, end, momentum), which a mouse wheel never has (``Qt.NoScrollPhase``); that is
+    the test :func:`wheel_pans` applies, as ``pixelDelta`` alone does not tell them apart (macOS gives some mice
+    precise deltas too). Where a touchpad sends no phases (Windows precision touchpads), its scroll zooms like a wheel;
+    drag pans there. Shift with the wheel scrolls instead, as a wheel did before, and a wheel tilted sideways (or a
+    horizontal-only scroll) still scrolls sideways."""
 
     hovered = Signal(str, QPoint)  # node key, global position
     hover_ended = Signal()  # the cursor moved off its node or out of the view
@@ -143,8 +157,25 @@ class GraphView(QGraphicsView):
             self.scale(target / current, target / current)
             self._scale_moved()
 
+    def zoom_at(self, factor: float, pos: QPointF) -> None:
+        """Zoom by ``factor`` (clamped like :meth:`zoom_by`) keeping the scene point under ``pos`` (viewport
+        coordinates) where it is. The anchor is computed from the event's own position, not from the last mouse move
+        Qt remembers for ``AnchorUnderMouse``, which is stale after a trackpad pan."""
+        at = pos.toPoint()
+        before = self.mapToScene(at)
+        anchor = self.transformationAnchor()
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.NoAnchor)
+        try:
+            self.zoom_by(factor)
+        finally:
+            self.setTransformationAnchor(anchor)
+        shift = self.mapFromScene(before) - at
+        self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() + shift.x())
+        self.verticalScrollBar().setValue(self.verticalScrollBar().value() + shift.y())
+
     def set_zoom(self, value: float) -> None:
         self.resetTransform()
+        value = min(MAX_SCALE, max(MIN_SCALE, value))
         self.scale(value, value)
         self._scale_moved()
 
@@ -171,19 +202,18 @@ class GraphView(QGraphicsView):
         self.scale_changed.emit(s)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        mods = event.modifiers()
-        if mods & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier | Qt.KeyboardModifier.MetaModifier):
-            delta = event.angleDelta().y() or event.pixelDelta().y()
-            if delta:
-                self.zoom_by(1.0015 ** delta)
-            event.accept()
+        if wheel_pans(event):
+            super().wheelEvent(event)
             return
-        super().wheelEvent(event)
+        delta = event.angleDelta().y() or event.pixelDelta().y()
+        if delta:
+            self.zoom_at(ZOOM_STEP ** (delta / WHEEL_NOTCH), event.position())
+        event.accept()
 
     def viewportEvent(self, event: QEvent) -> bool:
         if isinstance(event, QNativeGestureEvent):
             if event.gestureType() == Qt.NativeGestureType.ZoomNativeGesture:
-                self.zoom_by(1.0 + event.value())
+                self.zoom_at(1.0 + event.value(), event.position())
                 return True
             if event.gestureType() == Qt.NativeGestureType.SmartZoomNativeGesture:
                 if abs(self.current_scale() - 1.0) < 0.01:
@@ -227,6 +257,24 @@ class GraphView(QGraphicsView):
         self._hover_key = None
         self.hover_ended.emit()
         super().leaveEvent(event)
+
+
+_ZOOM_MODIFIERS: Final = (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier
+                          | Qt.KeyboardModifier.MetaModifier)
+
+
+def wheel_pans(event: QWheelEvent) -> bool:
+    """Whether a wheel event pans (scrolls) the graph rather than zooming it (see :class:`GraphView`).
+
+    ⌘/Ctrl or ⌥ always zooms. Otherwise a trackpad scroll (any scroll phase), Shift with the wheel, and a
+    horizontal-only scroll (a tilted wheel) pan; a plain vertical mouse wheel zooms."""
+    if event.modifiers() & _ZOOM_MODIFIERS:
+        return False
+    if event.phase() != Qt.ScrollPhase.NoScrollPhase:
+        return True
+    if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+        return True
+    return not (event.angleDelta().y() or event.pixelDelta().y())
 
 
 # ----------------------------------------------------------------------------------------------- popover
@@ -436,8 +484,10 @@ class GraphTab(QWidget):
             bar.add(group)
 
         self.view = GraphView(self)
-        place(self._button("−", "Zoom out", lambda: self.view.zoom_by(1 / 1.25), "Zoom out (⌘−)"),
-              self._button("+", "Zoom in", lambda: self.view.zoom_by(1.25), "Zoom in (⌘+)"))
+        place(self._button("−", "Zoom out", lambda: self.view.zoom_by(1 / ZOOM_STEP),
+                           "Zoom out (⌘−); the mouse wheel zooms too, under the pointer"),
+              self._button("+", "Zoom in", lambda: self.view.zoom_by(ZOOM_STEP),
+                           "Zoom in (⌘+); the mouse wheel zooms too, under the pointer"))
         place(self._button("100 %", "Actual size", lambda: self.view.set_zoom(1.0), "Actual size (⌘0)"),
               self._button("Fit", "Fit to window", self.view.fit, "Fit (⌘9)"))
         gap()
@@ -462,14 +512,14 @@ class GraphTab(QWidget):
         self.cb_inf.toggled.connect(self._bundles_changed)
         self.cb_assess.toggled.connect(self._bundles_changed)
         gap()
-        self.evidence = QComboBox(self)
+        self.evidence = FullTextCombo(self)
         self.evidence.setAccessibleName("Evidence class filter")
         self.evidence.addItems(["All evidence", "Observed only", "Derived only", "Inferred only"])
         self.evidence.currentIndexChanged.connect(self._evidence_changed)
         set_control_tooltip(self.evidence, "Dim every element that is not of the chosen evidence class: Observed (the "
                                            "source recorded it), Derived (computed by a rule) or Inferred")
         place(self.evidence)
-        self.layout_choice = QComboBox(self)
+        self.layout_choice = FullTextCombo(self)
         self.layout_choice.setAccessibleName("Layout")
         self.layout_choice.addItems(["Layout: core + overlays", "Layout: full (layered)"])
         self.layout_choice.currentIndexChanged.connect(self._relayout)
@@ -505,7 +555,7 @@ class GraphTab(QWidget):
             line.addWidget(self.search, 1)
         elif isinstance(bar, QHBoxLayout):
             bar.addWidget(self.search, 1 if self.two_rows else 0)
-        self.hops = QComboBox(self)
+        self.hops = FullTextCombo(self)
         self.hops.setAccessibleName("Focus neighbourhood size")
         self.hops.addItems(["1 edge", "2 edges", "3 edges"])
         set_control_tooltip(self.hops, "How many edges away from the selection Focus keeps in view")
@@ -607,8 +657,8 @@ class GraphTab(QWidget):
             app.applicationStateChanged.connect(self._app_state)
         self.view.clicked.connect(lambda key: self.select(key or None))
         self.view.scale_changed.connect(lambda _s: self._update_status())
-        for keys, fn in ((QKeySequence.StandardKey.ZoomIn, lambda: self.view.zoom_by(1.25)),
-                         (QKeySequence.StandardKey.ZoomOut, lambda: self.view.zoom_by(0.8)),
+        for keys, fn in ((QKeySequence.StandardKey.ZoomIn, lambda: self.view.zoom_by(ZOOM_STEP)),
+                         (QKeySequence.StandardKey.ZoomOut, lambda: self.view.zoom_by(1 / ZOOM_STEP)),
                          ("Ctrl+0", lambda: self.view.set_zoom(1.0)), ("Ctrl+9", self.view.fit),
                          ("Escape", self._escape), ("F", self.view.fit)):  # fmt: skip
             sc = QShortcut(QKeySequence(keys), self.view)

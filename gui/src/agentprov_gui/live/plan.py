@@ -26,16 +26,25 @@ __all__ = [
     "Catalogue",
     "Endpoint",
     "EstimateView",
+    "InspectCatalogue",
+    "InspectParam",
+    "InspectSplit",
+    "InspectTask",
+    "JudgeRole",
     "PlanError",
     "PriceRow",
     "PriceTable",
     "Quote",
     "QuoteBasis",
+    "SuggestedCaps",
     "SuiteEntry",
     "live_status",
     "load_endpoints",
+    "parse_any_catalogue",
+    "parse_caps",
     "parse_catalogue",
     "parse_estimate",
+    "parse_inspect_catalogue",
     "parse_prices",
     "parse_quote",
 ]
@@ -205,6 +214,56 @@ class QuoteBasis:
 
 
 @dataclass(frozen=True, slots=True)
+class SuggestedCaps:
+    """The D-725 caps the CLI suggests for this run (``quote.caps``, D-1090), read defensively. ``available`` is true
+    only when both caps and both prices are present; otherwise ``reason`` says why (``None``: an older CLI gave no
+    suggestion). The GUI shows these figures and fills the cap fields with them; it computes none."""
+
+    available: bool = False
+    reason: str | None = None
+    max_calls: int | None = None
+    max_cost_usd: Decimal | None = None
+    price_in: Decimal | None = None
+    price_out: Decimal | None = None
+    margin_pct: Decimal | None = None
+    margin_from: str | None = None  # setting | default
+    reserved_cells: int | None = None
+    cell_calls: int | None = None
+    cell_usd: Decimal | None = None
+    probe_calls: int | None = None
+    resumed_units: int | None = None
+
+
+def parse_caps(raw: Any) -> SuggestedCaps | None:
+    """``quote.caps`` (D-1090), or ``None`` when the CLI gave none."""
+    if not isinstance(raw, dict):
+        return None
+
+    def dec(key: str) -> Decimal | None:
+        value: Decimal | None = _opt(_money, _decimal_text(raw.get(key)))
+        return value
+
+    calls = _opt(_int, raw.get("max_calls"))
+    cost, p_in, p_out = dec("max_cost_usd"), dec("price_in"), dec("price_out")
+    complete = calls is not None and calls >= 1 and cost is not None and cost > 0 and p_in is not None \
+        and p_out is not None
+    available = raw.get("available") is True and complete
+    reason = _label(raw.get("reason"), 400) or None
+    if raw.get("available") is True and not complete:
+        reason = "the CLI's suggestion is incomplete"
+    margin_from = _label(raw.get("margin_from"), 20)
+    return SuggestedCaps(available=available, reason=None if available else reason or "no reason given",
+                         max_calls=calls if available else None, max_cost_usd=cost if available else None,
+                         price_in=p_in if available else None, price_out=p_out if available else None,
+                         margin_pct=dec("margin_pct"),
+                         margin_from=margin_from if margin_from in ("setting", "default") else None,
+                         reserved_cells=_opt(_int, raw.get("reserved_cells")),
+                         cell_calls=_opt(_int, raw.get("cell_calls")), cell_usd=dec("cell_usd"),
+                         probe_calls=_opt(_int, raw.get("probe_calls")),
+                         resumed_units=_opt(_int, raw.get("resumed_units")))
+
+
+@dataclass(frozen=True, slots=True)
 class Quote:
     """The USD quote for a real model's run (``agentprov estimate``'s ``quote`` object). A missing figure is ``None``;
     the dialog then falls back to the estimate's own fields or shows a dash."""
@@ -224,6 +283,7 @@ class Quote:
     jobs: int | None = None  # the concurrency the time is given at
     p50_aggregation: str | None = None  # how the run's figures add up ("sum of per-cell medians")
     p90_aggregation: str | None = None  # "upper (sum of per-cell 90th percentiles)": not the run's own 90th percentile
+    caps: SuggestedCaps | None = None  # D-1090: the suggested caps (``None``: an older CLI)
 
 
 def _opt(convert: Any, value: Any) -> Any:
@@ -274,7 +334,7 @@ def parse_quote(raw: Any) -> Quote | None:
         seconds_p50=_opt(_float, raw.get("seconds_p50")), seconds_p90=_opt(_float, raw.get("seconds_p90")),
         cells=_count(raw.get("cells")), basis=basis, jobs=_count(raw.get("jobs")),
         p50_aggregation=_label(raw.get("p50_aggregation"), 120) or None,
-        p90_aggregation=_label(raw.get("p90_aggregation"), 120) or None)
+        p90_aggregation=_label(raw.get("p90_aggregation"), 120) or None, caps=parse_caps(raw.get("caps")))
 
 
 def parse_estimate(data: bytes) -> EstimateView:
@@ -361,6 +421,185 @@ def parse_catalogue(data: bytes) -> Catalogue:
         raise PlanError("malformed benchmark version")
     return Catalogue(doc["backend"][:40], version, _names(doc.get("benchmark_versions") or [], "versions"),
                      tuple(suites), tuple(attacks))
+
+
+# ------------------------------------------------------------------------------- Inspect catalogues (D-663, D-1120)
+INSPECT_CATALOGUE_FORMAT: Final = "agentprov-inspect-catalogue/0.1"
+#: an Inspect task is a registry name (``inspect_evals/agentharm``); parameter, split, solver and role names are labels
+#: without ``/`` (the CLI's ``cli/live/inspect_catalogue.py`` patterns, pinned by a test)
+_TASK: Final = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:@+/\-]{0,199}")
+_ILABEL: Final = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:@+\-]{0,99}")
+_PARAM_TYPES: Final = frozenset({"str", "int", "bool|null"})
+#: the largest whole number a parameter may take (a Qt spin box's range)
+MAX_PARAM_INT: Final = 2**31 - 2
+
+
+@dataclass(frozen=True, slots=True)
+class InspectParam:
+    """A task parameter the catalogue declares (``--task-param NAME=VALUE``): its type, default, choices and bounds."""
+
+    name: str
+    type: str  # str | int | bool|null
+    default: str | int | bool | None
+    choices: tuple[str | int | bool | None, ...] = ()
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class InspectSplit:
+    name: str
+    samples: int
+
+
+@dataclass(frozen=True, slots=True)
+class JudgeRole:
+    """A judge role of the task's scorer (``--judge ROLE=MODEL``; every role is required, D-667)."""
+
+    role: str
+    default_model: str
+    calls_per_sample: int | None  # None: "varies"
+
+
+@dataclass(frozen=True, slots=True)
+class InspectTask:
+    name: str
+    default_solver: str
+    solvers: tuple[str, ...]
+    params: tuple[InspectParam, ...]
+    splits: tuple[InspectSplit, ...]
+    judges: tuple[JudgeRole, ...]
+    fixed: tuple[tuple[str, int | float], ...]  # set by the task, reported only (max_messages, seed, ...)
+
+    def param(self, name: str) -> InspectParam | None:
+        return next((p for p in self.params if p.name == name), None)
+
+    def split(self, name: str) -> InspectSplit | None:
+        return next((s for s in self.splits if s.name == name), None)
+
+
+@dataclass(frozen=True, slots=True)
+class InspectCatalogue:
+    """``run SOURCE --catalogue`` of an Inspect backend (``agentprov-inspect-catalogue/0.1``)."""
+
+    backend: str
+    benchmark: str
+    inspect_ai: str
+    dataset_repo: str
+    dataset_revision: str
+    tasks: tuple[InspectTask, ...]
+
+    def task(self, name: str) -> InspectTask | None:
+        return next((t for t in self.tasks if t.name == name), None)
+
+
+def _ilabel(value: Any, what: str, pattern: re.Pattern[str] = _ILABEL) -> str:
+    if not isinstance(value, str) or not pattern.fullmatch(value) or ".." in value.split("/"):
+        raise PlanError(f"malformed {what}")
+    return value
+
+
+def _ilist(value: Any, what: str, limit: int) -> list[Any]:
+    if not isinstance(value, list) or len(value) > limit:
+        raise PlanError(f"malformed {what}")
+    return value
+
+
+def _icount(value: Any, what: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= MAX_PARAM_INT:
+        raise PlanError(f"{what} is not a count")
+    return value
+
+
+def _iscalar(value: Any, kind: str, what: str) -> str | int | bool | None:
+    if kind == "str":
+        return _ilabel(value, what)
+    if kind == "int":
+        return _icount(value, what)
+    if value is None or isinstance(value, bool):
+        return value
+    raise PlanError(f"malformed {what}")
+
+
+def _iparam(p: Any) -> InspectParam:
+    if not isinstance(p, dict) or p.get("type") not in _PARAM_TYPES:
+        raise PlanError("malformed task parameter")
+    kind = str(p["type"])
+    choices = tuple(_iscalar(c, kind, "parameter choice") for c in _ilist(p.get("choices", []), "choices", 64))
+    if len(set(choices)) != len(choices):
+        raise PlanError("duplicate parameter choices")
+    lo = _icount(p["minimum"], "minimum") if "minimum" in p else None
+    hi = _icount(p["maximum"], "maximum") if "maximum" in p else None
+    if kind != "int" and (lo is not None or hi is not None):
+        raise PlanError("bounds on a parameter that is not a whole number")
+    default = _iscalar(p.get("default"), kind, "parameter default")
+    if isinstance(default, int) and not isinstance(default, bool) and not (
+            (lo is None or default >= lo) and (hi is None or default <= hi)):
+        raise PlanError("a parameter default outside its bounds")
+    if lo is not None and hi is not None and lo > hi:
+        raise PlanError("parameter bounds the wrong way round")
+    return InspectParam(_ilabel(p.get("name"), "parameter name"), kind, default, choices, lo, hi)
+
+
+def parse_inspect_catalogue(data: bytes) -> InspectCatalogue:
+    """The Inspect catalogue, read as strictly as the AgentDojo one: bounded lists, names that are labels (never paths
+    or text), counts that are whole numbers; unknown members are dropped. Every name is shown through ``text.line``."""
+    doc = _load(data)
+    if doc.get("format") != INSPECT_CATALOGUE_FORMAT or not isinstance(doc.get("backend"), str):
+        raise PlanError("not an Inspect catalogue")
+    raw_dataset = doc.get("dataset")
+    dataset: dict[str, Any] = raw_dataset if isinstance(raw_dataset, dict) else {}
+    revision = dataset.get("revision")
+    tasks: list[InspectTask] = []
+    for t in _ilist(doc.get("tasks"), "tasks", 200):
+        if not isinstance(t, dict):
+            raise PlanError("malformed task")
+        params = tuple(_iparam(p) for p in _ilist(t.get("params", []), "task parameters", 64))
+        if len({p.name for p in params}) != len(params):
+            raise PlanError("duplicate task parameters")
+        splits = []
+        for s in _ilist(t.get("splits", []), "splits", 64):
+            if not isinstance(s, dict):
+                raise PlanError("malformed split")
+            splits.append(InspectSplit(_ilabel(s.get("name"), "split name"), _icount(s.get("samples"), "samples")))
+        judges: dict[str, JudgeRole] = {}
+        for scorer in _ilist(t.get("scorers", []), "scorers", 16):
+            if not isinstance(scorer, dict):
+                raise PlanError("malformed scorer")
+            for r in _ilist(scorer.get("judge_roles", []), "judge roles", 16):
+                if not isinstance(r, dict) or not isinstance(r.get("role"), str) or not re.fullmatch(
+                        r"[a-z][a-z0-9_]{0,63}", r["role"]):  # what --judge ROLE=MODEL takes (cli/run.py _judge)
+                    raise PlanError("malformed judge role")
+                calls = r.get("calls_per_sample")
+                judges.setdefault(r["role"], JudgeRole(
+                    r["role"], _ilabel(r.get("default_model"), "judge model", _TASK),
+                    None if calls == "varies" else _icount(calls, "judge calls")))
+        raw_fixed = t.get("fixed")
+        fixed = tuple(sorted((_ilabel(k, "fixed setting"), v) for k, v in (
+            raw_fixed.items() if isinstance(raw_fixed, dict) else ())
+            if isinstance(v, int | float) and not isinstance(v, bool) and abs(v) < 1e15 and v == v))
+        solvers = tuple(_ilabel(v, "solver") for v in _ilist(t.get("solvers", []), "solvers", 64))
+        default_solver = t.get("default_solver")
+        tasks.append(InspectTask(_ilabel(t.get("name"), "task name", _TASK),
+                                 _ilabel(default_solver, "solver") if default_solver is not None else "", solvers,
+                                 params, tuple(splits), tuple(judges.values()), fixed[:32]))
+    if len({t.name for t in tasks}) != len(tasks):
+        raise PlanError("duplicate tasks")
+    version = doc.get("inspect_ai")
+    return InspectCatalogue(
+        doc["backend"][:40], _ilabel(doc.get("benchmark"), "benchmark"),
+        version[:64] if isinstance(version, str) and re.fullmatch(r"[0-9][0-9A-Za-z.+\-]{0,63}", version) else "",
+        _label(dataset.get("repo"), 200) if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.\-]{0,95}/[A-Za-z0-9][A-Za-z0-9_.\-]{0,95}",
+                                                         str(dataset.get("repo"))) else "",
+        revision if isinstance(revision, str) and re.fullmatch(r"[0-9a-f]{40}", revision) else "", tuple(tasks))
+
+
+def parse_any_catalogue(data: bytes) -> Catalogue | InspectCatalogue:
+    """``run SOURCE --catalogue``'s document by its ``format``: an AgentDojo-family or an Inspect catalogue."""
+    doc = _load(data)
+    if doc.get("format") == INSPECT_CATALOGUE_FORMAT:
+        return parse_inspect_catalogue(data)
+    return parse_catalogue(data)
 
 
 @dataclass(frozen=True, slots=True)

@@ -26,7 +26,7 @@ def call(cli: CliLocator, argv: Sequence[str], *, timeout: float = 120,
         done = subprocess.run(  # noqa: S603 - the configured CLI and a fixed argv
             [*cli.program, *argv, "--progress", "off", "--no-colour"], capture_output=True, timeout=timeout,
             check=False, env=allowlisted_env(), input=stdin,
-            stdin=None if stdin is not None else subprocess.DEVNULL)
+            stdin=None if stdin is not None else subprocess.DEVNULL, cwd=cli.cwd_for(argv))
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 124, b"", type(exc).__name__.encode()
     return done.returncode, done.stdout[:MAX_STDOUT], done.stderr[-4096:]

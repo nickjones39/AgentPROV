@@ -993,7 +993,8 @@ Be explicit about the limits:
 - **No hook on file mutation in T1.** `RLIMIT_FSIZE = 0` stops writes that grow files; Python-level deletes, renames
   and permission changes are not hooked (AD-10 row 19).
 - **No hard memory cap on macOS.** RSS is polled, so a fast allocation can overshoot for up to one polling interval.
-  Byte caps on input keep the worst case bounded (G.3.2).
+  Byte caps on input keep the worst case bounded (G.3.2). Pages the host compresses or swaps out are counted through
+  `phys_footprint` (D-1080, G.4.12 item 1).
 - **Same user id.** A code-execution exploit in T1 runs with the user's privileges, but without secrets in its
   environment. T2 runs with the user's privileges by design (G.1.2).
 - **In-process derivation.** When SEM, PROV and validation run in-process, a defect in them or in PyYAML reached
@@ -1011,6 +1012,14 @@ Be explicit about the limits:
    - the grade is `watchdog`.
    Linux uses `procfs` + `RLIMIT_AS` (grade `enforced`). Windows uses `psapi` + Job Objects (memory cap,
    kill-on-close).
+
+   > **As built (D-1080).** The `libproc` sample is the larger of the resident size (`proc_pidinfo`) and
+   > `phys_footprint` (`proc_pid_rusage`, `RUSAGE_INFO_V4`), or the resident size alone where the latter does not
+   > answer. On a host short of memory macOS compresses or swaps a worker's pages, and its resident size falls while its
+   > footprint does not: on GitHub's macos-latest (2026-11-05, run 42002097860) a 1.5 GiB job of incompressible pages
+   > finished under a 1 GiB cap with a sampled peak of 986 MiB. Without an enforced `RLIMIT_AS` the watchdog is macOS's
+   > only memory cap, so it counts those pages. The sample is never below the resident size sampled before, so no job
+   > stopped before is let through. The capability's value stays `libproc`.
 2. **Constants** (`constants_for`, pure). The watchdog interval is 20 ms without a hard memory cap and 100 ms with one.
    The margin is `clamp(rate × interval × 2, 32 MiB, cap/2)`; while it exceeds cap/2 the interval is halved, down to a
    10 ms floor. The RSS trigger is `cap − margin`. The default worker count is `min(CPUs, floor(0.75 × RAM / RSS cap))`,

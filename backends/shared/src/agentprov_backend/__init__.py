@@ -2,4 +2,4 @@
 
 Never imports agentdojo or agentprov (AD-01; M.1.7 rule 1)."""
 
-__version__ = "0.2.0"  # equals backends/shared/pyproject.toml (tests/unit/test_versions_source.py)
+__version__ = "0.2.1"  # equals backends/shared/pyproject.toml (tests/unit/test_versions_source.py)

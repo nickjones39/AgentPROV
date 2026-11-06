@@ -30,10 +30,21 @@ def test_the_selection_reads_both_variables_and_refuses_a_bad_pair() -> None:
             cf.shard_selection({"AGENTPROV_SHARD": index, "AGENTPROV_SHARDS": count})
 
 
+def test_the_profile_is_optional_and_a_bad_one_refused() -> None:
+    """D-1110: ``ci.yml`` sets ``<runner.os>-<runner.arch>``; unset, the shards weigh by the cross-OS mean."""
+    assert cf.shard_profile({}) is None and cf.shard_profile({"AGENTPROV_SHARD_PROFILE": ""}) is None
+    for profile in ("Linux-X64", "Linux-ARM64", "macOS-ARM64", "Windows-X64"):
+        assert cf.shard_profile({"AGENTPROV_SHARD_PROFILE": profile}) == profile
+    for bad in ("../x", "Windows X64", "-x", "a]", "x" * 65):
+        with pytest.raises(pytest.UsageError):
+            cf.shard_profile({"AGENTPROV_SHARD_PROFILE": bad})
+
+
 def test_a_test_never_sees_the_shard_variables() -> None:
     """The run takes them out of the environment, so a pytest that a test starts (pytester, a subprocess) collects its
     own tests whole (the first sharded trial failed eleven such tests)."""
-    assert "AGENTPROV_SHARD" not in os.environ and "AGENTPROV_SHARDS" not in os.environ
+    assert not set(cf.SHARD_VARIABLES) & set(os.environ)
+    assert cf.SHARD_VARIABLES == ("AGENTPROV_SHARD", "AGENTPROV_SHARDS", "AGENTPROV_SHARD_PROFILE")
 
 
 def test_an_xdist_group_is_one_unit_and_any_other_file_is_its_own() -> None:
@@ -61,12 +72,46 @@ def test_the_measured_seconds_parse_and_name_test_files() -> None:
     assert all(path.startswith("tests/") and path.endswith(".py") and seconds >= 0 for path, seconds in measured.items())
 
 
-def test_the_generator_averages_each_test_over_the_legs_that_time_it(tmp_path: Path) -> None:
+def _slow_tests():
     sys.path.insert(0, str(REPO / "tools"))
     try:
         import slow_tests
     finally:
         sys.path.remove(str(REPO / "tools"))
+    return slow_tests
+
+
+def test_a_profile_section_replaces_the_mean_for_that_profile_only(tmp_path: Path, monkeypatch) -> None:
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "shard_seconds.txt").write_text(
+        "# header\n1.0 tests/a.py\n2.0 tests/b.py\n[Windows-X64]\n9.0 tests/a.py\n[Linux-X64]\n0.5 tests/b.py\n",
+        encoding="utf-8")
+    monkeypatch.setattr(cf, "REPO", tmp_path)
+    assert cf._shard_seconds() == cf._shard_seconds("macOS-ARM64") == {"tests/a.py": 1.0, "tests/b.py": 2.0}
+    assert cf._shard_seconds("Windows-X64") == {"tests/a.py": 9.0}  # a file the section lacks counts by its tests
+    assert cf._shard_seconds("Linux-X64") == {"tests/b.py": 0.5}
+
+
+def test_the_generator_writes_each_named_profile_beside_the_mean(tmp_path: Path, monkeypatch) -> None:
+    slow_tests = _slow_tests()
+    win, linux, old = tmp_path / "win.log", tmp_path / "linux.log", tmp_path / "old.log"
+    win.write_text("2026-11-06T04:00:00.0Z agentprov shard 5/8, profile Windows-X64 (weighed by the cross-OS mean)\n"
+                   "2026-11-06T04:10:00.0Z 6.00s call     tests/a.py::t1\n", encoding="utf-8")
+    linux.write_text("agentprov shard 1/6, profile Linux-X64 (weighed by its own seconds)\n2.00s call     tests/a.py::t1\n"
+                     "1.00s call     tests/b.py::t2\n", encoding="utf-8")
+    old.write_text("4.00s call     tests/b.py::t2\n", encoding="utf-8")  # a log without the header line: mean only
+    assert [slow_tests.log_profile(p) for p in (win, linux, old)] == ["Windows-X64", "Linux-X64", None]
+    sections = slow_tests.shard_sections([win, linux, old])
+    assert sections == {"": {"tests/a.py": 4.0, "tests/b.py": 2.5}, "Linux-X64": {"tests/a.py": 2.0, "tests/b.py": 1.0},
+                        "Windows-X64": {"tests/a.py": 6.0}}
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "shard_seconds.txt").write_text(slow_tests.render_shard_seconds(sections), encoding="utf-8")
+    monkeypatch.setattr(cf, "REPO", tmp_path)
+    assert cf._shard_sections() == sections  # what the generator writes, conftest reads back
+
+
+def test_the_generator_averages_each_test_over_the_legs_that_time_it(tmp_path: Path) -> None:
+    slow_tests = _slow_tests()
     linux, windows = tmp_path / "linux.log", tmp_path / "windows.log"
     linux.write_text("2.00s call     tests/a.py::t1\n1.00s setup    tests/a.py::t1\n0.50s call     tests/b.py::t@serial\n",
                      encoding="utf-8")
@@ -94,7 +139,7 @@ def test_the_shards_of_the_widest_ci_leg_are_disjoint_and_cover_every_collected_
     include = matrix["jobs"]["core"]["strategy"]["matrix"]["include"]
     count = max(leg["shards"] for legs in re.findall(r"'(\[.*?\])'", include) for leg in json.loads(legs))
     assert count > 1
-    base = {k: v for k, v in os.environ.items() if k not in ("AGENTPROV_SHARD", "AGENTPROV_SHARDS")}
+    base = {k: v for k, v in os.environ.items() if k not in cf.SHARD_VARIABLES}
     base["PYTHONDONTWRITEBYTECODE"] = "1"  # nothing written into the checkout
     whole = _collect(base)
     parts = [_collect(base | {"AGENTPROV_SHARD": str(i), "AGENTPROV_SHARDS": str(count)}) for i in range(1, count + 1)]
@@ -110,3 +155,19 @@ def test_the_shards_of_the_widest_ci_leg_are_disjoint_and_cover_every_collected_
         assert len(holding) == 1, (group, holding)
     files = [{nid.partition("::")[0] for nid in ids} for ids in shards]
     assert sum(map(len, files)) == len(set().union(*files))  # a file stays in one shard
+
+
+def test_a_shard_run_names_its_part_and_profile_in_the_header() -> None:
+    """The line ``tools/slow_tests.py --shard-seconds`` reads a log's profile from (D-1110)."""
+    env = {k: v for k, v in os.environ.items() if k not in cf.SHARD_VARIABLES} | {
+        "AGENTPROV_SHARD": "2", "AGENTPROV_SHARDS": "3", "AGENTPROV_SHARD_PROFILE": "Linux-X64",
+        "PYTHONDONTWRITEBYTECODE": "1"}
+    run = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-p", "no:cacheprovider",
+                          "tests/unit/testing/test_shards.py"], cwd=REPO, env=env, capture_output=True, text=True,
+                         encoding="utf-8", timeout=300)
+    assert run.returncode in (0, 5), run.stdout[-4000:]  # 5: this file's tests may all be in another shard
+    lines = [line for line in run.stdout.splitlines() if line.startswith("agentprov shard ")]
+    assert len(lines) == 1, run.stdout[:2000]
+    source = "its own seconds" if "Linux-X64" in cf._shard_sections() else "the cross-OS mean"
+    assert lines == [f"agentprov shard 2/3, profile Linux-X64 (weighed by {source})"]
+    assert _slow_tests().PROFILE.match(lines[0] + "\n")

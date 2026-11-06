@@ -170,6 +170,19 @@ def test_parse_plan_and_its_totals_check() -> None:
         P.parse_plan(_plan_doc(format="other"))
 
 
+def test_parse_plan_reads_the_cell_bound() -> None:
+    """D-1090: the dry plan's ``cell_bound`` (additive: a plan without it has none)."""
+    assert P.parse_plan(_plan_doc()).cell_bound is None
+    bound = {"calls": 384, "step_calls": 8, "call_tokens_in": 32_000, "call_tokens_out": 4_096}
+    assert P.parse_plan(_plan_doc(cell_bound=bound)).cell_bound == P.CellBound(384, 8, 32_000, 4_096)
+    refused = P.parse_plan(_plan_doc(cell_bound={"refused": "no call bound is recorded"})).cell_bound
+    assert refused is not None and refused.refused == "no call bound is recorded"
+    for bad in ({"calls": 0, "step_calls": 1, "call_tokens_in": 1, "call_tokens_out": 1}, {"calls": "48"},
+                {"refused": 3}, [48]):
+        with pytest.raises(P.PlanError):
+            P.parse_plan(_plan_doc(cell_bound=bad))
+
+
 def test_anthropic_cache_writes_are_priced_at_the_write_rate() -> None:
     stats = CellStats(Quantiles(1, 1), Quantiles(1000, 1000), Quantiles(500, 500), Quantiles(0, 0), Quantiles(1, 1),
                       "corpus", tokens_cache_write=Quantiles(300, 300))

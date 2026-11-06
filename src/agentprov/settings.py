@@ -171,6 +171,9 @@ SCHEMA: Final[tuple[Key, ...]] = (
     # estimate defaults (D-653)
     Key(r"estimate\.default\.(calls|tokens_in|tokens_cached|tokens_out|seconds)_(p50|p90)", "float",
         "a default assumption for the estimate", 0, 10_000_000),
+    # D-1090: the margin the estimate's suggested caps add to the quote's p90 figures (Run Live pre-fills the caps)
+    Key(r"estimate\.caps_margin_pct", "float", "percent added to the quote's p90 calls and cost for the suggested "
+        "caps (unset: 20)", 0, 1000),
     # compute (Settings › Compute)
     Key(rf"compute\.jobs\.{_COMMANDS}", "int", "default --jobs for a command (0: the host default)", 0, 512),
     Key(r"compute\.queue_heavy", "bool", "run heavy jobs through the shared job queue"),

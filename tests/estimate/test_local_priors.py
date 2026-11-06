@@ -191,6 +191,28 @@ def test_local_priors_are_deterministic_whatever_the_worker_count(corpora: dict[
     assert one == again == two
 
 
+def test_the_build_reports_batches_done_of_a_total_and_progress_changes_nothing(corpora: dict[str, Any]) -> None:
+    """The desktop app's Build cost figures shows done of total and an ETA from the job's progress: a ``start`` with
+    the planned batches of CHUNK executions (indexed, not withheld) and one ``unit_done`` per batch read."""
+    from agentprov.progress import ProgressEvent
+
+    events: list[ProgressEvent] = []
+
+    class Sink:
+        def emit(self, event: ProgressEvent) -> None:
+            events.append(event)
+
+    paths, skipped = R.discover(corpora["root"])
+    plain_bytes, _ = R.build_local(paths, jobs=1, min_executions=1, skipped=skipped)
+    data, _ = R.build_local(paths, jobs=2, min_executions=1, skipped=skipped, progress=Sink())
+    assert data == plain_bytes  # progress never changes the document
+    start, *rest = events
+    # alpha: 3 indexed, 1 withheld -> 2 executions, 1 batch; beta: 3 executions, 1 batch (CHUNK = 32)
+    assert start.kind == "start" and start.total == 2 and start.fields["command"] == "priors build"
+    assert [e.kind for e in rest] == ["unit_done", "unit_done"] and [e.unit for e in rest] == ["batch 1", "batch 2"]
+    assert R._planned_batches(corpora["root"] / "missing") == 0  # unreadable: counted as nothing, skipped later
+
+
 def test_an_execution_in_two_corpora_counts_once(tmp_path: Path, corpora: dict[str, Any]) -> None:
     copy = tmp_path / "beta-copy"
     shutil.copytree(corpora["root"] / "beta", copy, symlinks=True)

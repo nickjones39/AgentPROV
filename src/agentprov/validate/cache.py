@@ -48,6 +48,7 @@ import os
 import platform
 import secrets
 import sys
+import sysconfig
 import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -59,7 +60,7 @@ from agentprov.io.canonical import jcs_bytes, sha256_hex
 from agentprov.validate.tiers import CheckOutcome, Finding
 
 __all__ = ["CACHE_FORMAT", "DEFAULT_MAX_BYTES", "LIBRARIES", "CacheStats", "DiskCache", "Fidelity", "JobFidelity",
-           "context", "context_digest", "default_root", "from_json", "storable"]
+           "context", "context_digest", "context_parts", "context_problem", "default_root", "from_json", "storable"]
 
 CACHE_FORMAT: Final = "agentprov-tier4-cache/2"  # /2: the code part is the import closure (D-1068 P5)
 #: The round trip's check ids, in the order :func:`agentprov.validate.roundtrip.check` returns them.
@@ -98,8 +99,11 @@ def context() -> dict[str, Any]:
         "code": {"closure_sha256": closure_digest(), "seeds": list(CLOSURE_SEEDS)},
         "libraries": {name: _library(name) for name in LIBRARIES},
         "options": {"max_findings": MAX_FINDINGS, "roundtrip": True, "scope": "pv.roundtrip", "surrogate": SURROGATE},
+        # D-1081: the interpreter build's platform tag, not platform.machine(), which on Windows asks WMI and, when the
+        # query fails, reads PROCESSOR_ARCHITECTURE, a variable a worker's minimal environment does not carry: a worker
+        # whose query failed had another context than its parent (the 0.2.0 Windows CI rounds)
         "python": {"cache_tag": str(sys.implementation.cache_tag), "implementation": platform.python_implementation(),
-                   "machine": platform.machine(), "version": sys.version},
+                   "platform": sysconfig.get_platform(), "version": sys.version},
         "vocabulary": {"version": VOCAB_VERSION},
     }
 
@@ -107,6 +111,26 @@ def context() -> dict[str, Any]:
 @functools.cache
 def context_digest() -> str:
     return sha256_hex(jcs_bytes({"format": CACHE_FORMAT, "context": context()}))
+
+
+def context_problem() -> str | None:
+    """Why this process's context is incomplete (a library file it could not read), else ``None``. A process whose
+    context is incomplete neither serves nor stores an entry (D-1081): its digest is not one another process would
+    compute, and an unread file is no proof of an unchanged one."""
+    for name, lib in context()["libraries"].items():
+        unread = lib.get("unreadable")
+        if unread:
+            return f"{name}: {unread}"
+    return None
+
+
+def context_parts() -> dict[str, str]:
+    """``sha256(JCS(part))`` of each part of the context, each library on its own (``libraries.<name>``): a job's frame
+    carries them, so the parent can say which part differed when the digests do (D-1081)."""
+    ctx = context()
+    parts = {key: sha256_hex(jcs_bytes(value)) for key, value in ctx.items() if key != "libraries"}
+    parts.update({f"libraries.{name}": sha256_hex(jcs_bytes(lib)) for name, lib in ctx["libraries"].items()})
+    return dict(sorted(parts.items()))
 
 
 def closure_digest(root: Path | None = None, seeds: Sequence[str] = CLOSURE_SEEDS) -> str:
@@ -179,10 +203,11 @@ def _library(name: str) -> dict[str, str]:
     for file in sorted(dist.files or (), key=str):
         if not str(file).endswith(_CODE_SUFFIXES):
             continue
+        path = Path(str(file.locate()))
         try:
-            data = Path(str(file.locate())).read_bytes()
-        except OSError:
-            data = b"\x00missing"
+            data = _retry_sharing(path.read_bytes)
+        except OSError as exc:  # D-1081: an incomplete context (context_problem), never the digest of a placeholder
+            return {"unreadable": f"{file} ({type(exc).__name__})", "version": str(dist.version)}
         digest.update(f"{file}\x00{len(data)}\x00".encode("utf-8", "surrogateescape"))
         digest.update(hashlib.sha256(data).digest())
     return {"sha256": digest.hexdigest(), "version": str(dist.version)}
@@ -266,6 +291,8 @@ class CacheStats:
     stored: int = 0
     rejected: int = 0  # entries present but unusable (corrupt, partial, other shape): removed, counted as misses
     unstorable: int = 0  # round trips that did not complete (never stored)
+    context_mismatch: int = 0  # job frames made under another context than this process's (D-1081; never stored)
+    context_incomplete: int = 0  # reads and writes refused: this process's context is incomplete (D-1081)
     audited: int = 0  # audit mode: entries compared with a fresh round trip
     audit_mismatch: int = 0
     errors: int = 0  # I/O errors on the cache (never raised)
@@ -311,6 +338,8 @@ class DiskCache:
         self.max_bytes = max_bytes
         self.audit = audit
         self.stats = CacheStats()
+        #: context part (``python``, ``libraries.<name>``, ...) -> job frames whose context differed there (D-1081)
+        self.mismatched_parts: dict[str, int] = {}
 
     # paths ----------------------------------------------------------------------------------------------------------
     def _dir(self) -> Path:
@@ -355,8 +384,17 @@ class DiskCache:
         checked = _check_hint(entry, doc_sha256)
         return None if checked is None else checked[1]
 
+    def _usable(self) -> bool:
+        if context_problem() is None:
+            return True
+        self.stats.context_incomplete += 1
+        return False
+
     def lookup(self, prov_json: bytes) -> list[CheckOutcome] | None:
         if self.audit:
+            return None
+        if not self._usable():
+            self.stats.misses += 1
             return None
         outcomes = self._read(sha256_hex(prov_json))
         if outcomes is None:
@@ -368,6 +406,9 @@ class DiskCache:
     def hint(self, doc_sha256: str) -> bytes | None:
         """The JCS bytes of a job hint for the document ``doc_sha256``, from a usable entry (``None`` on a miss)."""
         if self.audit:
+            return None
+        if not self._usable():
+            self.stats.misses += 1
             return None
         outcomes = self._read(doc_sha256)
         if outcomes is None:
@@ -384,6 +425,21 @@ class DiskCache:
         """Store the round-trip frame a job returned for ``prov_json`` (ignored unless made under this context for
         exactly these bytes)."""
         doc = sha256_hex(prov_json)
+        if not self._usable():
+            return
+        if isinstance(frame, dict) and frame.get("context_sha256") != context_digest():
+            self.stats.context_mismatch += 1
+            theirs, ours = frame.get("context_parts"), context_parts()
+            if isinstance(frame.get("context_problem"), str):
+                differing = ["incomplete"]
+            elif isinstance(theirs, dict):
+                differing = sorted(k for k in ours.keys() | theirs.keys() if ours.get(k) != theirs.get(k)) or ["format"]
+            else:
+                differing = ["unknown"]
+            for part in differing:
+                label = str(part)[:80]
+                self.mismatched_parts[label] = self.mismatched_parts.get(label, 0) + 1
+            return
         checked = _check_hint(frame, doc)
         if checked is None:
             self.stats.unstorable += 1
@@ -393,6 +449,8 @@ class DiskCache:
     def _store(self, doc_sha256: str, outcomes: Sequence[CheckOutcome]) -> None:
         if not storable(outcomes):
             self.stats.unstorable += 1
+            return
+        if not self._usable():
             return
         if self.audit:
             previous = self._read(doc_sha256)
@@ -496,7 +554,7 @@ class JobFidelity:
     used: bool = field(default=False, init=False)
 
     def lookup(self, prov_json: bytes) -> list[CheckOutcome] | None:
-        if self.hint is None:
+        if self.hint is None or context_problem() is not None:
             return None
         from agentprov.ingest.loaders import strict_json_loads
 
@@ -512,7 +570,11 @@ class JobFidelity:
 
     def store(self, prov_json: bytes, outcomes: Sequence[CheckOutcome]) -> None:
         if self.collect and storable(outcomes):
-            self.computed = _hint(sha256_hex(prov_json), outcomes)
+            # the parts let the parent name what differed when its context is not this one (D-1081); a job whose
+            # context is incomplete says so, and the parent never stores its frame
+            problem = context_problem()
+            self.computed = {**_hint(sha256_hex(prov_json), outcomes), "context_parts": context_parts(),
+                             **({"context_problem": problem} if problem is not None else {})}
 
     def frame(self) -> dict[str, Any] | None:
         """``{"fidelity": ...}`` for the job to emit when it computed a storable round trip, else ``None``."""

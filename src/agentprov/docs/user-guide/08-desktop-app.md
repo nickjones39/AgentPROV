@@ -164,7 +164,12 @@ guessed from a raw judgement. The legend under the filters says this in full.
 ### The graph
 
 The Graph view (in the inspector, and on the left of an execution tab) draws the `agentprov-prov/0.1` document of the
-execution. Its toolbar has zoom (−, +, 100 %, Fit; ⌘−, ⌘+, ⌘0, ⌘9), the bundles (core always on; inference on by
+execution. On the canvas the mouse wheel zooms, keeping the point under the pointer where it is: one notch is one
+step of the − and + buttons, within the same limits (5 % to 800 %). Pinch zooms too. To move around, drag the
+background, or scroll with two fingers on a trackpad (or a Magic Mouse); Shift with the wheel, or tilting the wheel
+sideways, scrolls as well, and ⌘ or ⌥ with a two-finger scroll zooms. The app tells a trackpad from a wheel by the
+scroll phases the system reports; a touchpad that reports none (Windows precision touchpads) zooms like a wheel, and
+dragging pans there. Its toolbar has zoom (−, +, 100 %, Fit; ⌘−, ⌘+, ⌘0, ⌘9), the bundles (core always on; inference on by
 default; assessment off), an evidence filter (all, only Observed, only Derived, only Inferred), the layout (core with
 overlays, or a full layered layout), *collapse mentions*, a search box (id, type, rule), k-hop *Focus* and *Show
 content*. In the inspector, which can be narrow, the toolbar takes two lines: the search box with the number of edges
@@ -401,17 +406,75 @@ says in plain words what the field is; the `agentprov run` option it sets is in 
   *Identity…* (below), *Price* (per million tokens), *Max tokens* for an Anthropic endpoint (the harness default 16,000
   or a number you give), *API key* with *Store Key…*, and *Containment*, with the note that `dedicated-user` and `vm`
   are your declaration.
-- **Limits** (an API endpoint only): *Stop at a cost of* (USD, `--max-cost-usd`) with *Use the quote's upper figure*,
-  which fills it from the quote's p90; *Stop after model calls* (`--max-calls`, preflight probes included); and *Priced
-  at*, the $/M in and $/M out the caps are priced at, filled from the price table. A model server on another machine
-  counts as an API endpoint (D-1067): once *Allow a LAN model server* (under Advanced › Other run options) is ticked, or
-  the base URL is off loopback, the limits appear and the consent is the API one.
+- **Limits** (an API endpoint only): *Stop at a cost of* (USD, `--max-cost-usd`), *Stop after model calls*
+  (`--max-calls`, preflight probes included) and *Priced at*, the $/M in and $/M out the caps are priced at, filled from
+  the price table. A model server on another machine counts as an API endpoint (D-1067): once *Allow a LAN model
+  server* (under Advanced › Other run options) is ticked, or the base URL is off loopback, the limits appear and the
+  consent is the API one.
+
+  **The two caps are filled from the quote** (D-1090), so you can start a run without typing them. They are the caps
+  `agentprov estimate` suggests (the [suggested caps](07-live-runs.md#suggested-caps)); the app shows its figures and
+  computes none:
+  - *Stop at a cost of* is the quote's **upper figure** (the sum of per-cell 90th percentiles) plus the margin, plus
+    room for the cells the run reserves before it starts one: the cells that run at once (*Concurrent traces*, at most
+    the cells due), each at its worst case, and one preflight probe, priced at *Priced at*. Rounded up to the cent.
+  - *Stop after model calls* is the quote's **p90 model calls** plus the margin, plus the same room in calls (48
+    billed calls a cell with the stock LLM element, 144 with the AutoDojo element, 384 with `gateway_compat`, more under
+    a defence). Rounded up to a whole call.
+  - The **margin** is *Margin on the quote* in Settings › Estimate (the setting `estimate.caps_margin_pct`; 20 % until
+    you change it).
+
+  The room is there because a run starts a cell only if what it has spent, plus every running cell's worst case, fits
+  both caps (D-725): a cap equal to the quote alone would often let no cell start. So the caps are well above the
+  typical cost, but the run never spends more than them.
+
+  Each cap's grey caption says how its figure was made: which figure, the margin, the room, whether the figures come
+  from your priors (`agentprov priors build`), the shipped priors or both, with "all-model figures" when they are not
+  this model's own, and for the cost the prices' source and date (`agentprov priors show` and `agentprov prices status`
+  describe them). Its tooltip gives the numbers: the suggestion, the worst case of one cell in calls and USD, and where
+  the margin comes from.
+
+  The caps are worked out again whenever the quote is: after you change the model, the endpoint, the benchmark, the
+  suites, the attacks, the task selection, the repeats, the concurrency or the prices. **A cap you type stays**: its
+  caption then reads *Your value; the quote suggests …*, and *Use the quote's figure* beside it puts the suggestion
+  back, after which it follows the quote again. Typed prices are used for the suggestion too.
+
+  When there is no suggestion, the caption says why and the cap stays empty, so it must be typed before Start, as
+  before: the model has no price at this endpoint (set one in Settings › Prices), or no recorded figures cover the
+  cells, only your default assumptions (build cost figures from your corpora, or open a corpus of this model in the
+  Viewer). An older `agentprov` that suggests no caps is said to do so. When the working corpus already holds units of
+  this run, its spend so far counts against the caps too, so add it (the tooltip says so).
 - **What to run.** *Scope* is *Full benchmark* (every suite and every attack the backend can run, with the benign
   cells: the same arguments as ticking them all; a line lists what that includes) or *Choose suites and attacks*:
   the suites as a two-column checklist with their user and injection task counts, and the attacks as chips. An attack
   the backend refuses cannot be chosen and says why in its tooltip, and a DoS attack says it runs one cell per user
   task. *Benign cells* are included, excluded or run alone. **Task selection and repeats**, a line closed by default,
   holds *User tasks* and *Injection tasks* (all, ids, or index ranges such as `0-2,5`) and *Repeats*.
+- **Inspect task** (D-1120), in place of *What to run* when the backend is an Inspect one (`agentharm`, backend
+  `inspect-agentharm`; [Inspect tasks](07-live-runs.md#inspect-tasks)). The rows come from the backend's Inspect
+  catalogue, and *Benchmark version*, the suites, attacks, benign cells, user and injection tasks and `--defence` are
+  hidden, since an Inspect plan refuses them:
+  - *Task* (`--task`): `inspect_evals/agentharm` or `inspect_evals/agentharm_benign`; the line under it names the
+    `inspect_ai` version and the pinned dataset. *Fixed by the task* lists what the task sets itself (`max_messages`,
+    `max_retries`, `max_tokens`, `seed`, `temperature` and the default solver), reported only.
+  - **Task parameters**, one row per parameter the catalogue declares: a menu for a parameter with choices (`split`,
+    `agent`, `tool_choice`, `prompt_technique`) and for one that is true, false or not set (`detailed_behaviors`,
+    `hint_included`), a whole number within its bounds (`n_irrelevant_tools`, 0 to 64). A parameter left at its default
+    is not passed; any other becomes `--task-param NAME=VALUE`.
+  - **Samples and limits**: *Samples* is the first N of the split (`--samples limit:N`; the caption gives the split's
+    size, 176 in `test_public`, 32 in `val`) or a list of ids (`--samples ID,ID…`). *Message limit*, *Token limit* and
+    *Time limit* are per sample and all three are required (D-667).
+  - **Judges** (a real model only): one row per judge role of the task's scorer (`refusal_judge`, `semantic_judge`),
+    each `--judge ROLE=MODEL`. Blank means the agent's model; the menu also offers the scorer's own default. Judges use
+    the agent's endpoint and key, and under the caps every judge must use the agent's model (D-740), which the dialog
+    checks before Start. The endpoint must speak the OpenAI chat format (D-741), so an Anthropic endpoint is refused.
+  - **Epochs, concurrent model calls and cell size**, a line closed by default: `--epochs` (1 to 10, default 1),
+    `--max-connections` (1 to 64, default 4) and `--cell-size` (1 to 500; default 25, or 1 when a cap is set).
+
+  A scripted Inspect run needs a script that answers the judges too, so with an Inspect backend *Script* is the
+  shipped Inspect dev script (`scripted-dev-inspect.json`: agent and judge replies) instead of the AgentDojo one. It
+  answers up to 100 samples × epochs per cell, and the dialog says so when a cell would need more. The summary names
+  the task, the split and the samples, and *Show the plan* opens the estimate's breakdown.
 - **Save to.** *Campaign name* (required; the corpus id is `<source>-live-<campaign>`) and *Working corpus* (outside the
   repository; blank means `corpora/<source>-live-<campaign>` under `$AGENTPROV_HOME`).
 - **Advanced: concurrency, attempts, timeouts, conformance, every other run option**, one line closed by default, which
@@ -419,7 +482,10 @@ says in plain words what the field is; the `agentprov run` option it sets is in 
   - **Concurrent traces** (`--jobs`): how many worker processes run cells at once, each making its own model calls
     (AgentDojo-PROV's 18-process launcher is 18 here). *Tune…* beside it computes a concurrency plan with a host preset
     (`agentprov run SOURCE --dry-run --m5ultra` or `--preset NAME`) and *Apply* copies its `--jobs` here; for a local
-    model it passes the endpoint and the model id, so the model's Local Models settings apply.
+    model it passes the endpoint and the model id, so the model's Local Models settings apply. A preset sizes the
+    concurrency from the model's weights in this computer's memory, so *Tune…* is turned off, with the reason in its
+    tooltip, for a scripted run or an API model unless you give the model's folder or weight size under Advanced. If
+    a local model's weight size is not known, the plan window says to set its folder in Settings › Local models.
   - **Start stagger** (`--start-stagger`, seconds): spreads the workers' first cells on a fixed schedule (worker *i*
     starts at *i* × seconds ÷ traces), where AgentDojo-PROV slept a random 0–20 s.
   - **Attempts per unit** (`--max-attempts`, default 3): re-runs a unit whose session did not end complete, up to that
@@ -430,9 +496,8 @@ says in plain words what the field is; the `agentprov run` option it sets is in 
     1,800 seconds) and the **W3C PROV conformance check** switch (below, under New Job).
 
   Its *Other run options* section holds every other option of `agentprov run` that has no row of its own, including
-  `--defence` and `--defence-endpoint` ([defences](07-live-runs.md#defences)), *Allow a LAN model server* and the
-  Inspect options (`--task`, `--samples`, `--message-limit`, `--token-limit`, `--time-limit`, `--judge`,
-  `--cell-size`; [Inspect tasks](07-live-runs.md#inspect-tasks)).
+  `--defence` and `--defence-endpoint` ([defences](07-live-runs.md#defences)) and *Allow a LAN model server*. The
+  Inspect options have their own rows (*Inspect task*, above).
 
 ![Run Live with its Advanced line open: the Run section and the start of the other run options](images/gui/run-live-estimate.png)
 
@@ -453,13 +518,17 @@ change; the app computes no number itself.
   nothing. **How this is worked out** (for any real model) says where the call,
   token and time figures come from (your corpora, the shipped figures for all models, or your default assumptions in
   Settings › Estimate) and which prices are used and as of when. *Build cost figures from my corpora…* starts
-  `agentprov priors build` as a confirmed job, so later quotes can use your own runs (D-1062). With the setting
+  `agentprov priors build` as a confirmed job, so later quotes can use your own runs (D-1062). While it runs, a
+  turning circle and a bar show that it is working, and the line beside them counts the batches of 32 executions read
+  of the total in your sealed corpora, with about how long is left once the rate is known. With the setting
   `prices.auto_refresh` on (Settings › Estimate), the first Run Live of a day starts `agentprov prices refresh
   --allow-network` as a job and estimates again when it ends; the panel says when the prices were refreshed, or that
   the refresh failed.
 - **Before you start** checks the backend environment, the key and that the working corpus is outside the repository,
   and a badge says *Ready to start*, *Waiting for the estimate* or *Blocked* (with what to change).
-- *Show the plan by suite* opens the estimate's breakdown by suite and by attack in a window of its own.
+- *Show the plan by suite* (*Show the plan* for an Inspect backend) opens the estimate's breakdown by suite and by
+  attack in a window of its own. Until the estimate of the current settings is in, the window says why there is no
+  plan yet (what the form still needs, that the estimate is running, or why it failed), never an earlier plan.
 - **Terminal command**, with *Copy*: the `agentprov estimate …` of the quote and the `agentprov run …` that Start hands
   to Runs, for the settings as they stand, built by the same code that builds the job.
 
@@ -717,7 +786,10 @@ OK saves only the keys that changed, and **Clear** empties the model's fields. T
 
 *Estimate: the default p50 and p90 model calls per cell, input and output tokens per call, and seconds per
 cell, used where neither an opened corpus nor the
-shipped priors cover a suite and attack (`estimate.default.*`).*
+shipped priors cover a suite and attack (`estimate.default.*`).* Below them (not in the picture), *Refresh prices once
+a day* (`prices.auto_refresh`) and, under **Run caps**, *Margin on the quote*: the percent the suggested caps add to the
+quote's p90 calls and upper cost, which Run Live fills its caps with (`estimate.caps_margin_pct`; 20 % while unset,
+D-1090).
 
 ![Settings, Zenodo](images/gui/settings-zenodo.png)
 
@@ -730,7 +802,7 @@ saved.*
 | Pane | Stored where | CLI equivalent |
 |---|---|---|
 | General, Appearance, Viewer | the app's own preferences | none (presentational, or the app's own checkout and roots) |
-| Jobs, Compute, CI, Dev Runs, Estimate | `agentprov settings` keys `jobs.*`, `compute.*`, `ci.*`, `devrun.*`, `estimate.default.*` | `agentprov settings list --prefix jobs.`, `agentprov settings set KEY VALUE`, … |
+| Jobs, Compute, CI, Dev Runs, Estimate | `agentprov settings` keys `jobs.*`, `compute.*`, `ci.*`, `devrun.*`, `estimate.default.*`, `estimate.caps_margin_pct`, `prices.auto_refresh` | `agentprov settings list --prefix jobs.`, `agentprov settings set KEY VALUE`, … |
 | Local Models | `agentprov settings` keys `local_models.<endpoint>.<model id>.<field>` (D-828) | `agentprov settings set local_models.omlx.<model id>.active_params_b 13`; `agentprov models --endpoint omlx --model-id ID --find-folders` |
 | Keys | the OS keychain (service `agentprov`) | `agentprov keys status`, `list`, `set`, `delete` |
 | Zenodo | `agentprov settings` keys `zenodo.*` (D-880) | `agentprov settings set zenodo.communities agentprov` |
@@ -827,6 +899,13 @@ The app has no network code of its own, so its update check runs these commands 
   available" and shows its notes. **Update Now** opens About and starts Download and Install…, which still asks before
   anything is replaced. **Later** closes the notice and asks again at the next start. **Skip This Version** runs
   `agentprov settings set update.last_notified X.Y.Z`, so that release is not announced again; a later one is.
+- **When only the agentprov program is out of date** (D-1070): the app runs the `agentprov` of the checkout or package
+  install named in Settings › General, and the check compares that program and the app separately. If the app is
+  current but the program is older, installing the app's bundle would not change the program. The notice then says
+  "The agentprov this app runs is out of date", with both versions and the newest release, and its button is **Show
+  the Upgrade Command**; About's button is Show the Upgrade Command too. Both show the command that upgrades the
+  program (for a checkout: `git pull`, then `uv sync --frozen`), for you to run. Nothing is downloaded or installed.
+  A checkout's `.venv` keeps the version it was last synced with, so after pulling a new version run `uv sync` there.
 
 Updates are not among the features a platform limit turns off (D-1064). Where the CLI refuses a step, the app shows
 the CLI's reason.

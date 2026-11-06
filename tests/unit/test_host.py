@@ -367,6 +367,54 @@ def test_the_chosen_sampler_reads_this_process_and_a_child():
     assert sample(2**22 + 12345) is None  # no such process
 
 
+class _FakeProcLib:
+    """Stands in for libproc: ``proc_pidinfo`` answers a resident size, ``proc_pid_rusage`` a footprint (D-1080)."""
+
+    def __init__(self, resident: int, footprint: int | None, *, rusage_fails: bool = False) -> None:
+        def pidinfo(pid, flavor, arg, buffer, size):
+            buffer[1] = resident
+            return size
+
+        def rusage(pid, flavor, ref):
+            if rusage_fails:
+                return -1
+            ref._obj.ri_phys_footprint = footprint
+            return 0
+
+        self.proc_pidinfo = pidinfo
+        if footprint is not None or rusage_fails:
+            self.proc_pid_rusage = rusage
+
+
+@pytest.mark.parametrize(("resident", "footprint", "fails", "expected"), [
+    (100 * MIB, 300 * MIB, False, 300 * MIB),  # compressed or swapped pages: the footprint counts them
+    (100 * MIB, 50 * MIB, False, 100 * MIB),  # shared file-backed pages: never below the resident size
+    (100 * MIB, None, False, 100 * MIB),  # no proc_pid_rusage: the resident size as before
+    (100 * MIB, None, True, 100 * MIB),  # proc_pid_rusage refuses the pid: the resident size
+])
+def test_the_libproc_sampler_is_the_larger_of_resident_size_and_footprint(monkeypatch, resident, footprint, fails,
+                                                                          expected):
+    """D-1080 (sec22 on macos-latest, run 42002097860): a 1.5 GiB job ran past a 1 GiB cap because the host compressed
+    or swapped its pages and only the resident size was sampled."""
+    fake = _FakeProcLib(resident, footprint, rusage_fails=fails)  # plain functions take argtypes/restype too
+    monkeypatch.setattr(h.ctypes.util, "find_library", lambda name: "proc")
+    monkeypatch.setattr(h.ctypes, "CDLL", lambda name, use_errno=False: fake)
+    sample = make_rss_sampler("libproc")
+    assert sample is not None and sample(1234) == expected
+
+
+@pytest.mark.skipif(CAPS.rss_sampler.value != "libproc", reason="the libproc sampler is not this host's")
+def test_the_libproc_sampler_is_never_below_this_process_s_footprint():
+    import os
+
+    sample, footprint = make_rss_sampler("libproc"), h.footprint_reader(HOST)
+    assert sample is not None and footprint is not None
+    block = bytearray(os.urandom(64 * MIB))  # noqa: F841 - held while sampled
+    fp = footprint(os.getpid())
+    got = sample(os.getpid())
+    assert fp is not None and got is not None and got >= fp.current - 8 * MIB
+
+
 def test_unknown_sampler_kind_is_none():
     assert make_rss_sampler("none") is None and make_rss_sampler("ps") is None  # the `ps` subprocess is gone
 

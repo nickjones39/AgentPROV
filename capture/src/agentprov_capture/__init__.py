@@ -2,4 +2,4 @@
 verifier) and the isolated live backends (writer). Stdlib + rfc8785 only, Python >= 3.12."""
 
 FORMAT = "capture/0.1"
-__version__ = "0.2.0"  # equals capture/pyproject.toml (tests/unit/test_versions_source.py)
+__version__ = "0.2.1"  # equals capture/pyproject.toml (tests/unit/test_versions_source.py)

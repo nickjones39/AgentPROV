@@ -37,6 +37,7 @@ from PySide6.QtGui import (
     QAction,
     QColor,
     QFont,
+    QFontMetrics,
     QGuiApplication,
     QHelpEvent,
     QImage,
@@ -44,10 +45,13 @@ from PySide6.QtGui import (
     QPen,
     QPixmap,
     QTextDocument,
+    QTextDocumentFragment,
 )
 from PySide6.QtGui import Qt as QtGuiNs
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
+    QComboBox,
     QFormLayout,
     QLabel,
     QMessageBox,
@@ -83,6 +87,8 @@ __all__ = [
     "safe_message_box",
     "safe_tooltip",
     "screen_rect",
+    "set_action_tooltip",
+    "set_combo_full_text_tip",
     "set_combo_item_tooltip",
     "set_control_tooltip",
     "set_header_tooltips",
@@ -94,7 +100,11 @@ __all__ = [
     "set_tooltip",
     "set_tooltips_shown",
     "set_unavailable_tooltip",
+    "shortened_cell_tip",
+    "show_tooltip_now",
+    "shown_tooltip",
     "tab_text",
+    "text_first_tooltip",
     "tip_position",
     "tip_size",
     "tip_style",
@@ -136,6 +146,14 @@ class SafeImage(QLabel):
 def safe_tooltip(value: object) -> str:
     """A tooltip that shows ``value`` literally: escaped as one line, then converted from plain text (S1)."""
     return str(QtGuiNs.convertFromPlainText(T.line(value, 500)))
+
+
+def shown_tooltip(text: object, *, wrap: bool = False) -> str:
+    """A tooltip repeating text the screen already shows (a combo item, a cell): that text was escaped for display
+    (:func:`agentprov_gui.text.line`), so it is kept as it is (:func:`agentprov_gui.text.clean`, which escapes only
+    what is still unsafe) rather than escaped twice; ``wrap``: ordinary spaces, so a long text wraps."""
+    mode = Qt.WhiteSpaceMode.WhiteSpaceNormal if wrap else Qt.WhiteSpaceMode.WhiteSpacePre
+    return str(QtGuiNs.convertFromPlainText(T.clean(text, 500), mode))
 
 
 def set_tooltip(widget: QWidget, value: object) -> None:
@@ -328,7 +346,10 @@ class TooltipFilter(QObject):
       it is shown or resized for a new tip, so a change of the appearance reaches the next tip.
 
     The setting gates (:func:`set_setting_tooltip`) still decide first: a tip they swallow is never shown, so it is
-    never placed. The text is the widget's own (plain text, S1)."""
+    never placed. The text is the widget's own (plain text, S1).
+    * An item view's cell whose text is shortened on screen (elided in a narrow column, a long name in a list) and that
+      has no tooltip of its own shows its whole text (:func:`shortened_cell_tip`), so every table, tree, list and
+      combo popup of the app exposes what it cuts."""
 
     #: Settings › Appearance › Show tooltips (:func:`set_tooltips_shown`)
     shown: ClassVar[bool] = True
@@ -346,6 +367,10 @@ class TooltipFilter(QObject):
                 return True
             if isinstance(event, QHelpEvent):
                 self.anchor = event.globalPos()
+                tip = shortened_cell_tip(watched, event.pos())
+                if tip is not None:
+                    QToolTip.showText(event.globalPos(), tip, watched)  # type: ignore[arg-type]
+                    return True
             return False
         if kind == QEvent.Type.Paint:
             if is_tip_label(watched):
@@ -401,6 +426,34 @@ class TooltipFilter(QObject):
                 label.move(target)
             finally:
                 self._placing = False
+
+
+#: the room a standard item delegate leaves around a cell's text (its margins and the focus frame)
+_CELL_MARGIN: Final = 8
+
+
+def shortened_cell_tip(viewport: QObject, pos: QPoint) -> str | None:
+    """The tooltip of an item view's cell (a table, tree or list, a combo's popup) whose text is shortened on screen:
+    the cell's whole text (:func:`shown_tooltip`), when the cell has no tooltip of its own and its text is wider
+    than the cell. ``None`` otherwise (the view answers as usual). ``viewport`` is the view's viewport, where Qt sends
+    the tooltip event; ``pos`` is the pointer in it."""
+    view = viewport.parent() if isinstance(viewport, QWidget) else None
+    if not isinstance(view, QAbstractItemView) or view.viewport() is not viewport:
+        return None
+    index = view.indexAt(pos)
+    if not index.isValid() or index.data(Qt.ItemDataRole.ToolTipRole):
+        return None
+    text = index.data(Qt.ItemDataRole.DisplayRole)
+    if not isinstance(text, str) or not text.strip():
+        return None
+    font = index.data(Qt.ItemDataRole.FontRole)
+    metrics = QFontMetrics(font if isinstance(font, QFont) else view.font())
+    rect = view.visualRect(index)
+    icon = view.iconSize().width() + 4 if index.data(Qt.ItemDataRole.DecorationRole) is not None else 0
+    widest = max(metrics.horizontalAdvance(line) for line in text.splitlines() or [text])
+    if widest + icon + _CELL_MARGIN <= rect.width():
+        return None
+    return shown_tooltip(text, wrap=True)
 
 
 _FILTER: list[TooltipFilter] = []
@@ -464,6 +517,57 @@ def set_list_item_tooltip(item: object, value: object, *, wrap: bool = False) ->
 def set_combo_item_tooltip(box: object, index: int, value: object) -> None:
     """A tooltip on one item of a ``QComboBox``."""
     box.setItemData(index, safe_tooltip(value), Qt.ItemDataRole.ToolTipRole)  # type: ignore[attr-defined]
+
+
+#: item data roles of :func:`set_combo_full_text_tip` (far above the roles callers use for their own item data): the
+#: tooltip it wrote on an item (so it knows the tip is its own) and the caller's tooltip it replaced
+_FULL_TIP_ROLE: Final = int(Qt.ItemDataRole.UserRole) + 0x4150
+_OWN_TIP_ROLE: Final = _FULL_TIP_ROLE + 1
+
+
+def plain_tip(tip: str) -> str:
+    """The plain text of a tooltip this module made (Qt's paragraph around escaped text)."""
+    return QTextDocumentFragment.fromHtml(tip).toPlainText().strip()
+
+
+def text_first_tooltip(text: str, own: object) -> str:
+    """A tooltip for a control or item whose shown ``text`` is shortened: the whole text first, then ``own`` (the
+    tooltip it has, made by this module) when there is one (:func:`shown_tooltip`)."""
+    return shown_tooltip(f"{text} — {plain_tip(own)}" if isinstance(own, str) and own else text, wrap=True)
+
+
+def set_combo_full_text_tip(box: QComboBox, index: int, *, needed: bool) -> None:
+    """Item ``index`` of ``box`` cannot be shown whole in the popup (``needed``): its tooltip is its whole text, before
+    the tooltip the caller gave it (:func:`text_first_tooltip`). Not needed (any more): the caller's tooltip, if any,
+    is back. Repeating it never stacks the text; a tooltip the caller sets later replaces this one."""
+    tip_role = Qt.ItemDataRole.ToolTipRole
+    tip = box.itemData(index, tip_role)
+    ours = box.itemData(index, _FULL_TIP_ROLE)
+    if ours is not None and tip != ours:  # the caller replaced it since: theirs now
+        box.setItemData(index, None, _FULL_TIP_ROLE)
+        box.setItemData(index, None, _OWN_TIP_ROLE)
+        ours = None
+    own = box.itemData(index, _OWN_TIP_ROLE) if ours is not None else tip
+    if not needed:
+        if ours is not None:
+            box.setItemData(index, own, tip_role)
+            box.setItemData(index, None, _FULL_TIP_ROLE)
+            box.setItemData(index, None, _OWN_TIP_ROLE)
+        return
+    full = text_first_tooltip(box.itemText(index), own)
+    box.setItemData(index, own, _OWN_TIP_ROLE)
+    box.setItemData(index, full, tip_role)
+    box.setItemData(index, full, _FULL_TIP_ROLE)
+
+
+def show_tooltip_now(widget: QWidget, at: QPoint, tip: str) -> None:
+    """Show ``tip`` (made by this module) for ``widget`` at the global point ``at``, as a tooltip event would."""
+    QToolTip.showText(at, tip, widget)
+
+
+def set_action_tooltip(action: QAction, value: object) -> None:
+    """A menu action's tooltip (shown when its menu has ``setToolTipsVisible(True)``)."""
+    action.setToolTip(safe_tooltip(value))
 
 
 def set_item_tooltip(item: object, column: int, value: object) -> None:

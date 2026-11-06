@@ -283,7 +283,8 @@ class Budget:
     #: the caps as well, so the sweep as a whole stays within them
     sweep: Budget | None = field(default=None, repr=False, compare=False)
 
-    def _call_bound(self) -> tuple[int, int]:
+    def call_bound(self) -> tuple[int, int]:
+        """The tokens one call is charged at when its usage is unknown: (input side, output)."""
         tokens_in = max(CALL_INPUT_BOUND, self.max_call_input)
         tokens_out = self.caps.max_tokens if self.caps.max_tokens is not None else CALL_OUTPUT_BOUND
         return tokens_in, max(tokens_out, self.max_call_output)
@@ -293,7 +294,7 @@ class Budget:
         return (tokens_in * p_in + tokens_out * p_out) / _PER_MTOK
 
     def call_bound_usd(self) -> float:
-        return self._price(*self._call_bound())
+        return self._price(*self.call_bound())
 
     def cell_bound(self) -> tuple[int, float]:
         """The worst case of one cell: billed calls and USD."""

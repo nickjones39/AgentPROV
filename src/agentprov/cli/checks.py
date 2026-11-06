@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse
 import os
 import re
-import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
@@ -407,13 +406,6 @@ def validation_cache(ctx: Context, *, audit: bool = False, notices: list[str] | 
     read leaves it at the cache's default, with a notice in ``notices``, and never stops the command (AU-CLIA-1)."""
     if getattr(ctx.args, "no_validation_cache", False):
         return None
-    if sys.platform == "win32":
-        # 0.2.0: on Windows a worker's cache context could differ from the parent's, so entries were rejected or not
-        # stored at random (outcomes unaffected); the cache is a speed-up only, so Windows runs without it until 0.2.1
-        if notices is not None:
-            notices.append("the tier-4 round-trip cache is not used on Windows in this version (results are the same; "
-                           "validation takes longer)")
-        return None
     from agentprov import settings
     from agentprov.validate.cache import DiskCache, default_root
 
@@ -444,6 +436,16 @@ def finish_validation_cache(result: CommandResult, cache: Any) -> None:
     if stats.audit_mismatch:
         result.error(f"tier-4 round-trip cache: {stats.audit_mismatch} entr(y/ies) disagreed with a fresh round trip "
                      "and were replaced (the run used the fresh outcomes)")
+    # D-1081: a speed-up lost, never an outcome changed; these say why, so a host where it happens can be diagnosed
+    if stats.context_mismatch:
+        parts = ", ".join(f"{part} {n}" for part, n in sorted(getattr(cache, "mismatched_parts", {}).items()))
+        result.info(f"tier-4 round-trip cache: {stats.context_mismatch} worker round trip(s) were made under another "
+                       f"cache context and not stored (differing parts: {parts or 'unknown'})")
+    if stats.context_incomplete:
+        from agentprov.validate.cache import context_problem
+
+        result.info(f"tier-4 round-trip cache: not used, a library file could not be read "
+                       f"({safe_text(context_problem() or 'unknown', 200)})")
 
 
 def run_corpus(ctx: Context) -> CommandResult:

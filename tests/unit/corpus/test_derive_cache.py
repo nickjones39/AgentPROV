@@ -7,8 +7,6 @@ process and with workers. A warm run serves every round trip from the hints its 
 
 from __future__ import annotations
 
-import sys
-
 import json
 import os
 from collections.abc import Iterator
@@ -20,8 +18,6 @@ import pytest
 
 from agentprov.cli.main import main
 from agentprov.testing import fs_guard
-
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the tier-4 round-trip cache is not used on Windows in 0.2.0")
 
 
 def run(capsys: pytest.CaptureFixture[str], *argv: str, guard: Path | None = None) -> tuple[int, dict[str, Any], str]:

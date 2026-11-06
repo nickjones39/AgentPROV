@@ -102,7 +102,7 @@ Versions are independent and all recorded in the corpus (`src/agentprov/versions
 
 | Axis | In this build |
 |---|---|
-| software | `agentprov 0.2.0` |
+| software | `agentprov 0.2.1` |
 | record and corpus formats | `aer/0.2` (`aer/0.1` still read), `sem/0.1`, `capture/0.1`, `agentprov-corpus/0.2` (`agentprov-corpus/0.1` still read and verified) |
 | provenance specification | `agentprov-prov/0.1` (`adprov-v2.3-compat` is the frozen regression oracle, produced only on request) |
 | rule catalogue | `aprov` version 3 (recorded by digest in `derivation.json` and in `corpus.json` `rule_catalogues`; corpora built before D-930 record version 2) |
@@ -228,7 +228,7 @@ The vocabulary version a document was built with is stated on its derivation act
 
 ### Its own version axis
 
-`apv` has its own semantic version, independent of the software (`agentprov 0.2.0`) and of the provenance
+`apv` has its own semantic version, independent of the software (`agentprov 0.2.1`) and of the provenance
 specification (`agentprov-prov/0.1`). Patch versions change documentation only, minor versions add terms, and major
 versions change meaning or remove terms. Terms are never deleted after release, only marked `owl:deprecated`. The
 current version, 0.2.0, adds 27 terms to 0.1.0 and changes none

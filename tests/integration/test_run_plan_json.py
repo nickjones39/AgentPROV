@@ -91,7 +91,19 @@ def test_plan_json_rows_agree_with_the_dry_run_counters(home: Path, tmp_path: Pa
     assert cell == {"cell_key": "banking/user_task_1/none/none", "suite": "banking", "user_task_id": "user_task_1",
                     "injection_task_id": None, "attack": None, "kind": "user_task", "settled": 0}
     assert re.fullmatch(r"[0-9a-f]{64}", doc["plan_sha256"]) and doc["config_digest"].startswith("sha256:")
+    # D-1090: the worst case of one cell as the campaign reserves it (the stock element: 3 passes x 16 steps)
+    assert doc["cell_bound"] == {"calls": 48, "step_calls": 1, "call_tokens_in": 32_000, "call_tokens_out": 4_096}
     assert not (tmp_path / "corpus.partial").exists()  # still a dry run: nothing written
+
+
+def test_plan_json_cell_bound_follows_the_llm_element(home: Path, tmp_path: Path, cli, script: str) -> None:
+    """D-1090: the same bound the campaign's D-725 budget reserves (AU-LIVE-1: gateway_compat bills up to 8 replies a
+    step), with or without caps."""
+    make_fake_env(home, "ok")
+    run = _run(cli, tmp_path, script, "--dry-run", "--plan-json", "--llm-element", "gateway_compat")
+    assert run.code == 0, run.err
+    assert json.loads(run.out)["cell_bound"] == {"calls": 384, "step_calls": 8, "call_tokens_in": 32_000,
+                                                 "call_tokens_out": 4_096}
 
 
 def test_plan_json_counts_settled_units_by_the_campaign_rule(home: Path, tmp_path: Path, cli, script: str) -> None:

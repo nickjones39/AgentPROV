@@ -7,6 +7,10 @@ An Inspect plan (D-770) has no suite or kind per cell: each row names its ``task
 and the document's ``inspect`` table gives the epochs, the message limit, the sample concurrency and each judge
 role's model. Such a cell becomes a :class:`PlanCell` of suite ``task``, kind ``inspect`` and ``samples × epochs``
 executions.
+
+D-1090: a plan may carry ``cell_bound``, the worst case of one cell under the D-725 caps as the campaign reserves it
+(billed calls, the billed replies of one model step, and the tokens one call is charged at), or ``refused`` with the
+reason there is none. :class:`CellBound` holds it; the estimate's suggested caps leave room for it.
 """
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from agentprov.estimate.cost import INSPECT_KIND, PlanCell
 from agentprov.ingest.limits import IngestLimits
 from agentprov.ingest.loaders import strict_json_loads
 
-__all__ = ["INSPECT_KIND", "PLAN_FORMAT", "DryPlan", "InspectInfo", "PlanError", "parse_plan"]
+__all__ = ["INSPECT_KIND", "PLAN_FORMAT", "CellBound", "DryPlan", "InspectInfo", "PlanError", "parse_plan"]
 
 PLAN_FORMAT: Final = "agentprov-run-dry-plan/0.1"
 _LIMITS: Final = IngestLimits().replace(max_json_bytes=64 * 1024 * 1024, max_json_depth=16)
@@ -69,6 +73,34 @@ def _inspect_info(doc: Any) -> InspectInfo | None:
 
 
 @dataclass(frozen=True, slots=True)
+class CellBound:
+    """D-1090: one cell's worst case under the D-725 caps (``calls`` billed calls, a probe at ``step_calls``, each call
+    charged at ``call_tokens_in`` input-side and ``call_tokens_out`` output tokens), or ``refused``: why none."""
+
+    calls: int = 0
+    step_calls: int = 0
+    call_tokens_in: int = 0
+    call_tokens_out: int = 0
+    refused: str | None = None
+
+
+def _cell_bound(doc: Any) -> CellBound | None:
+    if doc is None:
+        return None
+    if not isinstance(doc, dict):
+        raise PlanError("a malformed cell bound")
+    if "refused" in doc:
+        if not isinstance(doc["refused"], str):
+            raise PlanError("a malformed cell bound")
+        return CellBound(refused=doc["refused"][:300])
+    calls, step, tokens_in, tokens_out = (_int(doc.get(k), f"cell_bound.{k}")
+                                          for k in ("calls", "step_calls", "call_tokens_in", "call_tokens_out"))
+    if calls < 1 or step < 1:
+        raise PlanError("a malformed cell bound")
+    return CellBound(calls, step, tokens_in, tokens_out)
+
+
+@dataclass(frozen=True, slots=True)
 class DryPlan:
     plan_sha256: str
     backend: str
@@ -80,6 +112,7 @@ class DryPlan:
     benchmark_version: str
     cells: tuple[PlanCell, ...]
     inspect: InspectInfo | None = None
+    cell_bound: CellBound | None = None
 
     def to_json(self) -> dict[str, Any]:
         out = {"plan_sha256": self.plan_sha256, "backend": self.backend, "cells": len(self.cells),
@@ -120,7 +153,7 @@ def parse_plan(data: bytes) -> DryPlan:
                    max(1, _int(doc.get("repeats"), "repeats")), _int(doc.get("max_attempts"), "max_attempts"),
                    _int(doc.get("units"), "units"), _int(doc.get("settled"), "settled"),
                    _int(doc.get("attempts_due"), "attempts_due"), str(doc.get("benchmark_version") or "")[:80],
-                   tuple(cells), inspect)
+                   tuple(cells), inspect, _cell_bound(doc.get("cell_bound")))
     if plan.units != len(cells) * plan.repeats or plan.settled != sum(min(c.settled, plan.repeats) for c in cells):
         raise PlanError("the totals do not match the cells")
     return plan

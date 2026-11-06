@@ -29,8 +29,6 @@ from agentprov.validate import roundtrip
 from agentprov.validate.cache import DiskCache, JobFidelity
 from agentprov.validate.tiers import CheckOutcome, Finding
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the tier-4 round-trip cache is not used on Windows in 0.2.0")
-
 SPEC = "agentprov-prov/0.1"
 
 
@@ -324,3 +322,110 @@ def test_a_sharing_violation_is_retried_before_it_counts_as_an_error(monkeypatch
     tmp.write_bytes(b"1")
     cache_mod._retry_sharing(lambda: cache_mod.os.replace(tmp, tmp_path / "x"))
     assert (tmp_path / "x").read_bytes() == b"1" and not refusals
+
+
+# ---------------------------------------------------------------------------------------- D-1081: context robustness
+@pytest.fixture
+def fresh_context():
+    context, digest = tc.context, tc.context_digest  # the cached functions, whatever a test patches in their place
+    context.cache_clear()
+    digest.cache_clear()
+    yield
+    context.cache_clear()
+    digest.cache_clear()
+
+
+def test_the_context_does_not_ask_platform_machine(monkeypatch: pytest.MonkeyPatch, fresh_context: None) -> None:
+    """D-1081, the cause of the 0.2.0 Windows CI misses: platform.machine() asks WMI on Windows and, when the query
+    fails, reads PROCESSOR_ARCHITECTURE, which a worker's minimal environment does not carry. A worker whose query
+    failed had another context than its parent, so its round trips were never stored and its hints were refused."""
+    import platform
+    import sysconfig
+
+    before = tc.context_digest()
+    assert tc.context()["python"]["platform"] == sysconfig.get_platform() and "machine" not in tc.context()["python"]
+    tc.context.cache_clear()
+    tc.context_digest.cache_clear()
+    monkeypatch.setattr(platform, "machine", lambda: "")  # the worker whose WMI query failed
+    monkeypatch.delenv("PROCESSOR_ARCHITECTURE", raising=False)
+    assert tc.context_digest() == before
+
+
+def test_an_unreadable_library_file_makes_the_context_incomplete(monkeypatch: pytest.MonkeyPatch,
+                                                                 fresh_context: None) -> None:
+    """D-1081: a library file that cannot be read (after the sharing-violation retries) is no longer hashed as a
+    placeholder, which gave a digest that looked valid and that no other process computed."""
+    real = Path.read_bytes
+
+    def refuse(self: Path) -> bytes:
+        if "rdflib" in self.parts:
+            raise PermissionError(13, "held open")
+        return real(self)
+
+    monkeypatch.setattr(tc, "_SHARING_PAUSE_S", 0.0)
+    monkeypatch.setattr(Path, "read_bytes", refuse)
+    lib = tc._library("rdflib")
+    assert "sha256" not in lib and lib["unreadable"].endswith("(PermissionError)")
+    problem = tc.context_problem()
+    assert problem is not None and problem.startswith("rdflib: ")
+    monkeypatch.setattr(Path, "read_bytes", real)
+    tc.context.cache_clear()
+    assert tc.context_problem() is None
+
+
+def test_an_incomplete_context_neither_serves_nor_stores(sealed: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+                                                         fresh_context: None) -> None:
+    off = report_bytes(sealed, mode="dev")
+    root = tmp_path / "c"
+    report_bytes(sealed, mode="dev", cache=DiskCache(root))
+    assert len(entries(root)) == 3
+    monkeypatch.setattr(tc, "context_problem", lambda: "rdflib: x.py (PermissionError)")
+    for jobs in (None, 2):
+        cache = DiskCache(root)
+        assert report_bytes(sealed, mode="dev", jobs=jobs, cache=cache) == off
+        assert cache.stats.hits == 0 and cache.stats.stored == 0 and cache.stats.context_incomplete >= 3, cache.stats
+    assert DiskCache(root).hint(entries(root)[0].stem) is None
+
+
+def test_a_worker_frame_under_another_context_names_the_differing_part(sealed: Path, tmp_path: Path,
+                                                                       monkeypatch: pytest.MonkeyPatch,
+                                                                       fresh_context: None) -> None:
+    """D-1081: the parent's context differs from its workers' in one part (here the python part): nothing is stored,
+    the report is unchanged, and the counters say which part differed."""
+    off = report_bytes(sealed, mode="dev", jobs=2)
+    real = tc.context()
+    changed = {**real, "python": {**real["python"], "platform": "elsewhere"}}
+    tc.context_digest.cache_clear()
+    monkeypatch.setattr(tc, "context", lambda: changed)
+    cache = DiskCache(tmp_path / "c")
+    assert report_bytes(sealed, mode="dev", jobs=2, cache=cache) == off
+    assert cache.stats.stored == 0 and cache.stats.context_mismatch == 3 and cache.mismatched_parts == {"python": 3}
+
+
+def test_a_frame_from_an_incomplete_worker_is_counted_as_incomplete(sealed: Path, tmp_path: Path) -> None:
+    doc = prov_docs(sealed)[0]
+    job = JobFidelity()
+    job.store(doc, [CheckOutcome(i, "pass") for i in tc.ROUNDTRIP_IDS])
+    frame = job.frame()
+    assert frame is not None and set(frame["fidelity"]["context_parts"]) >= {"code", "python", "libraries.prov"}
+    cache = DiskCache(tmp_path / "c")
+    cache.store_frame(doc, frame["fidelity"])
+    assert cache.stats.stored == 1 and cache.stats.context_mismatch == 0
+    other = {**frame["fidelity"], "context_sha256": "0" * 64, "context_problem": "lxml: etree.pyd (PermissionError)"}
+    cache.store_frame(doc, other)
+    assert cache.stats.context_mismatch == 1 and cache.mismatched_parts == {"incomplete": 1}
+
+
+def test_the_command_says_why_the_cache_was_not_used(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from agentprov.cli.checks import finish_validation_cache
+    from agentprov.cli.common import CommandResult
+
+    cache = DiskCache(tmp_path / "c")
+    cache.stats.context_mismatch, cache.mismatched_parts = 2, {"python": 2}
+    cache.stats.context_incomplete = 1
+    monkeypatch.setattr(tc, "context_problem", lambda: "lxml: etree.pyd (PermissionError)")
+    result = CommandResult()
+    finish_validation_cache(result, cache)
+    text = "\n".join(t for _, t in result.messages)
+    assert "2 worker round trip(s) were made under another cache context" in text and "python 2" in text
+    assert "a library file could not be read (lxml: etree.pyd (PermissionError))" in text

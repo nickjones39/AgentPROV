@@ -15,6 +15,10 @@ and one controller, owned by the main window, holds the state, so a download kee
   fetches at most once a local day). When a newer release is out and it is not the one the user skipped
   (``update.last_notified``), :class:`UpdateNotice` asks once: Update Now, Later (asked again next launch) or Skip
   This Version (``agentprov settings set update.last_notified X.Y.Z``). Offline or with no CLI, nothing is shown.
+* **Only the agentprov program behind** (D-1070): when the check says the ``agentprov`` this app runs (the configured
+  checkout or package install) is older than the newest release but the app is not, replacing the bundle would not
+  change that program. The notice says so and offers Show the Upgrade Command, and About's button becomes Show the
+  Upgrade Command (``update install`` without ``--bundle``); no bundle is downloaded or installed.
 
 Every result is shown as the CLI says it, in plain text (S1), with the "checked against SHA256SUMS only" note for a
 release the package cannot check a signature of, and the quit-and-reopen instruction (Windows: applied after quit).
@@ -117,16 +121,25 @@ class UpdateController(QObject):
         """An install was made in this session (or waits for the app to quit): the running app is the old one."""
         return self.install is not None and self.install.action in ("installed", "waiting-for-quit")
 
+    @property
+    def bundle_update(self) -> bool:
+        """Download and Install… replaces the app's bundle: the app is a bundle and the last check did not find only
+        the agentprov program it runs behind (D-1070: then that program's upgrade command is shown instead)."""
+        return self.bundle is not None and not (self.check is not None and self.check.cli_only)
+
     # ------------------------------------------------------------------ the commands
     def commands(self) -> list[tuple[str, list[str]]]:
         """The terminal commands of each action, as the app runs them (About's command card)."""
         out: list[tuple[str, list[str]]] = [
             ("The last check, from the cache (no network)", U.status_argv(self.bundle, self.gui)),
             ("Check for Updates", U.check_argv(self.bundle, self.gui))]
-        if self.bundle is not None:
+        if self.bundle_update:
             out += [("Download and Install…: download and verify", U.download_argv()),
                     ("then, after you confirm, install (the old version is kept for rollback)",
                      U.install_argv(self.bundle, self.gui))]
+        elif self.bundle is not None:
+            out.append(("Show the Upgrade Command (only the agentprov this app runs is out of date: the app is not "
+                        "replaced)", U.install_argv(None, self.gui)))
         else:
             out.append(("Show the Upgrade Command (this app is not a bundle: nothing is installed)",
                         U.install_argv(None, self.gui)))
@@ -227,13 +240,14 @@ class UpdateController(QObject):
         self._start("settings", U.skip_argv(version), done, f"Skipping AgentPROV {version}…")
 
     def download_and_install(self, parent: QWidget | None = None) -> bool:
-        """Download and Install…: download and verify, ask, install. Without a bundle: the upgrade command only. Once
-        an install was made (or waits for the app to quit), nothing more until the app is started again: a second
-        install from the old running app would replace the version kept for rollback."""
+        """Download and Install…: download and verify, ask, install. Without a bundle, or when only the agentprov
+        program the app runs is behind (D-1070): the upgrade command only. Once an install was made (or waits for the
+        app to quit), nothing more until the app is started again: a second install from the old running app would
+        replace the version kept for rollback."""
         if self.busy or self.installed:
             return False
         self.result = []
-        if self.bundle is None:
+        if not self.bundle_update:
             return self._start("install", U.install_argv(None, self.gui), self._installed,
                                "Asking agentprov how this install is upgraded…")
 
@@ -325,17 +339,11 @@ class UpdatesSection(QWidget):
                                             "releases API for nickjones39/AgentPROV, made by the agentprov program "
                                             "(the app itself opens no connection).")
         row.addWidget(self.check_btn)
-        bundled = controller.bundle is not None
-        self.install_btn = QPushButton(INSTALL_NAME if bundled else COMMAND_NAME, buttons)
-        self.install_btn.setAccessibleName(INSTALL_NAME if bundled else COMMAND_NAME)
+        self.install_btn = QPushButton(buttons)
         self.install_btn.setAutoDefault(False)
         self.install_btn.clicked.connect(lambda: controller.download_and_install(self.window()))
-        set_control_tooltip(self.install_btn, (
-            "Runs agentprov update download --allow-network (the bundle is verified against the release's SHA256SUMS "
-            "and, when the package lists a release key, its signature), then asks you before agentprov update install "
-            "--confirm replaces the app; the old version is kept for rollback." if bundled else
-            "This app runs from a checkout or a package install, not a bundle: runs agentprov update install without "
-            "--bundle, which prints the command that upgrades it. Nothing is installed."))
+        self._install_kind: tuple[bool, bool] | None = None
+        self._set_install_button()
         row.addWidget(self.install_btn)
         row.addStretch(1)
         self.actions_row = sec.add_row("", buttons)
@@ -355,13 +363,36 @@ class UpdatesSection(QWidget):
         self.refresh()
         controller.load_status()
 
+    def _set_install_button(self) -> None:
+        """Download and Install… for a bundle update, else Show the Upgrade Command (not a bundle, or only the agentprov
+        program this app runs is behind, D-1070), with the tooltip of what it runs."""
+        c = self.controller
+        kind = (c.bundle_update, c.bundle is not None)
+        if kind == self._install_kind:
+            return
+        self._install_kind = kind
+        name = INSTALL_NAME if c.bundle_update else COMMAND_NAME
+        self.install_btn.setText(name)
+        self.install_btn.setAccessibleName(name)
+        set_control_tooltip(self.install_btn, (
+            "Runs agentprov update download --allow-network (the bundle is verified against the release's SHA256SUMS "
+            "and, when the package lists a release key, its signature), then asks you before agentprov update install "
+            "--confirm replaces the app; the old version is kept for rollback." if c.bundle_update else
+            "Only the agentprov program this app runs (Settings › General) is out of date, not the app: replacing the "
+            "app would not change it. Runs agentprov update install without --bundle, which prints the command that "
+            "upgrades that program. Nothing is installed." if c.bundle is not None else
+            "This app runs from a checkout or a package install, not a bundle: runs agentprov update install without "
+            "--bundle, which prints the command that upgrades it. Nothing is installed."))
+
     def refresh(self) -> None:
         c = self.controller
         check = c.check
+        self._set_install_button()
         if check is None or check.checked_at is None:
             self.last.set_plain("Never checked" if check is not None else "Not read yet")
         else:
-            outcome = ("an update is available" if check.update_available else "up to date"
+            outcome = ("the agentprov this app runs is out of date" if check.update_available and check.cli_only else
+                       "an update is available" if check.update_available else "up to date"
                        if check.update_available is False else "the versions cannot be compared")
             self.last.set_plain(f"{_when(check.checked_at)}: {outcome}")
         available = check is not None and check.update_available is True
@@ -379,7 +410,7 @@ class UpdatesSection(QWidget):
             self.notes.appendPlainText("\n[The notes are cut at 8000 characters; the release page has the rest.]")
         self.notes_row.setVisible(available and bool(check and check.notes))
         self.check_btn.setEnabled(not c.busy)
-        can_install = available and (c.bundle is None or (check is not None and check.asset is not None))
+        can_install = available and (not c.bundle_update or (check is not None and check.asset is not None))
         self.install_btn.setEnabled(not c.busy and can_install and not c.installed)
         self.status.set_plain(c.status_line)
         self.status.setVisible(bool(c.status_line))
@@ -393,7 +424,9 @@ class UpdatesSection(QWidget):
 
 class UpdateNotice(QDialog):
     """The start-up notice, once per new release: "AgentPROV X.Y.Z is available", the notes (plain text), and Update
-    Now, Later or Skip This Version (:attr:`choice` is ``update``, ``later`` or ``skip``)."""
+    Now, Later or Skip This Version (:attr:`choice` is ``update``, ``later`` or ``skip``). When only the agentprov
+    program the app runs is behind (D-1070) it says so instead, and its primary button is Show the Upgrade Command
+    (still ``update``: About then shows that program's upgrade command, never a bundle download)."""
 
     def __init__(self, check: U.Check, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -407,16 +440,25 @@ class UpdateNotice(QDialog):
         lay.setSpacing(0)
         page = FormPage(name="Software Update", parent=self)
         lay.addWidget(page, 1)
-        title = SafeLabel(f"AgentPROV {version} is available", name="Update title", parent=page.column)
+        cli_only = check.cli_only
+        heading = "The agentprov this app runs is out of date" if cli_only else f"AgentPROV {version} is available"
+        title = SafeLabel(heading, name="Update title", parent=page.column)
         title.setFont(theme.scaled_font("title"))
         title.setWordWrap(True)
         page.add(title)
-        have = ", ".join(x for x in (f"the app {check.gui}" if check.gui else "",
-                                     f"agentprov {check.core}" if check.core else "") if x)
         when = f" It was published {_when(check.published_at)}." if check.published_at else ""
-        page.add(forms.caption(f"You have {have or 'an older version'}.{when} Nothing is downloaded or installed "
-                               "until you choose Update Now and confirm.", name="Update summary", parent=page.column,
-                               role="secondary"))
+        if cli_only:
+            app = f"This app is AgentPROV {check.gui}, which is current" if check.gui else "This app is current"
+            summary = (f"{app}, but the agentprov program it runs is {check.core or 'older'} and the newest release is "
+                       f"{version}.{when} Updating the app would not change that program: Settings › General names "
+                       "which one it is (a checkout or a package install). Show the Upgrade Command shows the command "
+                       "that upgrades it, for you to run; nothing is downloaded or installed.")
+        else:
+            have = ", ".join(x for x in (f"the app {check.gui}" if check.gui else "",
+                                         f"agentprov {check.core}" if check.core else "") if x)
+            summary = (f"You have {have or 'an older version'}.{when} Nothing is downloaded or installed until you "
+                       "choose Update Now and confirm.")
+        page.add(forms.caption(summary, name="Update summary", parent=page.column, role="secondary"))
         sec = FormSection("Release notes", parent=page.column)
         self.notes = ReadOnlyText(name="Release notes", parent=sec.card, wrap=True)
         self.notes.setPlainText(check.notes or "This release has no notes.")
@@ -436,9 +478,12 @@ class UpdateNotice(QDialog):
         row.addStretch(1)
         row.addWidget(self._button("Later", "later", footer, "Closes this notice; it asks again the next time the app "
                                                              "starts."))
-        self.update_btn = self._button("Update Now", "update", footer,
-                                       "Opens About and downloads and verifies the update (agentprov update download "
-                                       "--allow-network); it asks you again before anything is replaced.")
+        self.update_btn = self._button(
+            COMMAND_NAME, "update", footer,
+            "Opens About and runs agentprov update install without --bundle, which prints the command that upgrades "
+            "the agentprov program this app runs; nothing is downloaded or installed.") if cli_only else self._button(
+            "Update Now", "update", footer, "Opens About and downloads and verifies the update (agentprov update "
+            "download --allow-network); it asks you again before anything is replaced.")
         self.update_btn.setDefault(True)
         row.addWidget(self.update_btn)
         lay.addWidget(footer)

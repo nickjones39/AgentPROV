@@ -63,6 +63,9 @@ NO_KEYCHAIN: Final = ("No secure keychain: keys cannot be stored; real-model run
 ESTIMATE_PREFIX: Final = "estimate.default."
 #: D-1062: the standing consent to the daily price refresh when Run Live opens (unset: on)
 AUTO_REFRESH: Final = "prices.auto_refresh"
+#: D-1090: the margin agentprov estimate's suggested caps add to the quote's p90 figures (unset: 20)
+CAPS_MARGIN: Final = "estimate.caps_margin_pct"
+CAPS_MARGIN_DEFAULT: Final = 20.0
 #: what the Prices and Estimate panes read (and show as their command while nothing changed)
 PRICES_LIST: Final = ("prices", "list", "--format", "json")
 SETTINGS_LIST: Final = ("settings", "list", "--format", "json")
@@ -473,15 +476,17 @@ def _cell(item: QTableWidgetItem | None) -> str:
 
 class EstimatePane(QWidget):
     """The default assumptions (labelled as such on every estimate that uses them): ``agentprov settings``
-    ``estimate.default.<name>_<p50|p90>`` (D-701, D-703); and the daily price refresh when Run Live opens, the setting
-    ``prices.auto_refresh`` (D-1062; unset: on)."""
+    ``estimate.default.<name>_<p50|p90>`` (D-701, D-703); the daily price refresh when Run Live opens, the setting
+    ``prices.auto_refresh`` (D-1062; unset: on); and the margin of the suggested caps Run Live fills, the setting
+    ``estimate.caps_margin_pct`` (D-1090; unset: 20)."""
 
     FIELDS: Final = (("calls", "Model calls per cell", 6, 12), ("tokens_in", "Input tokens per call", 4000, 9000),
                      ("tokens_out", "Output tokens per call", 200, 600), ("seconds", "Seconds per cell", 45, 150))
     UNITS: Final = {"calls": "calls", "tokens_in": "tokens", "tokens_out": "tokens", "seconds": "seconds"}
     #: reverse CLI parity (D-700): each spin box's ``agentprov settings`` key
     KEYS: ClassVar[dict[str, str]] = {**{f"spins.{k}_{q}": f"{ESTIMATE_PREFIX}{k}_{q}" for k, *_ in FIELDS
-                                         for q in ("p50", "p90")}, "auto_refresh": AUTO_REFRESH}
+                                         for q in ("p50", "p90")}, "auto_refresh": AUTO_REFRESH,
+                                      "caps_margin": CAPS_MARGIN}
 
     def __init__(self, checkout: Path | None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -517,14 +522,27 @@ class EstimatePane(QWidget):
                         "written today; off, the stored prices are used until you refresh them (setting "
                         "prices.auto_refresh).")
         self.page.add(sec)
+        caps = FormSection("Run caps", parent=column,
+                           note="Run Live fills an API run's caps from the quote's suggestion (D-1090).")
+        self.caps_margin = DecimalField(0, 1000, CAPS_MARGIN_DEFAULT, name="Margin on the quote for the caps",
+                                        decimals=0, unset=False, unit="%", parent=caps.card)
+        caps.add_row("Margin on the quote", self.caps_margin,
+                     caption_text="Added to the p90 calls and the upper cost",
+                     tip="The percent agentprov estimate's suggested caps add to the quote's p90 model calls and its "
+                         "upper cost (the sum of per-cell 90th percentiles), before the room for the cells the run "
+                         "reserves at their worst case; Run Live fills Max model calls and Max cost with them (setting "
+                         f"{CAPS_MARGIN}; unset: 20).")
+        self.page.add(caps)
         self.command = command_card(column)
         self.page.add(self.command)
         self.loaded: dict[str, float] | None = None
         self.loaded_auto = True
+        self.loaded_margin = CAPS_MARGIN_DEFAULT
         self._timer = _follow(self, self.show_command)
         for spin in self.spins.values():
             spin.valueChanged.connect(lambda _v: self._timer.start())
         self.auto_refresh.toggled.connect(lambda _on: self._timer.start())
+        self.caps_margin.valueChanged.connect(lambda _v: self._timer.start())
         self.show_command()
         self.setEnabled(False)
         submit(self, lambda _s: call(self.cli, list(SETTINGS_LIST)),
@@ -549,8 +567,12 @@ class EstimatePane(QWidget):
             if isinstance(value, int | float) and not isinstance(value, bool):
                 spin.setValue(float(value))
         self.auto_refresh.setChecked(stored.get(AUTO_REFRESH) is not False)
+        margin = stored.get(CAPS_MARGIN)
+        if isinstance(margin, int | float) and not isinstance(margin, bool):
+            self.caps_margin.setValue(float(margin))
         self.loaded = self.values()
         self.loaded_auto = self.auto_refresh.isChecked()
+        self.loaded_margin = self.caps_margin.value()
         self.status.set_plain(f"{sum(1 for k in stored if k.startswith(ESTIMATE_PREFIX))} stored; the rest are the "
                               "shipped assumptions")
         self.setEnabled(True)
@@ -569,6 +591,9 @@ class EstimatePane(QWidget):
         auto = self.auto_refresh.isChecked()
         if auto != self.loaded_auto:
             out.append(["settings", "set", AUTO_REFRESH, "true" if auto else "false"])
+        margin = self.caps_margin.value()
+        if margin != self.loaded_margin:
+            out.append(["settings", "set", CAPS_MARGIN, f"{margin:g}"])
         return out
 
     def commands(self) -> list[tuple[str, list[str]]]:

@@ -130,11 +130,35 @@ def test_every_settings_input_is_a_cli_setting_or_excluded(qapp: Any, tmp_path: 
     assert not bad, "\n".join(bad)
 
 
-def test_every_run_live_input_is_a_run_option(qapp: Any, tmp_path: Path, tree: dict[str, Any]) -> None:
+def _inspect_run_live(qapp: Any, tmp_path: Path) -> Any:
+    """D-1120: Run Live on AgentHarm with its Inspect catalogue loaded and a real model, so every Inspect row (a
+    parameter per catalogue entry, a judge per role) exists."""
+    import json
+
+    from agentprov_gui.live.runspec import RunSettings
+    from agentprov_gui.ui.runlive import RunLiveDialog
+    from test_runlive_inspect import INSPECT_CATALOGUE
+
+    def run(_m: Any, argv: list[str], **_k: Any) -> tuple[int, bytes, bytes]:
+        if "--catalogue" in argv and argv[-1] == "agentharm":
+            return 0, json.dumps(INSPECT_CATALOGUE).encode(), b""
+        return 127, b"", b""
+
+    manager = JobManager(tmp_path / "home", CliLocator(None, ()))
+    dlg = RunLiveDialog(manager, home=tmp_path / "home", checkout=None, run=run,
+                        preset=RunSettings(source="agentharm", scripted=False))
+    _settle(qapp)
+    assert dlg.param_widgets and dlg.judge_inputs
+    return dlg
+
+
+@pytest.mark.parametrize("inspect", [False, True], ids=["agentdojo", "inspect"])
+def test_every_run_live_input_is_a_run_option(qapp: Any, tmp_path: Path, tree: dict[str, Any], inspect: bool) -> None:
     from agentprov_gui.ui.runlive import RunLiveDialog
 
     manager = JobManager(tmp_path / "home", CliLocator(None, ()))
-    dlg = RunLiveDialog(manager, home=tmp_path / "home", checkout=None, run=lambda *a, **k: (127, b"", b""))
+    dlg = _inspect_run_live(qapp, tmp_path) if inspect else RunLiveDialog(
+        manager, home=tmp_path / "home", checkout=None, run=lambda *a, **k: (127, b"", b""))
     _settle(qapp)
     fields = {f.key for f in FORMS["run"].fields}
     options = set(tree["run"]["options"]) | set(MANAGED_OPTIONS["run"])
@@ -146,6 +170,8 @@ def test_every_run_live_input_is_a_run_option(qapp: Any, tmp_path: Path, tree: d
         key = attr.removeprefix("more_inputs.") if attr else None
         if key in fields:
             continue
+        if key is not None and key not in parity.RUN_LIVE_INPUTS and "." in key:
+            key = key.split(".", 1)[0] + ".*"  # a row per catalogue entry (D-1120)
         if key in parity.RUN_LIVE_INPUTS:
             option, _why = parity.RUN_LIVE_INPUTS[key]
             if option not in options:
@@ -189,6 +215,7 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
     dlg = SettingsDialog(settings)
     live = RunLiveDialog(JobManager(tmp_path / "home", CliLocator(None, ())), home=tmp_path / "home", checkout=None,
                          run=lambda *a, **k: (127, b"", b""))
+    inspect_live = _inspect_run_live(qapp, tmp_path / "inspect")  # D-1120: the Inspect rows' buttons
     # D-1065: About's Updates section (as a bundle and as a checkout) and the start-up notice
     from agentprov_gui import updates as U
     from agentprov_gui.ui.dialogs import AboutDialog
@@ -202,7 +229,7 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
     titles = {f.title: f for f in FORMS.values()}
     bad: list[str] = []
     labels: set[str] = set()
-    for root in (win, dlg, live, *abouts, notice):
+    for root in (win, dlg, live, inspect_live, *abouts, notice):
         for label, widget in _actions(root):
             labels.add(label)
             if root is not win and isinstance(widget, QCheckBox):
@@ -218,7 +245,7 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
             bad.append(f"ACTIONS {label!r}: agentprov {' '.join(words)} is not a command")
     assert {"Check for Updates", "Download and Install…", "Show the Upgrade Command", "Update Now"} <= labels
     win.close()
-    for d in (dlg, live, *abouts, notice):
+    for d in (dlg, live, inspect_live, *abouts, notice):
         d.deleteLater()
     assert not bad, "\n".join(bad)
 
