@@ -17,8 +17,13 @@ The previous version stays in ``.AgentPROV-previous/`` (one version; an older on
 succeeds). ``agentprov update rollback --yes --bundle PATH`` swaps the two back (on Windows through the same helper).
 Nothing outside the bundle's parent folder and ``$AGENTPROV_HOME/update`` is written.
 
-A **package install** (``pip`` or ``uv tool``, no bundle) is not replaced: :func:`package_install` names the command
-that upgrades it, which the user runs.
+A **package install** (``pip``, ``uv tool``, ``pipx``) is not replaced here: :func:`package_install` names the command
+that upgrades it, and :mod:`.package` installs the release's verified wheels with that installer after the user's
+confirmation (D-1130); a checkout is updated by :mod:`.checkout`. The **bundle's own agentprov** (``AgentPROV
+--cli``, :mod:`agentprov.cli.frozen`) is part of the bundle and is updated with it; when it is the program doing the
+install, everything it needs after the swap is imported before it (a lazy import would read the new bundle's files),
+and on Windows the helper runs from a copy of the new bundle in ``.AgentPROV-update-helper/`` beside the app, since a
+helper running from the folder it renames could never rename it.
 """
 
 from __future__ import annotations
@@ -39,11 +44,13 @@ from typing import Any, Final
 from agentprov.update.releases import UpdateError, utc_text, version_key
 from agentprov.update.unpack import TOP, unpack, validate_tree
 
-__all__ = ["PREVIOUS_DIR", "STAGE_DIR", "bundle_version", "check_bundle", "install_bundle", "package_install",
-           "rollback_bundle", "swap_in", "swap_back"]
+__all__ = ["HELPER_DIR", "PREVIOUS_DIR", "STAGE_DIR", "bundle_version", "check_bundle", "helper_argv",
+           "install_bundle", "package_install", "rollback_bundle", "swap_in", "swap_back"]
 
 STAGE_DIR: Final = ".AgentPROV-update"
 PREVIOUS_DIR: Final = ".AgentPROV-previous"
+#: the Windows helper's copy of a bundle when the bundle's own agentprov installs (D-1130)
+HELPER_DIR: Final = ".AgentPROV-update-helper"
 PLAN_FORMAT: Final = "agentprov-update-plan/0.1"
 #: how long the Windows helper waits for the app to quit
 WAIT_S: Final = 1800
@@ -88,10 +95,14 @@ def bundle_version(bundle: Path, label: str) -> str | None:
 
 
 def package_install(*, prefix: str | None = None, executable: str | None = None,
-                    direct_url: str | None = None) -> dict[str, Any]:
-    """How this ``agentprov`` was installed and the command that upgrades it: ``checkout`` (an editable install: no
-    command, update with git), ``uv-tool`` (``uv tool upgrade agentprov``), ``pipx`` or ``pip`` (this interpreter's
-    ``-m pip install --upgrade agentprov``)."""
+                    direct_url: str | None = None, frozen: bool | None = None) -> dict[str, Any]:
+    """How this ``agentprov`` was installed and the command that upgrades it: ``bundle`` (the desktop app's own copy,
+    D-1130: updated with the app), ``checkout`` (an editable install: no command, update with git), ``uv-tool``
+    (``uv tool upgrade agentprov``), ``pipx`` or ``pip`` (this interpreter's ``-m pip install --upgrade agentprov``)."""
+    if frozen if frozen is not None else getattr(sys, "frozen", False):
+        return {"kind": "bundle", "command": None,
+                "text": "this agentprov is the desktop app's own copy: it is updated with the app (About › Download "
+                        "and Install…, or agentprov update install --confirm --bundle PATH)"}
     root = Path(sys.prefix if prefix is None else prefix)
     if direct_url is None:
         try:
@@ -108,7 +119,8 @@ def package_install(*, prefix: str | None = None, executable: str | None = None,
             editable = False
     if editable:
         return {"kind": "checkout", "command": None,
-                "text": "this agentprov runs from a checkout: update it with git (git pull), then uv sync --frozen"}
+                "text": "this agentprov runs from a checkout: update it with git (git pull --ff-only on main), then "
+                        "uv sync --frozen --group docs"}
     if (root / "uv-receipt.toml").is_file():
         return {"kind": "uv-tool", "command": ["uv", "tool", "upgrade", "agentprov"],
                 "text": "uv tool upgrade agentprov"}
@@ -188,6 +200,13 @@ def _new_stage(parent: Path) -> Path:
     return stage
 
 
+def _before_swap() -> None:
+    """Import now what runs after the swap (D-1130): when the bundle's own agentprov swaps the bundle it runs from, a
+    module first imported afterwards would come from the new bundle's files."""
+    import agentprov.io.replace_retry  # noqa: F401
+    import agentprov.update.releases  # noqa: F401
+
+
 def _record(home: Path, doc: Mapping[str, Any]) -> None:
     from agentprov.io.replace_retry import atomic_write_bytes_retrying
     from agentprov.update.releases import update_dir
@@ -207,13 +226,54 @@ def _plan(stage: Path, home: Path, *, op: str, bundle: Path, previous: Path, new
     return path
 
 
+def helper_argv(plan: Path, *, frozen: bool | None = None, running: Path | None = None) -> list[str]:
+    """The Windows helper's argv: ``python -I -m agentprov.update.apply PLAN`` with this interpreter; in the bundle's
+    own agentprov (frozen), the executable of a copy of the running bundle (``running``: the folder of this program's
+    executable), made in :data:`HELPER_DIR` beside the app: the running bundle can never rename the folder it runs
+    from. The copy is of the running bundle, never of the one a rollback restores (D-1130 review): that one may be older
+    than D-1130 and not answer ``-m agentprov.update.apply`` at all (0.2.0's would open the app instead), while the
+    running one wrote the plan and so reads it."""
+    if not (frozen if frozen is not None else getattr(sys, "frozen", False)):
+        return [sys.executable, "-I", "-m", "agentprov.update.apply", str(plan)]
+    doc = json.loads(plan.read_bytes())
+    source = running if running is not None else Path(sys.executable).resolve().parent
+    if not source.joinpath(*EXECUTABLE["windows"]).is_file():
+        raise UpdateError("the running app's executable was not found, so the update helper cannot be started",
+                          code="update.install.stage", exit_code=3)
+    bundle = Path(doc["bundle"])
+    helper = bundle.parent / HELPER_DIR
+    _clear_helper(bundle.parent)
+    helper.mkdir()
+    (helper / _MARKER).write_bytes(b"D-1130\n")
+    copy = helper / source.name
+    shutil.copytree(source, copy, symlinks=True)
+    return [str(copy.joinpath(*EXECUTABLE["windows"])), "-I", "-m", "agentprov.update.apply", str(plan)]
+
+
+def _clear_helper(parent: Path) -> None:
+    """Remove a helper copy an earlier update left (its marker present); a file still in use stays until next time."""
+    helper = parent / HELPER_DIR
+    if helper.is_symlink():
+        raise UpdateError(f"{HELPER_DIR} beside the app is a link: remove it first", code="update.install.stage",
+                          exit_code=4)
+    if helper.exists():
+        if not (helper / _MARKER).is_file():
+            raise UpdateError(f"{HELPER_DIR} beside the app is not this program's: remove it first",
+                              code="update.install.stage", exit_code=4)
+        shutil.rmtree(helper, ignore_errors=True)
+        if helper.exists():
+            raise UpdateError(f"the previous update's helper in {HELPER_DIR} is still running", code=
+                              "update.install.pending", exit_code=4)
+
+
 def start_helper(plan: Path) -> int:
-    """Start ``python -I -m agentprov.update.apply PLAN`` (this interpreter, detached, no window); its pid."""
+    """Start the helper (:func:`helper_argv`; detached, no window); its pid."""
+    argv = helper_argv(plan)
     flags = 0
     if os.name == "nt":
         flags = (getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
                  | getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    proc = subprocess.Popen([sys.executable, "-I", "-m", "agentprov.update.apply", str(plan)],  # noqa: S603
+    proc = subprocess.Popen(argv,  # noqa: S603
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                             close_fds=True, creationflags=flags, start_new_session=os.name != "nt")
     return proc.pid
@@ -224,6 +284,7 @@ def install_bundle(bundle: Path, archive: Path, *, label: str, version: str, hom
                    now: dt.datetime | None = None) -> dict[str, Any]:
     """Unpack the verified ``archive`` beside ``bundle`` and swap it in (now, or on Windows after the app has quit).
     The caller has verified ``archive`` and checked ``bundle`` (:func:`check_bundle`)."""
+    _before_swap()
     fam = family(label)
     previous = bundle.parent / PREVIOUS_DIR / bundle.name
     stage = _new_stage(bundle.parent)
@@ -256,6 +317,7 @@ def install_bundle(bundle: Path, archive: Path, *, label: str, version: str, hom
 def rollback_bundle(bundle: Path, *, label: str, home: Path, helper: Callable[[Path], int] = start_helper,
                     now: dt.datetime | None = None) -> dict[str, Any]:
     """Swap the bundle with the version kept in ``.AgentPROV-previous`` (which then holds the one rolled back from)."""
+    _before_swap()
     fam = family(label)
     previous = bundle.parent / PREVIOUS_DIR / bundle.name
     if previous.is_symlink() or not previous.joinpath(*EXECUTABLE[fam]).is_file():

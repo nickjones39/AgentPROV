@@ -85,7 +85,7 @@ from PySide6.QtWidgets import (
 from agentprov_gui import platform_limits
 from agentprov_gui import text as T
 from agentprov_gui.jobs.commands import CONFORMANCE_OPTION, FORMS, Field, FormError, JobSpec, build_spec
-from agentprov_gui.jobs.manager import Job, JobManager
+from agentprov_gui.jobs.manager import NEEDS_CHECKOUT, Job, JobManager
 from agentprov_gui.live import keychain, pricerefresh
 from agentprov_gui.live import models as models_mod
 from agentprov_gui.live.backends import NOT_BUILT, live_backends
@@ -224,7 +224,8 @@ class IdentityDialog(QDialog):
 def run_cli(manager: JobManager, argv: Sequence[str], *, stdin_fd: int | None = None,
             timeout: float = 600) -> tuple[int, bytes, bytes]:
     """An R0 CLI call (``info``, ``--catalogue``, a dry run): its exit code, stdout (bounded) and the stderr tail.
-    ``run`` starts in the checkout (:meth:`CliLocator.cwd_for`): it finds the backend projects from its cwd."""
+    ``run`` and ``estimate`` start in the checkout (:meth:`CliLocator.cwd_for`): they find the backend projects from
+    their cwd."""
     if not manager.cli.available:
         return 127, b"", b"no CLI"
     try:
@@ -1647,8 +1648,11 @@ class RunLiveDialog(QDialog):
         entry = self.catalogues.get(s.source)
         refused = platform_limits.current().get("live_runs")  # D-1064: the CLI refuses every run here
         sandbox = platform_limits.current().get("sandbox_exec") if s.containment == "sandbox-exec" else None
+        cli = getattr(self.manager, "cli", None)
         if refused is not None:
             reason = refused.message
+        elif getattr(cli, "bundled", False) is True:
+            reason = NEEDS_CHECKOUT  # D-1130: the app's own agentprov has no backends/ (live runs need a checkout)
         elif isinstance(entry, str):
             reason = f"{s.source}: {entry}. Nothing is launched for it."
         elif self.inspect_mode() and (inspect := self._inspect_reason(s)) is not None:
@@ -1896,7 +1900,8 @@ class RunLiveDialog(QDialog):
     def _caps_estimate(self) -> EstimateView | None:
         """The estimate the caps are filled from: the current one, or the last one when its arguments differ from
         this selection's only by the caps (a typed cap is passed for the estimate's warnings but never changes the
-        suggestion; untyped prices are the table's, as the CLI's own default)."""
+        suggestion; untyped prices are the table's, as the CLI's own default), or by the key the plan is made with
+        (``--keychain`` and ``--containment``, given once both caps are, :meth:`_estimate_argv`)."""
         e = self.current_estimate()
         if e is not None or self.estimate_result is None or self._estimate_for is None:
             return e
@@ -1904,7 +1909,8 @@ class RunLiveDialog(QDialog):
             argv = self._estimate_argv()
         except FormError:
             return None
-        flags = {"--max-calls", "--max-cost-usd"} | (set() if self._prices_typed else {"--price-in", "--price-out"})
+        flags = {"--max-calls", "--max-cost-usd", "--containment"} | (set() if self._prices_typed else
+                                                                      {"--price-in", "--price-out"})
 
         def strip(a: Sequence[str]) -> list[str]:
             out: list[str] = []
@@ -1914,7 +1920,7 @@ class RunLiveDialog(QDialog):
                     skip = False
                 elif x in flags:
                     skip = True
-                else:
+                elif x != "--keychain":
                     out.append(x)
             return out
 
@@ -2075,11 +2081,24 @@ class RunLiveDialog(QDialog):
         if i >= 0:
             self.source.setItemText(i, T.line(source, 40) + ("" if not isinstance(entry, str)
                                                               else f"  ({T.line(entry, 200)})"))
-        if source != self.backend() or entry == shown:
-            return  # the same catalogue as shown (from the cache): nothing is redrawn, the ticks stay
+        if source != self.backend():
+            return
+        if entry == shown:  # the same catalogue as shown (from the cache): nothing is redrawn, the ticks stay, but the
+            self._catalogue_caption(entry)  # label leaves _load_catalogue's "Catalogue: loading…"
+            return
         if isinstance(shown, Catalogue) and self.catalogue is not None:
             self._wanted = (set(self.suites.checked()), set(self.attacks.checked()))  # keep what was ticked meanwhile
         self._show_catalogue()
+
+    def _catalogue_caption(self, entry: object) -> None:
+        """The AgentDojo-family catalogue's line: its counts, why it is unavailable, or that it is loading (an Inspect
+        catalogue has its own line, :meth:`_show_inspect`)."""
+        if isinstance(entry, Catalogue):
+            self.cat_label.set_plain(f"{len(entry.suites)} suites, {len(entry.attacks)} attacks "
+                                     f"({T.line(entry.backend, 20)}, {T.line(entry.benchmark_version, 20)})")
+        elif not isinstance(entry, InspectCatalogue):
+            self.cat_label.set_plain("Catalogue: " + (T.line(entry, 300) if isinstance(entry, str) and entry
+                                                      else "loading…"))
 
     def _show_catalogue(self) -> None:
         self._show_status()
@@ -2090,8 +2109,7 @@ class RunLiveDialog(QDialog):
         self.inspect_catalogue = None
         if not isinstance(entry, Catalogue):
             self.catalogue = None
-            self.cat_label.set_plain("Catalogue: " + (T.line(entry, 300) if isinstance(entry, str) and entry
-                                                      else "loading…"))
+            self._catalogue_caption(entry)
             none = "None: the catalogue is unavailable (the line above says why)."
             self.suites.set_choices([], empty=none if entry else "Loading the suites from the backend…")
             self.attacks.set_choices([], empty=none if entry else "Loading the attacks…")
@@ -2100,8 +2118,7 @@ class RunLiveDialog(QDialog):
             return
         cat = entry
         self.catalogue = cat
-        self.cat_label.set_plain(f"{len(cat.suites)} suites, {len(cat.attacks)} attacks "
-                                 f"({T.line(cat.backend, 20)}, {T.line(cat.benchmark_version, 20)})")
+        self._catalogue_caption(cat)
         self.version.blockSignals(True)
         current = self.version.currentText()
         self.version.clear()
@@ -2431,6 +2448,14 @@ class RunLiveDialog(QDialog):
             drop |= {"max_cost_usd", "price_in", "price_out"}
         if drop:
             s = replace(s, extra={k: v for k, v in s.extra.items() if k not in drop})
+        if self._caps_shown():
+            # D-725/D-702: run reads no key for an API run that lacks a cap and refuses it, dry run included, so the
+            # estimate plans with the scripted stand-in (no --keychain) until both caps are given
+            if not {"max_calls", "max_cost_usd"} <= s.extra.keys():
+                real_ok = False
+            if self.inspect_mode() and "cell_size" not in s.extra:
+                # D-740: the run takes caps, so its default cell is one sample; the quote plans those same cells
+                s = replace(s, extra={**s.extra, "cell_size": 1})
         return estimate_argv(s, real_allowed=real_ok, stats_corpora=self.opened)
 
     def current_estimate(self) -> EstimateView | None:

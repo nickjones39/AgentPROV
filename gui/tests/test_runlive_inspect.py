@@ -232,6 +232,18 @@ def test_task_params_are_written_as_the_cli_reads_them() -> None:
     assert param_arg("n_irrelevant_tools", 3) == "n_irrelevant_tools=3"
 
 
+@pytest.mark.parametrize("value", ['"hi"', 'x" # c', "\\u0041", "C:\\x", "a\tb", "true", "12", "plain", "it's",
+                                   '""', "a = 1", "[1, 2]", "ümlaut ✓"])
+def test_a_typed_string_param_reaches_the_cli_as_typed(value: str) -> None:
+    """A free-text string parameter (no choices) may hold quotes, backslashes or TOML syntax: whatever the user typed,
+    the CLI's --task-param reader (agentprov.cli.run._task_param) reads back exactly that string."""
+    from agentprov.cli.run import _task_param
+
+    from agentprov_gui.live.inspectplan import param_arg
+
+    assert _task_param(param_arg("p", value)) == ("p", value)
+
+
 # ------------------------------------------------------------------------------------------------- the form
 def test_an_inspect_backend_shows_its_task_rows_and_hides_the_agentdojo_ones(
         qapp: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -349,6 +361,23 @@ def test_a_real_model_run_has_judges_caps_and_the_consent(qapp: Any, tmp_path: P
     dlg.max_cost.setValue(1.0)
     wait(qapp, lambda: dlg.current_estimate() is not None)
     assert dlg.start_btn.isEnabled(), dlg.error.text()
+    dlg.close()
+
+
+def test_a_capped_inspect_run_is_quoted_with_the_cells_it_runs(qapp: Any, tmp_path: Path,
+                                                               monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-740: under caps an Inspect cell defaults to one sample (25 without), and an API run always takes caps, while
+    the estimate is asked without the caps that follow the quote: the quote is planned with --cell-size 1, so its
+    cells, units and suggested caps are the capped run's; a cell size the user typed is passed as typed."""
+    dlg = _inspect_dialog(qapp, tmp_path, monkeypatch, scripted=False, quote=QUOTE)
+    _fill(dlg)
+    argv = dlg._estimate_argv()
+    assert dlg._caps_shown() and argv[argv.index("--cell-size") + 1] == "1"
+    assert "--cell-size" not in dlg.run_spec(consent=True).argv  # the run's own default under its caps
+    dlg.cell_inputs["cell_size"].setValue(5)
+    qapp.processEvents()
+    argv = dlg._estimate_argv()
+    assert argv[argv.index("--cell-size") + 1] == "5"
     dlg.close()
 
 

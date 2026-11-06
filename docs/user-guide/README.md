@@ -23,7 +23,7 @@ specification wins; if either disagrees with the code, the code describes what a
 
 | # | Chapter | What it covers |
 |---|---|---|
-| 1 | [Installing AgentPROV](01-install.md) | Requirements, `uv sync`, `agentprov info`, the optional extras, `AGENTPROV_HOME` |
+| 1 | [Installing AgentPROV](01-install.md) | The app, PyPI or a checkout; updating; `uv sync`, `agentprov info`, the optional extras, `AGENTPROV_HOME` |
 | 2 | [Concepts](02-concepts.md) | The pipeline, evidence classes, bundles, withholding, version axes, the corpus layout, the `apv:` vocabulary |
 | 3 | [Sources and import](03-sources-and-import.md) | The source registry, `import`, pins, issues and quirks, `inspect` |
 | 4 | [Derive, recompute, validate and verify](04-derive-recompute-validate-verify.md) | New corpus versions, recomputation, validation tiers, integrity levels |

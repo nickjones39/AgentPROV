@@ -60,6 +60,10 @@ SUBPROCESS_MODULES = {
     "src/agentprov/update/unpack.py": "hdiutil attach/detach and ditto for the macOS bundle's disk image (D-1065)",
     "src/agentprov/update/install.py": "starts the Windows update helper (this interpreter, -I, agentprov.update.apply; "
                                        "D-1065)",
+    "src/agentprov/update/package.py": "runs the package install's own installer (pip, uv pip, pipx runpip) on the "
+                                       "release's verified wheels, --no-deps --no-index, after --confirm (D-1130)",
+    "src/agentprov/update/checkout.py": "git status/remote/pull --ff-only and uv sync --frozen in the editable "
+                                        "install's own checkout, fixed argv, after --confirm (D-1130)",
     "src/agentprov/cli/gitinfo.py": "git rev-parse/status for the sealing and building commits (H.2.7, D-780; moved from "
                                     "cli/package.py), and the G3 output guard's check-ignore",
 }

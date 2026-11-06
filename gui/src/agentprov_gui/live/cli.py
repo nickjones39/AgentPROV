@@ -16,7 +16,7 @@ __all__ = ["call", "last_line"]
 MAX_STDOUT: Final = 64 * 1024 * 1024
 
 
-def call(cli: CliLocator, argv: Sequence[str], *, timeout: float = 120,
+def call(cli: CliLocator, argv: Sequence[str], *, timeout: float | None = 120,
          stdin: bytes | None = None) -> tuple[int, bytes, bytes]:
     """``(exit code, stdout, stderr tail)`` of ``agentprov ARGV``; 127 without a CLI, 124 when it cannot run.
     ``stdin`` is the child's whole standard input (``assist`` reads its conversation there); else it has none."""

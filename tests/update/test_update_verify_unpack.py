@@ -68,6 +68,17 @@ def test_an_allowed_signers_file_with_private_key_text_is_refused(tmp_path: Path
         V.load_signers(bad)
 
 
+def test_a_missing_allowed_signers_file_refuses_rather_than_fall_back_to_the_checksum(tmp_path: Path) -> None:
+    """D-1130 review: a package or bundle that lost the file must not verify by SHA256SUMS alone."""
+    sums = tmp_path / "SHA256SUMS"
+    sums.write_text(f"{'0' * 64}  x\n")
+    for call in (lambda: V.load_signers(tmp_path / "absent"),
+                 lambda: V.verify_release(sums, None, signers=tmp_path / "absent")):
+        with pytest.raises(UpdateError) as exc:
+            call()
+        assert exc.value.code == "update.verify.keys" and exc.value.exit_code == 3
+
+
 def test_without_a_listed_key_the_check_is_the_checksum_alone(tmp_path: Path, no_keys: Path) -> None:
     sums = tmp_path / "SHA256SUMS"
     sums.write_text("a" * 64 + "  x\n")

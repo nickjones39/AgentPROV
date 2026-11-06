@@ -25,7 +25,10 @@ def _locator(tmp_path: Path) -> object:
 
 
 @pytest.mark.parametrize("argv", [["run", "--catalogue", "agentdojo"], ["backends", "build", "agentdojo"],
-                                  ["migrate", "status"]])
+                                  ["migrate", "status"],
+                                  # Run Live's estimate plans through run's dry run, which finds the repository from
+                                  # its cwd too: from the Finder's "/" it exited 3 (backend.repository_missing)
+                                  ["estimate", "agentdojo", "--suite", "workspace", "--format", "json"]])
 def test_repository_commands_start_in_the_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
                                                    argv: list[str]) -> None:
     from agentprov_gui.jobs.manager import JobManager

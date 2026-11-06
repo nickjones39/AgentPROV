@@ -33,7 +33,7 @@ N2_COMMANDS = {
 N2_ALIASES = {"convert": "import", "sources": "info"}
 #: Application commands added after N.2's fifteen by later decisions (MN N.2.17; reverse CLI parity D-700).
 APP_COMMANDS = {"settings", "models", "keys", "prices", "estimate", "jobs", "batch", "devrun", "assist",
-                "priors", "update"}  # D-703; D-691; D-702; D-701; D-704; D-1062; D-1065
+                "priors", "update", "launcher"}  # D-703; D-691; D-702; D-701; D-704; D-1062; D-1065; D-1130
 
 #: Every option of the N.1.2 table.
 GLOBAL_OPTIONS = {

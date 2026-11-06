@@ -208,3 +208,23 @@ def test_a_preset_run_is_quoted_with_its_llm_element() -> None:
     assert preset[preset.index("--llm-element") + 1] == "gateway_compat" and "--m5ultra" not in preset
     native = estimate_argv(replace(base, extra={"preset": "m5ultra", "llm_element": "native"}), real_allowed=False)
     assert native[native.index("--llm-element") + 1] == "native"
+
+
+def test_an_api_estimate_without_both_caps_is_planned_without_the_key(qapp: Any, tmp_path: Path,
+                                                                       monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-725 and D-702: run reads no key for an API-endpoint run that lacks a cap, and refuses it (exit 4,
+    cli.refused.api_caps), dry run included. A cap that follows the quote is left out of the estimate, so an estimate
+    with --keychain was refused, no quote came and the caps were never filled: until both caps are given, the estimate
+    plans with the scripted stand-in (no --keychain), as without a stored key."""
+    dlg = _dialog(tmp_path, monkeypatch, scripted=False, quote=_quote())
+    _settle(qapp, dlg)
+    assert dlg._caps_shown() and dlg.max_calls.value() == 2210  # filled from the quote of the stand-in plan
+    assert "--keychain" not in dlg._estimate_argv()
+    dlg.max_calls.setValue(5000)  # one cap typed: still not both
+    qapp.processEvents()
+    assert "--keychain" not in dlg._estimate_argv()
+    dlg.max_cost.setValue(30.0)  # both typed: the CLI takes the key, so the plan subtracts what a corpus holds
+    qapp.processEvents()
+    argv = dlg._estimate_argv()
+    assert "--keychain" in argv and _option(argv, "--max-calls") == "5000" and _option(argv, "--max-cost-usd") == "30.0"
+    dlg.close()

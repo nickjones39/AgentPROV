@@ -4,7 +4,7 @@
 import sys
 from pathlib import Path, PurePosixPath
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 HERE = Path(SPECPATH)  # noqa: F821 - injected by PyInstaller
 GUI = HERE.parent
@@ -27,21 +27,39 @@ EXCLUDED = [
     "PySide6.QtPdfWidgets", "tkinter",
 ]
 
+#: D-1130: the distributions whose versions the core records in a corpus (stage definitions' serialisers and libraries,
+#: run and import records' key_distributions, the engine version): their metadata must be in the bundle, or each would
+#: read "absent". agentprov.cli.frozen.RECORDED_DISTRIBUTIONS is the same list (a test pins the two)
+RECORDED_DISTRIBUTIONS = ("agentprov", "agentprov-capture", "prov", "rdflib", "rfc8785", "PyYAML")
+
 datas = [
     (str(GUI / "src" / "agentprov_gui" / "data"), "agentprov_gui/data"),
     (str(HERE / "licenses"), "licenses"),
     (str(GUI / "THIRD_PARTY_NOTICES.md"), "."),
     # the core's package data (profiles, schemas, rule catalogues): read-only. Not its copy of the guide, which is the
-    # pip-installed CLI's (agentprov assist); the app has its own below
-    *collect_data_files("agentprov", excludes=["docs/**"]),
+    # pip-installed CLI's (agentprov assist); the app has its own below. D-1130: with its .py sources too, because the
+    # bundle's own agentprov records code digests (stage_definitions.code_sha256 and the stage digests hash the source
+    # files on disk) and library versions (importlib.metadata) in the corpora it writes; without them both would be
+    # false. build_bundle.py checks that the bundle's files equal the build environment's (core_sources)
+    *collect_data_files("agentprov", excludes=["docs/**"], include_py_files=True),
+    *collect_data_files("agentprov_capture", include_py_files=True),
+    *(m for dist in RECORDED_DISTRIBUTIONS for m in copy_metadata(dist)),
     *((str(GUIDE / name), str(PurePosixPath("agentprov_gui/data/user-guide", name).parent))
       for name in bundle_files(GUIDE)),
 ]
 if sys.platform.startswith("linux"):  # the desktop entry's icons (install-desktop-entry.sh copies them)
     datas.append((str(ICONS / "hicolor"), "share/icons/hicolor"))
+#: D-1130: the bundle is also the agentprov program (AgentPROV --cli, gui/packaging/entry.py), so it carries the whole
+#: core, the capture library and their run-time dependencies, not only the modules the GUI imports. Not the extras
+#: (render's pydot, shacl's pyshacl, live's python-dotenv) and not agentprov-zenodo: those need a checkout's environment
 hidden = [
     "agentprov_gui.preview.__main__",
     *collect_submodules("agentprov_gui"),
+    *collect_submodules("agentprov", filter=lambda name: not name.startswith("agentprov.docs")),
+    *collect_submodules("agentprov_capture"),
+    *collect_submodules("keyring.backends"),
+    *collect_submodules("rdflib.plugins"),
+    "prov", "rfc8785", "yaml", "psutil",
 ]
 
 a = Analysis(  # noqa: F821

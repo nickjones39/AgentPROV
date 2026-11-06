@@ -73,16 +73,60 @@ def install_doc(action: str = "installed") -> bytes:
     return json.dumps(doc).encode()
 
 
+def plan_doc(kind: str = "pip", *, available: bool = True, why: str | None = None) -> bytes:
+    """``update install --format json`` without a flag (D-1130): how the program is installed, the automatic path."""
+    how = "checkout" if kind == "checkout" else "package"
+    auto: dict[str, Any] = {"how": how, "available": available, "why": why,
+                            "installer": "pip" if how == "package" and available else None}
+    if how == "checkout":
+        auto.update(root="/Users/me/AgentPROV", head="c" * 40, argv=["update", "install", "--checkout", "--confirm",
+                                                                     "--allow-network"])
+    text = {"pip": "python -m pip install --upgrade agentprov", "checkout": "git pull --ff-only, then uv sync"}[kind]
+    return json.dumps({"format": "agentprov-update-install/0.1", "action": "command", "kind": kind,
+                       "command": None if kind == "checkout" else ["python", "-m", "pip", "install", "--upgrade",
+                                                                   "agentprov"],
+                       "text": text, "automatic": auto, "lines": [f"update: {text}"]}).encode()
+
+
+def package_doc(*, installable: bool = True) -> bytes:
+    """``update download --package --format json`` (D-1130): the program's verified wheels and the install plan."""
+    return json.dumps({"format": "agentprov-update-download/0.1", "kind": "package", "tag": "v0.3.0",
+                       "version": "0.3.0", "to_version": "0.3.0", "from_version": "0.1.1", "install_kind": "pip",
+                       "verification": "sha256+signature", "signed_by": "agentprov-release", "dir": "/h/pkg",
+                       "wheels": [{"name": "agentprov_capture-0.3.0-py3-none-any.whl"},
+                                  {"name": "agentprov-0.3.0-py3-none-any.whl"}],
+                       "installable": installable, "installer": "pip",
+                       "problems": [] if installable else ["agentprov 0.3.0 needs numpy>=2, which the installed "
+                                                           "version did not"],
+                       "keeps_previous": False,
+                       "restore_command": "/venv/bin/python -m pip install agentprov==0.1.1"}).encode()
+
+
+def program_doc(kind: str = "package") -> bytes:
+    """``update install --package|--checkout --confirm --format json``: the program's update, made."""
+    return json.dumps({"format": "agentprov-update-install/0.1", "kind": kind, "action": "installed",
+                       "from_version": "0.1.1", "to_version": "0.3.0",
+                       "lines": [f"update: agentprov 0.1.1 → 0.3.0 ({kind})"]}).encode()
+
+
 class FakeCli:
     """The controller's runner: answers by the command's first words, records every argv (never runs anything)."""
 
     def __init__(self, answers: dict[str, tuple[int, bytes, bytes]]) -> None:
         self.answers = answers
         self.ran: list[list[str]] = []
+        self.timeouts: list[float | None] = []
+        self.raise_for: str | None = None  # a flag whose install raises (the worker's failure path)
 
-    def __call__(self, argv: list[str], timeout: float) -> tuple[int, bytes, bytes]:
+    def __call__(self, argv: list[str], timeout: float | None) -> tuple[int, bytes, bytes]:
         self.ran.append(list(argv))
+        self.timeouts.append(timeout)
+        if self.raise_for is not None and self.raise_for in argv and "--confirm" in argv:
+            raise RuntimeError("the CLI process could not be started")
         key = " ".join(argv[:2])
+        flag = next((f for f in ("--package", "--checkout", "--bundle") if f in argv), None)
+        if flag is not None and f"{key} {flag}" in self.answers:  # D-1130: the install and download kinds
+            return self.answers[f"{key} {flag}"]
         if key == "settings list":
             return self.answers.get(key, (0, json.dumps({"values": {}}).encode(), b""))
         return self.answers.get(key, (2, b"", b"agentprov: error [usage]: no such command"))
@@ -91,14 +135,17 @@ class FakeCli:
         return [" ".join(a[:2]) for a in self.ran]
 
 
-def _controller(qapp: Any, cli: FakeCli, *, bundle: Path | None = APP, confirm: bool | None = True) -> Any:
+def _controller(qapp: Any, cli: FakeCli, *, bundle: Path | None = APP, confirm: bool | None = True,
+                program: str = "bundled") -> Any:
+    """``program``: which agentprov the app runs (``bundled``: the bundle's own copy, which the bundle install
+    updates; ``installed`` or ``checkout``: a program with its own update, D-1130)."""
     from agentprov_gui.ui.updates import UpdateController
 
-    c = UpdateController(cli, bundle=bundle, gui="0.1.1")
+    c = UpdateController(cli, bundle=bundle, gui="0.1.1", program=lambda: program)
     c.asked = []  # type: ignore[attr-defined]
 
-    def ask(parent: Any, download: Any, where: Path, current: str | None) -> bool:
-        c.asked.append((download, where, current))  # type: ignore[attr-defined]
+    def ask(parent: Any, plan: Any) -> bool:
+        c.asked.append(plan)  # type: ignore[attr-defined]
         assert confirm is not None, "no confirmation expected"
         return confirm
 
@@ -249,8 +296,10 @@ def test_download_confirm_install(qapp: Any) -> None:
     assert cli.words() == ["update status", "update download", "update install"]
     assert cli.ran[2] == ["update", "install", "--confirm", "--bundle", str(APP), "--gui-version", "0.1.1",
                           "--format", "json"]
-    ((download, where, current),) = c.asked
-    assert where == APP and current == "0.1.1" and download.verification == "sha256"
+    (plan,) = c.asked
+    (part,) = plan.parts  # the app's own agentprov is updated with it: one part
+    assert (part.name, part.detail, part.from_version, part.to_version) == ("The app", str(APP), "0.1.1", "0.3.0")
+    assert part.verified == "sha256" and ".AgentPROV-previous" in part.keeps and not part.signed and not plan.cannot
     text = dlg.updates_section.result.text()
     assert "does not prove who published it" in text  # unsigned: said, not hidden
     assert "Quit AgentPROV and open it again" in text and "rollback" in text
@@ -295,10 +344,10 @@ def test_windows_is_applied_after_quit(qapp: Any) -> None:
 
 def test_without_a_bundle_the_upgrade_command_is_shown_not_run(qapp: Any) -> None:
     cli = FakeCli({"update status": (0, check_doc(), b""), "update install": (0, install_doc("command"), b"")})
-    c = _controller(qapp, cli, bundle=None, confirm=None)
+    c = _controller(qapp, cli, bundle=None, confirm=None, program="installed")
     dlg = _about(qapp, c)
     sec = dlg.updates_section
-    assert sec.install_btn.text() == "Show the Upgrade Command" and sec.install_btn.isEnabled()
+    assert sec.install_btn.text() == "Update agentprov…" and sec.install_btn.isEnabled()
     sec.install_btn.click()
     wait(qapp, lambda: not c.busy and c.install is not None)
     assert cli.ran[-1] == ["update", "install", "--format", "json"]  # no --bundle, no --confirm
@@ -313,11 +362,11 @@ def test_only_the_cli_behind_shows_its_upgrade_command_not_a_bundle_install(qapp
     program, so a bundle app shows its upgrade command (no download, no --bundle, no --confirm)."""
     cli = FakeCli({"update status": (0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT, asset=False), b""),
                    "update install": (0, install_doc("command"), b"")})
-    c = _controller(qapp, cli, confirm=None)
+    c = _controller(qapp, cli, confirm=None, program="checkout")
     dlg = _about(qapp, c)
     sec = dlg.updates_section
-    assert not c.bundle_update and sec.install_btn.text() == "Show the Upgrade Command"
-    assert sec.install_btn.accessibleName() == "Show the Upgrade Command" and "Settings › General" in \
+    assert not c.bundle_update and sec.install_btn.text() == "Update agentprov…"
+    assert sec.install_btn.accessibleName() == "Update agentprov…" and "Settings › General" in \
         sec.install_btn.toolTip()
     assert sec.install_btn.isEnabled()  # no bundle asset needed: nothing is downloaded
     assert "the agentprov this app runs is out of date" in sec.last.text()
@@ -357,11 +406,185 @@ def test_the_confirmation_names_what_is_replaced(qapp: Any, monkeypatch: pytest.
     monkeypatch.setattr(ui, "choose", lambda parent, title, text, informative, keep, other, tips: (
         seen.append((text, informative)), False)[1])
     download = U.parse_download(0, download_doc())
-    assert download is not None and not ui.confirm_install(None, download, APP, "0.1.1")
+    plan = U.plan(bundle=APP, gui="0.1.1", app=download, program=U.parse_install(0, plan_doc("pip")),
+                  package=U.parse_download(0, package_doc()), core="0.1.1")
+    assert download is not None and not ui.confirm_update(None, plan)
     ((text, informative),) = seen
     assert text == "Install AgentPROV 0.3.0?"
-    for part in (str(APP), "0.1.1", ".AgentPROV-previous", "agentprov update rollback --yes --bundle", U.UNSIGNED_NOTE):
-        assert part in informative
+    from dataclasses import replace
+
+    seen_plan = replace(plan, followup="Then the rebuild runs as a job.")
+    assert not ui.confirm_update(None, seen_plan)
+    assert "Then the rebuild runs as a job." in seen[-1][1]
+    seen.clear()
+    assert not ui.confirm_update(None, plan)
+    for part in (str(APP), "0.1.1 → 0.3.0", ".AgentPROV-previous", "agentprov update rollback --yes --bundle",
+                 U.UNSIGNED_NOTE, "The agentprov program (a pip install)", "agentprov-0.3.0-py3-none-any.whl",
+                 "previous version is not kept", "python -m pip install agentprov==0.1.1"):
+        assert part in informative, part
+    seen.clear()
+    plan = U.plan(bundle=None, gui="0.1.1", app=None, program=U.parse_install(0, plan_doc("pip")),
+                  package=U.parse_download(0, package_doc(installable=False)), core="0.1.1")
+    assert not plan.parts and plan.cannot and "needs numpy" in plan.cannot[0][1]
+
+
+# ---------------------------------------------------------------------------------------------- the whole software
+def _loaded(qapp: Any, c: Any) -> Any:
+    """The controller with its cached check read (``update status``), as About reads it first."""
+    c.load_status()
+    wait(qapp, lambda: not c.busy and c.check is not None)
+    return c
+
+
+def test_the_app_and_its_package_install_update_in_one_confirmed_flow(qapp: Any) -> None:
+    """D-1130: both behind, the program a pip install: ask how it is installed, download and verify the bundle and the
+    wheels, ask once naming both parts, then install the app and then the program."""
+    cli = FakeCli({"update status": (0, check_doc(), b""), "update install": (0, plan_doc("pip"), b""),
+                   "update download": (0, download_doc(), b""), "update download --package": (0, package_doc(), b""),
+                   "update install --bundle": (0, install_doc(), b""),
+                   "update install --package": (0, program_doc(), b"")})
+    c = _controller(qapp, cli, program="installed")
+    after: list[list[str]] = []
+    c.after_update = after.append
+    c.followup = lambda plan: "Then the stale backend environments are rebuilt." if any(
+        p.name == "The agentprov program" for p in plan.parts) else None
+    dlg = _about(qapp, c)
+    assert c.program_update and c.bundle_update
+    dlg.updates_section.install_btn.click()
+    wait(qapp, lambda: not c.busy and c.program_install is not None and bool(after))
+    assert after == [["The app", "The agentprov program"]]  # the step after the installs runs once, at the end
+    assert cli.ran[1:] == [["update", "install", "--format", "json"],
+                           ["update", "download", "--allow-network", "--format", "json"],
+                           ["update", "download", "--package", "--allow-network", "--format", "json"],
+                           ["update", "install", "--confirm", "--bundle", str(APP), "--gui-version", "0.1.1",
+                            "--format", "json"],
+                           ["update", "install", "--package", "--confirm", "--format", "json"]]
+    (plan,) = c.asked
+    app, program = plan.parts
+    assert (app.name, program.name) == ("The app", "The agentprov program") and not plan.cannot
+    assert plan.followup == "Then the stale backend environments are rebuilt."  # said before the confirmation
+    assert (program.from_version, program.to_version, program.detail) == ("0.1.1", "0.3.0", "a pip install")
+    assert "signed by agentprov-release" in program.verified and "agentprov-0.3.0-py3-none-any.whl" in program.verified
+    assert "not kept" in program.keeps and "agentprov==0.1.1" in program.keeps
+    text = dlg.updates_section.result.text()
+    assert "Quit AgentPROV and open it again" in text and "agentprov 0.1.1 → 0.3.0 (package)" in text
+    shown = [list(argv) for _c, argv in dlg.updates_section.command.commands]
+    assert ["update", "install", "--package", "--confirm", "--format", "json"] in shown
+    assert not dlg.updates_section.install_btn.isEnabled() and c.installed
+    dlg.deleteLater()
+
+
+def test_a_declined_whole_update_installs_nothing(qapp: Any) -> None:
+    cli = FakeCli({"update status": (0, check_doc(), b""), "update install": (0, plan_doc("pip"), b""),
+                   "update download": (0, download_doc(), b""), "update download --package": (0, package_doc(), b"")})
+    c = _loaded(qapp, _controller(qapp, cli, program="installed", confirm=False))
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.asked)
+    assert cli.words()[1:] == ["update install", "update download", "update download"]
+    assert not any("--confirm" in argv for argv in cli.ran) and "Not installed" in c.status_line
+
+
+def test_a_package_that_cannot_be_installed_is_named_and_the_app_still_offered(qapp: Any) -> None:
+    for answer, why in (((0, package_doc(installable=False), b""), "needs numpy"),
+                        ((1, b"", b"agentprov: error [update.verify.sha256]: a wheel's sha256 is not the listed one\n"),
+                         "update.verify.sha256")):
+        cli = FakeCli({"update status": (0, check_doc(), b""), "update install": (0, plan_doc("pip"), b""),
+                       "update download": (0, download_doc(), b""), "update download --package": answer,
+                       "update install --bundle": (0, install_doc(), b"")})
+        c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+        c.download_and_install()
+        wait(qapp, lambda c=c: not c.busy and c.install is not None)
+        (plan,) = c.asked
+        assert [p.name for p in plan.parts] == ["The app"] and plan.cannot[0][0] == "The agentprov program"
+        assert why in plan.cannot[0][1] and plan.cannot[0][2] == "python -m pip install --upgrade agentprov"
+        assert not any("--package" in argv and "--confirm" in argv for argv in cli.ran)  # never attempted
+        assert any("Run this command in a terminal: python -m pip" in x for x in c.result)
+
+
+def test_a_clean_checkout_is_fast_forwarded_after_the_confirmation(qapp: Any) -> None:
+    cli = FakeCli({"update status": (0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT), b""),
+                   "update install": (0, plan_doc("checkout"), b""),
+                   "update install --checkout": (0, program_doc("checkout"), b"")})
+    c = _controller(qapp, cli, bundle=None, program="checkout")
+    dlg = _about(qapp, c)
+    assert dlg.updates_section.install_btn.text() == "Update agentprov…"
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.program_install is not None)
+    assert cli.ran[1:] == [["update", "install", "--format", "json"],
+                           ["update", "install", "--checkout", "--confirm", "--allow-network", "--format", "json"]]
+    ((part,), ) = [p.parts for p in c.asked]
+    assert part.detail == "the checkout /Users/me/AgentPROV (main, clean)" and "git pull --ff-only" in part.verified
+    assert part.from_version == "commit " + "c" * 12 and "nothing is discarded" in part.verified
+    assert "updated" in c.status_line
+    dlg.deleteLater()
+
+
+def test_a_dirty_checkout_gets_the_command_and_nothing_runs(qapp: Any) -> None:
+    cli = FakeCli({"update status": (0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT), b""),
+                   "update install": (0, plan_doc("checkout", available=False, why="the checkout has changes or "
+                                                  "untracked files: a tree with work in it is never touched"), b"")})
+    c = _loaded(qapp, _controller(qapp, cli, bundle=None, program="checkout", confirm=None))
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.install is not None)
+    assert cli.words() == ["update status", "update install"] and not c.asked  # type: ignore[attr-defined]
+    assert any("never touched" in x for x in c.result) and any("git pull --ff-only" in x for x in c.result)
+
+
+def test_the_bundles_own_agentprov_is_not_asked_about(qapp: Any) -> None:
+    """The app runs its own copy: the bundle install updates it, so no plan query and no wheel download."""
+    cli = FakeCli({"update status": (0, check_doc(), b""), "update download": (0, download_doc(), b""),
+                   "update install --bundle": (0, install_doc(), b"")})
+    c = _loaded(qapp, _controller(qapp, cli, program="bundled"))
+    assert not c.program_update and c.check is not None and c.check.behind_core
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.install is not None)
+    assert cli.words() == ["update status", "update download", "update install"] and "--bundle" in cli.ran[-1]
+
+
+def test_the_cli_locator_falls_back_to_the_bundles_own_agentprov(tmp_path: Path,
+                                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-1130: the checkout, else an installed agentprov, else (in a bundle) the app's own; or always the app's own."""
+    import sys
+
+    from agentprov_gui.jobs import manager as M
+
+    exe = tmp_path / "AgentPROV.app" / "Contents" / "MacOS" / "AgentPROV"
+    exe.parent.mkdir(parents=True)
+    exe.write_bytes(b"x")
+    assert M.bundled_program(frozen=False) == ()
+    assert M.bundled_program(frozen=True, executable=str(exe)) == (str(exe), "--cli")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    monkeypatch.setattr(M, "installed_program", lambda *a, **k: None)
+    try:
+        own = M.CliLocator.for_checkout(None)
+        assert own.program == (str(exe), "--cli") and own.bundled and own.kind == "bundled" and own.python == ()
+        assert "updated with the app" in own.describe() and own.cwd_for(["run"]) is None
+        monkeypatch.setattr(M, "installed_program", lambda *a, **k: tmp_path / "agentprov")
+        assert M.CliLocator.for_checkout(None).kind == "installed"  # an installed one comes first
+        M.set_cli_choice("bundled")
+        assert M.CliLocator.for_checkout(tmp_path).kind == "bundled"  # chosen: even with a checkout set
+        M.set_cli_choice("nonsense")
+        assert M._cli_choice == "auto"
+    finally:
+        M.set_cli_choice("auto")
+
+
+def test_the_cli_choice_setting(qapp: Any, tmp_path: Path) -> None:
+    from PySide6.QtCore import QSettings
+
+    from agentprov_gui.settings import Settings
+    from agentprov_gui.ui.dialogs import SettingsDialog
+
+    settings = Settings(QSettings(str(tmp_path / "s.ini"), QSettings.Format.IniFormat))
+    assert settings.cli_choice == "auto"
+    settings.cli_choice = "bundled"
+    assert settings.cli_choice == "bundled"
+    settings.cli_choice = "other"
+    assert settings.cli_choice == "auto"
+    dlg = SettingsDialog(settings)
+    assert not dlg.cli_choice.isEnabled()  # these tests do not run frozen: there is no copy of the app's own
+    dlg.deleteLater()
 
 
 # ---------------------------------------------------------------------------------------------- the start-up check
@@ -427,9 +650,10 @@ def test_the_notice_when_only_the_cli_is_behind(qapp: Any) -> None:
     assert "The agentprov this app runs is out of date" in texts
     assert "AgentPROV 0.3.0 is available" not in texts
     summary = " ".join(texts)
-    for part in ("AgentPROV 0.3.0, which is current", "0.1.1", "Settings › General", "nothing is downloaded"):
+    for part in ("AgentPROV 0.3.0, which is current", "0.1.1", "Settings › General", "never PyPI",
+                 "The app itself is not downloaded or replaced"):
         assert part in summary
-    assert dlg.update_btn.text() == "Show the Upgrade Command" and dlg.update_btn.isDefault()
+    assert dlg.update_btn.text() == "Update agentprov…" and dlg.update_btn.isDefault()
     assert "without --bundle" in dlg.update_btn.toolTip()
     dlg.update_btn.click()
     assert dlg.choice == "update"
@@ -483,3 +707,148 @@ def test_the_settings_switch(qapp: Any, tmp_path: Path, fake_checkout: Path) -> 
     assert pane2.values() == {}  # on is the default: OK unsets it
     pane.deleteLater()
     pane2.deleteLater()
+
+
+# ---------------------------------------------------------------------------------------------- D-1130 review
+def _both(**extra: tuple[int, bytes, bytes]) -> FakeCli:
+    return FakeCli({"update status": (0, check_doc(), b""), "update install": (0, plan_doc("pip"), b""),
+                    "update download": (0, download_doc(), b""), "update download --package": (0, package_doc(), b""),
+                    "update install --bundle": (0, install_doc(), b""),
+                    "update install --package": (0, program_doc(), b""), **extra})
+
+
+def test_a_failed_app_part_is_still_reported_when_the_program_part_succeeds(qapp: Any) -> None:
+    """The app refused under a running job, the program updated: the status and the outcome name both."""
+    busy = b"agentprov: error [update.install.busy]: 1 running job runs from the app being replaced: job-1 (import)\n"
+    cli = _both(**{"update install --bundle": (4, b"", busy)})
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    after: list[list[str]] = []
+    c.after_update = after.append
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and bool(after))
+    assert after == [["The agentprov program"]]
+    assert "The agentprov program is updated" in c.status_line and "Not updated: the app" in c.status_line
+    assert any(line.startswith("The app was not updated") and "update.install.busy" in line for line in c.result)
+    assert any("agentprov 0.1.1 → 0.3.0" in line for line in c.result)
+
+
+@pytest.mark.parametrize(("action", "quit_line"), [("installed", "Installed. Quit AgentPROV and open it again"),
+                                                   ("waiting-for-quit", "Ready. Quit AgentPROV")])
+@pytest.mark.parametrize("program_ok", [True, False])
+def test_the_app_parts_quit_instruction_survives_the_program_part(qapp: Any, action: str, quit_line: str,
+                                                                  program_ok: bool) -> None:
+    """The app installed (or, on Windows, is ready once it quits), then the program part ran: the status keeps the
+    instruction to quit and reopen, whatever the program part's outcome, and adds the program's own line. Each part's
+    start writes its own progress line, so the status of the moment cannot tell what the app part said."""
+    failed = (1, b"", b"agentprov: error [y]: no\n")
+    cli = _both(**{"update install --bundle": (0, install_doc(action), b""),
+                   **({} if program_ok else {"update install --package": failed})})
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    after: list[list[str]] = []
+    c.after_update = after.append
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and bool(after))
+    assert c.status_line.startswith(quit_line), c.status_line
+    assert ("The agentprov program is updated" if program_ok else "The agentprov program was not updated") \
+        in c.status_line
+
+
+def test_a_part_whose_command_cannot_run_does_not_stop_the_next_one(qapp: Any) -> None:
+    cli = _both()
+    cli.raise_for = "--bundle"
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    after: list[list[str]] = []
+    c.after_update = after.append
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and bool(after))
+    assert after == [["The agentprov program"]]  # called once, with the part that did install
+    assert any("--package" in a and "--confirm" in a for a in cli.ran)
+    assert any(line.startswith("The app was not updated") for line in c.result)
+
+
+def test_nothing_updated_says_so(qapp: Any) -> None:
+    cli = _both(**{"update install --bundle": (1, b"", b"agentprov: error [x]: no\n"),
+                   "update install --package": (1, b"", b"agentprov: error [y]: no\n")})
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    after: list[list[str]] = []
+    c.after_update = after.append
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and after == [[]])
+    assert c.status_line.startswith("Nothing was updated: the app; the agentprov program")
+
+
+def test_the_confirmed_installs_are_never_killed_by_a_time_limit(qapp: Any) -> None:
+    cli = _both()
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.program_install is not None)
+    limits = {" ".join(a[:3]): t for a, t in zip(cli.ran, cli.timeouts, strict=True)}
+    assert [t for a, t in zip(cli.ran, cli.timeouts, strict=True) if "--confirm" in a] == [None, None]
+    assert limits["update install --format"] == 1800.0  # the plan query, which changes nothing, keeps its limit
+
+
+def test_a_cli_changed_while_the_update_was_prepared_installs_nothing(qapp: Any) -> None:
+    """Settings › General changed the agentprov to run between the plan and Install: the confirmation described
+    another program, so nothing is installed."""
+    cli = _both()
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    which = {"cli": "checkout A"}
+    c.identity = lambda: which["cli"]
+
+    def ask(parent: Any, plan: Any) -> bool:
+        which["cli"] = "checkout B"
+        return True
+
+    c.confirm = ask
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and "changed while the update" in c.status_line)
+    assert not any("--confirm" in a for a in cli.ran)
+
+
+def test_prepare_runs_once_before_the_first_part_installs(qapp: Any) -> None:
+    cli = _both()
+    c = _loaded(qapp, _controller(qapp, cli, program="installed"))
+    seen: list[int] = []
+    c.prepare = lambda: seen.append(sum("--confirm" in a for a in cli.ran))
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.program_install is not None)
+    assert seen == [0]
+
+
+def test_a_pulled_checkout_whose_sync_failed_says_so(qapp: Any) -> None:
+    doc = json.loads(program_doc("checkout"))
+    doc["synced"] = False
+    cli = FakeCli({"update status": (0, check_doc(behind=CLI_ONLY, current=CLI_ONLY_CURRENT), b""),
+                   "update install": (0, plan_doc("checkout"), b""),
+                   "update install --checkout": (0, json.dumps(doc).encode(), b"")})
+    c = _loaded(qapp, _controller(qapp, cli, bundle=None, program="checkout"))
+    c.download_and_install()
+    wait(qapp, lambda: not c.busy and c.program_install is not None)
+    assert "NOT synced" in c.status_line and "updated;" not in c.status_line
+
+
+def test_the_checkout_part_names_its_source_not_a_verification(qapp: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from agentprov_gui import updates as U
+    from agentprov_gui.ui import updates as ui
+
+    seen: list[str] = []
+    monkeypatch.setattr(ui, "choose", lambda parent, title, text, informative, keep, other, tips: (
+        seen.append(informative), False)[1])
+    plan = U.plan(bundle=None, gui="0.1.1", app=None, program=U.parse_install(0, plan_doc("checkout")), package=None,
+                  core="0.1.1")
+    assert not ui.confirm_update(None, plan)
+    assert "Source: " in seen[0] and "Verified: " not in seen[0]
+    seen.clear()
+    plan = U.plan(bundle=None, gui="0.1.1", app=None, program=U.parse_install(0, plan_doc("pip")),
+                  package=U.parse_download(0, package_doc()), core="0.1.1")
+    assert not ui.confirm_update(None, plan)
+    assert "Verified: " in seen[0]
+
+
+def test_the_install_argv_carries_this_apps_version_not_the_checks() -> None:
+    from agentprov_gui import updates as U
+
+    download = U.parse_download(0, download_doc())
+    plan = U.plan(bundle=APP, gui="0.1.1", app=download, program=None, package=None, core=None)
+    (part,) = plan.parts
+    assert part.argv[part.argv.index("--gui-version") + 1] == "0.1.1"

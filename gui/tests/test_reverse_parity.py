@@ -225,11 +225,16 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
               for bundle in (Path("/Applications/AgentPROV.app"), None)]
     notice = UpdateNotice(U.Check(None, False, "0.1.1", "0.1.1", "0.3.0", True, None, "", False, None, None, None,
                                   False, True, None))
+    # D-1130: Install Command Line Tool…'s confirmation
+    from agentprov_gui.ui.clitool import ConfirmInstall
+
+    cli_tool = ConfirmInstall({"app": "/A/AgentPROV", "default_dir": "/h/.local/bin",
+                               "entries": [{"path": "/h/.local/bin/agentprov"}]})
     _settle(qapp)
     titles = {f.title: f for f in FORMS.values()}
     bad: list[str] = []
     labels: set[str] = set()
-    for root in (win, dlg, live, inspect_live, *abouts, notice):
+    for root in (win, dlg, live, inspect_live, *abouts, notice, cli_tool):
         for label, widget in _actions(root):
             labels.add(label)
             if root is not win and isinstance(widget, QCheckBox):
@@ -243,9 +248,10 @@ def test_every_action_is_a_cli_command_or_presentational(qapp: Any, tmp_path: Pa
     for label, words in parity.ACTIONS.items():
         if not _command(tree, words):
             bad.append(f"ACTIONS {label!r}: agentprov {' '.join(words)} is not a command")
-    assert {"Check for Updates", "Download and Install…", "Show the Upgrade Command", "Update Now"} <= labels
+    assert {"Check for Updates", "Download and Install…", "Update agentprov…", "Update Now"} <= labels
+    assert {"Install Command Line Tool…", "Uninstall Command Line Tool", "Install the Terminal command"} <= labels
     win.close()
-    for d in (dlg, live, inspect_live, *abouts, notice):
+    for d in (dlg, live, inspect_live, *abouts, notice, cli_tool):
         d.deleteLater()
     assert not bad, "\n".join(bad)
 

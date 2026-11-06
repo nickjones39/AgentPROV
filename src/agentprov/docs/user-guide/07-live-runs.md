@@ -21,6 +21,14 @@ live pilot's report.
 > for a real model). **Live corpora cannot be sealed in this build**, so no live corpus supports a "Live Capture" claim
 > ([After a run](#after-a-run)).
 
+> **Live runs need a checkout.** The benchmark backends are separate uv projects in the repository's `backends/`
+> folder, so `run`, `estimate`, `backends` and `migrate` work only from a checkout (`uv sync --frozen --group docs`, then
+> `agentprov backends build BACKEND`). The desktop app's own copy of `agentprov` and an `agentprov` installed from PyPI
+> cannot run them; Run Live says so when the app's own copy is in use (D-1130). After an update moves the checkout
+> (`git pull`, or the app's Download and Install…), an environment whose lockfile or identity changed is no longer
+> accepted: rebuild it with `agentprov backends build BACKEND` and check it with `--offline-check`
+> ([Building and checking](#building-and-checking-described-not-run)).
+
 ## What a live run is, and what it records
 
 A backend is a separate uv project on Python 3.12 that never installs `agentprov` ([Backends](#backends-and-their-environments)).
@@ -160,6 +168,105 @@ agentprov backends build --offline-check: agentdojo-db3901f1 verified (marker, l
 
 A build or a check holds the environment's lock, so it is refused while a run uses that environment, and the other way
 round. An environment is never edited by hand: every installed file is hashed.
+
+### After an update: rebuild the stale environments
+
+A new version, a re-lock of a backend project or a change to the guarded modules leaves the environments built for the
+old checkout behind. Run Live then shows no suites for that backend, and `run` stops with `backend.unavailable` ("is not
+built", when the checkout names a new environment id) or `adapter.identity_mismatch` (the same id, other contents).
+`agentprov backends rebuild-stale` puts every backend right in one command (D-1130). In order:
+
+1. For each registered backend (`agentdojo`, `autodojo`, `agentdyn`, `inspect-agentharm`, in the registry's order) it
+   checks, without building or starting anything, whether the environment this checkout names exists and passes the
+   checks `run --catalogue` makes: a complete marker, the lock digest, every installed file against its RECORD, the
+   guarded modules, the NLTK zip, the Inspect dataset and any defence assets. A backend this machine cannot build
+   ([Platforms](#platforms)) is reported as not supported and skipped; it is not a failure.
+2. Before building a stale one it checks what the build reads offline: `uv` itself, and for `inspect-agentharm` the
+   pinned AgentHarm dataset in the fetch cache. A missing input is named with the step that supplies it, and that
+   backend is not started.
+3. It skips a stale backend whose environment a running live job uses (`busy`, `io.resource_busy`): a `run` registered
+   on that environment, a running `run` job of a source on that backend (wherever the source stands in its command, as
+   the desktop app writes it last), a running batch whose live steps on that backend have not all run, or a running job
+   whose command names a path in the environment or in `backends/<backend>`. A run that registers while the build waits
+   for the environment's lock is `busy` too. The line names them; run `rebuild-stale` again once they have ended.
+   It also leaves alone a stale environment that holds defence assets (`blocked`, `backend.defence_assets_kept`): a
+   rebuild here would remove them, so the line gives the command that rebuilds it with them.
+4. It builds each stale backend in turn, exactly as `agentprov backends build BACKEND` does (offline from the uv cache
+   unless you add `--allow-network`), and then verifies it as `--offline-check` does, with one `hello`. If one fails, its
+   line gives the reason and the command to run, and the next backend follows.
+
+What the check does not see: `backends/shared` (the worker, `agentprov-backend`) is installed into each environment as
+a copy from a directory source, and the lock records its version, not its files. A release bumps that version, so the
+lock changes and the environment is stale; a change to `backends/shared` between releases without a re-lock (on a
+development checkout) leaves the environment passing as current with the old worker. Rebuild that backend with
+`agentprov backends build BACKEND` after such a change.
+
+Only the environment the checkout names is built (for `autodojo` and `agentdyn`, whose id follows the fork commit, that
+replaces the same directory, as `backends build` does). Every other directory in `$AGENTPROV_HOME/envs` is left as it
+is. A backend that is current is not touched. The exit code is 0 when every stale backend was rebuilt and checked, and 3
+when one was not.
+
+A real run on the development machine (2026-11-06, version 0.2.1, a temporary `$AGENTPROV_HOME` holding the current
+`autodojo`, `agentdyn` and `inspect-agentharm` environments and an earlier `agentdojo-5cdc7920`, but not the
+`agentdojo-6a288ee8` this checkout names). The dry run:
+
+```text
+$ agentprov backends rebuild-stale --dry-run
+agentdojo: agentdojo-6a288ee8 stale, would be rebuilt [not_built: the environment agentdojo-6a288ee8 for this checkout is not built (other agentdojo environments: agentdojo-5cdc7920)]
+  would run: agentprov backends build agentdojo
+  would run: agentprov backends build agentdojo --offline-check
+autodojo: autodojo-aa458794 current (337 files verified)
+agentdyn: agentdyn-5353cf76 current (1485 files verified)
+inspect-agentharm: inspect-agentharm-fba3dd0f current (3737 files verified)
+agentprov backends rebuild-stale: dry run: 3 current, 1 stale
+```
+
+and the rebuild, offline from the uv cache (36 seconds for `agentdojo`; `agentdojo-5cdc7920` was left unchanged):
+
+```text
+$ agentprov backends rebuild-stale
+agentdojo: agentdojo-6a288ee8 stale, rebuilt and verified (offline check passed) [not_built: …]
+  agentprov backends build: agentdojo-6a288ee8 built at …/envs/agentdojo-6a288ee8
+    python 3.12.14; agentdojo 0.1.35 (RECORD sha256 c83122ddbd9f5dd4...); lock 6a288ee8593ddba7...
+    sandbox-exec feasibility probe: passed
+  agentprov backends build --offline-check: agentdojo-6a288ee8 verified (marker, lock, RECORD, guarded files, hello identity)
+autodojo: autodojo-aa458794 current (337 files verified)
+agentdyn: agentdyn-5353cf76 current (1485 files verified)
+inspect-agentharm: inspect-agentharm-fba3dd0f current (3737 files verified)
+agentprov backends rebuild-stale: done: 3 current, 1 rebuilt
+```
+
+With downloads, rebuilding all four can take about 15 minutes; the Inspect environment is the largest.
+
+| Option | Use |
+|---|---|
+| `--dry-run` | list each backend's state, why a stale one is stale and the commands that would run; build and write nothing (not even the removal of a dead run's registration) |
+| `--allow-network` | let uv download locked packages the uv cache lacks, and fetch AutoDojo's pinned NLTK `punkt_tab` |
+| `--backend ID[,ID…]` | only these backends (repeatable); a value that names none (`""`, `,`) is a usage error |
+| `--format json` | the `agentprov-backends-rebuild/0.1` report on stdout: per backend its state, reason, outcome, the commands and the missing inputs |
+
+**Missing inputs.** The Inspect environment copies the AgentHarm dataset pinned in
+`backends/inspect/envs/agentharm/pyproject.toml` (6 files at revision `e23b3fe6…`, each checked by size and sha256) from
+`$AGENTPROV_HOME/cache/hf/ai-safety-institute/AgentHarm/<revision>/` and never downloads it. When a file is missing there,
+that backend is `blocked` (`backend.input_missing`, exit 3) and the line says that fetching it is a download from
+Hugging Face that needs your consent, and names an earlier `inspect-agentharm-*` environment that holds a verified copy,
+if one does. AutoDojo's NLTK `punkt_tab` is not blocking: without it in the cache and without `--allow-network`, AutoDojo
+is rebuilt without it (a notice says so; only the refused filter defences need it). A build that fails offline because
+the uv cache lacks a locked package names the same command with `--allow-network`.
+
+**Progress.** The job's `progress.jsonl` has one unit per backend (status `current`, `rebuilt`, `failed`, `blocked`,
+`busy` or `unsupported`), so done of total counts backends; each build's own stages appear as `stage` events named `<backend>/<stage>`
+(`agentdojo/uv_sync`, `agentdojo/hello`, …).
+
+**Defence assets are never removed.** An earlier environment built with `--defence-assets` keeps them, and a new
+environment the checkout names is built without them (as a plain `backends build`): build them in with
+`agentprov backends build agentdojo --defence-assets ID[,ID…]`. When the stale environment is the one the checkout names
+(the same id, rebuilt in place) and it holds defence assets, `rebuild-stale` does not rebuild it: an exact `uv sync`
+without the `defences` group would uninstall them. It is reported as `blocked` with that command, naming its assets.
+
+In the desktop app, Runs › **Rebuild Stale Environments…** starts the same command as a job after a confirmation, and
+the update in About starts it as its last step ([chapter 8](08-desktop-app.md#runs)). Like `backends build`, it needs
+the repository checkout: outside one it exits 3 with `backend.repository_missing`.
 
 ## Planning a run
 
@@ -369,12 +476,14 @@ itself never sets a cap for you: you pass the numbers, and its consent names the
 
 - **Max model calls** = the quote's p90 model calls × (1 + margin), rounded up, + the room below in calls.
 - **Max cost** = the quote's upper figure (`usd_p90`, the sum of per-cell 90th percentiles) × (1 + margin) + the room
-  below in USD, rounded up to the cent.
+  below in USD, rounded up to the cent. The upper figure is priced here as the run counts its spend: every input-side
+  token, cached or written to a cache, at the input cap price, so a cache-write price or a cached-input discount never
+  leaves the cap below what the run counts.
 - **The margin** is the setting `estimate.caps_margin_pct` (20 % while unset; `agentprov settings set
   estimate.caps_margin_pct 30`, or Settings › Estimate in the app).
 - **The room** is what the run reserves before it starts a cell: a cell starts only if the spend so far plus every
   running cell's worst case fits both caps (D-725). It is the cells that run at once (`--jobs`, at most the cells
-  due) and one preflight probe, each at its worst case as the run's own dry plan computes it (`run --dry-run
+  due) and the preflight probe's attempts (up to 3 while its verdict is unconfirmed), each at its worst case as the run's own dry plan computes it (`run --dry-run
   --plan-json` gives it as `cell_bound`): 48 billed calls a cell with the stock LLM element, 144 with the AutoDojo
   fork's element, 384 with `gateway_compat`, more under a defence, and each call charged at 32,000 input-side tokens
   and 4,096 output tokens (or the `--max-tokens` sent) at the cap prices. The cap prices are `--price-in` and
@@ -1025,6 +1134,7 @@ There is no CI job for the AgentDyn or Inspect backends; their checks were run b
 |---|---|---|
 | `platform.unsupported` (4): "Live runs (agentprov run) are available on macOS and Linux. On Windows … they are not available yet: …" | this is Windows ([Platforms](#platforms)) | run on macOS or Linux; a host preset's `--dry-run` still plans |
 | `cannot run 'X': no live capability` or `live status planned` (5) | the source has no live backend (`rope`), or its live part is `planned` | none in this build; a `planned` part with a backend admits scripted runs only |
+| `backend.unavailable` "is not built", or `adapter.identity_mismatch` (3), after an update; Run Live shows no suites | the environment was built for the old checkout | `agentprov backends rebuild-stale` ([above](#after-an-update-rebuild-the-stale-environments)) |
 | `cli.refused.api_caps` (4) | an API endpoint without its caps | give `--max-calls`, `--max-cost-usd`, `--price-in`, `--price-out` |
 | `--max-cost-usd needs --price-in and --price-out` (2) | the caps price needs prices | add both |
 | `cli.refused.consent` (4) | no consent flag and no terminal | `--i-consent-to-local-run` (local) or `--i-consent-to-api-costs` |

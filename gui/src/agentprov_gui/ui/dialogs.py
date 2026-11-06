@@ -198,7 +198,7 @@ def _own_updates(checkout: Path | None, owner: QWidget) -> Any:
 
     cli = CliLocator.for_checkout(checkout)
     return UpdateController(lambda argv, timeout: call(cli, argv, timeout=timeout), bundle=U.app_bundle(),
-                            gui=U.app_version(), parent=owner)
+                            gui=U.app_version(), program=lambda: cli.kind, parent=owner)
 
 
 class SettingsDialog(QDialog):
@@ -332,13 +332,32 @@ class SettingsDialog(QDialog):
                     tip="The agentprov command installed with pip install agentprov (for example ~/.local/bin/agentprov, "
                         "or the agentprov of a virtual environment). Empty: the first agentprov on PATH, then in "
                         "~/.local/bin, /opt/homebrew/bin and /usr/local/bin. Used only when no checkout is set.")
+        from agentprov_gui.jobs.manager import bundled_program
+
+        bundle = bool(bundled_program())
+        self.cli_choice = Choices((
+            ("Automatic", "auto", "The checkout above when one is set, else the installed agentprov program, else "
+                                  "this app's own copy."),
+            ("The app's own", "bundled", "Always this app's own copy of agentprov (bundled with it and updated with "
+                                         "it). Live runs, the job queue and the checkout's tools need a checkout.")),
+            name="agentprov to run", parent=sec.card)
+        self.cli_choice.setCurrentText(s.cli_choice)
+        sec.add_row("agentprov to run", self.cli_choice,
+                    caption_text="The app's own copy is updated with the app" if bundle else
+                    "Only a bundled app has its own copy",
+                    tip="Which agentprov the app runs (D-1130). Automatic: the checkout, else the installed agentprov "
+                        "program, else this app's own copy. The app's own: always the copy inside this app, which "
+                        "Download and Install… updates with the app; it has no checkout, so live runs, the job queue "
+                        "and the checkout's tools are not available with it. An app run from a checkout or a package "
+                        "install has no copy of its own: there this setting has no effect.")
+        self.cli_choice.setEnabled(bundle)
         self.cli_in_use = _value("", "CLI in use", sec.card)
-        sec.add_row("CLI in use", self.cli_in_use, caption_text="Found from the two fields above",
-                    tip="The agentprov that the Assistant, the Settings panes and the jobs run with these two "
-                        "settings.")
+        sec.add_row("CLI in use", self.cli_in_use, caption_text="Found from the fields above",
+                    tip="The agentprov that the Assistant, the Settings panes and the jobs run with these settings.")
         for field in (self.checkout, self.cli_program):
             field.editingFinished.connect(self._show_cli)
             field.textChanged.connect(lambda _t: self._show_cli())  # Choose… fills the field without editing
+        self.cli_choice.currentIndexChanged.connect(lambda _i: self._show_cli())
         self._show_cli()
         sec = _section(page, "Corpora")
         self.roots = QLineEdit("; ".join(str(p) for p in s.corpus_roots), sec.card)
@@ -402,21 +421,25 @@ class SettingsDialog(QDialog):
         return page
 
     def _show_cli(self) -> None:
-        """Settings › General's "CLI in use" for the two fields as typed (file checks only; nothing runs)."""
-        from agentprov_gui.jobs.manager import CliLocator, installed_program
+        """Settings › General's "CLI in use" for the fields as typed (file checks only; nothing runs)."""
+        from agentprov_gui.jobs.manager import CliLocator, bundled_program, installed_program
 
         checkout, program = self.checkout.text().strip(), self.cli_program.text().strip()
-        if checkout:
+        own = bundled_program()
+        if own and self.cli_choice.currentData() == "bundled":
+            cli = CliLocator(None, own, (), True)
+        elif checkout:
             cli = CliLocator.for_checkout(Path(checkout))
         else:
             found = installed_program(Path(program) if program else None)
-            cli = CliLocator(None, (str(found),) if found is not None else ())
+            cli = CliLocator(None, (str(found),)) if found is not None else CliLocator(None, own, (), bool(own))
         self.cli_in_use.set_plain(T.line(cli.describe(), 300))
 
     def _accept(self) -> None:
         s = self.settings
         s.checkout = Path(self.checkout.text().strip()) if self.checkout.text().strip() else None
         s.cli_program = Path(self.cli_program.text().strip()) if self.cli_program.text().strip() else None
+        s.cli_choice = str(self.cli_choice.currentData())
         roots = [Path(p.strip()) for p in self.roots.text().split(";") if p.strip()]
         if roots:
             s.corpus_roots = roots

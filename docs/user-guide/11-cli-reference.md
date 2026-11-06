@@ -13,6 +13,7 @@ Commands in this reference (subcommands indented):
 - [`agentprov models`](#agentprov-models)
 - [`agentprov backends`](#agentprov-backends)
   - [`agentprov backends build`](#agentprov-backends-build)
+  - [`agentprov backends rebuild-stale`](#agentprov-backends-rebuild-stale)
 - [`agentprov migrate`](#agentprov-migrate)
   - [`agentprov migrate verify-baseline`](#agentprov-migrate-verify-baseline)
   - [`agentprov migrate gate-a`](#agentprov-migrate-gate-a)
@@ -80,6 +81,10 @@ Commands in this reference (subcommands indented):
   - [`agentprov update download`](#agentprov-update-download)
   - [`agentprov update install`](#agentprov-update-install)
   - [`agentprov update rollback`](#agentprov-update-rollback)
+- [`agentprov launcher`](#agentprov-launcher)
+  - [`agentprov launcher install`](#agentprov-launcher-install)
+  - [`agentprov launcher remove`](#agentprov-launcher-remove)
+  - [`agentprov launcher status`](#agentprov-launcher-status)
 
 ## agentprov
 
@@ -108,7 +113,7 @@ positional arguments:
                         prints the plan)
     models              list the models a local server serves (and one model's observed identity),
                         or an API provider's list
-    backends            backend environments (build)
+    backends            backend environments (build, rebuild-stale)
     migrate             baseline migration gates G0, A, B, D and E (J.3)
     render              draw selected executions' PROV graphs (needs the render extra and Graphviz
                         dot)
@@ -137,6 +142,7 @@ positional arguments:
     assist              ask the AgentPROV Assistant how to do something (a model answers from
                         AgentPROV's docs and code)
     update              check for a new release; download, verify and install it
+    launcher            install or remove the desktop app's Terminal command
 
 options:
   -h, --help            show this help message and exit
@@ -839,6 +845,8 @@ positional arguments:
   ACTION
     build               build $AGENTPROV_HOME/envs/<backend>-<commit8>/ with uv sync --locked
                         --no-config
+    rebuild-stale       rebuild and check every backend environment this checkout no longer
+                        accepts
 
 options:
   -h, --help            show this help message and exit
@@ -910,6 +918,66 @@ options:
                         id (no network)
   --env-file PATH       the .env file (not read by the agentdojo build)
   --dry-run             print the plan; run and write nothing
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov backends rebuild-stale
+
+```text
+usage: agentprov backends rebuild-stale [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                        [--log-file PATH] [--log-content]
+                                        [--progress {off,summary,status,steps,trace}]
+                                        [--progress-format {auto,tty,plain,jsonl}]
+                                        [--progress-file PATH] [--progress-interval SECONDS]
+                                        [--progress-max-bytes N] [--control-file PATH]
+                                        [--show-content] [--content-chars N] [--json]
+                                        [--summary-json PATH] [--max-listed N] [--no-colour]
+                                        [--break-stale-lock] [--backend ID[,ID...]]
+                                        [--allow-network] [--format {text,json}] [--dry-run]
+
+Find each registered backend's environment for this checkout that is missing or fails the identity
+check (as run --catalogue does), build it as 'backends build' does, then verify it as --offline-
+check does. A failure is recorded and the next backend follows; other environments under
+$AGENTPROV_HOME/envs are never touched (D-1130).
+
+options:
+  -h, --help            show this help message and exit
+  --backend ID[,ID...]  only these backends (repeatable; default: every registered backend)
+  --allow-network       let uv download the locked packages and fetch AutoDojo's pinned NLTK data
+                        (otherwise offline from the uv cache and the fetch cache)
+  --format {text,json}  json: the agentprov-backends-rebuild/0.1 report on stdout
+  --dry-run             list what would be rebuilt and why; build and write nothing
 
 global options:
   --version             show versions and exit
@@ -4676,7 +4744,9 @@ positional arguments:
     download            download this platform's bundle and SHA256SUMS (and its signature) and
                         verify them (network)
     install             install the verified download into the desktop app's folder (--confirm
-                        --bundle), or print the command that upgrades a pip or uv tool install
+                        --bundle) or this package install (--confirm --package), fast-forward this
+                        checkout (--confirm --checkout), or print the command that upgrades this
+                        agentprov
     rollback            swap the desktop app with the version the last install kept beside it
 
 options:
@@ -4846,14 +4916,17 @@ usage: agentprov update download [-h] [--version] [-v] [-q] [--log-format {text,
                                  [--progress-interval SECONDS] [--progress-max-bytes N]
                                  [--control-file PATH] [--show-content] [--content-chars N]
                                  [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
-                                 [--break-stale-lock] [--allow-network] [--dir DIR]
+                                 [--break-stale-lock] [--allow-network] [--package] [--dir DIR]
                                  [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
                                  [--format {text,json}]
 
 options:
   -h, --help            show this help message and exit
   --allow-network       required (GitHub's release files)
-  --dir DIR             the staging folder (default: $AGENTPROV_HOME/update/staging/PLATFORM)
+  --package             the release's wheels for this agentprov's pip, uv tool or pipx install
+                        instead of the app's bundle (D-1130)
+  --dir DIR             the staging folder (default: $AGENTPROV_HOME/update/staging/PLATFORM, or
+                        .../staging/package with --package)
   --platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}
                         the bundle platform (default: this machine's)
   --format {text,json}
@@ -4901,14 +4974,21 @@ usage: agentprov update install [-h] [--version] [-v] [-q] [--log-format {text,j
                                 [--progress-interval SECONDS] [--progress-max-bytes N]
                                 [--control-file PATH] [--show-content] [--content-chars N]
                                 [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
-                                [--break-stale-lock] [--confirm] [--dir DIR] [--bundle PATH]
+                                [--break-stale-lock] [--confirm] [--package] [--checkout]
+                                [--allow-network] [--dir DIR] [--bundle PATH]
                                 [--gui-version VERSION]
                                 [--platform {macos-arm64,macos-x86_64,windows-x64,windows-arm64,linux-x86_64,linux-aarch64}]
                                 [--format {text,json}]
 
 options:
   -h, --help            show this help message and exit
-  --confirm             required with --bundle: replace the app's folder
+  --confirm             required with --bundle, --package or --checkout: replace what they name
+  --package             install the verified wheels download --package staged, with this program's
+                        own installer (no dependency resolution, no index)
+  --checkout            git pull --ff-only origin main and uv sync --frozen --group docs in this
+                        agentprov's checkout (clean, on main, the project's remote only); needs
+                        --allow-network
+  --allow-network       required with --checkout (git pull)
   --dir DIR             the staging folder download used
   --bundle PATH         the desktop app's folder (AgentPROV.app, or the AgentPROV folder on Linux
                         and Windows); the desktop app passes its own
@@ -5007,6 +5087,222 @@ global options:
   --break-stale-lock    writers only: remove a lock whose pid is dead
 ```
 
+## agentprov launcher
+
+```text
+usage: agentprov launcher [-h] [--version] [-v] [-q] [--log-format {text,json}] [--log-file PATH]
+                          [--log-content] [--progress {off,summary,status,steps,trace}]
+                          [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                          [--progress-interval SECONDS] [--progress-max-bytes N]
+                          [--control-file PATH] [--show-content] [--content-chars N] [--json]
+                          [--summary-json PATH] [--max-listed N] [--no-colour]
+                          [--break-stale-lock]
+                          ACTION ...
+
+``agentprov launcher``: the Terminal command of the desktop app (D-1130; the app's Install Command
+Line Tool…).
+
+positional arguments:
+  ACTION
+    install             write the agentprov launcher that runs the app's own agentprov
+    remove              delete the launcher this app made (never another agentprov)
+    status              where a launcher is, what it runs, and whether its folder is on PATH
+
+options:
+  -h, --help            show this help message and exit
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov launcher install
+
+```text
+usage: agentprov launcher install [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                  [--log-file PATH] [--log-content]
+                                  [--progress {off,summary,status,steps,trace}]
+                                  [--progress-format {auto,tty,plain,jsonl}]
+                                  [--progress-file PATH] [--progress-interval SECONDS]
+                                  [--progress-max-bytes N] [--control-file PATH] [--show-content]
+                                  [--content-chars N] [--json] [--summary-json PATH]
+                                  [--max-listed N] [--no-colour] [--break-stale-lock] [--dir DIR]
+                                  [--app EXE] [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --dir DIR             the launcher's folder (default ~/.local/bin; another must exist and be
+                        writable without administrator rights)
+  --app EXE             the desktop app's executable (default: this program, when it is the app's
+                        own agentprov)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov launcher remove
+
+```text
+usage: agentprov launcher remove [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                 [--log-file PATH] [--log-content]
+                                 [--progress {off,summary,status,steps,trace}]
+                                 [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                                 [--progress-interval SECONDS] [--progress-max-bytes N]
+                                 [--control-file PATH] [--show-content] [--content-chars N]
+                                 [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
+                                 [--break-stale-lock] [--dir DIR] [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --dir DIR             the launcher's folder (default ~/.local/bin; another must exist and be
+                        writable without administrator rights)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
+### agentprov launcher status
+
+```text
+usage: agentprov launcher status [-h] [--version] [-v] [-q] [--log-format {text,json}]
+                                 [--log-file PATH] [--log-content]
+                                 [--progress {off,summary,status,steps,trace}]
+                                 [--progress-format {auto,tty,plain,jsonl}] [--progress-file PATH]
+                                 [--progress-interval SECONDS] [--progress-max-bytes N]
+                                 [--control-file PATH] [--show-content] [--content-chars N]
+                                 [--json] [--summary-json PATH] [--max-listed N] [--no-colour]
+                                 [--break-stale-lock] [--dir DIR] [--app EXE]
+                                 [--format {text,json}]
+
+options:
+  -h, --help            show this help message and exit
+  --dir DIR             the launcher's folder (default ~/.local/bin; another must exist and be
+                        writable without administrator rights)
+  --app EXE             the desktop app's executable (default: this program, when it is the app's
+                        own agentprov)
+  --format {text,json}
+
+global options:
+  --version             show versions and exit
+  -v, --verbose         log DEBUG (repeatable)
+  -q, --quiet           log WARNING and above; implies --progress off
+  --log-format {text,json}
+                        stderr log format (default text)
+  --log-file PATH       also log to PATH (DEBUG, JSON lines)
+  --log-content         permit escaped content excerpts in DEBUG logs
+  --progress {off,summary,status,steps,trace}
+                        live feedback level on stderr (default: status on a terminal, else
+                        summary; env AGENTPROV_PROGRESS)
+  --progress-format {auto,tty,plain,jsonl}
+                        feedback rendering (default auto: tty on an interactive terminal, else
+                        plain)
+  --progress-file PATH  also append feedback events as agentprov-progress/0.2 JSON lines to PATH
+                        (never below status)
+  --progress-interval SECONDS
+                        heartbeat interval of --progress-file (default 2, minimum 1)
+  --progress-max-bytes N
+                        rotate --progress-file to PATH.1 past N bytes (default 8 MiB, minimum 64
+                        KiB)
+  --control-file PATH   writers: poll PATH for an agentprov-control/0.1 request (drain or stop;
+                        D-394)
+  --show-content        add escaped content excerpts at steps and trace
+  --content-chars N     excerpt length for --show-content (default 200, max 2000)
+  --json                summary document to stdout
+  --summary-json PATH   write the summary document to PATH (atomic)
+  --max-listed N        cap on failures[] entries in the summary (default 100)
+  --no-colour, --no-color
+                        no ANSI colour
+  --break-stale-lock    writers only: remove a lock whose pid is dead
+```
+
 <!-- END generated: cli -->
 
 ## Updating
@@ -5017,3 +5313,13 @@ of `nickjones39/AgentPROV` with what is installed (`status` reads the last answe
 --confirm --bundle PATH` swaps it into the app's folder and keeps the previous version, and `rollback --yes --bundle
 PATH` swaps back. Without `--bundle`, `install` prints the command that upgrades a `uv tool`, `pipx` or `pip` install
 of the command-line program. The per-platform details are in [the desktop app chapter](08-desktop-app.md#updating).
+
+## The Terminal command
+
+`agentprov launcher` makes the desktop app's own `agentprov` (`AgentPROV --cli`) a Terminal command (D-1130). It is
+the same as the app's Install Command Line Tool… and Uninstall Command Line Tool. `install` writes a launcher named
+`agentprov` (Windows: `agentprov.cmd`) in `~/.local/bin`, or in `--dir DIR` if that folder exists and is writable,
+never with `sudo`. The launcher runs the app by its full path, and its second line is the marker
+`agentprov-launcher/1`. `remove` deletes only launchers with that marker. `status` shows where they are and what they
+run. Any other `agentprov` is refused with exit code 4 and named. Details are in
+[the desktop app chapter](08-desktop-app.md#the-agentprov-command-in-a-terminal).

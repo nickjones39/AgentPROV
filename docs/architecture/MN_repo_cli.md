@@ -402,7 +402,7 @@ src/agentprov/
     ├── info.py                 # `info` (alias `sources`), `inspect`
     ├── package.py              # `package`
     ├── reports.py              # `stats`, `render`
-    ├── backends.py             # `backends build` (`uv sync` in a scrubbed environment; G.6.2)
+    ├── backends.py             # `backends build` (`uv sync` in a scrubbed environment; G.6.2) and `backends rebuild-stale`
     └── admin.py                # `migrate`, `purge`
 ```
 
@@ -1946,7 +1946,7 @@ later decisions are listed apart in N.2.17 and never change the fifteen.
 | `derive`, `recompute` | derivation |
 | `validate`, `verify` | checks |
 | `inspect`, `info` | inspection |
-| `backends` | backend environments |
+| `backends` | backend environments: `build`, and `rebuild-stale` after an update (D-1130) |
 | `package` | sealing and deposit drafts |
 | `stats`, `render` | consumers (AD-10 as ruled) |
 | `migrate` | baseline migration |
@@ -2941,6 +2941,7 @@ the self-check fails.
 ```
 agentprov backends build {agentdojo,autodojo,agentdyn} [--offline-check] [--allow-network] [--env-file PATH] [--dry-run]
                          [--defence-assets ID[,ID...]] [--defence-source DIR]
+agentprov backends rebuild-stale [--backend ID[,ID...]]... [--allow-network] [--format {text,json}] [--dry-run]
 ```
 
 **Behaviour.**
@@ -2966,7 +2967,42 @@ agentprov backends build {agentdojo,autodojo,agentdyn} [--offline-check] [--allo
 - Like `run`, it is a live CLI entry: it may read `.env` (`--env-file` or the repository root; G.9.2), and no value
   read from it is passed to `uv`.
 
-`backends` has no other subcommand in 0.1.
+`backends` has one other subcommand, `rebuild-stale` (D-1130; code `agentprov.cli.live.stale`), for the moment after an
+update when the environments built for the old checkout are no longer accepted (`run` refuses them as
+`backend.unavailable`, "not built", when the checkout names a new `<backend>-<commit8>`, or as
+`adapter.identity_mismatch`):
+
+- **Backends.** The registry's (`adapters.registry.BACKENDS`), in registry order; `--backend` narrows them. It needs the
+  checkout like `build` (outside one, exit 3, `backend.repository_missing`; the GUI does not start it then).
+- **Detection** builds and spawns nothing and writes nothing. An environment is *current* when it passes the checks
+  `run --catalogue` makes before its worker starts (marker `complete`; `check_against_marker` on the T0 identity; the
+  NLTK zip; the Inspect dataset) and the defence-asset check of `--offline-check`, and *stale* otherwise (`not_built`,
+  `incomplete`, `identity_mismatch`, `unverifiable`). A backend the host cannot build (D-1064,
+  `platforms.unavailable("backend_build")`) is `unsupported`: reported, never built, not a failure.
+- **Missing inputs** of a stale backend are checked before its build: `uv` and an Inspect environment's pinned dataset in
+  the fetch cache are blocking (`backend.input_missing`; the dataset is a download that needs the user's consent, and no
+  build makes it; the message names an earlier environment of the backend holding a verified copy, if one does).
+  AutoDojo's NLTK `punkt_tab`, uncached without `--allow-network`, is not: the environment is built without it, as by
+  `build`, with a notice.
+- **Never under a live job.** A stale backend is skipped (`busy`, `io.resource_busy`, a failure for the exit code) while
+  a live `run` is registered on its environment (G6a), a running job's `subcommand_argv` is `run` with a source on that
+  backend anywhere among its arguments (its argv need not name the environment: the worker starts its interpreter
+  later; the GUI puts positionals last), a running `batch run` driver's batch has a step not yet ended (`pending`,
+  `held`, `running`) that is such a run (an unreadable batch counts), or a running job's argv names a path inside the
+  environment or `backends/<project>` (as given or resolved). A `ResourceBusyError` from the build's lock (a run that
+  registered after the check) is `busy` too. A dry run prunes no dead registration (`live_users(prune=False)`).
+- **Defence assets are never removed.** A stale environment the checkout names whose marker records `defence_assets` is
+  `blocked` (`backend.defence_assets_kept`) with `backends build BACKEND --defence-assets IDS` and the offline check:
+  `build`'s exact `uv sync` without the `defences` group would uninstall them from that directory.
+- **Rebuild.** Each stale backend in turn: `build`'s steps, locks and marker (no defence assets), then `--offline-check`'s
+  checks and `hello`. A failure is recorded (stage, code, reason, the command to run) and the next backend follows. Only
+  the environment the checkout names is written; no other directory under `$AGENTPROV_HOME/envs` is touched. Exit 0 when
+  every stale backend was rebuilt and checked, 3 otherwise; a dry run exits 0 and lists each backend's state, reason and
+  the commands it would run. `--backend` naming no backend (`""`, `,`) is a usage error (exit 2). Known limit: the lock
+  records `backends/shared`'s version, not its files, so a change there without a re-lock is not detected.
+- **Progress** (N.1.14): one `start` with `total` = the number of backends, one unit per backend (`current`, `rebuilt`,
+  `failed`, `blocked`, `busy`, `unsupported`; `stale` in a dry run); a build's stage events are named `<backend>/<stage>` and its
+  units become `step` events of the backend's unit. `--format json` prints the `agentprov-backends-rebuild/0.1` report.
 
 **Implementation resolution (phase 8; code `agentprov.cli.backends`, `agentprov.cli.live.envs`, `agentprov.cli.live.sandbox`).**
 1. **Environment name.** For AgentDojo (pinned by version from PyPI) `<commit8>` is the first 8 hex digits of the sha256 of
@@ -3360,7 +3396,8 @@ for fetches).
 | `devrun plan\|start\|list\|prune` | dev runs (`agentprov.devrun`): a few samples of every chosen part imported into `$AGENTPROV_HOME/dev-runs/<stamp>/` and checked as one batch (import, validate, `recompute --dry-run` per part; never `--release`, never a stored corpus). Settings are `agentprov settings` `devrun.*`; `start` needs `--confirm-r2` (the imports read the fetch cache) and prunes old runs that nothing uses | D-705 |
 | `estimate SOURCE <run options>` | the cost and time of a live run before it starts: a dry plan (N.2.1 item 5) and the catalogue, cell statistics from `--stats-corpus` corpora, the local priors (`priors build`) and the shipped priors (per benchmark: local family, shipped family, local any-model, shipped any-model) or `estimate.default.*`, priced by `prices`; the JSON document's `quote` gives the run's USD, calls, tokens and time at p50 and p90 (the p90 an upper figure: the sum of per-cell 90th percentiles) and what they rest on, marked an estimate only (D-1062), and `quote.caps` the suggested D-725 caps: the p90 calls and the upper cost × (1 + `estimate.caps_margin_pct`, unset 20 %), plus the dry plan's `cell_bound` for `min(jobs, cells due)` cells and one probe at the cap prices, rounded up (or `available: false` with the reason: scripted, no price, no cell due, only `estimate.default.*`, no bound); the text form prints them as "Suggested caps: …" (D-1090); p50/p90 cost and time, worst case, per suite and per attack (`--format json`: `agentprov-estimate/0.1`). Takes run's options less the run-only ones; no model call, nothing written. An Inspect plan is priced per sample × epoch, the agent's calls and the judges' calls apart, each judge at its model's price at the agent's endpoint, with D-740's bound of billed calls per sample | D-701, D-770, D-1090 |
 | `priors build\|show` | the estimate's local priors (`agentprov.estimate.localpriors`; the corpora are read in `agentprov.cli.priors_read`): `build` counts the executions of the user's sealed corpora (every one under `$AGENTPROV_HOME/corpora`, the highest version of each corpus id, or the `--corpus` ones) into `$AGENTPROV_HOME/estimate/priors-local.json`, atomically, in the shipped priors' format and with the shipped builder; working corpora, withheld executions and executions already counted are left out; nothing is written into a corpus (R1). `show` (R0) describes the local and shipped tables | D-1062 |
-| `update check\|status\|download\|install\|rollback` | Check for Updates (`agentprov.update`): `check --allow-network` (R2) reads the GitHub releases API of the public repository (`api.github.com` only, bounded, strict JSON, untrusted; drafts, pre-releases and tags other than `vX.Y.Z` ignored; asset addresses built from the tag and name, another host refused) and compares the newest release in PEP 440 order with the core and the app (`agentprov-update-check/0.1`), cached in `$AGENTPROV_HOME/update/check.json`; `--if-stale` fetches once a local day while the setting `update.auto_check` is not false (unset: on); `status` (R0) reads the cache. `download --allow-network` (R2) stages this platform's bundle, `SHA256SUMS` and `SHA256SUMS.sig` under `$AGENTPROV_HOME/update/staging/`: the signature first (`ssh-keygen -Y verify -n file` against the package's `update/data/allowed_signers`; a listed key makes a signature mandatory), then the sha256, then the archive's members; any mismatch refuses and keeps nothing. `install --confirm --bundle PATH` (R2) verifies again, unpacks beside the app with a checking extractor and swaps the folders, the previous kept in `.AgentPROV-previous` (macOS and Linux at once; Windows by a detached helper after the app has quit); without `--bundle` it prints the upgrade command of a package install. `rollback --yes --bundle PATH` (R1) swaps back | D-1065 |
+| `update check\|status\|download\|install\|rollback` | Check for Updates (`agentprov.update`): `check --allow-network` (R2) reads the GitHub releases API of the public repository (`api.github.com` only, bounded, strict JSON, untrusted; drafts, pre-releases and tags other than `vX.Y.Z` ignored; asset addresses built from the tag and name, another host refused) and compares the newest release in PEP 440 order with the core and the app (`agentprov-update-check/0.1`), cached in `$AGENTPROV_HOME/update/check.json`; `--if-stale` fetches once a local day while the setting `update.auto_check` is not false (unset: on); `status` (R0) reads the cache. `download --allow-network` (R2) stages this platform's bundle, `SHA256SUMS` and `SHA256SUMS.sig` under `$AGENTPROV_HOME/update/staging/`: the signature first (`ssh-keygen -Y verify -n file` against the package's `update/data/allowed_signers`; a listed key makes a signature mandatory), then the sha256, then the archive's members; any mismatch refuses and keeps nothing. `install --confirm --bundle PATH` (R2) verifies again, unpacks beside the app with a checking extractor and swaps the folders, the previous kept in `.AgentPROV-previous` (macOS and Linux at once; Windows by a detached helper after the app has quit). The bundle's own `agentprov` (`AgentPROV --cli ARGS`, and the `-I -m` forms the core starts; `agentprov.cli.frozen`) is updated with it. `download --package --allow-network` (R2) stages the release's wheels (`agentprov`, `agentprov-capture`, and `agentprov-zenodo` when installed) under `$AGENTPROV_HOME/update/staging/package/`, verified as a bundle is plus each wheel's metadata; `install --package --confirm` (R2) installs exactly those files with the program's own installer (`pip`, `uv pip --python`, `pipx runpip`; `--no-deps --no-index`: never PyPI), refusing a release whose wheels need anything the installed version did not declare; the previous version is not kept (the result names the command that goes back). `install --checkout --confirm --allow-network` (R2) runs `git pull --ff-only origin main` and `uv sync --frozen --group docs` in the editable install's checkout, only when it is clean, on `main` with upstream `origin/main`, has no commit origin lacks, and has an `origin` of the project's (fetch, the check, `merge --ff-only`; never a reset, stash or branch switch). Without a flag, `install` prints the upgrade command of this install and, as `automatic`, which of these paths applies and why not. `rollback --yes --bundle PATH` (R1) swaps back | D-1065, D-1130 |
+| `launcher install\|remove\|status` | the desktop app's Terminal command (Install Command Line Tool… and Uninstall Command Line Tool; `agentprov.cli.launcher`). `install` (R1) writes a launcher named `agentprov` (Windows `agentprov.cmd`) in `~/.local/bin` (made when missing) or `--dir DIR` (existing and writable; never `sudo` or elevation; the GUI offers `/usr/local/bin` only when writable) that runs `"EXE" --cli ARGS`, EXE the bundle's executable by absolute path (`sys.executable` when frozen, else `--app`, which must be named `AgentPROV`/`AgentPROV.exe` and not be a launcher), and exits 127 with a message when EXE is gone; its second line is the marker `agentprov-launcher/1`. Any other `agentprov` in the folder (pip, uv tool, pipx, a `.venv` link, a file without the marker; on Windows also `agentprov.exe`/`.bat`/`.com`, and the app's own folder, as the app's) is refused with exit 4 and named, never replaced; so is (exit 4) an app path that will not last (macOS App Translocation, a read-only disk image). `remove` (R1) deletes only marked launchers (default folder and `/usr/local/bin`, or `--dir`); `status` (R0) reports each, what it runs, whether its folder is on `PATH` and the first `agentprov` on `PATH` (`agentprov-launcher/0.1`). The GUI never counts a marked launcher as a separately installed `agentprov` (D-1030's lookup), so the CLI precedence of D-1130 is unchanged | D-1130 |
 | `models [--endpoint NAME \| --base-url URL] [--model-id ID] [--allow-network \| --refresh-if-stale]` | the models a running local model server serves, and one model's observed identity (read-only, loopback or opted-in LAN; N.2.18); an API provider's dated model list, fetched with `--allow-network` (R2) or under `models.auto_refresh` (D-730..D-735); the GUI's model picker | D-691, D-730 |
 
 ### N.2.18 `models` — local model servers (D-691, D-692)

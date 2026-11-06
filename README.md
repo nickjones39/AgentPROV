@@ -207,7 +207,17 @@ agentprov info               # versions, the source registry, extras, host isola
 
 Live runs and the desktop app from source need the repository checkout below: the benchmark backends are separate uv
 projects that the package does not contain. The desktop app is also a download on the
-[releases page](https://github.com/nickjones39/AgentPROV/releases/latest).
+[releases page](https://github.com/nickjones39/AgentPROV/releases/latest). It carries its own copy of `agentprov`
+(`AgentPROV --cli`), which runs every job but live runs, so it needs no other install. The app's Install Command Line
+Tool… (in the AgentPROV menu on macOS, in Help on Linux and Windows) makes that copy the `agentprov` command in a
+Terminal. It writes a small launcher in `~/.local/bin` that runs the app by its full path, needs no administrator
+rights, and never replaces an `agentprov` installed with pip, uv tool or pipx. See
+[the Terminal command](docs/user-guide/08-desktop-app.md#the-agentprov-command-in-a-terminal).
+
+**Updating.** `agentprov update check --allow-network` finds a new release. The app's Download and Install… updates the
+app and, after the same confirmation, the `agentprov` it runs: a pip, uv tool or pipx install from the release's own
+signed wheels (never PyPI), or a clean checkout on `main` by fast-forward. See
+[Updating](docs/user-guide/08-desktop-app.md#updating).
 
 **From a checkout.** AgentPROV uses [uv](https://docs.astral.sh/uv/) (0.12.22 or later). The core needs Python ≥ 3.14;
 release builds that ingest archives need 3.14.8 or later.

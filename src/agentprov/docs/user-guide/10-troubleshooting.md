@@ -90,12 +90,18 @@ Backend environments live in `$AGENTPROV_HOME/envs/<id>` and are built by `agent
   `agentprov backends build agentdojo` again. It syncs offline from the uv cache; `--allow-network` lets uv download
   missing packages (ask yourself whether you want that first). `--dry-run` shows the environment id, the lock digest
   and whether the network would be used.
+- **After an update, rebuild every stale one at once:** `agentprov backends rebuild-stale` checks each registered
+  backend's environment for this checkout (missing, or failing the identity check, the two reasons Run Live shows no
+  suites), builds each stale one in turn and runs `--offline-check` on it. `--dry-run` lists what it would rebuild and
+  why; `--allow-network` lets uv download locked packages that are not cached. If one fails, the others still run; the
+  line for it gives the reason and the command to run, and the exit code is 3. In the app: Runs › **Rebuild Stale
+  Environments…** ([chapter 7](07-live-runs.md#after-an-update-rebuild-the-stale-environments)).
 - A run whose environment is missing or out of date stops with exit 3 and names the build command.
 - Do not edit an environment by hand: every installed file is hashed, and a changed file fails the identity check.
 
 ## Live runs
 
-Run live commands from inside the repository checkout: `run`, `backends build` and `migrate` find the backend projects
+Run live commands from inside the repository checkout: `run`, `estimate` (it plans through `run`), `backends build`, `backends rebuild-stale` and `migrate` find the backend projects
 (`backends/…`) from the current directory, and outside it they exit 3 with `[backend.repository_missing]: this command
 needs the AgentPROV repository checkout`. The corpus you give them must still be **outside** the checkout.
 
@@ -103,7 +109,12 @@ needs the AgentPROV repository checkout`. The corpus you give them must still be
 |---|---|---|
 | `[backend.unavailable]` … "run 'agentprov backends build X'" | 3 | the backend environment is not built, or its marker is missing: build it (offline from the uv cache), then `--offline-check` |
 | `[adapter.identity_mismatch]`, "the marker's lock_sha256 differs from backends/<b>/uv.lock" | 3 | a git-pinned environment (`autodojo`, `agentdyn`) whose lock changed since it was built: rebuild. A version-pinned one (`agentdojo`) gets a new id instead ([chapter 7](07-live-runs.md#what-an-environment-id-means)) |
-| `--offline-check` fails after an update | 3 | the code in `backends/shared`, the sandbox profile or a lock changed: rebuild the environment |
+| `--offline-check` fails after an update | 3 | the sandbox profile or a lock changed: rebuild the environment, or every stale one with `agentprov backends rebuild-stale`. After a change to `backends/shared` alone (no re-lock), rebuild that backend with `agentprov backends build BACKEND`: `rebuild-stale` does not see it |
+| `rebuild-stale`: `[backend.input_missing]` "the pinned dataset ai-safety-institute/AgentHarm@e23b3fe60a0d lacks N of 6 files in the fetch cache" | 3 | the Inspect environment copies its pinned dataset from the fetch cache (`$AGENTPROV_HOME/cache/hf/ai-safety-institute/AgentHarm/<revision>/`) and never downloads it. Fetching it is a download from Hugging Face that needs your consent; put the pinned files there (each is accepted only with its pinned size and sha256; the message names an earlier environment that holds a verified copy, if one does), then run `rebuild-stale` again. The other backends are rebuilt meanwhile |
+| `rebuild-stale`: `[io.resource_busy]` "in use, not rebuilt: the running job … (run agentdojo)" | 3 | a live run uses that backend (or a running batch still has live steps on it); it is never rebuilt under one. Wait for the run to end, then run `rebuild-stale` again (the other backends were rebuilt) |
+| `rebuild-stale`: `[backend.defence_assets_kept]` "agentdojo-… holds the defence assets …; a rebuild here would remove them" | 3 | the stale environment is the one the checkout names and holds defence assets; a rebuild without them would uninstall them, so it was left as it is. Run the command the line gives (`agentprov backends build BACKEND --defence-assets IDS`) |
+| `rebuild-stale`: "NLTK punkt_tab is not in the fetch cache" (a notice) | 0 | AutoDojo was rebuilt without it, as an offline `backends build autodojo` does; only the (refused) filter defences need it. `--allow-network` fetches the pinned file |
+| `rebuild-stale`: "uv sync --locked failed … (offline: the uv cache lacks a locked package …)" | 3 | rerun with `--allow-network` (the line names the command), or build that backend alone |
 | the environment is "being built" or "in use" | 4 | a build and a run exclude each other on one environment; wait for the other to finish |
 | a worker's `hello` ends with `PermissionError` on a `.env.example` file (AgentDyn) | 3 | the environment predates the identity fix: rebuild it |
 | `cli.refused.api_caps` | 4 | an API endpoint needs `--max-calls`, `--max-cost-usd`, `--price-in` and `--price-out` |
@@ -136,6 +147,70 @@ and exits 130; press it twice and the run exits at once, leaving sessions in the
 
 - A LAN endpoint (`--allow-lan-endpoint`) is classed `api`, not `local`: only a loopback address counts as local. It
   needs the caps and `--i-consent-to-api-costs`, and `--i-consent-to-local-run` is refused for it.
+
+## Updates
+
+- **"agentprov cannot do it here" / the checkout is skipped.** `agentprov update install` (and the app's Download and
+  Install…) updates a checkout only when it is on `main` with upstream `origin/main`, `origin` is the project's GitHub
+  repository, the tree has no changes or untracked files, `main` has no commit `origin` lacks, and the `agentprov`
+  doing it runs from the checkout's own `.venv`. Otherwise it changes nothing, says which condition failed, and shows
+  the commands (`git pull --ff-only origin main`, then `uv sync --frozen --group docs`, with `--extra X` for each extra
+  you have installed). Commit, push or move your work, or run them yourself; the update never resets, stashes or
+  switches branches.
+- **"origin/main adds …, which already exist here as ignored local files".** A new commit adds a tracked file where
+  you have a file git ignores (an ignored file is not in `git status`, and git would overwrite it without asking). Move
+  that file aside, then update again. Nothing was changed.
+- **Extras after a checkout update.** `uv sync` removes every extra it is not given, so the update names each one you
+  had installed again (`live`, `render`, `shacl`, `zenodo`): your extras stay.
+- **A package upgrade is refused with `update.package.dependencies`.** The new release's wheels need a package your
+  install does not already have. The verified upgrade installs no package from PyPI, so it stops and prints the
+  ordinary upgrade command (`uv tool upgrade agentprov`, `pipx upgrade agentprov` or `pip install --upgrade
+  agentprov`); run that instead.
+- **`update.verify.signature`, `update.verify.sha256`, `update.package.wheel`.** A downloaded file does not match the
+  release's signed `SHA256SUMS`, or a wheel is not what its name says. Nothing was installed and the download was
+  removed. Try again later; if it repeats, report it.
+- **`update.verify.keys` (exit 3): "the package's allowed_signers file … is missing or unreadable".** The install of
+  `agentprov` (or the app) has lost its release keys, so no release can be verified; it never falls back to the
+  checksum alone. Install `agentprov` (or download the app) again.
+- **The bundle's own agentprov refuses a command: "this copy of the app lacks the core's source files"** (exit 3). The
+  app's copy of `agentprov` records the digest of its code in every corpus it writes, so a damaged or incomplete app
+  refuses `import`, `derive`, `recompute`, `validate` and the other commands that record one. Download the app again,
+  or use a checkout or a pip, uv tool or pipx install (Settings › General).
+- **`update.install.busy`: a job runs from what the update would replace.** Jobs keep running after the app quits,
+  and they read the app's, the install's or the checkout's files as they go, so the update does not replace those
+  files under them. The message names the jobs. Stop them (Runs › Stop, or `agentprov jobs stop ID`) or wait until
+  they end, then install again.
+- **The previous version of a package install.** It is not kept. The update's output gives the command that
+  reinstalls it (from PyPI), for example `uv tool install --force agentprov==0.2.0`.
+- **Run Live says live runs need a checkout.** The app runs its own copy of `agentprov` (Settings › General › agentprov
+  to run, or no checkout and no installed `agentprov` found). Set the checkout in Settings › General.
+- **After an update, a backend is "not built" or reports `adapter.identity_mismatch`.** The new code expects a rebuilt
+  environment: `agentprov backends build BACKEND`, then `agentprov backends build BACKEND --offline-check` (see Backend
+  environments above).
+
+## The Terminal command (Install Command Line Tool)
+
+- **`agentprov: command not found` after Install Command Line Tool.** The launcher's folder (`~/.local/bin`) is not on
+  your `PATH`, or the Terminal window was open before you added it. Add it, for zsh on macOS with `echo 'export
+  PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile` (bash on Linux: `~/.profile`), and open a new window. On Windows, add
+  `%USERPROFILE%\.local\bin` under "Edit environment variables for your account" › Path, then open a new terminal.
+- **"the app is not in a lasting place" (exit 4).** On macOS the app was opened where it was downloaded (macOS runs it
+  from a temporary App Translocation copy) or from its disk image. Move AgentPROV.app to Applications, open it from
+  there, and choose Install Command Line Tool… again.
+- **`agentprov: the AgentPROV app is no longer at ...` (exit 127).** The app was moved or deleted after the launcher
+  was made. Choose Install Command Line Tool… again from the app where it is now, or delete the launcher (the message
+  names it). An app update keeps the same place, so it does not cause this.
+- **"another agentprov is already there".** The folder already holds an `agentprov` that the app did not make: one
+  from pip, uv tool or pipx, or a link into a checkout's `.venv`. The refusal says which. Neither Install nor
+  Uninstall touches it. That program is already a Terminal command, so you may not need the launcher. To use the app's
+  copy instead, remove it with its own tool (`uv tool uninstall agentprov`, `pipx uninstall agentprov`, `pip uninstall
+  agentprov`) and install again.
+- **`/usr/local/bin` is not offered, or "needs administrator rights".** The command never uses `sudo` or elevation.
+  Use the default `~/.local/bin`.
+- **A Terminal runs a different agentprov.** Another one comes first on `PATH`; `agentprov launcher status` names it
+  (`which -a agentprov` lists them all). Remove it, or put `~/.local/bin` earlier in `PATH`.
+- **Windows.** The launcher is `agentprov.cmd`, and an `agentprov.exe` in the same folder would run first, so Install
+  refuses that folder. The Windows launcher has not yet been tested on Windows.
 
 ## Feedback, logs and memory
 

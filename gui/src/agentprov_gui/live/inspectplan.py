@@ -54,7 +54,22 @@ def param_arg(name: str, value: str | int | bool) -> str:
         tomllib.loads(f"v = {value}")
     except tomllib.TOMLDecodeError:
         return f"{name}={value}"  # read back as this very string
-    return f'{name}="{value}"'  # the catalogue's labels hold no quote or backslash
+    return f"{name}={_basic_string(value)}"
+
+
+def _basic_string(text: str) -> str:
+    """``text`` as a TOML basic string that reads back as ``text``: a typed value (a free-text parameter) may hold
+    quotes and backslashes; control characters and DEL are written as ``\\uXXXX``."""
+    out = ['"']
+    for char in text:
+        if char in '"\\':
+            out.append("\\" + char)
+        elif ord(char) < 0x20 or ord(char) == 0x7F:
+            out.append(f"\\u{ord(char):04X}")
+        else:
+            out.append(char)
+    out.append('"')
+    return "".join(out)
 
 
 @dataclass(frozen=True, slots=True)

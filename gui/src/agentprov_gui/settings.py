@@ -149,3 +149,14 @@ class Settings:
         if value is not None and not _path_ok(str(value)):
             return
         self.store.setValue("paths/cli_program", os.path.abspath(value.expanduser()) if value else "")
+
+    @property
+    def cli_choice(self) -> str:
+        """Settings › General's "agentprov to run" (D-1130): ``auto`` (the checkout, else the installed agentprov, else
+        the app's own) or ``bundled`` (the app's own copy, updated with the app). Anything else reads as ``auto``."""
+        v = self._get("paths/cli_choice", "auto")
+        return v if v in ("auto", "bundled") else "auto"
+
+    @cli_choice.setter
+    def cli_choice(self, value: str) -> None:
+        self.store.setValue("paths/cli_choice", value if value in ("auto", "bundled") else "auto")

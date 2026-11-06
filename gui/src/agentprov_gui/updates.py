@@ -16,8 +16,16 @@ command, or an answer that is not the document, gives ``None`` and the reason, n
 
 The check's ``behind`` flags say which part is older than the newest release (D-1070): the app itself, or only the
 ``agentprov`` program it runs (the configured checkout or package install, :attr:`Check.cli_only`). Replacing the
-bundle cannot update that program, so for ``cli_only`` the app shows its upgrade command (``update install --format
-json``, no ``--bundle``) and never downloads a bundle.
+bundle cannot update that program, so for ``cli_only`` no bundle is downloaded.
+
+The whole software (D-1130): when the program the app runs is older too and it is not the bundle's own copy (which a
+bundle install updates with the app), ``update install --format json`` without a flag says how that program is
+installed and which automatic path applies (:class:`Automatic`): a ``pip``, ``uv tool`` or ``pipx`` install is
+upgraded from the release's verified wheels (``update download --package --allow-network``, then ``update install
+--package --confirm``: the program's own installer, no dependency resolution, no index), a clean checkout on ``main``
+with the project's remote is fast-forwarded (``update install --checkout --confirm --allow-network``), and anything
+else gets the command to run. :class:`UpdatePlan` is the one confirmation's content: each part that will be replaced
+(from which version to which, how it was verified, what is kept) and each part that cannot be, with why.
 
 Every text the CLI returns is shown as plain, escaped text (S1, S3): :func:`agentprov_gui.text.clean` per line.
 """
@@ -39,8 +47,10 @@ from agentprov_gui import text as T
 
 __all__ = [
     "AUTO_CHECK", "CHECK_FORMAT", "DOWNLOAD_FORMAT", "INSTALL_FORMAT", "LAST_NOTIFIED", "STATUS_FORMAT", "UNSIGNED_NOTE",
-    "Check", "Download", "Install", "app_bundle", "app_version", "check_argv", "download_argv", "install_argv",
-    "notes_text", "notify", "parse_check", "parse_download", "parse_install", "reason", "skip_argv", "status_argv",
+    "Automatic", "Check", "Download", "Install", "Part", "UpdatePlan", "app_bundle", "app_version", "check_argv",
+    "checkout_install_argv", "download_argv", "install_argv", "notes_text", "notify", "package_download_argv",
+    "package_install_argv", "parse_check", "parse_download", "parse_install", "plan", "plan_argv", "reason",
+    "skip_argv", "status_argv",
 ]  # fmt: skip
 
 CHECK_FORMAT: Final = "agentprov-update-check/0.1"
@@ -109,6 +119,26 @@ def install_argv(bundle: Path | None, gui: str | None) -> list[str]:
     if bundle is None:
         return ["update", "install", "--format", "json"]
     return ["update", "install", "--confirm", *_app(bundle, gui), "--format", "json"]
+
+
+def plan_argv() -> list[str]:
+    """How the agentprov program the app runs is installed and which automatic path updates it (changes nothing)."""
+    return ["update", "install", "--format", "json"]
+
+
+def package_download_argv() -> list[str]:
+    """The release's wheels for a pip, uv tool or pipx install, verified as a bundle is (R2, D-1130)."""
+    return ["update", "download", "--package", "--allow-network", "--format", "json"]
+
+
+def package_install_argv() -> list[str]:
+    """Install the verified wheels with the program's own installer (only after the user's confirmation)."""
+    return ["update", "install", "--package", "--confirm", "--format", "json"]
+
+
+def checkout_install_argv() -> list[str]:
+    """Fast-forward a clean checkout on main and sync it (only after the user's confirmation; R2: git pull)."""
+    return ["update", "install", "--checkout", "--confirm", "--allow-network", "--format", "json"]
 
 
 def skip_argv(version: str) -> list[str]:
@@ -231,7 +261,8 @@ def notes_text(value: Any) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Download:
-    """``agentprov-update-download/0.1``: what was staged and how it was verified."""
+    """``agentprov-update-download/0.1``: what was staged and how it was verified. ``kind`` ``package`` (D-1130) is
+    the release's wheels for the agentprov program, with what installing them would do."""
 
     tag: str | None
     version: str | None
@@ -240,6 +271,14 @@ class Download:
     verification: str  # "sha256+signature" or "sha256"
     signed_by: str | None
     directory: str | None
+    kind: str = "bundle"  # "bundle" or "package"
+    wheels: tuple[str, ...] = ()
+    installable: bool = False  # package: the installer can take the wheels without resolving anything
+    problems: tuple[str, ...] = ()
+    installer: str | None = None  # "pip", "uv pip", "pipx runpip"
+    install_kind: str | None = None  # "pip", "uv-tool", "pipx"
+    from_version: str | None = None
+    restore: str | None = None  # the command that goes back (the previous version is not kept)
 
     @property
     def signed(self) -> bool:
@@ -254,16 +293,38 @@ def parse_download(code: int, out: bytes) -> Download | None:
     verification = _text(doc.get("verification"), 40)
     if verification is None:
         return None  # a download the CLI did not say it verified is not one to install
-    return Download(_text(doc.get("tag"), 40), _text(doc.get("version"), 40), _text(asset.get("name"), 200),
-                    _int(asset.get("size")), verification, _text(doc.get("signed_by"), 120),
-                    _text(doc.get("dir"), 400))
+    kind = "package" if doc.get("kind") == "package" else "bundle"
+    wheels = tuple(T.clean(w.get("name"), 200) for w in _seq(doc.get("wheels"))[:10]
+                   if isinstance(w, dict) and isinstance(w.get("name"), str))
+    if kind == "package" and not wheels:
+        return None
+    return Download(_text(doc.get("tag"), 40), _text(doc.get("version") or doc.get("to_version"), 40),
+                    _text(asset.get("name"), 200), _int(asset.get("size")), verification,
+                    _text(doc.get("signed_by"), 120), _text(doc.get("dir"), 400), kind, wheels,
+                    doc.get("installable") is True and kind == "package",
+                    tuple(T.clean(x, 300) for x in _seq(doc.get("problems"))[:10] if isinstance(x, str)),
+                    _text(doc.get("installer"), 40), _text(doc.get("install_kind"), 40),
+                    _text(doc.get("from_version"), 40), _text(doc.get("restore_command"), 400))
+
+
+@dataclass(frozen=True, slots=True)
+class Automatic:
+    """``update install``'s ``automatic`` (D-1130): which path updates the agentprov program the app runs (``how``:
+    ``package``, ``checkout``, ``bundle`` or ``None``), whether it applies here, and why not."""
+
+    how: str | None
+    available: bool
+    why: str | None
+    installer: str | None = None
+    root: str | None = None
+    head: str | None = None  # checkout: the commit it is at
 
 
 @dataclass(frozen=True, slots=True)
 class Install:
     """``agentprov-update-install/0.1``: ``action`` is ``installed`` (quit and reopen), ``waiting-for-quit`` (Windows:
     applied once the app has quit), ``current`` (nothing to do) or ``command`` (a package install or a checkout: the
-    command that upgrades it, never run by the app)."""
+    command that upgrades it, and :attr:`automatic`, the path the app may take after the user's confirmation)."""
 
     action: str
     kind: str | None
@@ -272,6 +333,10 @@ class Install:
     text: str | None
     rollback: str | None
     to_version: str | None
+    automatic: Automatic | None = None
+    from_version: str | None = None
+    restore: str | None = None  # package (D-1130): the command that goes back; checkout: the reset and the sync
+    synced: bool | None = None  # checkout: whether uv sync ran
 
 
 def parse_install(code: int, out: bytes) -> Install | None:
@@ -283,10 +348,98 @@ def parse_install(code: int, out: bytes) -> Install | None:
         return None
     lines = _seq(doc.get("lines"))
     command = _seq(doc.get("command"))
+    auto = _obj(doc.get("automatic"))
+    how = auto.get("how") if auto.get("how") in ("package", "checkout", "bundle") else None
+    automatic = Automatic(how, auto.get("available") is True and how in ("package", "checkout"),
+                          _text(auto.get("why"), 300), _text(auto.get("installer"), 40),
+                          _text(auto.get("root"), 400),
+                          auto["head"][:12] if isinstance(auto.get("head"), str) and re.fullmatch(
+                              r"[0-9a-f]{40,64}", auto["head"]) else None) if auto else None
+    restore = doc.get("restore")
+    restore_text = (" && ".join(" ".join(T.clean(a, 300) for a in c if isinstance(a, str)) for c in restore[:3]
+                                if isinstance(c, list)) if isinstance(restore, list) else None)
     return Install(str(action), _text(doc.get("kind"), 40),
                    tuple(T.clean(x, 400) for x in lines[:20] if isinstance(x, str)),
                    tuple(T.clean(x, 400) for x in command[:20] if isinstance(x, str)), _text(doc.get("text"), 400),
-                   _text(doc.get("rollback_command"), 400), _text(doc.get("to_version"), 40))
+                   _text(doc.get("rollback_command"), 400), _text(doc.get("to_version"), 40), automatic,
+                   _text(doc.get("from_version"), 40), _text(doc.get("restore_command"), 400) or restore_text or None,
+                   _flag(doc.get("synced")))
+
+
+# ----------------------------------------------------------------------------------------------- the one confirmation
+@dataclass(frozen=True, slots=True)
+class Part:
+    """One part an update replaces: what it is, the versions, how it was verified, what is kept, what runs."""
+
+    name: str  # "The app" or "The agentprov program"
+    detail: str  # the folder, the install kind, the checkout
+    from_version: str | None
+    to_version: str | None
+    verified: str  # how the bytes were verified (or, for a checkout, where they come from)
+    keeps: str  # what stays to go back to, or that nothing does
+    argv: tuple[str, ...]  # the command that installs it, run after the confirmation
+    signed: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class UpdatePlan:
+    """What Download and Install… asks about once (D-1130): the parts it will replace and those it cannot, with why
+    and the command to run instead."""
+
+    parts: tuple[Part, ...]
+    cannot: tuple[tuple[str, str, str | None], ...]  # (what, why, the command the user runs instead)
+    #: what runs after the parts, said before the confirmation (the backend environments' rebuild), else ``None``
+    followup: str | None = None
+
+    @property
+    def to_version(self) -> str | None:
+        return next((p.to_version for p in self.parts if p.to_version), None)
+
+
+def _verified(d: Download) -> str:
+    return f"{d.verification}{', signed by ' + d.signed_by if d.signed_by else ''}"
+
+
+def plan(*, bundle: Path | None, gui: str | None, app: Download | None, program: Install | None,
+         package: Download | None, package_refused: str | None = None, core: str | None = None) -> UpdatePlan:
+    """The confirmation's content from what the CLI said: the app's verified bundle (``app``), how the program is
+    installed (``program``, ``update install``'s plan) and, for a package install, its verified wheels."""
+    parts: list[Part] = []
+    cannot: list[tuple[str, str, str | None]] = []
+    if app is not None and bundle is not None:
+        parts.append(Part("The app", T.line(str(bundle), 300), gui, app.version, _verified(app),
+                          f"the current version is kept beside it in .AgentPROV-previous (agentprov update rollback "
+                          f"--yes --bundle {T.line(str(bundle), 300)})", tuple(install_argv(bundle, gui)), app.signed))
+    if program is not None:
+        auto = program.automatic
+        name = "The agentprov program"
+        if auto is not None and auto.how == "package" and auto.available:
+            if package is not None and package.installable:
+                parts.append(Part(name, f"a {package.install_kind or 'package'} install", package.from_version or core,
+                                  package.version, f"{_verified(package)}: {', '.join(package.wheels)}",
+                                  "the previous version is not kept; to go back, run (it installs from PyPI): "
+                                  f"{package.restore or 'the install command of that version'}",
+                                  tuple(package_install_argv()), package.signed))
+            else:
+                why = ("; ".join(package.problems) if package is not None and package.problems else package_refused
+                       or "the release's wheels could not be downloaded and verified")
+                cannot.append((name, f"its new version needs more than the release's verified wheels ({why}), and "
+                                     "nothing is fetched from PyPI", program.text))
+        elif auto is not None and auto.how == "checkout" and auto.available:
+            where = T.line(auto.root or "the checkout", 300)
+            at = f"commit {auto.head}" if auto.head else (program.from_version or core)
+            parts.append(Part(name, f"the checkout {where} (main, clean)", at, "origin/main's newest commit",
+                              "git pull --ff-only origin main from the project's repository, then uv sync --frozen "
+                              "--group docs; nothing is discarded (no reset, no stash, no other branch), and it is "
+                              "skipped, with the reason, if main has commits origin lacks or cannot fast-forward",
+                              "the old commit stays in git's history (the result names the git reset --keep that "
+                              "goes back)", tuple(checkout_install_argv())))
+        elif auto is not None and auto.how == "bundle":
+            pass  # the app's own copy: the app's part updates it
+        else:
+            why = auto.why if auto is not None and auto.why else "agentprov cannot update this install itself"
+            cannot.append((name, why, program.text))
+    return UpdatePlan(tuple(parts), tuple(cannot))
 
 
 def notify(check: Check | None, last_notified: Any) -> bool:

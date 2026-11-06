@@ -47,13 +47,14 @@ import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any, Final
 
 from agentprov.cli.common import CommandResult, Context, redact_personal, safe_text
 from agentprov.errors import AgentProvError, BackendUnavailable
 from agentprov.progress import ProgressEvent
 
-__all__ = ["register", "run_backends"]
+__all__ = ["build_backend", "check_backend", "check_defence_assets", "register", "run_backends"]
 
 HELLO_TIMEOUT_S: Final = 300.0
 
@@ -67,7 +68,7 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
     p = sub.add_parser(
         "backends",
         parents=[shared],
-        help="backend environments (build)",
+        help="backend environments (build, rebuild-stale)",
         description="Backend environments for live runs (N.2.10).",
         allow_abbrev=False,
     )
@@ -94,14 +95,35 @@ def register(sub: Any, shared: argparse.ArgumentParser) -> None:
                         "is accepted only by its pinned sha256 and git blob id (no network)")
     b.add_argument("--env-file", metavar="PATH", help="the .env file (not read by the agentdojo build)")
     b.add_argument("--dry-run", action="store_true", help="print the plan; run and write nothing")
+    r = actions.add_parser(
+        "rebuild-stale",
+        parents=[shared],
+        help="rebuild and check every backend environment this checkout no longer accepts",
+        description="Find each registered backend's environment for this checkout that is missing or fails the "
+        "identity check (as run --catalogue does), build it as 'backends build' does, then verify it as "
+        "--offline-check does. A failure is recorded and the next backend follows; other environments under "
+        "$AGENTPROV_HOME/envs are never touched (D-1130).",
+        allow_abbrev=False,
+    )
+    r.add_argument("--backend", action="append", metavar="ID[,ID...]",
+                   help="only these backends (repeatable; default: every registered backend)")
+    r.add_argument("--allow-network", action="store_true",
+                   help="let uv download the locked packages and fetch AutoDojo's pinned NLTK data (otherwise "
+                        "offline from the uv cache and the fetch cache)")
+    r.add_argument("--format", choices=["text", "json"], default="text",
+                   help="json: the agentprov-backends-rebuild/0.1 report on stdout")
+    r.add_argument("--dry-run", action="store_true", help="list what would be rebuilt and why; build and write nothing")
 
 
 def run_backends(ctx: Context) -> CommandResult:
     from agentprov.cli.common import CliUsageError
 
     args = ctx.args
-    if getattr(args, "backends_action", None) != "build":
-        raise CliUsageError("agentprov backends: an action is required (build)")
+    action = getattr(args, "backends_action", None)
+    if action == "rebuild-stale":
+        return _rebuild_stale(ctx)
+    if action != "build":
+        raise CliUsageError("agentprov backends: an action is required (build, rebuild-stale)")
     if args.offline_check and args.dry_run:
         raise CliUsageError("agentprov backends build: --offline-check and --dry-run are exclusive")
     if not args.dry_run:  # D-1064: refused where the backend is known not to install; the plan stays printable
@@ -395,7 +417,7 @@ def _build(project: Any, env: Path, home: Path, argv: list[str], offline: bool, 
     return result
 
 
-def _check_defence_assets(env: Path, marker: dict[str, Any], project: Any) -> None:
+def check_defence_assets(env: Path, marker: Mapping[str, Any], project: Any) -> None:
     """``--offline-check``: every provisioned defence the marker records is still its pinned bytes."""
     from agentprov.cli.live.defences import load_registry, registry_path, verify_provisioned
 
@@ -421,7 +443,7 @@ def _offline_check(project: Any, env: Path, home: Path, result: CommandResult) -
     envs.check_against_marker(identity, marker, project)
     nltk_data = envs.check_nltk(env, marker)
     envs.check_dataset(env, project, marker)
-    _check_defence_assets(env, marker, project)
+    check_defence_assets(env, marker, project)
     hello = hello_once(env, home, identity.expect(project.commit), nltk_data=nltk_data,
                        worker_module=envs.backend_kind(project.backend).worker_module)
     envs.check_hello(hello, identity, marker, backend=project.backend)
@@ -432,4 +454,143 @@ def _offline_check(project: Any, env: Path, home: Path, result: CommandResult) -
     if project.nltk is not None and nltk_data is None:
         result.notices.append("this environment has no NLTK punkt_tab (nltk_sha256 null): filter-defence runs are refused")
     result.notices.append(f"sandbox-exec feasibility probe recorded: {safe_text(str(marker.get('sandbox_status')), 40)}")
+    return result
+
+
+# ------------------------------------------------------------------------------------------------ rebuild-stale
+def build_backend(backend: str, progress: Any, *, root: Path, home: Path, environ: Mapping[str, str],
+                  allow_network: bool) -> tuple[list[str], list[str]]:
+    """Build ``backend``'s environment for the checkout at ``root`` as ``backends build BACKEND [--allow-network]``
+    does (the same locks, steps and marker; no defence assets). Returns its output lines and notices; raises
+    :class:`~agentprov.errors.AgentProvError` on failure."""
+    from agentprov.cli.live import envs
+    from agentprov.io.locks import backend_build, held, staging_use
+
+    project = envs.backend_project(backend, root)
+    env = envs.env_dir(project, home)
+    uv = shutil.which("uv", path=environ.get("PATH"))
+    if uv is None:
+        raise UvMissing("uv is not on PATH; install uv (https://docs.astral.sh/uv/) to build backend environments")
+    offline = not allow_network
+    argv = envs.uv_sync_argv(project, offline=offline, uv=uv)
+    result = CommandResult()
+    sub = Context(args=argparse.Namespace(defence_source=None), progress=progress, env=environ)
+    with backend_build(home, project.env_name), held(staging_use(home, command="backends rebuild-stale")):
+        _build(project, env, home, argv, offline, result, sub)
+    return [text for kind, text in result.messages if kind == "output"], list(result.notices)
+
+
+def check_backend(backend: str, progress: Any, *, root: Path, home: Path) -> tuple[list[str], list[str]]:
+    """``backends build BACKEND --offline-check`` (the same locks and checks, one ``hello``)."""
+    from agentprov.cli.live import envs
+    from agentprov.io.locks import backend_use, held, staging_use
+
+    project = envs.backend_project(backend, root)
+    env = envs.env_dir(project, home)
+    result = CommandResult()
+    command = "backends rebuild-stale --offline-check"
+    with held(backend_use(home, project.env_name, command=command), staging_use(home, command=command)):
+        _offline_check(project, env, home, result)
+    return [text for kind, text in result.messages if kind == "output"], list(result.notices)
+
+
+def _selected_backends(args: Any) -> list[str]:
+    from agentprov.cli.common import CliUsageError
+    from agentprov.cli.live.stale import live_backend_ids
+
+    known = live_backend_ids()
+    if not args.backend:
+        return list(known)
+    wanted = [n.strip() for value in args.backend for n in value.split(",") if n.strip()]
+    if not wanted:  # --backend "" or "," names nothing: never read as "no backends, all done"
+        raise CliUsageError("agentprov backends rebuild-stale: --backend names no backend (give IDs, comma-separated: "
+                            f"{', '.join(known)})")
+    for name in wanted:
+        if name not in known:
+            raise CliUsageError(f"agentprov backends rebuild-stale: --backend {safe_text(name, 60)} is not a registered "
+                                f"backend ({', '.join(known)})")
+    return [b for b in known if b in wanted]  # registry order, each once
+
+
+def _rebuild_stale(ctx: Context) -> CommandResult:
+    """``agentprov backends rebuild-stale`` (D-1130; :mod:`agentprov.cli.live.stale`)."""
+    from agentprov.cli.live import envs, stale
+
+    args = ctx.args
+    backends = _selected_backends(args)
+    root = envs.repository_root()  # backend.repository_missing (exit 3) outside a checkout, as for backends build
+    home = envs.agentprov_home(ctx.env)
+    uv_found = shutil.which("uv", path=ctx.env.get("PATH")) is not None
+    allow_network = bool(args.allow_network)
+
+    def builder(backend: str, progress: Any) -> tuple[list[str], list[str]]:
+        return build_backend(backend, progress, root=root, home=home, environ=ctx.env, allow_network=allow_network)
+
+    def checker(backend: str, progress: Any) -> tuple[list[str], list[str]]:
+        return check_backend(backend, progress, root=root, home=home)
+
+    outcomes = stale.rebuild_stale(backends, root=root, home=home, environ=ctx.env, allow_network=allow_network,
+                                   dry_run=bool(args.dry_run), builder=builder, checker=checker, uv_found=uv_found,
+                                   progress=ctx.progress)
+    return _rebuild_report(outcomes, args, CommandResult(dry_run=bool(args.dry_run)))
+
+
+_DONE_TEXT: Final = {
+    "current": "current", "rebuilt": "stale, rebuilt and verified (offline check passed)", "failed": "stale, NOT rebuilt",
+    "blocked": "stale, NOT rebuilt (a missing input)", "busy": "stale, NOT rebuilt (in use by a live run)",
+    "unsupported": "not supported on this host (skipped)",
+    "stale": "stale, would be rebuilt", "unavailable": "cannot be checked",
+}
+
+
+def _rebuild_report(outcomes: list[Any], args: Any, result: CommandResult) -> CommandResult:
+    from agentprov.cli.live.stale import DEFENCE_ASSETS as _DEFENCE_ASSETS
+    from agentprov.cli.live.stale import REPORT_FORMAT
+    from agentprov.io.canonical import jcs_bytes
+
+    counts = {k: 0 for k in ("current", "rebuilt", "failed", "blocked", "busy", "unsupported", "stale", "unavailable")}
+    for o in outcomes:
+        counts[o.status] += 1
+    result.counters = {"backends": len(outcomes), **counts}
+    for o in outcomes:
+        st = o.state
+        name = st.env_name or st.backend
+        done = _DONE_TEXT.get(o.status, o.status)
+        if o.status == "blocked" and o.stage == "defences":  # nothing is missing: the environment holds defences
+            done = ("stale, NOT rebuilt (holds defence assets; rebuild it with them)" if o.code == _DEFENCE_ASSETS
+                    else "stale, NOT rebuilt (its defence assets cannot be read)")
+        line = f"{st.backend}: {name} {done}"
+        if st.status != "current":
+            line += f" [{st.code}: {safe_text(st.reason, 300)}]"
+        elif st.files_verified:
+            line += f" ({st.files_verified} files verified)"
+        result.output(line)
+        for text in o.lines:
+            result.output(f"  {text}")
+        if o.reason and o.status in ("failed", "blocked", "busy", "unavailable"):
+            result.error(f"  {o.stage}: [{o.code}] {safe_text(o.reason, 900)}")
+            result.failures.append({"subject": {"path": f"envs/{name}"}, "stage": o.stage or "detect",
+                                    "code": o.code or "adapter.backend_unavailable",
+                                    "detail": safe_text(o.reason, 300)})
+            result.issues_by_code[o.code or "adapter.backend_unavailable"] = \
+                result.issues_by_code.get(o.code or "adapter.backend_unavailable", 0) + 1
+        for command in o.commands:
+            result.output(("  would run: " if o.status == "stale" else "  to do: ") + safe_text(command, 600))
+        for notice in o.notices:
+            result.notices.append(f"{st.backend}: {safe_text(notice, 400)}")
+    failed = counts["failed"] + counts["blocked"] + counts["busy"] + counts["unavailable"]
+    summary = ", ".join(f"{n} {k}" for k, n in counts.items() if n)
+    verb = "dry run" if args.dry_run else "done"
+    result.output(f"agentprov backends rebuild-stale: {verb}: {summary or 'no backends'}")
+    if args.dry_run:
+        result.notices.append("dry run: nothing was built and nothing was written")
+    else:
+        result.notices.append("only the environments this checkout names were built; other environments under "
+                              "$AGENTPROV_HOME/envs were left as they are")
+    if args.format == "json":
+        doc = {"format": REPORT_FORMAT, "dry_run": bool(args.dry_run),
+               "allow_network": bool(args.allow_network), "ok": failed == 0,
+               "counts": counts, "backends": [o.to_json() for o in outcomes]}
+        result.payload = jcs_bytes(doc) + b"\n"
+    result.exit_code = 3 if failed and not args.dry_run else 0
     return result

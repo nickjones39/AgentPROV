@@ -28,8 +28,13 @@ agentprov --help
 ```
 
 The desktop app is a separate download for macOS, Windows and Linux, on the
-[releases page](https://github.com/nickjones39/AgentPROV/releases/latest). Live runs need the repository checkout: the
-benchmark backends are separate projects that this package does not contain.
+[releases page](https://github.com/nickjones39/AgentPROV/releases/latest); it carries its own copy of this program.
+Live runs need the repository checkout: the benchmark backends are separate projects that this package does not
+contain.
+
+To update this package from the release's own signed wheels, with no dependency resolution and nothing fetched from
+PyPI: `agentprov update download --package --allow-network`, then `agentprov update install --package --confirm`.
+`agentprov update install` alone prints the ordinary upgrade command.
 
 ## What it does
 

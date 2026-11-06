@@ -65,7 +65,15 @@ from agentprov_gui import platform_limits
 from agentprov_gui import text as T
 from agentprov_gui.jobs import batch as batch_client
 from agentprov_gui.jobs.batch import Batch
-from agentprov_gui.jobs.commands import CONFORMANCE_OPTION, FORMS, FormError, JobSpec, build_spec, resume_spec
+from agentprov_gui.jobs.commands import (
+    CONFORMANCE_OPTION,
+    FORMS,
+    REBUILD_STALE_TITLE,
+    FormError,
+    JobSpec,
+    build_spec,
+    resume_spec,
+)
 from agentprov_gui.jobs.manager import Job, JobManager, SpawnRefused, cli_options, tail_bytes
 from agentprov_gui.readmodel.corpus import summarise
 from agentprov_gui.ui import theme
@@ -528,6 +536,12 @@ class RunsPage(QWidget):
             "Opens Run Live preset for a small capture (scripted by default) into a new dev-run folder, with the "
             "tasks, attacks and the call and cost caps from Settings › Dev Runs.")
         bar.addWidget(self.live_dev_btn)
+        self.rebuild_btn = self._button(
+            "Rebuild Stale Environments…", "Rebuild stale backend environments", self.rebuild_stale_backends,
+            "Finds every backend environment this checkout no longer accepts (Run Live shows no suites for it), "
+            "builds each in turn and checks it offline (agentprov backends rebuild-stale --allow-network). Asks first: "
+            "it downloads pinned wheels and takes about 15 minutes. Earlier environments are left as they are.")
+        bar.addWidget(self.rebuild_btn)
         bar.addStretch(1)
         note = caption("Each job and batch runs on its own: it keeps going when this window closes.",
                        name="Batch note", parent=self)
@@ -1494,6 +1508,20 @@ class RunsPage(QWidget):
         except ValueError:
             values = None
         return devrun.DevSettings.from_settings(values) if isinstance(values, dict) else devrun.DEFAULTS
+
+    def rebuild_stale_backends(self) -> None:
+        """D-1130: ``agentprov backends rebuild-stale --allow-network`` as a job after its R2 confirmation; its progress
+        (one unit per backend) shows in the jobs table like any job's."""
+        from agentprov_gui.jobs import rebuild
+        from agentprov_gui.ui.jobdialog import confirm
+
+        if self.manager.cli.checkout is None or not self.manager.cli.available:
+            safe_message_box(self, REBUILD_STALE_TITLE, rebuild.NO_CHECKOUT).exec()
+            return
+        spec = rebuild.rebuild_stale_spec()
+        confirmed = confirm(self, spec, shlex.join(["agentprov", *spec.argv]))
+        if confirmed is not None:
+            self.start(confirmed)
 
     def start_dev_run(self) -> None:
         """D-705: ``agentprov devrun plan`` for the confirmation, then ``agentprov devrun start --confirm-r2`` (the run

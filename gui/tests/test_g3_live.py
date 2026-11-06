@@ -835,3 +835,24 @@ def test_an_estimate_in_flight_is_dropped_once_the_selection_has_none(qapp: Any,
     assert dialog.headline.text().startswith("Estimate: tick a suite"), dialog.headline.text()
     assert dialog.estimate_result is None  # the plan window says why it has no plan, never the late one
     assert dialog.details.toPlainText().startswith("No plan yet: tick a suite"), dialog.details.toPlainText()
+
+
+def test_the_apps_own_agentprov_says_live_runs_need_a_checkout(qapp: Any, tmp_path: Path,
+                                                                monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-1130: the bundle's own agentprov has no backends/; Run Live says so instead of starting a run that fails."""
+    from agentprov_gui.jobs.manager import NEEDS_CHECKOUT
+    from agentprov_gui.live import keychain
+    from agentprov_gui.live.runspec import RunSettings
+    from agentprov_gui.ui.runlive import DEV_SCRIPT, RunLiveDialog
+
+    monkeypatch.setattr(keychain, "status", lambda cli: keychain.KeychainStatus(True, "FakeRing"))
+    monkeypatch.setattr(keychain, "present", lambda cli, names: {n: False for n in names})
+    m = JobManager(tmp_path / "home", CliLocator(None, (sys.executable, str(FAKE)), (), True))
+    preset = RunSettings(campaign="t", script=str(DEV_SCRIPT), suites=("banking",), attacks=("direct",))
+    dlg = RunLiveDialog(m, home=tmp_path / "home", checkout=None, preset=preset, run=fake_run([]))
+    try:
+        wait(qapp, lambda: dlg.estimate_result is not None)
+        assert dlg._gate() == NEEDS_CHECKOUT and not dlg.start_btn.isEnabled()
+        assert "Settings › General" in NEEDS_CHECKOUT
+    finally:
+        dlg.close()

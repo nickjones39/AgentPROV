@@ -1513,6 +1513,57 @@ include. Its `REFERENCES.json` is corpus-supplied and therefore untrusted (R-43)
 Dependency updates are manual, reviewed `uv lock --upgrade-package` changes, each with an `exclude-newer` move, a
 scanner run and a CHANGELOG entry.
 
+### G.7.8 Software updates: what is installed, and on what evidence (D-1065, D-1130)
+
+`agentprov update` replaces installed software, so it is a supply-chain path of its own. Its rules:
+
+1. **Signature first.** `SHA256SUMS` and `SHA256SUMS.sig` are fetched before any other release file, and the signature
+   is checked (`ssh-keygen -Y verify -n file` against the package's `update/data/allowed_signers`) before anything else
+   is downloaded. While the package lists a key, an unsigned release or a signature by any other key is refused; with
+   no key listed, the result says `"verification": "sha256"` and that this proves nothing about the publisher. A
+   missing or unreadable `allowed_signers` file is refused (`update.verify.keys`, exit 3), never read as "no key".
+2. **No unverified byte is installed.** Every file installed (a bundle archive, a wheel) must be listed in the verified
+   `SHA256SUMS`, have the listed size and sha256, and pass its own structural checks (a bundle's members, D-1065; a
+   wheel's member names and its `METADATA` name and version, D-1130). `install` checks the staged files again, so a
+   file changed after `download` is refused.
+3. **No index, no resolver, no configuration file.** A package install is upgraded only with the release's own wheels,
+   by the program's own installer with `--no-deps --no-index` (`pip --isolated`, `uv pip --no-config --python`, `pipx
+   runpip … --isolated`; a user-site install with `pip --user`), with `PIP_*`, `UV_*` and `PYTHON*` dropped from its
+   environment, so no `pip.conf` or `uv.toml` changes where or what is installed. A release whose wheels need anything the installed version did not declare
+   (text for text), or whose sibling pins are not the release's version, is refused and the ordinary upgrade command
+   shown instead. Nothing is fetched from PyPI.
+4. **The user confirms each replacement** (`--confirm`; the app's one confirmation names every part, its versions,
+   its verification and what is kept). Nothing is installed in the background.
+5. **What can go back.** The bundle keeps one previous version beside it (`rollback`). A package install keeps none,
+   and the result says so and names the command that goes back (which installs from PyPI). A checkout keeps its old
+   commit in git's history.
+6. **A checkout is never touched unless clean.** The shortcut (`git pull --ff-only origin main` and `uv sync --frozen
+   --group docs`) runs only on `main`, upstream `origin/main`, an `origin` that is one of the project's GitHub
+   repositories, an empty `git status --porcelain` (untracked files included) and no commit `origin/main` lacks
+   (before and after the fetch), as `fetch`, the check, `merge --ff-only FETCH_HEAD`, with every `GIT_*` variable
+   dropped; it never resets, stashes or switches branch, and a failed condition skips only the checkout part. It also
+   refuses when the program runs from another environment than the checkout's `.venv`, and when a fetched commit adds
+   a path that exists on disk as an ignored file (git would overwrite it); the sync names every installed extra again
+   (`uv sync` is exact and would remove them).
+7. **Not under a running job.** A bundle swap, a package upgrade or a checkout pull is refused while a job runs from
+   the folder it replaces (`update.install.busy`), naming the jobs; the update never stops one. For a package install
+   the folders are the environment, the distributions' install folder (a user site is outside `sys.prefix`), the
+   `agentprov` commands its `RECORD` names, and for a uv tool the `agentprov` on `PATH` (a copy on Windows).
+8. **The bundle as its own CLI** (`AgentPROV --cli`, `agentprov.cli.frozen`) answers only `agentprov` and the five
+   modules the core starts with `sys.executable -I -m`; any other module, a script or `-c` is refused, so the bundle is
+   not a general interpreter. It records code digests and library versions in the corpora it writes, so the bundle
+   carries the core's source files and the metadata of the distributions a corpus names, and its build checks both
+   against the build environment (`build_bundle.check_core_sources`); a bundle that lacks them refuses every command
+   that would record or compare a digest (exit 3) rather than record a false one. On Windows its update helper is a
+   copy of the running bundle, never of the one a rollback restores (an older bundle may not run the helper).
+9. **The Terminal launcher** (`agentprov launcher`) replaces or removes only a file with its marker, never another
+   `agentprov`, and refuses an app path that will not last (macOS App Translocation, a read-only disk image).
+
+Residual risk: the release key is the trust root; whoever holds it can publish an update every installed copy
+accepts. An `ssh-keygen` on `PATH` that lies is outside this model (as any binary the user runs). A package
+installer replaces files in place, so a crash in the middle can leave a mixed install; pip and uv roll back a failed
+install themselves, and `agentprov update` then reports the failure.
+
 ---
 
 ## G.8 Repository hygiene for LLM coding agents, and display surfaces

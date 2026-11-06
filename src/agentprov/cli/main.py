@@ -30,6 +30,7 @@ from agentprov.cli import batch as batch_cmd  # D-704
 from agentprov.cli import devrun as devrun_cmd  # D-705
 from agentprov.cli import jobs as jobs_cmd  # D-704
 from agentprov.cli import keys as keys_cmd  # D-702
+from agentprov.cli import launcher as launcher_cmd  # D-1130: the desktop app's Terminal command
 from agentprov.cli import prices as prices_cmd  # D-701
 from agentprov.cli import priors as priors_cmd  # D-1062
 from agentprov.cli import settings_cmd  # D-703
@@ -71,7 +72,7 @@ __all__ = ["COMMANDS", "build_parser", "main"]
 COMMANDS = (
     "info", "validate", "import", "fetch", "run", "backends", "migrate", "render", "inspect", "purge", "stats", "package",
     "derive", "recompute", "verify", "models", "settings", "keys", "prices", "estimate", "jobs", "batch", "devrun",
-    "assist", "priors", "update",
+    "assist", "priors", "update", "launcher",
 )
 
 _LOG = logging.getLogger("agentprov.cli")
@@ -113,6 +114,7 @@ def build_parser() -> CliArgumentParser:
     devrun_cmd.register(sub, shared)
     assist_cmd.register(sub, shared)
     update_cmd.register(sub, shared)
+    launcher_cmd.register(sub, shared)
     return parser
 
 

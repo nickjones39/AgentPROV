@@ -162,13 +162,13 @@ def test_the_quote_suggests_caps_with_room_for_the_reserved_cells(cli: Callable[
     doc = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)
     q, c = doc["quote"], doc["quote"]["caps"]
     assert c["available"] is True and (c["margin_pct"], c["margin_from"]) == ("20", "default")
-    assert (c["reserved_cells"], c["cell_calls"], c["probe_calls"]) == (1, 48, 1)
-    assert c["max_calls"] >= q["calls_p90"] * 1.2 + 49 and c["max_calls"] < q["calls_p90"] * 1.2 + 50
+    assert (c["reserved_cells"], c["cell_calls"], c["probe_calls"]) == (1, 48, 3)  # 3 probe attempts (PROBE_ATTEMPTS)
+    assert c["max_calls"] >= q["calls_p90"] * 1.2 + 51 and c["max_calls"] < q["calls_p90"] * 1.2 + 52
     assert Decimal(c["max_cost_usd"]) >= Decimal(q["usd_p90"]) * Decimal("1.2") + Decimal(c["cell_usd"])
     assert (c["price_in"], c["price_out"]) == (doc["price"]["input"], doc["price"]["output"])
     wide = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o", "--jobs", "4",
                                 "--llm-element", "gateway_compat").out)["quote"]["caps"]
-    assert (wide["reserved_cells"], wide["cell_calls"], wide["probe_calls"]) == (min(4, doc["units"]), 384, 8)
+    assert (wide["reserved_cells"], wide["cell_calls"], wide["probe_calls"]) == (min(4, doc["units"]), 384, 24)
     settings.set("estimate.caps_margin_pct", "50")
     loose = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)["quote"]["caps"]
     assert (loose["margin_pct"], loose["margin_from"]) == ("50", "setting") and loose["max_calls"] > c["max_calls"]
@@ -177,6 +177,26 @@ def test_the_quote_suggests_caps_with_room_for_the_reserved_cells(cli: Callable[
     assert f"Suggested caps: --max-calls {loose['max_calls']} --max-cost-usd {loose['max_cost_usd']}" in text.err
     unpriced = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "vendor/unpriced-model").out)
     assert unpriced["quote"]["caps"]["available"] is False and "no price" in unpriced["quote"]["caps"]["reason"]
+
+
+def test_the_cost_cap_is_based_on_the_quote_priced_at_the_cap_prices(cli: Callable[..., Run],
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    """The run counts its spend at the cap prices (Budget.charge: every input-side token at --price-in), so the cost
+    cap's base is the quote's p90 tokens at those prices: cap prices ten times the table's give a base ten times the
+    quote's own figure (the shipped priors record no cached tokens), not the quote's figure plus a dearer room."""
+    from agentprov.cli import run as run_cli
+
+    monkeypatch.setattr(run_cli, "host_max_jobs", lambda profile: 8)
+    base = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)
+    p_in, p_out = Decimal(base["price"]["input"]) * 10, Decimal(base["price"]["output"]) * 10
+    doc = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o", "--max-calls", "100000",
+                               "--max-cost-usd", "100000", "--price-in", str(p_in), "--price-out", str(p_out)).out)
+    c = doc["quote"]["caps"]
+    assert (Decimal(c["price_in"]), Decimal(c["price_out"])) == (p_in, p_out)
+    room = c["reserved_cells"] * Decimal(c["cell_usd"]) + Decimal(c["probe_usd"])
+    usd_p90 = Decimal(doc["quote"]["usd_p90"])  # the quote itself stays at the table's prices
+    assert usd_p90 == Decimal(base["quote"]["usd_p90"])
+    assert Decimal(c["max_cost_usd"]) - room >= usd_p90 * 10 * Decimal("1.2") - Decimal("0.05")
 
 
 def test_caps_pass_through_and_a_cap_below_the_p90_is_a_warning(cli: Callable[..., Run]) -> None:

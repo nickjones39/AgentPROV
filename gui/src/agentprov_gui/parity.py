@@ -26,6 +26,7 @@ __all__ = ["ACTIONS", "OUTSIDE_CLI", "PRESENTATIONAL", "RUN_LIVE_INPUTS", "SETTI
 SETTINGS_EXCLUDED: Final[dict[str, str]] = {
     "checkout": "the checkout whose CLI the GUI runs (the CLI is that checkout itself)",
     "cli_program": "the program installed from PyPI that the GUI runs without a checkout (the CLI is that program itself; D-1030)",
+    "cli_choice": "which program the GUI runs: automatic, or the copy inside the bundle (the CLI is that program itself; D-1130)",
     "roots": "the Viewer's corpus roots (where the GUI looks; every command takes its corpus explicitly)",
     "theme": "presentational: light, dark or follow the system",
     "graph_colours": "presentational: the graph palette",
@@ -103,9 +104,15 @@ ACTIONS: Final[dict[str, tuple[str, ...]]] = {
     # D-1065: Check for Updates (About, Help › Check for Updates…, the start-up notice)
     "Check for Updates…": ("update", "check"), "Check for Updates": ("update", "check"),
     "Download and Install…": ("update", "download"),  # then, after the confirmation, update install --confirm
-    "Show the Upgrade Command": ("update", "install"),  # without --bundle: prints the command, installs nothing
+    "Update agentprov…": ("update", "install"),  # D-1130: first without a flag (how it is installed), then the
+    # confirmed --package or --checkout install, or the printed command when agentprov cannot update it
     "Update Now": ("update", "download"),  # the notice: About's Download and Install…
     "Skip This Version": ("settings", "set"),  # update.last_notified X.Y.Z
+    # D-1130: the bundle's own agentprov in a Terminal (the macOS application menu; Help on Linux and Windows)
+    "Install Command Line Tool…": ("launcher", "install"),  # after launcher status and the confirmation
+    "Install the Terminal command": ("launcher", "install"),
+    "Uninstall Command Line Tool": ("launcher", "remove"),  # after launcher status and the confirmation
+    "Remove the Terminal command": ("launcher", "remove"),
 }
 
 #: buttons and menu actions that only navigate or change how data is shown

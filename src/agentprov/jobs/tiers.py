@@ -29,8 +29,8 @@ _R0: Final = frozenset({"info", "sources", "validate", "inspect", "stats", "veri
 _R2: Final = frozenset({"fetch", "prices refresh", "update check", "update download", "update install"})
 DESTRUCTIVE: Final = frozenset({"purge"})
 #: Commands that find the repository from their cwd (``cli/live/envs.repository_root``, M.4): they start in the
-#: checkout, not in the job directory.
-REPO_COMMANDS: Final = frozenset({"run", "backends", "migrate"})
+#: checkout, not in the job directory. ``estimate`` plans through ``run``'s dry run, so it is one of them.
+REPO_COMMANDS: Final = frozenset({"run", "backends", "migrate", "estimate"})
 #: Commands whose second word is a subcommand (the job's global options go after both words).
 _TWO_WORDS: Final = frozenset({"backends", "migrate", "prices", "priors", "settings", "keys", "jobs", "batch",
                                "update"})

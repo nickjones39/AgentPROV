@@ -582,6 +582,8 @@ def test_a_reopened_run_live_shows_the_last_catalogue_at_once(qapp: Any, tmp_pat
     gate.set()
     wait(qapp, lambda: not again.suites.checked() and _calls_done(again))
     assert again.suites.count() == len(CATALOGUE["suites"]) and not again.suites.checked()  # not redrawn
+    shown = first.cat_label.text()
+    assert "suites" in shown and again.cat_label.text() == shown  # the answer replaced "Catalogue: loading…"
     again.close()
 
     def broken(manager: Any, argv: list[str], **kw: Any) -> tuple[int, bytes, bytes]:

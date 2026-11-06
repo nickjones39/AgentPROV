@@ -26,7 +26,15 @@ report, Linux arm64: 3.15.1). The report names the interpreter. The checks:
    :func:`agentprov_gui.guide.bundle_files` names in ``docs/user-guide/`` (the chapters and the images they show), with
    the same bytes, so Help › Docs works without a checkout and shows the guide the bundle was built from.
 6. **Smoke start:** the bundle's executable with ``--smoke`` under ``QT_QPA_PLATFORM=offscreen`` and a scratch
-   ``AGENTPROV_HOME`` exits 0; ``--preview-helper`` exits on EOF.
+   ``AGENTPROV_HOME`` exits 0; ``--preview-helper`` exits on EOF; the bundle's own agentprov (D-1130) answers
+   ``--cli --version`` and ``-I -m agentprov --version`` with the bundled core's version, ``--cli update install
+   --format json`` names the install kind ``bundle``, and ``--cli recompute`` on a missing corpus fails on the corpus,
+   never with the refusal of a bundle without its sources (:func:`agentprov.cli.frozen.sources_problem`).
+7. **Core sources** (D-1130 review): the bundle's ``agentprov`` folder holds exactly the build environment's files of
+   the suffixes the code digests hash (``.py``, ``.toml``, ``.json``, ``.ttl``; not ``docs/``), and the bundle has the
+   metadata of every distribution whose version a corpus records, at the build environment's version
+   (:func:`check_core_sources`). Without them the bundle's own agentprov would record false code digests and
+   ``absent`` library versions.
 
 **Provenance of the bundle** (v0.1.0 plan §3): the report names the GUI's and the bundled core's version and the commit
 it was built from: the checkout's ``HEAD`` (with whether the tree was clean), or, for a build from a ``git archive``
@@ -410,7 +418,27 @@ def smoke(app: Path) -> dict[str, object]:
                **{k: os.environ[k] for k in ("SystemRoot", "TEMP", "TMP", "LOCALAPPDATA", "APPDATA") if k in os.environ}}
         gui = _sh([str(exe), "--smoke"], env=env)
         preview = _sh([str(exe), "--preview-helper", home], env=env, input="")
-    return {"gui": gui.returncode, "gui_stderr_tail": gui.stderr[-500:], "preview_helper": preview.returncode}
+        cli = _sh([str(exe), "--cli", "--version"], env=env)
+        module = _sh([str(exe), "-I", "-m", "agentprov", "--version"], env=env)
+        kind = _sh([str(exe), "--cli", "update", "install", "--format", "json"], env=env)
+        # D-1130 review: a command that records code digests is not refused (the bundle has its sources and their
+        # metadata): it fails on the missing corpus, never with the bundle's own refusal
+        sources = _sh([str(exe), "--cli", "recompute", "--corpus", str(Path(home) / "none"), "--dry-run"], env=env)
+    core = versions().get("agentprov")
+    return {"gui": gui.returncode, "gui_stderr_tail": gui.stderr[-500:], "preview_helper": preview.returncode,
+            "cli": cli_smoke(cli.returncode, cli.stdout, core), "cli_stderr_tail": cli.stderr[-500:],
+            "cli_module": cli_smoke(module.returncode, module.stdout, core),
+            "cli_kind": 0 if kind.returncode == 0 and '"kind":"bundle"' in kind.stdout else kind.returncode or 1,
+            "cli_sources": int(SOURCES_REFUSAL in sources.stderr or sources.returncode in (0, 70)),
+            "cli_sources_stderr_tail": sources.stderr[-500:]}
+
+
+def cli_smoke(code: int, stdout: str, core: str | None) -> int:
+    """0 when the bundle's agentprov printed the bundled core's version (``agentprov X.Y.Z`` first), else non-zero."""
+    if code != 0:
+        return code
+    first = stdout.splitlines()[0] if stdout.strip() else ""
+    return 0 if core is not None and first == f"agentprov {core}" else 1
 
 
 #: The generated notices (repository-relative), regenerated per platform before a bundle build (bundles.yml)
@@ -434,6 +462,66 @@ def build_source(archive: Path | None = None, repo: Path = GUI.parent) -> dict[s
                   f":(exclude){NOTICES_PATH}"])
     return {"commit": head.stdout.strip(), "basis": "checkout HEAD",
             "tree_clean": status.returncode == 0 and not status.stdout.strip()}
+
+
+#: what the bundle's own agentprov says when it refuses a command for lack of its sources (agentprov.cli.frozen)
+SOURCES_REFUSAL = "agentprov (bundled): this copy of the app lacks"
+#: the suffixes :func:`agentprov.stage_definitions.code_sha256` hashes (D-451), and the parts of the package it never does
+CODE_SUFFIXES = (".py", ".toml", ".json", ".ttl")
+
+
+def _dist_key(name: str) -> str:
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def check_core_sources(app: Path, platform: str = sys.platform, package: Path | None = None,
+                       version: object = None) -> list[str]:
+    """D-1130 review: the bundle's own agentprov records code digests (hashes of the core's source files on disk) and
+    library versions (package metadata) in a corpus, so the bundle's ``agentprov`` folder must hold exactly the build
+    environment's source files and its metadata the versions of ``agentprov.cli.frozen.RECORDED_DISTRIBUTIONS``. A
+    file missing, differing or extra, or a distribution's metadata missing or at another version. Empty when they
+    agree. ``package`` (the build environment's ``agentprov`` folder) and ``version`` are seams for the tests."""
+    from importlib import metadata
+
+    from agentprov.cli.frozen import RECORDED_DISTRIBUTIONS
+
+    if package is None:
+        import agentprov
+
+        package = Path(agentprov.__file__).resolve().parent
+    read = version if callable(version) else metadata.version
+    bundled = _resources(app, platform) / "agentprov"
+
+    def code(root: Path) -> dict[str, bytes]:
+        out: dict[str, bytes] = {}
+        for path in root.rglob("*") if root.is_dir() else ():
+            rel = path.relative_to(root).as_posix()
+            if path.is_file() and path.suffix in CODE_SUFFIXES and not rel.startswith("docs/") and \
+                    "__pycache__" not in rel.split("/"):
+                out[rel] = path.read_bytes().replace(b"\r\n", b"\n")
+        return out
+
+    want, have = code(package), code(bundled)
+    bad = [f"missing: agentprov/{n}" for n in sorted(set(want) - set(have))]
+    bad += [f"differs: agentprov/{n}" for n in sorted(set(want) & set(have)) if want[n] != have[n]]
+    bad += [f"extra: agentprov/{n}" for n in sorted(set(have) - set(want))]
+    infos = {}
+    for root in {_resources(app, platform), app / "Contents" / "Frameworks"} if platform == "darwin" else {
+            _resources(app, platform)}:
+        for info in root.glob("*.dist-info") if root.is_dir() else ():
+            dist, _, ver = info.name[: -len(".dist-info")].rpartition("-")
+            infos.setdefault(_dist_key(dist), set()).add(ver)
+    for name in RECORDED_DISTRIBUTIONS:
+        try:
+            expected = read(name)  # type: ignore[operator]
+        except Exception:
+            bad.append(f"metadata: {name} is not installed in the build environment")
+            continue
+        got = infos.get(_dist_key(name), set())
+        if expected not in got:
+            bad.append(f"metadata: {name} {expected} missing from the bundle" + (f" (has {', '.join(sorted(got))})"
+                                                                                 if got else ""))
+    return bad
 
 
 def versions() -> dict[str, str | None]:
@@ -495,14 +583,16 @@ def main(argv: list[str] | None = None) -> int:
               "glibc_floor": args.glibc_floor, "glibc_above_floor": glibc is not None and glibc > floor,
               "excluded_found": check_excluded(app), "licences_missing": check_licences(app),
               "icon_problems": check_icon(app), "guide_problems": check_guide(app),
+              "core_source_problems": check_core_sources(app),
               "launcher_sdk": ".".join(map(str, sdk)) if sdk else None, "launcher_sdk_step": restored,
               "signing_step": signing, "signature": signature(app),
               "smoke": smoked,
               "size_mb": size_mb(app)}
     ok = (not report["excluded_found"] and not report["licences_missing"] and not signing.startswith("failed")
           and not report["layout_problems"] and not report["qt_dynamic_problems"] and not report["plugins_missing"]
-          and not report["icon_problems"] and not report["guide_problems"]
-          and not report["glibc_above_floor"] and all(smoked[k] == 0 for k in ("gui", "preview_helper")))
+          and not report["icon_problems"] and not report["guide_problems"] and not report["core_source_problems"]
+          and not report["glibc_above_floor"]
+          and all(smoked[k] == 0 for k in ("gui", "preview_helper", "cli", "cli_module", "cli_kind", "cli_sources")))
     if ok:
         packed = package(app, args.out)
         report["package"] = {"path": str(packed), "sha256": hashlib.sha256(packed.read_bytes()).hexdigest()}

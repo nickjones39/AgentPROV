@@ -22,6 +22,7 @@ import os
 import platform
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -50,9 +51,12 @@ __all__ = [
     "SpawnRefused",
     "allowlisted_env",
     "atomic_write_json",
+    "bundled_program",
     "installed_program",
+    "is_cli_launcher",
     "new_job_id",
     "read_json",
+    "set_cli_choice",
     "set_installed_program",
 ]
 
@@ -60,7 +64,7 @@ JOB_FORMAT: Final = "agentprov-gui-job/0.1"
 #: the commands that find the repository from their cwd (M.4), started in the checkout: the core's
 #: ``agentprov.jobs.tiers.REPO_COMMANDS``, copied because D-391 keeps that module out of the GUI's imports (a test pins
 #: the two equal)
-REPO_COMMANDS: Final = frozenset({"run", "backends", "migrate"})
+REPO_COMMANDS: Final = frozenset({"run", "backends", "migrate", "estimate"})
 ENV_ALLOWLIST: Final = ("PATH", "HOME", "LANG", "TZ", "AGENTPROV_HOME", "AGENTPROV_UPSTREAM_CACHE",
                         "AGENTPROV_BASELINE_CORPUS", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SystemRoot", "TMPDIR",
                         "AGENTPROV_JOB_CPU_BUDGET", "AGENTPROV_JOB_MEM_GIB_BUDGET", "AGENTPROV_SUITE_QUEUE_DIR")
@@ -161,6 +165,12 @@ def read_json(path: Path, limit: int = _SMALL) -> dict[str, Any] | None:
 USER_BIN_DIRS: Final = ("~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin")
 #: Settings › General's "agentprov program" (:func:`set_installed_program`); ``None``: look on PATH
 _installed_setting: Path | None = None
+#: Settings › General's "agentprov to run" (:func:`set_cli_choice`, D-1130): ``auto`` or ``bundled``
+CLI_CHOICES: Final = ("auto", "bundled")
+_cli_choice: str = "auto"
+#: what the bundle's own agentprov cannot do (no checkout: ``backends/``, ``tools/``, a ``.venv``), said before a start
+NEEDS_CHECKOUT: Final = ("Live runs need an AgentPROV checkout (its backends/ projects): set the checkout in Settings › "
+                         "General. The app's own copy of agentprov cannot run them.")
 
 
 def set_installed_program(program: Path | None) -> None:
@@ -169,20 +179,58 @@ def set_installed_program(program: Path | None) -> None:
     _installed_setting = program
 
 
+def set_cli_choice(choice: str) -> None:
+    """Settings › General's "agentprov to run" (D-1130): ``auto`` (the checkout, else an installed agentprov, else the
+    app's own) or ``bundled`` (always the app's own, when this app is a bundle)."""
+    global _cli_choice
+    _cli_choice = choice if choice in CLI_CHOICES else "auto"
+
+
+def bundled_program(*, frozen: bool | None = None, executable: str | None = None) -> tuple[str, ...]:
+    """The bundle's own agentprov (D-1130): this app's executable with ``--cli`` (``agentprov.cli.frozen``), when the
+    app is a frozen bundle; empty otherwise (a checkout's or a package's app has no bundled CLI)."""
+    if not (bool(getattr(sys, "frozen", False)) if frozen is None else frozen):
+        return ()
+    exe = Path(os.path.abspath(sys.executable if executable is None else executable))
+    return (str(exe), "--cli") if exe.is_file() else ()
+
+
 def installed_program(program: Path | None = None, environ: Mapping[str, str] | None = None) -> Path | None:
     """The ``agentprov`` that ``pip install agentprov`` installed (D-1030): ``program`` when given (``None`` when it is
     not a file: the named one is never swapped for another), else the first on ``PATH``, then in :data:`USER_BIN_DIRS`.
-    The app's own executable is never taken: Windows matches ``agentprov.exe`` to ``AgentPROV.exe``."""
+    The app's own executable is never taken: Windows matches ``agentprov.exe`` to ``AgentPROV.exe``. Nor is the
+    Terminal launcher Install Command Line Tool… writes (:func:`is_cli_launcher`, D-1130): it runs this app's own
+    agentprov, so it is not a separately installed one (the bundled CLI is :func:`bundled_program`)."""
     if program is not None:
         program = Path(os.path.abspath(program.expanduser()))
-        return program if program.is_file() and os.access(program, os.X_OK) else None
+        ok = program.is_file() and os.access(program, os.X_OK) and not is_cli_launcher(program)
+        return program if ok else None
     path = (os.environ if environ is None else environ).get("PATH", "")
     dirs = [*path.split(os.pathsep), *(() if os.name == "nt" else (os.path.expanduser(d) for d in USER_BIN_DIRS))]
     own = os.path.realpath(sys.executable) if getattr(sys, "frozen", False) else None
     for found in (shutil.which("agentprov", path=d) for d in dirs if d):
-        if found is not None and os.path.realpath(found) != own:
+        if found is not None and os.path.realpath(found) != own and not is_cli_launcher(Path(found)):
             return Path(os.path.abspath(found))
     return None
+
+
+#: the second line of the Terminal launcher ``agentprov launcher install`` writes (``agentprov.cli.launcher.MARKER``,
+#: mirrored here because the GUI never imports the CLI, D-391; a test pins the two)
+LAUNCHER_MARKER: Final = "agentprov-launcher/1"
+
+
+def is_cli_launcher(path: Path) -> bool:
+    """Whether ``path`` is the Terminal launcher of Install Command Line Tool… (D-1130): a regular file, not a link, of
+    at most 64 KiB whose second line is ``# agentprov-launcher/1`` (``rem`` on Windows)."""
+    try:
+        st = path.lstat()
+        if not stat.S_ISREG(st.st_mode) or st.st_size > 64 * 1024:
+            return False
+        with path.open("rb") as fh:
+            lines = fh.read(4096).decode("utf-8", "replace").splitlines()
+    except OSError:
+        return False
+    return len(lines) >= 2 and lines[1].strip() in (f"# {LAUNCHER_MARKER}", f"rem {LAUNCHER_MARKER}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,17 +240,26 @@ class CliLocator:
     it, never with a ``.venv`` path the ``uv run`` fallback does not have. Empty: no interpreter is known.
 
     Without a checkout it is the ``agentprov`` installed with ``pip install agentprov`` (:func:`installed_program`,
-    D-1030), with no interpreter: the checkout's tools and the job queue need a checkout."""
+    D-1030), with no interpreter: the checkout's tools and the job queue need a checkout. Without either, in a frozen
+    bundle, it is the bundle's own agentprov (:func:`bundled_program`, D-1130: ``AgentPROV --cli``), which a bundle
+    update updates with the app; Settings › General can choose it always (``bundled``). It has no checkout either, so
+    live runs, the job queue and the checkout's tools are not available with it (:data:`NEEDS_CHECKOUT`)."""
 
     checkout: Path | None
     program: tuple[str, ...] = ()
     python: tuple[str, ...] = ()
+    bundled: bool = False
 
     @classmethod
     def for_checkout(cls, checkout: Path | None) -> CliLocator:
+        own = bundled_program()
+        if _cli_choice == "bundled" and own:
+            return cls(None, own, (), True)
         if checkout is None:
             found = installed_program(_installed_setting)
-            return cls(None, (str(found),) if found is not None else ())
+            if found is not None:
+                return cls(None, (str(found),))
+            return cls(None, own, (), bool(own))
         checkout = Path(os.path.abspath(checkout.expanduser()))  # the child's cwd is its job directory (GR-51)
         venv = checkout / ".venv"
         exe = venv / ("Scripts/agentprov.exe" if os.name == "nt" else "bin/agentprov")
@@ -218,8 +275,18 @@ class CliLocator:
     def available(self) -> bool:
         return bool(self.program)
 
+    @property
+    def kind(self) -> str:
+        """``bundled`` (the app's own, updated with the app), ``checkout``, ``installed`` or ``none``."""
+        if not self.program:
+            return "none"
+        return "bundled" if self.bundled else "checkout" if self.checkout is not None else "installed"
+
     def describe(self) -> str:
         """Which CLI this is, in words for Settings › General (paths are the user's own; shown escaped)."""
+        if self.bundled:
+            return ("the app's own agentprov (bundled; updated with the app; live runs, the job queue and the "
+                    "checkout's tools need a checkout)")
         if not self.program:
             return ("none: the checkout has no .venv/bin/agentprov, and uv run cannot run it there" if self.checkout
                     is not None else "none: no checkout is set and no agentprov program was found (pip install agentprov)")
@@ -229,7 +296,8 @@ class CliLocator:
 
     def cwd_for(self, argv: Sequence[str]) -> str | None:
         """The working directory of a short call of ``agentprov ARGV``: the checkout for a command that finds the
-        repository from its cwd (``run``, ``backends``, ``migrate``: :data:`agentprov.jobs.tiers.REPO_COMMANDS`, M.4),
+        repository from its cwd (``run``, ``backends``, ``migrate``, and ``estimate``, which plans through ``run``'s dry
+        run: :data:`agentprov.jobs.tiers.REPO_COMMANDS`, M.4),
         as the core's job manager starts such a job; ``None`` (the GUI's own cwd) for every other command. An app
         opened from the Finder runs with cwd ``/``, where ``run --catalogue`` exited 3 with
         ``backend.repository_missing`` and Run Live showed no suites or attacks."""
@@ -342,7 +410,8 @@ class JobManager:
         env["AGENTPROV_HOME"] = str(self.home)  # the queue budgets are the core's (compute.*_budget; D-704)
         return env
 
-    def call(self, argv: Sequence[str], *, stdin: bytes | None = None, timeout: float = 120) -> tuple[int, bytes, bytes]:
+    def call(self, argv: Sequence[str], *, stdin: bytes | None = None, timeout: float | None = 120
+             ) -> tuple[int, bytes, bytes]:
         """``agentprov ARGV`` of the configured checkout: exit code, stdout (bounded), stderr tail."""
         if not self.cli.available:
             return 127, b"", b"no CLI"

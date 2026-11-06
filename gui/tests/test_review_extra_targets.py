@@ -48,7 +48,7 @@ _VALID: dict[str, dict[str, object]] = {
     "package_deposit": {"deposit": "/d", "corpus": "/c", "metadata": "/r.toml"},
     "package_index": {"index": "/i", "part": "/p.json", "corpus": "/c", "metadata": "/r.toml", "release_date": "2026-10-29"},
     "purge": {"object": "sha256:" + "a" * 64, "reason": "secret", "corpus": "/c"},
-    "backends_build": {"backend": "agentdojo"}, "inspect": {"target": "ex_a"}, "models": {},
+    "backends_build": {"backend": "agentdojo"}, "backends_rebuild_stale": {}, "inspect": {"target": "ex_a"}, "models": {},
     **{name: ({"gate_name": "A"} if name == "migrate_gate" else {}) for name in FORMS if name.startswith("migrate_")},
     "run": {"source": "agentdojo", "corpus": "/c", "campaign": "t", "suite": "banking", "llm_script": "/s.json"},
     "settings_list": {}, "settings_get": {"key": "devrun.keep"}, "settings_set": {"key": "devrun.keep", "value": "5"},
@@ -59,6 +59,7 @@ _VALID: dict[str, dict[str, object]] = {
     "prices_unset": {"endpoint": "openai", "model": "gpt-x"}, "prices_status": {}, "priors_show": {}, "priors_build": {},
     "update_status": {}, "update_check": {}, "update_download": {}, "update_install": {},
     "update_rollback": {"bundle": "/Applications/AgentPROV.app"},  # D-1065
+    "launcher_status": {}, "launcher_install": {}, "launcher_remove": {},  # D-1130
     "estimate": {"source": "agentdojo", "suite": "banking", "llm_script": "/s.json"},
     "jobs_start": {"argv": ["info"]}, "jobs_list": {}, "jobs_show": {"job_id": "01a1"}, "jobs_follow": {"job_id": "01a1"},
     "jobs_stop": {"job_id": "01a1"}, "jobs_kill": {"job_id": "01a1"}, "jobs_drain": {"job_id": "01a1"},

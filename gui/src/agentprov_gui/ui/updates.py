@@ -17,8 +17,16 @@ and one controller, owned by the main window, holds the state, so a download kee
   This Version (``agentprov settings set update.last_notified X.Y.Z``). Offline or with no CLI, nothing is shown.
 * **Only the agentprov program behind** (D-1070): when the check says the ``agentprov`` this app runs (the configured
   checkout or package install) is older than the newest release but the app is not, replacing the bundle would not
-  change that program. The notice says so and offers Show the Upgrade Command, and About's button becomes Show the
-  Upgrade Command (``update install`` without ``--bundle``); no bundle is downloaded or installed.
+  change that program. The notice says so and offers Update agentprov…, and About's button becomes Update agentprov…;
+  no bundle is downloaded or installed.
+* **The whole software, one confirmation** (D-1130): Download and Install… (or Update agentprov…) first asks the CLI
+  how the program it runs is installed (``update install`` without a flag; nothing changes) when that program is
+  behind and is not the bundle's own copy (which the bundle install updates with the app). It then downloads and
+  verifies what it can (the app's bundle; for a pip, uv tool or pipx install the release's wheels), and asks once, in
+  one dialog, naming each part it will replace (from which version to which, how it was verified, what is kept to go
+  back to) and each part it cannot update and why, with the command to run. Only after Install does it run ``update
+  install --confirm --bundle`` and then ``update install --package --confirm`` or ``update install --checkout --confirm
+  --allow-network``. A part that cannot be updated is never attempted.
 
 Every result is shown as the CLI says it, in plain text (S1), with the "checked against SHA256SUMS only" note for a
 release the package cannot check a signature of, and the quit-and-reopen instruction (Windows: applied after quit).
@@ -41,17 +49,22 @@ from agentprov_gui.ui import forms, theme
 from agentprov_gui.ui.forms import CommandCard, FormPage, FormSection, StatusBadge
 from agentprov_gui.ui.safe import ReadOnlyText, SafeLabel, choose, set_control_tooltip
 
-__all__ = ["UpdateController", "UpdateNotice", "UpdatesSection", "confirm_install"]
+__all__ = ["UpdateController", "UpdateNotice", "UpdatesSection", "confirm_update"]
 
 #: how long each command may take (a download of up to 2 GiB on a slow line; the macOS disk image's copy)
-TIMEOUTS: Final = {"status": 60.0, "check": 180.0, "download": 4 * 3600.0, "install": 1800.0, "settings": 60.0}
+#: ``None``: no time limit. A confirmed install ("apply": pip, uv pip, git and uv sync, the bundle swap) is never killed
+#: part of the way through (D-1130 review): a package install keeps no previous version, so a kill could leave it half
+#: replaced. "install" is the plan query (``update install`` without a flag), which changes nothing
+TIMEOUTS: Final[dict[str, float | None]] = {"status": 60.0, "check": 180.0, "download": 4 * 3600.0, "install": 1800.0,
+                                            "apply": None, "settings": 60.0}
 #: the button names (reverse parity, :mod:`agentprov_gui.parity`)
 CHECK_NAME: Final = "Check for Updates"
 INSTALL_NAME: Final = "Download and Install…"
-COMMAND_NAME: Final = "Show the Upgrade Command"
+#: D-1130: only the agentprov program to update (the app is current, or the app is not a bundle)
+PROGRAM_NAME: Final = "Update agentprov…"
 
-#: ``run(argv, timeout)``: one ``agentprov`` call (exit code, stdout, stderr tail)
-Runner = Callable[[list[str], float], tuple[int, bytes, bytes]]
+#: ``run(argv, timeout)``: one ``agentprov`` call (exit code, stdout, stderr tail); ``timeout`` ``None``: no limit
+Runner = Callable[[list[str], float | None], tuple[int, bytes, bytes]]
 
 
 def _when(value: str | None) -> str:
@@ -71,23 +84,32 @@ def _windows() -> bool:
     return sys.platform.startswith("win")
 
 
-def confirm_install(parent: QWidget | None, download: U.Download, bundle: Path, current: str | None) -> bool:
-    """The explicit confirmation before ``update install --confirm``: what is replaced, by what, how it was checked,
-    that the old version is kept for rollback, and what happens next. Cancel is the default."""
-    new = download.version or "the new version"
-    lines = [f"This replaces the app's folder {T.line(str(bundle), 300)} (AgentPROV {current or 'of unknown version'}) "
-             f"with AgentPROV {new} ({download.asset or 'the downloaded bundle'}), which agentprov update download "
-             f"verified ({download.verification}{', signed by ' + download.signed_by if download.signed_by else ''}).",
-             "The current version is kept beside it, in .AgentPROV-previous, so it can be restored with agentprov "
-             f"update rollback --yes --bundle {T.line(str(bundle), 300)}."]
-    if not download.signed:
+def confirm_update(parent: QWidget | None, plan: U.UpdatePlan) -> bool:
+    """The one explicit confirmation before anything is replaced (D-1130): each part replaced (the versions, how it was
+    verified, what is kept to go back to), each part that cannot be updated and why, and what happens next. Cancel is
+    the default."""
+    lines: list[str] = []
+    for part in plan.parts:
+        label = "Source" if "--checkout" in part.argv else "Verified"  # a git pull is not a verification
+        lines.append(f"{part.name} ({part.detail}): {part.from_version or 'unknown version'} → "
+                     f"{part.to_version or 'the new version'}. {label}: {part.verified}. Kept: {part.keeps}.")
+    for what, why, command in plan.cannot:
+        lines.append(f"Not updated: {what}, because {why}." + (f" Run it yourself: {command}" if command else ""))
+    if plan.followup:
+        lines.append(plan.followup)
+    if any(not part.signed for part in plan.parts):
         lines.append(U.UNSIGNED_NOTE)
-    lines.append("Windows cannot replace a running app: the new version is applied once you quit AgentPROV; then open "
-                 "it again." if _windows() else "Afterwards, quit AgentPROV and open it again to start the new version.")
-    return choose(parent, "Install Update", f"Install AgentPROV {new}?", "\n\n".join(lines), "Cancel", "Install",
-                  tips=("Keeps the app as it is; the verified download stays staged, so you can install it later.",
-                        "Runs agentprov update install --confirm --bundle with this app's folder: replaces the app "
-                        "and keeps the old version for rollback."))
+    if any(part.name == "The app" for part in plan.parts):
+        lines.append("Windows cannot replace a running app: the new version is applied once you quit AgentPROV; then "
+                     "open it again." if _windows() else "Afterwards, quit AgentPROV and open it again to start the "
+                     "new version.")
+    names = " and ".join(part.name[4:] if part.name.startswith("The ") else part.name for part in plan.parts)
+    title = f"Install AgentPROV {plan.to_version}?" if any(p.name == "The app" for p in plan.parts) and \
+        plan.to_version else f"Update {names}?"
+    return choose(parent, "Install Update", title, "\n\n".join(lines), "Cancel", "Install",
+                  tips=("Changes nothing; a verified download stays staged, so Download and Install… can use it later.",
+                        "Replaces each part named here, one after the other, with the agentprov update install "
+                        "command shown in About; a part that cannot be updated is not touched."))
 
 
 class UpdateController(QObject):
@@ -102,30 +124,69 @@ class UpdateController(QObject):
     notice = Signal(object)
 
     def __init__(self, run: Runner, *, bundle: Path | None = None, gui: str | None = None,
+                 program: Callable[[], str] | None = None, identity: Callable[[], str] | None = None,
                  parent: QObject | None = None) -> None:
         super().__init__(parent)
         self.run = run
+        #: which agentprov ``run`` calls, as text (D-1130 review): taken when Download and Install… starts and compared
+        #: before anything is installed, so a CLI changed in Settings › General meanwhile never installs what the
+        #: confirmation described for another one
+        self.identity = identity if identity is not None else (lambda: "")
+        self._identity_at_start = ""
+        self._failed: list[str] = []  # the parts of this install chain that were not updated
+        self._app_line = ""  # the app part's instruction to quit (and reopen), kept for the status at the chain's end
         self.bundle = bundle
         self.gui = gui
+        #: which agentprov ``run`` calls (:attr:`agentprov_gui.jobs.manager.CliLocator.kind`): ``bundled`` is the
+        #: bundle's own copy, updated with the app; anything else may need its own update (D-1130)
+        self.program = program if program is not None else (lambda: "unknown")
         self.check: U.Check | None = None
         self.download: U.Download | None = None
         self.install: U.Install | None = None
+        self.plan_doc: U.Install | None = None  # how the program is installed (update install, no flag)
+        self.package: U.Download | None = None  # the program's verified wheels (a package install)
+        self.program_install: U.Install | None = None  # the program's update, once made
+        self.plan: U.UpdatePlan | None = None
         self.busy = ""  # "status", "check", "download", "install", "settings" or ""
         self.status_line = ""  # what is happening, or why the last command gave nothing
         self.result: list[str] = []  # the last download's or install's outcome, as the CLI said it
-        self.confirm: Callable[[QWidget | None, U.Download, Path, str | None], bool] = confirm_install
+        self.confirm: Callable[[QWidget | None, U.UpdatePlan], bool] = confirm_update
+        #: the update flow's last step (D-1130): called once, on the UI thread, after the last part's install has
+        #: finished, with the parts that were installed (empty when none was). The main window hooks the backend
+        #: environments' rebuild here (``agentprov backends rebuild-stale``, its own session); ``None``: nothing
+        self.after_update: Callable[[list[str]], None] | None = None
+        #: the sentence the one confirmation says about that step, from the plan (``None``: none); set together
+        #: with :attr:`after_update` so the user is told before confirming what runs afterwards
+        self.followup: Callable[[U.UpdatePlan], str | None] | None = None
+        #: called once before the first part installs (D-1130 review): loads what runs after a bundle swap (the
+        #: ``after_update`` step), since a module first imported afterwards would come from the new bundle's files
+        self.prepare: Callable[[], None] | None = None
         self.read_status = False
 
     @property
     def installed(self) -> bool:
-        """An install was made in this session (or waits for the app to quit): the running app is the old one."""
-        return self.install is not None and self.install.action in ("installed", "waiting-for-quit")
+        """An install was made in this session (or waits for the app to quit): the running app is the old one, or the
+        program changed under it; nothing more until the app starts again (and checks again)."""
+        app = self.install is not None and self.install.action in ("installed", "waiting-for-quit")
+        program = self.program_install is not None and self.program_install.action == "installed"
+        return app or program
 
     @property
     def bundle_update(self) -> bool:
         """Download and Install… replaces the app's bundle: the app is a bundle and the last check did not find only
-        the agentprov program it runs behind (D-1070: then that program's upgrade command is shown instead)."""
+        the agentprov program it runs behind (D-1070: then only that program is updated)."""
         return self.bundle is not None and not (self.check is not None and self.check.cli_only)
+
+    @property
+    def program_update(self) -> bool:
+        """The agentprov program the app runs needs its own update (D-1130): the check says it is behind, it is not
+        the bundle's own copy (which the bundle install updates), or the app is no bundle at all (then the program is
+        the only part there is)."""
+        if self.program() == "bundled" and self.bundle_update:
+            return False
+        if not self.bundle_update:
+            return True
+        return self.check is not None and self.check.behind_core is True
 
     # ------------------------------------------------------------------ the commands
     def commands(self) -> list[tuple[str, list[str]]]:
@@ -134,19 +195,26 @@ class UpdateController(QObject):
             ("The last check, from the cache (no network)", U.status_argv(self.bundle, self.gui)),
             ("Check for Updates", U.check_argv(self.bundle, self.gui))]
         if self.bundle_update:
-            out += [("Download and Install…: download and verify", U.download_argv()),
-                    ("then, after you confirm, install (the old version is kept for rollback)",
+            out += [("Download and Install…: download and verify the app", U.download_argv()),
+                    ("then, after you confirm, install it (the old version is kept for rollback)",
                      U.install_argv(self.bundle, self.gui))]
-        elif self.bundle is not None:
-            out.append(("Show the Upgrade Command (only the agentprov this app runs is out of date: the app is not "
-                        "replaced)", U.install_argv(None, self.gui)))
-        else:
-            out.append(("Show the Upgrade Command (this app is not a bundle: nothing is installed)",
-                        U.install_argv(None, self.gui)))
+        if self.program_update:
+            out.append(("How the agentprov program the app runs is installed, and whether agentprov can update it "
+                        "(changes nothing)", U.plan_argv()))
+            auto = self.plan_doc.automatic if self.plan_doc is not None else None
+            if auto is not None and auto.available and auto.how == "package":
+                out += [("its release wheels, downloaded and verified (never PyPI)", U.package_download_argv()),
+                        ("then, after you confirm, installed with its own installer (no dependency resolution, no "
+                         "index)", U.package_install_argv())]
+            elif auto is not None and auto.available and auto.how == "checkout":
+                out.append(("after you confirm: git pull --ff-only origin main and uv sync --frozen --group docs in "
+                            "the checkout", U.checkout_install_argv()))
         return out
 
     def _start(self, what: str, argv: list[str], done: Callable[[tuple[int, bytes, bytes]], None],
-               line: str) -> bool:
+               line: str, *, continue_on_error: bool = False) -> bool:
+        """Run one command off the UI thread. ``continue_on_error``: when the command could not be run at all, ``done``
+        still gets a failed result (exit 70), so an install chain goes on to its next part (D-1130 review)."""
         from agentprov_gui.ui.worker import submit
 
         if self.busy:
@@ -163,6 +231,8 @@ class UpdateController(QObject):
         def failed(code: str) -> None:
             self.busy = ""
             self.status_line = f"agentprov update could not be run ({T.line(code, 60)})."
+            if continue_on_error:
+                done((70, b"", f"agentprov update could not be run ({code})".encode("utf-8", "replace")))
             self.changed.emit()
 
         submit(self, lambda _s: self.run(argv, timeout), finished, failed)
@@ -240,16 +310,34 @@ class UpdateController(QObject):
         self._start("settings", U.skip_argv(version), done, f"Skipping AgentPROV {version}…")
 
     def download_and_install(self, parent: QWidget | None = None) -> bool:
-        """Download and Install…: download and verify, ask, install. Without a bundle, or when only the agentprov
-        program the app runs is behind (D-1070): the upgrade command only. Once an install was made (or waits for the
+        """Download and Install… (D-1130): ask how the program is installed (when it needs its own update), download
+        and verify the app's bundle and the program's wheels, ask once, then install each part. Without a part agentprov
+        can update, the upgrade command is shown and nothing is installed. Once an install was made (or waits for the
         app to quit), nothing more until the app is started again: a second install from the old running app would
         replace the version kept for rollback."""
         if self.busy or self.installed:
             return False
-        self.result = []
+        self.result, self.download, self.package, self.plan_doc, self.plan = [], None, None, None, None
+        self._identity_at_start = self.identity()
+        self._parent = parent
+        if self.program_update:
+            return self._start("install", U.plan_argv(), self._planned,
+                               "Asking agentprov how the program this app runs is installed…")
+        return self._download_app()
+
+    # The steps, each started when the one before has finished (one command at a time).
+    def _planned(self, result: tuple[int, bytes, bytes]) -> None:
+        got = U.parse_install(result[0], result[1])
+        if got is None:
+            self.status_line = "agentprov did not say how it is installed; nothing is changed: " + U.reason(
+                result[0], result[2])
+            return
+        self.plan_doc = got
+        self._download_app()
+
+    def _download_app(self) -> bool:
         if not self.bundle_update:
-            return self._start("install", U.install_argv(None, self.gui), self._installed,
-                               "Asking agentprov how this install is upgraded…")
+            return self._download_program()
 
         def downloaded(result: tuple[int, bytes, bytes]) -> None:
             got = U.parse_download(result[0], result[1])
@@ -259,46 +347,153 @@ class UpdateController(QObject):
                 return
             self.download = got
             note = [U.UNSIGNED_NOTE] if not got.signed else []
-            self.result = [f"Downloaded and verified {got.asset or 'the bundle'} of {got.tag or got.version} "
-                           f"({got.verification}{', signed by ' + got.signed_by if got.signed_by else ''}).", *note]
-            self.busy, self.status_line = "confirm", "Waiting for your confirmation…"
-            self.changed.emit()
-            assert self.bundle is not None
-            current = self.check.gui if self.check is not None and self.check.gui else self.gui
-            try:
-                confirmed = self.confirm(QApplication.activeWindow() or parent, got, self.bundle, current)
-            finally:
-                self.busy = ""
-            if not confirmed:
-                self.status_line = ("Not installed. The verified download stays staged; Download and Install… "
-                                    "asks again.")
-                return
-            self._start("install", U.install_argv(self.bundle, self.gui), self._installed,
-                        f"Installing AgentPROV {got.version or ''} (agentprov update install)…")
+            self.result = [*self.result, f"Downloaded and verified {got.asset or 'the bundle'} of "
+                                         f"{got.tag or got.version} ({got.verification}"
+                                         f"{', signed by ' + got.signed_by if got.signed_by else ''}).", *note]
+            self._download_program()
 
         return self._start("download", U.download_argv(), downloaded,
                            "Downloading and verifying the update (agentprov update download)…")
 
-    def _installed(self, result: tuple[int, bytes, bytes]) -> None:
+    def _download_program(self) -> bool:
+        auto = self.plan_doc.automatic if self.plan_doc is not None else None
+        if auto is None or not auto.available or auto.how != "package":
+            return self._ask(None)
+
+        def downloaded(result: tuple[int, bytes, bytes]) -> None:
+            got = U.parse_download(result[0], result[1])
+            if got is None or got.kind != "package":
+                self._ask(U.reason(result[0], result[2]))
+                return
+            self.package = got
+            self.result = [*self.result, f"Downloaded and verified {', '.join(got.wheels)} ({got.verification}"
+                                         f"{', signed by ' + got.signed_by if got.signed_by else ''})."]
+            self._ask(None)
+
+        return self._start("download", U.package_download_argv(), downloaded,
+                           "Downloading and verifying the agentprov program's wheels (agentprov update download "
+                           "--package)…")
+
+    def _ask(self, refused: str | None) -> bool:
+        """The one confirmation, then the installs (or, with nothing agentprov can update, the command)."""
+        plan = U.plan(bundle=self.bundle if self.bundle_update else None, gui=self.gui, app=self.download,
+                      program=self.plan_doc,
+                      package=self.package, package_refused=refused,
+                      core=self.check.core if self.check is not None else None)
+        if self.followup is not None and plan.parts:
+            from dataclasses import replace
+
+            plan = replace(plan, followup=self.followup(plan))
+        self.plan = plan
+        for what, why, command in plan.cannot:
+            self.result = [*self.result, f"{what} is not updated here: {why}.", *(
+                [f"Run this command in a terminal: {command}"] if command else [])]
+        if not plan.parts:
+            if self.plan_doc is not None:
+                self._show_command(self.plan_doc)
+            return True
+        self.busy, self.status_line = "confirm", "Waiting for your confirmation…"
+        self.changed.emit()
+        try:
+            confirmed = self.confirm(QApplication.activeWindow() or getattr(self, "_parent", None), plan)
+        finally:
+            self.busy = ""
+        if not confirmed:
+            self.status_line = ("Not installed. A verified download stays staged; Download and Install… asks again.")
+            self.changed.emit()
+            return True
+        if self.identity() != self._identity_at_start:
+            self.status_line = ("Not installed: the agentprov program this app runs changed while the update was being "
+                                "prepared (Settings › General), so the confirmation described another one. A verified "
+                                "download stays staged; Download and Install… asks again.")
+            self.changed.emit()
+            return True
+        self._failed, self._app_line = [], ""
+        import agentprov_gui.ui.worker  # noqa: F401  (loaded before any swap, with what runs after it)
+
+        if self.prepare is not None:
+            self.prepare()
+        self._install_parts(list(plan.parts))
+        return True
+
+    def _install_parts(self, parts: list[U.Part], installed: list[str] | None = None) -> None:
+        installed = [] if installed is None else installed
+        if not parts:
+            if self._failed and not installed:
+                self.status_line = "Nothing was updated: " + "; ".join(self._failed)
+            if self.after_update is not None:  # the one call site of the step after the installs (D-1130)
+                self.after_update(installed)
+            return
+        part, rest = parts[0], parts[1:]
+        app = part.name == "The app"
+
+        def done(result: tuple[int, bytes, bytes]) -> None:
+            got = (self._installed if app else self._program_installed)(result)
+            ok = got is not None and got.action in ("installed", "waiting-for-quit")  # this call's, never an earlier
+            # a failed part does not stop the next one; each says how it went
+            self._install_parts(rest, [*installed, part.name] if ok else installed)
+
+        line = (f"Installing AgentPROV {part.to_version or ''} (agentprov update install)…" if app else
+                "Updating the agentprov program (agentprov update install)…")
+        self._start("apply", list(part.argv), done, line, continue_on_error=True)
+
+    def _show_command(self, got: U.Install) -> None:
+        self.install = got
+        lines = list(got.lines) or ([got.text] if got.text else [])
+        if got.command:
+            lines.append("Run this command in a terminal; the app installs nothing itself here.")
+        self.result = [*self.result, *lines]
+
+    def _installed(self, result: tuple[int, bytes, bytes]) -> U.Install | None:
         got = U.parse_install(result[0], result[1])
         if got is None:
-            self.status_line = "The install was refused or failed; the app is unchanged: " + U.reason(result[0],
-                                                                                                    result[2])
-            return
+            line = "The app was not updated (the install was refused or failed; it is unchanged): " + U.reason(
+                result[0], result[2])
+            self.status_line = line
+            self.result = [*self.result, line]  # kept when a later part reports itself (D-1130 review)
+            self._failed.append("the app")
+            return None
         self.install = got
         self.status_line = ""
         if got.action in ("installed", "waiting-for-quit"):
-            self.status_line = ("Installed. Quit AgentPROV and open it again to start the new version." if got.action
-                                == "installed" else "Ready. Quit AgentPROV: the update is applied once it has closed.")
+            self.status_line = self._app_line = (
+                "Installed. Quit AgentPROV and open it again to start the new version." if got.action == "installed"
+                else "Ready. Quit AgentPROV: the update is applied once it has closed.")
         lines = list(got.lines) or ([got.text] if got.text else [])
         if got.action == "command" and got.command:
             lines.append("Run this command in a terminal; the app installs nothing itself.")
         self.result = [*self.result, *lines]
+        return got
+
+    def _program_installed(self, result: tuple[int, bytes, bytes]) -> U.Install | None:
+        got = U.parse_install(result[0], result[1])
+        if got is None:
+            line = ("The agentprov program was not updated (it is unchanged, or see its output): "
+                    + U.reason(result[0], result[2]))
+            self.result = [*self.result, line]
+            self._failed.append("the agentprov program")
+            # the program part's start replaced the status with its progress line: the app's quit line comes first
+            self.status_line = f"{self._app_line} {line}" if self._app_line else line
+            return None
+        self.program_install = got
+        unsynced = got.kind == "checkout" and got.action == "installed" and got.synced is False
+        if unsynced:
+            what = "The checkout was pulled, but its environment was NOT synced (see below): run the uv sync shown."
+        elif got.action == "installed":
+            what = "The agentprov program is updated; Check for Updates again to confirm."
+        else:
+            what = "The agentprov program was already current."
+        if self._failed:  # an earlier part failed: say both (D-1130 review)
+            self.status_line = f"{what} Not updated: {', '.join(self._failed)} (see below)."
+        else:  # the app part's instruction to quit, when it installed, stays first
+            self.status_line = f"{self._app_line} {what}" if self._app_line else what
+        self.result = [*self.result, *got.lines]
+        return got
 
 
 class UpdatesSection(QWidget):
     """About's Updates section: the last check, the newest release and its notes, Check for Updates, Download and
-    Install… (or Show the Upgrade Command), the outcome, and the terminal commands of each action."""
+    Install… (or Update agentprov…), the outcome, and the terminal commands of each action."""
 
     def __init__(self, controller: UpdateController, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -364,25 +559,30 @@ class UpdatesSection(QWidget):
         controller.load_status()
 
     def _set_install_button(self) -> None:
-        """Download and Install… for a bundle update, else Show the Upgrade Command (not a bundle, or only the agentprov
-        program this app runs is behind, D-1070), with the tooltip of what it runs."""
+        """Download and Install… for a bundle update (with the program, when it is behind too), else Update agentprov…
+        (not a bundle, or only the agentprov program this app runs is behind, D-1070), with the tooltip of what it
+        runs (D-1130)."""
         c = self.controller
         kind = (c.bundle_update, c.bundle is not None)
         if kind == self._install_kind:
             return
         self._install_kind = kind
-        name = INSTALL_NAME if c.bundle_update else COMMAND_NAME
+        name = INSTALL_NAME if c.bundle_update else PROGRAM_NAME
         self.install_btn.setText(name)
         self.install_btn.setAccessibleName(name)
+        program = ("the agentprov program this app runs (Settings › General): a pip, uv tool or pipx install from "
+                   "the release's verified wheels with its own installer (never PyPI), a clean checkout on main with "
+                   "git pull --ff-only and uv sync --frozen")
         set_control_tooltip(self.install_btn, (
             "Runs agentprov update download --allow-network (the bundle is verified against the release's SHA256SUMS "
-            "and, when the package lists a release key, its signature), then asks you before agentprov update install "
-            "--confirm replaces the app; the old version is kept for rollback." if c.bundle_update else
-            "Only the agentprov program this app runs (Settings › General) is out of date, not the app: replacing the "
-            "app would not change it. Runs agentprov update install without --bundle, which prints the command that "
-            "upgrades that program. Nothing is installed." if c.bundle is not None else
-            "This app runs from a checkout or a package install, not a bundle: runs agentprov update install without "
-            "--bundle, which prints the command that upgrades it. Nothing is installed."))
+            "and, when the package lists a release key, its signature) and, when it is out of date too, prepares "
+            f"{program}. Then it asks you once, naming each part, before agentprov update install replaces it; the "
+            "app's old version is kept for rollback." if c.bundle_update else
+            f"Only the agentprov program is out of date, not the app: replacing the app would not change it. Updates "
+            f"{program}, after you confirm; any other install gets the command to run, and nothing is installed."
+            if c.bundle is not None else
+            f"This app runs from a checkout or a package install, not a bundle. Updates {program}, after you confirm; "
+            "any other install gets the command to run, and nothing is installed."))
 
     def refresh(self) -> None:
         c = self.controller
@@ -417,16 +617,19 @@ class UpdatesSection(QWidget):
         self.result.set_plain("\n".join(c.result))
         self.result.setVisible(bool(c.result))
         commands = c.commands()
-        if c.install is not None and c.install.command:
-            commands.append(("The upgrade command agentprov printed (run it yourself)", list(c.install.command)))
+        for got in (c.install, c.plan_doc):
+            if got is not None and got.command and got.action == "command":
+                commands.append(("The upgrade command agentprov printed (run it yourself)", list(got.command)))
+                break
         self.command.set_commands(commands)
 
 
 class UpdateNotice(QDialog):
     """The start-up notice, once per new release: "AgentPROV X.Y.Z is available", the notes (plain text), and Update
     Now, Later or Skip This Version (:attr:`choice` is ``update``, ``later`` or ``skip``). When only the agentprov
-    program the app runs is behind (D-1070) it says so instead, and its primary button is Show the Upgrade Command
-    (still ``update``: About then shows that program's upgrade command, never a bundle download)."""
+    program the app runs is behind (D-1070) it says so instead, and its primary button is Update agentprov… (still
+    ``update``: About then updates that program after the confirmation when agentprov can, D-1130, or shows its upgrade
+    command; never a bundle download)."""
 
     def __init__(self, check: U.Check, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -451,8 +654,10 @@ class UpdateNotice(QDialog):
             app = f"This app is AgentPROV {check.gui}, which is current" if check.gui else "This app is current"
             summary = (f"{app}, but the agentprov program it runs is {check.core or 'older'} and the newest release is "
                        f"{version}.{when} Updating the app would not change that program: Settings › General names "
-                       "which one it is (a checkout or a package install). Show the Upgrade Command shows the command "
-                       "that upgrades it, for you to run; nothing is downloaded or installed.")
+                       "which one it is (a checkout or a package install). Update agentprov… updates it after you "
+                       "confirm when agentprov can (a pip, uv tool or pipx install from the release's verified wheels, "
+                       "never PyPI; a clean checkout on main by fast-forward) and otherwise shows the command for you "
+                       "to run. The app itself is not downloaded or replaced.")
         else:
             have = ", ".join(x for x in (f"the app {check.gui}" if check.gui else "",
                                          f"agentprov {check.core}" if check.core else "") if x)
@@ -479,11 +684,13 @@ class UpdateNotice(QDialog):
         row.addWidget(self._button("Later", "later", footer, "Closes this notice; it asks again the next time the app "
                                                              "starts."))
         self.update_btn = self._button(
-            COMMAND_NAME, "update", footer,
-            "Opens About and runs agentprov update install without --bundle, which prints the command that upgrades "
-            "the agentprov program this app runs; nothing is downloaded or installed.") if cli_only else self._button(
+            PROGRAM_NAME, "update", footer,
+            "Opens About, which asks agentprov how the program this app runs is installed (agentprov update install "
+            "without --bundle) and, when it can update it, downloads and verifies what it needs and asks you before "
+            "anything is replaced; otherwise it shows the command to run.") if cli_only else self._button(
             "Update Now", "update", footer, "Opens About and downloads and verifies the update (agentprov update "
-            "download --allow-network); it asks you again before anything is replaced.")
+            "download --allow-network, and the agentprov program's own update when it is out of date too); it asks you "
+            "again, naming each part, before anything is replaced.")
         self.update_btn.setDefault(True)
         row.addWidget(self.update_btn)
         lay.addWidget(footer)

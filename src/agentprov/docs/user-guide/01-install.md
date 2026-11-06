@@ -27,6 +27,32 @@ starts ([G.4.12](https://github.com/nickjones39/AgentPROV/blob/main/docs/archite
 
 ## Installing the core
 
+There are three ways to get AgentPROV. Each one includes the `agentprov` command-line program:
+
+| You install | You get | Live runs |
+|---|---|---|
+| **The desktop app** (a download) | the app and its own copy of `agentprov`, which runs every job | need a checkout as well |
+| **From PyPI** (`pip`, `uv tool`, `pipx`) | the `agentprov` program and library | need a checkout |
+| **A checkout of the repository** | everything: the program, the app's source, `backends/`, the tests | yes, after `agentprov backends build` |
+
+**The desktop app** is a download on the [releases page](https://github.com/nickjones39/AgentPROV/releases/latest)
+(chapter 8). It carries the whole `agentprov` inside it, so it imports, derives, validates, verifies and seals with no
+other install (D-1130). In a terminal that copy is `AgentPROV --cli`, for example
+`/Applications/AgentPROV.app/Contents/MacOS/AgentPROV --cli --version` on macOS. Settings › General can point the app at
+a checkout or at an `agentprov` installed from PyPI instead. Live runs need a checkout of the repository, with `uv sync
+--frozen --group docs` and `agentprov backends build` (chapter 7), because the benchmark backends are separate uv
+projects in its `backends/` folder.
+
+**The app's `agentprov` in a Terminal.** To type plain `agentprov` instead of the app's path, choose **Install Command
+Line Tool…**: on macOS in the AgentPROV menu, on Linux and Windows in the Help menu. It asks first, naming the
+launcher and what it runs, then puts a small launcher named `agentprov` in `~/.local/bin` (Windows: `agentprov.cmd` in
+`%USERPROFILE%\.local\bin`). No administrator rights are needed. The launcher runs the app's own copy by its full
+path, so an app update updates the Terminal command too. If the folder is not on your `PATH`, the app shows the line
+that adds it. **Uninstall Command Line Tool** removes the launcher again. The same in a terminal is `AgentPROV --cli
+launcher install` and `agentprov launcher remove` ([chapter 8](08-desktop-app.md#the-agentprov-command-in-a-terminal)).
+If you already installed `agentprov` with pip, uv tool or pipx, you don't need the launcher, and it never replaces
+that program.
+
 **From PyPI** (the command-line program and library; `agentprov-capture` comes with it, and `agentprov-zenodo` with the
 `zenodo` extra):
 
@@ -42,6 +68,11 @@ repository checkout: `agentprov backends build` builds the benchmark backends fr
 which the package does not contain (chapter 7). The desktop app is a download on the
 [releases page](https://github.com/nickjones39/AgentPROV/releases/latest), or the `gui/` project of a checkout
 (chapter 8).
+
+**Updating.** `agentprov update` (and the app's Download and Install…) updates whichever of these you have (D-1130).
+The app replaces its own folder, which also updates its own `agentprov`. A pip, uv tool or pipx install gets the
+release's own signed wheels, installed with its own installer and nothing fetched from PyPI. A clean checkout on `main`
+is fast-forwarded and synced. See [chapter 8](08-desktop-app.md#updating).
 
 **From a checkout of the repository** (development, live runs, every test):
 

@@ -207,8 +207,19 @@ no).*
 ## Runs
 
 The Runs page starts and follows jobs. Its top bar has **▶ Run Live…**, **New Job ▾** (a menu of every form, below),
-**Dev Run…** and **Live Dev Run…**. A job is a detached `agentprov` process (`agentprov jobs start … -- <command>`): it
-keeps running when the window closes, and the app finds it again when it reopens.
+**Dev Run…**, **Live Dev Run…** and **Rebuild Stale Environments…**. A job is a detached `agentprov` process
+(`agentprov jobs start … -- <command>`): it keeps running when the window closes, and the app finds it again when it
+reopens.
+
+**Rebuild Stale Environments…** is for the moment after an update when Run Live shows no suites for a backend because its
+environment was built for the old version. It asks first, with the exact command
+(`agentprov backends rebuild-stale --allow-network`, tier R2: it downloads the pinned wheels the backend locks name, and
+AutoDojo's pinned NLTK data, when they are not cached, and takes about 15 minutes when every backend is rebuilt). The job
+then checks each registered backend's environment, builds each stale one in turn and checks it offline; its row in the
+jobs table counts backends (done of 4), and its details list each backend's outcome. A backend that fails is reported
+with its reason and the command to run, and the others still run. Earlier environments in `$AGENTPROV_HOME/envs` are left
+as they are. About's update flow starts the same job as its last step (D-1130). It needs the
+repository checkout: without one, the button explains and nothing starts ([chapter 7](07-live-runs.md#after-an-update-rebuild-the-stale-environments)).
 
 ### Jobs
 
@@ -341,7 +352,7 @@ New Job ▾ lists a form for each command: Info, Model lists, Validate a corpus,
 graphs, Derive a new corpus version, Recompute and compare, Import a source, Fetch pinned upstream bytes, Statistics,
 Seal a working corpus, Build a deposit draft (never uploads), Build a collection index deposit (never uploads), Purge a
 leaked object (irreversible), Run CI locally, Refresh model prices, Build cost figures from my corpora (estimate
-priors), Build a backend environment, Inspect an execution, file or corpus, and the migration gates. Each form is built
+priors), Build a backend environment, Rebuild stale backend environments, Inspect an execution, file or corpus, and the migration gates. Each form is built
 from the command's options and has two columns. On the left is the form: sections of plain labels, with the option each
 one sets in its tooltip. A choice such as *Fetch the pin* or *Local folder* shows only the fields that go with it (for an
 import, *Download if not cached* sits beside it, and N beside *All*, *First N* or *Sample N*), and a hidden field is left
@@ -417,7 +428,8 @@ says in plain words what the field is; the `agentprov run` option it sets is in 
   computes none:
   - *Stop at a cost of* is the quote's **upper figure** (the sum of per-cell 90th percentiles) plus the margin, plus
     room for the cells the run reserves before it starts one: the cells that run at once (*Concurrent traces*, at most
-    the cells due), each at its worst case, and one preflight probe, priced at *Priced at*. Rounded up to the cent.
+    the cells due), each at its worst case, and the preflight probe's attempts (up to 3), priced at *Priced at*; the
+    upper figure is priced at *Priced at* too, as the run counts its spend. Rounded up to the cent.
   - *Stop after model calls* is the quote's **p90 model calls** plus the margin, plus the same room in calls (48
     billed calls a cell with the stock LLM element, 144 with the AutoDojo element, 384 with `gateway_compat`, more under
     a defence). Rounded up to a whole call.
@@ -427,6 +439,11 @@ says in plain words what the field is; the `agentprov run` option it sets is in 
   The room is there because a run starts a cell only if what it has spent, plus every running cell's worst case, fits
   both caps (D-725): a cap equal to the quote alone would often let no cell start. So the caps are well above the
   typical cost, but the run never spends more than them.
+
+  `agentprov run` reads no key for an API run that lacks a cap (D-702), so until both caps are given the quote is
+  planned with the scripted stand-in, as it is without a stored key: the cells are the same, but units a resumed corpus
+  already holds are not subtracted, so the suggestion is high. For an Inspect task the quote is planned with cells of one
+  sample unless you set *Samples per cell*: that is the capped run's default (D-740).
 
   Each cap's grey caption says how its figure was made: which figure, the margin, the room, whether the figures come
   from your priors (`agentprov priors build`), the shipped priors or both, with "all-model figures" when they are not
@@ -870,9 +887,65 @@ In a terminal, `--page Runs` does the same: `agentprov assist --question "What i
 
 ## Updating
 
-`agentprov update` checks for a new release, downloads it, checks it and installs it into the app's folder (D-1065).
-The app has no network code of its own, so its update check runs these commands in the background with the
-`agentprov` it uses (Settings › General).
+`agentprov update` checks for a new release, downloads it, checks it and installs it (D-1065). It updates the whole
+software (D-1130): the app's folder, and the `agentprov` program the app runs, whether that is the app's own copy, a
+pip, uv tool or pipx install, or a checkout. The app has no network code of its own, so it runs these commands in the
+background with the `agentprov` it uses (Settings › General).
+
+### Which agentprov the app runs
+
+Settings › General decides it: the **Checkout** when one is set, else the **agentprov program** (an `agentprov`
+installed with pip, uv tool or pipx, or the first one on `PATH`), else the app's own copy. A downloaded app (a bundle)
+carries the whole `agentprov` inside it, so it works with neither. **agentprov to run** can choose The app's own copy
+always. That copy is updated with the app. It has no checkout, so live runs, the job queue and the checkout's tools
+are not available with it; Run Live says "Live runs need an AgentPROV checkout" instead of starting a run that would
+fail. **CLI in use** shows which one the app will run. In a terminal, the app's own copy is `AgentPROV --cli`, for
+example `/Applications/AgentPROV.app/Contents/MacOS/AgentPROV --cli info`. Corpora it writes record the same code
+digests and library versions as a pip install of the same version: the app carries the core's source files and package
+metadata for that, and a damaged copy without them refuses the commands that record a digest rather than record a
+false one.
+
+### The agentprov command in a Terminal
+
+**Install Command Line Tool…** (on macOS in the AgentPROV menu, beside Check for Updates…; on Linux and Windows in the
+Help menu) makes the app's own `agentprov` a Terminal command, in the same way an editor installs its command in
+`PATH` (D-1130). The two items appear only in the downloaded app (a bundle). A checkout's or a package's `agentprov` is
+already a Terminal command.
+
+- **What it writes.** A small launcher named `agentprov` (Windows: `agentprov.cmd`) that runs
+  `"<the app's executable>" --cli ARGS`, for example `"/Applications/AgentPROV.app/Contents/MacOS/AgentPROV" --cli
+  info`. It names the app by its full path, so an app update, which replaces the app in the same place, updates the
+  Terminal command too. If you move or delete the app, the command says `the AgentPROV app is no longer at ...` and
+  exits with code 127. Choose Install Command Line Tool… again from the app in its new place. On macOS it refuses an
+  app that is not in a lasting place (opened where it was downloaded, so macOS runs a temporary App Translocation copy,
+  or opened from its disk image): move AgentPROV.app to Applications first.
+- **Where.** `~/.local/bin` (Windows: `%USERPROFILE%\.local\bin`), created if missing. No administrator rights are
+  needed. `/usr/local/bin` is offered as well, but only when your account can already write it. The app never asks for
+  your password and never uses `sudo`.
+- **The confirmation** names the launcher's path and what it runs. If that folder already holds another `agentprov`
+  (one that pip, uv tool or pipx installed, or a link into a checkout's `.venv`), it says what it is and does not
+  replace it. Remove that one with its own tool, or keep using it.
+- **PATH.** When the folder is not on your `PATH`, the reply gives the line that adds it. For zsh on macOS:
+  `echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zprofile`, then open a new Terminal window. On Windows, add the
+  folder under "Edit environment variables for your account" › Path. The reply also says when another `agentprov`
+  comes first on `PATH`.
+- **Uninstall Command Line Tool** lists the launchers the app made and removes only those. It recognises them by
+  their second line, `agentprov-launcher/1`. Any other `agentprov` is left as it is, and named.
+- **Which agentprov the app runs is unchanged.** The app never counts the launcher as a separately installed
+  `agentprov`, so the order above (checkout, installed `agentprov`, the app's own copy) stays the same. The app never
+  runs itself through its own launcher.
+
+In a terminal, the same three commands (here with the app in Applications):
+
+```bash
+/Applications/AgentPROV.app/Contents/MacOS/AgentPROV --cli launcher install   # or: --dir /usr/local/bin
+agentprov launcher status
+agentprov launcher remove
+```
+
+`install` from any other `agentprov` (a checkout or a pip install) needs `--app` with the app's executable. All three
+take `--format json` (`agentprov-launcher/0.1`). Exit code 4 means the command refused: another `agentprov` is in the
+way, or the folder is missing or not writable. The reason is printed on stderr.
 
 ### In the app
 
@@ -884,15 +957,46 @@ The app has no network code of its own, so its update check runs these commands 
 - **Check for Updates** runs `agentprov update check --allow-network --bundle APP --gui-version VERSION --format json`.
   `APP` is the app's own folder (`AgentPROV.app`, or the `AgentPROV` folder on Linux and Windows); an app that runs
   from a checkout or a package install leaves `--bundle` out.
-- **Download and Install…** first runs `agentprov update download --allow-network`, which verifies the bundle. Then
-  the app asks you, naming the folder it will replace, the version it installs, how the download was checked, and that
-  the old version is kept beside it for rollback. Only after you choose Install does it run `agentprov update install
-  --confirm --bundle APP`. If the package lists no release key, the app says the bundle was checked against
-  `SHA256SUMS` only, which does not prove who published it. Afterwards, quit the app and open it again. On Windows, the
-  update is applied once the app has quit. Cancel installs nothing, and the verified download stays staged.
-- An app that is not a bundle (one run from a checkout with `uv run`, or a package install) has **Show the Upgrade
-  Command** instead. It runs `agentprov update install` without `--bundle` and shows the command that upgrades your
-  install, for you to run in a terminal. The app installs nothing itself.
+- **Download and Install…** updates everything it can, with one confirmation:
+  1. When the `agentprov` the app runs is out of date too and is not the app's own copy, it first asks that program
+     how it is installed (`agentprov update install --format json`, which changes nothing).
+  2. It downloads and verifies the app (`agentprov update download --allow-network`) and, for a pip, uv tool or pipx
+     install, the release's wheels of `agentprov` (`agentprov update download --package --allow-network`). Both are
+     checked the same way: the release's signature first, then each file's sha256.
+  3. It asks you once. The dialog names each part it will replace (the app's folder, the program's install), the
+     version it has and the one it gets, how the download was checked (for a checkout, its source: a git pull is not a
+     verification), and what is kept to go back to: the old app
+     stays beside it for rollback; a package install's old version is not kept, and the dialog gives the command that
+     reinstalls it; a checkout's old commit stays in git. It also names each part it cannot update, says why, and gives
+     the command to run yourself.
+  4. Only after you choose Install does it run `agentprov update install --confirm --bundle APP`, then `agentprov
+     update install --package --confirm` (or `--checkout`, below). These run without a time limit: an install is never
+     stopped part of the way through. If the `agentprov` the app runs was changed in Settings › General while the
+     downloads ran, nothing is installed (the dialog described the other one); Download and Install… asks again.
+  5. When the program was updated and the app runs a checkout, it then starts `agentprov backends rebuild-stale
+     --allow-network` as a job on the Runs page: the backend environments the new version no longer accepts are
+     rebuilt and checked ([Runs](#runs)). The dialog in step 3 says so before you confirm (it may download pinned wheels
+     and take about 15 minutes). An update of the app alone starts nothing; without a checkout, About says that live
+     runs need one and nothing starts.
+
+  Nothing is replaced while a job runs from it: jobs keep running after the app quits and read their program's files
+  as they go, so a part whose files a running job uses is refused, naming the jobs (stop them in Runs, or wait), and
+  the other parts go on. Each part reports itself: when one is refused or fails and the next succeeds, the line under
+  the buttons names both and the outcome keeps each part's reason. If the package lists no release key, the app says the files were checked against
+  `SHA256SUMS` only, which does not prove who published them. Afterwards, quit the app and open it again. On Windows, the app's update is applied once
+  the app has quit. Cancel installs nothing, and the verified downloads stay staged.
+- An app that is not a bundle (one run from a checkout with `uv run`, or a package install) has **Update agentprov…**
+  instead. It updates only the `agentprov` program, the same way and after the same confirmation, or, when it cannot,
+  shows the command that upgrades your install for you to run in a terminal.
+- **What the program's update does.** A pip, uv tool or pipx install gets the release's own wheels, installed by its
+  own installer with `--no-deps --no-index`, so nothing is fetched from PyPI. If the new version needs a package your
+  install does not already have, nothing is installed and the app shows the ordinary upgrade command. A checkout is
+  updated in the same flow, with no second question, when it is on `main`, has no changes or untracked files, `main`
+  has no commit that `origin` lacks, and its `origin` is the project's GitHub repository: then `git pull --ff-only
+  origin main` and `uv sync --frozen --group docs`, and the result gives the old and the new commit. Nothing is ever
+  discarded (no reset, no stash, no other branch). Any other checkout (another branch, work in progress, unpushed
+  commits, a fork, a pull that is not a fast-forward) is skipped; the app says why and shows the commands, and still
+  updates the other parts.
 - **At start-up**, unless Settings › Updates › Check once a day is off (`update.auto_check false`), the app runs
   `agentprov update check --allow-network --if-stale`, which asks GitHub at most once a day. The window never waits
   for it, and when you are offline nothing is shown. When a newer release is out, a notice says "AgentPROV X.Y.Z is
@@ -902,10 +1006,11 @@ The app has no network code of its own, so its update check runs these commands 
 - **When only the agentprov program is out of date** (D-1070): the app runs the `agentprov` of the checkout or package
   install named in Settings › General, and the check compares that program and the app separately. If the app is
   current but the program is older, installing the app's bundle would not change the program. The notice then says
-  "The agentprov this app runs is out of date", with both versions and the newest release, and its button is **Show
-  the Upgrade Command**; About's button is Show the Upgrade Command too. Both show the command that upgrades the
-  program (for a checkout: `git pull`, then `uv sync --frozen`), for you to run. Nothing is downloaded or installed.
-  A checkout's `.venv` keeps the version it was last synced with, so after pulling a new version run `uv sync` there.
+  "The agentprov this app runs is out of date", with both versions and the newest release, and its button is
+  **Update agentprov…**; About's button is Update agentprov… too. Both update that program after you confirm, when it
+  can be updated as described above, and otherwise show its upgrade command (for a checkout: `git pull --ff-only`,
+  then `uv sync --frozen --group docs`). The app itself is not downloaded or replaced. A checkout's `.venv` keeps the
+  version it was last synced with, so after pulling a new version run `uv sync --frozen --group docs` there.
 
 Updates are not among the features a platform limit turns off (D-1064). Where the CLI refuses a step, the app shows
 the CLI's reason.
@@ -946,9 +1051,42 @@ agentprov update install --confirm --bundle /Applications/AgentPROV.app
 `agentprov update rollback --yes --bundle PATH` swaps back to the version kept beside the app (on Windows, once the
 app has quit).
 
-The command-line program is never replaced. Without `--bundle`, `agentprov update install` prints the command that
-upgrades it for the way it was installed: `uv tool upgrade agentprov`, `pipx upgrade agentprov`, or `pip install
---upgrade agentprov` run with its own interpreter. A checkout is updated with git.
+The command-line program, by the way it was installed:
+
+```bash
+agentprov update install --format json
+```
+
+prints the command that upgrades it (`uv tool upgrade agentprov`, `pipx upgrade agentprov`, `pip install --upgrade
+agentprov` with its own interpreter, or git for a checkout) and, under `automatic`, whether `agentprov` can do it
+itself here and why not. Nothing changes. Then:
+
+- **A pip, uv tool or pipx install:**
+
+  ```bash
+  agentprov update download --package --allow-network
+  agentprov update install --package --confirm
+  ```
+
+  The first command fetches the release's wheels (`agentprov`, `agentprov-capture`, and `agentprov-zenodo` when it is
+  installed) into `$AGENTPROV_HOME/update/staging/package/` and checks them like a bundle: the signature, then each
+  sha256, then each wheel's name and version. The second checks them again and installs exactly those files with your
+  install's own installer (`pip`, `uv pip`, `pipx runpip`), with `--no-deps --no-index` and without reading any
+  `pip.conf` or `uv.toml` (`--isolated`, `--no-config`; a `pip install --user` install is upgraded with `--user`). It
+  refuses when the new version needs a package your install did not already need. **The previous version is not kept**: the output gives
+  the command that reinstalls it (from PyPI).
+- **A checkout** that is clean, on `main` and whose `origin` is the project's:
+
+  ```bash
+  agentprov update install --checkout --confirm --allow-network
+  ```
+
+  runs `git pull --ff-only origin main` and `uv sync --frozen --group docs`, naming again every extra you have installed
+  (`--extra live`, …: `uv sync` would remove them). It refuses when the `agentprov` doing it runs from another
+  environment than the checkout's `.venv`, and when a new commit adds a file where you have an ignored one (git would
+  overwrite it). The output gives the old commit and the `git reset --keep` that goes back to it.
+- **The app's own copy** (`AgentPROV --cli`) is updated with the app (`agentprov update install --confirm --bundle
+  APP`).
 
 ## About
 
@@ -967,8 +1105,8 @@ these rows (see [Updating](#updating)):
   it found. Opening About reads it without the network (`agentprov update status`).
 - **Newest release**: its version, when it was published and the bundle for this platform, with a badge that says
   whether it is newer than this app or its `agentprov`; then **Release notes**, as plain text.
-- **Check for Updates** and **Download and Install…** (or **Show the Upgrade Command** for an app run from a checkout or
-  a package install, which installs nothing), then a line on what the update commands are doing and what the last
+- **Check for Updates** and **Download and Install…** (or **Update agentprov…** for an app run from a checkout or a
+  package install, which updates only that program, after the same confirmation, or shows its upgrade command), then a line on what the update commands are doing and what the last
   download or install said.
 - **Terminal commands**, with *Copy*: the `agentprov update` command of each action.
 

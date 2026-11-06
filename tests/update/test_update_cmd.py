@@ -406,3 +406,45 @@ def test_the_package_install_kind(tmp_path: Path, setup: str, kind: str, command
     direct = json.dumps({"url": "file:///repo", "dir_info": {"editable": True}}) if setup == "editable" else ""
     got = I.package_install(prefix=str(prefix), executable="/venv/bin/python", direct_url=direct)
     assert (got["kind"], got["command"]) == (kind, command)
+
+
+_AFTER_SWAP = r"""
+import json, sys
+from pathlib import Path
+from agentprov.cli import update as update_cmd
+from agentprov.cli.main import main
+from agentprov.update import install as I
+update_cmd.SIGNERS = Path(sys.argv[1])
+seen = {}
+real = I.swap_in
+
+def swap_in(*args, **kw):
+    real(*args, **kw)
+    seen["at"] = set(sys.modules)
+
+I.swap_in = swap_in
+code = main(sys.argv[2:])
+print(json.dumps({"code": code, "swapped": "at" in seen,
+                  "after": sorted(set(sys.modules) - seen.get("at", set(sys.modules)))}))
+"""
+
+
+@pytest.mark.parametrize("fmt", ["text", "json"])
+def test_nothing_is_first_imported_after_the_bundles_own_agentprov_swaps_its_bundle(
+        cli: Callable[..., Run], github, tmp_path: Path, home: Path, no_keys: Path, fmt: str) -> None:
+    """D-1130 review: a PyInstaller bundle reads its modules from the archive by path, so a module first imported
+    after the swap would come from the new bundle's files. In a fresh interpreter, the install imports nothing after
+    the swap (agentprov's, or the standard library's)."""
+    import subprocess
+
+    github(_github(tmp_path, "linux-x86_64", us.linux_tar(tmp_path / "AgentPROV-linux-x86_64.tar.gz", NEW)))
+    bundle = _linux_bundle(tmp_path / "apps", "0.1.1")
+    assert cli("update", "download", "--allow-network", "--platform", "linux-x86_64").code == 0
+    done = subprocess.run(
+        [sys.executable, "-I", "-c", _AFTER_SWAP, str(no_keys), "update", "install", "--confirm", "--bundle",
+         str(bundle), "--platform", "linux-x86_64", "--gui-version", "0.1.1", "--format", fmt, "--progress", "off"],
+        capture_output=True, text=True, timeout=120, check=False, env={**os.environ, "AGENTPROV_HOME": str(home)})
+    doc = json.loads(done.stdout.strip().splitlines()[-1])
+    assert doc["code"] == 0 and doc["swapped"], done.stderr
+    assert NEW in (bundle / "AgentPROV").read_text()
+    assert doc["after"] == []

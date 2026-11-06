@@ -294,3 +294,29 @@ def test_the_question_boxes_have_tooltips(qapp: Any, monkeypatch: pytest.MonkeyP
     jobdialog.conformance_warning(None)
     safe.ask(None, "Stop job", "Stop this job?")
     assert seen == [[], []], _report([*seen[0], *seen[1]])
+
+
+def test_the_command_line_tool_dialogs_have_tooltips(qapp: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-1130: Install Command Line Tool…'s confirmation (with the shared-folder choice) and Uninstall's question."""
+    from PySide6.QtWidgets import QMessageBox
+
+    from agentprov_gui.ui import clitool
+
+    status = {"format": "agentprov-launcher/0.1", "app": "/A/AgentPROV.app/Contents/MacOS/AgentPROV",
+              "default_dir": "/h/.local/bin", "system_dir_writable": True,
+              "entries": [{"path": "/h/.local/bin/agentprov", "exists": False, "launcher": False, "on_path": False},
+                          {"path": "/usr/local/bin/agentprov", "exists": True, "launcher": True, "on_path": True,
+                           "app": "/A/AgentPROV.app/Contents/MacOS/AgentPROV"}]}
+    dlg = clitool.ConfirmInstall(status)
+    found = gaps(dlg, minimum=3)
+    assert dlg.folder.count() == 2 and not dlg.folder.isHidden()
+    dlg.deleteLater()
+    seen: list[list[str]] = []
+
+    def look(box: QMessageBox) -> int:
+        seen.append(gaps(box))
+        return int(QMessageBox.StandardButton.Cancel)
+
+    monkeypatch.setattr(QMessageBox, "exec", look)
+    assert clitool._ask_remove(None, "Uninstall Command Line Tool")("Remove?") is False
+    assert not found and seen == [[]], _report([*found, *(seen[0] if seen else [])])

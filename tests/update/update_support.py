@@ -144,3 +144,18 @@ def dmg_run(source_app: Path, log: list[list[str]] | None = None) -> Callable[..
         return subprocess.CompletedProcess(argv, 0, "", "")
 
     return run
+
+
+def wheel(directory: Path, dist: str, version: str, requires: Sequence[str] = (), *, name: str | None = None,
+          meta_version: str | None = None, extra: Sequence[tuple[str, bytes]] = ()) -> Path:
+    """A small pure-Python wheel (D-1130): a module, ``<dist>-<version>.dist-info/METADATA`` and ``WHEEL``."""
+    path = directory / (name or f"{dist}-{version}-py3-none-any.whl")
+    lines = ["Metadata-Version: 2.4", f"Name: {dist.replace('_', '-')}", f"Version: {meta_version or version}",
+             *(f"Requires-Dist: {r}" for r in requires), "", ""]
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{dist}/__init__.py", f"__version__ = {version!r}\n")
+        zf.writestr(f"{dist}-{version}.dist-info/METADATA", "\n".join(lines))
+        zf.writestr(f"{dist}-{version}.dist-info/WHEEL", "Wheel-Version: 1.0\nRoot-Is-Purelib: true\n")
+        for member, data in extra:
+            zf.writestr(member, data)
+    return path

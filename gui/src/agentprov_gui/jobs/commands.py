@@ -85,8 +85,9 @@ MANAGED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
     "jobs prune": {"--yes": "Settings › Jobs: after the user confirms the listed jobs"},
     "devrun prune": {"--yes": "Runs › Dev Run…: devrun start prunes old runs itself; a manual prune asks first"},
     "keys delete": {"--yes": "Settings › Keys: after the GUI's own confirmation"},
-    "update install": {"--confirm": "About › Download and Install…: added only after the confirmation that names the "
-                                    "folder replaced and the rollback (D-1065)"},
+    "update install": {"--confirm": "About › Download and Install…: added only after the one confirmation that names "
+                                    "each part replaced, its versions, its verification and what is kept (D-1065, "
+                                    "D-1130)"},
 }
 #: D-654: options never reachable from the GUI, each with its reason ("*" = every command).
 EXCLUDED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
@@ -104,6 +105,8 @@ EXCLUDED_OPTIONS: Final[Mapping[str, Mapping[str, str]]] = {
                "--env-stdin": "for clients holding keys themselves; the GUI passes --keychain instead (D-702)"},
     "backends build": {"--env-file": "S7: the GUI never reads or passes .env (not read by the build)"},  # S7: refused
     "assist": {"--env-file": "S7: the GUI never reads or passes .env (keys come from the keychain)"},  # S7: refused
+    **{f"launcher {action}": {"--app": "the app runs its own agentprov, which links to its own executable "
+                                       "(sys.executable; D-1130)"} for action in ("install", "status")},
     "update rollback": {"--yes": "the app offers no rollback button (D-1065): the install's result shows the "
                                  "rollback command, run in a terminal (on Windows once the app has quit)"},
 }
@@ -236,6 +239,19 @@ _UPDATE_PLATFORM = F("platform", "Bundle platform (default: this machine's)", "c
 _UPDATE_DIR = F("dir", "Staging folder (default: $AGENTPROV_HOME/update/staging/PLATFORM)", "dir", "--dir",
                 advanced=True)
 _JSON = F("format", "Format", "choice", "--format", choices=("text", "json"), default="json")
+
+
+#: D-1130: the rebuild-stale form's title (New Job's menu and the Runs page's button confirmation)
+REBUILD_STALE_TITLE: Final = "Rebuild stale backend environments"
+#: D-1130: the confirmation's lines (the first only with --allow-network); the update flow shows them in its own
+REBUILD_STALE_NOTES: Final = (
+    "It downloads the pinned wheels the backend locks name (uv) and AutoDojo's pinned NLTK data, when they are not "
+    "already cached.",
+    "It takes about 15 minutes when every backend is rebuilt. Each rebuilt environment is then checked offline.",
+    "Only the environments this checkout names are built; earlier environments in $AGENTPROV_HOME/envs are left as "
+    "they are, and so is a stale one that holds defence assets (it is named with the command that rebuilds it with "
+    "them).",
+)
 
 
 def _backend_envs() -> tuple[str, ...]:
@@ -594,6 +610,16 @@ FORMS: Final[Mapping[str, CommandForm]] = {
               "--defence-source", advanced=True),
             _DRY,
         ), slot="backends"),
+        # D-1130: every backend environment this checkout no longer accepts, rebuilt and checked in turn (the update
+        # flow starts it last: agentprov_gui.jobs.rebuild); the backends slot keeps it apart from backends build
+        CommandForm("backends_rebuild_stale", ("backends", "rebuild-stale"), REBUILD_STALE_TITLE, "R1", (
+            F("allow_network", "Allow network (uv downloads the locked packages; AutoDojo's pinned NLTK data)", "bool",
+              "--allow-network", tier="R2", default=True),
+            F("backend", "Only these backends (comma list; default: every registered backend)", "text", "--backend",
+              advanced=True),
+            F("format", "Format", "choice", "--format", choices=("", "text", "json"), advanced=True),
+            _DRY,
+        ), slot="backends"),
         CommandForm("inspect", ("inspect",), "Inspect an execution, file or corpus", "R0", (
             F("target", "Target (execution id, file or corpus root)", "text", None, required=True),
             F("corpus", "Corpus", "dir", "--corpus"),
@@ -690,14 +716,33 @@ FORMS: Final[Mapping[str, CommandForm]] = {
         CommandForm("update_download", ("update", "download"), "Updates: download and verify (About; network)", "R2", (
             F("allow_network", "Allow network (GitHub's release files)", "bool", "--allow-network", tier="R2",
               default=True),
+            # D-1130: the release's wheels for the agentprov program's pip, uv tool or pipx install
+            F("package", "The agentprov program's wheels instead of the app's bundle", "bool", "--package"),
             _UPDATE_DIR, _UPDATE_PLATFORM, _JSON,
         ), menu=False),
         CommandForm("update_install", ("update", "install"), "Updates: install the verified download (About)", "R2", (
-            *_UPDATE_APP, _UPDATE_DIR, _UPDATE_PLATFORM, _JSON,
+            *_UPDATE_APP,
+            # D-1130: the agentprov program's verified wheels, or a clean checkout's fast-forward (git pull: network)
+            F("package", "Install the agentprov program's verified wheels (its own installer, no index)", "bool",
+              "--package"),
+            F("checkout", "Fast-forward the agentprov program's checkout (clean, on main)", "bool", "--checkout"),
+            F("allow_network", "Allow network (with the checkout: git pull from the project's repository)", "bool",
+              "--allow-network", tier="R2"),
+            _UPDATE_DIR, _UPDATE_PLATFORM, _JSON,
         ), menu=False),  # --confirm only after About's confirmation (MANAGED_OPTIONS)
         CommandForm("update_rollback", ("update", "rollback"), "Updates: back to the previous version", "R1", (
             F("bundle", "The desktop app's folder", "dir", "--bundle", required=True), _UPDATE_PLATFORM, _JSON,
         ), menu=False),  # --yes: EXCLUDED_OPTIONS (the app shows the command; it offers no rollback button)
+        # D-1130: Install Command Line Tool… and Uninstall Command Line Tool run these (the bundle's own agentprov)
+        CommandForm("launcher_status", ("launcher", "status"), "Terminal command: where it is (Help)", "R0", (
+            F("dir", "Launcher folder", "dir", "--dir"), _JSON,
+        ), menu=False),
+        CommandForm("launcher_install", ("launcher", "install"), "Terminal command: install (Help)", "R1", (
+            F("dir", "Launcher folder", "dir", "--dir"), _JSON,
+        ), menu=False),
+        CommandForm("launcher_remove", ("launcher", "remove"), "Terminal command: remove (Help)", "R1", (
+            F("dir", "Launcher folder", "dir", "--dir"), _JSON,
+        ), menu=False),
         CommandForm("estimate", ("estimate",), "Estimate a live run (Run Live)", "R0", ESTIMATE_FIELDS, menu=False),
         # D-704: the GUI's job manager is the core's; Runs starts, follows and controls jobs through these commands
         CommandForm("jobs_start", ("jobs", "start"), "Jobs: start", "R1", (
@@ -1114,6 +1159,14 @@ LOOKS: Final[Mapping[str, FormLook]] = {
         "defence_assets": Look("Defences", "Defence assets", "Registry ids, a comma list", advanced=True),
         "defence_source": Look("Defences", "Defence source", "A local tree with the pinned code", advanced=True),
     }),
+    "backends_rebuild_stale": FormLook({
+        "allow_network": Look("Backend", "Allow network", "uv downloads the locked packages"),
+        "backend": Look("Backend", "Only these backends", "A comma list", placeholder="Every registered backend",
+                        advanced=True),
+    }, says=(("", "Finds every backend environment this checkout no longer accepts"),
+             ("backend", " among {backend}"),
+             ("", ", builds each in turn and checks it offline; other environments are left as they are"),
+             ("allow_network", " (uv may download the locked packages)"), ("", "."))),
     "inspect": FormLook({
         "target": Look("Target", "Target", "An execution id, a file or a corpus root"),
         "corpus": Look("Target", "Corpus"),
@@ -1319,6 +1372,8 @@ def build_spec(form: CommandForm, values: Mapping[str, Any], *, extra: str = "",
         raise FormError("Recompute: choose a dry run or a new corpus")
     if "--dry-run" in names:
         writes = []
+    elif form.name == "backends_rebuild_stale":  # D-1130: what the confirmation says before the job starts
+        notes += REBUILD_STALE_NOTES if "--allow-network" in names else REBUILD_STALE_NOTES[1:]
     return JobSpec(
         command=form.name,
         argv=tuple(argv),

@@ -3,7 +3,7 @@
 ``agentprov estimate`` suggests the D-725 caps in ``quote.caps`` (read by :func:`agentprov_gui.live.plan.parse_caps`):
 the quote's p90 figure (the p90 model calls, or the upper cost, the sum of per-cell 90th percentiles) plus a margin
 (the setting ``estimate.caps_margin_pct``, 20 % when unset), plus room for what the run reserves before it starts a
-cell (the cells that run at once, each at its worst case, and one preflight probe). The GUI shows those figures and
+cell (the cells that run at once, each at its worst case, and the preflight probe's attempts). The GUI shows those figures and
 fills the fields with them; it computes none. This module only words them: which figure, the margin, whether the
 priors are local or shipped (``agentprov priors show``), and where the prices come from.
 
@@ -102,7 +102,7 @@ def cap_text(which: Which, caps: SuggestedCaps | None, basis: QuoteBasis | None,
     margin_from = " (Settings › Estimate)" if caps.margin_from == "setting" else " (default, Settings › Estimate)"
     tip = (f"{base} Suggested {_value(which, caps)}: the quote's {figure if which == CALLS else 'upper figure'} "
            f"{'(sum of per-cell 90th percentiles) ' if which == COST else ''}+ {margin}{margin_from}, plus room for "
-           f"{room} at the worst case ({worst} each) and a probe, which the run reserves "
+           f"{room} at the worst case ({worst} each) and probes, which the run reserves "
            f"(D-725). From {where}. "
            + ("Typed: kept until Use the quote's figure." if typed else "Follows the quote until typed."))
     if caps.resumed_units:

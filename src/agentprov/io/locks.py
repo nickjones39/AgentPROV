@@ -141,8 +141,9 @@ class ResourceUse:
         self._path = self.directory / f"{self._pid}@{_safe_host(self._host)}.json"
         self._held = False
 
-    def live_users(self) -> list[LockInfo]:
-        """The registrations of live processes, sorted by pid (dead same-host ones are removed on the way)."""
+    def live_users(self, *, prune: bool = True) -> list[LockInfo]:
+        """The registrations of live processes, sorted by pid (dead same-host ones are removed on the way, unless
+        ``prune`` is false: a read that must write nothing, such as ``backends rebuild-stale --dry-run``)."""
         users: list[LockInfo] = []
         try:
             names = sorted(os.listdir(self.directory))
@@ -159,8 +160,9 @@ class ResourceUse:
             if info is None:
                 users.append(LockInfo(-1, "?", "", "?"))  # unreadable: counted as live, never deleted on a guess
             elif info.host == self._host and not pid_alive(info.pid):
-                with contextlib.suppress(FileNotFoundError):
-                    path.unlink()
+                if prune:
+                    with contextlib.suppress(FileNotFoundError):
+                        path.unlink()
             else:
                 users.append(info)
         return sorted(users, key=lambda u: u.pid)

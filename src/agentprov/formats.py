@@ -133,7 +133,11 @@ AS_BUILT_FORMATS: Final = frozenset(
         "agentprov-update-install/0.1",  # agentprov update install --format json (cli/update.py) (D-1065)
         "agentprov-update-plan/0.1",  # the install plan the Windows helper applies (update/install.py) (D-1065)
         "agentprov-update-installed/0.1",  # the record of an applied install, for rollback (update/install.py) (D-1065)
+        "agentprov-update-staged-package/0.1",  # the staged, verified wheels of a package install (update/package.py) (D-1130)
+        "agentprov-update-package-installed/0.1",  # the record of a package install's upgrade (cli/update.py) (D-1130)
+        "agentprov-launcher/0.1",  # agentprov launcher install|remove|status --format json (cli/launcher.py) (D-1130)
         "agentprov-defence-registry/0.1",  # the live defence registry (backends/shared/.../defences.toml; D-670)
+        "agentprov-backends-rebuild/0.1",  # agentprov backends rebuild-stale --format json (cli/live/stale.py) (D-1130)
     }
 )
 #: Reserved ids that are deliberately **not** supported in v0.1.

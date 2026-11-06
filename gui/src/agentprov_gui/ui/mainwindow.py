@@ -47,6 +47,7 @@ from agentprov_gui.ui.dialogs import AboutDialog, SettingsDialog
 from agentprov_gui.ui.execution import render_values
 from agentprov_gui.ui.forms import StatusBadge
 from agentprov_gui.ui.safe import (
+    set_action_tooltip,
     set_control_tooltip,
     set_list_item_tooltip,
     set_tab_tooltip,
@@ -79,9 +80,10 @@ class MainWindow(QMainWindow):
                  jobs: bool = True) -> None:
         super().__init__()
         self.settings = settings
-        from agentprov_gui.jobs.manager import set_installed_program
+        from agentprov_gui.jobs.manager import set_cli_choice, set_installed_program
 
         set_installed_program(settings.cli_program)  # the CLI without a checkout (D-1030)
+        set_cli_choice(settings.cli_choice)  # or always the bundle's own (D-1130)
         self._base_point_size: float | None = None
         self.setWindowTitle("AgentPROV")
         self.setAccessibleName("AgentPROV main window")
@@ -506,6 +508,19 @@ class MainWindow(QMainWindow):
         help_menu.addAction(self._action("About AgentPROV", self._about, None, QAction.MenuRole.AboutRole))
         help_menu.addAction(self._action("Check for Updates…", lambda: self._about(check=True), None,
                                          QAction.MenuRole.ApplicationSpecificRole))
+        # D-1130: the bundle's own agentprov in a Terminal (macOS: the application menu, beside Check for Updates…)
+        from agentprov_gui.ui import clitool
+
+        for key, (name, slot, tip) in {"installCli": (clitool.INSTALL_NAME, lambda: clitool.install(self),
+                                                      clitool.INSTALL_TIP),
+                                       "uninstallCli": (clitool.UNINSTALL_NAME, lambda: clitool.uninstall(self),
+                                                        clitool.UNINSTALL_TIP)}.items():
+            act = self._action(name, slot, None, QAction.MenuRole.ApplicationSpecificRole)
+            set_action_tooltip(act, tip)
+            act.setVisible(clitool.available())  # a checkout's or a package's app has no bundled agentprov
+            self.action_map[key] = act
+            help_menu.addAction(act)
+        help_menu.setToolTipsVisible(True)
         help_menu.addAction(self._action("AgentPROV Help", partial(self.go, "Docs"), "Ctrl+?"))
         help_menu.addAction(self._action("Ask the Assistant", self.open_assistant))
         help_menu.addAction(self._action("Keyboard Shortcuts", self._shortcuts))
@@ -653,9 +668,10 @@ class MainWindow(QMainWindow):
             self.viewer.set_show_content_limit(self.settings.content_limit)
             self.viewer.set_exact_palette(self.settings.graph_palette == "exact")
             self.viewer.refresh()
-            from agentprov_gui.jobs.manager import CliLocator, set_installed_program
+            from agentprov_gui.jobs.manager import CliLocator, set_cli_choice, set_installed_program
 
             set_installed_program(self.settings.cli_program)
+            set_cli_choice(self.settings.cli_choice)
             if self.runs is not None:
                 self._apply_job_settings()
             self.docs.set_checkout(self.settings.checkout)
@@ -684,7 +700,7 @@ class MainWindow(QMainWindow):
         from agentprov_gui import updates as U
         from agentprov_gui.ui.updates import UpdateController
 
-        def run(argv: list[str], timeout: float) -> tuple[int, bytes, bytes]:
+        def run(argv: list[str], timeout: float | None) -> tuple[int, bytes, bytes]:
             if self.runs is not None:
                 return self.manager.call(argv, timeout=timeout)
             from agentprov_gui.jobs.manager import CliLocator
@@ -692,8 +708,44 @@ class MainWindow(QMainWindow):
 
             return call(CliLocator.for_checkout(self.settings.checkout), argv, timeout=timeout)
 
-        self.updates = UpdateController(run, bundle=U.app_bundle(), gui=U.app_version(), parent=self)
+        def current() -> Any:
+            from agentprov_gui.jobs.manager import CliLocator
+
+            return self.manager.cli if self.runs is not None else CliLocator.for_checkout(self.settings.checkout)
+
+        def program() -> str:
+            return str(current().kind)
+
+        def identity() -> str:  # D-1130 review: the CLI the confirmation described is the one that installs
+            cli = current()
+            return repr((tuple(cli.program), tuple(cli.python), bool(cli.bundled)))
+
+        self.updates = UpdateController(run, bundle=U.app_bundle(), gui=U.app_version(), program=program,
+                                        identity=identity, parent=self)
         self.updates.notice.connect(self._update_notice)
+        if self.runs is not None:  # D-1130: once the program has updated, the stale backend environments are rebuilt
+            self._rebuild_after_update()
+
+    def _rebuild_after_update(self) -> None:
+        """The update's last step (D-1130): its confirmation says the rebuild follows when the program part is planned
+        and the CLI runs from a checkout; after the program part has installed, ``agentprov backends rebuild-stale
+        --allow-network`` starts as a job (on the Runs page), or the note says why not."""
+        from agentprov_gui import updates as U
+        from agentprov_gui.jobs import rebuild
+
+        def notify(note: str) -> None:
+            self.updates.result = [*self.updates.result, note]
+            self.updates.changed.emit()
+            self.statusBar().showMessage(note, 15_000)
+            self.runs.refresh()
+
+        def followup(plan: U.UpdatePlan) -> str | None:
+            planned = any(part.name == rebuild.PROGRAM_PART for part in plan.parts)
+            return rebuild.CONFIRM_LINE if planned and self.manager.cli.checkout is not None else None
+
+        self.updates.after_update = rebuild.after_update(self.manager, notify)
+        self.updates.followup = followup
+        self.updates.prepare = rebuild.prepare
 
     def start_update_check(self) -> None:
         """The daily update check at start-up (``update check --if-stale`` unless ``update.auto_check`` is false); it

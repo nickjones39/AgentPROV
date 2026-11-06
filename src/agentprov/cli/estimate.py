@@ -281,10 +281,19 @@ def run_estimate(ctx: Context) -> CommandResult:
            "planned_with": "model" if keyed or not real else "stand-in", "jobs": jobs, "plan": plan.to_json(),
            "stats_corpora": read, **body, "quote": quote(e, stats.basis(), price, jobs)}
     margin = settings.get("estimate.caps_margin_pct")
+    capped_cost = None
+    if real and price is not None and e.cost_p90 is not None:
+        # D-1090: the run counts every input-side token at --price-in (Budget.charge), so the cost cap's base is the
+        # quote's p90 tokens priced the same way, never the cached-input and cache-write discounts of the quote itself
+        at_caps = cap_price(price, args.price_in, args.price_out)
+        capped_cost = estimate(plan.cells, repeats=plan.repeats, attempts_due=plan.attempts_due, jobs=jobs,
+                               price=at_caps, stats_for=stats_for, preflight=real, today=today, judged=bool(judges),
+                               judge_price=at_caps if judges else None).cost_p90
     doc["quote"]["caps"] = suggested_caps(
         e, plan, price, real=real, jobs=jobs,
         margin_pct=CAPS_MARGIN_PCT if margin is None else Decimal(str(margin)),
-        margin_from="default" if margin is None else "setting", price_in=args.price_in, price_out=args.price_out)
+        margin_from="default" if margin is None else "setting", price_in=args.price_in, price_out=args.price_out,
+        cost_at_cap_prices=capped_cost)
     if plan.inspect is not None:
         doc["plan"]["inspect"]["calls_bound_per_sample"] = _sample_call_bound(plan.backend, plan.inspect)
         doc["judge_price"] = None if judge_price is None else judge_price.to_json()
@@ -342,14 +351,36 @@ CAPS_CALLS_BASIS: Final = "calls_p90"
 CAPS_COST_BASIS: Final = "usd_p90"
 
 
+def cap_prices(price: Any, price_in: float | None, price_out: float | None) -> tuple[Decimal, Decimal]:
+    """The cap prices (USD per million tokens): ``--price-in`` and ``--price-out`` when given, else the price table's,
+    the input side the highest of input, cached input and cache write (the run's upper-bound rule, D-725)."""
+    side = max(v for v in (price.input, price.cached_input, price.cache_write) if v is not None)
+    return (Decimal(str(price_in)) if price_in is not None else side,
+            Decimal(str(price_out)) if price_out is not None else price.output)
+
+
+def cap_price(price: Any, price_in: float | None, price_out: float | None) -> Any:
+    """``price`` as the run's caps count spend (``Budget.charge``): every input-side token, cached or written to a
+    cache, at the cap input price, every output token at the cap output price, no discount."""
+    from dataclasses import replace
+
+    p_in, p_out = cap_prices(price, price_in, price_out)
+    return replace(price, input=p_in, output=p_out, cached_input=None, cache_write=None)
+
+
 def suggested_caps(e: Any, plan: Any, price: Any, *, real: bool, jobs: int, margin_pct: Decimal,
-                   margin_from: str, price_in: float | None, price_out: float | None) -> dict[str, Any]:
+                   margin_from: str, price_in: float | None, price_out: float | None,
+                   cost_at_cap_prices: Decimal | None) -> dict[str, Any]:
     """D-1090: the D-725 caps that let this run finish if it spends what the quote says, and that it can never spend
     more than. Each cap is the quote's p90 figure (the sum of per-cell 90th percentiles) times ``1 + margin``, plus
     room for what the campaign reserves before it starts a cell: the cells that run at once (``min(jobs, cells)``)
-    and one preflight probe, each at its worst case (``plan.cell_bound``, the campaign's own bound), priced at the cap
-    prices. Calls are rounded up to a whole call and USD up to the cent. ``available`` is false, with ``reason``, when
-    there is nothing to suggest: no model is billed, no price, only default assumptions, or no cell bound."""
+    and every preflight probe attempt (``PROBE_ATTEMPTS``), each at its worst case (``plan.cell_bound``, the
+    campaign's own bound), priced at the cap prices. The cost's p90 is ``cost_at_cap_prices``: the quote's tokens
+    priced as the run counts them (:func:`cap_price`), so a cache-write price or a cached-input discount never leaves
+    the cap below what the run counts. Calls are rounded up to a whole call and USD up to the cent. ``available`` is
+    false, with ``reason``, when there is nothing to suggest: no model is billed, no price, only default assumptions,
+    or no cell bound."""
+    from agentprov.cli.run import PROBE_ATTEMPTS
     from agentprov.estimate.prices import plain
 
     out: dict[str, Any] = {"available": False, "reason": None, "max_calls": None, "max_cost_usd": None,
@@ -360,7 +391,7 @@ def suggested_caps(e: Any, plan: Any, price: Any, *, real: bool, jobs: int, marg
     bound = plan.cell_bound
     if not real:
         out["reason"] = "a scripted run is not billed and takes no caps"
-    elif price is None or e.cost_p90 is None:
+    elif price is None or e.cost_p90 is None or cost_at_cap_prices is None:
         out["reason"] = "the model has no price at this endpoint (set one with agentprov prices set)"
     elif e.units == 0:
         out["reason"] = "no cell run is left to do"
@@ -370,23 +401,22 @@ def suggested_caps(e: Any, plan: Any, price: Any, *, real: bool, jobs: int, marg
     elif bound is None or bound.refused is not None:
         out["reason"] = ("the run's per-cell bound is unknown" if bound is None
                          else f"the run's per-cell bound is unknown: {bound.refused}")
-    if out["reason"] is not None:
+    if out["reason"] is not None or cost_at_cap_prices is None:  # (the second only narrows its type)
         return out
-    side = max(v for v in (price.input, price.cached_input, price.cache_write) if v is not None)
-    p_in = Decimal(str(price_in)) if price_in is not None else side
-    p_out = Decimal(str(price_out)) if price_out is not None else price.output
+    p_in, p_out = cap_prices(price, price_in, price_out)
     call_usd = (bound.call_tokens_in * p_in + bound.call_tokens_out * p_out) / Decimal(1_000_000)
     factor = 1 + margin_pct / 100
     reserved = min(max(1, jobs), e.units)
-    calls = Decimal(str(e.calls_p90)) * factor + reserved * bound.calls + bound.step_calls
-    usd = e.cost_p90 * factor + (reserved * bound.calls + bound.step_calls) * call_usd
+    probe_calls = PROBE_ATTEMPTS * bound.step_calls  # an unconfirmed probe is sent again, each charged step_calls
+    calls = Decimal(str(e.calls_p90)) * factor + reserved * bound.calls + probe_calls
+    usd = cost_at_cap_prices * factor + (reserved * bound.calls + probe_calls) * call_usd
     cent = Decimal("0.01")
     out.update(available=True, max_calls=int(calls.to_integral_value(rounding=ROUND_CEILING)),
                max_cost_usd=plain(usd.quantize(cent, rounding=ROUND_CEILING)), price_in=plain(p_in),
                price_out=plain(p_out), reserved_cells=reserved, cell_calls=bound.calls,
                cell_usd=plain((bound.calls * call_usd).quantize(cent, rounding=ROUND_CEILING)),
-               probe_calls=bound.step_calls,
-               probe_usd=plain((bound.step_calls * call_usd).quantize(cent, rounding=ROUND_CEILING)))
+               probe_calls=probe_calls,
+               probe_usd=plain((probe_calls * call_usd).quantize(cent, rounding=ROUND_CEILING)))
     return out
 
 
@@ -397,8 +427,9 @@ def caps_line(c: dict[str, Any]) -> str:
     return (f"Suggested caps: --max-calls {c['max_calls']} --max-cost-usd {c['max_cost_usd']} --price-in "
             f"{c['price_in']} --price-out {c['price_out']}: the p90 calls and the upper cost (sum of per-cell 90th "
             f"percentiles) plus {c['margin_pct']} %, plus room for {c['reserved_cells']} cell(s) at their worst case "
-            f"({c['cell_calls']} billed calls, ${c['cell_usd']} each) and one preflight probe, which the run reserves "
-            "before it starts a cell (D-725)."
+            f"({c['cell_calls']} billed calls, ${c['cell_usd']} each) and the preflight probe's attempts "
+            f"({c['probe_calls']} billed calls, ${c['probe_usd']}), which the run reserves before it starts a cell "
+            "(D-725)."
             + ("" if not c["resumed_units"] else f" The corpus already holds {c['resumed_units']:,} settled unit(s): "
                "the caps count its spend so far too (live.caps), so add that."))
 

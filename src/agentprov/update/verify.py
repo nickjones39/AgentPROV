@@ -13,6 +13,9 @@ Linux distributions and Windows 10 and later, so no library is added. The rule:
   (exit 3);
 * the package lists no key: the files are checked against ``SHA256SUMS`` alone, which came over https from the same
   release; the result says ``"verification": "sha256"`` so nobody reads it as a signature.
+* the file is missing or unreadable (D-1130 review): refused (``update.verify.keys``, exit 3). "No key listed" is a
+  file without key lines, never a file that is not there, so a package or bundle that lost the file never falls back to
+  ``SHA256SUMS`` alone.
 """
 
 from __future__ import annotations
@@ -91,7 +94,9 @@ def load_signers(path: Path = ALLOWED_SIGNERS) -> list[str]:
         with open(path, "rb") as fh:
             data = fh.read(SIGNERS_MAX_BYTES + 1)
     except OSError:
-        return []
+        raise UpdateError("the package's allowed_signers file (the release keys) is missing or unreadable, so no "
+                          "release can be verified: refused; install agentprov or the app again",
+                          code="update.verify.keys", exit_code=3) from None
     if len(data) > SIGNERS_MAX_BYTES or b"PRIVATE KEY" in data:
         raise UpdateError("the package's allowed_signers file is not a list of public keys", code="update.verify.keys")
     try:
