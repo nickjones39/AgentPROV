@@ -161,10 +161,11 @@ def test_the_app_must_be_the_bundle(box: dict[str, Path], capsys: Any, tmp_path:
     wrong.chmod(0o755)
     assert cli(capsys, "install", "--app", str(wrong))[0] == 2
     assert cli(capsys, "install", "--app", str(tmp_path / "nope" / L.app_name()))[0] == 2
-    # a launcher named AgentPROV would run itself
+    # a launcher named AgentPROV would run itself; written as bytes, as install writes it (on Windows write_text would
+    # turn the .cmd text's CRLF into CR CR LF, and the marker would no longer be the second line)
     fake = tmp_path / "loop" / L.app_name()
     fake.parent.mkdir()
-    fake.write_text(L.render(str(fake)), encoding="utf-8")
+    fake.write_bytes(L.render(str(fake)).encode("utf-8"))
     fake.chmod(0o755)
     code, _, err = cli(capsys, "install", "--app", str(fake))
     assert code == 2 and "run itself" in err
