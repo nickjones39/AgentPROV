@@ -149,10 +149,15 @@ def test_the_quote_says_what_it_rests_on(cli: Callable[..., Run], home: Path) ->
             "cache discounts are not assumed).") in text.err
 
 
-def test_the_quote_suggests_caps_with_room_for_the_reserved_cells(cli: Callable[..., Run], home: Path) -> None:
+def test_the_quote_suggests_caps_with_room_for_the_reserved_cells(cli: Callable[..., Run], home: Path,
+                                                                  monkeypatch: pytest.MonkeyPatch) -> None:
     """D-1090: ``quote.caps`` from the dry plan's own cell bound (the campaign's), the margin setting and the price;
-    the text form prints the suggestion; a scripted estimate suggests none."""
+    the text form prints the suggestion; a scripted estimate suggests none. ``--jobs 4`` must not meet the host bound
+    (usable memory / 2 GiB per worker): a 7 GiB macos-latest runner allows 2, and the refusal left stdout empty."""
     from agentprov import settings
+    from agentprov.cli import run as run_cli
+
+    monkeypatch.setattr(run_cli, "host_max_jobs", lambda profile: 8)
 
     doc = json.loads(_estimate(cli, "--model", "openrouter", "--model-id", "openai/gpt-4o").out)
     q, c = doc["quote"], doc["quote"]["caps"]
