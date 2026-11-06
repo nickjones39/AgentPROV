@@ -109,6 +109,39 @@ def test_an_unknown_member_named_with_a_dollar_is_kept_literal() -> None:
 
 
 @pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
+@pytest.mark.parametrize("where", ["tool turn", "tool call"])
+@pytest.mark.parametrize("placeholder", ["", "none", "-"])
+def test_a_deny_listed_tool_name_is_kept_and_declared_ambiguous(where: str, placeholder: str) -> None:
+    """Regen-batch row 190 (the v0.2.1 release CI fuzz run 42183082509): a deletion emptied a tool turn's "function",
+    and the mapper wrote "" as the tool execution's /name, which the AER writer refused (aer.sentinel, AER-V17). As in
+    the agentdojo mappers (UC-12), the verbatim name is kept and declared unk ambiguous, in a tool turn's execution and
+    in an assistant tool call's part, and the transcript/v1 view reads it back."""
+    import json as _json
+
+    from agentprov.adapters.runner import aer_bytes, map_artefact
+    from agentprov.views.transcript_v1 import render
+
+    doc = _json.loads(next(s for s in ADPROV if b'"role": "tool"' in s))
+    if where == "tool turn":
+        turn = next(t for t in doc["turns"] if t.get("role") == "tool")
+    else:
+        turn = next(c for t in doc["turns"] if t.get("role") == "assistant" for c in t.get("tool_calls") or ())
+    turn["function"] = placeholder
+    blob = _json.dumps(doc).encode()
+    origin = Origin.corpus("AgentDojo-PROV", "2.3", "corpus-prov/x.transcript.json", producer_commit="5" * 40)
+    result, _unit = map_artefact(blob, origin, profile_id="adprov-v1")
+    assert result.error_code != "adapter.defect"
+    aer_bytes(result)  # the writer accepts what the mapper yields
+    marked = [(r["k"], p) for r in result.records if isinstance(r, dict)
+              for p, why in (r.get("unk") or {}).items() if p.endswith("name") and why == "ambiguous"]
+    assert marked and all(k == ("tool_execution" if where == "tool turn" else "message") for k, _ in marked), marked
+    view = render([r for r in result.records if r.get("k") != "seal"])
+    names = [t.get("function") for t in view["turns"] if t.get("role") == "tool"] if where == "tool turn" else \
+        [c.get("function") for t in view["turns"] if t.get("role") == "assistant" for c in t.get("tool_calls") or ()]
+    assert placeholder in names
+
+
+@pytest.mark.skipif(not ADPROV, reason="the golden transcript/v1 fixtures are not present")
 @pytest.mark.parametrize("key", ["agentdojo_version", "benchmark_version", "model_id", "suite", "user_task_id",
                                  "attack_type", "injection_task_id"])
 @pytest.mark.parametrize("placeholder", ["", "unknown", "-"])

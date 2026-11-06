@@ -164,6 +164,27 @@ def _retype(record: dict[str, Any], pointer: str) -> str:
     return f"/parts/{k}/value"
 
 
+def _ambiguous_tool_names(records: Sequence[dict[str, Any]]) -> None:
+    """Regen-batch row 190 (a v0.2.1 release CI fuzz finding): a tool name on the C.7.3 deny-list (an empty
+    ``function``, which AgentDojo answers with "Empty function name provided", or ``none``, ``-``, ...) keeps its
+    verbatim value, declared ``unk ambiguous`` (C.7.2(2)), as the agentdojo (UC-12), capture and Inspect (BF-22) mappers
+    do, instead of failing AER-V17 (``aer.sentinel``) at the writer and collapsing the transcript into an
+    ``adapter_defect`` AER. The test is the validator's own (``value.lower()`` in the deny-list)."""
+    for rec in records:
+        pointers: list[str] = []
+        if rec.get("k") == "tool_execution" and isinstance(rec.get("name"), str) and rec["name"].lower() in _PLACEHOLDERS:
+            pointers.append("/name")
+        if rec.get("k") == "message":
+            for k, part in enumerate(rec.get("parts") or ()):
+                if (isinstance(part, dict) and part.get("t") in ("tool_call", "tool_result")
+                        and isinstance(part.get("name"), str) and part["name"].lower() in _PLACEHOLDERS):
+                    pointers.append(f"/parts/{k}/name")
+        if pointers:
+            unk = rec.setdefault("unk", {})
+            for pointer in pointers:
+                unk.setdefault(pointer, "ambiguous")
+
+
 def _tool_status(error: object) -> str:
     """``agentdojo.tool_status_from_error@1``."""
     if error is None:
@@ -346,6 +367,7 @@ class _Build:
         self._judgements(body)
         header = self._header(attempts)
         records = [header, *(record.done() if isinstance(record, _Rec) else record for record in body)]
+        _ambiguous_tool_names(records)  # regen-batch row 190: as UC-12 in the agentdojo, capture and Inspect mappers
         surrogates(self, records, "adprov")
         self._not_inlined(records)
         for record in records:  # C.6.5 rule 1: no field stronger than an I rule (a twin) that justifies it
